@@ -50,7 +50,10 @@ class TestPubSubTopicCreateOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_failifexists(self, mock_hook):
         operator = PubSubCreateTopicOperator(
-            task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=True
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=True,
         )
 
         context = mock.MagicMock()
@@ -72,7 +75,10 @@ class TestPubSubTopicCreateOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_succeedifexists(self, mock_hook):
         operator = PubSubCreateTopicOperator(
-            task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, fail_if_exists=False
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            fail_if_exists=False,
         )
 
         context = mock.MagicMock()
@@ -95,7 +101,9 @@ class TestPubSubTopicCreateOperator:
 class TestPubSubTopicDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
-        operator = PubSubDeleteTopicOperator(task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC)
+        operator = PubSubDeleteTopicOperator(
+            task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC
+        )
 
         operator.execute(None)
         mock_hook.return_value.delete_topic.assert_called_once_with(
@@ -112,7 +120,10 @@ class TestPubSubSubscriptionCreateOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubCreateSubscriptionOperator(
-            task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
         )
         mock_hook.return_value.create_subscription.return_value = TEST_SUBSCRIPTION
         context = mock.MagicMock()
@@ -331,7 +342,10 @@ class TestPubSubPullOperator:
 
         response = operator.execute({})
         mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            max_messages=5,
+            return_immediately=True,
         )
 
         messages_callback.assert_called_once()

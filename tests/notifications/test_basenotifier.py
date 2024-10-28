@@ -80,7 +80,9 @@ class TestBaseNotifier:
         notifier.notify = MagicMock()
         context: Context = {"dag": dag}
         notifier(context)
-        notifier.notify.assert_called_once_with({"dag": dag, "message": "Hello {{ dag.dag_id }}"})
+        notifier.notify.assert_called_once_with(
+            {"dag": dag, "message": "Hello {{ dag.dag_id }}"}
+        )
         assert notifier.message == "Hello test_render_message_with_template_works"
 
     def test_notifier_call_with_prepared_context(self, dag_maker, caplog):

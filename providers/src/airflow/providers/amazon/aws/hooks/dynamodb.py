@@ -49,7 +49,11 @@ class DynamoDBHook(AwsBaseHook):
     """
 
     def __init__(
-        self, *args, table_keys: list | None = None, table_name: str | None = None, **kwargs
+        self,
+        *args,
+        table_keys: list | None = None,
+        table_name: str | None = None,
+        **kwargs,
     ) -> None:
         self.table_keys = table_keys
         self.table_name = table_name
@@ -80,7 +84,9 @@ class DynamoDBHook(AwsBaseHook):
                     batch.put_item(Item=item)
             return True
         except Exception as general_error:
-            raise AirflowException(f"Failed to insert items in dynamodb, error: {general_error}")
+            raise AirflowException(
+                f"Failed to insert items in dynamodb, error: {general_error}"
+            )
 
     def get_import_status(self, import_arn: str) -> tuple[str, str | None, str | None]:
         """

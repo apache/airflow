@@ -37,7 +37,10 @@ from openlineage.client.facet_v2 import (
 )
 from openlineage.client.uuid import generate_static_uuid
 
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
+from airflow.providers.openlineage import (
+    __version__ as OPENLINEAGE_PROVIDER_VERSION,
+    conf,
+)
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
     get_airflow_debug_facet,
@@ -60,14 +63,22 @@ set_producer(_PRODUCER)
 # https://openlineage.io/docs/spec/facets/job-facets/job-type
 # They must be set after the `set_producer(_PRODUCER)`
 # otherwise the `JobTypeJobFacet._producer` will be set with the default value
-_JOB_TYPE_DAG = job_type_job.JobTypeJobFacet(jobType="DAG", integration="AIRFLOW", processingType="BATCH")
-_JOB_TYPE_TASK = job_type_job.JobTypeJobFacet(jobType="TASK", integration="AIRFLOW", processingType="BATCH")
+_JOB_TYPE_DAG = job_type_job.JobTypeJobFacet(
+    jobType="DAG", integration="AIRFLOW", processingType="BATCH"
+)
+_JOB_TYPE_TASK = job_type_job.JobTypeJobFacet(
+    jobType="TASK", integration="AIRFLOW", processingType="BATCH"
+)
 
 
 class OpenLineageAdapter(LoggingMixin):
     """Translate Airflow metadata to OpenLineage events instead of creating them from Airflow code."""
 
-    def __init__(self, client: OpenLineageClient | None = None, secrets_masker: SecretsMasker | None = None):
+    def __init__(
+        self,
+        client: OpenLineageClient | None = None,
+        secrets_masker: SecretsMasker | None = None,
+    ):
         super().__init__()
         self._client = client
         if not secrets_masker:
@@ -100,7 +111,9 @@ class OpenLineageAdapter(LoggingMixin):
             config = self._read_yaml_config(openlineage_config_path)
             if config:
                 return config.get("transport", None)
-            self.log.debug("OpenLineage config file is empty: `%s`", openlineage_config_path)
+            self.log.debug(
+                "OpenLineage config file is empty: `%s`", openlineage_config_path
+            )
         else:
             self.log.debug("OpenLineage config_path configuration not found.")
 
@@ -154,10 +167,14 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             with ExitStack() as stack:
-                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                stack.enter_context(
+                    Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}")
+                )
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
                 self._client.emit(redacted_event)
-                self.log.debug("Successfully emitted OpenLineage event of id %s", event.run.runId)
+                self.log.debug(
+                    "Successfully emitted OpenLineage event of id %s", event.run.runId
+                )
         except Exception as e:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
@@ -270,7 +287,9 @@ class OpenLineageAdapter(LoggingMixin):
                 parent_run_id=parent_run_id,
                 run_facets=run_facets,
             ),
-            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
+            job=self._build_job(
+                job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets
+            ),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -311,7 +330,9 @@ class OpenLineageAdapter(LoggingMixin):
             if isinstance(error, BaseException) and error.__traceback__:
                 import traceback
 
-                stack_trace = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+                stack_trace = "".join(
+                    traceback.format_exception(type(error), error, error.__traceback__)
+                )
             run_facets["errorMessage"] = error_message_run.ErrorMessageRunFacet(
                 message=str(error), programmingLanguage="python", stackTrace=stack_trace
             )
@@ -326,7 +347,9 @@ class OpenLineageAdapter(LoggingMixin):
                 parent_run_id=parent_run_id,
                 run_facets=run_facets,
             ),
-            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
+            job=self._build_job(
+                job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets
+            ),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -375,7 +398,9 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG started event: \n %s", traceback.format_exc())
+            self.log.warning(
+                "Failed to emit DAG started event: \n %s", traceback.format_exc()
+            )
 
     def dag_success(
         self,
@@ -397,7 +422,9 @@ class OpenLineageAdapter(LoggingMixin):
                         logical_date=logical_date,
                     ),
                     facets={
-                        **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **get_airflow_state_run_facet(
+                            dag_id, run_id, task_ids, dag_run_state
+                        ),
                         **get_airflow_debug_facet(),
                     },
                 ),
@@ -410,7 +437,9 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG success event: \n %s", traceback.format_exc())
+            self.log.warning(
+                "Failed to emit DAG success event: \n %s", traceback.format_exc()
+            )
 
     def dag_failed(
         self,
@@ -436,7 +465,9 @@ class OpenLineageAdapter(LoggingMixin):
                         "errorMessage": error_message_run.ErrorMessageRunFacet(
                             message=msg, programmingLanguage="python"
                         ),
-                        **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **get_airflow_state_run_facet(
+                            dag_id, run_id, task_ids, dag_run_state
+                        ),
                         **get_airflow_debug_facet(),
                     },
                 ),
@@ -449,7 +480,9 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG failed event: \n %s", traceback.format_exc())
+            self.log.warning(
+                "Failed to emit DAG failed event: \n %s", traceback.format_exc()
+            )
 
     @staticmethod
     def _build_run(
@@ -464,12 +497,18 @@ class OpenLineageAdapter(LoggingMixin):
         facets: dict[str, RunFacet] = {}
         if nominal_start_time:
             facets.update(
-                {"nominalTime": nominal_time_run.NominalTimeRunFacet(nominal_start_time, nominal_end_time)}
+                {
+                    "nominalTime": nominal_time_run.NominalTimeRunFacet(
+                        nominal_start_time, nominal_end_time
+                    )
+                }
             )
         if parent_run_id:
             parent_run_facet = parent_run.ParentRunFacet(
                 run=parent_run.Run(runId=parent_run_id),
-                job=parent_run.Job(namespace=conf.namespace(), name=parent_job_name or job_name),
+                job=parent_run.Job(
+                    namespace=conf.namespace(), name=parent_job_name or job_name
+                ),
             )
             facets.update({"parent": parent_run_facet})
 
@@ -491,7 +530,11 @@ class OpenLineageAdapter(LoggingMixin):
 
         if job_description:
             facets.update(
-                {"documentation": documentation_job.DocumentationJobFacet(description=job_description)}
+                {
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description=job_description
+                    )
+                }
             )
         if code_location:
             facets.update(

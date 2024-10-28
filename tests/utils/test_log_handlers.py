@@ -95,13 +95,19 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dag = DAG(
+            "dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
             **triggered_by_kwargs,
         )
         task = PythonOperator(
@@ -115,7 +121,8 @@ class TestFileTaskLogHandler:
         ti.log.disabled = False
 
         file_handler = next(
-            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER),
+            None,
         )
         assert file_handler is not None
 
@@ -150,13 +157,19 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dag = DAG(
+            "dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
             **triggered_by_kwargs,
         )
         task = PythonOperator(
@@ -170,7 +183,8 @@ class TestFileTaskLogHandler:
         ti.log.disabled = False
 
         file_handler = next(
-            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER),
+            None,
         )
         assert file_handler is not None
 
@@ -207,18 +221,24 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
+        dag = DAG(
+            "dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE
+        )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
             python_callable=task_callable,
             dag=dag,
         )
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
             **triggered_by_kwargs,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
@@ -230,7 +250,8 @@ class TestFileTaskLogHandler:
         ti.log.disabled = False
 
         file_handler = next(
-            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER),
+            None,
         )
         assert file_handler is not None
 
@@ -268,20 +289,28 @@ class TestFileTaskLogHandler:
             pass
 
         max_bytes_size = 60000
-        update_conf = {"handlers": {"task": {"max_bytes": max_bytes_size, "backup_count": 1}}}
+        update_conf = {
+            "handlers": {"task": {"max_bytes": max_bytes_size, "backup_count": 1}}
+        }
         reset_log_config(update_conf)
-        dag = DAG("dag_for_testing_file_task_handler_rotate_size_limit", start_date=DEFAULT_DATE)
+        dag = DAG(
+            "dag_for_testing_file_task_handler_rotate_size_limit", start_date=DEFAULT_DATE
+        )
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler_rotate_size_limit",
             python_callable=task_callable,
             dag=dag,
         )
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
             **triggered_by_kwargs,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
@@ -293,7 +322,8 @@ class TestFileTaskLogHandler:
         ti.log.disabled = False
 
         file_handler = next(
-            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+            (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER),
+            None,
         )
         assert file_handler is not None
 
@@ -415,16 +445,28 @@ class TestFileTaskLogHandler:
             fth = FileTaskHandler("")
             if remote_logs:
                 fth._read_remote_logs = mock.Mock()
-                fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
+                fth._read_remote_logs.return_value = (
+                    ["found remote logs"],
+                    ["remote\nlog\ncontent"],
+                )
             if local_logs:
                 fth._read_from_local = mock.Mock()
-                fth._read_from_local.return_value = ["found local logs"], ["local\nlog\ncontent"]
+                fth._read_from_local.return_value = (
+                    ["found local logs"],
+                    ["local\nlog\ncontent"],
+                )
             fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
+            fth._read_from_logs_server.return_value = (
+                ["this message"],
+                ["this\nlog\ncontent"],
+            )
             actual = fth._read(ti=ti, try_number=1)
         if served_logs_checked:
             fth._read_from_logs_server.assert_called_once()
-            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+            assert actual == (
+                "*** this message\nthis\nlog\ncontent",
+                {"end_of_log": True, "log_pos": 16},
+            )
         else:
             fth._read_from_logs_server.assert_not_called()
             assert actual[0]
@@ -433,14 +475,27 @@ class TestFileTaskLogHandler:
     def test_add_triggerer_suffix(self):
         sample = "any/path/to/thing.txt"
         assert FileTaskHandler.add_triggerer_suffix(sample) == sample + ".trigger"
-        assert FileTaskHandler.add_triggerer_suffix(sample, job_id=None) == sample + ".trigger"
-        assert FileTaskHandler.add_triggerer_suffix(sample, job_id=123) == sample + ".trigger.123.log"
-        assert FileTaskHandler.add_triggerer_suffix(sample, job_id="123") == sample + ".trigger.123.log"
+        assert (
+            FileTaskHandler.add_triggerer_suffix(sample, job_id=None)
+            == sample + ".trigger"
+        )
+        assert (
+            FileTaskHandler.add_triggerer_suffix(sample, job_id=123)
+            == sample + ".trigger.123.log"
+        )
+        assert (
+            FileTaskHandler.add_triggerer_suffix(sample, job_id="123")
+            == sample + ".trigger.123.log"
+        )
 
     @pytest.mark.parametrize("is_a_trigger", [True, False])
-    def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session, tmp_path):
+    def test_set_context_trigger(
+        self, create_dummy_dag, dag_maker, is_a_trigger, session, tmp_path
+    ):
         create_dummy_dag(dag_id="test_fth", task_id="dummy")
-        (ti,) = dag_maker.create_dagrun(execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
+        (ti,) = dag_maker.create_dagrun(
+            execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")
+        ).task_instances
         assert isinstance(ti, TaskInstance)
         if is_a_trigger:
             ti.is_trigger_log_context = True
@@ -478,7 +533,9 @@ class TestFilenameRendering:
         assert expected_filename == rendered_filename
 
     def test_jinja_rendering(self, create_log_template, create_task_instance):
-        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
+        create_log_template(
+            "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
+        )
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
@@ -520,7 +577,9 @@ class TestLogUrl:
         job.id = 123
         trigger.triggerer_job = job
         ti.trigger = trigger
-        actual = FileTaskHandler("")._get_log_retrieval_url(ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER)
+        actual = FileTaskHandler("")._get_log_retrieval_url(
+            ti, "DYNAMIC_PATH", log_type=LogType.TRIGGER
+        )
         hostname = get_hostname()
         assert actual == (
             f"http://{hostname}:8794/log/DYNAMIC_PATH.trigger.123.log",
@@ -701,7 +760,9 @@ def test_interleave_logs_correct_ordering():
     [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
     """
 
-    assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
+    assert sample_with_dupe == "\n".join(
+        _interleave_logs(sample_with_dupe, "", sample_with_dupe)
+    )
 
 
 def test_interleave_logs_correct_dedupe():
@@ -716,7 +777,9 @@ def test_interleave_logs_correct_dedupe():
     test,
     test"""
 
-    assert sample_without_dupe == "\n".join(_interleave_logs(",\n    ".join(["test"] * 10)))
+    assert sample_without_dupe == "\n".join(
+        _interleave_logs(",\n    ".join(["test"] * 10))
+    )
 
 
 def test_permissions_for_new_directories(tmp_path):

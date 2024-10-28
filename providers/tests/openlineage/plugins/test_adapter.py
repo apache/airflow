@@ -178,7 +178,9 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "documentation": documentation_job.DocumentationJobFacet(description="description"),
+                        "documentation": documentation_job.DocumentationJobFacet(
+                            description="description"
+                        ),
                         "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         ),
@@ -217,7 +219,10 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
         owners=["owner1", "owner2"],
         task=OperatorLineage(
-            inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
+            inputs=[
+                Dataset(namespace="bigquery", name="a.b.c"),
+                Dataset(namespace="bigquery", name="x.y.z"),
+            ],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
             job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
             run_facets={
@@ -227,7 +232,9 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
             },
         ),
         run_facets={
-            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                externalQueryId="999", source="source"
+            )
         },
     )
 
@@ -248,7 +255,9 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                         ),
                         "parent": parent_run.ParentRunFacet(
                             run=parent_run.Run(runId=parent_run_id),
-                            job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                            job=parent_run.Job(
+                                namespace=namespace(), name="parent_job_name"
+                            ),
                         ),
                         "externalQuery1": external_query_run.ExternalQueryRunFacet(
                             externalQueryId="123", source="source"
@@ -262,7 +271,9 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "documentation": documentation_job.DocumentationJobFacet(description="description"),
+                        "documentation": documentation_job.DocumentationJobFacet(
+                            description="description"
+                        ),
                         "ownership": ownership_job.OwnershipJobFacet(
                             owners=[
                                 ownership_job.Owner(name="owner1", type=None),
@@ -336,7 +347,9 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
 
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_stats_timer):
+def test_emit_complete_event_with_additional_information(
+    mock_stats_incr, mock_stats_timer
+):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
 
@@ -350,7 +363,10 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
         parent_run_id=parent_run_id,
         job_name="job",
         task=OperatorLineage(
-            inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
+            inputs=[
+                Dataset(namespace="bigquery", name="a.b.c"),
+                Dataset(namespace="bigquery", name="x.y.z"),
+            ],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
             job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
             run_facets={
@@ -360,7 +376,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
             },
         ),
         run_facets={
-            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                externalQueryId="999", source="source"
+            )
         },
     )
 
@@ -374,7 +392,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                     facets={
                         "parent": parent_run.ParentRunFacet(
                             run=parent_run.Run(runId=parent_run_id),
-                            job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                            job=parent_run.Job(
+                                namespace=namespace(), name="parent_job_name"
+                            ),
                         ),
                         "externalQuery": external_query_run.ExternalQueryRunFacet(
                             externalQueryId="123", source="source"
@@ -469,7 +489,10 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
         parent_run_id=parent_run_id,
         job_name="job",
         task=OperatorLineage(
-            inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
+            inputs=[
+                Dataset(namespace="bigquery", name="a.b.c"),
+                Dataset(namespace="bigquery", name="x.y.z"),
+            ],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
             run_facets={
                 "externalQuery": external_query_run.ExternalQueryRunFacet(
@@ -479,7 +502,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
             job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
         ),
         run_facets={
-            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                externalQueryId="999", source="source"
+            )
         },
         error=ValueError("Error message"),
     )
@@ -496,7 +521,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                         job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
                     ),
                     "errorMessage": error_message_run.ErrorMessageRunFacet(
-                        message="Error message", programmingLanguage="python", stackTrace=None
+                        message="Error message",
+                        programmingLanguage="python",
+                        stackTrace=None,
                     ),
                     "externalQuery": external_query_run.ExternalQueryRunFacet(
                         externalQueryId="123", source="source"
@@ -533,7 +560,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode):
+def test_emit_dag_started_event(
+    mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode
+):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -637,7 +666,9 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                 namespace=namespace(),
                 name="dag_id",
                 facets={
-                    "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
+                    "documentation": documentation_job.DocumentationJobFacet(
+                        description="dag desc"
+                    ),
                     "ownership": ownership_job.OwnershipJobFacet(
                         owners=[
                             ownership_job.Owner(name="airflow", type=None),
@@ -664,7 +695,11 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
 def test_emit_dag_complete_event(
-    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
+    mock_stats_incr,
+    mock_stats_timer,
+    generate_static_uuid,
+    mocked_fetch_tis,
+    mock_debug_mode,
 ):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
@@ -747,7 +782,11 @@ def test_emit_dag_complete_event(
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
 def test_emit_dag_failed_event(
-    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
+    mock_stats_incr,
+    mock_stats_timer,
+    generate_static_uuid,
+    mocked_fetch_tis,
+    mock_debug_mode,
 ):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
@@ -826,7 +865,9 @@ def test_emit_dag_failed_event(
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client")
+@patch(
+    "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client"
+)
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageRedactor")
 @patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
@@ -939,7 +980,10 @@ def test_configuration_precedence_when_creating_ol_client():
     ):
         with conf_vars(
             {
-                (_section_name, "transport"): '{"type": "kafka", "topic": "test", "config": {"acks": "all"}}',
+                (
+                    _section_name,
+                    "transport",
+                ): '{"type": "kafka", "topic": "test", "config": {"acks": "all"}}',
                 (_section_name, "config_path"): yaml_config,
             },
         ):
@@ -961,7 +1005,10 @@ def test_configuration_precedence_when_creating_ol_client():
     ):
         with conf_vars(
             {
-                (_section_name, "transport"): '{"type": "kafka", "topic": "test", "config": {"acks": "all"}}',
+                (
+                    _section_name,
+                    "transport",
+                ): '{"type": "kafka", "topic": "test", "config": {"acks": "all"}}',
                 (_section_name, "config_path"): "",
             },
         ):

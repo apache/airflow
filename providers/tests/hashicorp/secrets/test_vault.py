@@ -145,7 +145,10 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz" == connection.get_uri()
+        assert (
+            "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+            == connection.get_uri()
+        )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection_without_predefined_mount_point(self, mock_hvac):
@@ -188,7 +191,10 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="airflow/test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz" == connection.get_uri()
+        assert (
+            "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+            == connection.get_uri()
+        )
 
     @pytest.mark.parametrize(
         "mount_point, connections_path, conn_id, expected_args",
@@ -323,7 +329,10 @@ class TestVaultSecrets:
         ):
             assert test_client.get_conn_uri(conn_id="test_mysql") is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="airflow", path="connections/test_mysql", version=None, raise_on_deleted_version=True
+            mount_point="airflow",
+            path="connections/test_mysql",
+            version=None,
+            raise_on_deleted_version=True,
         )
         assert test_client.get_connection(conn_id="test_mysql") is None
 
@@ -400,14 +409,24 @@ class TestVaultSecrets:
     @pytest.mark.parametrize(
         "mount_point, variables_path, variable_key, expected_args",
         [
-            ("airflow", "variables", "hello", {"mount_point": "airflow", "path": "variables/hello"}),
+            (
+                "airflow",
+                "variables",
+                "hello",
+                {"mount_point": "airflow", "path": "variables/hello"},
+            ),
             (
                 "airflow",
                 "",
                 "path/to/variables/hello",
                 {"mount_point": "airflow", "path": "path/to/variables/hello"},
             ),
-            (None, "variables", "airflow/hello", {"mount_point": "airflow", "path": "variables/hello"}),
+            (
+                None,
+                "variables",
+                "airflow/hello",
+                {"mount_point": "airflow", "path": "variables/hello"},
+            ),
             (
                 None,
                 "",
@@ -475,7 +494,10 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         assert test_client.get_variable("hello") is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="airflow", path="variables/hello", version=None, raise_on_deleted_version=True
+            mount_point="airflow",
+            path="variables/hello",
+            version=None,
+            raise_on_deleted_version=True,
         )
         assert test_client.get_variable("hello") is None
 

@@ -47,7 +47,9 @@ from google.cloud.exceptions import NotFound
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
+from airflow.providers.google.cloud.hooks.secret_manager import (
+    GoogleCloudSecretManagerHook,
+)
 from airflow.providers.google.marketing_platform.operators.analytics_admin import (
     GoogleAnalyticsAdminCreateDataStreamOperator,
     GoogleAnalyticsAdminCreatePropertyOperator,
@@ -67,8 +69,12 @@ CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 GOOGLE_ANALYTICS_ACCOUNT_SECRET_ID = "google_analytics_account_id"
 GOOGLE_ADS_PROPERTY_SECRET_ID = "google_ads_property_id"
 PROPERTY_ID = "{{ task_instance.xcom_pull('create_property')['name'].split('/')[-1] }}"
-DATA_STREAM_ID = "{{ task_instance.xcom_pull('create_data_stream')['name'].split('/')[-1] }}"
-GA_ADS_LINK_ID = "{{ task_instance.xcom_pull('list_google_ads_links')[0]['name'].split('/')[-1] }}"
+DATA_STREAM_ID = (
+    "{{ task_instance.xcom_pull('create_data_stream')['name'].split('/')[-1] }}"
+)
+GA_ADS_LINK_ID = (
+    "{{ task_instance.xcom_pull('list_google_ads_links')[0]['name'].split('/')[-1] }}"
+)
 
 log = logging.getLogger(__name__)
 
@@ -207,7 +213,11 @@ with DAG(
 
     (
         # TEST SETUP
-        [create_connection_task, get_google_analytics_account_id_task, get_google_ads_property_id_task]
+        [
+            create_connection_task,
+            get_google_analytics_account_id_task,
+            get_google_ads_property_id_task,
+        ]
         # TEST BODY
         >> list_accounts
         >> create_property

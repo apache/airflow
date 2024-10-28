@@ -33,7 +33,9 @@ DIST_FOLDER = Path("/dist")
 
 
 def get_provider_name(package_name: str) -> str:
-    return ".".join(package_name.split("-")[0].replace("apache_airflow_providers_", "").split("_"))
+    return ".".join(
+        package_name.split("-")[0].replace("apache_airflow_providers_", "").split("_")
+    )
 
 
 def get_airflow_version_from_package(package_name: str) -> str:
@@ -41,7 +43,9 @@ def get_airflow_version_from_package(package_name: str) -> str:
 
 
 def find_airflow_package(extension: str) -> str | None:
-    packages = [f.as_posix() for f in DIST_FOLDER.glob(f"apache_airflow-[0-9]*.{extension}")]
+    packages = [
+        f.as_posix() for f in DIST_FOLDER.glob(f"apache_airflow-[0-9]*.{extension}")
+    ]
     if len(packages) > 1:
         console.print(f"\n[red]Found multiple airflow packages: {packages}\n")
         sys.exit(1)
@@ -64,7 +68,9 @@ def find_provider_packages(extension: str, selected_providers: list[str]) -> lis
     console.print()
     if selected_providers:
         candidates = [
-            candidate for candidate in candidates if get_provider_name(candidate.name) in selected_providers
+            candidate
+            for candidate in candidates
+            if get_provider_name(candidate.name) in selected_providers
         ]
         console.print("[bright_blue]Selected provider packages:")
         for candidate in sorted(candidates):
@@ -80,9 +86,13 @@ def calculate_constraints_location(
     python_version: str,
     providers: bool,
 ):
-    constraints_base = f"https://raw.githubusercontent.com/{github_repository}/{constraints_reference}"
+    constraints_base = (
+        f"https://raw.githubusercontent.com/{github_repository}/{constraints_reference}"
+    )
     location = f"{constraints_base}/{constraints_mode}-{python_version}.txt"
-    console.print(f"[info]Determined {'providers' if providers else 'airflow'} constraints as: {location}")
+    console.print(
+        f"[info]Determined {'providers' if providers else 'airflow'} constraints as: {location}"
+    )
     return location
 
 
@@ -107,7 +117,9 @@ def get_airflow_constraints_location(
     if airflow_skip_constraints:
         return None
     if airflow_constraints_location:
-        console.print(f"[info]Using constraints from location: {airflow_constraints_location}")
+        console.print(
+            f"[info]Using constraints from location: {airflow_constraints_location}"
+        )
         return airflow_constraints_location
     if airflow_constraints_reference:
         console.print(
@@ -115,7 +127,9 @@ def get_airflow_constraints_location(
             f"constraints reference: {airflow_constraints_reference}"
         )
     elif airflow_package_version:
-        if re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", airflow_package_version):
+        if re.match(
+            r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", airflow_package_version
+        ):
             airflow_constraints_reference = f"constraints-{airflow_package_version}"
             console.print(
                 f"[info]Determined constraints reference from airflow package version "
@@ -152,7 +166,9 @@ def get_providers_constraints_location(
     if providers_skip_constraints:
         return None
     if providers_constraints_location:
-        console.print(f"[info]Using constraints from location: {providers_constraints_location}")
+        console.print(
+            f"[info]Using constraints from location: {providers_constraints_location}"
+        )
         return providers_constraints_location
     if not providers_constraints_reference:
         providers_constraints_reference = default_constraints_branch
@@ -172,7 +188,14 @@ class InstallationSpec(NamedTuple):
     provider_constraints_location: str | None
 
 
-ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
+ALLOWED_VCS_PROTOCOLS = (
+    "git+file://",
+    "git+https://",
+    "git+ssh://",
+    "git+http://",
+    "git+git://",
+    "git://",
+)
 
 
 def find_installation_spec(
@@ -196,9 +219,13 @@ def find_installation_spec(
     if use_packages_from_dist:
         console.print("[bright_blue]Using packages from dist folder")
     else:
-        console.print("[bright_blue]Not using packages from dist folder - only install from remote sources")
+        console.print(
+            "[bright_blue]Not using packages from dist folder - only install from remote sources"
+        )
     if use_packages_from_dist and package_format not in ["wheel", "sdist"]:
-        console.print(f"[red]PACKAGE_FORMAT must be one of 'wheel' or 'sdist' and not {package_format}")
+        console.print(
+            f"[red]PACKAGE_FORMAT must be one of 'wheel' or 'sdist' and not {package_format}"
+        )
         sys.exit(1)
     extension = "whl" if package_format == "wheel" else "tar.gz"
     if airflow_extras:
@@ -211,7 +238,9 @@ def find_installation_spec(
             f"[red]The airflow source folder exists in {AIRFLOW_SOURCE_DIR}, but you are "
             f"removing it and installing airflow from {use_airflow_version}."
         )
-        console.print("[red]This is not supported. Please use --mount-sources=remove flag in breeze.")
+        console.print(
+            "[red]This is not supported. Please use --mount-sources=remove flag in breeze."
+        )
         sys.exit(1)
     if use_airflow_version in ["wheel", "sdist"] and use_packages_from_dist:
         airflow_package_spec = find_airflow_package(extension)
@@ -244,7 +273,9 @@ def find_installation_spec(
     elif use_airflow_version.startswith(ALLOWED_VCS_PROTOCOLS):
         console.print(f"\nInstalling airflow from remote spec {use_airflow_version}\n")
         if airflow_extras:
-            airflow_package_spec = f"apache-airflow{airflow_extras} @ {use_airflow_version}"
+            airflow_package_spec = (
+                f"apache-airflow{airflow_extras} @ {use_airflow_version}"
+            )
         else:
             airflow_package_spec = use_airflow_version
         airflow_constraints_location = get_airflow_constraints_location(
@@ -272,9 +303,13 @@ def find_installation_spec(
         )
     provider_package_list = []
     if use_packages_from_dist:
-        selected_providers_list = install_selected_providers.split(",") if install_selected_providers else []
+        selected_providers_list = (
+            install_selected_providers.split(",") if install_selected_providers else []
+        )
         if selected_providers_list:
-            console.print(f"\n[bright_blue]Selected providers: {selected_providers_list}\n")
+            console.print(
+                f"\n[bright_blue]Selected providers: {selected_providers_list}\n"
+            )
         else:
             console.print("\n[bright_blue]No preselected providers\n")
         provider_package_list = find_provider_packages(extension, selected_providers_list)
@@ -295,7 +330,11 @@ def find_installation_spec(
 
 
 ALLOWED_PACKAGE_FORMAT = ["wheel", "sdist", "both"]
-ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
+ALLOWED_CONSTRAINTS_MODE = [
+    "constraints-source-providers",
+    "constraints",
+    "constraints-no-providers",
+]
 ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
 
 
@@ -489,18 +528,28 @@ def install_airflow_and_providers(
             installation_spec.airflow_package,
         ]
         install_airflow_cmd = base_install_airflow_cmd.copy()
-        console.print(f"\n[bright_blue]Installing airflow package: {installation_spec.airflow_package}")
+        console.print(
+            f"\n[bright_blue]Installing airflow package: {installation_spec.airflow_package}"
+        )
         if installation_spec.airflow_constraints_location:
-            console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
-            install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])
+            console.print(
+                f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}"
+            )
+            install_airflow_cmd.extend(
+                ["--constraint", installation_spec.airflow_constraints_location]
+            )
         console.print()
-        result = run_command(install_airflow_cmd, github_actions=github_actions, check=False)
+        result = run_command(
+            install_airflow_cmd, github_actions=github_actions, check=False
+        )
         if result.returncode != 0:
             console.print(
                 "[warning]Installation with constraints failed - might be because pre-installed provider"
                 " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
             )
-            run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
+            run_command(
+                base_install_airflow_cmd, github_actions=github_actions, check=True
+            )
     if installation_spec.provider_packages or not install_airflow_with_constraints:
         base_install_providers_cmd = [
             "/usr/local/bin/uv",
@@ -532,15 +581,21 @@ def install_airflow_and_providers(
                 ["--constraint", installation_spec.provider_constraints_location]
             )
             console.print()
-            result = run_command(install_providers_command, github_actions=github_actions, check=False)
+            result = run_command(
+                install_providers_command, github_actions=github_actions, check=False
+            )
             if result.returncode != 0:
                 console.print(
                     "[warning]Installation with constraints failed - might be because pre-installed provider"
                     " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
                 )
-                run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
+                run_command(
+                    base_install_providers_cmd, github_actions=github_actions, check=True
+                )
         else:
-            run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
+            run_command(
+                base_install_providers_cmd, github_actions=github_actions, check=True
+            )
     if mount_sources == "providers-and-tests":
         console.print("[bright_blue]Removing installed providers")
         run_command(
@@ -557,7 +612,9 @@ def install_airflow_and_providers(
             sys.exit(1)
         airflow_path = Path(spec.origin).parent
         rmtree(airflow_path / "providers", ignore_errors=True)
-        os.symlink("/opt/airflow/airflow/providers", (airflow_path / "providers").as_posix())
+        os.symlink(
+            "/opt/airflow/airflow/providers", (airflow_path / "providers").as_posix()
+        )
     console.print("\n[green]Done!")
 
 

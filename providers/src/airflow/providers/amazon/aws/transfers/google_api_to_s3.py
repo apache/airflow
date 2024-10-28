@@ -125,7 +125,9 @@ class GoogleApiToS3Operator(BaseOperator):
         self.s3_destination_key = s3_destination_key
         self.google_api_response_via_xcom = google_api_response_via_xcom
         self.google_api_endpoint_params_via_xcom = google_api_endpoint_params_via_xcom
-        self.google_api_endpoint_params_via_xcom_task_ids = google_api_endpoint_params_via_xcom_task_ids
+        self.google_api_endpoint_params_via_xcom_task_ids = (
+            google_api_endpoint_params_via_xcom_task_ids
+        )
         self.google_api_pagination = google_api_pagination
         self.google_api_num_retries = google_api_num_retries
         self.s3_overwrite = s3_overwrite
@@ -188,6 +190,10 @@ class GoogleApiToS3Operator(BaseOperator):
         self, task_instance: TaskInstance | TaskInstancePydantic, data: dict
     ) -> None:
         if sys.getsizeof(data) < MAX_XCOM_SIZE:
-            task_instance.xcom_push(key=self.google_api_response_via_xcom or XCOM_RETURN_KEY, value=data)
+            task_instance.xcom_push(
+                key=self.google_api_response_via_xcom or XCOM_RETURN_KEY, value=data
+            )
         else:
-            raise RuntimeError("The size of the downloaded data is too large to push to XCom!")
+            raise RuntimeError(
+                "The size of the downloaded data is too large to push to XCom!"
+            )

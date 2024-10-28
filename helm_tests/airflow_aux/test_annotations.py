@@ -406,7 +406,9 @@ class TestPerComponentPodAnnotations:
             assert v == annotations[k]
 
     def test_precedence(self, values, show_only, expected_annotations):
-        values_global_annotations = {"airflowPodAnnotations": {k: "GLOBAL" for k in expected_annotations}}
+        values_global_annotations = {
+            "airflowPodAnnotations": {k: "GLOBAL" for k in expected_annotations}
+        }
 
         values_merged = {**values, **values_global_annotations}
 

@@ -27,13 +27,17 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksNotebookOperator,
     DatabricksTaskOperator,
 )
-from airflow.providers.databricks.operators.databricks_workflow import DatabricksWorkflowTaskGroup
+from airflow.providers.databricks.operators.databricks_workflow import (
+    DatabricksWorkflowTaskGroup,
+)
 from airflow.utils.timezone import datetime
 
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
 
 DATABRICKS_CONN_ID = os.getenv("DATABRICKS_CONN_ID", "databricks_default")
-DATABRICKS_NOTIFICATION_EMAIL = os.getenv("DATABRICKS_NOTIFICATION_EMAIL", "your_email@serviceprovider.com")
+DATABRICKS_NOTIFICATION_EMAIL = os.getenv(
+    "DATABRICKS_NOTIFICATION_EMAIL", "your_email@serviceprovider.com"
+)
 
 GROUP_ID = os.getenv("DATABRICKS_GROUP_ID", "1234").replace(".", "_")
 USER = os.environ.get("USER")

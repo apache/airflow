@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 KUBERNETES_BASE_LINK = "/kubernetes"
 KUBERNETES_CLUSTER_LINK = (
-    KUBERNETES_BASE_LINK + "/clusters/details/{location}/{cluster_name}/details?project={project_id}"
+    KUBERNETES_BASE_LINK
+    + "/clusters/details/{location}/{cluster_name}/details?project={project_id}"
 )
 KUBERNETES_POD_LINK = (
     KUBERNETES_BASE_LINK
@@ -39,7 +40,8 @@ KUBERNETES_JOB_LINK = (
     + "/job/{location}/{cluster_name}/{namespace}/{job_name}/details?project={project_id}"
 )
 KUBERNETES_WORKLOADS_LINK = (
-    KUBERNETES_BASE_LINK + '/workload/overview?project={project_id}&pageState=("savedViews":'
+    KUBERNETES_BASE_LINK
+    + '/workload/overview?project={project_id}&pageState=("savedViews":'
     '("c":%5B"gke%2F{location}%2F{cluster_name}"%5D,"n":%5B"{namespace}"%5D))'
 )
 

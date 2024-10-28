@@ -79,9 +79,7 @@ class TestSnsHook:
         topic_name = "test-topic"
         target = hook.get_conn().create_topic(Name=topic_name).get("TopicArn")
 
-        error_message = (
-            r"Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got .*"
-        )
+        error_message = r"Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got .*"
         with pytest.raises(TypeError, match=error_message):
             hook.publish_to_target(
                 target,

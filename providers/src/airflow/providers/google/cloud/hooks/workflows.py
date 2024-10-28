@@ -23,12 +23,17 @@ from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
 from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
-    from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
+    from google.cloud.workflows.executions_v1beta.services.executions.pagers import (
+        ListExecutionsPager,
+    )
     from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
     from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -51,11 +56,15 @@ class WorkflowsHook(GoogleBaseHook):
 
     def get_workflows_client(self) -> WorkflowsClient:
         """Return WorkflowsClient object."""
-        return WorkflowsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return WorkflowsClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO
+        )
 
     def get_executions_client(self) -> ExecutionsClient:
         """Return ExecutionsClient object."""
-        return ExecutionsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return ExecutionsClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow(
@@ -120,7 +129,9 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_workflows_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
-        return client.get_workflow(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata)
+        return client.get_workflow(
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
+        )
 
     def update_workflow(
         self,
@@ -182,7 +193,9 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_workflows_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
-        return client.delete_workflow(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata)
+        return client.delete_workflow(
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_workflows(
@@ -249,7 +262,9 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_executions_client()
         parent = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
-        execution = {k: str(v) if isinstance(v, dict) else v for k, v in execution.items()}
+        execution = {
+            k: str(v) if isinstance(v, dict) else v for k, v in execution.items()
+        }
         return client.create_execution(
             request={"parent": parent, "execution": execution},
             retry=retry,
@@ -284,7 +299,9 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_executions_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}/executions/{execution_id}"
-        return client.get_execution(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata)
+        return client.get_execution(
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_execution(

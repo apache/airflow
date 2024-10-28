@@ -118,7 +118,9 @@ def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime: 
 def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime: ...
 
 
-def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> dt.datetime | None:
+def make_aware(
+    value: dt.datetime | None, timezone: dt.tzinfo | None = None
+) -> dt.datetime | None:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -174,7 +176,13 @@ def make_naive(value, timezone=None):
 
     # cross library compatibility
     naive = dt.datetime(
-        date.year, date.month, date.day, date.hour, date.minute, date.second, date.microsecond
+        date.year,
+        date.month,
+        date.day,
+        date.hour,
+        date.minute,
+        date.second,
+        date.microsecond,
     )
 
     return naive
@@ -219,7 +227,9 @@ def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime: ...
 def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
-def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateTime | None:
+def coerce_datetime(
+    v: dt.datetime | None, tz: dt.tzinfo | None = None
+) -> DateTime | None:
     """
     Convert ``v`` into a timezone-aware ``pendulum.DateTime``.
 

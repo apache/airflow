@@ -30,7 +30,11 @@ from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import (
+    EdgeWorker,
+    EdgeWorkerModel,
+    EdgeWorkerState,
+)
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
@@ -95,8 +99,11 @@ class EdgeExecutor(BaseExecutor):
         lifeless_workers: list[EdgeWorkerModel] = (
             session.query(EdgeWorkerModel)
             .filter(
-                EdgeWorkerModel.state.not_in([EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE]),
-                EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
+                EdgeWorkerModel.state.not_in(
+                    [EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE]
+                ),
+                EdgeWorkerModel.last_update
+                < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
             )
             .all()
         )
@@ -117,7 +124,11 @@ class EdgeExecutor(BaseExecutor):
             session.query(EdgeJobModel)
             .filter(
                 EdgeJobModel.state.in_(
-                    [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]
+                    [
+                        TaskInstanceState.RUNNING,
+                        TaskInstanceState.SUCCESS,
+                        TaskInstanceState.FAILED,
+                    ]
                 )
             )
             .all()
@@ -143,10 +154,12 @@ class EdgeExecutor(BaseExecutor):
                     self.last_reported_state[job.key] = job.state
             if (
                 job.state == TaskInstanceState.SUCCESS
-                and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
+                and job.last_update_t
+                < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
             ) or (
                 job.state == TaskInstanceState.FAILED
-                and job.last_update_t < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
+                and job.last_update_t
+                < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
             ):
                 if job.key in self.last_reported_state:
                     del self.last_reported_state[job.key]
@@ -178,7 +191,9 @@ class EdgeExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 

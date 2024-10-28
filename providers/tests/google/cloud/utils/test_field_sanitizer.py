@@ -162,7 +162,11 @@ class TestGcpBodyFieldSanitizer:
             "properties.metadata.kind",
         ]
 
-        body = {"kind": "compute#instanceTemplate", "name": "instance", "properties": {"disks": None}}
+        body = {
+            "kind": "compute#instanceTemplate",
+            "name": "instance",
+            "properties": {"disks": None},
+        }
 
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
@@ -182,7 +186,9 @@ class TestGcpBodyFieldSanitizer:
 
         assert {"name": "instance", "properties": {"disks": None}} == body
 
-    def test_sanitize_should_not_fail_if_type_in_body_do_not_match_with_specification(self):
+    def test_sanitize_should_not_fail_if_type_in_body_do_not_match_with_specification(
+        self,
+    ):
         fields_to_sanitize = [
             "properties.disks.kind",
             "properties.metadata.kind2",

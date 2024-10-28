@@ -45,7 +45,11 @@ class TestEmailOperator:
             password="smtp_password",
             port=465,
             extra=json.dumps(
-                dict(from_email=sender_email, timeout=custom_timeout, retry_limit=custom_retry_limit)
+                dict(
+                    from_email=sender_email,
+                    timeout=custom_timeout,
+                    retry_limit=custom_retry_limit,
+                )
             ),
         )
         smtp_client_mock = mock_smtplib.SMTP_SSL()
@@ -56,6 +60,16 @@ class TestEmailOperator:
 
     def test_assert_templated_fields(self):
         """Test expected templated fields."""
-        operator = EmailOperator(task_id="test_assert_templated_fields", **self.default_op_kwargs)
-        template_fields = ("to", "from_email", "subject", "html_content", "files", "cc", "bcc")
+        operator = EmailOperator(
+            task_id="test_assert_templated_fields", **self.default_op_kwargs
+        )
+        template_fields = (
+            "to",
+            "from_email",
+            "subject",
+            "html_content",
+            "files",
+            "cc",
+            "bcc",
+        )
         assert operator.template_fields == template_fields

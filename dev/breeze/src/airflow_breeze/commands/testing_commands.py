@@ -99,7 +99,9 @@ from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
 
-@click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
+@click.group(
+    cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests"
+)
 def group_for_testing():
     pass
 
@@ -161,7 +163,9 @@ def _run_test(
     output_outside_the_group: bool = False,
     skip_docker_compose_down: bool = False,
 ) -> tuple[int, str]:
-    if "[" in shell_params.test_type and not shell_params.test_type.startswith("Providers"):
+    if "[" in shell_params.test_type and not shell_params.test_type.startswith(
+        "Providers"
+    ):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
@@ -233,7 +237,9 @@ def _run_test(
                 text=True,
             )
             container_ids = ps_result.stdout.splitlines()
-            get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+            get_console(output=output).print(
+                "[info]Wait 10 seconds for logs to find their way to stderr.\n"
+            )
             sleep(10)
             get_console(output=output).print(
                 f"[info]Error {result.returncode}. Dumping containers: {container_ids} for {project_name}.\n"
@@ -243,7 +249,9 @@ def _run_test(
                 if compose_project_name not in container_id:
                     continue
                 dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
-                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
+                get_console(output=output).print(
+                    f"[info]Dumping container {container_id} to {dump_path}\n"
+                )
                 with open(dump_path, "w") as outfile:
                     run_command(
                         ["docker", "logs", "--details", "--timestamps", container_id],
@@ -304,7 +312,9 @@ def _run_tests_in_pool(
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run
-    tests_to_run = sorted(tests_to_run, key=lambda x: (sort_key.get(x, len(sorting_order)), x))
+    tests_to_run = sorted(
+        tests_to_run, key=lambda x: (sort_key.get(x, len(sorting_order)), x)
+    )
     escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     with ci_group(f"Testing {' '.join(escaped_tests)}"):
         all_params = [f"{test_type}" for test_type in tests_to_run]
@@ -393,7 +403,10 @@ def run_tests_in_parallel(
 
 
 def _verify_parallelism_parameters(
-    excluded_parallel_test_types: str, run_db_tests_only: bool, run_in_parallel: bool, use_xdist: bool
+    excluded_parallel_test_types: str,
+    run_db_tests_only: bool,
+    run_in_parallel: bool,
+    use_xdist: bool,
 ):
     if excluded_parallel_test_types and not (run_in_parallel or use_xdist):
         get_console().print(
@@ -402,10 +415,14 @@ def _verify_parallelism_parameters(
         )
         sys.exit(1)
     if use_xdist and run_in_parallel:
-        get_console().print("\n[error]You can only specify one of --use-xdist, --run-in-parallel[/]\n")
+        get_console().print(
+            "\n[error]You can only specify one of --use-xdist, --run-in-parallel[/]\n"
+        )
         sys.exit(1)
     if use_xdist and run_db_tests_only:
-        get_console().print("\n[error]You can only specify one of --use-xdist, --run-db-tests-only[/]\n")
+        get_console().print(
+            "\n[error]You can only specify one of --use-xdist, --run-db-tests-only[/]\n"
+        )
         sys.exit(1)
 
 
@@ -1035,7 +1052,16 @@ def helm_tests(
         keep_env_variables=False,
         no_db_cleanup=False,
     )
-    cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
+    cmd = [
+        "docker",
+        "compose",
+        "run",
+        "--service-ports",
+        "--rm",
+        "airflow",
+        *pytest_args,
+        *extra_pytest_args,
+    ]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)
     fix_ownership_using_docker()
     sys.exit(result.returncode)

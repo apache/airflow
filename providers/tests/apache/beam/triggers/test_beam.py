@@ -20,11 +20,18 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
+from airflow.providers.apache.beam.triggers.beam import (
+    BeamJavaPipelineTrigger,
+    BeamPythonPipelineTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
-HOOK_STATUS_STR_PYTHON = "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_python_pipeline_async"
-HOOK_STATUS_STR_JAVA = "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_java_pipeline_async"
+HOOK_STATUS_STR_PYTHON = (
+    "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_python_pipeline_async"
+)
+HOOK_STATUS_STR_JAVA = (
+    "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_java_pipeline_async"
+)
 CLASSPATH_PYTHON = "airflow.providers.apache.beam.triggers.beam.BeamPythonPipelineTrigger"
 CLASSPATH_JAVA = "airflow.providers.apache.beam.triggers.beam.BeamJavaPipelineTrigger"
 
@@ -35,7 +42,10 @@ INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
 PROJECT_ID = "test_project_id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_IMPERSONATION_CHAIN = "A,B,C"
-TEST_VARIABLES = {"output": "gs://bucket_test/output", "labels": {"airflow-version": "v2-7-0-dev0"}}
+TEST_VARIABLES = {
+    "output": "gs://bucket_test/output",
+    "labels": {"airflow-version": "v2-7-0-dev0"},
+}
 TEST_PY_FILE = "apache_beam.examples.wordcount"
 TEST_PY_OPTIONS: list[str] = []
 TEST_PY_INTERPRETER = "python3"
@@ -111,11 +121,18 @@ class TestBeamPythonPipelineTrigger:
         mock_pipeline_status.return_value = 0
         generator = python_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "message": "Pipeline has finished SUCCESSFULLY"}) == actual
+        assert (
+            TriggerEvent(
+                {"status": "success", "message": "Pipeline has finished SUCCESSFULLY"}
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_STATUS_STR_PYTHON)
-    async def test_beam_trigger_error_should_execute_successfully(self, mock_pipeline_status, python_trigger):
+    async def test_beam_trigger_error_should_execute_successfully(
+        self, mock_pipeline_status, python_trigger
+    ):
         """
         Test that BeamPythonPipelineTrigger fires the correct event in case of an error.
         """
@@ -174,11 +191,18 @@ class TestBeamJavaPipelineTrigger:
         mock_pipeline_status.return_value = 0
         generator = java_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "message": "Pipeline has finished SUCCESSFULLY"}) == actual
+        assert (
+            TriggerEvent(
+                {"status": "success", "message": "Pipeline has finished SUCCESSFULLY"}
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_STATUS_STR_JAVA)
-    async def test_beam_trigger_error_should_execute_successfully(self, mock_pipeline_status, java_trigger):
+    async def test_beam_trigger_error_should_execute_successfully(
+        self, mock_pipeline_status, java_trigger
+    ):
         """
         Test that BeamJavaPipelineTrigger fires the correct event in case of an error.
         """
@@ -203,7 +227,9 @@ class TestBeamJavaPipelineTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.list_jobs")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.list_jobs"
+    )
     async def test_beam_trigger_exception_list_jobs_should_execute_successfully(
         self, mock_list_jobs, java_trigger
     ):
@@ -219,7 +245,9 @@ class TestBeamJavaPipelineTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.triggers.beam.GCSHook")
-    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(self, gcs_hook, java_trigger):
+    async def test_beam_trigger_gcs_provide_file_should_execute_successfully(
+        self, gcs_hook, java_trigger
+    ):
         """
         Test that BeamJavaPipelineTrigger downloads GCS provide file correct.
         """

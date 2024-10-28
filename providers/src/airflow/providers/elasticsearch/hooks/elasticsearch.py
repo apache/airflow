@@ -90,7 +90,13 @@ class ElasticsearchSQLHook(DbApiHook):
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 
-    def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
+    def __init__(
+        self,
+        schema: str = "http",
+        connection: AirflowConnection | None = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self._connection = connection

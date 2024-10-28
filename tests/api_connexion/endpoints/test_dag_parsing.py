@@ -78,7 +78,9 @@ class TestDagParsingRequest:
 
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = self.client.put(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert 201 == response.status_code
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
@@ -86,7 +88,9 @@ class TestDagParsingRequest:
 
         # Duplicate file parsing request
         response = self.client.put(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert 201 == response.status_code
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
@@ -95,7 +99,9 @@ class TestDagParsingRequest:
     def test_bad_file_request(self, url_safe_serializer, session):
         url = f"/api/v1/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = self.client.put(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 

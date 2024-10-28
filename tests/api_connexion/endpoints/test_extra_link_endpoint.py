@@ -76,14 +76,18 @@ class TestGetExtraLinks:
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
         self.app.dag_bag.sync_to_db()
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
             execution_date=self.default_time,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             session=session,
-            data_interval=DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
+            data_interval=DataInterval(
+                timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)
+            ),
             **triggered_by_kwargs,
         )
         session.flush()
@@ -95,10 +99,15 @@ class TestGetExtraLinks:
         clear_db_xcom()
 
     def _create_dag(self):
-        with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
+        with DAG(
+            dag_id="TEST_DAG_ID",
+            schedule=None,
+            default_args={"start_date": self.default_time},
+        ) as dag:
             CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
             CustomOperator(
-                task_id="TEST_MULTIPLE_LINK", bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
+                task_id="TEST_MULTIPLE_LINK",
+                bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"],
             )
         return dag
 
@@ -158,7 +167,9 @@ class TestGetExtraLinks:
         )
 
         assert 200 == response.status_code, response.data
-        assert {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"} == response.json
+        assert {
+            "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"
+        } == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):

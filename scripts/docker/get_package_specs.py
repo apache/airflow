@@ -37,7 +37,9 @@ def print_package_specs(extras: str = "") -> None:
             try:
                 package, _ = parse_sdist_filename(Path(package_path).name)
             except InvalidSdistFilename:
-                print(f"Could not parse package name from {package_path}", file=sys.stderr)
+                print(
+                    f"Could not parse package name from {package_path}", file=sys.stderr
+                )
                 continue
         print(f"{package}{extras} @ file://{package_path}")
 

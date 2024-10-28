@@ -52,7 +52,10 @@ def _fetch_templated_kwargs() -> dict[str, str]:
 
 def _fetch_config_values() -> dict[str, str]:
     return prune_dict(
-        {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in BatchSubmitJobKwargsConfigKeys()}
+        {
+            key: conf.get(CONFIG_GROUP_NAME, key, fallback=None)
+            for key in BatchSubmitJobKwargsConfigKeys()
+        }
     )
 
 
@@ -72,7 +75,10 @@ def build_submit_kwargs() -> dict:
     if TYPE_CHECKING:
         assert isinstance(job_kwargs, dict)
     # some checks with some helpful errors
-    if "containerOverrides" not in job_kwargs or "command" not in job_kwargs["containerOverrides"]:
+    if (
+        "containerOverrides" not in job_kwargs
+        or "command" not in job_kwargs["containerOverrides"]
+    ):
         raise KeyError(
             'SubmitJob API needs kwargs["containerOverrides"]["command"] field,'
             " and value should be NULL or empty."

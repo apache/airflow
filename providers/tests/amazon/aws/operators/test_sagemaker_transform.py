@@ -45,7 +45,9 @@ CREATE_TRANSFORM_PARAMS: dict = {
     "MaxConcurrentTransforms": "12",
     "MaxPayloadInMB": "6",
     "BatchStrategy": "MultiRecord",
-    "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
+    "TransformInput": {
+        "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}
+    },
     "TransformOutput": {"S3OutputPath": "output_path"},
     "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": "3"},
 }
@@ -55,7 +57,9 @@ CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "MaxConcurrentTransforms": 12,
     "MaxPayloadInMB": 6,
     "BatchStrategy": "MultiRecord",
-    "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
+    "TransformInput": {
+        "DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}
+    },
     "TransformOutput": {"S3OutputPath": "output_path"},
     "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": 3},
 }
@@ -99,9 +103,13 @@ class TestSageMakerTransformOperator:
         for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
             if key3:
                 (key3,) = key3
-                assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
+                assert self.sagemaker.config[key1][key2][key3] == int(
+                    self.sagemaker.config[key1][key2][key3]
+                )
             else:
-                self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
+                self.sagemaker.config[key1][key2] == int(
+                    self.sagemaker.config[key1][key2]
+                )
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
@@ -146,7 +154,9 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_with_check_if_job_exists(self, _, __, ___, mock_transform, mock_desc):
+    def test_execute_with_check_if_job_exists(
+        self, _, __, ___, mock_transform, mock_desc
+    ):
         mock_desc.side_effect = [
             ClientError({"Error": {"Code": "ValidationException"}}, "op"),
             {"ModelName": "model_name"},
@@ -183,9 +193,14 @@ class TestSageMakerTransformOperator:
         )
 
     @mock.patch(  # since it is divided by 1000000, the added timestamp should be 2.
-        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=2000000
+        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns",
+        return_value=2000000,
     )
-    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-2"})
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_transform_job",
+        return_value={"ModelName": "model_name-2"},
+    )
     @mock.patch.object(
         SageMakerHook,
         "create_transform_job",
@@ -215,7 +230,11 @@ class TestSageMakerTransformOperator:
         self.sagemaker.execute(None)
 
         mock_describe_model.assert_has_calls(
-            [mock.call("model_name"), mock.call("model_name-2"), mock.call("model_name-2")]
+            [
+                mock.call("model_name"),
+                mock.call("model_name-2"),
+                mock.call("model_name-2"),
+            ]
         )
         mock_create_model.assert_called_once_with({"ModelName": "model_name-2"})
 
@@ -237,11 +256,15 @@ class TestSageMakerTransformOperator:
         with pytest.raises(AirflowException) as context:
             self.sagemaker.execute(None)
 
-        assert str(context.value) == "A SageMaker model with name model_name already exists."
+        assert (
+            str(context.value) == "A SageMaker model with name model_name already exists."
+        )
         mock_describe_model.assert_called_once_with("model_name")
         mock_create_model.assert_not_called()
 
-    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name"})
+    @mock.patch.object(
+        SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name"}
+    )
     @mock.patch.object(
         SageMakerHook,
         "create_transform_job",
@@ -252,7 +275,9 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_without_check_if_model_exists(self, _, mock_describe_model, mock_create_model, __, ___):
+    def test_execute_without_check_if_model_exists(
+        self, _, mock_describe_model, mock_create_model, __, ___
+    ):
         self.sagemaker.check_if_job_exists = False
         self.sagemaker.check_if_model_exists = False
         model_config = {"ModelName": "model_name"}
@@ -266,7 +291,9 @@ class TestSageMakerTransformOperator:
         self.sagemaker._get_unique_model_name.assert_not_called()
 
     @mock.patch.object(SageMakerTransformOperator, "_get_unique_name")
-    def test_get_unique_model_name_calls_get_unique_name_correctly(self, get_unique_name_mock):
+    def test_get_unique_model_name_calls_get_unique_name_correctly(
+        self, get_unique_name_mock
+    ):
         def describe_func():
             pass
 
@@ -281,15 +308,21 @@ class TestSageMakerTransformOperator:
         )
 
     @mock.patch.object(SageMakerTransformOperator, "_check_if_resource_exists")
-    def test_check_if_model_exists_calls_check_if_resource_exists_correctly(self, check_resource_exists_mock):
+    def test_check_if_model_exists_calls_check_if_resource_exists_correctly(
+        self, check_resource_exists_mock
+    ):
         def describe_func():
             pass
 
         self.sagemaker._check_if_model_exists("model_name", describe_func)
 
-        check_resource_exists_mock.assert_called_once_with("model_name", "model", describe_func)
+        check_resource_exists_mock.assert_called_once_with(
+            "model_name", "model", describe_func
+        )
 
-    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator.defer"
+    )
     @mock.patch.object(
         SageMakerHook,
         "describe_transform_job",
@@ -297,7 +330,9 @@ class TestSageMakerTransformOperator:
     )
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
-    def test_operator_failed_before_defer(self, _, mock_transform, mock_describe_transform_job, mock_defer):
+    def test_operator_failed_before_defer(
+        self, _, mock_transform, mock_describe_transform_job, mock_defer
+    ):
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -310,21 +345,32 @@ class TestSageMakerTransformOperator:
             self.sagemaker.execute(context=None)
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator.defer"
+    )
     @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(
-        SageMakerHook, "describe_transform_job", return_value={"TransformJobStatus": "Completed"}
+        SageMakerHook,
+        "describe_transform_job",
+        return_value={"TransformJobStatus": "Completed"},
     )
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
     def test_operator_complete_before_defer(
-        self, _, mock_transform, mock_describe_transform_job, mock_describe_model, mock_defer
+        self,
+        _,
+        mock_transform,
+        mock_describe_transform_job,
+        mock_describe_model,
+        mock_defer,
     ):
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
-        mock_describe_model.return_value = {"PrimaryContainer": {"ModelPackageName": "package-name"}}
+        mock_describe_model.return_value = {
+            "PrimaryContainer": {"ModelPackageName": "package-name"}
+        }
         self.sagemaker.deferrable = True
         self.sagemaker.wait_for_completion = True
         self.sagemaker.check_if_job_exists = False
@@ -333,7 +379,9 @@ class TestSageMakerTransformOperator:
         assert not mock_defer.called
 
     @mock.patch.object(
-        SageMakerHook, "describe_transform_job", return_value={"TransformJobStatus": "InProgress"}
+        SageMakerHook,
+        "describe_transform_job",
+        return_value={"TransformJobStatus": "InProgress"},
     )
     @mock.patch.object(SageMakerHook, "create_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
@@ -349,21 +397,31 @@ class TestSageMakerTransformOperator:
         with pytest.raises(TaskDeferred) as exc:
             self.sagemaker.execute(context=None)
 
-        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+        assert isinstance(
+            exc.value.trigger, SageMakerTrigger
+        ), "Trigger is not a SagemakerTrigger"
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "describe_model")
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "create_transform_job")
-    def test_operator_lineage_data(self, mock_transform, mock_conn, mock_model, _, mock_desc):
+    def test_operator_lineage_data(
+        self, mock_transform, mock_conn, mock_model, _, mock_desc
+    ):
         self.sagemaker.check_if_job_exists = False
         mock_conn.return_value.describe_model_package.return_value = {
-            "InferenceSpecification": {"Containers": [{"ModelDataUrl": "s3://model-bucket/model-path"}]},
+            "InferenceSpecification": {
+                "Containers": [{"ModelDataUrl": "s3://model-bucket/model-path"}]
+            },
         }
-        mock_model.return_value = {"PrimaryContainer": {"ModelPackageName": "package-name"}}
+        mock_model.return_value = {
+            "PrimaryContainer": {"ModelPackageName": "package-name"}
+        }
         mock_desc.return_value = {
-            "TransformInput": {"DataSource": {"S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}}},
+            "TransformInput": {
+                "DataSource": {"S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}}
+            },
             "TransformOutput": {"S3OutputPath": "s3://output-bucket/output-path"},
             "ModelName": "model_name",
         }

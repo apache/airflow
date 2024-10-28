@@ -57,7 +57,9 @@ class TestGithubOperator:
         assert github_operator.result_processor is None
 
     @patch(
-        "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
+        "airflow.providers.github.hooks.github.GithubClient",
+        autospec=True,
+        return_value=github_client_mock,
     )
     def test_find_repos(self, github_mock):
         class MockRepository:
@@ -76,7 +78,9 @@ class TestGithubOperator:
             dag=self.dag,
         )
 
-        github_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        github_operator.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
         assert github_mock.called
         assert github_mock.return_value.get_repo.called

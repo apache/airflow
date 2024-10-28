@@ -47,7 +47,9 @@ with DAG(
     tags=["example"],
 ) as dag:
     # [START howto_operator_leveldb_get_key]
-    get_key_leveldb_task = LevelDBOperator(task_id="get_key_leveldb", command="get", key=b"key")
+    get_key_leveldb_task = LevelDBOperator(
+        task_id="get_key_leveldb", command="get", key=b"key"
+    )
     # [END howto_operator_leveldb_get_key]
     # [START howto_operator_leveldb_put_key]
     put_key_leveldb_task = LevelDBOperator(

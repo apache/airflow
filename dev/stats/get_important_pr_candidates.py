@@ -154,9 +154,13 @@ class PrStat:
             self.num_comments + self.num_conv_comments + self.num_issue_comments
         ) * PrStat.COMMENT_INTERACTION_VALUE
         interactions += (
-            self.comment_reactions + self.conv_comment_reactions + self.num_issue_reactions
+            self.comment_reactions
+            + self.conv_comment_reactions
+            + self.num_issue_reactions
         ) * PrStat.REACTION_INTERACTION_VALUE
-        self.interaction_score += interactions + self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
+        self.interaction_score += (
+            interactions + self.num_reviews * PrStat.REVIEW_INTERACTION_VALUE
+        )
 
     @cached_property
     def num_interacting_users(self) -> int:
@@ -274,7 +278,10 @@ class PrStat:
 
     def verboseStr(self) -> str:
         if self.num_protm > 0:
-            console.print("********************* Tagged with '#protm' *********************", style="magenta")
+            console.print(
+                "********************* Tagged with '#protm' *********************",
+                style="magenta",
+            )
         return (
             f"-- Created at [bright_blue]{self.pull_request.created_at}[/], "
             f"merged at [bright_blue]{self.pull_request.merged_at}[/]\n"
@@ -311,14 +318,24 @@ DEFAULT_TOP_PRS = 10
 @click.command()
 @option_github_token  # TODO: this should only be required if --load isn't provided
 @click.option(
-    "--date-start", type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_BEGINNING_OF_MONTH.date())
+    "--date-start",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    default=str(DEFAULT_BEGINNING_OF_MONTH.date()),
 )
 @click.option(
-    "--date-end", type=click.DateTime(formats=["%Y-%m-%d"]), default=str(DEFAULT_END_OF_MONTH.date())
+    "--date-end",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    default=str(DEFAULT_END_OF_MONTH.date()),
 )
-@click.option("--top-number", type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select")
+@click.option(
+    "--top-number", type=int, default=DEFAULT_TOP_PRS, help="The number of PRs to select"
+)
 @click.option("--save", type=click.File("wb"), help="Save PR data to a pickle file")
-@click.option("--load", type=click.File("rb"), help="Load PR data from a file and recalculate scores")
+@click.option(
+    "--load",
+    type=click.File("rb"),
+    help="Load PR data from a file and recalculate scores",
+)
 @click.option("--verbose", is_flag="True", help="Print scoring details")
 @click.option(
     "--rate-limit",
@@ -364,7 +381,9 @@ def main(
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
         repo = g.get_repo("apache/airflow")
         commits = repo.get_commits(since=date_start, until=date_end)
-        pulls: list[PullRequest] = [pull for commit in commits for pull in commit.get_pulls()]
+        pulls: list[PullRequest] = [
+            pull for commit in commits for pull in commit.get_pulls()
+        ]
         scores: dict = {}
         for issue_num, pull in enumerate(pulls, 1):
             p = PrStat(g=g, pull_request=pull)  # type: ignore
@@ -385,7 +404,9 @@ def main(
 
     console.print(f"Top {top_number} out of {issue_num} PRs:")
     for pr_scored in heapq.nlargest(top_number, scores.items(), key=lambda s: s[1]):
-        console.print(f"[green] * PR #{pr_scored[0]}: {pr_scored[1][1]}. Score: [magenta]{pr_scored[1][0]}")
+        console.print(
+            f"[green] * PR #{pr_scored[0]}: {pr_scored[1][1]}. Score: [magenta]{pr_scored[1][0]}"
+        )
 
     if save:
         pickle.dump(selected_prs, save)

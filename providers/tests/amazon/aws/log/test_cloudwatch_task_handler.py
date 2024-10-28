@@ -57,7 +57,9 @@ class TestCloudwatchTaskHandler:
     def setup_tests(self, create_log_template, tmp_path_factory, session):
         self.remote_log_group = "log_group_name"
         self.region_name = "us-west-2"
-        self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
+        self.local_log_location = str(
+            tmp_path_factory.mktemp("local-cloudwatch-log-location")
+        )
         create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,
@@ -69,7 +71,12 @@ class TestCloudwatchTaskHandler:
         task_id = "task_for_testing_cloudwatch_log_handler"
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+        dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            execution_date=date,
+            run_id="test",
+            run_type="scheduled",
+        )
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)
@@ -81,9 +88,9 @@ class TestCloudwatchTaskHandler:
         session.add(self.ti)
         session.commit()
 
-        self.remote_log_stream = (f"{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log").replace(
-            ":", "_"
-        )
+        self.remote_log_stream = (
+            f"{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log"
+        ).replace(":", "_")
         self.conn = boto3.client("logs", region_name=self.region_name)
 
         yield
@@ -140,7 +147,9 @@ class TestCloudwatchTaskHandler:
             ],
         )
 
-        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
+        msg_template = (
+            "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
+        )
         events = "\n".join(
             [
                 f"[{get_time_str(current_time-2000)}] First",
@@ -149,7 +158,16 @@ class TestCloudwatchTaskHandler:
             ]
         )
         assert self.cloudwatch_task_handler.read(self.ti) == (
-            [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
+            [
+                [
+                    (
+                        "",
+                        msg_template.format(
+                            self.remote_log_group, self.remote_log_stream, events
+                        ),
+                    )
+                ]
+            ],
             [{"end_of_log": True}],
         )
 
@@ -157,7 +175,10 @@ class TestCloudwatchTaskHandler:
         "end_date, expected_end_time",
         [
             (None, None),
-            (datetime(2020, 1, 2), datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30))),
+            (
+                datetime(2020, 1, 2),
+                datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
+            ),
         ],
     )
     @mock.patch.object(AwsLogsHook, "get_log_events")
@@ -184,12 +205,16 @@ class TestCloudwatchTaskHandler:
                 id="json-serialize",
             ),
             pytest.param(
-                None, '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}', id="not-set"
+                None,
+                '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}',
+                id="not-set",
             ),
         ],
     )
     @mock.patch.object(AwsLogsHook, "get_log_events")
-    def test_write_json_logs(self, mock_get_log_events, conf_json_serialize, expected_serialized_output):
+    def test_write_json_logs(
+        self, mock_get_log_events, conf_json_serialize, expected_serialized_output
+    ):
         class ToSerialize:
             def __init__(self):
                 pass
@@ -197,7 +222,9 @@ class TestCloudwatchTaskHandler:
             def __repr__(self):
                 return "SomeCustomSerialization(...)"
 
-        with conf_vars({("aws", "cloudwatch_task_handler_json_serializer"): conf_json_serialize}):
+        with conf_vars(
+            {("aws", "cloudwatch_task_handler_json_serializer"): conf_json_serialize}
+        ):
             handler = self.cloudwatch_task_handler
             handler.set_context(self.ti)
             message = logging.LogRecord(
@@ -212,7 +239,9 @@ class TestCloudwatchTaskHandler:
                     "customObject": ToSerialize(),
                 },
             )
-            with mock.patch("watchtower.threading.Thread"), mock.patch("watchtower.queue.Queue") as mq:
+            with mock.patch("watchtower.threading.Thread"), mock.patch(
+                "watchtower.queue.Queue"
+            ) as mq:
                 mock_queue = Mock()
                 mq.return_value = mock_queue
                 handler.handle(message)
@@ -221,8 +250,12 @@ class TestCloudwatchTaskHandler:
                 )
 
     def test_close_prevents_duplicate_calls(self):
-        with mock.patch("watchtower.CloudWatchLogHandler.close") as mock_log_handler_close:
-            with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):
+        with mock.patch(
+            "watchtower.CloudWatchLogHandler.close"
+        ) as mock_log_handler_close:
+            with mock.patch(
+                "airflow.utils.log.file_task_handler.FileTaskHandler.set_context"
+            ):
                 self.cloudwatch_task_handler.set_context(self.ti)
                 for _ in range(5):
                     self.cloudwatch_task_handler.close()
@@ -241,4 +274,6 @@ class TestCloudwatchTaskHandler:
 def generate_log_events(conn, log_group_name, log_stream_name, log_events):
     conn.create_log_group(logGroupName=log_group_name)
     conn.create_log_stream(logGroupName=log_group_name, logStreamName=log_stream_name)
-    conn.put_log_events(logGroupName=log_group_name, logStreamName=log_stream_name, logEvents=log_events)
+    conn.put_log_events(
+        logGroupName=log_group_name, logStreamName=log_stream_name, logEvents=log_events
+    )

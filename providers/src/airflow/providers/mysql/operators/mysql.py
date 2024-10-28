@@ -66,7 +66,11 @@ class MySqlOperator(SQLExecuteQueryOperator):
     ui_color = "#ededed"
 
     def __init__(
-        self, *, mysql_conn_id: str = "mysql_default", database: str | None = None, **kwargs
+        self,
+        *,
+        mysql_conn_id: str = "mysql_default",
+        database: str | None = None,
+        **kwargs,
     ) -> None:
         if database is not None:
             hook_params = kwargs.pop("hook_params", {})

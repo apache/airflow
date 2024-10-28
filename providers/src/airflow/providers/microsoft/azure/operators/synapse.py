@@ -87,7 +87,9 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
     @cached_property
     def hook(self):
         """Create and return an AzureSynapseHook (cached)."""
-        return AzureSynapseHook(azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool)
+        return AzureSynapseHook(
+            azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool
+        )
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing the Synapse spark job.")
@@ -110,7 +112,9 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
             ):
                 self.log.info("Job run %s has completed successfully.", self.job_id)
             else:
-                raise AirflowException(f"Job run {self.job_id} has failed or has been cancelled.")
+                raise AirflowException(
+                    f"Job run {self.job_id} has failed or has been cancelled."
+                )
 
     def on_kill(self) -> None:
         if self.job_id:
@@ -138,14 +142,18 @@ class AzureSynapsePipelineRunLink(BaseOperatorLink):
         match = re.search(pattern, workspace_url)
 
         if not match:
-            raise ValueError(f"Invalid workspace URL format, expected match pattern {pattern!r}.")
+            raise ValueError(
+                f"Invalid workspace URL format, expected match pattern {pattern!r}."
+            )
 
         extracted_text = match.group(1)
         parsed_url = urlparse(extracted_text)
         path = unquote(parsed_url.path)
         path_segments = path.split("/")
         if (len_path_segments := len(path_segments)) < 5:
-            raise ValueError(f"Workspace expected at least 5 segments, but got {len_path_segments}.")
+            raise ValueError(
+                f"Workspace expected at least 5 segments, but got {len_path_segments}."
+            )
 
         return {
             "workspace_name": path_segments[-1],
@@ -286,6 +294,10 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
                 check_interval=self.check_interval,
                 timeout=self.timeout,
             ):
-                self.log.info("Pipeline run %s has been cancelled successfully.", self.run_id)
+                self.log.info(
+                    "Pipeline run %s has been cancelled successfully.", self.run_id
+                )
             else:
-                raise AzureSynapsePipelineRunException(f"Pipeline run {self.run_id} was not cancelled.")
+                raise AzureSynapsePipelineRunException(
+                    f"Pipeline run {self.run_id} was not cancelled."
+                )

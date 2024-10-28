@@ -45,7 +45,9 @@ def pagerduty_connections():
     )
     db.merge_conn(
         Connection(
-            conn_id="pagerduty_no_extra", conn_type="pagerduty", password="pagerduty_token_without_extra"
+            conn_id="pagerduty_no_extra",
+            conn_type="pagerduty",
+            password="pagerduty_token_without_extra",
         ),
     )
 
@@ -62,7 +64,9 @@ class TestPagerdutyHook:
         assert hook.routing_key is None, "default routing key skipped."
 
     def test_token_parameter_override(self):
-        hook = PagerdutyHook(token="pagerduty_param_token", pagerduty_conn_id=DEFAULT_CONN_ID)
+        hook = PagerdutyHook(
+            token="pagerduty_param_token", pagerduty_conn_id=DEFAULT_CONN_ID
+        )
         assert hook.token == "pagerduty_param_token", "token initialised."
 
     def test_get_service(self, requests_mock):
@@ -75,7 +79,10 @@ class TestPagerdutyHook:
             "summary": "Apache Airflow",
             "self": "https://api.pagerduty.com/services/PZYX321",
         }
-        requests_mock.get("https://api.pagerduty.com/services/PZYX321", json={"service": mock_response_body})
+        requests_mock.get(
+            "https://api.pagerduty.com/services/PZYX321",
+            json={"service": mock_response_body},
+        )
         session = hook.get_session()
         resp = session.rget("/services/PZYX321")
         assert resp == mock_response_body
@@ -109,7 +116,9 @@ class TestPagerdutyHook:
             links=None,
         )
 
-    @mock.patch.object(PagerdutyEventsHook, "create_event", mock.MagicMock(return_value=None))
+    @mock.patch.object(
+        PagerdutyEventsHook, "create_event", mock.MagicMock(return_value=None)
+    )
     @mock.patch.object(PagerdutyEventsHook, "__init__")
     def test_create_event_override(self, events_hook_init):
         events_hook_init.return_value = None

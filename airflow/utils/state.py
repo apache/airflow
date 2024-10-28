@@ -102,8 +102,12 @@ class State:
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
 
-    finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
-    unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
+    finished_dr_states: frozenset[DagRunState] = frozenset(
+        [DagRunState.SUCCESS, DagRunState.FAILED]
+    )
+    unfinished_dr_states: frozenset[DagRunState] = frozenset(
+        [DagRunState.QUEUED, DagRunState.RUNNING]
+    )
 
     task_states: tuple[TaskInstanceState | None, ...] = (None, *TaskInstanceState)
 
@@ -193,7 +197,11 @@ class State:
     """
 
     adoptable_states = frozenset(
-        [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
+        [
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.RESTARTING,
+        ]
     )
     """
     A list of states indicating that a task can be adopted or reset by a scheduler job

@@ -69,7 +69,11 @@ class HiveToSambaOperator(BaseOperator):
         with NamedTemporaryFile() as tmp_file:
             self.log.info("Fetching file from Hive")
             hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
-            hive.to_csv(self.hql, csv_filepath=tmp_file.name, hive_conf=context_to_airflow_vars(context))
+            hive.to_csv(
+                self.hql,
+                csv_filepath=tmp_file.name,
+                hive_conf=context_to_airflow_vars(context),
+            )
             self.log.info("Pushing to samba")
             samba = SambaHook(samba_conn_id=self.samba_conn_id)
             samba.push_from_local(self.destination_filepath, tmp_file.name)

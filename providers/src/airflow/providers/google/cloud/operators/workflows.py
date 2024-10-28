@@ -119,7 +119,9 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
         return re.sub(r"[:\-+.]", "_", workflow_id)
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         workflow_id = self._workflow_id(context)
 
         self.log.info("Creating workflow")
@@ -212,7 +214,9 @@ class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         workflow = hook.get_workflow(
             workflow_id=self.workflow_id,
@@ -288,7 +292,9 @@ class WorkflowsDeleteWorkflowOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Deleting workflow %s", self.workflow_id)
         operation = hook.delete_workflow(
             workflow_id=self.workflow_id,
@@ -353,7 +359,9 @@ class WorkflowsListWorkflowsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Retrieving workflows")
         workflows_iter = hook.list_workflows(
             filter_=self.filter_,
@@ -420,7 +428,9 @@ class WorkflowsGetWorkflowOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Retrieving workflow")
         workflow = hook.get_workflow(
             workflow_id=self.workflow_id,
@@ -492,7 +502,9 @@ class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Creating execution")
         execution = hook.create_execution(
             workflow_id=self.workflow_id,
@@ -567,7 +579,9 @@ class WorkflowsCancelExecutionOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Canceling execution %s", self.execution_id)
         execution = hook.cancel_execution(
             workflow_id=self.workflow_id,
@@ -647,7 +661,9 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         self.log.info("Retrieving executions for workflow %s", self.workflow_id)
         execution_iter = hook.list_executions(
             workflow_id=self.workflow_id,
@@ -722,8 +738,12 @@ class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        self.log.info("Retrieving execution %s for workflow %s", self.execution_id, self.workflow_id)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        self.log.info(
+            "Retrieving execution %s for workflow %s", self.execution_id, self.workflow_id
+        )
         execution = hook.get_execution(
             workflow_id=self.workflow_id,
             execution_id=self.execution_id,

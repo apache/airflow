@@ -62,7 +62,9 @@ def waiter(
         if state in desired_state:
             break
         if state in failure_states:
-            raise AirflowException(f"{object_type.title()} reached failure state {state}.")
+            raise AirflowException(
+                f"{object_type.title()} reached failure state {state}."
+            )
 
         if countdown is None:
             countdown = float("inf")

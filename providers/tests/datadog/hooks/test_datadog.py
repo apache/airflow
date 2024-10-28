@@ -48,7 +48,9 @@ DEVICE_NAME = "device-name"
 class TestDatadogHook:
     def setup_method(self):
         with mock.patch("airflow.providers.datadog.hooks.datadog.initialize"):
-            with mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection") as m:
+            with mock.patch(
+                "airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection"
+            ) as m:
                 m.return_value = Connection(
                     extra=json.dumps(
                         {
@@ -66,7 +68,10 @@ class TestDatadogHook:
         mock_get_connection.return_value = Connection()
         with pytest.raises(AirflowException) as ctx:
             DatadogHook()
-        assert str(ctx.value) == "api_key must be specified in the Datadog connection details"
+        assert (
+            str(ctx.value)
+            == "api_key must be specified in the Datadog connection details"
+        )
 
     def test_validate_response_valid(self):
         try:

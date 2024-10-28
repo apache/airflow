@@ -44,7 +44,9 @@ edge_attr = {
 
 def generate_dag_processor_airflow_diagram():
     dag_processor_architecture_image_file = (MY_DIR / MY_FILENAME).with_suffix(".png")
-    console.print(f"[bright_blue]Generating architecture image {dag_processor_architecture_image_file}")
+    console.print(
+        f"[bright_blue]Generating architecture image {dag_processor_architecture_image_file}"
+    )
     with Diagram(
         name="",
         show=False,
@@ -57,14 +59,21 @@ def generate_dag_processor_airflow_diagram():
         operations_user = User("Operations User")
         deployment_manager = User("Deployment Manager")
 
-        with Cluster("Security perimeter with no DAG code execution", graph_attr={"bgcolor": "lightgrey"}):
+        with Cluster(
+            "Security perimeter with no DAG code execution",
+            graph_attr={"bgcolor": "lightgrey"},
+        ):
             with Cluster("Scheduling\n\n"):
                 schedulers = Custom("Scheduler(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
             with Cluster("UI"):
                 webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
-        webservers >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> operations_user
+        (
+            webservers
+            >> Edge(color="black", style="solid", reverse=True, label="operate\n\n")
+            >> operations_user
+        )
 
         metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
 
@@ -75,12 +84,20 @@ def generate_dag_processor_airflow_diagram():
                 workers = Custom("Worker(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 triggerer = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
             with Cluster("Parsing"):
-                dag_processors = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                dag_processors = Custom(
+                    "DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
             dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix())
 
-        plugins_and_packages = Custom("Plugin folder\n& installed packages", PACKAGES_IMAGE.as_posix())
+        plugins_and_packages = Custom(
+            "Plugin folder\n& installed packages", PACKAGES_IMAGE.as_posix()
+        )
 
-        dag_author >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n") >> dag_files
+        (
+            dag_author
+            >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n")
+            >> dag_files
+        )
         (
             deployment_manager
             >> Edge(color="blue", style="solid", reverse=False, label="install\n\n")
@@ -89,12 +106,32 @@ def generate_dag_processor_airflow_diagram():
 
         workers - Edge(color="black", style="dashed", headlabel="[Executor]") - schedulers
 
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install") >> workers
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install") >> dag_processors
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install") >> triggerer
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install")
+            >> workers
+        )
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install")
+            >> dag_processors
+        )
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install")
+            >> triggerer
+        )
 
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install") >> schedulers
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install") >> webservers
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install")
+            >> schedulers
+        )
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install")
+            >> webservers
+        )
 
         metadata_db >> Edge(color="red", style="dotted", reverse=True) >> webservers
         metadata_db >> Edge(color="red", style="dotted", reverse=True) >> schedulers
@@ -103,9 +140,15 @@ def generate_dag_processor_airflow_diagram():
         triggerer >> Edge(color="red", style="dotted", reverse=True) >> metadata_db
 
         dag_files >> Edge(color="brown", style="solid", label="sync\n\n") >> workers
-        dag_files >> Edge(color="brown", style="solid", label="sync\n\n") >> dag_processors
+        (
+            dag_files
+            >> Edge(color="brown", style="solid", label="sync\n\n")
+            >> dag_processors
+        )
         dag_files >> Edge(color="brown", style="solid", label="sync\n\n") >> triggerer
-    console.print(f"[green]Generating architecture image {dag_processor_architecture_image_file}")
+    console.print(
+        f"[green]Generating architecture image {dag_processor_architecture_image_file}"
+    )
 
 
 if __name__ == "__main__":

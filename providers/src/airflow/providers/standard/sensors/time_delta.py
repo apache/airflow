@@ -81,10 +81,14 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
             # If the target datetime is in the past, return immediately
             return True
         try:
-            trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
+            trigger = DateTimeTrigger(
+                moment=target_dttm, end_from_trigger=self.end_from_trigger
+            )
         except (TypeError, ValueError) as e:
             if self.soft_fail:
-                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                raise AirflowSkipException(
+                    "Skipping due to soft_fail is set to True."
+                ) from e
             raise
 
         self.defer(trigger=trigger, method_name="execute_complete")
@@ -108,7 +112,9 @@ class WaitSensor(BaseSensorOperator):
     def __init__(
         self,
         time_to_wait: timedelta | int,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

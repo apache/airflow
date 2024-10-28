@@ -33,7 +33,10 @@ from google.api_core.retry import Retry
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
     CloudVideoIntelligenceDetectVideoLabelsOperator,
@@ -69,7 +72,9 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME_DST)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME_DST
+    )
 
     copy_single_file = GCSToGCSOperator(
         task_id="copy_single_gcs_file",
@@ -98,13 +103,15 @@ with DAG(
     # [END howto_operator_video_intelligence_detect_labels_result]
 
     # [START howto_operator_video_intelligence_detect_explicit_content]
-    detect_video_explicit_content = CloudVideoIntelligenceDetectVideoExplicitContentOperator(
-        input_uri=INPUT_URI,
-        output_uri=None,
-        video_context=None,
-        retry=Retry(maximum=10.0),
-        timeout=5,
-        task_id="detect_video_explicit_content",
+    detect_video_explicit_content = (
+        CloudVideoIntelligenceDetectVideoExplicitContentOperator(
+            input_uri=INPUT_URI,
+            output_uri=None,
+            video_context=None,
+            retry=Retry(maximum=10.0),
+            timeout=5,
+            task_id="detect_video_explicit_content",
+        )
     )
     # [END howto_operator_video_intelligence_detect_explicit_content]
 
@@ -136,7 +143,9 @@ with DAG(
     # [END howto_operator_video_intelligence_detect_video_shots_result]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME_DST,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

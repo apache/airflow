@@ -34,7 +34,12 @@ from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
+from celery.backends.database import (
+    DatabaseBackend,
+    Task as TaskDb,
+    retry,
+    session_cleanup,
+)
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
 from sqlalchemy import select
@@ -42,7 +47,11 @@ from sqlalchemy import select
 import airflow.settings as settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowTaskTimeout,
+)
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
@@ -77,7 +86,9 @@ def _get_celery_app() -> Celery:
     if conf.has_option("celery", "celery_config_options"):
         celery_configuration = conf.getimport("celery", "celery_config_options")
     else:
-        from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
+        from airflow.providers.celery.executors.default_celery import (
+            DEFAULT_CELERY_CONFIG,
+        )
 
         celery_configuration = DEFAULT_CELERY_CONFIG
 
@@ -142,7 +153,9 @@ def execute_command(command_to_exec: CommandType) -> None:
             raise
 
 
-def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = None) -> None:
+def _execute_in_fork(
+    command_to_exec: CommandType, celery_task_id: str | None = None
+) -> None:
     pid = os.fork()
     if pid:
         # In parent, wait for the child
@@ -187,14 +200,20 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         os._exit(ret)
 
 
-def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | None = None) -> None:
+def _execute_in_subprocess(
+    command_to_exec: CommandType, celery_task_id: str | None = None
+) -> None:
     env = os.environ.copy()
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
+        subprocess.check_output(
+            command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env
+        )
     except subprocess.CalledProcessError as e:
-        log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
+        log.exception(
+            "[%s] execute_command encountered a CalledProcessError", celery_task_id
+        )
         log.error(e.output)
         msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}"
         raise AirflowException(msg)
@@ -228,7 +247,9 @@ def send_task_to_executor(
     return key, command, result
 
 
-def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
+def fetch_celery_task_state(
+    async_result: AsyncResult,
+) -> tuple[str, str | ExceptionWithTraceback, Any]:
     """
     Fetch and return the state of the given celery task.
 
@@ -274,32 +295,48 @@ class BulkStateFetcher(LoggingMixin):
             result = self._get_many_from_db_backend(async_results)
         else:
             result = self._get_many_using_multiprocessing(async_results)
-        self.log.debug("Fetched %d state(s) for %d task(s)", len(result), len(async_results))
+        self.log.debug(
+            "Fetched %d state(s) for %d task(s)", len(result), len(async_results)
+        )
         return result
 
-    def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
+    def _get_many_from_kv_backend(
+        self, async_tasks
+    ) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
         task_results = [app.backend.decode_result(v) for v in values if v]
-        task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
+        task_results_by_task_id = {
+            task_result["task_id"]: task_result for task_result in task_results
+        }
 
-        return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
+        return self._prepare_state_and_info_by_task_dict(
+            task_ids, task_results_by_task_id
+        )
 
     @retry
     def _query_task_cls_from_db_backend(self, task_ids, **kwargs):
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
-            return session.scalars(select(task_cls).where(task_cls.task_id.in_(task_ids))).all()
+            return session.scalars(
+                select(task_cls).where(task_cls.task_id.in_(task_ids))
+            ).all()
 
-    def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
+    def _get_many_from_db_backend(
+        self, async_tasks
+    ) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         tasks = self._query_task_cls_from_db_backend(task_ids)
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
-        task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
+        task_results_by_task_id = {
+            task_result["task_id"]: task_result for task_result in task_results
+        }
 
-        return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
+        return self._prepare_state_and_info_by_task_dict(
+            task_ids, task_results_by_task_id
+        )
 
     @staticmethod
     def _prepare_state_and_info_by_task_dict(
@@ -317,7 +354,9 @@ class BulkStateFetcher(LoggingMixin):
             state_info[task_id] = state, info
         return state_info
 
-    def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, EventBufferValueType]:
+    def _get_many_using_multiprocessing(
+        self, async_results
+    ) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
         with ProcessPoolExecutor(max_workers=num_process) as sync_pool:

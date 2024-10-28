@@ -111,7 +111,10 @@ class MSGraphAsyncOperator(BaseOperator):
         timeout: float | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
-        pagination_function: Callable[[MSGraphAsyncOperator, dict, Context], tuple[str, dict]] | None = None,
+        pagination_function: Callable[
+            [MSGraphAsyncOperator, dict, Context], tuple[str, dict]
+        ]
+        | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         event_handler: Callable[[Context, dict[Any, Any] | None], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
@@ -169,7 +172,9 @@ class MSGraphAsyncOperator(BaseOperator):
         self.log.debug("context: %s", context)
 
         if event:
-            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
+            self.log.debug(
+                "%s completed with %s: %s", self.task_id, event.get("status"), event
+            )
 
             response = self.event_handler(context, event)
 
@@ -190,7 +195,9 @@ class MSGraphAsyncOperator(BaseOperator):
 
                 try:
                     self.trigger_next_link(
-                        response=response, method_name=self.execute_complete.__name__, context=context
+                        response=response,
+                        method_name=self.execute_complete.__name__,
+                        context=context,
                     )
                 except TaskDeferred as exception:
                     self.append_result(
@@ -280,7 +287,11 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context=context)
-                    skip = sum(map(lambda result: len(result["value"]), results)) + top if results else top
+                    skip = (
+                        sum(map(lambda result: len(result["value"]), results)) + top
+                        if results
+                        else top
+                    )
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters

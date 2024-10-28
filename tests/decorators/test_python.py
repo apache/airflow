@@ -117,7 +117,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     # We do not enable `from __future__ import annotations` for particular this test module,
     # that mean `str | None` annotation would raise TypeError in Python 3.9 and below
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10")
+    @pytest.mark.skipif(
+        sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10"
+    )
     def test_infer_multiple_outputs_pep_604_union_type(self):
         @task_decorator
         def t1() -> str | None:
@@ -155,7 +157,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t2(5, 5).operator.multiple_outputs is True
 
-        with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
+        with pytest.warns(
+            UserWarning, match="Cannot infer multiple_outputs.*t3"
+        ) as recwarn:
 
             @task_decorator
             def t3(  # type: ignore[empty-body]
@@ -265,7 +269,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_fails_context_parameter_other_than_none(self):
         """Fail if a context parameter has a default and it's not None."""
-        error_message = "Context key parameter try_number can't have a default other than None"
+        error_message = (
+            "Context key parameter try_number can't have a default other than None"
+        )
 
         @task_decorator
         def add_number_to_try_number(num: int, try_number: int = 0):
@@ -352,7 +358,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         named_tuple = Named("{{ ds }}", "unchanged")
 
         with self.dag_non_serialized:
-            ret = arg_task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
+            ret = arg_task(
+                4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple
+            )
 
         dr = self.create_dag_run()
         ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
@@ -373,7 +381,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         with self.dag_non_serialized:
             ret = kwargs_task(
-                an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}."
+                an_int=4,
+                a_date=date(2019, 1, 1),
+                a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.",
             )
 
         dr = self.create_dag_run()
@@ -381,7 +391,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
         rendered_op_kwargs = ti.render_templates().op_kwargs
         assert rendered_op_kwargs["an_int"] == 4
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
-        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        assert (
+            rendered_op_kwargs["a_templated_string"]
+            == f"dag {self.dag_id} ran on {self.ds_templated}."
+        )
 
     def test_manual_task_id(self):
         """Test manually setting task_id"""
@@ -406,7 +419,11 @@ class TestAirflowTaskDecorator(BasePythonTest):
             assert ["do_run"] == self.dag_non_serialized.task_ids
             do_run_1 = do_run()
             do_run_2 = do_run()
-            assert ["do_run", "do_run__1", "do_run__2"] == self.dag_non_serialized.task_ids
+            assert [
+                "do_run",
+                "do_run__1",
+                "do_run__2",
+            ] == self.dag_non_serialized.task_ids
 
         assert do_run_1.operator.task_id == "do_run__1"
         assert do_run_2.operator.task_id == "do_run__2"
@@ -424,7 +441,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 do_run()
                 assert [f"{group_id}.do_run"] == self.dag_non_serialized.task_ids
                 do_run()
-                assert [f"{group_id}.do_run", f"{group_id}.do_run__1"] == self.dag_non_serialized.task_ids
+                assert [
+                    f"{group_id}.do_run",
+                    f"{group_id}.do_run__1",
+                ] == self.dag_non_serialized.task_ids
 
         assert len(self.dag_non_serialized.task_ids) == 2
 
@@ -454,7 +474,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with self.dag_non_serialized:
             ret = return_dict(test_number)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -519,7 +541,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
             bigger_number = add_2(test_number)
             ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -571,7 +595,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
             pytest.param("doc_md", "task docs.", "task docs.", id="set_doc_md"),
             pytest.param("doc_rst", "task docs.", None, id="set_doc_rst"),
             pytest.param("doc_yaml", "task:\n\tdocs", None, id="set_doc_yaml"),
-            pytest.param("doc_md", None, "Adds 2 to number.", id="no_doc_md_use_docstring"),
+            pytest.param(
+                "doc_md", None, "Adds 2 to number.", id="no_doc_md_use_docstring"
+            ),
         ],
     )
     def test_task_documentation(self, op_doc_attr, op_doc_value, expected_doc_md):
@@ -683,7 +709,10 @@ def test_mapped_decorator_wrong_argument() -> None:
 
     with pytest.raises(ValueError) as cv:
         print_info.expand(message="hi")
-    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
+    assert (
+        str(cv.value)
+        == "expand() got an unexpected type 'str' for keyword argument 'message'"
+    )
 
 
 def test_mapped_decorator():
@@ -703,7 +732,9 @@ def test_mapped_decorator():
     assert isinstance(t2, XComArg)
     assert isinstance(t2.operator, DecoratedMappedOperator)
     assert t2.operator.task_id == "print_everything"
-    assert t2.operator.op_kwargs_expand_input == DictOfListsExpandInput({"any_key": [1, 2], "works": t1})
+    assert t2.operator.op_kwargs_expand_input == DictOfListsExpandInput(
+        {"any_key": [1, 2], "works": t1}
+    )
 
     assert t0.operator.task_id == "print_info"
     assert t1.operator.task_id == "print_info__1"
@@ -749,10 +780,14 @@ def test_partial_mapped_decorator() -> None:
     }
 
     assert isinstance(doubled.operator, DecoratedMappedOperator)
-    assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput({"number": literal})
+    assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput(
+        {"number": literal}
+    )
     assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
-    assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
+    assert isinstance(
+        trippled.operator, DecoratedMappedOperator
+    )  # For type-checking on partial_kwargs.
     assert trippled.operator.partial_kwargs["op_kwargs"] == {"multiple": 3}
 
     assert doubled.operator is not trippled.operator
@@ -844,11 +879,15 @@ def test_mapped_render_template_fields(dag_maker, session):
         )
         session.flush()
 
-        mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+        mapped_ti: TaskInstance = dr.get_task_instance(
+            mapped.operator.task_id, session=session
+        )
         mapped_ti.map_index = 0
 
         assert isinstance(mapped_ti.task, MappedOperator)
-        mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        mapped.operator.render_template_fields(
+            context=mapped_ti.get_template_context(session=session)
+        )
         assert isinstance(mapped_ti.task, BaseOperator)
 
         assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
@@ -869,7 +908,9 @@ def test_task_decorator_has_wrapped_attr():
     assert hasattr(
         decorated_test_func, "__wrapped__"
     ), "decorated function does not have __wrapped__ attribute"
-    assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
+    assert (
+        decorated_test_func.__wrapped__ is org_test_func
+    ), "__wrapped__ attr is not the original function"
 
 
 def test_task_decorator_has_doc_attr():
@@ -882,7 +923,9 @@ def test_task_decorator_has_doc_attr():
         """Docstring"""
 
     decorated_test_func = task_decorator(org_test_func)
-    assert hasattr(decorated_test_func, "__doc__"), "decorated function should have __doc__ attribute"
+    assert hasattr(
+        decorated_test_func, "__doc__"
+    ), "decorated function should have __doc__ attribute"
     assert (
         decorated_test_func.__doc__ == org_test_func.__doc__
     ), "__doc__ attr should be the original docstring"
@@ -927,7 +970,9 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.parametrize("multiple_outputs", [True, False])
-def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
+def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(
+    dag_maker, session, multiple_outputs
+):
     from airflow.exceptions import AirflowSkipException
     from airflow.utils.trigger_rule import TriggerRule
 
@@ -1070,7 +1115,9 @@ def test_teardown_trigger_rule_override_behavior(dag_maker, session):
 
     work_task = my_work()
     setup_task = my_setup()
-    with pytest.raises(Exception, match="Trigger rule not configurable for teardown tasks."):
+    with pytest.raises(
+        Exception, match="Trigger rule not configurable for teardown tasks."
+    ):
         my_teardown()
     assert work_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
     assert setup_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS

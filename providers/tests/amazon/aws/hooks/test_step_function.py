@@ -36,7 +36,9 @@ class TestStepFunctionHook:
     def test_start_execution(self):
         hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")
         state_machine = hook.get_conn().create_state_machine(
-            name="pseudo-state-machine", definition="{}", roleArn="arn:aws:iam::000000000000:role/Role"
+            name="pseudo-state-machine",
+            definition="{}",
+            roleArn="arn:aws:iam::000000000000:role/Role",
         )
 
         state_machine_arn = state_machine.get("stateMachineArn")
@@ -65,7 +67,8 @@ class TestStepFunctionHook:
         mock_conn.redrive_execution.return_value = {"redriveDate": datetime(2024, 1, 1)}
 
         with pytest.raises(
-            AirflowFailException, match="Execution name is required to start RedriveExecution"
+            AirflowFailException,
+            match="Execution name is required to start RedriveExecution",
         ):
             StepFunctionHook().start_execution(
                 state_machine_arn="arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
@@ -75,7 +78,9 @@ class TestStepFunctionHook:
     def test_describe_execution(self):
         hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")
         state_machine = hook.get_conn().create_state_machine(
-            name="pseudo-state-machine", definition="{}", roleArn="arn:aws:iam::000000000000:role/Role"
+            name="pseudo-state-machine",
+            definition="{}",
+            roleArn="arn:aws:iam::000000000000:role/Role",
         )
 
         state_machine_arn = state_machine.get("stateMachineArn")

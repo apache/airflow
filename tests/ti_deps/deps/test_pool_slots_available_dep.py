@@ -37,7 +37,9 @@ class TestPoolSlotsAvailableDep:
         db.clear_db_pools()
         with create_session() as session:
             test_pool = Pool(pool="test_pool", include_deferred=False)
-            test_includes_deferred_pool = Pool(pool="test_includes_deferred_pool", include_deferred=True)
+            test_includes_deferred_pool = Pool(
+                pool="test_includes_deferred_pool", include_deferred=True
+            )
             session.add_all([test_pool, test_includes_deferred_pool])
             session.commit()
 
@@ -62,9 +64,15 @@ class TestPoolSlotsAvailableDep:
 
     @patch("airflow.models.Pool.open_slots", return_value=0)
     def test_deferred_pooled_task_pass(self, mock_open_slots):
-        ti = Mock(pool="test_includes_deferred_pool", state=TaskInstanceState.DEFERRED, pool_slots=1)
+        ti = Mock(
+            pool="test_includes_deferred_pool",
+            state=TaskInstanceState.DEFERRED,
+            pool_slots=1,
+        )
         assert PoolSlotsAvailableDep().is_met(ti=ti)
-        ti_to_fail = Mock(pool="test_pool", state=TaskInstanceState.DEFERRED, pool_slots=1)
+        ti_to_fail = Mock(
+            pool="test_pool", state=TaskInstanceState.DEFERRED, pool_slots=1
+        )
         assert not PoolSlotsAvailableDep().is_met(ti=ti_to_fail)
 
     def test_task_with_nonexistent_pool(self):

@@ -39,7 +39,9 @@ def clean_up_airflow_home(airflow_home: Path):
 
 
 def check_if_in_virtualenv() -> bool:
-    return hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
+    return hasattr(sys, "real_prefix") or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    )
 
 
 def check_for_package_extras() -> str:
@@ -93,8 +95,17 @@ system packages. It's easier to install extras one-by-one as needed.
         f"https://raw.githubusercontent.com/apache/airflow/constraints-main/"
         f"constraints-source-providers-{version}.txt"
     )
-    pip_install_command = ["pip", "install", "-e", f".[{extras}]", "--constraint", constraint]
-    quoted_command = " ".join([shlex.quote(parameter) for parameter in pip_install_command])
+    pip_install_command = [
+        "pip",
+        "install",
+        "-e",
+        f".[{extras}]",
+        "--constraint",
+        constraint,
+    ]
+    quoted_command = " ".join(
+        [shlex.quote(parameter) for parameter in pip_install_command]
+    )
     print()
     print(f"Running command: \n   {quoted_command}\n")
     e = subprocess.run(pip_install_command)

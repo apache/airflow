@@ -184,7 +184,9 @@ def test_active_dag_run(dag_maker, session):
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for dag"):
+    with pytest.raises(
+        AlreadyRunningBackfill, match="Another backfill is running for dag"
+    ):
         _create_backfill(
             dag_id=dag.dag_id,
             from_date=pendulum.parse("2021-02-01"),
@@ -218,7 +220,13 @@ def test_cancel_backfill(dag_maker, session):
     )
     dag_runs = session.scalars(query).all()
     dates = [str(x.logical_date.date()) for x in dag_runs]
-    expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
+    expected_dates = [
+        "2021-01-01",
+        "2021-01-02",
+        "2021-01-03",
+        "2021-01-04",
+        "2021-01-05",
+    ]
     assert dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     dag_runs[0].state = "running"
@@ -230,7 +238,9 @@ def test_cancel_backfill(dag_maker, session):
     assert states == ["running", "failed", "failed", "failed", "failed"]
 
 
-def create_next_run(*, is_backfill: bool, next_date: datetime, dag_id: str, dag_maker, session: Session):
+def create_next_run(
+    *, is_backfill: bool, next_date: datetime, dag_id: str, dag_maker, session: Session
+):
     """Used in test_ignore_first_depends_on_past to create the next run after a failed run."""
     if is_backfill:
         b = _create_backfill(
@@ -260,12 +270,16 @@ def create_next_run(*, is_backfill: bool, next_date: datetime, dag_id: str, dag_
 @pytest.mark.parametrize("catchup", [True, False])
 @pytest.mark.parametrize("days_between", [1, 10])
 @pytest.mark.parametrize("first_run_type", [DagRunType.SCHEDULED, DagRunType.MANUAL])
-def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_backfill, dag_maker, session):
+def test_ignore_first_depends_on_past(
+    first_run_type, days_between, catchup, is_backfill, dag_maker, session
+):
     """When creating a backfill, should ignore depends_on_past task attr for the first run in a backfill."""
     base_date = timezone.datetime(2021, 1, 1)
     from_date = base_date + timedelta(days=days_between)
     with dag_maker(dag_id="abc123", serialized=True, catchup=catchup) as dag:
-        op = PythonOperator(task_id="dep_on_past", python_callable=lambda: print, depends_on_past=True)
+        op = PythonOperator(
+            task_id="dep_on_past", python_callable=lambda: print, depends_on_past=True
+        )
     dr = dag_maker.create_dagrun(execution_date=base_date, run_type=first_run_type)
     dr.state = DagRunState.FAILED
     for ti in dr.task_instances:
@@ -291,7 +305,9 @@ def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_
 
     # check that it's immediately after the other dag run
     prior_runs = session.scalars(
-        select(DagRun.execution_date).where(DagRun.execution_date < next_run.execution_date)
+        select(DagRun.execution_date).where(
+            DagRun.execution_date < next_run.execution_date
+        )
     ).all()
     assert len(prior_runs) == 1
     assert prior_runs[0] == first_run.execution_date

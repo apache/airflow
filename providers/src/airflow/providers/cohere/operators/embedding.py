@@ -63,7 +63,9 @@ class CohereEmbeddingOperator(BaseOperator):
     @cached_property
     def hook(self) -> CohereHook:
         """Return an instance of the CohereHook."""
-        return CohereHook(conn_id=self.conn_id, timeout=self.timeout, max_retries=self.max_retries)
+        return CohereHook(
+            conn_id=self.conn_id, timeout=self.timeout, max_retries=self.max_retries
+        )
 
     def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""

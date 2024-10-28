@@ -19,7 +19,10 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.common.client_factory import (
+    get_client_from_auth_file,
+    get_client_from_json_dict,
+)
 from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -56,8 +59,12 @@ class AzureBaseHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "tenantId": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
-            "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
+            "tenantId": StringField(
+                lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()
+            ),
+            "subscriptionId": StringField(
+                lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -122,23 +129,33 @@ class AzureBaseHook(BaseHook):
             if not key_path.endswith(".json"):
                 raise AirflowException("Unrecognised extension for key file.")
             self.log.info("Getting connection using a JSON key file.")
-            return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
+            return get_client_from_auth_file(
+                client_class=self.sdk_client, auth_path=key_path
+            )
 
         key_json = conn.extra_dejson.get("key_json")
         if key_json:
             self.log.info("Getting connection using a JSON config.")
-            return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
+            return get_client_from_json_dict(
+                client_class=self.sdk_client, config_dict=key_json
+            )
 
         credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter
         if all([conn.login, conn.password, tenant]):
-            self.log.info("Getting connection using specific credentials and subscription_id.")
+            self.log.info(
+                "Getting connection using specific credentials and subscription_id."
+            )
             credentials = ServicePrincipalCredentials(
                 client_id=conn.login, secret=conn.password, tenant=tenant
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
-            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            managed_identity_client_id = conn.extra_dejson.get(
+                "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = conn.extra_dejson.get(
+                "workload_identity_tenant_id"
+            )
             credentials = AzureIdentityCredentialAdapter(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,

@@ -50,7 +50,10 @@ class TestZendeskHook:
         zenpy_client = self.hook.get_conn()
         assert zenpy_client.users.subdomain == "yoursubdomain"
         assert zenpy_client.users.domain == "zendesk.com"
-        assert zenpy_client.users.session.auth == ("user@gmail.com", "eb243592-faa2-4ba2-a551q-1afdf565c889")
+        assert zenpy_client.users.session.auth == (
+            "user@gmail.com",
+            "eb243592-faa2-4ba2-a551q-1afdf565c889",
+        )
         assert not zenpy_client.cache.disabled
         assert self.hook._ZendeskHook__url == "https://yoursubdomain.zendesk.com"
 
@@ -64,7 +67,9 @@ class TestZendeskHook:
         zenpy_client = self.hook.get_conn()
         with patch.object(zenpy_client, "search") as search_mock:
             self.hook.search_tickets(status="open", sort_order="desc")
-            search_mock.assert_called_once_with(type="ticket", status="open", sort_order="desc")
+            search_mock.assert_called_once_with(
+                type="ticket", status="open", sort_order="desc"
+            )
 
     def test_create_tickets(self):
         zenpy_client = self.hook.get_conn()

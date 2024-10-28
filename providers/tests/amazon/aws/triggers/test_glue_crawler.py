@@ -41,7 +41,10 @@ class TestGlueCrawlerCompleteTrigger:
         )
 
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.glue_crawler.GlueCrawlerCompleteTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.glue_crawler.GlueCrawlerCompleteTrigger"
+        )
         assert kwargs == {
             "crawler_name": "test_crawler",
             "waiter_delay": 10,

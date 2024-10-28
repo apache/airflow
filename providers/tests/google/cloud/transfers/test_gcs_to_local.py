@@ -23,7 +23,9 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models.xcom import MAX_XCOM_SIZE
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import (
+    GCSToLocalFilesystemOperator,
+)
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
@@ -36,9 +38,7 @@ LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
 XCOM_KEY = "some_xkom_key"
 FILE_CONTENT_STR = "some file content"
 FILE_CONTENT_BYTES_UTF8 = b"some file content"
-FILE_CONTENT_BYTES_UTF16 = (
-    b"\xff\xfes\x00o\x00m\x00e\x00 \x00f\x00i\x00l\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00n\x00t\x00"
-)
+FILE_CONTENT_BYTES_UTF16 = b"\xff\xfes\x00o\x00m\x00e\x00 \x00f\x00i\x00l\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00n\x00t\x00"
 
 
 class TestGoogleCloudStorageDownloadOperator:
@@ -75,7 +75,9 @@ class TestGoogleCloudStorageDownloadOperator:
         mock_hook.return_value.download.assert_called_once_with(
             bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
         )
-        context["ti"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
+        context["ti"].xcom_push.assert_called_once_with(
+            key=XCOM_KEY, value=FILE_CONTENT_STR
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
     def test_size_gt_max_xcom_size(self, mock_hook):
@@ -112,4 +114,6 @@ class TestGoogleCloudStorageDownloadOperator:
         mock_hook.return_value.download.assert_called_once_with(
             bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
         )
-        context["ti"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
+        context["ti"].xcom_push.assert_called_once_with(
+            key=XCOM_KEY, value=FILE_CONTENT_STR
+        )

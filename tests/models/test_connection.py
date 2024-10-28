@@ -82,7 +82,11 @@ class TestConnection:
                 None,
                 80,
                 "",
-                {"deploy-mode": "cluster", "spark_binary": "command", "namespace": "kube namespace"},
+                {
+                    "deploy-mode": "cluster",
+                    "spark_binary": "command",
+                    "namespace": "kube namespace",
+                },
                 None,
             ),
             (
@@ -133,7 +137,9 @@ class TestConnection:
         expected_exception_message,
     ):
         if expected_exception_message is not None:
-            with pytest.raises(AirflowException, match=re.escape(expected_exception_message)):
+            with pytest.raises(
+                AirflowException, match=re.escape(expected_exception_message)
+            ):
                 Connection(uri=uri)
         else:
             conn = Connection(uri=uri)

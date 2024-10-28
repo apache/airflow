@@ -62,7 +62,9 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
+def return_single_query_results(
+    sql: str | Iterable[str], return_last: bool, split_statements: bool
+):
     """
     Determine when results of single query only should be returned.
 
@@ -240,7 +242,9 @@ class DbApiHook(BaseHook):
         db = self.connection
         if self.connector is None:
             raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
-        return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
+        return self.connector.connect(
+            host=db.host, port=db.port, username=db.login, schema=db.schema
+        )
 
     def get_uri(self) -> str:
         """
@@ -340,7 +344,9 @@ class DbApiHook(BaseHook):
             )
 
         with closing(self.get_conn()) as conn:
-            yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
+            yield from psql.read_sql(
+                sql, con=conn, params=parameters, chunksize=chunksize, **kwargs
+            )
 
     def get_records(
         self,
@@ -355,7 +361,9 @@ class DbApiHook(BaseHook):
         """
         return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
+    def get_first(
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any:
         """
         Execute the sql and return the first resulting row.
 
@@ -490,7 +498,9 @@ class DbApiHook(BaseHook):
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
-                        if return_single_query_results(sql, return_last, split_statements):
+                        if return_single_query_results(
+                            sql, return_last, split_statements
+                        ):
                             _last_result = result
                             _last_description = cur.description
                         else:
@@ -541,7 +551,9 @@ class DbApiHook(BaseHook):
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
         if self.log_sql:
-            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+            self.log.info(
+                "Running statement: %s, parameters: %s", sql_statement, parameters
+            )
 
         if parameters:
             cur.execute(sql_statement, parameters)
@@ -576,7 +588,9 @@ class DbApiHook(BaseHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+    def _generate_insert_sql(
+        self, table, values, target_fields, replace, **kwargs
+    ) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -599,9 +613,13 @@ class DbApiHook(BaseHook):
             target_fields = ""
 
         if not replace:
-            return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
+            return self._insert_statement_format.format(
+                table, target_fields, ",".join(placeholders)
+            )
 
-        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
+        return self._replace_statement_format.format(
+            table, target_fields, ",".join(placeholders)
+        )
 
     @contextmanager
     def _create_autocommit_connection(self, autocommit: bool = False):
@@ -665,16 +683,22 @@ class DbApiHook(BaseHook):
                                 chunked_rows,
                             )
                         )
-                        sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
+                        sql = self._generate_insert_sql(
+                            table, values[0], target_fields, replace, **kwargs
+                        )
                         self.log.debug("Generated sql: %s", sql)
                         cur.executemany(sql, values)
                         conn.commit()
-                        self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                        self.log.info(
+                            "Loaded %s rows into %s so far", len(chunked_rows), table
+                        )
                         nb_rows += len(chunked_rows)
                 else:
                     for i, row in enumerate(rows, 1):
                         values = self._serialize_cells(row, conn)
-                        sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+                        sql = self._generate_insert_sql(
+                            table, values, target_fields, replace, **kwargs
+                        )
                         self.log.debug("Generated sql: %s", sql)
                         cur.execute(sql, values)
                         if commit_every and i % commit_every == 0:
@@ -761,7 +785,9 @@ class DbApiHook(BaseHook):
         """
         return self.__schema or "public"
 
-    def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
+    def get_openlineage_database_specific_lineage(
+        self, task_instance
+    ) -> OperatorLineage | None:
         """
         Return additional database specific lineage, e.g. query execution information.
 
@@ -772,7 +798,9 @@ class DbApiHook(BaseHook):
         """
 
     @staticmethod
-    def get_openlineage_authority_part(connection, default_port: int | None = None) -> str:
+    def get_openlineage_authority_part(
+        connection, default_port: int | None = None
+    ) -> str:
         """
         Get authority part from Airflow Connection.
 

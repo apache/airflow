@@ -75,7 +75,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
     def test_get_default_exprs(self):
         col = "col"
 
-        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
+        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(
+            col, None
+        )
 
         assert default_exprs == {(col, "non_null"): f"COUNT({col})"}
 
@@ -83,14 +85,18 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         col = "excluded_col"
         self.kwargs.update(dict(excluded_columns=[col]))
 
-        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
+        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(
+            col, None
+        )
 
         assert default_exprs == {}
 
     def test_get_default_exprs_number(self):
         col = "col"
         for col_type in ["double", "int", "bigint", "float"]:
-            default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
+            default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(
+                col, col_type
+            )
 
             assert default_exprs == {
                 (col, "avg"): f"AVG({col})",
@@ -104,7 +110,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         col = "col"
         col_type = "boolean"
 
-        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
+        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(
+            col, col_type
+        )
 
         assert default_exprs == {
             (col, "false"): f"SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)",
@@ -116,7 +124,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         col = "col"
         col_type = "string"
 
-        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
+        default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(
+            col, col_type
+        )
 
         assert default_exprs == {
             (col, "approx_distinct"): f"APPROX_DISTINCT({col})",
@@ -128,7 +138,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
     @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
-    def test_execute(self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, mock_json_dumps):
+    def test_execute(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, mock_json_dumps
+    ):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
 
@@ -141,11 +153,18 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_hive_metastore_hook.return_value.get_table.assert_called_once_with(
             table_name=hive_stats_collection_operator.table
         )
-        mock_presto_hook.assert_called_once_with(presto_conn_id=hive_stats_collection_operator.presto_conn_id)
-        mock_mysql_hook.assert_called_once_with(hive_stats_collection_operator.mysql_conn_id)
-        mock_json_dumps.assert_called_once_with(hive_stats_collection_operator.partition, sort_keys=True)
+        mock_presto_hook.assert_called_once_with(
+            presto_conn_id=hive_stats_collection_operator.presto_conn_id
+        )
+        mock_mysql_hook.assert_called_once_with(
+            hive_stats_collection_operator.mysql_conn_id
+        )
+        mock_json_dumps.assert_called_once_with(
+            hive_stats_collection_operator.partition, sort_keys=True
+        )
         field_types = {
-            col.name: col.type for col in mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols
+            col.name: col.type
+            for col in mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols
         }
         exprs = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
@@ -192,7 +211,8 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         hive_stats_collection_operator.execute(context={})
 
         field_types = {
-            col.name: col.type for col in mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols
+            col.name: col.type
+            for col in mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols
         }
         exprs = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
@@ -239,7 +259,8 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         hive_stats_collection_operator.execute(context={})
 
         field_types = {
-            col.name: col.type for col in mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols
+            col.name: col.type
+            for col in mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols
         }
         exprs = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
@@ -271,7 +292,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
     @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.PrestoHook")
     @patch("airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook")
-    def test_execute_no_query_results(self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook):
+    def test_execute_no_query_results(
+        self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook
+    ):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
         mock_presto_hook.return_value.get_first.return_value = None
@@ -302,7 +325,8 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook.return_value.run.assert_called_once_with(sql)
 
     @pytest.mark.skipif(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+        "AIRFLOW_RUNALL_TESTS" not in os.environ,
+        reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
     )
     @patch(
         "airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook",
@@ -312,10 +336,12 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook = MockMySqlHook()
         mock_presto_hook = MockPrestoHook()
         with patch(
-            "airflow.providers.apache.hive.operators.hive_stats.PrestoHook", return_value=mock_presto_hook
+            "airflow.providers.apache.hive.operators.hive_stats.PrestoHook",
+            return_value=mock_presto_hook,
         ):
             with patch(
-                "airflow.providers.apache.hive.operators.hive_stats.MySqlHook", return_value=mock_mysql_hook
+                "airflow.providers.apache.hive.operators.hive_stats.MySqlHook",
+                return_value=mock_mysql_hook,
             ):
                 op = HiveStatsCollectionOperator(
                     task_id="hive_stats_check",
@@ -323,7 +349,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                     partition={"ds": DEFAULT_DATE_DS},
                     dag=self.dag,
                 )
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                op.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
 
         select_count_query = (
             "SELECT COUNT(*) AS __count "

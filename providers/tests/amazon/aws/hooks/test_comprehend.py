@@ -79,7 +79,9 @@ class TestComprehendHook:
             }
         }
         classifier_arn = "arn:aws:comprehend:us-east-1:123456789012:document-classifier/docs-clasf/version/v1"
-        ComprehendHook().validate_document_classifier_training_status(document_classifier_arn=classifier_arn)
+        ComprehendHook().validate_document_classifier_training_status(
+            document_classifier_arn=classifier_arn
+        )
 
     @mock.patch.object(ComprehendHook, "conn")
     def test_validate_document_classifier_training_status_for_warning(self, mock_conn):
@@ -128,7 +130,8 @@ class TestComprehendHook:
         }
         classifier_arn = "arn:aws:comprehend:us-east-1:123456789012:document-classifier/docs-clasf/version/v1"
         with pytest.raises(
-            AirflowException, match="Warnings in AWS Comprehend document classifier training."
+            AirflowException,
+            match="Warnings in AWS Comprehend document classifier training.",
         ):
             ComprehendHook().validate_document_classifier_training_status(
                 document_classifier_arn=classifier_arn, fail_on_warnings=True

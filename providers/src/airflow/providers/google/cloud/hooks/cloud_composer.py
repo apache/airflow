@@ -90,7 +90,9 @@ class CloudComposerHook(GoogleBaseHook):
             raise AirflowException(error)
 
     def get_operation(self, operation_name):
-        return self.get_environment_client().transport.operations_client.get_operation(name=operation_name)
+        return self.get_environment_client().transport.operations_client.get_operation(
+            name=operation_name
+        )
 
     def get_environment_name(self, project_id, region, environment_id):
         return f"projects/{project_id}/locations/{region}/environments/{environment_id}"
@@ -121,7 +123,10 @@ class CloudComposerHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         result = client.create_environment(
-            request={"parent": self.get_parent(project_id, region), "environment": environment},
+            request={
+                "parent": self.get_parent(project_id, region),
+                "environment": environment,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -177,7 +182,9 @@ class CloudComposerHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         result = client.get_environment(
-            request={"name": self.get_environment_name(project_id, region, environment_id)},
+            request={
+                "name": self.get_environment_name(project_id, region, environment_id)
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -254,7 +261,11 @@ class CloudComposerHook(GoogleBaseHook):
         name = self.get_environment_name(project_id, region, environment_id)
 
         result = client.update_environment(
-            request={"name": name, "environment": environment, "update_mask": update_mask},
+            request={
+                "name": name,
+                "environment": environment,
+                "update_mask": update_mask,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -331,7 +342,9 @@ class CloudComposerHook(GoogleBaseHook):
         client = self.get_environment_client()
         result = client.execute_airflow_command(
             request={
-                "environment": self.get_environment_name(project_id, region, environment_id),
+                "environment": self.get_environment_name(
+                    project_id, region, environment_id
+                ),
                 "command": command,
                 "subcommand": subcommand,
                 "parameters": parameters,
@@ -373,7 +386,9 @@ class CloudComposerHook(GoogleBaseHook):
         client = self.get_environment_client()
         result = client.poll_airflow_command(
             request={
-                "environment": self.get_environment_name(project_id, region, environment_id),
+                "environment": self.get_environment_name(
+                    project_id, region, environment_id
+                ),
                 "execution_id": execution_id,
                 "pod": pod,
                 "pod_namespace": pod_namespace,
@@ -450,8 +465,10 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         return f"projects/{project_id}/locations/{region}"
 
     async def get_operation(self, operation_name):
-        return await self.get_environment_client().transport.operations_client.get_operation(
-            name=operation_name
+        return (
+            await self.get_environment_client().transport.operations_client.get_operation(
+                name=operation_name
+            )
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -477,7 +494,10 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         """
         client = self.get_environment_client()
         return await client.create_environment(
-            request={"parent": self.get_parent(project_id, region), "environment": environment},
+            request={
+                "parent": self.get_parent(project_id, region),
+                "environment": environment,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -543,7 +563,11 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         name = self.get_environment_name(project_id, region, environment_id)
 
         return await client.update_environment(
-            request={"name": name, "environment": environment, "update_mask": update_mask},
+            request={
+                "name": name,
+                "environment": environment,
+                "update_mask": update_mask,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -581,7 +605,9 @@ class CloudComposerAsyncHook(GoogleBaseHook):
 
         return await client.execute_airflow_command(
             request={
-                "environment": self.get_environment_name(project_id, region, environment_id),
+                "environment": self.get_environment_name(
+                    project_id, region, environment_id
+                ),
                 "command": command,
                 "subcommand": subcommand,
                 "parameters": parameters,
@@ -623,7 +649,9 @@ class CloudComposerAsyncHook(GoogleBaseHook):
 
         return await client.poll_airflow_command(
             request={
-                "environment": self.get_environment_name(project_id, region, environment_id),
+                "environment": self.get_environment_name(
+                    project_id, region, environment_id
+                ),
                 "execution_id": execution_id,
                 "pod": pod,
                 "pod_namespace": pod_namespace,

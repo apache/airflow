@@ -87,7 +87,9 @@ def dag():
 @pytest.fixture(scope="module")
 def create_dag_run(dag):
     def _create_dag_run(*, execution_date, session):
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         return dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=execution_date,
@@ -181,7 +183,10 @@ def test_operator_extra_link_override_global_extra_link(dag_run, task_1, viewer_
     response_str = response.data
     if isinstance(response.data, bytes):
         response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org", "error": None}
+    assert json.loads(response_str) == {
+        "url": "https://airflow.apache.org",
+        "error": None,
+    }
 
 
 def test_extra_links_error_raised(dag_run, task_1, viewer_client):
@@ -209,7 +214,10 @@ def test_extra_links_no_response(dag_run, task_1, viewer_client):
     response_str = response.data
     if isinstance(response.data, bytes):
         response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": None, "error": "No URL found for no_response"}
+    assert json.loads(response_str) == {
+        "url": None,
+        "error": "No URL found for no_response",
+    }
 
 
 def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
@@ -230,7 +238,10 @@ def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
     response_str = response.data
     if isinstance(response.data, bytes):
         response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
+    assert json.loads(response_str) == {
+        "url": "https://airflow.apache.org/1.10.5/",
+        "error": None,
+    }
 
 
 def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_client):
@@ -252,7 +263,10 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     response_str = response.data
     if isinstance(response.data, bytes):
         response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
+    assert json.loads(response_str) == {
+        "url": "https://airflow.apache.org/1.10.5/",
+        "error": None,
+    }
 
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_3.dag_id}&task_id={task_3.task_id}"
@@ -264,7 +278,10 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     response_str = response.data
     if isinstance(response.data, bytes):
         response_str = response_str.decode()
-    assert json.loads(response_str) == {"url": "https://airflow.apache.org/1.10.5/", "error": None}
+    assert json.loads(response_str) == {
+        "url": "https://airflow.apache.org/1.10.5/",
+        "error": None,
+    }
 
     # Also check that the other Operator Link defined for this operator exists
     response = viewer_client.get(

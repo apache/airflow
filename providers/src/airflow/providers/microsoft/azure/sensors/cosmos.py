@@ -67,4 +67,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         self.log.info("*** Entering poke")
         hook = AzureCosmosDBHook(self.azure_cosmos_conn_id)
-        return hook.get_document(self.document_id, self.database_name, self.collection_name) is not None
+        return (
+            hook.get_document(self.document_id, self.database_name, self.collection_name)
+            is not None
+        )

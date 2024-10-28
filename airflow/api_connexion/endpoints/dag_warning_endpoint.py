@@ -66,7 +66,9 @@ def get_dag_warnings(
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
     total_entries = get_query_count(query, session=session)
-    query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_sort_attrs)
+    query = apply_sorting(
+        query=query, order_by=order_by, allowed_attrs=allowed_sort_attrs
+    )
     dag_warnings = session.scalars(query.offset(offset).limit(limit)).all()
     return dag_warning_collection_schema.dump(
         DagWarningCollection(dag_warnings=dag_warnings, total_entries=total_entries)

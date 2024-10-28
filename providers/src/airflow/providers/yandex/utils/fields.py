@@ -19,7 +19,9 @@ from __future__ import annotations
 from typing import Any
 
 
-def get_field_from_extras(extras: dict[str, Any], field_name: str, default: Any = None) -> Any:
+def get_field_from_extras(
+    extras: dict[str, Any], field_name: str, default: Any = None
+) -> Any:
     """
     Get field from extras, first checking short name, then for backcompat checking for prefixed name.
 

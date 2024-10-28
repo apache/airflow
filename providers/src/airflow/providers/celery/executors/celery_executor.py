@@ -125,7 +125,9 @@ ARG_FLOWER_BASIC_AUTH = Arg(
 )
 
 # worker cli args
-ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
+ARG_AUTOSCALE = Arg(
+    ("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale"
+)
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -238,7 +240,9 @@ class CeleryExecutor(BaseExecutor):
         self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
-        from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            BulkStateFetcher,
+        )
 
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
@@ -246,7 +250,10 @@ class CeleryExecutor(BaseExecutor):
         self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
 
     def start(self) -> None:
-        self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
+        self.log.debug(
+            "Starting Celery Executor using %s processes for syncing",
+            self._sync_parallelism,
+        )
 
     def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
@@ -257,9 +264,13 @@ class CeleryExecutor(BaseExecutor):
         return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
-        from airflow.providers.celery.executors.celery_executor_utils import execute_command
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            execute_command,
+        )
 
-        task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
+        task_tuples_to_send = [
+            task_tuple[:3] + (execute_command,) for task_tuple in task_tuples
+        ]
         first_task = next(t[3] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend
@@ -268,7 +279,9 @@ class CeleryExecutor(BaseExecutor):
 
         key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
         self.log.debug("Sent all tasks.")
-        from airflow.providers.celery.executors.celery_executor_utils import ExceptionWithTraceback
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            ExceptionWithTraceback,
+        )
 
         for key, _, result in key_and_async_results:
             if isinstance(result, ExceptionWithTraceback) and isinstance(
@@ -288,7 +301,12 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
+                self.log.error(
+                    "%s: %s\n%s\n",
+                    CELERY_SEND_ERR_MSG_HEADER,
+                    result.exception,
+                    result.traceback,
+                )
                 self.event_buffer[key] = (TaskInstanceState.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
@@ -301,7 +319,9 @@ class CeleryExecutor(BaseExecutor):
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
     def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
-        from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            send_task_to_executor,
+        )
 
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
             # One tuple, or max one process -> send it in the main thread.
@@ -314,7 +334,9 @@ class CeleryExecutor(BaseExecutor):
 
         with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
             key_and_async_results = list(
-                send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
+                send_pool.map(
+                    send_task_to_executor, task_tuples_to_send, chunksize=chunksize
+                )
             )
         return key_and_async_results
 
@@ -328,13 +350,17 @@ class CeleryExecutor(BaseExecutor):
         """Debug dump; called in response to SIGUSR2 by the scheduler."""
         super().debug_dump()
         self.log.info(
-            "executor.tasks (%d)\n\t%s", len(self.tasks), "\n\t".join(map(repr, self.tasks.items()))
+            "executor.tasks (%d)\n\t%s",
+            len(self.tasks),
+            "\n\t".join(map(repr, self.tasks.items())),
         )
 
     def update_all_task_states(self) -> None:
         """Update states of the tasks."""
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
-        state_and_info_by_celery_task_id = self.bulk_state_fetcher.get_many(self.tasks.values())
+        state_and_info_by_celery_task_id = self.bulk_state_fetcher.get_many(
+            self.tasks.values()
+        )
 
         self.log.debug("Inquiries completed.")
         for key, async_result in list(self.tasks.items()):
@@ -343,7 +369,11 @@ class CeleryExecutor(BaseExecutor):
                 self.update_task_state(key, state, info)
 
     def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+        self,
+        key: TaskInstanceKey,
+        state: TaskInstanceState,
+        info=None,
+        remove_running=True,
     ) -> None:
         try:
             super().change_state(key, state, info, remove_running=remove_running)
@@ -369,14 +399,19 @@ class CeleryExecutor(BaseExecutor):
 
     def end(self, synchronous: bool = False) -> None:
         if synchronous:
-            while any(task.state not in celery_states.READY_STATES for task in self.tasks.values()):
+            while any(
+                task.state not in celery_states.READY_STATES
+                for task in self.tasks.values()
+            ):
                 time.sleep(5)
         self.sync()
 
     def terminate(self):
         pass
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         # See which of the TIs are still alive (or have finished even!)
         #
         # Since Celery doesn't store "SENT" state for queued commands (if we create an AsyncResult with a made
@@ -399,7 +434,10 @@ class CeleryExecutor(BaseExecutor):
 
         for ti in tis:
             if ti.external_executor_id is not None:
-                celery_tasks[ti.external_executor_id] = (AsyncResult(ti.external_executor_id), ti)
+                celery_tasks[ti.external_executor_id] = (
+                    AsyncResult(ti.external_executor_id),
+                    ti,
+                )
             else:
                 not_adopted_tis.append(ti)
 
@@ -428,7 +466,9 @@ class CeleryExecutor(BaseExecutor):
         if adopted:
             task_instance_str = "\n\t".join(adopted)
             self.log.info(
-                "Adopted the following %d tasks from a dead executor\n\t%s", len(adopted), task_instance_str
+                "Adopted the following %d tasks from a dead executor\n\t%s",
+                len(adopted),
+                task_instance_str,
             )
 
         return not_adopted_tis
@@ -456,7 +496,11 @@ class CeleryExecutor(BaseExecutor):
                 try:
                     app.control.revoke(celery_async_result.task_id)
                 except Exception as ex:
-                    self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
+                    self.log.error(
+                        "Error revoking task instance %s from celery: %s",
+                        task_instance_key,
+                        ex,
+                    )
         return readable_tis
 
     @staticmethod

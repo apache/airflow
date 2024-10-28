@@ -33,7 +33,9 @@ if TYPE_CHECKING:
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
-from airflow.providers.teradata.triggers.teradata_compute_cluster import TeradataComputeClusterSyncTrigger
+from airflow.providers.teradata.triggers.teradata_compute_cluster import (
+    TeradataComputeClusterSyncTrigger,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -126,24 +128,38 @@ class _TeradataComputeClusterOperator(BaseOperator):
             self.log.info("Invalid compute cluster profile name")
             raise AirflowException(Constants.CC_OPR_EMPTY_PROFILE_ERROR_MSG)
         # Verifies if the provided Teradata instance belongs to Vantage Cloud Lake.
-        lake_support_find_sql = "SELECT count(1) from DBC.StorageV WHERE StorageName='TD_OFSSTORAGE'"
-        lake_support_result = self.hook.run(lake_support_find_sql, handler=_single_result_row_handler)
+        lake_support_find_sql = (
+            "SELECT count(1) from DBC.StorageV WHERE StorageName='TD_OFSSTORAGE'"
+        )
+        lake_support_result = self.hook.run(
+            lake_support_find_sql, handler=_single_result_row_handler
+        )
         if lake_support_result is None:
             raise AirflowException(Constants.CC_GRP_LAKE_SUPPORT_ONLY_MSG)
         # Getting teradata db version. Considering teradata instance is Lake when db version is 20 or above
-        db_version_get_sql = "SELECT  InfoData AS Version FROM DBC.DBCInfoV WHERE InfoKey = 'VERSION'"
+        db_version_get_sql = (
+            "SELECT  InfoData AS Version FROM DBC.DBCInfoV WHERE InfoKey = 'VERSION'"
+        )
         try:
-            db_version_result = self.hook.run(db_version_get_sql, handler=_single_result_row_handler)
+            db_version_result = self.hook.run(
+                db_version_get_sql, handler=_single_result_row_handler
+            )
             if db_version_result is not None:
                 db_version_result = str(db_version_result)
                 db_version = db_version_result.split(".")[0]
                 if db_version is not None and int(db_version) < 20:
                     raise AirflowException(Constants.CC_GRP_LAKE_SUPPORT_ONLY_MSG)
             else:
-                raise AirflowException("Error occurred while getting teradata database version")
+                raise AirflowException(
+                    "Error occurred while getting teradata database version"
+                )
         except Exception as ex:
-            self.log.error("Error occurred while getting teradata database version: %s ", str(ex))
-            raise AirflowException("Error occurred while getting teradata database version")
+            self.log.error(
+                "Error occurred while getting teradata database version: %s ", str(ex)
+            )
+            raise AirflowException(
+                "Error occurred while getting teradata database version"
+            )
 
     def _compute_cluster_execute_complete(self, event: dict[str, Any]) -> None:
         if event["status"] == "success":
@@ -280,7 +296,10 @@ class TeradataComputeClusterProvisionOperator(_TeradataComputeClusterOperator):
                 create_cg_query = "CREATE COMPUTE GROUP " + self.compute_group_name
                 if self.query_strategy is not None:
                     create_cg_query = (
-                        create_cg_query + " USING QUERY_STRATEGY ('" + self.query_strategy + "')"
+                        create_cg_query
+                        + " USING QUERY_STRATEGY ('"
+                        + self.query_strategy
+                        + "')"
                     )
                 self._hook_run(create_cg_query, _single_result_row_handler)
         cp_status_query = (
@@ -289,8 +308,12 @@ class TeradataComputeClusterProvisionOperator(_TeradataComputeClusterOperator):
             + "')"
         )
         if self.compute_group_name:
-            cp_status_query += " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
-        cp_status_result = self._hook_run(cp_status_query, handler=_single_result_row_handler)
+            cp_status_query += (
+                " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
+            )
+        cp_status_result = self._hook_run(
+            cp_status_query, handler=_single_result_row_handler
+        )
         if cp_status_result is not None:
             cp_status_result = str(cp_status_result)
             msg = f"Compute Profile {self.compute_profile_name} is already exists under Compute Group {self.compute_group_name}. Status is {cp_status_result}"
@@ -366,7 +389,9 @@ class TeradataComputeClusterDecommissionOperator(_TeradataComputeClusterOperator
         if self.delete_compute_group:
             cg_drop_query = "DROP COMPUTE GROUP " + self.compute_group_name
             self._hook_run(cg_drop_query, handler=_single_result_row_handler)
-            self.log.info("Compute Group %s is successfully dropped", self.compute_group_name)
+            self.log.info(
+                "Compute Group %s is successfully dropped", self.compute_group_name
+            )
 
 
 class TeradataComputeClusterResumeOperator(_TeradataComputeClusterOperator):
@@ -421,8 +446,12 @@ class TeradataComputeClusterResumeOperator(_TeradataComputeClusterOperator):
             + "')"
         )
         if self.compute_group_name:
-            cc_status_query += " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
-        cc_status_result = self._hook_run(cc_status_query, handler=_single_result_row_handler)
+            cc_status_query += (
+                " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
+            )
+        cc_status_result = self._hook_run(
+            cc_status_query, handler=_single_result_row_handler
+        )
         if cc_status_result is not None:
             cp_status_result = str(cc_status_result)
         # Generates an error message if the compute cluster does not exist for the specified
@@ -431,13 +460,19 @@ class TeradataComputeClusterResumeOperator(_TeradataComputeClusterOperator):
             self.log.info(Constants.CC_GRP_PRP_NON_EXISTS_MSG)
             raise AirflowException(Constants.CC_GRP_PRP_NON_EXISTS_MSG)
         if cp_status_result != Constants.CC_RESUME_DB_STATUS:
-            cp_resume_query = f"RESUME COMPUTE FOR COMPUTE PROFILE {self.compute_profile_name}"
+            cp_resume_query = (
+                f"RESUME COMPUTE FOR COMPUTE PROFILE {self.compute_profile_name}"
+            )
             if self.compute_group_name:
-                cp_resume_query = f"{cp_resume_query} IN COMPUTE GROUP {self.compute_group_name}"
+                cp_resume_query = (
+                    f"{cp_resume_query} IN COMPUTE GROUP {self.compute_group_name}"
+                )
             return self._handle_cc_status(Constants.CC_RESUME_OPR, cp_resume_query)
         else:
             self.log.info(
-                "Compute Cluster %s already %s", self.compute_profile_name, Constants.CC_RESUME_DB_STATUS
+                "Compute Cluster %s already %s",
+                self.compute_profile_name,
+                Constants.CC_RESUME_DB_STATUS,
             )
 
 
@@ -493,7 +528,9 @@ class TeradataComputeClusterSuspendOperator(_TeradataComputeClusterOperator):
             + "')"
         )
         if self.compute_group_name:
-            sql += " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
+            sql += (
+                " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
+            )
         result = self._hook_run(sql, handler=_single_result_row_handler)
         if result is not None:
             result = str(result)
@@ -509,5 +546,7 @@ class TeradataComputeClusterSuspendOperator(_TeradataComputeClusterOperator):
             return self._handle_cc_status(Constants.CC_SUSPEND_OPR, sql)
         else:
             self.log.info(
-                "Compute Cluster %s already %s", self.compute_profile_name, Constants.CC_SUSPEND_DB_STATUS
+                "Compute Cluster %s already %s",
+                self.compute_profile_name,
+                Constants.CC_SUSPEND_DB_STATUS,
             )

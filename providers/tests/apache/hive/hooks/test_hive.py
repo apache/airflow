@@ -29,7 +29,11 @@ from hmsclient import HMSClient
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.providers.apache.hive.hooks.hive import (
+    HiveCliHook,
+    HiveMetastoreHook,
+    HiveServer2Hook,
+)
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -130,14 +134,18 @@ class TestHiveCliHook:
             "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
         )
 
-        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"]["env_var_format"]
-        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"]["env_var_format"]
-        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"][
+        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"][
             "env_var_format"
         ]
-        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_RUN_ID"][
+        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"][
             "env_var_format"
         ]
+        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING[
+            "AIRFLOW_CONTEXT_EXECUTION_DATE"
+        ]["env_var_format"]
+        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING[
+            "AIRFLOW_CONTEXT_DAG_RUN_ID"
+        ]["env_var_format"]
 
         mock_output = [
             "Connecting to jdbc:hive2://localhost:10000/default",
@@ -237,7 +245,13 @@ class TestHiveCliHook:
         fields = ",\n    ".join(f"`{k.strip('`')}` {v}" for k, v in field_dict.items())
 
         hook = MockHiveCliHook()
-        hook.load_file(filepath=filepath, table=table, field_dict=field_dict, create=True, recreate=True)
+        hook.load_file(
+            filepath=filepath,
+            table=table,
+            field_dict=field_dict,
+            create=True,
+            recreate=True,
+        )
 
         create_table = (
             f"DROP TABLE IF EXISTS {table};\n"
@@ -247,7 +261,9 @@ class TestHiveCliHook:
             "STORED AS textfile\n;"
         )
 
-        load_data = f"LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n"
+        load_data = (
+            f"LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n"
+        )
         calls = [mock.call(create_table), mock.call(load_data)]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 
@@ -282,7 +298,12 @@ class TestHiveCliHook:
         bools = (True, False)
         for create, recreate in itertools.product(bools, bools):
             mock_load_file.reset_mock()
-            hook.load_df(df=pd.DataFrame({"c": range(10)}), table="t", create=create, recreate=recreate)
+            hook.load_df(
+                df=pd.DataFrame({"c": range(10)}),
+                table="t",
+                create=create,
+                recreate=recreate,
+            )
 
             assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args.kwargs
@@ -338,7 +359,9 @@ class TestHiveMetastoreHook:
             mock.patch(
                 "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client"
             ) as get_metastore_mock,
-            mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"),
+            mock.patch(
+                "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"
+            ),
         ):
             get_metastore_mock.return_value = mock.MagicMock()
 
@@ -355,7 +378,10 @@ class TestHiveMetastoreHook:
     def test_get_max_partition_from_valid_part_specs_and_invalid_filter_map(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
-                [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+                [
+                    {"key1": "value1", "key2": "value2"},
+                    {"key1": "value3", "key2": "value4"},
+                ],
                 "key1",
                 {"key3": "value5"},
             )
@@ -363,7 +389,10 @@ class TestHiveMetastoreHook:
     def test_get_max_partition_from_valid_part_specs_and_invalid_partition_key(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
-                [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+                [
+                    {"key1": "value1", "key2": "value2"},
+                    {"key1": "value3", "key2": "value4"},
+                ],
                 "key3",
                 self.VALID_FILTER_MAP,
             )
@@ -371,14 +400,19 @@ class TestHiveMetastoreHook:
     def test_get_max_partition_from_valid_part_specs_and_none_partition_key(self):
         with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
-                [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+                [
+                    {"key1": "value1", "key2": "value2"},
+                    {"key1": "value3", "key2": "value4"},
+                ],
                 None,
                 self.VALID_FILTER_MAP,
             )
 
     def test_get_max_partition_from_valid_part_specs_and_none_filter_map(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
-            [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}], "key1", None
+            [{"key1": "value1", "key2": "value2"}, {"key1": "value3", "key2": "value4"}],
+            "key1",
+            None,
         )
 
         # No partition will be filtered out.
@@ -456,7 +490,9 @@ class TestHiveMetastoreHook:
         missing_partition = f"{self.partition_by}='{self.next_day}'"
         metastore.get_partitions_by_filter = mock.MagicMock(return_value=[])
 
-        assert not self.hook.check_for_partition(self.database, self.table, missing_partition)
+        assert not self.hook.check_for_partition(
+            self.database, self.table, missing_partition
+        )
 
         metastore.get_partitions_by_filter.assert_called_with(
             self.database, self.table, missing_partition, HiveMetastoreHook.MAX_PART_COUNT
@@ -467,7 +503,9 @@ class TestHiveMetastoreHook:
 
         partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
 
-        self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(return_value=True)
+        self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(
+            return_value=True
+        )
 
         assert self.hook.check_for_named_partition(self.database, self.table, partition)
 
@@ -478,9 +516,13 @@ class TestHiveMetastoreHook:
         # Check for non-existent partition
         missing_partition = f"{self.partition_by}={self.next_day}"
 
-        self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(return_value=False)
+        self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(
+            return_value=False
+        )
 
-        assert not self.hook.check_for_named_partition(self.database, self.table, missing_partition)
+        assert not self.hook.check_for_named_partition(
+            self.database, self.table, missing_partition
+        )
         self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
             self.database, self.table, missing_partition
         )
@@ -532,7 +574,9 @@ class TestHiveMetastoreHook:
 
         metastore.get_table.assert_called_with(dbname=self.database, tbl_name=self.table)
         metastore.get_partitions.assert_called_with(
-            db_name=self.database, tbl_name=self.table, max_parts=HiveMetastoreHook.MAX_PART_COUNT
+            db_name=self.database,
+            tbl_name=self.table,
+            max_parts=HiveMetastoreHook.MAX_PART_COUNT,
         )
 
     def test_max_partition(self):
@@ -545,11 +589,16 @@ class TestHiveMetastoreHook:
         metastore.get_table = mock.MagicMock(return_value=fake_table)
 
         metastore.get_partition_names = mock.MagicMock(return_value=["ds=2015-01-01"])
-        metastore.partition_name_to_spec = mock.MagicMock(return_value={"ds": "2015-01-01"})
+        metastore.partition_name_to_spec = mock.MagicMock(
+            return_value={"ds": "2015-01-01"}
+        )
 
         filter_map = {self.partition_by: DEFAULT_DATE_DS}
         partition = self.hook.max_partition(
-            schema=self.database, table_name=self.table, field=self.partition_by, filter_map=filter_map
+            schema=self.database,
+            table_name=self.table,
+            field=self.partition_by,
+            filter_map=filter_map,
         )
         assert partition == DEFAULT_DATE_DS
 
@@ -569,7 +618,9 @@ class TestHiveMetastoreHook:
         )
 
         # Test with non-existent table.
-        self.hook.metastore.__enter__().get_table = mock.MagicMock(side_effect=Exception())
+        self.hook.metastore.__enter__().get_table = mock.MagicMock(
+            side_effect=Exception()
+        )
 
         assert not self.hook.table_exists("does-not-exist")
         self.hook.metastore.__enter__().get_table.assert_called_with(
@@ -577,13 +628,19 @@ class TestHiveMetastoreHook:
         )
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.table_exists")
-    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client")
+    @mock.patch(
+        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client"
+    )
     def test_drop_partition(self, get_metastore_client_mock, table_exist_mock):
         metastore_mock = get_metastore_client_mock.return_value
         table_exist_mock.return_value = True
-        ret = self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
+        ret = self.hook.drop_partitions(
+            self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]
+        )
         table_exist_mock.assert_called_once_with(self.table, self.database)
-        assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
+        assert metastore_mock.drop_partition(
+            self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]
+        ), ret
 
 
 @pytest.mark.db_test
@@ -632,7 +689,9 @@ class TestHiveServer2Hook:
 
         with mock.patch.dict(
             "os.environ",
-            {conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?auth_mechanism=LDAP"},
+            {
+                conn_env: "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?auth_mechanism=LDAP"
+            },
         ):
             HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
             mock_connect.assert_called_once_with(
@@ -698,10 +757,14 @@ class TestHiveServer2Hook:
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call(
+            "set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00"
+        )
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
+        hook.mock_cursor.execute.assert_any_call(
+            "set airflow.ctx.dag_email=test@airflow.com"
+        )
 
     def test_get_pandas_df(self):
         hook = MockHiveServer2Hook()
@@ -726,10 +789,14 @@ class TestHiveServer2Hook:
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call(
+            "set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00"
+        )
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
+        hook.mock_cursor.execute.assert_any_call(
+            "set airflow.ctx.dag_email=test@airflow.com"
+        )
 
         hook = MockHiveServer2Hook(connection_cursor=EmptyMockConnectionCursor())
         query = f"SELECT * FROM {self.table}"
@@ -808,15 +875,21 @@ class TestHiveServer2Hook:
         assert results == [(1, 1), (2, 2)]
 
         hook.get_conn.assert_called_with(self.database)
-        hook.mock_cursor.execute.assert_any_call("CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)")
+        hook.mock_cursor.execute.assert_any_call(
+            "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)"
+        )
         hook.mock_cursor.execute.assert_any_call(f"SELECT * FROM {self.table}")
         hook.mock_cursor.execute.assert_any_call("DROP TABLE test_multi_statements")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call(
+            "set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00"
+        )
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
+        hook.mock_cursor.execute.assert_any_call(
+            "set airflow.ctx.dag_email=test@airflow.com"
+        )
 
     def test_get_results_with_hive_conf(self):
         hql = [
@@ -827,14 +900,18 @@ class TestHiveServer2Hook:
             "set airflow.ctx.execution_date",
         ]
 
-        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"]["env_var_format"]
-        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"]["env_var_format"]
-        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"][
+        dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"][
             "env_var_format"
         ]
-        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_RUN_ID"][
+        task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"][
             "env_var_format"
         ]
+        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING[
+            "AIRFLOW_CONTEXT_EXECUTION_DATE"
+        ]["env_var_format"]
+        dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING[
+            "AIRFLOW_CONTEXT_DAG_RUN_ID"
+        ]["env_var_format"]
 
         with mock.patch.dict(
             "os.environ",
@@ -860,7 +937,8 @@ class TestHiveServer2Hook:
             )
 
             output = "\n".join(
-                res_tuple[0] for res_tuple in hook.get_results(hql, hive_conf={"key": "value"})["data"]
+                res_tuple[0]
+                for res_tuple in hook.get_results(hql, hive_conf={"key": "value"})["data"]
             )
         assert "value" in output
         assert "test_dag_id" in output
@@ -890,7 +968,11 @@ class TestHiveCli:
     @pytest.mark.parametrize(
         "extra_dejson, correct_proxy_user, proxy_user",
         [
-            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
+            (
+                {"proxy_user": "a_user_proxy"},
+                "hive.server2.proxy.user=a_user_proxy",
+                None,
+            ),
         ],
     )
     def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, proxy_user):
@@ -916,7 +998,9 @@ class TestHiveCli:
         hook.conn = returner
 
         # Run
-        with pytest.raises(RuntimeError, match="The principal should not contain the ';' character"):
+        with pytest.raises(
+            RuntimeError, match="The principal should not contain the ';' character"
+        ):
             hook._prepare_cli_cmd()
 
     @pytest.mark.parametrize(
@@ -930,7 +1014,10 @@ class TestHiveCli:
                 {"high_availability": "false"},
                 "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
             ),
-            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            (
+                {},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
             # with proxy user
             (
                 {"proxy_user": "a_user_proxy", "high_availability": "true"},
@@ -948,7 +1035,10 @@ class TestHiveCli:
         hook.conn = returner
         hook.high_availability = (
             True
-            if ("high_availability" in extra_dejson and extra_dejson["high_availability"] == "true")
+            if (
+                "high_availability" in extra_dejson
+                and extra_dejson["high_availability"] == "true"
+            )
             else False
         )
 

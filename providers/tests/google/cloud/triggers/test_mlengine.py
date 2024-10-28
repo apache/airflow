@@ -22,7 +22,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
+from airflow.providers.google.cloud.triggers.mlengine import (
+    MLEngineStartTrainingJobTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 TEST_CONN_ID = "ml_default"
@@ -32,7 +34,9 @@ TEST_REGION = "us-central1"
 TEST_RUNTIME_VERSION = "1.15"
 TEST_PYTHON_VERSION = "3.9"
 TEST_JOB_DIR = "gs://example_mlengine_bucket/job-dir"
-TEST_PACKAGE_URIS = ["gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"]
+TEST_PACKAGE_URIS = [
+    "gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"
+]
 TEST_TRAINING_PYTHON_MODULE = "trainer.task"
 TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
@@ -64,7 +68,10 @@ class TestMLEngineStartTrainingJobTrigger:
         """
 
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger"
+        )
         assert kwargs == {
             "conn_id": TEST_CONN_ID,
             "job_id": TEST_JOB_ID,
@@ -81,7 +88,9 @@ class TestMLEngineStartTrainingJobTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job_status")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job_status"
+    )
     async def test_trigger_on_success_yield_successfully(self, mock_job_status, trigger):
         """
         Tests the MLEngineStartTrainingJobTrigger only fires once the job execution reaches a successful state
@@ -91,12 +100,17 @@ class TestMLEngineStartTrainingJobTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
-            TriggerEvent({"status": "success", "message": "Job completed", "job_id": TEST_JOB_ID}) == actual
+            TriggerEvent(
+                {"status": "success", "message": "Job completed", "job_id": TEST_JOB_ID}
+            )
+            == actual
         )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job")
-    async def test_trigger_on_running_wait_successfully(self, mocked_get, caplog, trigger):
+    async def test_trigger_on_running_wait_successfully(
+        self, mocked_get, caplog, trigger
+    ):
         """
         Test that MLEngineStartTrainingJobTrigger does not fire while a job is still running.
         """
@@ -117,7 +131,9 @@ class TestMLEngineStartTrainingJobTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job_status")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job_status"
+    )
     async def test_trigger_on_error_yield_successfully(self, mock_job_status, trigger):
         """
         Test that MLEngineStartTrainingJobTrigger fires the correct event in case of an error.
@@ -130,7 +146,9 @@ class TestMLEngineStartTrainingJobTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job_status")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job_status"
+    )
     async def test_trigger_exec_yield_successfully(self, mock_job_status, trigger):
         """
         Test that MLEngineStartTrainingJobTrigger fires the correct event in case of an error.

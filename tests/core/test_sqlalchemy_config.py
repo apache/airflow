@@ -40,7 +40,9 @@ class TestSqlAlchemySettings:
         self.old_conn = settings.SQL_ALCHEMY_CONN
         InternalApiConfig._use_internal_api = False
         InternalApiConfig._internal_api_endpoint = ""
-        settings.SQL_ALCHEMY_CONN = "mysql+foobar://user:pass@host/dbname?inline=param&another=param"
+        settings.SQL_ALCHEMY_CONN = (
+            "mysql+foobar://user:pass@host/dbname?inline=param&another=param"
+        )
 
     def teardown_method(self):
         settings.engine = self.old_engine
@@ -54,7 +56,11 @@ class TestSqlAlchemySettings:
     @patch("airflow.settings.sessionmaker")
     @patch("airflow.settings.create_engine")
     def test_configure_orm_with_default_values(
-        self, mock_create_engine, mock_sessionmaker, mock_scoped_session, mock_setup_event_handlers
+        self,
+        mock_create_engine,
+        mock_sessionmaker,
+        mock_scoped_session,
+        mock_setup_event_handlers,
     ):
         settings.configure_orm()
         mock_create_engine.assert_called_once_with(
@@ -74,7 +80,11 @@ class TestSqlAlchemySettings:
     @patch("airflow.settings.sessionmaker")
     @patch("airflow.settings.create_engine")
     def test_sql_alchemy_connect_args(
-        self, mock_create_engine, mock_sessionmaker, mock_scoped_session, mock_setup_event_handlers
+        self,
+        mock_create_engine,
+        mock_sessionmaker,
+        mock_scoped_session,
+        mock_setup_event_handlers,
     ):
         config = {
             (
@@ -103,7 +113,11 @@ class TestSqlAlchemySettings:
     @patch("airflow.settings.sessionmaker")
     @patch("airflow.settings.create_engine")
     def test_sql_alchemy_invalid_connect_args(
-        self, mock_create_engine, mock_sessionmaker, mock_scoped_session, mock_setup_event_handlers
+        self,
+        mock_create_engine,
+        mock_sessionmaker,
+        mock_scoped_session,
+        mock_setup_event_handlers,
     ):
         config = {
             ("database", "sql_alchemy_connect_args"): "does.not.exist",

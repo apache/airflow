@@ -27,10 +27,18 @@ DAG_ID = "test_dag_warnings"
 
 
 class TestOperator(BaseOperator):
-    def __init__(self, *, parameter: str | None = None, deprecated_parameter: str | None = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        parameter: str | None = None,
+        deprecated_parameter: str | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         if deprecated_parameter:
-            warnings.warn("Deprecated Parameter", category=DeprecationWarning, stacklevel=2)
+            warnings.warn(
+                "Deprecated Parameter", category=DeprecationWarning, stacklevel=2
+            )
             parameter = deprecated_parameter
         self.parameter = parameter
 

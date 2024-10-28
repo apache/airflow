@@ -103,13 +103,16 @@ def document_classifier_workflow():
 
     # [START howto_sensor_create_document_classifier]
     await_create_document_classifier = ComprehendCreateDocumentClassifierCompletedSensor(
-        task_id="await_create_document_classifier", document_classifier_arn=create_document_classifier.output
+        task_id="await_create_document_classifier",
+        document_classifier_arn=create_document_classifier.output,
     )
     # [END howto_sensor_create_document_classifier]
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_classifier(document_classifier_arn: str):
-        ComprehendHook().conn.delete_document_classifier(DocumentClassifierArn=document_classifier_arn)
+        ComprehendHook().conn.delete_document_classifier(
+            DocumentClassifierArn=document_classifier_arn
+        )
 
     chain(
         create_document_classifier,
@@ -160,7 +163,9 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_connection(conn_id):
         session = settings.Session()
-        conn_to_details = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        conn_to_details = (
+            session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        )
         session.delete(conn_to_details)
         session.commit()
 
@@ -170,7 +175,9 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
         s3_bucket=bucket,
     ).expand_kwargs(http_to_s3_configs)
 
-    chain(create_connection(http_conn_id), http_to_s3_task, delete_connection(http_conn_id))
+    chain(
+        create_connection(http_conn_id), http_to_s3_task, delete_connection(http_conn_id)
+    )
 
 
 with DAG(
@@ -223,7 +230,10 @@ with DAG(
         create_bucket,
         upload_annotation_file,
         copy_data_to_s3(
-            bucket=bucket_name, sources=PUBLIC_DATA_SOURCES, prefix=TRAINING_DATA_PREFIX, number_of_copies=10
+            bucket=bucket_name,
+            sources=PUBLIC_DATA_SOURCES,
+            prefix=TRAINING_DATA_PREFIX,
+            number_of_copies=10,
         ),
         # TEST BODY
         document_classifier_workflow(),

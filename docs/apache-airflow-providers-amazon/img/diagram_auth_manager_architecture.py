@@ -47,9 +47,13 @@ def generate_auth_manager_diagram():
             webserver = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
             with Cluster("Amazon provider"):
-                auth_manager = Custom("AWS auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                auth_manager = Custom(
+                    "AWS auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
 
-        identity_center = Custom("AWS IAM Identity Center", IDENTITY_CENTER_LOGO.as_posix())
+        identity_center = Custom(
+            "AWS IAM Identity Center", IDENTITY_CENTER_LOGO.as_posix()
+        )
         avp = Custom("Amazon Verified Permissions", AVP_LOGO.as_posix())
 
         user >> Edge(label="Access to the UI/Rest API") >> webserver

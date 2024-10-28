@@ -55,7 +55,9 @@ class TestDisplayVideoSystem(GoogleSystemTest):
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
-        self.run_dag("example_display_video", MARKETING_DAG_FOLDER)  # this dag does not exist?
+        self.run_dag(
+            "example_display_video", MARKETING_DAG_FOLDER
+        )  # this dag does not exist?
 
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag_misc(self):

@@ -97,7 +97,12 @@ class RunState:
     ]
 
     def __init__(
-        self, life_cycle_state: str, result_state: str = "", state_message: str = "", *args, **kwargs
+        self,
+        life_cycle_state: str,
+        result_state: str = "",
+        state_message: str = "",
+        *args,
+        **kwargs,
     ) -> None:
         if life_cycle_state not in self.RUN_LIFE_CYCLE_STATES:
             raise AirflowException(
@@ -214,7 +219,14 @@ class DatabricksHook(BaseDatabricksHook):
         retry_args: dict[Any, Any] | None = None,
         caller: str = "DatabricksHook",
     ) -> None:
-        super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
+        super().__init__(
+            databricks_conn_id,
+            timeout_seconds,
+            retry_limit,
+            retry_delay,
+            retry_args,
+            caller,
+        )
 
     def create_job(self, json: dict) -> int:
         """
@@ -326,7 +338,10 @@ class DatabricksHook(BaseDatabricksHook):
             return matching_jobs[0]["job_id"]
 
     def list_pipelines(
-        self, batch_size: int = 25, pipeline_name: str | None = None, notebook_path: str | None = None
+        self,
+        batch_size: int = 25,
+        pipeline_name: str | None = None,
+        notebook_path: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         List the pipelines in Databricks Delta Live Tables.
@@ -341,7 +356,9 @@ class DatabricksHook(BaseDatabricksHook):
         all_pipelines = []
         filter = None
         if pipeline_name and notebook_path:
-            raise AirflowException("Cannot combine pipeline_name and notebook_path in one request")
+            raise AirflowException(
+                "Cannot combine pipeline_name and notebook_path in one request"
+            )
 
         if notebook_path:
             filter = f"notebook='{notebook_path}'"
@@ -481,9 +498,7 @@ class DatabricksHook(BaseDatabricksHook):
         :return: string describing run state
         """
         state = self.get_run_state(run_id)
-        run_state_str = (
-            f"State: {state.life_cycle_state}. Result: {state.result_state}. {state.state_message}"
-        )
+        run_state_str = f"State: {state.life_cycle_state}. Result: {state.result_state}. {state.state_message}"
         return run_state_str
 
     def get_run_state_lifecycle(self, run_id: int) -> str:
@@ -690,7 +705,9 @@ class DatabricksHook(BaseDatabricksHook):
         :return: Repos ID if it exists, None if doesn't.
         """
         try:
-            result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {"path": path}, wrap_http_errors=False)
+            result = self._do_api_call(
+                WORKSPACE_GET_STATUS_ENDPOINT, {"path": path}, wrap_http_errors=False
+            )
             if result.get("object_type", "") == "REPO":
                 return str(result["object_id"])
         except requests_exceptions.HTTPError as e:

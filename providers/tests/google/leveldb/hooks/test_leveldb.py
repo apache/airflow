@@ -24,7 +24,10 @@ import pytest
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
-    from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
+    from airflow.providers.google.leveldb.hooks.leveldb import (
+        LevelDBHook,
+        LevelDBHookException,
+    )
 except AirflowOptionalProviderFeatureException:
     pytest.skip("LevelDB not available", allow_module_level=True)
 
@@ -43,13 +46,17 @@ class TestLevelDBHook:
         """Test run method of hook"""
         hook = LevelDBHook(leveldb_conn_id="leveldb_default")
         hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
-        assert hook.run("get", b"test_key0") is None, "Initially, this key in LevelDB is empty"
+        assert (
+            hook.run("get", b"test_key0") is None
+        ), "Initially, this key in LevelDB is empty"
         hook.run("put", b"test_key0", b"test_value0")
         assert (
             hook.run("get", b"test_key0") == b"test_value0"
         ), "Connection to LevelDB with PUT and GET works."
         hook.run("delete", b"test_key0")
-        assert hook.run("get", b"test_key0") is None, "Connection to LevelDB with DELETE works."
+        assert (
+            hook.run("get", b"test_key0") is None
+        ), "Connection to LevelDB with DELETE works."
         hook.close_conn()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_LEVELDB_DEFAULT="test")
@@ -126,5 +133,7 @@ class TestLevelDBHook:
             comparator=comparator,
             comparator_name=b"CaseInsensitiveComparator",
         )
-        assert hook.db is not None, "Check existence of DB object(with comparator) in connection creation"
+        assert (
+            hook.db is not None
+        ), "Check existence of DB object(with comparator) in connection creation"
         hook.close_conn()

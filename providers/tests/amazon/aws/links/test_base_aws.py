@@ -49,8 +49,18 @@ class TestBaseAwsLink:
     @pytest.mark.parametrize(
         "region_name, aws_partition,keywords,expected_value",
         [
-            ("eu-central-1", "aws", {}, {"region_name": "eu-central-1", "aws_domain": "aws.amazon.com"}),
-            ("cn-north-1", "aws-cn", {}, {"region_name": "cn-north-1", "aws_domain": "amazonaws.cn"}),
+            (
+                "eu-central-1",
+                "aws",
+                {},
+                {"region_name": "eu-central-1", "aws_domain": "aws.amazon.com"},
+            ),
+            (
+                "cn-north-1",
+                "aws-cn",
+                {},
+                {"region_name": "cn-north-1", "aws_domain": "amazonaws.cn"},
+            ),
             (
                 "us-gov-east-1",
                 "aws-us-gov",
@@ -61,7 +71,11 @@ class TestBaseAwsLink:
                 "eu-west-1",
                 "aws",
                 CUSTOM_KEYS,
-                {"region_name": "eu-west-1", "aws_domain": "aws.amazon.com", **CUSTOM_KEYS},
+                {
+                    "region_name": "eu-west-1",
+                    "aws_domain": "aws.amazon.com",
+                    **CUSTOM_KEYS,
+                },
             ),
         ],
     )
@@ -83,7 +97,9 @@ class TestBaseAwsLink:
                 value=expected_value,
             )
         else:
-            ti.xcom_push.assert_called_once_with(key=XCOM_KEY, value=expected_value, execution_date=None)
+            ti.xcom_push.assert_called_once_with(
+                key=XCOM_KEY, value=expected_value, execution_date=None
+            )
 
     def test_disable_xcom_push(self):
         mock_context = mock.MagicMock()
@@ -98,7 +114,9 @@ class TestBaseAwsLink:
 
     def test_suppress_error_on_xcom_push(self):
         mock_context = mock.MagicMock()
-        with mock.patch.object(MockOperator, "xcom_push", side_effect=PermissionError("FakeError")) as m:
+        with mock.patch.object(
+            MockOperator, "xcom_push", side_effect=PermissionError("FakeError")
+        ) as m:
             SimpleBaseAwsLink.persist(
                 context=mock_context,
                 operator=MockOperator(task_id="test_task_id"),
@@ -180,7 +198,9 @@ class BaseAwsLinksTestCase:
         **extra_link_kwargs,
     ):
         """Helper method for create extra link URL from the parameters."""
-        task, ti = self.create_op_and_ti(self.link_class, dag_id="test_extra_link", task_id=self.task_id)
+        task, ti = self.create_op_and_ti(
+            self.link_class, dag_id="test_extra_link", task_id=self.task_id
+        )
 
         mock_context = mock.MagicMock()
         mock_context.__getitem__.side_effect = {"ti": ti}.__getitem__
@@ -194,18 +214,24 @@ class BaseAwsLinksTestCase:
         )
 
         error_msg = f"{self.full_qualname!r} should be preserved after execution"
-        assert ti.task.get_extra_links(ti, self.link_class.name) == expected_url, error_msg
+        assert (
+            ti.task.get_extra_links(ti, self.link_class.name) == expected_url
+        ), error_msg
 
         serialized_dag = self.dag_maker.get_serialized_data()
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_task = deserialized_dag.task_dict[self.task_id]
 
         error_msg = f"{self.full_qualname!r} should be preserved in deserialized tasks after execution"
-        assert deserialized_task.get_extra_links(ti, self.link_class.name) == expected_url, error_msg
+        assert (
+            deserialized_task.get_extra_links(ti, self.link_class.name) == expected_url
+        ), error_msg
 
     def test_link_serialize(self):
         """Test: Operator links should exist for serialized DAG."""
-        self.create_op_and_ti(self.link_class, dag_id="test_link_serialize", task_id=self.task_id)
+        self.create_op_and_ti(
+            self.link_class, dag_id="test_link_serialize", task_id=self.task_id
+        )
         serialized_dag = self.dag_maker.get_serialized_data()
         deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
         operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
@@ -242,4 +268,6 @@ class BaseAwsLinksTestCase:
     @abstractmethod
     def test_extra_link(self, **kwargs):
         """Test: Expected URL Link."""
-        raise NotImplementedError(f"{type(self).__name__!r} should implement `test_extra_link` test")
+        raise NotImplementedError(
+            f"{type(self).__name__!r} should implement `test_extra_link` test"
+        )

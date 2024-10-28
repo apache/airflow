@@ -40,13 +40,17 @@ with DAG(
     catchup=False,
     max_active_runs=1,
 ) as dag:
-    bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)
+    bash_task = BashOperator(
+        task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag
+    )
 
 
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_bash_command_disabled(mocked_source_enabled):
     mocked_source_enabled.return_value = False
-    operator = BashOperator(task_id="taskid", bash_command="exit 0;", env={"A": "1"}, append_env=True)
+    operator = BashOperator(
+        task_id="taskid", bash_command="exit 0;", env={"A": "1"}, append_env=True
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = BashExtractor(operator).extract()
@@ -64,11 +68,15 @@ def test_extract_operator_bash_command_disabled(mocked_source_enabled):
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_bash_command_enabled(mocked_source_enabled):
     mocked_source_enabled.return_value = True
-    operator = BashOperator(task_id="taskid", bash_command="exit 0;", env={"A": "1"}, append_env=True)
+    operator = BashOperator(
+        task_id="taskid", bash_command="exit 0;", env={"A": "1"}, append_env=True
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = BashExtractor(operator).extract()
-    assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet("bash", "exit 0;")
+    assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet(
+        "bash", "exit 0;"
+    )
     assert "unknownSourceAttribute" in result.run_facets
     unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
     assert len(unknown_items) == 1

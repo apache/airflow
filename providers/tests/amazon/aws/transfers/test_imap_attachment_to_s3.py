@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator
+from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import (
+    ImapAttachmentToS3Operator,
+)
 
 
 class TestImapAttachmentToS3Operator:
@@ -40,7 +42,9 @@ class TestImapAttachmentToS3Operator:
     @mock.patch("airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapHook")
     def test_execute(self, mock_imap_hook, mock_s3_hook):
         mock_imap_hook.return_value.__enter__ = mock_imap_hook
-        mock_imap_hook.return_value.retrieve_mail_attachments.return_value = [("test_file", b"Hello World")]
+        mock_imap_hook.return_value.retrieve_mail_attachments.return_value = [
+            ("test_file", b"Hello World")
+        ]
 
         ImapAttachmentToS3Operator(**self.kwargs).execute(context={})
 
@@ -52,7 +56,9 @@ class TestImapAttachmentToS3Operator:
             mail_filter=self.kwargs["imap_mail_filter"],
         )
         mock_s3_hook.return_value.load_bytes.assert_called_once_with(
-            bytes_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[0][1],
+            bytes_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[
+                0
+            ][1],
             bucket_name=self.kwargs["s3_bucket"],
             key=self.kwargs["s3_key"],
             replace=self.kwargs["s3_overwrite"],

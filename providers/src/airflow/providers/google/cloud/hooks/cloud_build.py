@@ -24,12 +24,19 @@ from typing import TYPE_CHECKING, Sequence
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
+from google.cloud.devtools.cloudbuild_v1 import (
+    CloudBuildAsyncClient,
+    CloudBuildClient,
+    GetBuildRequest,
+)
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -103,7 +110,9 @@ class CloudBuildHook(GoogleBaseHook):
         if location not in self._client:
             client_options = None
             if location != "global":
-                client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
+                client_options = ClientOptions(
+                    api_endpoint=f"{location}-cloudbuild.googleapis.com:443"
+                )
             self._client[location] = CloudBuildClient(
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
@@ -277,7 +286,9 @@ class CloudBuildHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            raise AirflowException("Cloud Build Trigger with such parameters already exists.")
+            raise AirflowException(
+                "Cloud Build Trigger with such parameters already exists."
+            )
 
         self.log.info("Build trigger has been created.")
 
@@ -572,7 +583,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         self.log.info("Start running build trigger: %s.", trigger_id)
         operation = client.run_build_trigger(
-            request={"project_id": project_id, "trigger_id": trigger_id, "source": source},
+            request={
+                "project_id": project_id,
+                "trigger_id": trigger_id,
+                "source": source,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -620,7 +635,11 @@ class CloudBuildHook(GoogleBaseHook):
         self.log.info("Start updating build trigger: %s.", trigger_id)
 
         trigger = client.update_build_trigger(
-            request={"project_id": project_id, "trigger_id": trigger_id, "trigger": trigger},
+            request={
+                "project_id": project_id,
+                "trigger_id": trigger_id,
+                "trigger": trigger,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -658,9 +677,13 @@ class CloudBuildAsyncHook(GoogleBaseHook):
 
         client_options = None
         if location != "global":
-            client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{location}-cloudbuild.googleapis.com:443"
+            )
         client = CloudBuildAsyncClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
         request = GetBuildRequest(

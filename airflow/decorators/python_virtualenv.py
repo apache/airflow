@@ -26,7 +26,9 @@ if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
 
 
-class _PythonVirtualenvDecoratedOperator(_PythonDecoratedOperator, PythonVirtualenvOperator):
+class _PythonVirtualenvDecoratedOperator(
+    _PythonDecoratedOperator, PythonVirtualenvOperator
+):
     """Wraps a Python callable and captures args/kwargs when called for execution."""
 
     template_fields = PythonVirtualenvOperator.template_fields

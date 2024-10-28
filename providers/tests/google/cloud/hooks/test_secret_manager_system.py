@@ -23,12 +23,19 @@ import pytest
 from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHook
 
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
-from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
+from tests_common.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+)
 
 TEST_SECRET_ID = os.environ.get("GCP_SECRET_MANAGER_SECRET_ID", "test-secret")
 TEST_SECRET_VALUE = os.environ.get("GCP_SECRET_MANAGER_SECRET_VALUE", "test-secret-value")
-TEST_SECRET_VALUE_UPDATED = os.environ.get("GCP_SECRET_MANAGER_VALUE_UPDATED", "test-secret-value-updated")
-TEST_MISSING_SECRET_ID = os.environ.get("GCP_SECRET_MANAGER_MISSING_SECRET_ID", "test-missing-secret")
+TEST_SECRET_VALUE_UPDATED = os.environ.get(
+    "GCP_SECRET_MANAGER_VALUE_UPDATED", "test-secret-value-updated"
+)
+TEST_MISSING_SECRET_ID = os.environ.get(
+    "GCP_SECRET_MANAGER_MISSING_SECRET_ID", "test-missing-secret"
+)
 
 
 @pytest.fixture

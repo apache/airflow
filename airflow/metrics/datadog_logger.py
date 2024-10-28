@@ -42,7 +42,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+metrics_consistency_on = conf.getboolean(
+    "metrics", "metrics_consistency_on", fallback=True
+)
 if not metrics_consistency_on:
     warnings.warn(
         "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
@@ -78,12 +80,16 @@ class SafeDogStatsdLogger:
         """Increment stat."""
         if self.metrics_tags and isinstance(tags, dict):
             tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+                f"{key}:{value}"
+                for key, value in tags.items()
+                if self.metric_tags_validator.test(key)
             ]
         else:
             tags_list = []
         if self.metrics_validator.test(stat):
-            return self.dogstatsd.increment(metric=stat, value=count, tags=tags_list, sample_rate=rate)
+            return self.dogstatsd.increment(
+                metric=stat, value=count, tags=tags_list, sample_rate=rate
+            )
         return None
 
     @validate_stat
@@ -98,12 +104,16 @@ class SafeDogStatsdLogger:
         """Decrement stat."""
         if self.metrics_tags and isinstance(tags, dict):
             tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+                f"{key}:{value}"
+                for key, value in tags.items()
+                if self.metric_tags_validator.test(key)
             ]
         else:
             tags_list = []
         if self.metrics_validator.test(stat):
-            return self.dogstatsd.decrement(metric=stat, value=count, tags=tags_list, sample_rate=rate)
+            return self.dogstatsd.decrement(
+                metric=stat, value=count, tags=tags_list, sample_rate=rate
+            )
         return None
 
     @validate_stat
@@ -119,12 +129,16 @@ class SafeDogStatsdLogger:
         """Gauge stat."""
         if self.metrics_tags and isinstance(tags, dict):
             tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+                f"{key}:{value}"
+                for key, value in tags.items()
+                if self.metric_tags_validator.test(key)
             ]
         else:
             tags_list = []
         if self.metrics_validator.test(stat):
-            return self.dogstatsd.gauge(metric=stat, value=value, tags=tags_list, sample_rate=rate)
+            return self.dogstatsd.gauge(
+                metric=stat, value=value, tags=tags_list, sample_rate=rate
+            )
         return None
 
     @validate_stat
@@ -138,7 +152,9 @@ class SafeDogStatsdLogger:
         """Stats timing."""
         if self.metrics_tags and isinstance(tags, dict):
             tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+                f"{key}:{value}"
+                for key, value in tags.items()
+                if self.metric_tags_validator.test(key)
             ]
         else:
             tags_list = []
@@ -161,7 +177,9 @@ class SafeDogStatsdLogger:
         """Timer metric that can be cancelled."""
         if self.metrics_tags and isinstance(tags, dict):
             tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+                f"{key}:{value}"
+                for key, value in tags.items()
+                if self.metric_tags_validator.test(key)
             ]
         else:
             tags_list = []
@@ -180,8 +198,12 @@ def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
         namespace=conf.get("metrics", "statsd_prefix"),
         constant_tags=cls.get_constant_tags(),
     )
-    datadog_metrics_tags = conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True)
+    datadog_metrics_tags = conf.getboolean(
+        "metrics", "statsd_datadog_metrics_tags", fallback=True
+    )
     metric_tags_validator = PatternBlockListValidator(
         conf.get("metrics", "statsd_disabled_tags", fallback=None)
     )
-    return SafeDogStatsdLogger(dogstatsd, get_validator(), datadog_metrics_tags, metric_tags_validator)
+    return SafeDogStatsdLogger(
+        dogstatsd, get_validator(), datadog_metrics_tags, metric_tags_validator
+    )

@@ -27,7 +27,11 @@ from typing import TYPE_CHECKING, Callable, Sequence
 import dill
 from kubernetes.client import models as k8s
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
@@ -58,14 +62,17 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     # `cmds` and `arguments` are used internally by the operator
     template_fields: Sequence[str] = tuple(
-        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
+        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields}
+        - {"cmds", "arguments"}
     )
 
     # Since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
-    def __init__(self, namespace: str = "default", use_dill: bool = False, **kwargs) -> None:
+    def __init__(
+        self, namespace: str = "default", use_dill: bool = False, **kwargs
+    ) -> None:
         self.use_dill = use_dill
         super().__init__(
             namespace=namespace,
@@ -79,12 +86,8 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         input_filename = "/tmp/script.in"
         output_filename = "/airflow/xcom/return.json"
 
-        write_local_script_file_cmd = (
-            f"{_generate_decoded_command(quote(_PYTHON_SCRIPT_ENV), quote(script_filename))}"
-        )
-        write_local_input_file_cmd = (
-            f"{_generate_decoded_command(quote(_PYTHON_INPUT_ENV), quote(input_filename))}"
-        )
+        write_local_script_file_cmd = f"{_generate_decoded_command(quote(_PYTHON_SCRIPT_ENV), quote(script_filename))}"
+        write_local_input_file_cmd = f"{_generate_decoded_command(quote(_PYTHON_INPUT_ENV), quote(input_filename))}"
         make_xcom_dir_cmd = "mkdir -p /airflow/xcom"
         exec_python_cmd = f"python {script_filename} {input_filename} {output_filename}"
         return [
@@ -105,7 +108,9 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             input_filename = os.path.join(tmp_dir, "script.in")
 
             with open(input_filename, "wb") as file:
-                pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
+                pickling_library.dump(
+                    {"args": self.op_args, "kwargs": self.op_kwargs}, file
+                )
 
             py_source = self.get_python_source()
             jinja_context = {
@@ -120,8 +125,12 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
             self.env_vars = [
                 *self.env_vars,
-                k8s.V1EnvVar(name=_PYTHON_SCRIPT_ENV, value=_read_file_contents(script_filename)),
-                k8s.V1EnvVar(name=_PYTHON_INPUT_ENV, value=_read_file_contents(input_filename)),
+                k8s.V1EnvVar(
+                    name=_PYTHON_SCRIPT_ENV, value=_read_file_contents(script_filename)
+                ),
+                k8s.V1EnvVar(
+                    name=_PYTHON_INPUT_ENV, value=_read_file_contents(input_filename)
+                ),
             ]
 
             self.cmds = self._generate_cmds()

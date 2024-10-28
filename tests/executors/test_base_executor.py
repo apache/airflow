@@ -124,14 +124,26 @@ def test_fail_and_success():
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
-def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
+def test_gauge_executor_metrics_single_executor(
+    mock_stats_gauge, mock_trigger_tasks, mock_sync
+):
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
-        mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
-        mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
         mock.call(
-            "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+            "executor.open_slots",
+            value=mock.ANY,
+            tags={"status": "open", "name": "BaseExecutor"},
+        ),
+        mock.call(
+            "executor.queued_tasks",
+            value=mock.ANY,
+            tags={"status": "queued", "name": "BaseExecutor"},
+        ),
+        mock.call(
+            "executor.running_tasks",
+            value=mock.ANY,
+            tags={"status": "running", "name": "BaseExecutor"},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
@@ -184,14 +196,26 @@ def test_gauge_executor_metrics_with_multiple_executors(
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
-def test_gauge_executor_with_infinite_pool_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
+def test_gauge_executor_with_infinite_pool_metrics(
+    mock_stats_gauge, mock_trigger_tasks, mock_sync
+):
     executor = BaseExecutor(0)
     executor.heartbeat()
     calls = [
-        mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
-        mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
         mock.call(
-            "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+            "executor.open_slots",
+            value=mock.ANY,
+            tags={"status": "open", "name": "BaseExecutor"},
+        ),
+        mock.call(
+            "executor.queued_tasks",
+            value=mock.ANY,
+            tags={"status": "queued", "name": "BaseExecutor"},
+        ),
+        mock.call(
+            "executor.running_tasks",
+            value=mock.ANY,
+            tags={"status": "running", "name": "BaseExecutor"},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
@@ -264,12 +288,16 @@ def test_trigger_queued_tasks(dag_maker, open_slots):
     ],
 )
 @mock.patch("airflow.executors.base_executor.RunningRetryAttemptType.can_try_again")
-def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_state_num, second_exec):
+def test_trigger_running_tasks(
+    can_try_mock, dag_maker, can_try_num, change_state_num, second_exec
+):
     can_try_mock.side_effect = [True for _ in range(can_try_num)] + [False]
     executor, dagrun = setup_trigger_tasks(dag_maker)
     open_slots = 100
     executor.trigger_tasks(open_slots)
-    expected_calls = len(dagrun.task_instances)  # initially `execute_async` called for each task
+    expected_calls = len(
+        dagrun.task_instances
+    )  # initially `execute_async` called for each task
     assert executor.execute_async.call_count == expected_calls
 
     # All the tasks are now "running", so while we enqueue them again here,
@@ -321,7 +349,9 @@ def test_validate_airflow_tasks_run_command(dag_maker):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
     print(f"command: {tis[0].command_as_list()}")
-    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(
+        tis[0].command_as_list()
+    )
     print(f"dag_id: {dag_id}, task_id: {task_id}")
     assert dag_id == dagrun.dag_id
     assert task_id == tis[0].task_id
@@ -332,17 +362,22 @@ def test_validate_airflow_tasks_run_command(dag_maker):
     "airflow.models.taskinstance.TaskInstance.generate_command",
     return_value=["airflow", "tasks", "run", "--test_dag", "--test_task"],
 )
-def test_validate_airflow_tasks_run_command_with_complete_forloop(generate_command_mock, dag_maker):
+def test_validate_airflow_tasks_run_command_with_complete_forloop(
+    generate_command_mock, dag_maker
+):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
-    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(
+        tis[0].command_as_list()
+    )
     assert dag_id is None
     assert task_id is None
 
 
 @pytest.mark.db_test
 @mock.patch(
-    "airflow.models.taskinstance.TaskInstance.generate_command", return_value=["airflow", "task", "run"]
+    "airflow.models.taskinstance.TaskInstance.generate_command",
+    return_value=["airflow", "task", "run"],
 )
 def test_invalid_airflow_tasks_run_command(generate_command_mock, dag_maker):
     dagrun = setup_dagrun(dag_maker)
@@ -353,12 +388,15 @@ def test_invalid_airflow_tasks_run_command(generate_command_mock, dag_maker):
 
 @pytest.mark.db_test
 @mock.patch(
-    "airflow.models.taskinstance.TaskInstance.generate_command", return_value=["airflow", "tasks", "run"]
+    "airflow.models.taskinstance.TaskInstance.generate_command",
+    return_value=["airflow", "tasks", "run"],
 )
 def test_empty_airflow_tasks_run_command(generate_command_mock, dag_maker):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
-    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(
+        tis[0].command_as_list()
+    )
     assert dag_id is None, task_id is None
 
 
@@ -404,7 +442,9 @@ def test_parser_add_command(mock_add_command, mock_get_cli_command):
     mock_add_command.assert_called_once()
 
 
-@pytest.mark.parametrize("loop_duration, total_tries", [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])
+@pytest.mark.parametrize(
+    "loop_duration, total_tries", [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)]
+)
 def test_running_retry_attempt_type(loop_duration, total_tries):
     """
     Verify can_try_again returns True until at least 5 seconds have passed.

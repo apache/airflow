@@ -50,7 +50,9 @@ class AfterWorkdayTimetable(Timetable):
                 if holiday_calendar is None:
                     holidays = set()
                 else:
-                    holidays = holiday_calendar.holidays(start=next_start, end=next_start).to_pydatetime()
+                    holidays = holiday_calendar.holidays(
+                        start=next_start, end=next_start
+                    ).to_pydatetime()
                 if next_start not in holidays:
                     break
             next_start = next_start.add(days=incr)
@@ -58,7 +60,9 @@ class AfterWorkdayTimetable(Timetable):
 
     # [START howto_timetable_infer_manual_data_interval]
     def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
-        start = DateTime.combine((run_after - timedelta(days=1)).date(), Time.min).replace(tzinfo=UTC)
+        start = DateTime.combine(
+            (run_after - timedelta(days=1)).date(), Time.min
+        ).replace(tzinfo=UTC)
         # Skip backwards over weekends and holidays to find last run
         start = self.get_next_workday(start, incr=-1)
         return DataInterval(start=start, end=(start + timedelta(days=1)))
@@ -72,9 +76,13 @@ class AfterWorkdayTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        if last_automated_data_interval is not None:  # There was a previous run on the regular schedule.
+        if (
+            last_automated_data_interval is not None
+        ):  # There was a previous run on the regular schedule.
             last_start = last_automated_data_interval.start
-            next_start = DateTime.combine((last_start + timedelta(days=1)).date(), Time.min)
+            next_start = DateTime.combine(
+                (last_start + timedelta(days=1)).date(), Time.min
+            )
         # Otherwise this is the first ever run on the regular schedule...
         elif (earliest := restriction.earliest) is None:
             return None  # No start_date. Don't schedule.

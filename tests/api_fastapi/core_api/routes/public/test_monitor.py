@@ -48,7 +48,9 @@ class TestGetHealth(TestMonitorEndpoint):
     @provide_session
     def test_healthy_scheduler_status(self, test_client, session):
         last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
-        job = Job(state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_1)
+        job = Job(
+            state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_1
+        )
         SchedulerJobRunner(job=job)
         session.add(job)
         session.commit()
@@ -67,7 +69,9 @@ class TestGetHealth(TestMonitorEndpoint):
     @provide_session
     def test_unhealthy_scheduler_is_slow(self, test_client, session):
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
-        job = Job(state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_2)
+        job = Job(
+            state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_2
+        )
         SchedulerJobRunner(job=job)
         session.add(job)
         session.commit()

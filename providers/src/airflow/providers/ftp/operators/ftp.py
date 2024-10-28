@@ -120,7 +120,9 @@ class FTPFileTransmitOperator(BaseOperator):
                 f"expected {FTPOperation.GET} or {FTPOperation.PUT}."
             )
 
-        for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
+        for _local_filepath, _remote_filepath in zip(
+            local_filepath_array, remote_filepath_array
+        ):
             if self.operation.lower() == FTPOperation.GET:
                 local_folder = os.path.dirname(_local_filepath)
                 if self.create_intermediate_dirs:
@@ -176,11 +178,16 @@ class FTPFileTransmitOperator(BaseOperator):
             remote_filepath = self.remote_filepath
 
         local_datasets = [
-            Dataset(namespace=self._get_namespace(scheme, local_host, None, path), name=path)
+            Dataset(
+                namespace=self._get_namespace(scheme, local_host, None, path), name=path
+            )
             for path in local_filepath
         ]
         remote_datasets = [
-            Dataset(namespace=self._get_namespace(scheme, remote_host, remote_port, path), name=path)
+            Dataset(
+                namespace=self._get_namespace(scheme, remote_host, remote_port, path),
+                name=path,
+            )
             for path in remote_filepath
         ]
 

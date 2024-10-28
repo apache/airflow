@@ -32,7 +32,11 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 class TestOracleHookConn:
     def setup_method(self):
         self.connection = Connection(
-            login="login", password="password", host="host", port=1521, extra='{"service_name": "schema"}'
+            login="login",
+            password="password",
+            host="host",
+            port=1521,
+            extra='{"service_name": "schema"}',
         )
 
         self.db_hook = OracleHook()
@@ -58,7 +62,9 @@ class TestOracleHookConn:
         assert args == ()
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
-        assert kwargs["dsn"] == oracledb.makedsn("host", self.connection.port, service_name="schema")
+        assert kwargs["dsn"] == oracledb.makedsn(
+            "host", self.connection.port, service_name="schema"
+        )
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_sid(self, mock_connect):
@@ -68,7 +74,9 @@ class TestOracleHookConn:
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs["dsn"] == oracledb.makedsn("host", self.connection.port, dsn_sid["sid"])
+        assert kwargs["dsn"] == oracledb.makedsn(
+            "host", self.connection.port, dsn_sid["sid"]
+        )
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_service_name(self, mock_connect):
@@ -172,7 +180,11 @@ class TestOracleHookConn:
             "thick_mode_config_dir": "/opt/oracle/config",
         }
         self.connection.extra = json.dumps(thick_mode_test)
-        db_hook = OracleHook(thick_mode=True, thick_mode_lib_dir="/test", thick_mode_config_dir="/test_conf")
+        db_hook = OracleHook(
+            thick_mode=True,
+            thick_mode_lib_dir="/test",
+            thick_mode_config_dir="/test_conf",
+        )
         db_hook.get_connection = mock.Mock()
         db_hook.get_connection.return_value = self.connection
         db_hook.get_conn()
@@ -247,13 +259,17 @@ class TestOracleHookConn:
     def test_type_checking_thick_mode_lib_dir(self):
         thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
         self.connection.extra = json.dumps(thick_mode_lib_dir_test)
-        with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
+        with pytest.raises(
+            TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"
+        ):
             self.db_hook.get_conn()
 
     def test_type_checking_thick_mode_config_dir(self):
         thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
         self.connection.extra = json.dumps(thick_mode_config_dir_test)
-        with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
+        with pytest.raises(
+            TypeError, match=r"thick_mode_config_dir expected str or None, got.*"
+        ):
             self.db_hook.get_conn()
 
 
@@ -340,7 +356,9 @@ class TestOracleHook:
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
         self.db_hook.bulk_insert_rows("table", rows, target_fields)
-        self.cur.prepare.assert_called_once_with("insert into table (col1, col2, col3) values (:1, :2, :3)")
+        self.cur.prepare.assert_called_once_with(
+            "insert into table (col1, col2, col3) values (:1, :2, :3)"
+        )
         self.cur.executemany.assert_called_once_with(None, rows)
 
     def test_bulk_insert_rows_with_commit_every(self):
@@ -375,7 +393,11 @@ class TestOracleHook:
         sequence_column = "id"
         sequence_name = "my_sequence"
         self.db_hook.bulk_insert_rows(
-            "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+            "table",
+            rows,
+            target_fields,
+            sequence_column=sequence_column,
+            sequence_name=sequence_name,
         )
         self.cur.prepare.assert_called_once_with(
             "insert into table (id, col1, col2, col3) values (my_sequence.NEXTVAL, :1, :2, :3)"
@@ -389,14 +411,22 @@ class TestOracleHook:
         sequence_name = None
         with pytest.raises(ValueError):
             self.db_hook.bulk_insert_rows(
-                "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+                "table",
+                rows,
+                target_fields,
+                sequence_column=sequence_column,
+                sequence_name=sequence_name,
             )
 
         sequence_column = None
         sequence_name = "my_sequence"
         with pytest.raises(ValueError):
             self.db_hook.bulk_insert_rows(
-                "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+                "table",
+                rows,
+                target_fields,
+                sequence_column=sequence_column,
+                sequence_name=sequence_name,
             )
 
     def test_callproc_none(self):
@@ -420,7 +450,9 @@ class TestOracleHook:
 
         self.cur.bindvars = {k: bindvar(v) for k, v in parameters.items()}
         result = self.db_hook.callproc("proc", True, parameters)
-        assert self.cur.execute.mock_calls == [mock.call("BEGIN proc(:a,:b,:c); END;", parameters)]
+        assert self.cur.execute.mock_calls == [
+            mock.call("BEGIN proc(:a,:b,:c); END;", parameters)
+        ]
         assert result == parameters
 
     def test_callproc_list(self):
@@ -432,7 +464,9 @@ class TestOracleHook:
 
         self.cur.bindvars = list(map(bindvar, parameters))
         result = self.db_hook.callproc("proc", True, parameters)
-        assert self.cur.execute.mock_calls == [mock.call("BEGIN proc(:1,:2,:3); END;", parameters)]
+        assert self.cur.execute.mock_calls == [
+            mock.call("BEGIN proc(:1,:2,:3); END;", parameters)
+        ]
         assert result == parameters
 
     def test_callproc_out_param(self):
@@ -446,7 +480,9 @@ class TestOracleHook:
         self.cur.bindvars = [bindvar(p() if type(p) is type else p) for p in parameters]
         result = self.db_hook.callproc("proc", True, parameters)
         expected = [1, 0, 0.0, False, ""]
-        assert self.cur.execute.mock_calls == [mock.call("BEGIN proc(:1,:2,:3,:4,:5); END;", expected)]
+        assert self.cur.execute.mock_calls == [
+            mock.call("BEGIN proc(:1,:2,:3,:4,:5); END;", expected)
+        ]
         assert result == expected
 
     def test_test_connection_use_dual_table(self):

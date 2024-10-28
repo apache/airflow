@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue_databrew import (
+    GlueDataBrewJobCompleteTrigger,
+)
 
 TEST_JOB_NAME = "test_job_name"
 TEST_JOB_RUN_ID = "a1234"

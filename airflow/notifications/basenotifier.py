@@ -70,7 +70,9 @@ class BaseNotifier(Templater):
         dag = context["dag"]
         if not jinja_env:
             jinja_env = self.get_template_env(dag=dag)
-        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+        self._do_render_template_fields(
+            self, self.template_fields, context, jinja_env, set()
+        )
 
     @abstractmethod
     def notify(self, context: Context) -> None:

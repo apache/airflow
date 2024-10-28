@@ -35,7 +35,9 @@ from airflow.providers.google.cloud.operators.datastore import (
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "datastore_query"
 
@@ -75,7 +77,9 @@ with DAG(
     # [END how_to_query_def]
 
     # [START how_to_run_query]
-    run_query = CloudDatastoreRunQueryOperator(task_id="run_query", body=QUERY, project_id=PROJECT_ID)
+    run_query = CloudDatastoreRunQueryOperator(
+        task_id="run_query", body=QUERY, project_id=PROJECT_ID
+    )
     # [END how_to_run_query]
 
     allocate_ids >> begin_transaction_query >> run_query

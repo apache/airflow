@@ -59,8 +59,12 @@ def puller(pulled_value_2, ti=None):
 @task
 def pull_value_from_bash_push(ti=None):
     bash_pushed_via_return_value = ti.xcom_pull(key="return_value", task_ids="bash_push")
-    bash_manually_pushed_value = ti.xcom_pull(key="manually_pushed_value", task_ids="bash_push")
-    print(f"The xcom value pushed by task push via return value is {bash_pushed_via_return_value}")
+    bash_manually_pushed_value = ti.xcom_pull(
+        key="manually_pushed_value", task_ids="bash_push"
+    )
+    print(
+        f"The xcom value pushed by task push via return value is {bash_pushed_via_return_value}"
+    )
     print(f"The xcom value pushed by task push manually is {bash_manually_pushed_value}")
 
 

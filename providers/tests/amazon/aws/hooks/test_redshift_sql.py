@@ -54,14 +54,18 @@ class TestRedshiftSQLHookConn:
         x = self.db_hook.get_uri()
         assert x == expected
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect"
+    )
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user="login", password="password", host="host", port=5439, database="dev"
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect"
+    )
     def test_get_conn_extra(self, mock_connect):
         self.connection.extra = json.dumps(
             {
@@ -83,10 +87,16 @@ class TestRedshiftSQLHookConn:
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect"
+    )
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     def test_get_conn_iam(self, mock_connect, mock_aws_hook_conn, aws_conn_id):
-        mock_conn_extra = {"iam": True, "profile": "default", "cluster_identifier": "my-test-cluster"}
+        mock_conn_extra = {
+            "iam": True,
+            "profile": "default",
+            "cluster_identifier": "my-test-cluster",
+        }
         if aws_conn_id is not NOTSET:
             self.db_hook.aws_conn_id = aws_conn_id
         self.connection.extra = json.dumps(mock_conn_extra)
@@ -122,9 +132,13 @@ class TestRedshiftSQLHookConn:
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect"
+    )
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
-    def test_get_conn_iam_serverless_redshift(self, mock_connect, mock_aws_hook_conn, aws_conn_id):
+    def test_get_conn_iam_serverless_redshift(
+        self, mock_connect, mock_aws_hook_conn, aws_conn_id
+    ):
         mock_work_group = "my-test-workgroup"
         mock_conn_extra = {
             "iam": True,
@@ -173,11 +187,19 @@ class TestRedshiftSQLHookConn:
             ({"login": "test"}, {}, {"user": "test"}),
             ({}, {"user": "test"}, {"user": "test"}),
             ({"login": "original"}, {"user": "overridden"}, {"user": "overridden"}),
-            ({"login": "test1"}, {"password": "test2"}, {"user": "test1", "password": "test2"}),
+            (
+                {"login": "test1"},
+                {"password": "test2"},
+                {"user": "test1", "password": "test2"},
+            ),
         ],
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
-    def test_get_conn_overrides_correctly(self, mock_connect, conn_params, conn_extra, expected_call_args):
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect"
+    )
+    def test_get_conn_overrides_correctly(
+        self, mock_connect, conn_params, conn_extra, expected_call_args
+    ):
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.conn",
             Connection(conn_type="redshift", extra=conn_extra, **conn_params),
@@ -189,7 +211,12 @@ class TestRedshiftSQLHookConn:
         "connection_host, connection_extra, expected_cluster_identifier, expected_exception_msg",
         [
             # test without a connection host and without a cluster_identifier in connection extra
-            (None, {"iam": True}, None, "Please set cluster_identifier or host in redshift connection."),
+            (
+                None,
+                {"iam": True},
+                None,
+                "Please set cluster_identifier or host in redshift connection.",
+            ),
             # test without a connection host but with a cluster_identifier in connection extra
             (
                 None,
@@ -198,7 +225,12 @@ class TestRedshiftSQLHookConn:
                 None,
             ),
             # test with a connection host and without a cluster_identifier in connection extra
-            ("cluster_identifier_from_host.x.y", {"iam": True}, "cluster_identifier_from_host", None),
+            (
+                "cluster_identifier_from_host.x.y",
+                {"iam": True},
+                "cluster_identifier_from_host",
+                None,
+            ),
             # test with both connection host and cluster_identifier in connection extra
             (
                 "cluster_identifier_from_host.x.y",
@@ -209,7 +241,9 @@ class TestRedshiftSQLHookConn:
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect"
+    )
     def test_get_iam_token(
         self,
         mock_connect,
@@ -242,7 +276,9 @@ class TestRedshiftSQLHookConn:
                 AutoCreate=False,
             )
 
-    @mock.patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
+    @mock.patch.dict(
+        "os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}"
+    )
     @pytest.mark.parametrize(
         "connection_host, connection_extra, expected_identity",
         [
@@ -281,6 +317,7 @@ class TestRedshiftSQLHookConn:
         self.connection.host = connection_host
         self.connection.extra = json.dumps(connection_extra)
 
-        assert f"{expected_identity}:{LOGIN_PORT}" == self.db_hook._get_openlineage_redshift_authority_part(
-            self.connection
+        assert (
+            f"{expected_identity}:{LOGIN_PORT}"
+            == self.db_hook._get_openlineage_redshift_authority_part(self.connection)
         )

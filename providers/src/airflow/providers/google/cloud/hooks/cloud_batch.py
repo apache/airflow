@@ -34,7 +34,10 @@ from google.cloud.batch_v1 import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -71,7 +74,9 @@ class CloudBatchHook(GoogleBaseHook):
         :return: Google Batch Service client object.
         """
         if self._client is None:
-            self._client = BatchServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = BatchServiceClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -92,7 +97,9 @@ class CloudBatchHook(GoogleBaseHook):
     def delete_job(
         self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
     ) -> operation.Operation:
-        return self.get_conn().delete_job(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        return self.get_conn().delete_job(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_jobs(
@@ -103,7 +110,9 @@ class CloudBatchHook(GoogleBaseHook):
         limit: int | None = None,
     ) -> Iterable[Job]:
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero"
+            )
 
         list_jobs_request: ListJobsRequest = ListJobsRequest(
             parent=f"projects/{project_id}/locations/{region}", filter=filter
@@ -124,19 +133,26 @@ class CloudBatchHook(GoogleBaseHook):
         limit: int | None = None,
     ) -> Iterable[Task]:
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list tasks request should be greater or equal to zero")
+            raise AirflowException(
+                "The limit for the list tasks request should be greater or equal to zero"
+            )
 
         list_tasks_request: ListTasksRequest = ListTasksRequest(
             parent=f"projects/{project_id}/locations/{region}/jobs/{job_name}/taskGroups/{group_name}",
             filter=filter,
         )
 
-        tasks: pagers.ListTasksPager = self.get_conn().list_tasks(request=list_tasks_request)
+        tasks: pagers.ListTasksPager = self.get_conn().list_tasks(
+            request=list_tasks_request
+        )
 
         return list(itertools.islice(tasks, limit))
 
     def wait_for_job(
-        self, job_name: str, polling_period_seconds: float = 10, timeout: float | None = None
+        self,
+        job_name: str,
+        polling_period_seconds: float = 10,
+        timeout: float | None = None,
     ) -> Job:
         client = self.get_conn()
         while timeout is None or timeout > 0:
@@ -152,7 +168,9 @@ class CloudBatchHook(GoogleBaseHook):
                 else:
                     time.sleep(polling_period_seconds)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for job completion.")
+                self.log.exception(
+                    "Exception occurred while checking for job completion."
+                )
                 raise e
 
             if timeout is not None:

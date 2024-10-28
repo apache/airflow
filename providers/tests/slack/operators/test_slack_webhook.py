@@ -61,7 +61,9 @@ class TestSlackWebhookOperator:
 
     def test_assert_templated_fields(self):
         """Test expected templated fields."""
-        operator = SlackWebhookOperator(task_id="test_assert_templated_fields", **self.default_op_kwargs)
+        operator = SlackWebhookOperator(
+            task_id="test_assert_templated_fields", **self.default_op_kwargs
+        )
         template_fields = (
             "message",
             "attachments",
@@ -93,7 +95,15 @@ class TestSlackWebhookOperator:
     )
     @mock.patch("airflow.providers.slack.operators.slack_webhook.SlackWebhookHook")
     def test_execute_operator(
-        self, mock_slackwebhook_cls, message, blocks, attachments, channel, username, icon_emoji, icon_url
+        self,
+        mock_slackwebhook_cls,
+        message,
+        blocks,
+        attachments,
+        channel,
+        username,
+        icon_emoji,
+        icon_url,
     ):
         mock_slackwebhook = mock_slackwebhook_cls.return_value
         mock_slackwebhook_send = mock_slackwebhook.send

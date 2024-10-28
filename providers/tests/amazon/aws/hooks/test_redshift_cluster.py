@@ -57,7 +57,9 @@ class TestRedshiftHook:
         hook = RedshiftHook(aws_conn_id="aws_default")
         hook.create_cluster_snapshot("test_snapshot", "test_cluster")
         assert (
-            hook.restore_from_cluster_snapshot("test_cluster_3", "test_snapshot")["ClusterIdentifier"]
+            hook.restore_from_cluster_snapshot("test_cluster_3", "test_snapshot")[
+                "ClusterIdentifier"
+            ]
             == "test_cluster_3"
         )
 

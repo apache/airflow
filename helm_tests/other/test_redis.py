@@ -67,23 +67,32 @@ class TestRedis:
         return env["valueFrom"]["secretKeyRef"]["name"]
 
     def assert_password_and_broker_url_secrets(
-        self, k8s_obj_by_key, expected_password_match: str | None, expected_broker_url_match: str | None
+        self,
+        k8s_obj_by_key,
+        expected_password_match: str | None,
+        expected_broker_url_match: str | None,
     ):
         if expected_password_match is not None:
-            redis_password_in_password_secret = self.get_redis_password_in_password_secret(k8s_obj_by_key)
+            redis_password_in_password_secret = (
+                self.get_redis_password_in_password_secret(k8s_obj_by_key)
+            )
             assert re.search(expected_password_match, redis_password_in_password_secret)
         else:
             assert REDIS_OBJECTS["SECRET_PASSWORD"] not in k8s_obj_by_key.keys()
 
         if expected_broker_url_match is not None:
             # assert redis broker url in secret
-            broker_url_in_broker_url_secret = self.get_broker_url_in_broker_url_secret(k8s_obj_by_key)
+            broker_url_in_broker_url_secret = self.get_broker_url_in_broker_url_secret(
+                k8s_obj_by_key
+            )
             assert re.search(expected_broker_url_match, broker_url_in_broker_url_secret)
         else:
             assert REDIS_OBJECTS["SECRET_BROKER_URL"] not in k8s_obj_by_key.keys()
 
     def assert_broker_url_env(
-        self, k8s_obj_by_key, expected_broker_url_secret_name=REDIS_OBJECTS["SECRET_BROKER_URL"][1]
+        self,
+        k8s_obj_by_key,
+        expected_broker_url_secret_name=REDIS_OBJECTS["SECRET_BROKER_URL"][1],
     ):
         broker_url_secret_in_scheduler = self.get_broker_url_secret_in_deployment(
             k8s_obj_by_key, "StatefulSet", "worker"
@@ -106,7 +115,9 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(
+            k8s_obj_by_key.keys()
+        )
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS
 
         self.assert_password_and_broker_url_secrets(
@@ -129,7 +140,9 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(
+            k8s_obj_by_key.keys()
+        )
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS
 
         self.assert_password_and_broker_url_secrets(
@@ -175,7 +188,9 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(
+            k8s_obj_by_key.keys()
+        )
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS - {
             REDIS_OBJECTS["SECRET_PASSWORD"],
             REDIS_OBJECTS["SECRET_BROKER_URL"],
@@ -188,7 +203,9 @@ class TestRedis:
         self.assert_broker_url_env(k8s_obj_by_key, expected_broker_url_secret_name)
 
     @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
-    def test_redis_by_chart_password_secret_name_without_broker_url_secret(self, executor):
+    def test_redis_by_chart_password_secret_name_without_broker_url_secret(
+        self, executor
+    ):
         k8s_objects = render_chart(
             RELEASE_NAME_REDIS,
             {
@@ -198,13 +215,18 @@ class TestRedis:
                     "passwordSecretName": "test-redis-password-secret-name",
                 },
                 "env": [
-                    {"name": "AIRFLOW__CELERY__BROKER_URL_CMD", "value": "test-broker-url"},
+                    {
+                        "name": "AIRFLOW__CELERY__BROKER_URL_CMD",
+                        "value": "test-broker-url",
+                    },
                 ],
                 "enableBuiltInSecretEnvVars": {"AIRFLOW__CELERY__BROKER_URL": False},
             },
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(
+            k8s_obj_by_key.keys()
+        )
 
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS - {
             REDIS_OBJECTS["SECRET_PASSWORD"],
@@ -226,7 +248,9 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(
+            k8s_obj_by_key.keys()
+        )
         assert created_redis_objects == {REDIS_OBJECTS["SECRET_BROKER_URL"]}
 
         self.assert_password_and_broker_url_secrets(
@@ -251,7 +275,9 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(
+            k8s_obj_by_key.keys()
+        )
         assert created_redis_objects == set()
 
         self.assert_password_and_broker_url_secrets(
@@ -265,7 +291,8 @@ class TestRedis:
         # created during install, as they are marked "pre-install".
         # See note in templates/secrets/redis-secrets.yaml for more.
         docs = render_chart(
-            values={"executor": "KubernetesExecutor"}, show_only=["templates/secrets/redis-secrets.yaml"]
+            values={"executor": "KubernetesExecutor"},
+            show_only=["templates/secrets/redis-secrets.yaml"],
         )
         assert 2 == len(docs)
 
@@ -291,7 +318,11 @@ class TestRedis:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -299,7 +330,12 @@ class TestRedis:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 },
@@ -337,17 +373,23 @@ class TestRedis:
             },
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.memory", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.cpu", docs[0]
+        )
 
     def test_redis_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
 
     def test_should_set_correct_helm_hooks_weight(self):
         docs = render_chart(
@@ -364,14 +406,19 @@ class TestRedis:
             values={"redis": {"persistence": {"annotations": {"foo": "bar"}}}},
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
+        assert {"foo": "bar"} == jmespath.search(
+            "spec.volumeClaimTemplates[0].metadata.annotations", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "redis_values, expected",
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {
+                    "persistence": {"enabled": False},
+                    "emptyDirConfig": {"sizeLimit": "10Gi"},
+                },
                 {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
         ],
@@ -381,7 +428,9 @@ class TestRedis:
             values={"redis": redis_values},
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert {"name": "redis-db", **expected} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert {"name": "redis-db", **expected} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
 
     def test_priority_class_name(self):
         docs = render_chart(
@@ -396,7 +445,13 @@ class TestRedis:
 
     def test_redis_template_storage_class_name(self):
         docs = render_chart(
-            values={"redis": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            values={
+                "redis": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class"
+                    }
+                }
+            },
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
         assert "release-name-storage-class" == jmespath.search(
@@ -425,7 +480,9 @@ class TestRedis:
             values=redis_values,
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+        assert expected == jmespath.search(
+            "spec.template.spec.terminationGracePeriodSeconds", docs[0]
+        )
 
 
 class TestRedisServiceAccount:
@@ -446,7 +503,10 @@ class TestRedisServiceAccount:
         docs = render_chart(
             values={
                 "redis": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/redis/redis-serviceaccount.yaml"],

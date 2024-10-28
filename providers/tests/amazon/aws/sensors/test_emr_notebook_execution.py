@@ -27,7 +27,9 @@ from airflow.providers.amazon.aws.sensors.emr import EmrNotebookExecutionSensor
 
 
 class TestEmrNotebookExecutionSensor:
-    def _generate_response(self, status: str, reason: str | None = None) -> dict[str, Any]:
+    def _generate_response(
+        self, status: str, reason: str | None = None
+    ) -> dict[str, Any]:
         return {
             "NotebookExecution": {
                 "Status": status,
@@ -40,19 +42,25 @@ class TestEmrNotebookExecutionSensor:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_emr_notebook_execution_sensor_success_state(self, mock_conn):
-        mock_conn.describe_notebook_execution.return_value = self._generate_response("FINISHED")
+        mock_conn.describe_notebook_execution.return_value = self._generate_response(
+            "FINISHED"
+        )
         sensor = EmrNotebookExecutionSensor(
             task_id="test_task",
             poke_interval=0,
             notebook_execution_id="test-execution-id",
         )
         sensor.poke(None)
-        mock_conn.describe_notebook_execution.assert_called_once_with(NotebookExecutionId="test-execution-id")
+        mock_conn.describe_notebook_execution.assert_called_once_with(
+            NotebookExecutionId="test-execution-id"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_emr_notebook_execution_sensor_failed_state(self, mock_conn):
         error_reason = "Test error"
-        mock_conn.describe_notebook_execution.return_value = self._generate_response("FAILED", error_reason)
+        mock_conn.describe_notebook_execution.return_value = self._generate_response(
+            "FAILED", error_reason
+        )
         sensor = EmrNotebookExecutionSensor(
             task_id="test_task",
             poke_interval=0,
@@ -60,7 +68,9 @@ class TestEmrNotebookExecutionSensor:
         )
         with pytest.raises(AirflowException, match=rf"EMR job failed: {error_reason}"):
             sensor.poke(None)
-        mock_conn.describe_notebook_execution.assert_called_once_with(NotebookExecutionId="test-execution-id")
+        mock_conn.describe_notebook_execution.assert_called_once_with(
+            NotebookExecutionId="test-execution-id"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_emr_notebook_execution_sensor_success_state_multiple(self, mock_conn):

@@ -40,7 +40,11 @@ class TestAirbyteSyncTrigger:
     POLL_INTERVAL = 3.0
 
     def setup_method(self):
-        db.merge_conn(Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"))
+        db.merge_conn(
+            Connection(
+                conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"
+            )
+        )
 
     def test_serialization(self):
         """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""
@@ -51,7 +55,9 @@ class TestAirbyteSyncTrigger:
             job_id=self.JOB_ID,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger"
+        assert (
+            classpath == "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger"
+        )
         assert kwargs == {
             "job_id": self.JOB_ID,
             "conn_id": self.CONN_ID,
@@ -60,7 +66,9 @@ class TestAirbyteSyncTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch(
+        "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running"
+    )
     async def test_airbyte_run_sync_trigger(self, mocked_is_still_running):
         """Test AirbyteSyncTrigger is triggered with mocked details and run successfully."""
         mocked_is_still_running.return_value = True
@@ -81,13 +89,24 @@ class TestAirbyteSyncTrigger:
     @pytest.mark.parametrize(
         "mock_value, mock_status, mock_message",
         [
-            (JobStatusEnum.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
+            (
+                JobStatusEnum.SUCCEEDED,
+                "success",
+                "Job run 1234 has completed successfully.",
+            ),
         ],
     )
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch(
+        "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running"
+    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_airbyte_job_for_terminal_status_success(
-        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+        self,
+        mock_get_job_status,
+        mocked_is_still_running,
+        mock_value,
+        mock_status,
+        mock_message,
     ):
         """Assert that run trigger success message in case of job success"""
         mocked_is_still_running.return_value = False
@@ -115,10 +134,17 @@ class TestAirbyteSyncTrigger:
             (JobStatusEnum.CANCELLED, "cancelled", "Job run 1234 has been cancelled."),
         ],
     )
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch(
+        "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running"
+    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_airbyte_job_for_terminal_status_cancelled(
-        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+        self,
+        mock_get_job_status,
+        mocked_is_still_running,
+        mock_value,
+        mock_status,
+        mock_message,
     ):
         """Assert that run trigger success message in case of job success"""
         mocked_is_still_running.return_value = False
@@ -146,10 +172,17 @@ class TestAirbyteSyncTrigger:
             (JobStatusEnum.FAILED, "error", "Job run 1234 has failed."),
         ],
     )
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch(
+        "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running"
+    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_airbyte_job_for_terminal_status_error(
-        self, mock_get_job_status, mocked_is_still_running, mock_value, mock_status, mock_message
+        self,
+        mock_get_job_status,
+        mocked_is_still_running,
+        mock_value,
+        mock_status,
+        mock_message,
     ):
         """Assert that run trigger success message in case of job success"""
         mocked_is_still_running.return_value = False
@@ -171,9 +204,13 @@ class TestAirbyteSyncTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch(
+        "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running"
+    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
-    async def test_airbyte_job_exception(self, mock_get_job_status, mocked_is_still_running):
+    async def test_airbyte_job_exception(
+        self, mock_get_job_status, mocked_is_still_running
+    ):
         """Assert that run catch exception if Airbyte Sync job API throw exception"""
         mocked_is_still_running.return_value = False
         mock_get_job_status.side_effect = Exception("Test exception")
@@ -195,9 +232,13 @@ class TestAirbyteSyncTrigger:
         assert response in task
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    @mock.patch(
+        "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running"
+    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
-    async def test_airbyte_job_timeout(self, mock_get_job_status, mocked_is_still_running):
+    async def test_airbyte_job_timeout(
+        self, mock_get_job_status, mocked_is_still_running
+    ):
         """Assert that run timeout after end_time elapsed"""
         mocked_is_still_running.return_value = True
         mock_get_job_status.side_effect = Exception("Test exception")

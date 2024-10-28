@@ -241,11 +241,15 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
 
@@ -280,7 +284,10 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+            region=region,
+            impersonation_chain=impersonation_chain,
+            parent_model=parent_model,
+            **kwargs,
         )
         self.dataset_id = dataset_id
         self.prediction_type = prediction_type
@@ -333,11 +340,15 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
 
@@ -378,7 +389,10 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+            region=region,
+            impersonation_chain=impersonation_chain,
+            parent_model=parent_model,
+            **kwargs,
         )
         self.dataset_id = dataset_id
         self.target_column = target_column
@@ -387,7 +401,9 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.column_specs = column_specs
         self.column_transformations = column_transformations
         self.optimization_objective_recall_value = optimization_objective_recall_value
-        self.optimization_objective_precision_value = optimization_objective_precision_value
+        self.optimization_objective_precision_value = (
+            optimization_objective_precision_value
+        )
         self.validation_fraction_split = validation_fraction_split
         self.predefined_split_column_name = predefined_split_column_name
         self.timestamp_split_column_name = timestamp_split_column_name
@@ -456,11 +472,15 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
 
@@ -548,11 +568,15 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
 
@@ -581,7 +605,10 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+            region=region,
+            impersonation_chain=impersonation_chain,
+            parent_model=parent_model,
+            **kwargs,
         )
         self.dataset_id = dataset_id
         self.prediction_type = prediction_type
@@ -622,11 +649,15 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
 
@@ -638,7 +669,12 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
     AutoMLTabularTrainingJob, AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
     """
 
-    template_fields = ("training_pipeline_id", "region", "project_id", "impersonation_chain")
+    template_fields = (
+        "training_pipeline_id",
+        "region",
+        "project_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -679,7 +715,9 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting Auto ML training pipeline: %s", self.training_pipeline_id)
+            self.log.info(
+                "Deleting Auto ML training pipeline: %s", self.training_pipeline_id
+            )
             training_pipeline_operation = hook.delete_training_pipeline(
                 training_pipeline=self.training_pipeline_id,
                 region=self.region,
@@ -688,10 +726,14 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
+            hook.wait_for_operation(
+                timeout=self.timeout, operation=training_pipeline_operation
+            )
             self.log.info("Training pipeline was deleted.")
         except NotFound:
-            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline_id)
+            self.log.info(
+                "The Training Pipeline ID %s does not exist.", self.training_pipeline_id
+            )
 
 
 class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):

@@ -67,11 +67,17 @@ class EC2StateSensorTrigger(BaseTrigger):
 
     @cached_property
     def hook(self):
-        return EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        return EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            api_type="client_type",
+        )
 
     async def run(self):
         while True:
-            instance_state = await self.hook.get_instance_state_async(instance_id=self.instance_id)
+            instance_state = await self.hook.get_instance_state_async(
+                instance_id=self.instance_id
+            )
             self.log.info("instance state: %s", instance_state)
             if instance_state == self.target_state:
                 yield TriggerEvent({"status": "success", "message": "target state met"})

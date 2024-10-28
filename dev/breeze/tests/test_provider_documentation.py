@@ -74,13 +74,17 @@ Features
 
 
 def test_find_insertion_index_append_to_found_changelog():
-    index, append = _find_insertion_index_for_version(CHANGELOG_CONTENT.splitlines(), "5.0.0")
+    index, append = _find_insertion_index_for_version(
+        CHANGELOG_CONTENT.splitlines(), "5.0.0"
+    )
     assert append
     assert index == 13
 
 
 def test_find_insertion_index_insert_new_changelog():
-    index, append = _find_insertion_index_for_version(CHANGELOG_CONTENT.splitlines(), "5.0.1")
+    index, append = _find_insertion_index_for_version(
+        CHANGELOG_CONTENT.splitlines(), "5.0.1"
+    )
     assert not append
     assert index == 3
 
@@ -100,18 +104,39 @@ def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
 @pytest.mark.parametrize(
     "folder_paths, from_commit, to_commit, git_command",
     [
-        (None, None, None, ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "--", "."]),
+        (
+            None,
+            None,
+            None,
+            ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "--", "."],
+        ),
         (
             None,
             "from_tag",
             None,
-            ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "from_tag", "--", "."],
+            [
+                "git",
+                "log",
+                "--pretty=format:%H %h %cd %s",
+                "--date=short",
+                "from_tag",
+                "--",
+                ".",
+            ],
         ),
         (
             None,
             "from_tag",
             "to_tag",
-            ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "from_tag...to_tag", "--", "."],
+            [
+                "git",
+                "log",
+                "--pretty=format:%H %h %cd %s",
+                "--date=short",
+                "from_tag...to_tag",
+                "--",
+                ".",
+            ],
         ),
         (
             [Path("a"), Path("b")],
@@ -131,7 +156,10 @@ def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
     ],
 )
 def test_get_git_log_command(
-    folder_paths: list[str] | None, from_commit: str | None, to_commit: str | None, git_command: list[str]
+    folder_paths: list[str] | None,
+    from_commit: str | None,
+    to_commit: str | None,
+    git_command: list[str],
 ):
     assert _get_git_log_command(folder_paths, from_commit, to_commit) == git_command
 
@@ -223,7 +251,9 @@ LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` pr (#12346)
         ),
     ],
 )
-def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, changes_len):
+def test_convert_git_changes_to_table(
+    input: str, output: str, markdown: bool, changes_len
+):
     table, list_of_changes = _convert_git_changes_to_table(
         version="1.0.1", changes=input, base_url="https://url/", markdown=markdown
     )
@@ -237,7 +267,13 @@ def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, c
 def test_verify_changelog_exists():
     assert (
         _verify_changelog_exists("asana")
-        == AIRFLOW_SOURCES_ROOT / "providers" / "src" / "airflow" / "providers" / "asana" / "CHANGELOG.rst"
+        == AIRFLOW_SOURCES_ROOT
+        / "providers"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "asana"
+        / "CHANGELOG.rst"
     )
 
 
@@ -260,7 +296,17 @@ def generate_short_hash():
     [
         (["Added feature x"], True, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
         (["Added feature x"], False, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
-        (["Breaking change in"], True, True, 1, 0, 0, 0, 0, [TypeOfChange.BREAKING_CHANGE]),
+        (
+            ["Breaking change in"],
+            True,
+            True,
+            1,
+            0,
+            0,
+            0,
+            0,
+            [TypeOfChange.BREAKING_CHANGE],
+        ),
         (["Misc change in"], False, False, 0, 0, 0, 0, 1, [TypeOfChange.MISC]),
         (
             ["Fix change in", "Breaking feature y"],
@@ -286,12 +332,15 @@ def test_classify_changes_automatically(
     misc_count: int,
     type_of_change: TypeOfChange,
 ):
-    from airflow_breeze.prepare_providers.provider_documentation import SHORT_HASH_TO_TYPE_DICT
+    from airflow_breeze.prepare_providers.provider_documentation import (
+        SHORT_HASH_TO_TYPE_DICT,
+    )
 
     """Test simple automated classification of the changes based on their single-line description."""
     changes = [
         _get_change_from_line(
-            f"{generate_long_hash()} {generate_short_hash()} 2023-12-01 {description}", version="0.1.0"
+            f"{generate_long_hash()} {generate_short_hash()} 2023-12-01 {description}",
+            version="0.1.0",
         )
         for description in descriptions
     ]
@@ -300,7 +349,9 @@ def test_classify_changes_automatically(
         SHORT_HASH_TO_TYPE_DICT[changes[i].short_hash] = type_of_change[i]
 
     classified_changes = _get_changes_classified(
-        changes, with_breaking_changes=with_breaking_changes, maybe_with_new_features=maybe_with_new_features
+        changes,
+        with_breaking_changes=with_breaking_changes,
+        maybe_with_new_features=maybe_with_new_features,
     )
     assert len(classified_changes.breaking_changes) == breaking_count
     assert len(classified_changes.features) == feature_count

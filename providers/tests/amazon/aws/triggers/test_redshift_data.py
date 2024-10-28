@@ -48,7 +48,10 @@ class TestRedshiftDataTrigger:
             poll_interval=POLL_INTERVAL,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.redshift_data.RedshiftDataTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.redshift_data.RedshiftDataTrigger"
+        )
         assert kwargs == {
             "statement_id": [],
             "task_id": TEST_TASK_ID,
@@ -70,7 +73,11 @@ class TestRedshiftDataTrigger:
             (
                 False,
                 TriggerEvent(
-                    {"status": "error", "message": f"{TEST_TASK_ID} failed", "statement_id": "uuid"}
+                    {
+                        "status": "error",
+                        "message": f"{TEST_TASK_ID} failed",
+                        "statement_id": "uuid",
+                    }
                 ),
             ),
         ],
@@ -83,7 +90,11 @@ class TestRedshiftDataTrigger:
         return_value=False,
     )
     async def test_redshift_data_trigger_run(
-        self, mocked_is_still_running, mock_check_query_is_finised_async, return_value, response
+        self,
+        mocked_is_still_running,
+        mock_check_query_is_finised_async,
+        return_value,
+        response,
     ):
         """
         Tests that RedshiftDataTrigger only fires once the query execution reaches a successful state.
@@ -123,7 +134,11 @@ class TestRedshiftDataTrigger:
             ),
             (
                 Exception(f"{TEST_TASK_ID} failed"),
-                {"status": "error", "statement_id": "uuid", "message": f"{TEST_TASK_ID} failed"},
+                {
+                    "status": "error",
+                    "statement_id": "uuid",
+                    "message": f"{TEST_TASK_ID} failed",
+                },
             ),
         ],
     )
@@ -135,7 +150,11 @@ class TestRedshiftDataTrigger:
         return_value=False,
     )
     async def test_redshift_data_trigger_exception(
-        self, mocked_is_still_running, mock_check_query_is_finised_async, raised_exception, expected_response
+        self,
+        mocked_is_still_running,
+        mock_check_query_is_finised_async,
+        raised_exception,
+        expected_response,
     ):
         """
         Test that RedshiftDataTrigger fires the correct event in case of an error.

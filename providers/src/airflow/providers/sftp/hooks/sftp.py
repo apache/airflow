@@ -100,7 +100,9 @@ class SFTPHook(SSHHook):
                 raise AirflowException(
                     f"ssh_hook must be an instance of SSHHook, but got {type(self.ssh_hook)}"
                 )
-            self.log.info("ssh_hook is provided. It will be used to generate SFTP connection.")
+            self.log.info(
+                "ssh_hook is provided. It will be used to generate SFTP connection."
+            )
             self.ssh_conn_id = self.ssh_hook.ssh_conn_id
             return
 
@@ -239,7 +241,9 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
+    def retrieve_file(
+        self, remote_full_path: str, local_full_path: str, prefetch: bool = True
+    ) -> None:
         """
         Transfer the remote file to a local location.
 
@@ -253,7 +257,9 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
-    def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
+    def store_file(
+        self, remote_full_path: str, local_full_path: str, confirm: bool = True
+    ) -> None:
         """
         Transfer a local file to the remote location.
 
@@ -299,7 +305,9 @@ class SFTPHook(SSHHook):
         return True
 
     @staticmethod
-    def _is_path_match(path: str, prefix: str | None = None, delimiter: str | None = None) -> bool:
+    def _is_path_match(
+        path: str, prefix: str | None = None, delimiter: str | None = None
+    ) -> bool:
         """
         Whether given path starts with ``prefix`` (if set) and ends with ``delimiter`` (if set).
 
@@ -376,7 +384,11 @@ class SFTPHook(SSHHook):
         unknowns: list[str] = []
 
         def append_matching_path_callback(list_: list[str]) -> Callable:
-            return lambda item: list_.append(item) if self._is_path_match(item, prefix, delimiter) else None
+            return (
+                lambda item: list_.append(item)
+                if self._is_path_match(item, prefix, delimiter)
+                else None
+            )
 
         self.walktree(
             path=path,
@@ -475,7 +487,10 @@ class SFTPHookAsync(BaseHook):
         extra_options = conn.extra_dejson
         if "key_file" in extra_options and self.key_file == "":
             self.key_file = extra_options["key_file"]
-        if "known_hosts" in extra_options and self.known_hosts != self.default_known_hosts:
+        if (
+            "known_hosts" in extra_options
+            and self.known_hosts != self.default_known_hosts
+        ):
             self.known_hosts = extra_options["known_hosts"]
         if ("passphrase" or "private_key_passphrase") in extra_options:
             self.passphrase = extra_options["passphrase"]
@@ -488,7 +503,9 @@ class SFTPHookAsync(BaseHook):
         if no_host_key_check is not None:
             no_host_key_check = str(no_host_key_check).lower() == "true"
             if host_key is not None and no_host_key_check:
-                raise ValueError("Host key check was skipped, but `host_key` value was given")
+                raise ValueError(
+                    "Host key check was skipped, but `host_key` value was given"
+                )
             if no_host_key_check:
                 self.log.warning(
                     "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
@@ -544,7 +561,9 @@ class SFTPHookAsync(BaseHook):
             except asyncssh.SFTPNoSuchFile:
                 return None
 
-    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
+    async def read_directory(
+        self, path: str = ""
+    ) -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
         async with await self._get_conn() as ssh_conn:
             sftp_client = await ssh_conn.start_sftp_client()
@@ -564,7 +583,9 @@ class SFTPHookAsync(BaseHook):
         files_list = await self.read_directory(path)
         if files_list is None:
             raise FileNotFoundError(f"No files at path {path!r} found...")
-        matched_files = [file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)]
+        matched_files = [
+            file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)
+        ]
         return matched_files
 
     async def get_mod_time(self, path: str) -> str:  # type: ignore[return]
@@ -582,7 +603,9 @@ class SFTPHookAsync(BaseHook):
             sftp_client = await ssh_conn.start_sftp_client()
             ftp_mdtm = await sftp_client.stat(path)
             modified_time = ftp_mdtm.mtime
-            mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
+            mod_time = datetime.datetime.fromtimestamp(modified_time).strftime(
+                "%Y%m%d%H%M%S"
+            )  # type: ignore[arg-type]
             self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
             return mod_time
         except asyncssh.SFTPNoSuchFile:

@@ -29,9 +29,16 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [
@@ -62,7 +69,10 @@ def configured_app(minimal_app_for_auth_api):
         "TEST_DAG_1",
         access_control={
             "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+                permissions.RESOURCE_DAG: {
+                    permissions.ACTION_CAN_EDIT,
+                    permissions.ACTION_CAN_READ,
+                }
             },
         },
     )
@@ -70,7 +80,10 @@ def configured_app(minimal_app_for_auth_api):
         "TEST_DAG_1",
         access_control={
             "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+                permissions.RESOURCE_DAG: {
+                    permissions.ACTION_CAN_EDIT,
+                    permissions.ACTION_CAN_READ,
+                }
             },
         },
     )
@@ -85,7 +98,9 @@ def configured_app(minimal_app_for_auth_api):
     ) as dag:
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+    with DAG(
+        DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)
+    ) as dag2:  # no doc_md
         EmptyOperator(task_id=TASK_ID)
 
     with DAG(DAG3_ID, schedule=None) as dag3:  # DAG start_date set to None
@@ -121,7 +136,9 @@ class TestDagEndpoint:
         self.clean_db()
 
     @provide_session
-    def _create_dag_models(self, count, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+    def _create_dag_models(
+        self, count, dag_id_prefix="TEST_DAG", is_paused=False, session=None
+    ):
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
@@ -144,7 +161,9 @@ class TestDagEndpoint:
         session.add(dag_model)
 
     @provide_session
-    def _create_dag_model_for_details_endpoint_with_asset_expression(self, dag_id, session=None):
+    def _create_dag_model_for_details_endpoint_with_asset_expression(
+        self, dag_id, session=None
+    ):
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
@@ -175,14 +194,16 @@ class TestGetDag(TestDagEndpoint):
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(1)
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_1", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
+            "/api/v1/dags/TEST_DAG_1",
+            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
 
     def test_should_respond_403_with_granular_access_for_different_dag(self):
         self._create_dag_models(3)
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_2", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
+            "/api/v1/dags/TEST_DAG_2",
+            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 403
 
@@ -202,7 +223,10 @@ class TestPatchDag(TestDagEndpoint):
     @provide_session
     def _create_dag_model(self, session=None):
         dag_model = DagModel(
-            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", timetable_summary="2 2 * * *", is_paused=True
+            dag_id="TEST_DAG_1",
+            fileloc="/tmp/dag_1.py",
+            timetable_summary="2 2 * * *",
+            is_paused=True,
         )
         session.add(dag_model)
         return dag_model
@@ -217,7 +241,9 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
+        _check_last_log(
+            session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None
+        )
 
     def test_validation_error_raises_400(self):
         patch_body = {

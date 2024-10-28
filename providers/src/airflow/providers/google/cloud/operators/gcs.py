@@ -263,7 +263,10 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             project_id=hook.project_id,
         )
         return hook.list(
-            bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter, match_glob=self.match_glob
+            bucket_name=self.bucket,
+            prefix=self.prefix,
+            delimiter=self.delimiter,
+            match_glob=self.match_glob,
         )
 
 
@@ -316,7 +319,11 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             )
             raise ValueError(err_message)
         if objects is not None and prefix is not None:
-            err_message = "(Task {task_id}) Objects or prefix should be set. Both provided.".format(**kwargs)
+            err_message = (
+                "(Task {task_id}) Objects or prefix should be set. Both provided.".format(
+                    **kwargs
+                )
+            )
             raise ValueError(err_message)
 
         super().__init__(**kwargs)
@@ -446,7 +453,10 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
             project_id=hook.project_id,
         )
         hook.insert_bucket_acl(
-            bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
+            bucket_name=self.bucket,
+            entity=self.entity,
+            role=self.role,
+            user_project=self.user_project,
         )
 
 
@@ -605,16 +615,24 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
-        hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
             self.log.info("Downloading file from %s", self.source_bucket)
             hook.download(
-                bucket_name=self.source_bucket, object_name=self.source_object, filename=source_file.name
+                bucket_name=self.source_bucket,
+                object_name=self.source_object,
+                filename=source_file.name,
             )
 
             self.log.info("Starting the transformation")
-            cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
+            cmd = (
+                [self.transform_script]
+                if isinstance(self.transform_script, str)
+                else self.transform_script
+            )
             cmd += [source_file.name, destination_file.name]
             with subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
@@ -626,11 +644,20 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
 
                 process.wait()
                 if process.returncode:
-                    raise AirflowException(f"Transform script failed: {process.returncode}")
+                    raise AirflowException(
+                        f"Transform script failed: {process.returncode}"
+                    )
 
-            self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
+            self.log.info(
+                "Transformation succeeded. Output temporarily located at %s",
+                destination_file.name,
+            )
 
-            self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
+            self.log.info(
+                "Uploading file to %s as %s",
+                self.destination_bucket,
+                self.destination_object,
+            )
             FileDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -795,18 +822,30 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_end = context["data_interval_end"]
         except KeyError:
             orig_start = pendulum.instance(context["execution_date"])
-            next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
-            if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
+            next_dagrun = context["dag"].next_dagrun_info(
+                last_automated_dagrun=None, restricted=False
+            )
+            if (
+                next_dagrun
+                and next_dagrun.data_interval
+                and next_dagrun.data_interval.end
+            ):
                 orig_end = next_dagrun.data_interval.end
             else:
                 orig_end = None
 
         timespan_start = orig_start
         if orig_end is None:  # Only possible in Airflow before 2.2.
-            self.log.warning("No following schedule found, setting timespan end to max %s", orig_end)
+            self.log.warning(
+                "No following schedule found, setting timespan end to max %s", orig_end
+            )
             timespan_end = pendulum.instance(datetime.datetime.max)
-        elif orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
-            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
+        elif (
+            orig_start >= orig_end
+        ):  # Airflow 2.2 sets start == end for non-perodic schedules.
+            self.log.warning(
+                "DAG schedule not periodic, setting timespan end to max %s", orig_end
+            )
             timespan_end = pendulum.instance(datetime.datetime.max)
         else:
             timespan_end = orig_end
@@ -818,9 +857,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             self.source_prefix,
             timespan_start,
         )
-        self._destination_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
-            self.destination_prefix,
-            timespan_start,
+        self._destination_prefix_interp = (
+            GCSTimeSpanFileTransformOperator.interpolate_prefix(
+                self.destination_prefix,
+                timespan_start,
+            )
         )
 
         source_hook = GCSHook(
@@ -867,7 +908,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         raise
 
             self.log.info("Starting the transformation")
-            cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
+            cmd = (
+                [self.transform_script]
+                if isinstance(self.transform_script, str)
+                else self.transform_script
+            )
             cmd += [
                 str(temp_input_dir_path),
                 str(temp_output_dir_path),
@@ -884,9 +929,14 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 process.wait()
                 if process.returncode:
-                    raise AirflowException(f"Transform script failed: {process.returncode}")
+                    raise AirflowException(
+                        f"Transform script failed: {process.returncode}"
+                    )
 
-            self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir_path)
+            self.log.info(
+                "Transformation succeeded. Output temporarily located at %s",
+                temp_output_dir_path,
+            )
 
             files_uploaded = []
 
@@ -1001,8 +1051,12 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         self.user_project = user_project
 
     def execute(self, context: Context) -> None:
-        hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force, user_project=self.user_project)
+        hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        hook.delete_bucket(
+            bucket_name=self.bucket_name, force=self.force, user_project=self.user_project
+        )
 
 
 class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):

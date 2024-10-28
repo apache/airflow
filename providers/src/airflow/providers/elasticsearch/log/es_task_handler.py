@@ -36,7 +36,9 @@ from elasticsearch.exceptions import NotFoundError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
-from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
+from airflow.providers.elasticsearch.log.es_json_formatter import (
+    ElasticsearchJSONFormatter,
+)
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -60,7 +62,9 @@ EsLogMsgType = List[Tuple[str, str]]
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 
-VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
+VALID_ES_CONFIG_KEYS = set(
+    inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys()
+)
 # Remove `self` from the valid set of kwargs
 VALID_ES_CONFIG_KEYS.remove("self")
 
@@ -68,7 +72,11 @@ VALID_ES_CONFIG_KEYS.remove("self")
 def get_es_kwargs_from_config() -> dict[str, Any]:
     elastic_search_config = conf.getsection("elasticsearch_configs")
     kwargs_dict = (
-        {key: value for key, value in elastic_search_config.items() if key in VALID_ES_CONFIG_KEYS}
+        {
+            key: value
+            for key, value in elastic_search_config.items()
+            if key in VALID_ES_CONFIG_KEYS
+        }
         if elastic_search_config
         else {}
     )
@@ -155,7 +163,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
         index_patterns: str = conf.get("elasticsearch", "index_patterns"),
-        index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
+        index_patterns_callable: str = conf.get(
+            "elasticsearch", "index_patterns_callable", fallback=""
+        ),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
         log_id_template: str | None = None,
@@ -224,7 +234,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param ti: A TaskInstance object or None.
         """
         if self.index_patterns_callable:
-            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
+            self.log.debug(
+                "Using index_patterns_callable: %s", self.index_patterns_callable
+            )
             index_pattern_callable_obj = import_string(self.index_patterns_callable)
             return index_pattern_callable_obj(ti)
         self.log.debug("Using index_patterns: %s", self.index_patterns)
@@ -238,7 +250,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
-                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+                log_id_template = dag_run.get_log_template(
+                    session=session
+                ).elasticsearch_id
             else:
                 log_id_template = self.log_id_template
 
@@ -290,7 +304,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             return ""
         return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
+    def _group_logs_by_host(
+        self, response: ElasticSearchResponse
+    ) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
         for hit in response:
             key = getattr_nested(hit, self.host_field, None) or "default_host"
@@ -357,7 +373,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
                 # if max_offset specified, respect it
-                or ("max_offset" in metadata and int(offset) >= int(metadata["max_offset"]))
+                or (
+                    "max_offset" in metadata
+                    and int(offset) >= int(metadata["max_offset"])
+                )
             ):
                 metadata["end_of_log"] = True
 
@@ -367,7 +386,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
         def concat_logs(hits: list[Hit]):
-            log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            log_range = (
+                (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            )
             return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
@@ -389,7 +410,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
 
-    def _es_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> ElasticSearchResponse | None:
+    def _es_read(
+        self, log_id: str, offset: int | str, ti: TaskInstance
+    ) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -410,7 +433,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         try:
             max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
         except NotFoundError as e:
-            self.log.exception("The target index pattern %s does not exist", index_patterns)
+            self.log.exception(
+                "The target index pattern %s does not exist", index_patterns
+            )
             raise e
 
         if max_log_line != 0:
@@ -424,7 +449,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 )
                 return ElasticSearchResponse(self, res)
             except Exception as err:
-                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
+                self.log.exception(
+                    "Could not read log with log_id: %s. Exception: %s", log_id, err
+                )
 
         return None
 
@@ -615,10 +642,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     break
 
         for t in hit.get("inner_hits", ()):
-            hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+            hit["inner_hits"][t] = ElasticSearchResponse(
+                self, hit["inner_hits"][t], doc_class=doc_class
+            )
 
         # callback should get the Hit class if "from_es" is not defined
-        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
+        callback: type[Hit] | Callable[..., Any] = getattr(
+            doc_class, "from_es", doc_class
+        )
         return callback(hit)
 
 

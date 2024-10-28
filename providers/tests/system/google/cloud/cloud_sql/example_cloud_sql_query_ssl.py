@@ -39,7 +39,9 @@ from airflow.decorators import task
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
+from airflow.providers.google.cloud.hooks.secret_manager import (
+    GoogleCloudSecretManagerHook,
+)
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
@@ -52,7 +54,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "cloudsql_query_ssl"
 REGION = "us-central1"
 HOME_DIR = Path.home()
@@ -364,8 +368,12 @@ with DAG(
         )
 
         @task(task_id=f"save_ssl_cert_locally_{database_type}")
-        def save_ssl_cert_locally(ssl_cert: dict[str, Any], db_type: str) -> dict[str, str]:
-            folder = SSL_COMPOSER_PATH_PREFIX if run_in_composer() else SSL_LOCAL_PATH_PREFIX
+        def save_ssl_cert_locally(
+            ssl_cert: dict[str, Any], db_type: str
+        ) -> dict[str, str]:
+            folder = (
+                SSL_COMPOSER_PATH_PREFIX if run_in_composer() else SSL_LOCAL_PATH_PREFIX
+            )
             folder += f"/certs/{db_type}/{ssl_cert['operation']['name']}"
             if not os.path.exists(folder):
                 os.makedirs(folder)
@@ -389,7 +397,9 @@ with DAG(
         )
 
         @task(task_id=f"save_ssl_cert_to_secret_manager_{database_type}")
-        def save_ssl_cert_to_secret_manager(ssl_cert: dict[str, Any], db_type: str) -> str:
+        def save_ssl_cert_to_secret_manager(
+            ssl_cert: dict[str, Any], db_type: str
+        ) -> str:
             hook = GoogleCloudSecretManagerHook()
             payload = {
                 "sslrootcert": ssl_cert["serverCaCert"]["cert"],
@@ -407,7 +417,9 @@ with DAG(
             hook.add_secret_version(
                 project_id=PROJECT_ID,
                 secret_id=_secret_id,
-                secret_payload=dict(data=base64.b64encode(json.dumps(payload).encode("ascii"))),
+                secret_payload=dict(
+                    data=base64.b64encode(json.dumps(payload).encode("ascii"))
+                ),
             )
 
             return _secret_id
@@ -417,12 +429,8 @@ with DAG(
         )
 
         task_id = f"example_cloud_sql_query_ssl_{database_type}"
-        ssl_server_cert_path = (
-            f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslrootcert'] }}}}"
-        )
-        ssl_cert_path = (
-            f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslcert'] }}}}"
-        )
+        ssl_server_cert_path = f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslrootcert'] }}}}"
+        ssl_cert_path = f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslcert'] }}}}"
         ssl_key_path = f"{{{{ task_instance.xcom_pull('save_ssl_cert_locally_{database_type}')['sslkey'] }}}}"
 
         # [START howto_operator_cloudsql_query_operators_ssl]

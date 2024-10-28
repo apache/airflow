@@ -80,14 +80,35 @@ class TestAdlsToGoogleCloudStorageOperator:
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [
                 mock.call(
-                    bucket_name="test", filename=mock.ANY, object_name="test/path/PARQUET.parquet", gzip=False
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/path/PARQUET.parquet",
+                    gzip=False,
                 ),
                 mock.call(
-                    bucket_name="test", filename=mock.ANY, object_name="test/path/TEST3.csv", gzip=False
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/path/TEST3.csv",
+                    gzip=False,
                 ),
-                mock.call(bucket_name="test", filename=mock.ANY, object_name="test/path/PIC.png", gzip=False),
-                mock.call(bucket_name="test", filename=mock.ANY, object_name="test/TEST1.csv", gzip=False),
-                mock.call(bucket_name="test", filename=mock.ANY, object_name="test/TEST2.csv", gzip=False),
+                mock.call(
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/path/PIC.png",
+                    gzip=False,
+                ),
+                mock.call(
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/TEST1.csv",
+                    gzip=False,
+                ),
+                mock.call(
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/TEST2.csv",
+                    gzip=False,
+                ),
             ],
             any_order=True,
         )
@@ -105,7 +126,9 @@ class TestAdlsToGoogleCloudStorageOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook")
     @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.GCSHook")
-    def test_execute_with_gzip(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
+    def test_execute_with_gzip(
+        self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook
+    ):
         """Test the execute function when the run is successful."""
 
         operator = ADLSToGCSOperator(
@@ -126,14 +149,35 @@ class TestAdlsToGoogleCloudStorageOperator:
         gcs_mock_hook.return_value.upload.assert_has_calls(
             [
                 mock.call(
-                    bucket_name="test", filename=mock.ANY, object_name="test/path/PARQUET.parquet", gzip=True
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/path/PARQUET.parquet",
+                    gzip=True,
                 ),
                 mock.call(
-                    bucket_name="test", filename=mock.ANY, object_name="test/path/TEST3.csv", gzip=True
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/path/TEST3.csv",
+                    gzip=True,
                 ),
-                mock.call(bucket_name="test", filename=mock.ANY, object_name="test/path/PIC.png", gzip=True),
-                mock.call(bucket_name="test", filename=mock.ANY, object_name="test/TEST1.csv", gzip=True),
-                mock.call(bucket_name="test", filename=mock.ANY, object_name="test/TEST2.csv", gzip=True),
+                mock.call(
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/path/PIC.png",
+                    gzip=True,
+                ),
+                mock.call(
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/TEST1.csv",
+                    gzip=True,
+                ),
+                mock.call(
+                    bucket_name="test",
+                    filename=mock.ANY,
+                    object_name="test/TEST2.csv",
+                    gzip=True,
+                ),
             ],
             any_order=True,
         )

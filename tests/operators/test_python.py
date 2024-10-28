@@ -46,7 +46,11 @@ from airflow.exceptions import (
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
+from airflow.models.taskinstance import (
+    TaskInstance,
+    clear_task_instances,
+    set_current_context,
+)
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchExternalPythonOperator,
@@ -90,9 +94,13 @@ DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
-CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+CLOUDPICKLE_MARKER = pytest.mark.skipif(
+    not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed"
+)
 
-USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
+USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(
+    not _ENABLE_AIP_44, reason="AIP-44 is not enabled"
+)
 
 
 class BasePythonTest:
@@ -107,14 +115,18 @@ class BasePythonTest:
     default_date: datetime = DEFAULT_DATE
 
     @pytest.fixture(autouse=True)
-    def base_tests_setup(self, request, create_serialized_task_instance_of_operator, dag_maker):
+    def base_tests_setup(
+        self, request, create_serialized_task_instance_of_operator, dag_maker
+    ):
         self.dag_id = f"dag_{slugify(request.cls.__name__)}"
         self.task_id = f"task_{slugify(request.node.name, max_length=40)}"
         self.run_id = f"run_{slugify(request.node.name, max_length=40)}"
         self.ds_templated = self.default_date.date().isoformat()
         self.ti_maker = create_serialized_task_instance_of_operator
         self.dag_maker = dag_maker
-        self.dag_non_serialized = self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH).dag
+        self.dag_non_serialized = self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH
+        ).dag
         clear_db_runs()
         yield
         clear_db_runs()
@@ -127,11 +139,15 @@ class BasePythonTest:
             try:
                 expected = expected_states[ti.task_id]
             except KeyError:
-                asserts.append(f"Unexpected task id {ti.task_id!r} found, expected {expected_states.keys()}")
+                asserts.append(
+                    f"Unexpected task id {ti.task_id!r} found, expected {expected_states.keys()}"
+                )
                 continue
 
             if ti.state != expected:
-                asserts.append(f"Task {ti.task_id!r} has state {ti.state!r} instead of expected {expected!r}")
+                asserts.append(
+                    f"Task {ti.task_id!r} has state {ti.state!r} instead of expected {expected!r}"
+                )
         if asserts:
             pytest.fail("\n".join(asserts))
 
@@ -141,7 +157,9 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
@@ -166,8 +184,12 @@ class BasePythonTest:
     def run_as_operator(self, fn, **kwargs):
         """Run task by direct call ``run`` method."""
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
-            task = self.opcls(task_id=self.task_id, python_callable=fn, **self.default_kwargs(**kwargs))
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
+            task = self.opcls(
+                task_id=self.task_id, python_callable=fn, **self.default_kwargs(**kwargs)
+            )
         self.dag_maker.create_dagrun()
         task.run(start_date=self.default_date, end_date=self.default_date)
         clear_db_runs()
@@ -209,7 +231,9 @@ class TestPythonOperator(BasePythonTest):
     @pytest.mark.parametrize("not_callable", [{}, None])
     def test_python_operator_python_callable_is_callable(self, not_callable):
         """Tests that PythonOperator will only instantiate if the python_callable argument is callable."""
-        with pytest.raises(AirflowException, match="`python_callable` param must be callable"):
+        with pytest.raises(
+            AirflowException, match="`python_callable` param must be callable"
+        ):
             PythonOperator(python_callable=not_callable, task_id="python_operator")
 
     def test_python_callable_arguments_are_templatized(self):
@@ -221,7 +245,12 @@ class TestPythonOperator(BasePythonTest):
 
         task = self.render_templates(
             lambda: 0,
-            op_args=[4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple],
+            op_args=[
+                4,
+                date(2019, 1, 1),
+                "dag {{dag.dag_id}} ran on {{ds}}.",
+                named_tuple,
+            ],
         )
         rendered_op_args = task.op_args
         assert len(rendered_op_args) == 4
@@ -243,7 +272,10 @@ class TestPythonOperator(BasePythonTest):
         rendered_op_kwargs = task.op_kwargs
         assert rendered_op_kwargs["an_int"] == 4
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
-        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        assert (
+            rendered_op_kwargs["a_templated_string"]
+            == f"dag {self.dag_id} ran on {self.ds_templated}."
+        )
 
     def test_python_callable_keyword_arguments_callable_not_templatized(self):
         """Test PythonOperator op_kwargs are not templatized if it's a callable"""
@@ -271,7 +303,9 @@ class TestPythonOperator(BasePythonTest):
         )
         new_task = copy.deepcopy(original_task)
         # shallow copy op_kwargs
-        assert id(original_task.op_kwargs["certain_attrs"]) == id(new_task.op_kwargs["certain_attrs"])
+        assert id(original_task.op_kwargs["certain_attrs"]) == id(
+            new_task.op_kwargs["certain_attrs"]
+        )
         # shallow copy python_callable
         assert id(original_task.python_callable) == id(new_task.python_callable)
 
@@ -282,7 +316,9 @@ class TestPythonOperator(BasePythonTest):
             raise RuntimeError(f"Should not be triggered, dag: {dag}")
 
         ti = self.create_ti(func, op_args=[1])
-        error_message = re.escape("The key 'dag' in args is a part of kwargs and therefore reserved.")
+        error_message = re.escape(
+            "The key 'dag' in args is a part of kwargs and therefore reserved."
+        )
         with pytest.raises(ValueError, match=error_message):
             ti.run()
 
@@ -340,7 +376,9 @@ class TestPythonOperator(BasePythonTest):
         def func():
             return "test_return_value"
 
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
             python_operator = PythonOperator(
                 task_id="python_operator",
                 python_callable=func,
@@ -353,7 +391,9 @@ class TestPythonOperator(BasePythonTest):
     def test_python_operator_has_default_logger_name(self):
         python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2))
 
-        logger_name: str = "airflow.task.operators.airflow.operators.python.PythonOperator"
+        logger_name: str = (
+            "airflow.task.operators.airflow.operators.python.PythonOperator"
+        )
         assert python_operator.log.name == logger_name
 
     def test_custom_logger_name_is_correctly_set(self):
@@ -372,7 +412,9 @@ class TestPythonOperator(BasePythonTest):
         assert setstate_operator.log.name == logger_name
 
     def test_custom_logger_name_can_be_empty_string(self):
-        python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2), logger_name="")
+        python_operator = PythonOperator(
+            task_id="task", python_callable=partial(int, 2), logger_name=""
+        )
         assert python_operator.log.name == "airflow.task.operators"
 
 
@@ -386,62 +428,89 @@ class TestBranchOperator(BasePythonTest):
 
     def test_with_dag_run(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
+            dr,
+            {
+                self.task_id: State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
+            },
         )
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE}
+            dr,
+            {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE},
         )
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_2"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
+            dr,
+            {
+                self.task_id: State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
+            },
         )
 
     def test_xcom_push(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
@@ -464,7 +533,9 @@ class TestBranchOperator(BasePythonTest):
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branches = [self.branch_1, self.branch_2]
             branch_op >> branches
 
@@ -483,7 +554,9 @@ class TestBranchOperator(BasePythonTest):
 
         # Clear the children tasks.
         tis = dr.get_task_instances()
-        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+        children_tis = [
+            ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()
+        ]
         with create_session() as session:
             clear_task_instances(children_tis, session=session, dag=branch_op.dag)
 
@@ -510,7 +583,9 @@ class TestBranchOperator(BasePythonTest):
             return "some_task_id"
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
+        with pytest.raises(
+            AirflowException, match="Invalid tasks found: {'some_task_id'}"
+        ):
             ti.run()
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
@@ -530,9 +605,13 @@ class TestBranchOperator(BasePythonTest):
             def f():
                 return choice
 
-            branch = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             task1 = EmptyOperator(task_id="task1")
-            join = EmptyOperator(task_id="join", trigger_rule="none_failed_min_one_success")
+            join = EmptyOperator(
+                task_id="join", trigger_rule="none_failed_min_one_success"
+            )
 
             branch >> [task1, join]
             task1 >> join
@@ -541,7 +620,9 @@ class TestBranchOperator(BasePythonTest):
         task_ids = [self.task_id, "task1", "join"]
         tis = {ti.task_id: ti for ti in dr.task_instances}
 
-        for task_id in task_ids:  # Mimic the specific order the scheduling would run the tests.
+        for (
+            task_id
+        ) in task_ids:  # Mimic the specific order the scheduling would run the tests.
             task_instance = tis[task_id]
             task_instance.refresh_from_task(self.dag_non_serialized.get_task(task_id))
             task_instance.run()
@@ -567,7 +648,11 @@ class TestShortCircuitOperator(BasePythonTest):
         "op1": State.SKIPPED,
         "op2": State.SKIPPED,
     }
-    all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
+    all_success_states = {
+        "short_circuit": State.SUCCESS,
+        "op1": State.SUCCESS,
+        "op2": State.SUCCESS,
+    }
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
@@ -607,7 +692,11 @@ class TestShortCircuitOperator(BasePythonTest):
                 False,
                 False,
                 TriggerRule.ALL_DONE,
-                {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
+                {
+                    "short_circuit": State.SUCCESS,
+                    "op1": State.SKIPPED,
+                    "op2": State.SUCCESS,
+                },
             ),
             # Skip downstream tasks via a falsy value, respect trigger rules, non-default trigger rule on a
             # downstream task
@@ -615,7 +704,11 @@ class TestShortCircuitOperator(BasePythonTest):
                 [],
                 False,
                 TriggerRule.ALL_DONE,
-                {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
+                {
+                    "short_circuit": State.SUCCESS,
+                    "op1": State.SKIPPED,
+                    "op2": State.SUCCESS,
+                },
             ),
             # Do not skip downstream tasks, do not respect trigger rules, default trigger rule on all
             # downstream tasks
@@ -662,7 +755,11 @@ class TestShortCircuitOperator(BasePythonTest):
         ],
     )
     def test_short_circuiting(
-        self, callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states
+        self,
+        callable_return,
+        test_ignore_downstream_trigger_rules,
+        test_trigger_rule,
+        expected_task_states,
     ):
         """
         Checking the behavior of the ShortCircuitOperator in several scenarios enabling/disabling the skipping
@@ -682,7 +779,10 @@ class TestShortCircuitOperator(BasePythonTest):
         self.op1.run(start_date=self.default_date, end_date=self.default_date)
         self.op2.run(start_date=self.default_date, end_date=self.default_date)
 
-        assert short_circuit.ignore_downstream_trigger_rules == test_ignore_downstream_trigger_rules
+        assert (
+            short_circuit.ignore_downstream_trigger_rules
+            == test_ignore_downstream_trigger_rules
+        )
         assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
         assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
         assert self.op2.trigger_rule == test_trigger_rule
@@ -695,7 +795,9 @@ class TestShortCircuitOperator(BasePythonTest):
         should not cause it to be executed.
         """
         with self.dag_non_serialized:
-            short_circuit = ShortCircuitOperator(task_id="short_circuit", python_callable=lambda: False)
+            short_circuit = ShortCircuitOperator(
+                task_id="short_circuit", python_callable=lambda: False
+            )
             short_circuit >> self.op1 >> self.op2
         dr = self.create_dag_run()
 
@@ -718,28 +820,41 @@ class TestShortCircuitOperator(BasePythonTest):
         tis = dr.get_task_instances()
         with create_session() as session:
             clear_task_instances(
-                [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
+                [ti for ti in tis if ti.task_id == "op1"],
+                session=session,
+                dag=short_circuit.dag,
             )
         self.op1.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(dr, expected_states)
 
     def test_xcom_push(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
             short_op_push_xcom = ShortCircuitOperator(
                 task_id="push_xcom_from_shortcircuit", python_callable=lambda: "signature"
             )
             short_op_no_push_xcom = ShortCircuitOperator(
-                task_id="do_not_push_xcom_from_shortcircuit", python_callable=lambda: False
+                task_id="do_not_push_xcom_from_shortcircuit",
+                python_callable=lambda: False,
             )
 
         dr = self.create_dag_run()
         short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
-        short_op_no_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
+        short_op_no_push_xcom.run(
+            start_date=self.default_date, end_date=self.default_date
+        )
 
         tis = dr.get_task_instances()
-        assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
-        assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
+        assert (
+            tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value")
+            == "signature"
+        )
+        assert (
+            tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value")
+            is False
+        )
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_xcom_push_skipped_tasks(self):
@@ -752,9 +867,9 @@ class TestShortCircuitOperator(BasePythonTest):
         dr = self.create_dag_run()
         short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
         tis = dr.get_task_instances()
-        assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="skipmixin_key") == {
-            "skipped": ["empty_task"]
-        }
+        assert tis[0].xcom_pull(
+            task_ids=short_op_push_xcom.task_id, key="skipmixin_key"
+        ) == {"skipped": ["empty_task"]}
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_mapped_xcom_push_skipped_tasks(self, session):
@@ -779,15 +894,25 @@ class TestShortCircuitOperator(BasePythonTest):
         tis = dr.get_task_instances()
 
         assert (
-            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
+            tis[0].xcom_pull(
+                task_ids="group.push_xcom_from_shortcircuit",
+                key="return_value",
+                map_indexes=0,
+            )
             is True
         )
         assert (
-            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
+            tis[0].xcom_pull(
+                task_ids="group.push_xcom_from_shortcircuit",
+                key="skipmixin_key",
+                map_indexes=0,
+            )
             is None
         )
         assert tis[0].xcom_pull(
-            task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
+            task_ids="group.push_xcom_from_shortcircuit",
+            key="skipmixin_key",
+            map_indexes=1,
         ) == {"skipped": ["group.empty_task"]}
 
 
@@ -797,7 +922,9 @@ virtualenv_string_args: list[str] = []
 @pytest.mark.execution_timeout(120)
 class BaseTestPythonVirtualenvOperator(BasePythonTest):
     def test_template_fields(self):
-        assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
+        assert set(PythonOperator.template_fields).issubset(
+            PythonVirtualenvOperator.template_fields
+        )
 
     def test_fail(self):
         def f():
@@ -848,7 +975,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     def test_lambda(self):
         with pytest.raises(ValueError) as info:
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
-        assert str(info.value) == "PythonVirtualenvOperator only supports functions for python_callable arg"
+        assert (
+            str(info.value)
+            == "PythonVirtualenvOperator only supports functions for python_callable arg"
+        )
 
     def test_nonimported_as_arg(self):
         def f(_):
@@ -955,14 +1085,16 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             pytest.param(
                 "dill",
                 marks=pytest.mark.skipif(
-                    DILL_INSTALLED, reason="For this test case `dill` shouldn't be installed"
+                    DILL_INSTALLED,
+                    reason="For this test case `dill` shouldn't be installed",
                 ),
                 id="dill",
             ),
             pytest.param(
                 "cloudpickle",
                 marks=pytest.mark.skipif(
-                    CLOUDPICKLE_INSTALLED, reason="For this test case `cloudpickle` shouldn't be installed"
+                    CLOUDPICKLE_INSTALLED,
+                    reason="For this test case `cloudpickle` shouldn't be installed",
                 ),
                 id="cloudpickle",
             ),
@@ -1032,7 +1164,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return []
 
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        ti = self.run_as_task(
+            f, return_ti=True, multiple_outputs=False, use_airflow_context=True
+        )
         assert ti.state == TaskInstanceState.SUCCESS
 
     @USE_AIRFLOW_CONTEXT_MARKER
@@ -1048,12 +1182,16 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             match="Current context was requested but no context was found! "
             "Are you running within an airflow task?",
         ):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
+            self.run_as_task(
+                f, return_ti=True, multiple_outputs=False, use_airflow_context=False
+            )
 
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
-        error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+        error_msg = (
+            "use_airflow_context is set to True, but expect_airflow is set to False."
+        )
 
         if not issubclass(self.opcls, ExternalPythonOperator):
             airflow_flag["system_site_packages"] = False
@@ -1067,7 +1205,11 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         with pytest.raises(AirflowException, match=error_msg):
             self.run_as_task(
-                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
+                f,
+                return_ti=True,
+                multiple_outputs=False,
+                use_airflow_context=True,
+                **airflow_flag,
             )
 
     @USE_AIRFLOW_CONTEXT_MARKER
@@ -1085,7 +1227,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return []
 
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        ti = self.run_as_task(
+            f, return_ti=True, multiple_outputs=False, use_airflow_context=True
+        )
         assert ti.state == TaskInstanceState.SUCCESS
 
     @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
@@ -1098,7 +1242,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
         with pytest.raises(AirflowException, match=re.escape(error_msg)):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+            self.run_as_task(
+                f, return_ti=True, multiple_outputs=False, use_airflow_context=True
+            )
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1157,15 +1303,22 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+        with pytest.warns(
+            RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"
+        ):
             self.run_as_task(f, use_dill=True, system_site_packages=False)
 
     def test_ambiguous_serializer(self):
         def f():
             pass
 
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
+        with pytest.warns(
+            RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"
+        ):
+            with pytest.raises(
+                AirflowException,
+                match="Both 'use_dill' and 'serializer' parameters are set",
+            ):
                 self.run_as_task(f, use_dill=True, serializer="dill")
 
     def test_invalid_serializer(self):
@@ -1189,7 +1342,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )
@@ -1239,7 +1394,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )
@@ -1247,14 +1404,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f, requirements=["funcsigs", *extra_requirements], system_site_packages=False
+        )
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )
@@ -1262,13 +1423,19 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs>1.0", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs>1.0", *extra_requirements],
+            system_site_packages=False,
+        )
 
     def test_requirements_file(self):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_operator(f, requirements="requirements.txt", system_site_packages=False)
+        self.run_as_operator(
+            f, requirements="requirements.txt", system_site_packages=False
+        )
 
     @mock.patch("airflow.operators.python.prepare_virtualenv")
     def test_pip_install_options(self, mocked_prepare_virtualenv):
@@ -1320,7 +1487,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )
@@ -1336,9 +1505,15 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             raise RuntimeError
 
         with pytest.warns(
-            RemovedInAirflow3Warning, match="Passing non-string types.*python_version is deprecated"
+            RemovedInAirflow3Warning,
+            match="Passing non-string types.*python_version is deprecated",
         ):
-            self.run_as_task(f, python_version=3, serializer=serializer, requirements=extra_requirements)
+            self.run_as_task(
+                f,
+                python_version=3,
+                serializer=serializer,
+                requirements=extra_requirements,
+            )
 
     def test_with_default(self):
         def f(a):
@@ -1356,7 +1531,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             assert "xyz.abc.de" in pip_conf
             return a
 
-        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+        self.run_as_task(
+            f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4]
+        )
 
     def test_caching(self):
         def f(a):
@@ -1371,7 +1548,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill/cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1440,9 +1619,13 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_operator(f, serializer=serializer, system_site_packages=True, requirements=None)
+        self.run_as_operator(
+            f, serializer=serializer, system_site_packages=True, requirements=None
+        )
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1482,9 +1665,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=["pendulum"])
+        self.run_as_task(
+            f,
+            serializer=serializer,
+            system_site_packages=False,
+            requirements=["pendulum"],
+        )
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1519,7 +1709,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
+        self.run_as_task(
+            f, serializer=serializer, system_site_packages=False, requirements=None
+        )
 
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
@@ -1593,7 +1785,9 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         )
 
         with mock.patch.object(
-            ExternalPythonOperator, "_external_airflow_version_script", new_callable=mock.PropertyMock
+            ExternalPythonOperator,
+            "_external_airflow_version_script",
+            new_callable=mock.PropertyMock,
         ) as mock_script:
             mock_script.return_value = "print('1.10.4')"
             caplog.set_level("WARNING")
@@ -1610,7 +1804,9 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         )
 
         with mock.patch.object(
-            ExternalPythonOperator, "_external_airflow_version_script", new_callable=mock.PropertyMock
+            ExternalPythonOperator,
+            "_external_airflow_version_script",
+            new_callable=mock.PropertyMock,
         ) as mock_script:
             mock_script.return_value = "raise SystemExit('Something went wrong')"
             caplog.set_level("WARNING")
@@ -1633,14 +1829,18 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             else:
                 raise RuntimeError
 
-        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\((True|False), 'bool'\)}"):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\((True|False), 'bool'\)}"
+        ):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
     def test_return_false(self):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."
+        ):
             self.run_as_task(f)
 
     def test_context(self):
@@ -1712,67 +1912,96 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."
+        ):
             self.run_as_task(f, do_not_use_caching=True)
 
     def test_with_dag_run(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
+            dr,
+            {
+                self.task_id: State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
+            },
         )
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE}
+            dr,
+            {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE},
         )
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_2"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
         self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
+            dr,
+            {
+                self.task_id: State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
+            },
         )
 
     def test_xcom_push(self):
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
@@ -1791,12 +2020,16 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         should not cause it to be executed.
         """
         clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(
+            self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True
+        ):
 
             def f():
                 return "branch_1"
 
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op = self.opcls(
+                task_id=self.task_id, python_callable=f, **self.default_kwargs()
+            )
             branches = [self.branch_1, self.branch_2]
             branch_op >> branches
 
@@ -1815,7 +2048,9 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         # Clear the children tasks.
         tis = dr.get_task_instances()
-        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+        children_tis = [
+            ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()
+        ]
         with create_session() as session:
             clear_task_instances(children_tis, session=session, dag=branch_op.dag)
 
@@ -1842,7 +2077,9 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return "some_task_id"
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
+        with pytest.raises(
+            AirflowException, match="Invalid tasks found: {'some_task_id'}"
+        ):
             ti.run()
 
 
@@ -1980,13 +2217,19 @@ DEFAULT_ARGS = {
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
-        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
+        with DAG(
+            dag_id="assert_context_dag", default_args=DEFAULT_ARGS, schedule="@once"
+        ):
             op = MyContextAssertOperator(task_id="assert_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
     def test_get_context_in_old_style_context_task(self):
-        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
-            op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
+        with DAG(
+            dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"
+        ):
+            op = PythonOperator(
+                python_callable=get_all_the_context, task_id="get_all_the_context"
+            )
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
 
@@ -2007,7 +2250,12 @@ class TestShortCircuitWithTeardown:
         ],
     )
     def test_short_circuit_with_teardowns(
-        self, dag_maker, ignore_downstream_trigger_rules, should_skip, with_teardown, expected
+        self,
+        dag_maker,
+        ignore_downstream_trigger_rules,
+        should_skip,
+        with_teardown,
+        expected,
     ):
         with dag_maker() as dag:
             op1 = ShortCircuitOperator(
@@ -2045,8 +2293,12 @@ class TestShortCircuitWithTeardown:
                 python_callable=lambda: False,
             )
             op2 = PythonOperator(task_id="op2", python_callable=print)
-            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(
+                setups=s1
+            )
+            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(
+                setups=s2
+            )
             if config == "sequence":
                 s1 >> op1 >> s2 >> op2 >> [t1, t2]
             elif config == "parallel":
@@ -2073,8 +2325,12 @@ class TestShortCircuitWithTeardown:
             )
             op2 = PythonOperator(task_id="op2", python_callable=print)
             op3 = PythonOperator(task_id="op3", python_callable=print)
-            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(
+                setups=s1
+            )
+            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(
+                setups=s2
+            )
             s1 >> op1 >> op3 >> t1
             s2 >> op2 >> t2
 
@@ -2108,8 +2364,12 @@ class TestShortCircuitWithTeardown:
             op1.log.setLevel(level)
             op2 = PythonOperator(task_id="op2", python_callable=print)
             op3 = PythonOperator(task_id="op3", python_callable=print)
-            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(
+                setups=s1
+            )
+            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(
+                setups=s2
+            )
             s1 >> op1 >> op3 >> t1
             s2 >> op2 >> t2
 

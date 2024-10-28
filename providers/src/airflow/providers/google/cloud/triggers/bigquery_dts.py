@@ -22,7 +22,9 @@ from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
 
-from airflow.providers.google.cloud.hooks.bigquery_dts import AsyncBiqQueryDataTransferServiceHook
+from airflow.providers.google.cloud.hooks.bigquery_dts import (
+    AsyncBiqQueryDataTransferServiceHook,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 

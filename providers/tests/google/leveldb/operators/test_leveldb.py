@@ -58,4 +58,6 @@ class TestLevelDBOperator:
             value=b"value",
         )
         operator.execute(context="TEST_CONTEXT_ID")
-        mock_run.assert_called_once_with(command="put", value=b"value", key=b"key", values=None, keys=None)
+        mock_run.assert_called_once_with(
+            command="put", value=b"value", key=b"key", values=None, keys=None
+        )

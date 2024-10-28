@@ -202,6 +202,8 @@ class TestSparkJDBCHook:
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook.submit")
     def test_invalid_extra_conn_prefix(self, mock_submit):
-        hook = SparkJDBCHook(jdbc_conn_id="jdbc-invalid-extra-conn-prefix", **self._config)
+        hook = SparkJDBCHook(
+            jdbc_conn_id="jdbc-invalid-extra-conn-prefix", **self._config
+        )
         with pytest.raises(ValueError, match="extra conn_prefix should not contain a"):
             hook.submit_jdbc_job()

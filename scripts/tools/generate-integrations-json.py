@@ -53,7 +53,9 @@ for provider_info in ALL_PROVIDER_YAMLS:
         doc_url = integration.get("how-to-guide")
         if doc_url:
             doc_url = doc_url[0].strip()
-            doc_url = re.sub(f'/{provider_info["package-name"]}/', r"\g<0>stable/", doc_url)
+            doc_url = re.sub(
+                f'/{provider_info["package-name"]}/', r"\g<0>stable/", doc_url
+            )
             doc_url = re.sub(r"\.rst", ".html", doc_url)
         else:
             doc_url = f"/docs/{provider_info['package-name'].lower()}/stable/index.html"
@@ -68,7 +70,9 @@ for provider_info in ALL_PROVIDER_YAMLS:
         result_integrations.append(result)
 
 result_integrations.sort(key=lambda x: x["name"].lower())
-with open(os.path.join(AIRFLOW_SITE_DIR, "landing-pages/site/static/integrations.json"), "w") as f:
+with open(
+    os.path.join(AIRFLOW_SITE_DIR, "landing-pages/site/static/integrations.json"), "w"
+) as f:
     f.write(
         json.dumps(
             result_integrations,
@@ -77,7 +81,9 @@ with open(os.path.join(AIRFLOW_SITE_DIR, "landing-pages/site/static/integrations
         )
     )
 
-target_path = os.path.join(AIRFLOW_SITE_DIR, "landing-pages/site/static/integration-logos")
+target_path = os.path.join(
+    AIRFLOW_SITE_DIR, "landing-pages/site/static/integration-logos"
+)
 shutil.rmtree(target_path)
 shutil.copytree(
     src=os.path.join(DOCS_DIR, "integration-logos"),

@@ -44,7 +44,11 @@ class TestFileSensor:
 
         hook = FSHook()
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", schedule=timedelta(days=1), default_args=args)
+        dag = DAG(
+            TEST_DAG_ID + "test_schedule_dag_once",
+            schedule=timedelta(days=1),
+            default_args=args,
+        )
         self.hook = hook
         self.dag = dag
 
@@ -73,7 +77,9 @@ class TestFileSensor:
         task._hook = self.hook
         try:
             with pytest.raises(AirflowSensorTimeout):
-                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                task.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
         finally:
             shutil.rmtree(temp_dir)
 
@@ -90,7 +96,9 @@ class TestFileSensor:
         task._hook = self.hook
         try:
             with pytest.raises(AirflowSensorTimeout):
-                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                task.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
         finally:
             shutil.rmtree(temp_dir)
 
@@ -150,7 +158,11 @@ class TestFileSensor:
 
                 # No files in dir
                 with pytest.raises(AirflowSensorTimeout):
-                    task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                    task.run(
+                        start_date=DEFAULT_DATE,
+                        end_date=DEFAULT_DATE,
+                        ignore_ti_state=True,
+                    )
 
     def test_wildcard_directory_with_files(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -166,7 +178,9 @@ class TestFileSensor:
 
                 # `touch` the file in subdir
                 open(os.path.join(subdir, "file"), "a").close()
-                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                task.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
 
     def test_wildcared_directory(self):
         temp_dir = tempfile.mkdtemp()

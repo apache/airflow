@@ -37,5 +37,7 @@ class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInter
     """Session interface that exempts some routes and stores session data in the database."""
 
 
-class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):
+class AirflowSecureCookieSessionInterface(
+    SessionExemptMixin, SecureCookieSessionInterface
+):
     """Session interface that exempts some routes and stores session data in a signed cookie."""

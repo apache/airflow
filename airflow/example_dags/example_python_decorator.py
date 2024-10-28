@@ -56,9 +56,15 @@ def example_python_decorator():
     # [END howto_operator_python]
 
     # [START howto_operator_python_render_sql]
-    @task(task_id="log_sql_query", templates_dict={"query": "sql/sample.sql"}, templates_exts=[".sql"])
+    @task(
+        task_id="log_sql_query",
+        templates_dict={"query": "sql/sample.sql"},
+        templates_exts=[".sql"],
+    )
     def log_sql(**kwargs):
-        log.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+        log.info(
+            "Python task decorator query: %s", str(kwargs["templates_dict"]["query"])
+        )
 
     log_the_sql = log_sql()
     # [END howto_operator_python_render_sql]
@@ -71,17 +77,23 @@ def example_python_decorator():
         time.sleep(random_base)
 
     for i in range(5):
-        sleeping_task = my_sleeping_function.override(task_id=f"sleep_for_{i}")(random_base=i / 10)
+        sleeping_task = my_sleeping_function.override(task_id=f"sleep_for_{i}")(
+            random_base=i / 10
+        )
 
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
 
     if not is_venv_installed():
-        log.warning("The virtalenv_python example task requires virtualenv, please install it.")
+        log.warning(
+            "The virtalenv_python example task requires virtualenv, please install it."
+        )
     else:
         # [START howto_operator_python_venv]
         @task.virtualenv(
-            task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
+            task_id="virtualenv_python",
+            requirements=["colorama==0.4.0"],
+            system_site_packages=False,
         )
         def callable_virtualenv():
             """

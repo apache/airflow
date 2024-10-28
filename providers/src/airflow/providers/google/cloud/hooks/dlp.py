@@ -56,7 +56,10 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -109,7 +112,9 @@ class CloudDLPHook(GoogleBaseHook):
         :return: Google Cloud DLP API Client
         """
         if not self._client:
-            self._client = DlpServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = DlpServiceClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     def _project_deidentify_template_path(self, project_id, template_id):
@@ -147,7 +152,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not dlp_job_id:
-            raise AirflowException("Please provide the ID of the DLP job resource to be cancelled.")
+            raise AirflowException(
+                "Please provide the ID of the DLP job resource to be cancelled."
+            )
 
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         client.cancel_dlp_job(
@@ -262,7 +269,9 @@ class CloudDLPHook(GoogleBaseHook):
             if match is not None:
                 job_name = match.groupdict()["job"]
             else:
-                raise AirflowException(f"Unable to retrieve DLP job's ID from {job.name}.")
+                raise AirflowException(
+                    f"Unable to retrieve DLP job's ID from {job.name}."
+                )
 
         while wait_until_finished:
             job = self.get_dlp_job(dlp_job_id=job_name, project_id=project_id)
@@ -478,7 +487,13 @@ class CloudDLPHook(GoogleBaseHook):
         )
 
     def delete_deidentify_template(
-        self, template_id, organization_id=None, project_id=None, retry=DEFAULT, timeout=None, metadata=()
+        self,
+        template_id,
+        organization_id=None,
+        project_id=None,
+        retry=DEFAULT,
+        timeout=None,
+        metadata=(),
     ) -> None:
         """
         Delete a deidentify template.
@@ -499,7 +514,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not template_id:
-            raise AirflowException("Please provide the ID of deidentify template to be deleted.")
+            raise AirflowException(
+                "Please provide the ID of deidentify template to be deleted."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
@@ -549,7 +566,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not dlp_job_id:
-            raise AirflowException("Please provide the ID of the DLP job resource to be cancelled.")
+            raise AirflowException(
+                "Please provide the ID of the DLP job resource to be cancelled."
+            )
 
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         client.delete_dlp_job(
@@ -589,7 +608,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not template_id:
-            raise AirflowException("Please provide the ID of the inspect template to be deleted.")
+            raise AirflowException(
+                "Please provide the ID of the inspect template to be deleted."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
@@ -636,7 +657,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not job_trigger_id:
-            raise AirflowException("Please provide the ID of the DLP job trigger to be deleted.")
+            raise AirflowException(
+                "Please provide the ID of the DLP job trigger to be deleted."
+            )
 
         name = DlpServiceClient.job_trigger_path(project_id, job_trigger_id)
         client.delete_job_trigger(
@@ -676,13 +699,17 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not stored_info_type_id:
-            raise AirflowException("Please provide the ID of the stored info type to be deleted.")
+            raise AirflowException(
+                "Please provide the ID of the stored info type to be deleted."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
 
         if organization_id:
-            name = DlpServiceClient.stored_info_type_path(organization_id, stored_info_type_id)
+            name = DlpServiceClient.stored_info_type_path(
+                organization_id, stored_info_type_id
+            )
         elif project_id:
             name = self._project_stored_info_type_path(project_id, stored_info_type_id)
         else:
@@ -725,7 +752,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not template_id:
-            raise AirflowException("Please provide the ID of the deidentify template to be read.")
+            raise AirflowException(
+                "Please provide the ID of the deidentify template to be read."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
@@ -772,7 +801,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not dlp_job_id:
-            raise AirflowException("Please provide the ID of the DLP job resource to be read.")
+            raise AirflowException(
+                "Please provide the ID of the DLP job resource to be read."
+            )
 
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         return client.get_dlp_job(
@@ -812,7 +843,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not template_id:
-            raise AirflowException("Please provide the ID of the inspect template to be read.")
+            raise AirflowException(
+                "Please provide the ID of the inspect template to be read."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
@@ -859,7 +892,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not job_trigger_id:
-            raise AirflowException("Please provide the ID of the DLP job trigger to be read.")
+            raise AirflowException(
+                "Please provide the ID of the DLP job trigger to be read."
+            )
 
         name = DlpServiceClient.job_trigger_path(project_id, job_trigger_id)
         return client.get_job_trigger(
@@ -899,13 +934,17 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not stored_info_type_id:
-            raise AirflowException("Please provide the ID of the stored info type to be read.")
+            raise AirflowException(
+                "Please provide the ID of the stored info type to be read."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
 
         if organization_id:
-            name = DlpServiceClient.stored_info_type_path(organization_id, stored_info_type_id)
+            name = DlpServiceClient.stored_info_type_path(
+                organization_id, stored_info_type_id
+            )
         elif project_id:
             name = self._project_stored_info_type_path(project_id, stored_info_type_id)
         else:
@@ -1256,7 +1295,8 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         project_id: str,
         inspect_config: dict | InspectConfig | None = None,
-        image_redaction_configs: None | (list[dict] | list[RedactImageRequest.ImageRedactionConfig]) = None,
+        image_redaction_configs: None
+        | (list[dict] | list[RedactImageRequest.ImageRedactionConfig]) = None,
         include_findings: bool | None = None,
         byte_item: dict | ByteContentItem | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1384,7 +1424,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not template_id:
-            raise AirflowException("Please provide the ID of deidentify template to be updated.")
+            raise AirflowException(
+                "Please provide the ID of deidentify template to be updated."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
@@ -1439,7 +1481,9 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not template_id:
-            raise AirflowException("Please provide the ID of the inspect template to be updated.")
+            raise AirflowException(
+                "Please provide the ID of the inspect template to be updated."
+            )
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
 
@@ -1497,7 +1541,9 @@ class CloudDLPHook(GoogleBaseHook):
             update_mask = FieldMask(**update_mask)
 
         if not job_trigger_id:
-            raise AirflowException("Please provide the ID of the DLP job trigger to be updated.")
+            raise AirflowException(
+                "Please provide the ID of the DLP job trigger to be updated."
+            )
 
         name = DlpServiceClient.job_trigger_path(project_id, job_trigger_id)
         return client.update_job_trigger(
@@ -1542,13 +1588,17 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         if not stored_info_type_id:
-            raise AirflowException("Please provide the ID of the stored info type to be updated.")
+            raise AirflowException(
+                "Please provide the ID of the stored info type to be updated."
+            )
 
         # Handle project_id from connection configuration
         project_id = project_id or self.project_id
 
         if organization_id:
-            name = DlpServiceClient.stored_info_type_path(organization_id, stored_info_type_id)
+            name = DlpServiceClient.stored_info_type_path(
+                organization_id, stored_info_type_id
+            )
         elif project_id:
             name = self._project_stored_info_type_path(project_id, stored_info_type_id)
         else:

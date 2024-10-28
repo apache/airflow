@@ -135,15 +135,51 @@ class TestAzureSynapsePipelineHook:
             hook._conn.pipeline_run.cancel_pipeline_run.assert_called_with(RUN_ID)  # type: ignore[attr-defined]
 
     _wait_for_pipeline_run_status_test_args = [
-        (AzureSynapsePipelineRunStatus.SUCCEEDED, AzureSynapsePipelineRunStatus.SUCCEEDED, True),
-        (AzureSynapsePipelineRunStatus.FAILED, AzureSynapsePipelineRunStatus.SUCCEEDED, False),
-        (AzureSynapsePipelineRunStatus.CANCELLED, AzureSynapsePipelineRunStatus.SUCCEEDED, False),
-        (AzureSynapsePipelineRunStatus.IN_PROGRESS, AzureSynapsePipelineRunStatus.SUCCEEDED, "timeout"),
-        (AzureSynapsePipelineRunStatus.QUEUED, AzureSynapsePipelineRunStatus.SUCCEEDED, "timeout"),
-        (AzureSynapsePipelineRunStatus.CANCELING, AzureSynapsePipelineRunStatus.SUCCEEDED, "timeout"),
-        (AzureSynapsePipelineRunStatus.SUCCEEDED, AzureSynapsePipelineRunStatus.TERMINAL_STATUSES, True),
-        (AzureSynapsePipelineRunStatus.FAILED, AzureSynapsePipelineRunStatus.TERMINAL_STATUSES, True),
-        (AzureSynapsePipelineRunStatus.CANCELLED, AzureSynapsePipelineRunStatus.TERMINAL_STATUSES, True),
+        (
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            True,
+        ),
+        (
+            AzureSynapsePipelineRunStatus.FAILED,
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            False,
+        ),
+        (
+            AzureSynapsePipelineRunStatus.CANCELLED,
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            False,
+        ),
+        (
+            AzureSynapsePipelineRunStatus.IN_PROGRESS,
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            "timeout",
+        ),
+        (
+            AzureSynapsePipelineRunStatus.QUEUED,
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            "timeout",
+        ),
+        (
+            AzureSynapsePipelineRunStatus.CANCELING,
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            "timeout",
+        ),
+        (
+            AzureSynapsePipelineRunStatus.SUCCEEDED,
+            AzureSynapsePipelineRunStatus.TERMINAL_STATUSES,
+            True,
+        ),
+        (
+            AzureSynapsePipelineRunStatus.FAILED,
+            AzureSynapsePipelineRunStatus.TERMINAL_STATUSES,
+            True,
+        ),
+        (
+            AzureSynapsePipelineRunStatus.CANCELLED,
+            AzureSynapsePipelineRunStatus.TERMINAL_STATUSES,
+            True,
+        ),
     ]
 
     @pytest.mark.parametrize(
@@ -156,10 +192,19 @@ class TestAzureSynapsePipelineHook:
             for argval in _wait_for_pipeline_run_status_test_args
         ],
     )
-    def test_wait_for_pipeline_run_status(self, hook, pipeline_run_status, expected_status, expected_output):
-        config = {"run_id": RUN_ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
+    def test_wait_for_pipeline_run_status(
+        self, hook, pipeline_run_status, expected_status, expected_output
+    ):
+        config = {
+            "run_id": RUN_ID,
+            "timeout": 3,
+            "check_interval": 1,
+            "expected_statuses": expected_status,
+        }
 
-        with patch.object(AzureSynapsePipelineHook, "get_pipeline_run") as mock_pipeline_run:
+        with patch.object(
+            AzureSynapsePipelineHook, "get_pipeline_run"
+        ) as mock_pipeline_run:
             mock_pipeline_run.return_value.status = pipeline_run_status
 
             if expected_output != "timeout":

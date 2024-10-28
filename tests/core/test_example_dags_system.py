@@ -47,7 +47,9 @@ def get_dag_success(dag_maker):
             python_callable=fail,
         )
         dag4_task2 = PythonOperator(
-            task_id="test_dagrun_succeed", trigger_rule=TriggerRule.ALL_FAILED, python_callable=print
+            task_id="test_dagrun_succeed",
+            trigger_rule=TriggerRule.ALL_FAILED,
+            python_callable=print,
         )
         dag4_task2.set_upstream(dag4_task1)
     return dag
@@ -81,7 +83,12 @@ def get_dag_fail_root(dag_maker):
 class TestExampleDagsSystem(SystemTest):
     @pytest.mark.parametrize(
         "module",
-        ["example_bash_operator", "example_branch_operator", "tutorial_dag", "example_dag_decorator"],
+        [
+            "example_bash_operator",
+            "example_branch_operator",
+            "tutorial_dag",
+            "example_dag_decorator",
+        ],
     )
     def test_dag_example(self, module):
         test_run = import_string(f"airflow.example_dags.{module}.test_run")

@@ -73,7 +73,9 @@ class TestAzureDataExplorerHook:
         ids=["missing_method", "unknown_method", "missing_cluster"],
     )
     def test_conn_errors(self, mocked_connection, error_pattern):
-        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
+        hook = AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        )
         with pytest.raises(AirflowException, match=error_pattern):
             assert hook.get_conn()
         with pytest.raises(AirflowException, match=error_pattern):
@@ -96,7 +98,9 @@ class TestAzureDataExplorerHook:
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_creds(self, mock_init, mocked_connection):
         mock_init.return_value = None
-        AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
+        AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        ).get_conn()
         mock_init.assert_called()
         args = mock_init.call_args
         assert args[0][0].data_source == "https://help.kusto.windows.net"
@@ -120,7 +124,9 @@ class TestAzureDataExplorerHook:
     )
     @mock.patch("azure.identity._credentials.environment.ClientSecretCredential")
     def test_conn_method_token_creds(self, mock1, mocked_connection, monkeypatch):
-        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
+        hook = AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        )
 
         monkeypatch.setenv("AZURE_TENANT_ID", "tenant")
         monkeypatch.setenv("AZURE_CLIENT_ID", "client")
@@ -166,7 +172,9 @@ class TestAzureDataExplorerHook:
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_app(self, mock_init, mocked_connection):
         mock_init.return_value = None
-        AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
+        AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        ).get_conn()
         mock_init.assert_called()
         arg = mock_init.call_args
         assert arg[0][0].data_source == "https://help.kusto.windows.net"
@@ -194,7 +202,9 @@ class TestAzureDataExplorerHook:
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_app_cert(self, mock_init, mocked_connection):
         mock_init.return_value = None
-        AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
+        AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        ).get_conn()
         mock_init.assert_called()
         arg = mock_init.call_args
         assert arg[0][0].data_source == "https://help.kusto.windows.net"
@@ -218,7 +228,9 @@ class TestAzureDataExplorerHook:
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_device(self, mock_init, mocked_connection):
         mock_init.return_value = None
-        AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
+        AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        ).get_conn()
         mock_init.assert_called()
         arg = mock_init.call_args
         assert arg[0][0].data_source == "https://help.kusto.windows.net"
@@ -239,11 +251,17 @@ class TestAzureDataExplorerHook:
         ],
         indirect=True,
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.adx.get_sync_default_azure_credential")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.adx.get_sync_default_azure_credential"
+    )
     @mock.patch.object(KustoClient, "__init__")
-    def test_conn_method_azure_token_cred(self, mock_init, mock_default_azure_credential, mocked_connection):
+    def test_conn_method_azure_token_cred(
+        self, mock_init, mock_default_azure_credential, mocked_connection
+    ):
         mock_init.return_value = None
-        AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
+        AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        ).get_conn()
         mock_init.assert_called()
         args = mock_init.call_args
         assert args[0][0].data_source == "https://help.kusto.windows.net"
@@ -281,12 +299,16 @@ class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(
         "mocked_connection",
         [
-            pytest.param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
+            pytest.param(
+                "a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"
+            ),
         ],
         indirect=["mocked_connection"],
     )
     def test_prefix_works(self, mocked_connection):
-        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
+        hook = AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        )
         assert hook.connection._kcsb.data_source == "host"
         assert hook.connection._kcsb.application_client_id == "usr"
         assert hook.connection._kcsb.application_key == "pw"
@@ -303,7 +325,9 @@ class TestAzureDataExplorerHook:
         indirect=True,
     )
     def test_prefix_both_causes_warning(self, mocked_connection):
-        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
+        hook = AzureDataExplorerHook(
+            azure_data_explorer_conn_id=mocked_connection.conn_id
+        )
         assert hook.connection._kcsb.data_source == "host"
         assert hook.connection._kcsb.application_client_id == "usr"
         assert hook.connection._kcsb.application_key == "pw"

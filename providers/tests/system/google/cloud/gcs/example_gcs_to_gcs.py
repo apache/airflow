@@ -37,14 +37,18 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSSynchronizeBucketsOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcs_to_gcs"
 
@@ -135,7 +139,9 @@ with DAG(
 
     # [START howto_synch_bucket]
     sync_bucket = GCSSynchronizeBucketsOperator(
-        task_id="sync_bucket", source_bucket=BUCKET_NAME_SRC, destination_bucket=BUCKET_NAME_DST
+        task_id="sync_bucket",
+        source_bucket=BUCKET_NAME_SRC,
+        destination_bucket=BUCKET_NAME_DST,
     )
     # [END howto_synch_bucket]
 
@@ -173,7 +179,8 @@ with DAG(
         source_bucket=BUCKET_NAME_SRC,
         source_object=PREFIX + OBJECT_1,
         destination_bucket=BUCKET_NAME_DST,  # If not supplied the source_bucket value will be used
-        destination_object="backup_" + OBJECT_1,  # If not supplied the source_object value will be used
+        destination_object="backup_"
+        + OBJECT_1,  # If not supplied the source_object value will be used
         exact_match=True,
     )
     # [END howto_operator_gcs_to_gcs_single_file]
@@ -241,10 +248,14 @@ with DAG(
     )
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_bucket_dst = GCSDeleteBucketOperator(
-        task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_dst",
+        bucket_name=BUCKET_NAME_DST,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     @task(trigger_rule=TriggerRule.ALL_DONE)

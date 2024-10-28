@@ -81,7 +81,9 @@ class TestGetAssets(TestAssetEndpoint):
             "total_entries": 2,
         }
 
-    def test_order_by_raises_400_for_invalid_attr(self, admin_client, create_assets, session):
+    def test_order_by_raises_400_for_invalid_attr(
+        self, admin_client, create_assets, session
+    ):
         create_assets([1, 2])
         session.commit()
         assert session.query(AssetModel).count() == 2
@@ -92,7 +94,9 @@ class TestGetAssets(TestAssetEndpoint):
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json["detail"] == msg
 
-    def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, create_assets, session):
+    def test_order_by_raises_400_for_invalid_datetimes(
+        self, admin_client, create_assets, session
+    ):
         create_assets([1, 2])
         session.commit()
         assert session.query(AssetModel).count() == 2
@@ -146,7 +150,9 @@ class TestGetAssets(TestAssetEndpoint):
             ("-last_asset_update", [2, 3, 1, 4]),
         ],
     )
-    def test_order_by(self, admin_client, session, create_assets, order_by, ordered_asset_ids):
+    def test_order_by(
+        self, admin_client, session, create_assets, order_by, ordered_asset_ids
+    ):
         assets = create_assets(range(1, len(ordered_asset_ids) + 1))
         asset_events = [
             AssetEvent(
@@ -169,7 +175,9 @@ class TestGetAssets(TestAssetEndpoint):
         response = admin_client.get(f"/object/assets_summary?order_by={order_by}")
 
         assert response.status_code == 200
-        assert ordered_asset_ids == [json_dict["id"] for json_dict in response.json["assets"]]
+        assert ordered_asset_ids == [
+            json_dict["id"] for json_dict in response.json["assets"]
+        ]
         assert response.json["total_entries"] == len(ordered_asset_ids)
 
     def test_search_uri_pattern(self, admin_client, create_assets, session):
@@ -218,25 +226,35 @@ class TestGetAssets(TestAssetEndpoint):
         }
 
     @pytest.mark.need_serialized_dag
-    def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
+    def test_correct_counts_update(
+        self, admin_client, session, dag_maker, app, monkeypatch
+    ):
         with monkeypatch.context() as m:
             assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
 
             # DAG that produces asset #1
-            with dag_maker(dag_id="upstream", schedule=None, serialized=True, session=session):
+            with dag_maker(
+                dag_id="upstream", schedule=None, serialized=True, session=session
+            ):
                 EmptyOperator(task_id="task1", outlets=[assets[0]])
 
             # DAG that is consumes only assets #1 and #2
-            with dag_maker(dag_id="downstream", schedule=assets[:2], serialized=True, session=session):
+            with dag_maker(
+                dag_id="downstream", schedule=assets[:2], serialized=True, session=session
+            ):
                 EmptyOperator(task_id="task1")
 
             # We create multiple asset-producing and asset-consuming DAGs because the query requires
             # COUNT(DISTINCT ...) for total_updates, or else it returns a multiple of the correct number due
             # to the outer joins with DagScheduleAssetReference and TaskOutletAssetReference
             # Two independent DAGs that produce asset #3
-            with dag_maker(dag_id="independent_producer_1", serialized=True, session=session):
+            with dag_maker(
+                dag_id="independent_producer_1", serialized=True, session=session
+            ):
                 EmptyOperator(task_id="task1", outlets=[assets[2]])
-            with dag_maker(dag_id="independent_producer_2", serialized=True, session=session):
+            with dag_maker(
+                dag_id="independent_producer_2", serialized=True, session=session
+            ):
                 EmptyOperator(task_id="task1", outlets=[assets[2]])
             # Two independent DAGs that consume asset #4
             with dag_maker(
@@ -360,15 +378,29 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
         [
             # Limit test data
             ("/object/assets_summary?limit=1", ["s3://bucket/key/1"]),
-            ("/object/assets_summary?limit=5", [f"s3://bucket/key/{i}" for i in range(1, 6)]),
+            (
+                "/object/assets_summary?limit=5",
+                [f"s3://bucket/key/{i}" for i in range(1, 6)],
+            ),
             # Offset test data
-            ("/object/assets_summary?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 10)]),
-            ("/object/assets_summary?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 10)]),
+            (
+                "/object/assets_summary?offset=1",
+                [f"s3://bucket/key/{i}" for i in range(2, 10)],
+            ),
+            (
+                "/object/assets_summary?offset=3",
+                [f"s3://bucket/key/{i}" for i in range(4, 10)],
+            ),
             # Limit and offset test data
-            ("/object/assets_summary?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
+            (
+                "/object/assets_summary?offset=3&limit=3",
+                [f"s3://bucket/key/{i}" for i in [4, 5, 6]],
+            ),
         ],
     )
-    def test_limit_and_offset(self, admin_client, create_assets, session, url, expected_asset_uris):
+    def test_limit_and_offset(
+        self, admin_client, create_assets, session, url, expected_asset_uris
+    ):
         create_assets(range(1, 10))
         session.commit()
 
@@ -378,7 +410,9 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
         asset_uris = [asset["uri"] for asset in response.json["assets"]]
         assert asset_uris == expected_asset_uris
 
-    def test_should_respect_page_size_limit_default(self, admin_client, create_assets, session):
+    def test_should_respect_page_size_limit_default(
+        self, admin_client, create_assets, session
+    ):
         create_assets(range(1, 60))
         session.commit()
 
@@ -399,10 +433,16 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
 
 class TestGetAssetNextRunSummary(TestAssetEndpoint):
     def test_next_run_asset_summary(self, dag_maker, admin_client):
-        with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
+        with dag_maker(
+            dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True
+        ):
             EmptyOperator(task_id="task1")
 
-        response = admin_client.post("/next_run_assets_summary", data={"dag_ids": ["upstream"]})
+        response = admin_client.post(
+            "/next_run_assets_summary", data={"dag_ids": ["upstream"]}
+        )
 
         assert response.status_code == 200
-        assert response.json == {"upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}}
+        assert response.json == {
+            "upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}
+        }

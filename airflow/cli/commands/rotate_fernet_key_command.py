@@ -32,7 +32,9 @@ from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 def rotate_fernet_key(args):
     """Rotates all encrypted connection credentials, triggers and variables."""
     batch_size = 100
-    rotate_method = rotate_items_in_batches_v1 if is_sqlalchemy_v1() else rotate_items_in_batches_v2
+    rotate_method = (
+        rotate_items_in_batches_v1 if is_sqlalchemy_v1() else rotate_items_in_batches_v2
+    )
     with create_session() as session:
         with session.begin():  # Start a single transaction
             rotate_method(
@@ -41,11 +43,18 @@ def rotate_fernet_key(args):
                 filter_condition=Connection.is_encrypted | Connection.is_extra_encrypted,
                 batch_size=batch_size,
             )
-            rotate_method(session, Variable, filter_condition=Variable.is_encrypted, batch_size=batch_size)
+            rotate_method(
+                session,
+                Variable,
+                filter_condition=Variable.is_encrypted,
+                batch_size=batch_size,
+            )
             rotate_method(session, Trigger, filter_condition=None, batch_size=batch_size)
 
 
-def rotate_items_in_batches_v1(session, model_class, filter_condition=None, batch_size=100):
+def rotate_items_in_batches_v1(
+    session, model_class, filter_condition=None, batch_size=100
+):
     """
     Rotates Fernet keys for items of a given model in batches to avoid excessive memory usage.
 
@@ -65,7 +74,9 @@ def rotate_items_in_batches_v1(session, model_class, filter_condition=None, batc
         offset += batch_size
 
 
-def rotate_items_in_batches_v2(session, model_class, filter_condition=None, batch_size=100):
+def rotate_items_in_batches_v2(
+    session, model_class, filter_condition=None, batch_size=100
+):
     """
     Rotates Fernet keys for items of a given model in batches to avoid excessive memory usage.
 

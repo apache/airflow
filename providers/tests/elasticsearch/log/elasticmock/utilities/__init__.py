@@ -77,7 +77,10 @@ def query_params(*es_query_params, **kwargs):
         @wraps(func)
         def _wrapped(*args, **kwargs):
             params = (kwargs.pop("params", None) or {}).copy()
-            headers = {k.lower(): v for k, v in (kwargs.pop("headers", None) or {}).copy().items()}
+            headers = {
+                k.lower(): v
+                for k, v in (kwargs.pop("headers", None) or {}).copy().items()
+            }
 
             if "opaque_id" in kwargs:
                 headers["x-opaque-id"] = kwargs.pop("opaque_id")
@@ -137,7 +140,9 @@ def query_params(*es_query_params, **kwargs):
                     kwargs["body"] = kwargs.pop(body_name)
 
             if http_auth is not None and api_key is not None:
-                raise ValueError("Only one of 'http_auth' and 'api_key' may be passed at a time")
+                raise ValueError(
+                    "Only one of 'http_auth' and 'api_key' may be passed at a time"
+                )
             elif http_auth is not None:
                 headers["authorization"] = f"Basic {_base64_auth_header(http_auth)}"
             elif api_key is not None:

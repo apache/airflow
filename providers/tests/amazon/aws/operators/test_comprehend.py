@@ -60,11 +60,17 @@ class TestComprehendBaseOperator:
             **op_kw,
         )
 
-        assert comprehend_base_op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
-        assert comprehend_base_op.region_name == (region_name if region_name is not NOTSET else None)
+        assert comprehend_base_op.aws_conn_id == (
+            aws_conn_id if aws_conn_id is not NOTSET else "aws_default"
+        )
+        assert comprehend_base_op.region_name == (
+            region_name if region_name is not NOTSET else None
+        )
 
     @mock.patch.object(ComprehendBaseOperator, "hook", new_callable=mock.PropertyMock)
-    def test_initialize_comprehend_base_operator_hook(self, comprehend_base_operator_mock_hook):
+    def test_initialize_comprehend_base_operator_hook(
+        self, comprehend_base_operator_mock_hook
+    ):
         comprehend_base_op = ComprehendBaseOperator(
             task_id="comprehend_base_operator",
             input_data_config=INPUT_DATA_CONFIG,
@@ -85,7 +91,10 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
     MODE = "ONLY_REDACTION"
     JOB_NAME = "TEST_START_PII_ENTITIES_DETECTION_JOB-1"
     DEFAULT_JOB_NAME_STARTS_WITH = "start_pii_entities_detection_job"
-    REDACTION_CONFIG = {"PiiEntityTypes": ["NAME", "ADDRESS"], "MaskMode": "REPLACE_WITH_PII_ENTITY_TYPE"}
+    REDACTION_CONFIG = {
+        "PiiEntityTypes": ["NAME", "ADDRESS"],
+        "MaskMode": "REPLACE_WITH_PII_ENTITY_TYPE",
+    }
 
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
@@ -107,7 +116,10 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
             data_access_role_arn=ROLE_ARN,
             mode=self.MODE,
             language_code=LANGUAGE_CODE,
-            start_pii_entities_kwargs={"JobName": self.JOB_NAME, "RedactionConfig": self.REDACTION_CONFIG},
+            start_pii_entities_kwargs={
+                "JobName": self.JOB_NAME,
+                "RedactionConfig": self.REDACTION_CONFIG,
+            },
         )
         self.operator.defer = mock.MagicMock()
 
@@ -118,10 +130,15 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         assert self.operator.mode == self.MODE
         assert self.operator.language_code == LANGUAGE_CODE
         assert self.operator.start_pii_entities_kwargs.get("JobName") == self.JOB_NAME
-        assert self.operator.start_pii_entities_kwargs.get("RedactionConfig") == self.REDACTION_CONFIG
+        assert (
+            self.operator.start_pii_entities_kwargs.get("RedactionConfig")
+            == self.REDACTION_CONFIG
+        )
 
     @mock.patch.object(ComprehendHook, "conn")
-    def test_start_pii_entities_detection_job_name_starts_with_service_name(self, comprehend_mock_conn):
+    def test_start_pii_entities_detection_job_name_starts_with_service_name(
+        self, comprehend_mock_conn
+    ):
         self.op = ComprehendStartPiiEntitiesDetectionJobOperator(
             task_id="start_pii_entities_detection_job",
             input_data_config=INPUT_DATA_CONFIG,
@@ -133,7 +150,9 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         )
         self.op.wait_for_completion = False
         self.op.execute({})
-        assert self.op.start_pii_entities_kwargs.get("JobName").startswith(self.DEFAULT_JOB_NAME_STARTS_WITH)
+        assert self.op.start_pii_entities_kwargs.get("JobName").startswith(
+            self.DEFAULT_JOB_NAME_STARTS_WITH
+        )
         comprehend_mock_conn.start_pii_entities_detection_job.assert_called_once_with(
             InputDataConfig=INPUT_DATA_CONFIG,
             OutputDataConfig=OUTPUT_DATA_CONFIG,
@@ -170,9 +189,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
 
 
 class TestComprehendCreateDocumentClassifierOperator:
-    CLASSIFIER_ARN = (
-        "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
-    )
+    CLASSIFIER_ARN = "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
     ROLE_ARN = "arn:aws:iam::123456789012:role/ComprehendExecutionRole"
     INPUT_DATA_CONFIG = {
         "DataFormat": "COMPREHEND_CSV",
@@ -188,7 +205,9 @@ class TestComprehendCreateDocumentClassifierOperator:
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(ComprehendHook, "conn") as _conn:
-            _conn.create_document_classifier.return_value = {"DocumentClassifierArn": self.CLASSIFIER_ARN}
+            _conn.create_document_classifier.return_value = {
+                "DocumentClassifierArn": self.CLASSIFIER_ARN
+            }
             yield _conn
 
     @pytest.fixture

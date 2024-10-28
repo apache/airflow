@@ -93,7 +93,9 @@ class LivyOperator(BaseOperator):
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -142,7 +144,9 @@ class LivyOperator(BaseOperator):
             auth_type=self._livy_conn_auth_type,
         )
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> LivyHook:
         """Get valid hook."""
         return self.hook
@@ -155,7 +159,9 @@ class LivyOperator(BaseOperator):
         if not self.deferrable:
             if self._polling_interval > 0:
                 self.poll_for_termination(self._batch_id)
-            context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(self._batch_id)["appId"])
+            context["ti"].xcom_push(
+                key="app_id", value=self.hook.get_batch(self._batch_id)["appId"]
+            )
             return self._batch_id
 
         state = self.hook.get_batch_state(self._batch_id, retry_args=self.retry_args)
@@ -175,12 +181,16 @@ class LivyOperator(BaseOperator):
                 method_name="execute_complete",
             )
         else:
-            self.log.info("Batch with id %s terminated with state: %s", self._batch_id, state.value)
+            self.log.info(
+                "Batch with id %s terminated with state: %s", self._batch_id, state.value
+            )
             self.hook.dump_batch_logs(self._batch_id)
             if state != BatchState.SUCCESS:
                 raise AirflowException(f"Batch {self._batch_id} did not succeed")
 
-            context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(self._batch_id)["appId"])
+            context["ti"].xcom_push(
+                key="app_id", value=self.hook.get_batch(self._batch_id)["appId"]
+            )
             return self._batch_id
 
     def poll_for_termination(self, batch_id: int | str) -> None:
@@ -229,5 +239,7 @@ class LivyOperator(BaseOperator):
             self.task_id,
             event["response"],
         )
-        context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(event["batch_id"])["appId"])
+        context["ti"].xcom_push(
+            key="app_id", value=self.hook.get_batch(event["batch_id"])["appId"]
+        )
         return event["batch_id"]

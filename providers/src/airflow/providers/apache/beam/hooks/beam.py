@@ -158,7 +158,9 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback, check_job_status_callback)
+            process_fd(
+                proc, readable_fd, log, process_line_callback, check_job_status_callback
+            )
             if check_job_status_callback and check_job_status_callback():
                 return
 
@@ -167,12 +169,16 @@ def run_beam_command(
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback, check_job_status_callback)
+        process_fd(
+            proc, readable_fd, log, process_line_callback, check_job_status_callback
+        )
 
     log.info("Process exited with return code: %s", proc.returncode)
 
     if proc.returncode != 0:
-        raise AirflowException(f"Apache Beam process failed with return code {proc.returncode}")
+        raise AirflowException(
+            f"Apache Beam process failed with return code {proc.returncode}"
+        )
 
 
 class BeamHook(BaseHook):
@@ -246,7 +252,9 @@ class BeamHook(BaseHook):
             the stdout and stderr file descriptors.
         """
         if "labels" in variables:
-            variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
+            variables["labels"] = [
+                f"{key}={value}" for key, value in variables["labels"].items()
+            ]
 
         with contextlib.ExitStack() as exit_stack:
             if py_requirements is not None:
@@ -265,7 +273,9 @@ class BeamHook(BaseHook):
                         """
                     )
                     raise AirflowException(warning_invalid_environment)
-                tmp_dir = exit_stack.enter_context(tempfile.TemporaryDirectory(prefix="apache-beam-venv"))
+                tmp_dir = exit_stack.enter_context(
+                    tempfile.TemporaryDirectory(prefix="apache-beam-venv")
+                )
                 py_interpreter = prepare_virtualenv(
                     venv_directory=tmp_dir,
                     python_bin=py_interpreter,
@@ -276,7 +286,11 @@ class BeamHook(BaseHook):
             command_prefix = [py_interpreter, *py_options, py_file]
 
             beam_version = (
-                subprocess.check_output([py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT]).decode().strip()
+                subprocess.check_output(
+                    [py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT]
+                )
+                .decode()
+                .strip()
             )
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
@@ -311,7 +325,9 @@ class BeamHook(BaseHook):
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
 
-        command_prefix = ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
+        command_prefix = (
+            ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
+        )
         self._start_pipeline(
             variables=variables,
             command_prefix=command_prefix,
@@ -381,7 +397,9 @@ class BeamHook(BaseHook):
         job_variables = copy.deepcopy(variables)
 
         if "labels" in job_variables:
-            job_variables["labels"] = json.dumps(job_variables["labels"], separators=(",", ":"))
+            job_variables["labels"] = json.dumps(
+                job_variables["labels"], separators=(",", ":")
+            )
 
         job_variables["worker_binary"] = worker_binary
 
@@ -428,7 +446,9 @@ class BeamAsyncHook(BeamHook):
 
     @staticmethod
     async def _beam_version(py_interpreter: str) -> str:
-        version_script_cmd = shlex.join([py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT])
+        version_script_cmd = shlex.join(
+            [py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT]
+        )
         proc = await asyncio.create_subprocess_shell(
             version_script_cmd,
             stdout=asyncio.subprocess.PIPE,
@@ -473,7 +493,9 @@ class BeamAsyncHook(BeamHook):
         """
         py_options = py_options or []
         if "labels" in variables:
-            variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
+            variables["labels"] = [
+                f"{key}={value}" for key, value in variables["labels"].items()
+            ]
 
         # Creating temporary directory
         tmp_dir = await self._create_tmp_dir(prefix="apache-beam-venv")
@@ -521,7 +543,9 @@ class BeamAsyncHook(BeamHook):
             )
             return return_code
 
-    async def start_java_pipeline_async(self, variables: dict, jar: str, job_class: str | None = None):
+    async def start_java_pipeline_async(
+        self, variables: dict, jar: str, job_class: str | None = None
+    ):
         """
         Start Apache Beam Java pipeline.
 
@@ -533,7 +557,9 @@ class BeamAsyncHook(BeamHook):
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
 
-        command_prefix = ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
+        command_prefix = (
+            ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
+        )
         return_code = await self.start_pipeline_async(
             variables=variables,
             command_prefix=command_prefix,
@@ -595,7 +621,9 @@ class BeamAsyncHook(BeamHook):
         log.info("Process exited with return code: %s", return_code)
 
         if return_code != 0:
-            raise AirflowException(f"Apache Beam process failed with return code {return_code}")
+            raise AirflowException(
+                f"Apache Beam process failed with return code {return_code}"
+            )
         return return_code
 
     async def read_logs(self, stream_reader):

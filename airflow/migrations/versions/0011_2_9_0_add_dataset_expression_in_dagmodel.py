@@ -45,7 +45,11 @@ def upgrade():
     """Apply Add dataset_expression to DagModel."""
     with op.batch_alter_table("dag") as batch_op:
         batch_op.add_column(
-            sa.Column("dataset_expression", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+            sa.Column(
+                "dataset_expression",
+                sqlalchemy_jsonfield.JSONField(json=json),
+                nullable=True,
+            )
         )
 
 

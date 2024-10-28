@@ -77,7 +77,9 @@ option_labels = click.option(
     help="Label to filter the issues on (coma-separated)",
 )
 
-option_max_issues = click.option("--max-issues", type=int, help="Maximum number of issues to create")
+option_max_issues = click.option(
+    "--max-issues", type=int, help="Maximum number of issues to create"
+)
 
 option_start_from = click.option(
     "--start-from",
@@ -87,7 +89,9 @@ option_start_from = click.option(
 )
 
 
-def process_paths_from_body(body: str, dry_run: bool, verbose: bool) -> tuple[str, int, int, int, int]:
+def process_paths_from_body(
+    body: str, dry_run: bool, verbose: bool
+) -> tuple[str, int, int, int, int]:
     count_re_added = 0
     count_completed = 0
     count_done = 0
@@ -156,8 +160,8 @@ def update_issue_status(
     per_issue_num_all: dict[int, int] = {}
     for issue in issues[start_from : start_from + max_issues]:
         console.print(f"[blue] {issue.id}: {issue.title}")
-        new_body, count_re_added, count_completed, count_done, count_all = process_paths_from_body(
-            issue.body, dry_run=dry_run, verbose=verbose
+        new_body, count_re_added, count_completed, count_done, count_all = (
+            process_paths_from_body(issue.body, dry_run=dry_run, verbose=verbose)
         )
         if count_all == 0:
             continue
@@ -211,7 +215,9 @@ def update_issue_status(
         for issue in not_completed_closed_issues:
             all = per_issue_num_all[issue.id]
             done = per_issue_num_done[issue.id]
-            console.print(f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all} : {done / all:.2%}")
+            console.print(
+                f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all} : {done / all:.2%}"
+            )
         console.print()
     if completed_open_issues:
         console.print("[yellow] Issues that are completed and should be closed:[/]\n")
@@ -223,7 +229,9 @@ def update_issue_status(
         for issue in not_completed_opened_issues:
             all = per_issue_num_all[issue.id]
             done = per_issue_num_done[issue.id]
-            console.print(f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all} : {done / all:.2%}")
+            console.print(
+                f" * [[yellow]{issue.title}[/]]({issue.html_url}): {done}/{all} : {done / all:.2%}"
+            )
         console.print()
     if completed_closed_issues:
         console.print("[green] Issues that are completed and are already closed:[/]\n")

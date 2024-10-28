@@ -53,7 +53,12 @@ class VerticaToMySqlOperator(BaseOperator):
         server must support loading local files via this command (it is disabled by default).
     """
 
-    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_fields: Sequence[str] = (
+        "sql",
+        "mysql_table",
+        "mysql_preoperator",
+        "mysql_postoperator",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "sql",
@@ -112,7 +117,9 @@ class VerticaToMySqlOperator(BaseOperator):
         self._run_preoperator(mysql)
         try:
             self.log.info("Inserting rows into MySQL...")
-            mysql.insert_rows(table=self.mysql_table, rows=result, target_fields=selected_columns)
+            mysql.insert_rows(
+                table=self.mysql_table, rows=result, target_fields=selected_columns
+            )
             self.log.info("Inserted rows into MySQL %s", count)
         except (MySQLdb.Error, MySQLdb.Warning):
             self.log.info("Inserted rows into MySQL 0")
@@ -124,7 +131,9 @@ class VerticaToMySqlOperator(BaseOperator):
             cursor.execute(self.sql)
             selected_columns = [d.name for d in cursor.description]
             with NamedTemporaryFile("w", encoding="utf-8") as tmpfile:
-                self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
+                self.log.info(
+                    "Selecting rows from Vertica to local file %s...", tmpfile.name
+                )
                 self.log.info(self.sql)
 
                 csv_writer = csv.writer(tmpfile, delimiter="\t")

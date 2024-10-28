@@ -90,7 +90,10 @@ class BatchCreateComputeEnvironmentTrigger(AwsBaseWaiterTrigger):
             waiter_args={"computeEnvironments": [compute_env_arn]},
             failure_message="Failure while creating Compute Environment",
             status_message="Compute Environment not ready yet",
-            status_queries=["computeEnvironments[].status", "computeEnvironments[].statusReason"],
+            status_queries=[
+                "computeEnvironments[].status",
+                "computeEnvironments[].statusReason",
+            ],
             return_value=compute_env_arn,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,

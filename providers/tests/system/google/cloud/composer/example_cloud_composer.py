@@ -31,7 +31,9 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerRunAirflowCLICommandOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
-from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerDAGRunSensor
+from airflow.providers.google.cloud.sensors.cloud_composer import (
+    CloudComposerDAGRunSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

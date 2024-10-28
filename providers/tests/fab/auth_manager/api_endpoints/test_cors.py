@@ -59,7 +59,12 @@ class TestEmptyCors(BaseTestAuth):
 
         try:
             with conf_vars(
-                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
+                {
+                    (
+                        "api",
+                        "auth_backends",
+                    ): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"
+                }
             ):
                 init_api_auth(minimal_app_for_auth_api)
                 yield
@@ -92,7 +97,10 @@ class TestCorsOrigin(BaseTestAuth):
                         "api",
                         "auth_backends",
                     ): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
-                    ("api", "access_control_allow_origins"): "http://apache.org http://example.com",
+                    (
+                        "api",
+                        "access_control_allow_origins",
+                    ): "http://apache.org http://example.com",
                 }
             ):
                 init_api_auth(minimal_app_for_auth_api)
@@ -110,13 +118,15 @@ class TestCorsOrigin(BaseTestAuth):
             assert response.headers["Access-Control-Allow-Origin"] == "http://apache.org"
 
             response = test_client.get(
-                "/api/v1/pools", headers={"Authorization": token, "Origin": "http://apache.org"}
+                "/api/v1/pools",
+                headers={"Authorization": token, "Origin": "http://apache.org"},
             )
             assert response.status_code == 200
             assert response.headers["Access-Control-Allow-Origin"] == "http://apache.org"
 
             response = test_client.get(
-                "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
+                "/api/v1/pools",
+                headers={"Authorization": token, "Origin": "http://example.com"},
             )
             assert response.status_code == 200
             assert response.headers["Access-Control-Allow-Origin"] == "http://example.com"
@@ -150,7 +160,8 @@ class TestCorsWildcard(BaseTestAuth):
 
         with self.app.test_client() as test_client:
             response = test_client.get(
-                "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
+                "/api/v1/pools",
+                headers={"Authorization": token, "Origin": "http://example.com"},
             )
             assert response.status_code == 200
             assert response.headers["Access-Control-Allow-Origin"] == "*"

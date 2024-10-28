@@ -212,7 +212,11 @@ class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
         self.hook: StackdriverHook | None = None
 
     def execute(self, context: Context):
-        self.log.info("Enable Alert Policies: Project id: %s Filter: %s", self.project_id, self.filter_)
+        self.log.info(
+            "Enable Alert Policies: Project id: %s Filter: %s",
+            self.project_id,
+            self.filter_,
+        )
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -295,7 +299,11 @@ class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
         self.hook: StackdriverHook | None = None
 
     def execute(self, context: Context):
-        self.log.info("Disable Alert Policies: Project id: %s Filter: %s", self.project_id, self.filter_)
+        self.log.info(
+            "Disable Alert Policies: Project id: %s Filter: %s",
+            self.project_id,
+            self.filter_,
+        )
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -378,7 +386,11 @@ class StackdriverUpsertAlertOperator(GoogleCloudBaseOperator):
         self.hook: StackdriverHook | None = None
 
     def execute(self, context: Context):
-        self.log.info("Upsert Alert Policies: Alerts: %s Project id: %s", self.alerts, self.project_id)
+        self.log.info(
+            "Upsert Alert Policies: Alerts: %s Project id: %s",
+            self.alerts,
+            self.project_id,
+        )
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -457,7 +469,9 @@ class StackdriverDeleteAlertOperator(GoogleCloudBaseOperator):
         self.hook: StackdriverHook | None = None
 
     def execute(self, context: Context):
-        self.log.info("Delete Alert Policy: Project id: %s Name: %s", self.project_id, self.name)
+        self.log.info(
+            "Delete Alert Policy: Project id: %s Name: %s", self.project_id, self.name
+        )
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -649,7 +663,9 @@ class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.log.info(
-            "Enable Notification Channels: Project id: %s Filter: %s", self.project_id, self.filter_
+            "Enable Notification Channels: Project id: %s Filter: %s",
+            self.project_id,
+            self.filter_,
         )
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -734,7 +750,9 @@ class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.log.info(
-            "Disable Notification Channels: Project id: %s Filter: %s", self.project_id, self.filter_
+            "Disable Notification Channels: Project id: %s Filter: %s",
+            self.project_id,
+            self.filter_,
         )
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -821,7 +839,9 @@ class StackdriverUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.log.info(
-            "Upsert Notification Channels: Channels: %s Project id: %s", self.channels, self.project_id
+            "Upsert Notification Channels: Channels: %s Project id: %s",
+            self.channels,
+            self.project_id,
         )
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -901,7 +921,11 @@ class StackdriverDeleteNotificationChannelOperator(GoogleCloudBaseOperator):
         self.hook: StackdriverHook | None = None
 
     def execute(self, context: Context):
-        self.log.info("Delete Notification Channel: Project id: %s Name: %s", self.project_id, self.name)
+        self.log.info(
+            "Delete Notification Channel: Project id: %s Name: %s",
+            self.project_id,
+            self.name,
+        )
         if self.hook is None:
             self.hook = StackdriverHook(
                 gcp_conn_id=self.gcp_conn_id,

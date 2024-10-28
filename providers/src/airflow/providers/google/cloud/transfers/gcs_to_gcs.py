@@ -251,8 +251,12 @@ class GCSToGCSOperator(BaseOperator):
             error_msg = "You must set source_object parameter or source_objects parameter. None set"
             raise AirflowException(error_msg)
 
-        if self.source_objects and not all(isinstance(item, str) for item in self.source_objects):
-            raise AirflowException("At least, one of the `objects` in the `source_objects` is not a string")
+        if self.source_objects and not all(
+            isinstance(item, str) for item in self.source_objects
+        ):
+            raise AirflowException(
+                "At least, one of the `objects` in the `source_objects` is not a string"
+            )
 
         # If source_object is set, default it to source_objects
         if self.source_object:
@@ -260,7 +264,8 @@ class GCSToGCSOperator(BaseOperator):
 
         if self.destination_bucket is None:
             self.log.warning(
-                "destination_bucket is None. Defaulting it to source_bucket (%s)", self.source_bucket
+                "destination_bucket is None. Defaulting it to source_bucket (%s)",
+                self.source_bucket,
             )
             self.destination_bucket = self.source_bucket
 
@@ -269,7 +274,9 @@ class GCSToGCSOperator(BaseOperator):
             self.source_objects = [""]
         # Raise exception if empty string `''` is used twice in source_object, this is to avoid double copy
         if self.source_objects.count("") > 1:
-            raise AirflowException("You can't have two empty strings inside source_object")
+            raise AirflowException(
+                "You can't have two empty strings inside source_object"
+            )
 
         # Iterate over the source_objects and do the copy
         for prefix in self.source_objects:
@@ -289,7 +296,10 @@ class GCSToGCSOperator(BaseOperator):
         objects = kwargs.get("objects")
         if self.destination_object is None:
             existing_objects = hook.list(
-                self.destination_bucket, prefix=prefix, delimiter=delimiter, match_glob=match_glob
+                self.destination_bucket,
+                prefix=prefix,
+                delimiter=delimiter,
+                match_glob=match_glob,
             )
         else:
             self.log.info("Replaced destination_object with source_object prefix.")
@@ -300,7 +310,8 @@ class GCSToGCSOperator(BaseOperator):
                 match_glob=match_glob,
             )
             existing_objects = [
-                dest_object.replace(self.destination_object, prefix, 1) for dest_object in destination_objects
+                dest_object.replace(self.destination_object, prefix, 1)
+                for dest_object in destination_objects
             ]
 
         objects = set(objects) - set(existing_objects)
@@ -386,7 +397,10 @@ class GCSToGCSOperator(BaseOperator):
             )
         """
         objects = hook.list(
-            self.source_bucket, prefix=prefix, delimiter=self.delimiter, match_glob=self.match_glob
+            self.source_bucket,
+            prefix=prefix,
+            delimiter=self.delimiter,
+            match_glob=self.match_glob,
         )
 
         objects = [obj for obj in objects if self._check_exact_match(obj, prefix)]
@@ -394,7 +408,11 @@ class GCSToGCSOperator(BaseOperator):
         if not self.replace:
             # If we are not replacing, ignore files already existing in source buckets
             objects = self._ignore_existing_files(
-                hook, prefix, objects=objects, delimiter=self.delimiter, match_glob=self.match_glob
+                hook,
+                prefix,
+                objects=objects,
+                delimiter=self.delimiter,
+                match_glob=self.match_glob,
             )
 
         # If objects is empty, and we have prefix, let's check if prefix is a blob
@@ -402,7 +420,9 @@ class GCSToGCSOperator(BaseOperator):
         if len(objects) == 0 and prefix:
             if hook.exists(self.source_bucket, prefix):
                 self._copy_single_object(
-                    hook=hook, source_object=prefix, destination_object=self.destination_object
+                    hook=hook,
+                    source_object=prefix,
+                    destination_object=self.destination_object,
                 )
             elif self.source_object_required:
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
@@ -441,7 +461,9 @@ class GCSToGCSOperator(BaseOperator):
                 destination_object = source_obj
             else:
                 file_name_postfix = source_obj.replace(base_path, "", 1)
-                destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
+                destination_object = (
+                    self.destination_object.rstrip("/") + "/" + file_name_postfix
+                )
 
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
@@ -449,7 +471,9 @@ class GCSToGCSOperator(BaseOperator):
 
     def _check_exact_match(self, source_object: str, prefix: str) -> bool:
         """Check whether source_object's name matches the prefix according to the exact_match flag."""
-        if self.exact_match and (source_object != prefix or not source_object.endswith(prefix)):
+        if self.exact_match and (
+            source_object != prefix or not source_object.endswith(prefix)
+        ):
             return False
         return True
 
@@ -473,7 +497,9 @@ class GCSToGCSOperator(BaseOperator):
             # If we are not replacing, list all files in the Destination GCS bucket
             # and only keep those files which are present in
             # Source GCS bucket and not in Destination GCS bucket
-            objects = self._ignore_existing_files(hook, prefix_, delimiter=delimiter, objects=objects)
+            objects = self._ignore_existing_files(
+                hook, prefix_, delimiter=delimiter, objects=objects
+            )
             # TODO: After deprecating delimiter and wildcards in source objects,
             #       remove previous line and uncomment the following:
             # objects = self._ignore_existing_files(hook, prefix_, match_glob=match_glob, objects=objects)
@@ -482,10 +508,14 @@ class GCSToGCSOperator(BaseOperator):
             if self.destination_object is None:
                 destination_object = source_object
             else:
-                destination_object = source_object.replace(prefix_, self.destination_object, 1)
+                destination_object = source_object.replace(
+                    prefix_, self.destination_object, 1
+                )
 
             self._copy_single_object(
-                hook=hook, source_object=source_object, destination_object=destination_object
+                hook=hook,
+                source_object=source_object,
+                destination_object=destination_object,
             )
 
     def _copy_single_object(self, hook, source_object, destination_object):
@@ -495,13 +525,18 @@ class GCSToGCSOperator(BaseOperator):
             if hook.is_older_than(self.source_bucket, source_object, self.is_older_than):
                 self.log.info("Object is older than %s seconds ago", self.is_older_than)
             else:
-                self.log.debug("Object is not older than %s seconds ago", self.is_older_than)
+                self.log.debug(
+                    "Object is not older than %s seconds ago", self.is_older_than
+                )
                 return
         elif self.last_modified_time and self.maximum_modified_time:
             # check to see if object was modified between last_modified_time and
             # maximum_modified_time
             if hook.is_updated_between(
-                self.source_bucket, source_object, self.last_modified_time, self.maximum_modified_time
+                self.source_bucket,
+                source_object,
+                self.last_modified_time,
+                self.maximum_modified_time,
             ):
                 self.log.info(
                     "Object has been modified between %s and %s",
@@ -518,17 +553,29 @@ class GCSToGCSOperator(BaseOperator):
 
         elif self.last_modified_time is not None:
             # Check to see if object was modified after last_modified_time
-            if hook.is_updated_after(self.source_bucket, source_object, self.last_modified_time):
-                self.log.info("Object has been modified after %s ", self.last_modified_time)
+            if hook.is_updated_after(
+                self.source_bucket, source_object, self.last_modified_time
+            ):
+                self.log.info(
+                    "Object has been modified after %s ", self.last_modified_time
+                )
             else:
-                self.log.debug("Object was not modified after %s ", self.last_modified_time)
+                self.log.debug(
+                    "Object was not modified after %s ", self.last_modified_time
+                )
                 return
         elif self.maximum_modified_time is not None:
             # Check to see if object was modified before maximum_modified_time
-            if hook.is_updated_before(self.source_bucket, source_object, self.maximum_modified_time):
-                self.log.info("Object has been modified before %s ", self.maximum_modified_time)
+            if hook.is_updated_before(
+                self.source_bucket, source_object, self.maximum_modified_time
+            ):
+                self.log.info(
+                    "Object has been modified before %s ", self.maximum_modified_time
+                )
             else:
-                self.log.debug("Object was not modified before %s ", self.maximum_modified_time)
+                self.log.debug(
+                    "Object was not modified before %s ", self.maximum_modified_time
+                )
                 return
 
         self.log.info(
@@ -538,7 +585,9 @@ class GCSToGCSOperator(BaseOperator):
             self.destination_bucket,
             destination_object,
         )
-        hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
+        hook.rewrite(
+            self.source_bucket, source_object, self.destination_bucket, destination_object
+        )
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
@@ -561,7 +610,9 @@ class GCSToGCSOperator(BaseOperator):
             # Use parent if not a file (dot not in name) and not a dir (ends with slash)
             if "." not in pref.split("/")[-1] and not pref.endswith("/"):
                 pref = Path(pref).parent.as_posix()
-            return ["/" if pref in ("", "/", ".") else pref.rstrip("/")]  # Adjust root path
+            return [
+                "/" if pref in ("", "/", ".") else pref.rstrip("/")
+            ]  # Adjust root path
 
         inputs = []
         for prefix in self.source_objects:
@@ -575,7 +626,8 @@ class GCSToGCSOperator(BaseOperator):
 
         return OperatorLineage(
             inputs=[
-                Dataset(namespace=f"gs://{self.source_bucket}", name=source) for source in sorted(set(inputs))
+                Dataset(namespace=f"gs://{self.source_bucket}", name=source)
+                for source in sorted(set(inputs))
             ],
             outputs=[
                 Dataset(namespace=f"gs://{self.destination_bucket}", name=target)

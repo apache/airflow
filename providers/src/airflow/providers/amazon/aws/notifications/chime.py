@@ -40,7 +40,12 @@ class ChimeNotifier(BaseNotifier):
 
     template_fields = ("message",)
 
-    def __init__(self, *, chime_conn_id: str, message: str = "This is the default chime notifier message"):
+    def __init__(
+        self,
+        *,
+        chime_conn_id: str,
+        message: str = "This is the default chime notifier message",
+    ):
         super().__init__()
         self.chime_conn_id = chime_conn_id
         self.message = message

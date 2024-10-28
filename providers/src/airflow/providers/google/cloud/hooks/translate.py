@@ -59,7 +59,9 @@ class CloudTranslateHook(GoogleBaseHook):
         :return: Google Cloud Translate client object.
         """
         if not self._client:
-            self._client = Client(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = Client(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.quota_retry()

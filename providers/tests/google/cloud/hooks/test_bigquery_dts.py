@@ -31,7 +31,9 @@ from airflow.providers.google.cloud.hooks.bigquery_dts import (
     BiqQueryDataTransferServiceHook,
 )
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 CREDENTIALS = "test-creds"
 PROJECT_ID = "id"
@@ -59,7 +61,9 @@ RUN_ID = "id1234"
 class TestBigQueryDataTransferHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            BiqQueryDataTransferServiceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+            BiqQueryDataTransferServiceHook(
+                gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to"
+            )
 
     def setup_method(self):
         with mock.patch(
@@ -79,12 +83,16 @@ class TestBigQueryDataTransferHook:
         "DataTransferServiceClient.create_transfer_config"
     )
     def test_create_transfer_config(self, service_mock):
-        self.hook.create_transfer_config(transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID)
+        self.hook.create_transfer_config(
+            transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID
+        )
         parent = f"projects/{PROJECT_ID}"
         expected_config = deepcopy(TRANSFER_CONFIG)
         expected_config.schedule_options.disable_auto_scheduling = True
         service_mock.assert_called_once_with(
-            request=dict(parent=parent, transfer_config=expected_config, authorization_code=None),
+            request=dict(
+                parent=parent, transfer_config=expected_config, authorization_code=None
+            ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
@@ -95,7 +103,9 @@ class TestBigQueryDataTransferHook:
         "DataTransferServiceClient.delete_transfer_config"
     )
     def test_delete_transfer_config(self, service_mock):
-        self.hook.delete_transfer_config(transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)
+        self.hook.delete_transfer_config(
+            transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID
+        )
 
         name = f"projects/{PROJECT_ID}/transferConfigs/{TRANSFER_CONFIG_ID}"
         service_mock.assert_called_once_with(
@@ -107,11 +117,15 @@ class TestBigQueryDataTransferHook:
         "DataTransferServiceClient.start_manual_transfer_runs"
     )
     def test_start_manual_transfer_runs(self, service_mock):
-        self.hook.start_manual_transfer_runs(transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)
+        self.hook.start_manual_transfer_runs(
+            transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID
+        )
 
         parent = f"projects/{PROJECT_ID}/transferConfigs/{TRANSFER_CONFIG_ID}"
         service_mock.assert_called_once_with(
-            request=dict(parent=parent, requested_time_range=None, requested_run_time=None),
+            request=dict(
+                parent=parent, requested_time_range=None, requested_run_time=None
+            ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
@@ -136,7 +150,9 @@ class TestAsyncBiqQueryDataTransferServiceHook:
 
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            AsyncBiqQueryDataTransferServiceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+            AsyncBiqQueryDataTransferServiceHook(
+                gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to"
+            )
 
     @pytest.fixture
     def mock_client(self):
@@ -147,7 +163,9 @@ class TestAsyncBiqQueryDataTransferServiceHook:
             transfer_result = Future()
             transfer_result.set_result(mock.MagicMock())
 
-            mock_client.return_value.get_transfer_run = mock.MagicMock(return_value=transfer_result)
+            mock_client.return_value.get_transfer_run = mock.MagicMock(
+                return_value=transfer_result
+            )
             yield mock_client
 
     @pytest.fixture

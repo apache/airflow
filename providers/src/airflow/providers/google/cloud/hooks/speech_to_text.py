@@ -71,7 +71,9 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         :return: Google Cloud Speech client object.
         """
         if not self._client:
-            self._client = SpeechClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = SpeechClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.quota_retry()
@@ -100,6 +102,8 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         if isinstance(audio, dict):
             audio = RecognitionAudio(audio)
 
-        response = client.recognize(config=config, audio=audio, retry=retry, timeout=timeout)
+        response = client.recognize(
+            config=config, audio=audio, retry=retry, timeout=timeout
+        )
         self.log.info("Recognised speech: %s", response)
         return response

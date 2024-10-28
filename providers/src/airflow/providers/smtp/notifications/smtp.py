@@ -34,7 +34,10 @@ class SmtpNotifier(BaseNotifier):
 
     .. code-block:: python
 
-        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="myemail@myemail.com"))
+        EmptyOperator(
+            task_id="task",
+            on_failure_callback=SmtpNotifier(from_email=None, to="myemail@myemail.com"),
+        )
 
         EmptyOperator(
             task_id="task",
@@ -99,10 +102,16 @@ class SmtpNotifier(BaseNotifier):
         smtp_default_templated_subject_path = conf.get(
             "smtp",
             "templated_email_subject_path",
-            fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
+            fallback=(
+                Path(__file__).parent / "templates" / "email_subject.jinja2"
+            ).as_posix(),
         )
         self.subject = (
-            subject or Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
+            subject
+            or Path(smtp_default_templated_subject_path)
+            .read_text()
+            .replace("\n", "")
+            .strip()
         )
         # If html_content is passed, prioritize it. Otherwise, if template is passed, use
         # it to populate html_content. Else, fall back to defaults defined in settings

@@ -126,7 +126,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             "SessionKeepAliveSeconds": session_keep_alive_seconds,
         }
 
-        if sum(x is not None for x in (cluster_identifier, workgroup_name, session_id)) != 1:
+        if (
+            sum(x is not None for x in (cluster_identifier, workgroup_name, session_id))
+            != 1
+        ):
             raise ValueError(
                 "Exactly one of cluster_identifier, workgroup_name, or session_id must be provided"
             )
@@ -140,9 +143,12 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 raise ValueError(msg)
 
         if session_keep_alive_seconds is not None and (
-            session_keep_alive_seconds < 0 or duration(seconds=session_keep_alive_seconds).hours > 24
+            session_keep_alive_seconds < 0
+            or duration(seconds=session_keep_alive_seconds).hours > 24
         ):
-            raise ValueError("Session keep alive duration must be between 0 and 86400 seconds.")
+            raise ValueError(
+                "Session keep alive duration must be between 0 and 86400 seconds."
+            )
 
         if isinstance(sql, list):
             kwargs["Sqls"] = sql
@@ -156,7 +162,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         if wait_for_completion:
             self.wait_for_results(statement_id, poll_interval=poll_interval)
 
-        return QueryExecutionOutput(statement_id=statement_id, session_id=resp.get("SessionId"))
+        return QueryExecutionOutput(
+            statement_id=statement_id, session_id=resp.get("SessionId")
+        )
 
     def wait_for_results(self, statement_id: str, poll_interval: int) -> str:
         while True:
@@ -182,7 +190,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             return True
         elif status in FAILURE_STATES:
             exception_cls = (
-                RedshiftDataQueryFailedError if status == FAILED_STATE else RedshiftDataQueryAbortedError
+                RedshiftDataQueryFailedError
+                if status == FAILED_STATE
+                else RedshiftDataQueryAbortedError
             )
             raise exception_cls(
                 f"Statement {resp['Id']} terminated with status {status}. "

@@ -62,8 +62,12 @@ def _check_file(file: Path):
                 "[yellow]as the last instruction in your example DAG.[/]\n"
             )
         else:
-            operator_leftshift_index = content.find("<<", index + len(WATCHER_APPEND_INSTRUCTION))
-            operator_rightshift_index = content.find(">>", index + len(WATCHER_APPEND_INSTRUCTION))
+            operator_leftshift_index = content.find(
+                "<<", index + len(WATCHER_APPEND_INSTRUCTION)
+            )
+            operator_rightshift_index = content.find(
+                ">>", index + len(WATCHER_APPEND_INSTRUCTION)
+            )
             if operator_leftshift_index != -1 or operator_rightshift_index != -1:
                 errors.append(
                     f"[red]In the example {file} "
@@ -76,7 +80,9 @@ def _check_file(file: Path):
     if not PYTEST_FUNCTION_PATTERN.search(content):
         errors.append(
             f"[yellow]The example {file} missed the pytest function at the end.[/]\n\n"
-            "All example tests should have this function added:\n\n" + PYTEST_FUNCTION + "\n\n"
+            "All example tests should have this function added:\n\n"
+            + PYTEST_FUNCTION
+            + "\n\n"
             "[yellow]Automatically adding it now![/]\n"
         )
         file.write_text(content + "\n" + PYTEST_FUNCTION)

@@ -133,7 +133,9 @@ class SqlToS3Operator(BaseOperator):
         self.sql_hook_params = sql_hook_params
 
         if "path_or_buf" in self.pd_kwargs:
-            raise AirflowException("The argument path_or_buf is not allowed, please remove it")
+            raise AirflowException(
+                "The argument path_or_buf is not allowed, please remove it"
+            )
 
         if self.max_rows_per_file and self.groupby_kwargs:
             raise AirflowException(
@@ -144,7 +146,9 @@ class SqlToS3Operator(BaseOperator):
         try:
             self.file_format = FILE_FORMAT[file_format.upper()]
         except KeyError:
-            raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
+            raise AirflowException(
+                f"The argument file_format doesn't support {file_format} value."
+            )
 
     @staticmethod
     def _fix_dtypes(df: pd.DataFrame, file_format: FILE_FORMAT) -> None:
@@ -191,17 +195,24 @@ class SqlToS3Operator(BaseOperator):
         self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
         for group_name, df in self._partition_dataframe(df=data_df):
-            with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
+            with NamedTemporaryFile(
+                mode=file_options.mode, suffix=file_options.suffix
+            ) as tmp_file:
                 self.log.info("Writing data to temp file")
                 getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 
                 self.log.info("Uploading data to S3")
                 object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
                 s3_conn.load_file(
-                    filename=tmp_file.name, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
+                    filename=tmp_file.name,
+                    key=object_key,
+                    bucket_name=self.s3_bucket,
+                    replace=self.replace,
                 )
 
-    def _partition_dataframe(self, df: pd.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
+    def _partition_dataframe(
+        self, df: pd.DataFrame
+    ) -> Iterable[tuple[str, pd.DataFrame]]:
         """Partition dataframe using pandas groupby() method."""
         try:
             import secrets
@@ -214,7 +225,9 @@ class SqlToS3Operator(BaseOperator):
         # added to the dataframe. This column is used to dispatch the dataframe into smaller ones using groupby()
         random_column_name = ""
         if self.max_rows_per_file and not self.groupby_kwargs:
-            random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))
+            random_column_name = "".join(
+                secrets.choice(string.ascii_letters) for _ in range(20)
+            )
             df[random_column_name] = np.arange(len(df)) // self.max_rows_per_file
             self.groupby_kwargs = {"by": random_column_name}
         if not self.groupby_kwargs:

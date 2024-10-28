@@ -49,7 +49,11 @@ class TestDataflowJobStatusSensor:
         "expected_status, current_status, sensor_return",
         [
             (DataflowJobStatus.JOB_STATE_DONE, DataflowJobStatus.JOB_STATE_DONE, True),
-            (DataflowJobStatus.JOB_STATE_DONE, DataflowJobStatus.JOB_STATE_RUNNING, False),
+            (
+                DataflowJobStatus.JOB_STATE_DONE,
+                DataflowJobStatus.JOB_STATE_RUNNING,
+                False,
+            ),
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
@@ -89,7 +93,10 @@ class TestDataflowJobStatusSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
+        mock_get_job.return_value = {
+            "id": TEST_JOB_ID,
+            "currentState": DataflowJobStatus.JOB_STATE_CANCELLED,
+        }
 
         with pytest.raises(
             AirflowException,
@@ -106,7 +113,9 @@ class TestDataflowJobStatusSensor:
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
 
-    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor.poke")
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor.poke"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook")
     def test_execute_enters_deferred_state(self, mock_hook, mock_poke):
         """
@@ -166,7 +175,9 @@ class TestDataflowJobStatusSensor:
             deferrable=True,
         )
         with pytest.raises(AirflowException):
-            task.execute_complete(context=None, event={"status": "error", "message": "test error message"})
+            task.execute_complete(
+                context=None, event={"status": "error", "message": "test error message"}
+            )
 
 
 class TestDataflowJobMetricsSensor:
@@ -206,8 +217,12 @@ class TestDataflowJobMetricsSensor:
         mock_fetch_job_metrics_by_id.assert_called_once_with(
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
-        mock_fetch_job_metrics_by_id.return_value.__getitem__.assert_called_once_with("metrics")
-        callback.assert_called_once_with(mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value)
+        mock_fetch_job_metrics_by_id.return_value.__getitem__.assert_called_once_with(
+            "metrics"
+        )
+        callback.assert_called_once_with(
+            mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value
+        )
 
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
     def test_poke_raise_exception(self, mock_hook):
@@ -225,7 +240,10 @@ class TestDataflowJobMetricsSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        mock_get_job.return_value = {
+            "id": TEST_JOB_ID,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
 
         with pytest.raises(
             AirflowException,
@@ -343,7 +361,12 @@ class TestDataflowJobMetricsSensor:
         )
         with pytest.raises(AirflowException):
             task.execute_complete(
-                context=None, event={"status": "error", "message": "test error message", "result": None}
+                context=None,
+                event={
+                    "status": "error",
+                    "message": "test error message",
+                    "result": None,
+                },
             )
 
 
@@ -403,7 +426,10 @@ class TestDataflowJobMessagesSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        mock_get_job.return_value = {
+            "id": TEST_JOB_ID,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
 
         with pytest.raises(
             AirflowException,
@@ -519,7 +545,12 @@ class TestDataflowJobMessagesSensor:
         )
         with pytest.raises(AirflowException):
             task.execute_complete(
-                context=None, event={"status": "error", "message": "test error message", "result": None}
+                context=None,
+                event={
+                    "status": "error",
+                    "message": "test error message",
+                    "result": None,
+                },
             )
 
 
@@ -535,7 +566,9 @@ class TestDataflowJobAutoScalingEventsSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
     def test_poke(self, mock_hook, job_current_state, fail_on_terminal_state):
         mock_get_job = mock_hook.return_value.get_job
-        mock_fetch_job_autoscaling_events_by_id = mock_hook.return_value.fetch_job_autoscaling_events_by_id
+        mock_fetch_job_autoscaling_events_by_id = (
+            mock_hook.return_value.fetch_job_autoscaling_events_by_id
+        )
         callback = mock.MagicMock()
 
         task = DataflowJobAutoScalingEventsSensor(
@@ -561,12 +594,16 @@ class TestDataflowJobAutoScalingEventsSensor:
         mock_fetch_job_autoscaling_events_by_id.assert_called_once_with(
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
-        callback.assert_called_once_with(mock_fetch_job_autoscaling_events_by_id.return_value)
+        callback.assert_called_once_with(
+            mock_fetch_job_autoscaling_events_by_id.return_value
+        )
 
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
     def test_poke_raise_exception_on_terminal_state(self, mock_hook):
         mock_get_job = mock_hook.return_value.get_job
-        mock_fetch_job_autoscaling_events_by_id = mock_hook.return_value.fetch_job_autoscaling_events_by_id
+        mock_fetch_job_autoscaling_events_by_id = (
+            mock_hook.return_value.fetch_job_autoscaling_events_by_id
+        )
         callback = mock.MagicMock()
 
         task = DataflowJobAutoScalingEventsSensor(
@@ -579,7 +616,10 @@ class TestDataflowJobAutoScalingEventsSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+        mock_get_job.return_value = {
+            "id": TEST_JOB_ID,
+            "currentState": DataflowJobStatus.JOB_STATE_DONE,
+        }
 
         with pytest.raises(
             AirflowException,
@@ -694,5 +734,9 @@ class TestDataflowJobAutoScalingEventsSensor:
         with pytest.raises(AirflowException):
             task.execute_complete(
                 context=None,
-                event={"status": "error", "message": "test error message", "result": None},
+                event={
+                    "status": "error",
+                    "message": "test error message",
+                    "result": None,
+                },
             )

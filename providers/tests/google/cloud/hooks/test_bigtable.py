@@ -62,10 +62,14 @@ class TestBigtableHookNoDefaultProjectId:
         ):
             self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")
     def test_bigtable_client_creation(self, mock_client, mock_get_creds):
-        result = self.bigtable_hook_no_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        result = self.bigtable_hook_no_default_project_id._get_client(
+            GCP_PROJECT_ID_HOOK_UNIT_TEST
+        )
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
@@ -107,7 +111,9 @@ class TestBigtableHookNoDefaultProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
     def test_create_instance_overridden_project_id(self, get_client, instance_create):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_create.return_value = operation
         res = self.bigtable_hook_no_default_project_id.create_instance(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
@@ -123,7 +129,9 @@ class TestBigtableHookNoDefaultProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
     def test_update_instance_overridden_project_id(self, get_client, instance_update):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_update.return_value = operation
         res = self.bigtable_hook_no_default_project_id.update_instance(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
@@ -143,7 +151,9 @@ class TestBigtableHookNoDefaultProjectId:
         table_delete_method = instance_method.return_value.table.return_value.delete
         instance_exists_method.return_value = True
         self.bigtable_hook_no_default_project_id.delete_table(
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, instance_id=CBT_INSTANCE, table_id=CBT_TABLE
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            table_id=CBT_TABLE,
         )
         get_client.assert_called_once_with(project_id="example-project")
         instance_exists_method.assert_called_once_with()
@@ -158,10 +168,14 @@ class TestBigtableHookDefaultProjectId:
         ):
             self.bigtable_hook_default_project_id = BigtableHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")
     def test_bigtable_client_creation(self, mock_client, mock_get_creds):
-        result = self.bigtable_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        result = self.bigtable_hook_default_project_id._get_client(
+            GCP_PROJECT_ID_HOOK_UNIT_TEST
+        )
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
@@ -287,7 +301,9 @@ class TestBigtableHookDefaultProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
     def test_create_instance(self, get_client, instance_create, mock_project_id):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_create.return_value = operation
         res = self.bigtable_hook_default_project_id.create_instance(
             instance_id=CBT_INSTANCE,
@@ -311,14 +327,18 @@ class TestBigtableHookDefaultProjectId:
         self, get_client, instance_create, cluster, mock_project_id
     ):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_create.return_value = operation
 
         res = self.bigtable_hook_default_project_id.create_instance(
             instance_id=CBT_INSTANCE,
             main_cluster_id=CBT_CLUSTER,
             main_cluster_zone=CBT_ZONE,
-            replica_clusters=[{"id": CBT_REPLICA_CLUSTER_ID, "zone": CBT_REPLICA_CLUSTER_ZONE}],
+            replica_clusters=[
+                {"id": CBT_REPLICA_CLUSTER_ID, "zone": CBT_REPLICA_CLUSTER_ZONE}
+            ],
             cluster_nodes=1,
             cluster_storage_type=enums.StorageType.SSD,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
@@ -332,7 +352,12 @@ class TestBigtableHookDefaultProjectId:
                     serve_nodes=1,
                     default_storage_type=enums.StorageType.SSD,
                 ),
-                mock.call(CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD),
+                mock.call(
+                    CBT_REPLICA_CLUSTER_ID,
+                    CBT_REPLICA_CLUSTER_ZONE,
+                    1,
+                    enums.StorageType.SSD,
+                ),
             ],
             any_order=True,
         )
@@ -352,14 +377,18 @@ class TestBigtableHookDefaultProjectId:
         self, get_client, instance_create, cluster, mock_project_id
     ):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_create.return_value = operation
 
         res = self.bigtable_hook_default_project_id.create_instance(
             instance_id=CBT_INSTANCE,
             main_cluster_id=CBT_CLUSTER,
             main_cluster_zone=CBT_ZONE,
-            replica_clusters=[{"id": CBT_REPLICA_CLUSTER_ID, "zone": CBT_REPLICA_CLUSTER_ZONE}],
+            replica_clusters=[
+                {"id": CBT_REPLICA_CLUSTER_ID, "zone": CBT_REPLICA_CLUSTER_ZONE}
+            ],
             cluster_nodes=1,
             cluster_storage_type=enums.StorageType.SSD,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
@@ -368,9 +397,16 @@ class TestBigtableHookDefaultProjectId:
         cluster.assert_has_calls(
             [
                 mock.call(
-                    cluster_id=CBT_CLUSTER, location_id=CBT_ZONE, default_storage_type=enums.StorageType.SSD
+                    cluster_id=CBT_CLUSTER,
+                    location_id=CBT_ZONE,
+                    default_storage_type=enums.StorageType.SSD,
                 ),
-                mock.call(CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD),
+                mock.call(
+                    CBT_REPLICA_CLUSTER_ID,
+                    CBT_REPLICA_CLUSTER_ZONE,
+                    1,
+                    enums.StorageType.SSD,
+                ),
             ],
             any_order=True,
         )
@@ -390,7 +426,9 @@ class TestBigtableHookDefaultProjectId:
         self, get_client, instance_create, cluster, mock_project_id
     ):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_create.return_value = operation
 
         res = self.bigtable_hook_default_project_id.create_instance(
@@ -429,7 +467,9 @@ class TestBigtableHookDefaultProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
     def test_update_instance(self, get_client, instance_update, mock_project_id):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_update.return_value = operation
         res = self.bigtable_hook_default_project_id.update_instance(
             instance_id=CBT_INSTANCE,
@@ -446,7 +486,9 @@ class TestBigtableHookDefaultProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
     def test_create_instance_overridden_project_id(self, get_client, instance_create):
         operation = mock.Mock()
-        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
         instance_create.return_value = operation
         res = self.bigtable_hook_default_project_id.create_instance(
             project_id="new-project",
@@ -498,8 +540,12 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
         client = mock.Mock(Client)
-        instance = google.cloud.bigtable.instance.Instance(instance_id=CBT_INSTANCE, client=client)
-        self.bigtable_hook_default_project_id.create_table(instance=instance, table_id=CBT_TABLE)
+        instance = google.cloud.bigtable.instance.Instance(
+            instance_id=CBT_INSTANCE, client=client
+        )
+        self.bigtable_hook_default_project_id.create_table(
+            instance=instance, table_id=CBT_TABLE
+        )
         get_client.assert_not_called()
         create.assert_called_once_with([], {})
 
@@ -511,7 +557,9 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
         client = mock.Mock(Client)
-        instance = google.cloud.bigtable.instance.Instance(instance_id=CBT_INSTANCE, client=client)
+        instance = google.cloud.bigtable.instance.Instance(
+            instance_id=CBT_INSTANCE, client=client
+        )
         self.bigtable_hook_default_project_id.update_cluster(
             instance=instance, cluster_id=CBT_CLUSTER, nodes=4
         )
@@ -527,7 +575,9 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method.return_value = True
         client = mock.Mock(Client)
         get_client.return_value = client
-        instance = google.cloud.bigtable.instance.Instance(instance_id=CBT_INSTANCE, client=client)
+        instance = google.cloud.bigtable.instance.Instance(
+            instance_id=CBT_INSTANCE, client=client
+        )
         self.bigtable_hook_default_project_id.get_column_families_for_table(
             instance=instance, table_id=CBT_TABLE
         )
@@ -541,7 +591,9 @@ class TestBigtableHookDefaultProjectId:
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
         client = mock.Mock(Client)
-        instance = google.cloud.bigtable.instance.Instance(instance_id=CBT_INSTANCE, client=client)
+        instance = google.cloud.bigtable.instance.Instance(
+            instance_id=CBT_INSTANCE, client=client
+        )
         self.bigtable_hook_default_project_id.get_cluster_states_for_table(
             instance=instance, table_id=CBT_TABLE
         )

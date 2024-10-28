@@ -23,7 +23,10 @@ from unittest import mock
 
 import pytest
 from slack_sdk.errors import SlackApiError
-from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
+from slack_sdk.http_retry.builtin_handlers import (
+    ConnectionErrorRetryHandler,
+    RateLimitErrorRetryHandler,
+)
 from slack_sdk.web.slack_response import SlackResponse
 
 from airflow.exceptions import AirflowNotFoundException, AirflowProviderDeprecationWarning
@@ -102,7 +105,9 @@ class TestSlackHook:
 
     def test_resolve_token(self):
         """Test that we only use token from Slack API Connection ID."""
-        with pytest.warns(UserWarning, match="Provide `token` as part of .* parameters is disallowed"):
+        with pytest.warns(
+            UserWarning, match="Provide `token` as part of .* parameters is disallowed"
+        ):
             hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token="foo-bar")
             assert "token" not in hook.extra_client_args
             assert hook._get_conn_params()["token"] == MOCK_SLACK_API_TOKEN
@@ -110,7 +115,9 @@ class TestSlackHook:
     def test_empty_password(self):
         """Test password field defined in the connection."""
         hook = SlackHook(slack_conn_id="empty_slack_connection")
-        error_message = r"Connection ID '.*' does not contain password \(Slack API Token\)\."
+        error_message = (
+            r"Connection ID '.*' does not contain password \(Slack API Token\)\."
+        )
         with pytest.raises(AirflowNotFoundException, match=error_message):
             hook._get_conn_params()
 
@@ -122,14 +129,20 @@ class TestSlackHook:
                     "timeout": 42,
                     "base_url": "http://hook-base-url:1234",
                     "proxy": "https://hook-proxy:1234",
-                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER, TEST_RATE_LIMIT_RETRY_HANDLER],
+                    "retry_handlers": [
+                        TEST_CONN_ERROR_RETRY_HANDLER,
+                        TEST_RATE_LIMIT_RETRY_HANDLER,
+                    ],
                 },
                 {},
                 {
                     "timeout": 42,
                     "base_url": "http://hook-base-url:1234",
                     "proxy": "https://hook-proxy:1234",
-                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER, TEST_RATE_LIMIT_RETRY_HANDLER],
+                    "retry_handlers": [
+                        TEST_CONN_ERROR_RETRY_HANDLER,
+                        TEST_RATE_LIMIT_RETRY_HANDLER,
+                    ],
                 },
             ),
             (  # Test Case: connection config
@@ -275,7 +288,9 @@ class TestSlackHook:
     )
     def test_hook_connection_success(self, mocked_client, response_data):
         """Test SlackHook success connection."""
-        mocked_client.api_call.return_value = self.fake_slack_response(status_code=200, data=response_data)
+        mocked_client.api_call.return_value = self.fake_slack_response(
+            status_code=200, data=response_data
+        )
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         conn_test = hook.test_connection()
         mocked_client.api_call.assert_called_once_with("auth.test")
@@ -291,7 +306,9 @@ class TestSlackHook:
     )
     def test_hook_connection_failed(self, mocked_client, response_data):
         """Test SlackHook failure connection."""
-        mocked_client.api_call.return_value = self.fake_slack_response(status_code=401, data=response_data)
+        mocked_client.api_call.return_value = self.fake_slack_response(
+            status_code=401, data=response_data
+        )
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         conn_test = hook.test_connection()
         mocked_client.api_call.assert_called_once_with("auth.test")
@@ -316,7 +333,9 @@ class TestSlackHook:
     @pytest.mark.parametrize("initial_comment", [None, "test comment"])
     @pytest.mark.parametrize("title", [None, "test title"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
-    @pytest.mark.parametrize("channels", [None, "#random", "#random,#general", ("#random", "#general")])
+    @pytest.mark.parametrize(
+        "channels", [None, "#random", "#random,#general", ("#random", "#general")]
+    )
     def test_send_file_path(
         self, mocked_client, tmp_path_factory, initial_comment, title, filetype, channels
     ):
@@ -372,8 +391,12 @@ class TestSlackHook:
     @pytest.mark.parametrize("title", [None, "test title"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
     @pytest.mark.parametrize("filename", [None, "foo.bar"])
-    @pytest.mark.parametrize("channels", [None, "#random", "#random,#general", ("#random", "#general")])
-    def test_send_file_content(self, mocked_client, initial_comment, title, filetype, channels, filename):
+    @pytest.mark.parametrize(
+        "channels", [None, "#random", "#random,#general", ("#random", "#general")]
+    )
+    def test_send_file_content(
+        self, mocked_client, initial_comment, title, filetype, channels, filename
+    ):
         """Test send file by providing content."""
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         warning_message = "use `send_file_v2` or `send_file_v1_to_v2"
@@ -404,7 +427,9 @@ class TestSlackHook:
                 "&extra__slack__proxy=proxy",
                 id="prefix",
             ),
-            pytest.param("a://:abc@?timeout=123&base_url=base_url&proxy=proxy", id="no-prefix"),
+            pytest.param(
+                "a://:abc@?timeout=123&base_url=base_url&proxy=proxy", id="no-prefix"
+            ),
         ],
     )
     def test_backcompat_prefix_works(self, uri, monkeypatch):
@@ -417,7 +442,9 @@ class TestSlackHook:
         assert params["proxy"] == "proxy"
 
     def test_backcompat_prefix_both_causes_warning(self, monkeypatch):
-        monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", "a://:abc@?extra__slack__timeout=111&timeout=222")
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_MY_CONN", "a://:abc@?extra__slack__timeout=111&timeout=222"
+        )
         hook = SlackHook(slack_conn_id="my_conn")
         with pytest.warns(Warning, match="Using value for `timeout`"):
             params = hook._get_conn_params()
@@ -427,7 +454,10 @@ class TestSlackHook:
         monkeypatch.setenv(
             "AIRFLOW_CONN_MY_CONN",
             json.dumps(
-                {"password": "hi", "extra": {"extra__slack__base_url": "", "extra__slack__proxy": ""}}
+                {
+                    "password": "hi",
+                    "extra": {"extra__slack__base_url": "", "extra__slack__proxy": ""},
+                }
             ),
         )
         hook = SlackHook(slack_conn_id="my_conn")
@@ -461,9 +491,13 @@ class TestSlackHook:
                 }
             ),
             self.fake_slack_response(data={"response_metadata": {"next_cursor": "FAKE"}}),
-            self.fake_slack_response(data={"channels": [{"id": "C0000000002", "name": "random"}]}),
+            self.fake_slack_response(
+                data={"channels": [{"id": "C0000000002", "name": "random"}]}
+            ),
             # Below should not reach, because previous one doesn't contain ``next_cursor``
-            self.fake_slack_response(data={"channels": [{"id": "C0000000003", "name": "troubleshooting"}]}),
+            self.fake_slack_response(
+                data={"channels": [{"id": "C0000000003", "name": "troubleshooting"}]}
+            ),
         ]
         mocked_client.conversations_list.side_effect = fake_responses
 
@@ -489,7 +523,8 @@ class TestSlackHook:
 
     def test_send_file_v2(self, mocked_client):
         SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID).send_file_v2(
-            channel_id="C00000000", file_uploads={"file": "/foo/bar/file.txt", "filename": "foo.txt"}
+            channel_id="C00000000",
+            file_uploads={"file": "/foo/bar/file.txt", "filename": "foo.txt"},
         )
         mocked_client.files_upload_v2.assert_called_once_with(
             channel="C00000000",
@@ -515,8 +550,12 @@ class TestSlackHook:
         )
 
     def test_send_file_v2_channel_name(self, mocked_client, caplog):
-        with mock.patch.object(SlackHook, "get_channel_id", return_value="C00") as mocked_get_channel_id:
-            warning_message = "consider replacing '#random' with the corresponding Channel ID 'C00'"
+        with mock.patch.object(
+            SlackHook, "get_channel_id", return_value="C00"
+        ) as mocked_get_channel_id:
+            warning_message = (
+                "consider replacing '#random' with the corresponding Channel ID 'C00'"
+            )
             with pytest.warns(UserWarning, match=warning_message):
                 SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID).send_file_v2(
                     channel_id="#random", file_uploads={"file": "/foo/bar/file.txt"}
@@ -565,7 +604,9 @@ class TestSlackHook:
     @pytest.mark.parametrize("channel", [None, "#random"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
     @pytest.mark.parametrize("snippet_type", [None, "text"])
-    def test_send_file_v1_to_v2_file(self, initial_comment, title, filename, channel, filetype, snippet_type):
+    def test_send_file_v1_to_v2_file(
+        self, initial_comment, title, filename, channel, filetype, snippet_type
+    ):
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         with mock.patch.object(SlackHook, "send_file_v2") as mocked_send_file_v2:
             hook.send_file_v1_to_v2(

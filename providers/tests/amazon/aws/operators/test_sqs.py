@@ -93,7 +93,9 @@ class TestSqsPublishOperator:
 
     @mock_aws
     def test_execute_failure_fifo_queue(self, mocked_context):
-        self.sqs_client.create_queue(QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true"})
+        self.sqs_client.create_queue(
+            QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true"}
+        )
 
         op = SqsPublishOperator(**self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME)
         error_message = (
@@ -106,17 +108,22 @@ class TestSqsPublishOperator:
     @mock_aws
     def test_execute_success_fifo_queue(self, mocked_context):
         self.sqs_client.create_queue(
-            QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true", "ContentBasedDeduplication": "true"}
+            QueueName=FIFO_QUEUE_NAME,
+            Attributes={"FifoQueue": "true", "ContentBasedDeduplication": "true"},
         )
 
         # Send SQS Message into the FIFO Queue
-        op = SqsPublishOperator(**self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME, message_group_id="abc")
+        op = SqsPublishOperator(
+            **self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME, message_group_id="abc"
+        )
         result = op.execute(mocked_context)
         assert "MD5OfMessageBody" in result
         assert "MessageId" in result
 
         # Validate message through moto
-        message = self.sqs_client.receive_message(QueueUrl=FIFO_QUEUE_URL, AttributeNames=["MessageGroupId"])
+        message = self.sqs_client.receive_message(
+            QueueUrl=FIFO_QUEUE_URL, AttributeNames=["MessageGroupId"]
+        )
         assert len(message["Messages"]) == 1
         assert message["Messages"][0]["MessageId"] == result["MessageId"]
         assert message["Messages"][0]["Body"] == "hello"

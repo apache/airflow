@@ -38,8 +38,16 @@ DESCRIBE_PIPELINE_EXECUTION_RESPONSE = {
     "FailureReason": "string",
     "CreationTime": datetime(2015, 1, 1),
     "LastModifiedTime": datetime(2015, 1, 1),
-    "CreatedBy": {"UserProfileArn": "string", "UserProfileName": "string", "DomainId": "string"},
-    "LastModifiedBy": {"UserProfileArn": "string", "UserProfileName": "string", "DomainId": "string"},
+    "CreatedBy": {
+        "UserProfileArn": "string",
+        "UserProfileName": "string",
+        "DomainId": "string",
+    },
+    "LastModifiedBy": {
+        "UserProfileArn": "string",
+        "UserProfileName": "string",
+        "DomainId": "string",
+    },
     "ParallelismConfiguration": {"MaxParallelExecutionSteps": 123},
     "ResponseMetadata": {
         "HTTPStatusCode": 200,
@@ -79,7 +87,9 @@ class TestSageMakerPipelineSensor:
             response_stopping,
             response_stopped,
         ]
-        sensor = SageMakerPipelineSensor(pipeline_exec_arn="ARN", task_id="test_task", poke_interval=0)
+        sensor = SageMakerPipelineSensor(
+            pipeline_exec_arn="ARN", task_id="test_task", poke_interval=0
+        )
 
         sensor.execute(None)
 

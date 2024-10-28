@@ -69,7 +69,9 @@ FORECAST_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{RESOURCE_DATA_BUCKET}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
+                "gcs_source": {
+                    "uri": [f"gs://{RESOURCE_DATA_BUCKET}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]
+                }
             }
         },
         Value(),
@@ -178,7 +180,9 @@ with DAG(
     # [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
     delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
         task_id="delete_batch_prediction_job",
-        batch_prediction_job_id=create_batch_prediction_job.output["batch_prediction_job_id"],
+        batch_prediction_job_id=create_batch_prediction_job.output[
+            "batch_prediction_job_id"
+        ],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -187,7 +191,9 @@ with DAG(
 
     delete_batch_prediction_job_def = DeleteBatchPredictionJobOperator(
         task_id="delete_batch_prediction_job_def",
-        batch_prediction_job_id=create_batch_prediction_job_def.output["batch_prediction_job_id"],
+        batch_prediction_job_id=create_batch_prediction_job_def.output[
+            "batch_prediction_job_id"
+        ],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

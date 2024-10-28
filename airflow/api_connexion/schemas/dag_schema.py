@@ -85,7 +85,9 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_token(obj: DagModel):
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
+        serializer = URLSafeSerializer(
+            conf.get_mandatory_value("webserver", "secret_key")
+        )
         return serializer.dumps(obj.fileloc)
 
 
@@ -99,7 +101,9 @@ class DAGDetailSchema(DAGSchema):
     max_active_tasks = fields.Integer(dump_only=True)
     asset_expression = fields.Dict(allow_none=True)
     start_date = fields.DateTime(dump_only=True)
-    dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True)
+    dag_run_timeout = fields.Nested(
+        TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True
+    )
     doc_md = fields.String(dump_only=True)
     default_view = fields.String(dump_only=True)
     params = fields.Method("get_params", dump_only=True)

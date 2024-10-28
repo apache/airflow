@@ -81,7 +81,9 @@ class TableauHook(BaseHook):
     conn_type = "tableau"
     hook_name = "Tableau"
 
-    def __init__(self, site_id: str | None = None, tableau_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self, site_id: str | None = None, tableau_conn_id: str = default_conn_name
+    ) -> None:
         super().__init__()
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
@@ -91,7 +93,10 @@ class TableauHook(BaseHook):
         if isinstance(verify, str):
             verify = parse_boolean(verify)
         self.server.add_http_options(
-            options_dict={"verify": verify, "cert": self.conn.extra_dejson.get("cert", None)}
+            options_dict={
+                "verify": verify,
+                "cert": self.conn.extra_dejson.get("cert", None),
+            }
         )
         self.server.use_server_version()
         self.tableau_conn = None
@@ -112,7 +117,10 @@ class TableauHook(BaseHook):
         """
         if self.conn.login and self.conn.password:
             return self._auth_via_password()
-        if "token_name" in self.conn.extra_dejson and "personal_access_token" in self.conn.extra_dejson:
+        if (
+            "token_name" in self.conn.extra_dejson
+            and "personal_access_token" in self.conn.extra_dejson
+        ):
             return self._auth_via_token()
         raise NotImplementedError("No Authentication method found for given Credentials!")
 
@@ -169,7 +177,9 @@ class TableauHook(BaseHook):
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
-    def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
+    def wait_for_state(
+        self, job_id: str, target_state: TableauJobFinishCode, check_interval: float
+    ) -> bool:
         """
         Wait until the current state of a defined Tableau Job is target_state or different from PENDING.
 

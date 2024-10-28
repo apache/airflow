@@ -74,7 +74,9 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             if provider_yaml["package-name"] == PACKAGE_NAME
         )
     except StopIteration:
-        raise RuntimeError(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
+        raise RuntimeError(
+            f"Could not find provider.yaml file for package: {PACKAGE_NAME}"
+        )
 
     # Oddity: since we set autoapi_python_use_implicit_namespaces for provider packages, it does a "../"on the
     # dir we give it. So we want to set the package dir to be airflow so it goes up to src, else we end up
@@ -117,7 +119,9 @@ global_substitutions = {
 }
 
 if PACKAGE_NAME != "apache-airflow":
-    global_substitutions["experimental"] = "This is an :external:ref:`experimental feature <experimental>`."
+    global_substitutions["experimental"] = (
+        "This is an :external:ref:`experimental feature <experimental>`."
+    )
 
 
 # == Sphinx configuration ======================================================
@@ -135,7 +139,9 @@ release = PACKAGE_VERSION
 # -- General configuration -----------------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-rst_epilog = "\n".join(f".. |{key}| replace:: {replace}" for key, replace in global_substitutions.items())
+rst_epilog = "\n".join(
+    f".. |{key}| replace:: {replace}" for key, replace in global_substitutions.items()
+)
 
 smartquotes_excludes = {"builders": ["man", "text", "spelling"]}
 
@@ -286,7 +292,8 @@ if PACKAGE_NAME == "apache-airflow":
 
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).rglob("example_dags")
+        _get_rst_filepath_from_path(f)
+        for f in pathlib.Path(PACKAGE_DIR).rglob("example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -325,7 +332,9 @@ if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
 else:
     html_static_path = []
 
-html_static_path.append("sphinx_design/static/")  # Style overrides for the sphinx-design extension.
+html_static_path.append(
+    "sphinx_design/static/"
+)  # Style overrides for the sphinx-design extension.
 
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
@@ -350,7 +359,11 @@ if PACKAGE_NAME == "apache-airflow":
         "howto/docker-compose/index.html",
     ]
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
-    manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
+    manual_substitutions_in_generated_html = [
+        "example-dags.html",
+        "operators.html",
+        "index.html",
+    ]
 if PACKAGE_NAME == "docker-stack":
     # Substitute in links
     manual_substitutions_in_generated_html = ["build.html", "index.html"]
@@ -378,7 +391,10 @@ html_use_index = True
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = False
 
-html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": True}
+html_theme_options: dict[str, Any] = {
+    "hide_website_buttons": True,
+    "sidebar_includehidden": True,
+}
 
 html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
@@ -434,12 +450,18 @@ airflow_version = parse_version(
 def get_configs_and_deprecations(
     package_name: str,
     package_version: Version,
-) -> tuple[dict[str, dict[str, tuple[str, str, str]]], dict[str, dict[str, tuple[str, str, str]]]]:
+) -> tuple[
+    dict[str, dict[str, tuple[str, str, str]]], dict[str, dict[str, tuple[str, str, str]]]
+]:
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
     for (section, key), (
         (deprecated_section, deprecated_key, since_version)
     ) in AirflowConfigParser.deprecated_options.items():
-        deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+        deprecated_options[deprecated_section][deprecated_key] = (
+            section,
+            key,
+            since_version,
+        )
 
     if package_name == "apache-airflow":
         configs = retrieve_configuration_description(include_providers=False)
@@ -458,7 +480,10 @@ def get_configs_and_deprecations(
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
             version_added = option["version_added"]
-            if version_added is not None and parse_version(version_added) > package_version:
+            if (
+                version_added is not None
+                and parse_version(version_added) > package_version
+            ):
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
@@ -466,13 +491,17 @@ def get_configs_and_deprecations(
         config["options"] = {k: v for k, v in sorted(config["options"].items())}
     configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:
-        deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
+        deprecated_options[section] = {
+            k: v for k, v in sorted(deprecated_options[section].items())
+        }
     return configs, deprecated_options
 
 
 # Jinja context
 if PACKAGE_NAME == "apache-airflow":
-    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME, airflow_version)
+    configs, deprecated_options = get_configs_and_deprecations(
+        PACKAGE_NAME, airflow_version
+    )
     jinja_contexts = {
         "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
         "quick_start_ctx": {
@@ -485,7 +514,9 @@ if PACKAGE_NAME == "apache-airflow":
         },
     }
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME, parse_version(PACKAGE_VERSION))
+    configs, deprecated_options = get_configs_and_deprecations(
+        PACKAGE_NAME, parse_version(PACKAGE_VERSION)
+    )
     jinja_contexts = {
         "config_ctx": {
             "configs": configs,
@@ -509,7 +540,9 @@ elif PACKAGE_NAME == "apache-airflow-providers":
 elif PACKAGE_NAME == "helm-chart":
 
     def _str_representer(dumper, data):
-        style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
+        style = (
+            "|" if "\n" in data else None
+        )  # show as a block scalar if we have more than 1 line
         return dumper.represent_scalar("tag:yaml.org,2002:str", data, style)
 
     yaml.add_representer(str, _str_representer)
@@ -533,7 +566,9 @@ elif PACKAGE_NAME == "helm-chart":
             out += yaml.dump({param_name: ex})
         return out
 
-    def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") -> list[dict]:
+    def _get_params(
+        root_schema: dict, prefix: str = "", default_section: str = ""
+    ) -> list[dict]:
         """
         Given an jsonschema objects properties dict, return a flattened list of all parameters
         from that object and any nested objects
@@ -542,7 +577,9 @@ elif PACKAGE_NAME == "helm-chart":
         out = []
         for param_name, schema in root_schema.items():
             prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
-            section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
+            section_name = (
+                schema["x-docsSection"] if "x-docsSection" in schema else default_section
+            )
             if section_name and schema["description"] and "default" in schema:
                 out.append(
                     {
@@ -583,7 +620,9 @@ elif PACKAGE_NAME == "helm-chart":
         ordered_sections.append({"name": name, "params": sections.pop(name)})
 
     if sections:
-        raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
+        raise ValueError(
+            f"Found section(s) which were not in `section_order`: {list(sections.keys())}"
+        )
 
     jinja_contexts = {
         "params_ctx": {"sections": ordered_sections},
@@ -676,7 +715,10 @@ autodoc_typehints_format = "short"
 # be linked to in this documentation.
 # Inventories are only downloaded once by docs/exts/docs_build/fetch_inventories.py.
 intersphinx_mapping = {
-    pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",))
+    pkg_name: (
+        f"{THIRD_PARTY_INDEXES[pkg_name]}/",
+        (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
+    )
     for pkg_name in [
         "boto3",
         "celery",
@@ -821,7 +863,9 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
         test_dir = SYSTEM_TESTS_DIR.parent
         autoapi_dirs.append(test_dir)
 
-        autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
+        autoapi_ignore.extend(
+            f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system"
+        )
 else:
     if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
         autoapi_dirs.append(SYSTEM_TESTS_DIR)
@@ -888,11 +932,20 @@ if PACKAGE_NAME == "apache-airflow":
     ]
 
     # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+    redoc_script_url = (
+        "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+    )
 
 elif PACKAGE_NAME == "apache-airflow-providers-fab":
     OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+        os.path.dirname(__file__),
+        "..",
+        "airflow",
+        "providers",
+        "fab",
+        "auth_manager",
+        "openapi",
+        "v1.yaml",
     )
     redoc = [
         {
@@ -907,7 +960,9 @@ elif PACKAGE_NAME == "apache-airflow-providers-fab":
     ]
 
     # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+    redoc_script_url = (
+        "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+    )
 
 
 def skip_util_classes(app, what, name, obj, skip, options):

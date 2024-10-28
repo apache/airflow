@@ -168,7 +168,9 @@ def dag_policy(dag):
 
 
 def task_instance_mutation_hook(task_instance):
-    return POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook(task_instance=task_instance)
+    return POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook(
+        task_instance=task_instance
+    )
 
 
 task_instance_mutation_hook.is_noop = True  # type: ignore
@@ -183,13 +185,17 @@ def get_airflow_context_vars(context):
 
 
 def get_dagbag_import_timeout(dag_file_path: str):
-    return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
+    return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(
+        dag_file_path=dag_file_path
+    )
 
 
 def configure_policy_plugin_manager():
     global POLICY_PLUGIN_MANAGER
 
-    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
+    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(
+        policies.local_settings_hookspec.project_name
+    )
     POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
     POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
 
@@ -209,14 +215,18 @@ def configure_vars():
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
-    PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
+    PLUGINS_FOLDER = conf.get(
+        "core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins")
+    )
 
     # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
     # If the flag is set to False, we remove all handlers from the root logger
     # and add all handlers from 'airflow.task' logger to the root Logger. This is done
     # to get all the logs from the print & log statements in the DAG files before a task is run
     # The handlers are restored after the task completes execution.
-    DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
+    DONOT_MODIFY_HANDLERS = conf.getboolean(
+        "logging", "donot_modify_handlers", fallback=False
+    )
 
 
 def _run_openlineage_runtime_check():
@@ -311,7 +321,9 @@ AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
 AIRFLOW_TESTS_PATH = os.path.join(AIRFLOW_PATH, "tests")
 AIRFLOW_SETTINGS_PATH = os.path.join(AIRFLOW_PATH, "airflow", "settings.py")
 AIRFLOW_UTILS_SESSION_PATH = os.path.join(AIRFLOW_PATH, "airflow", "utils", "session.py")
-AIRFLOW_MODELS_BASEOPERATOR_PATH = os.path.join(AIRFLOW_PATH, "airflow", "models", "baseoperator.py")
+AIRFLOW_MODELS_BASEOPERATOR_PATH = os.path.join(
+    AIRFLOW_PATH, "airflow", "models", "baseoperator.py"
+)
 
 
 class TracebackSessionForTests:
@@ -459,7 +471,9 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    engine = create_engine(
+        SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True
+    )
 
     mask_secret(engine.url.password)
 
@@ -502,7 +516,9 @@ def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False
 DEFAULT_ENGINE_ARGS = {
     "postgresql": {
         "executemany_mode": "values_plus_batch",
-        "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
+        "executemany_values_page_size"
+        if is_sqlalchemy_v1()
+        else "insertmanyvalues_page_size": 10000,
         "executemany_batch_page_size": 2000,
     },
 }
@@ -516,12 +532,16 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson("database", "sql_alchemy_engine_args", fallback=default_args)  # type: ignore
+    engine_args: dict = conf.getjson(
+        "database", "sql_alchemy_engine_args", fallback=default_args
+    )  # type: ignore
 
     if pool_class:
         # Don't use separate settings for size etc, only those from sql_alchemy_engine_args
         engine_args["poolclass"] = pool_class
-    elif disable_connection_pool or not conf.getboolean("database", "SQL_ALCHEMY_POOL_ENABLED"):
+    elif disable_connection_pool or not conf.getboolean(
+        "database", "SQL_ALCHEMY_POOL_ENABLED"
+    ):
         engine_args["poolclass"] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith("sqlite"):
@@ -553,7 +573,9 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
-        pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
+        pool_pre_ping = conf.getboolean(
+            "database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True
+        )
 
         log.debug(
             "settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
@@ -581,7 +603,9 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # Allow the user to specify an encoding for their DB otherwise default
         # to utf-8 so jobs & users with non-latin1 characters can still use us.
         # This parameter was removed in SQLAlchemy 2.x.
-        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
+        engine_args["encoding"] = conf.get(
+            "database", "SQL_ENGINE_ENCODING", fallback="utf-8"
+        )
 
     return engine_args
 
@@ -674,7 +698,9 @@ def prepare_syspath_for_dags_folder():
 
 def get_session_lifetime_config():
     """Get session timeout configs and handle outdated configs gracefully."""
-    session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
+    session_lifetime_minutes = conf.get(
+        "webserver", "session_lifetime_minutes", fallback=None
+    )
     minutes_per_day = 24 * 60
     if not session_lifetime_minutes:
         session_lifetime_days = 30
@@ -719,7 +745,9 @@ def import_local_settings():
         if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
-        log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
+        log.info(
+            "Loaded airflow_local_settings from %s .", airflow_local_settings.__file__
+        )
 
 
 def initialize():
@@ -766,14 +794,20 @@ WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
 
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
-MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint("core", "min_serialized_dag_update_interval", fallback=30)
+MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
+    "core", "min_serialized_dag_update_interval", fallback=30
+)
 
 # If set to True, serialized DAGs is compressed before writing to DB,
-COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
+COMPRESS_SERIALIZED_DAGS = conf.getboolean(
+    "core", "compress_serialized_dags", fallback=False
+)
 
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
-MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint("core", "min_serialized_dag_fetch_interval", fallback=10)
+MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint(
+    "core", "min_serialized_dag_fetch_interval", fallback=10
+)
 
 CAN_FORK = hasattr(os, "fork")
 
@@ -783,7 +817,9 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     fallback=False,
 )
 
-ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+ALLOW_FUTURE_EXEC_DATES = conf.getboolean(
+    "scheduler", "allow_trigger_in_future", fallback=False
+)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 
@@ -794,7 +830,9 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 # By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
-LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
+LAZY_LOAD_PROVIDERS: bool = conf.getboolean(
+    "core", "lazy_discover_providers", fallback=True
+)
 
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {

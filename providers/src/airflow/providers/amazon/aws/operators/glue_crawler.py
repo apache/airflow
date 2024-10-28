@@ -74,7 +74,9 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
         config,
         poll_interval: int = 5,
         wait_for_completion: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -111,11 +113,15 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for AWS Glue Crawler")
-            self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
+            self.hook.wait_for_crawler_completion(
+                crawler_name=crawler_name, poll_interval=self.poll_interval
+            )
 
         return crawler_name
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":

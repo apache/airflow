@@ -56,7 +56,9 @@ class TestPostgresToGoogleCloudStorageOperator:
             with conn.cursor() as cur:
                 for table in TABLES:
                     cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
-                    cur.execute(f"CREATE TABLE {table}(some_str varchar, some_num integer, some_json json);")
+                    cur.execute(
+                        f"CREATE TABLE {table}(some_str varchar, some_num integer, some_json json);"
+                    )
 
                 cur.execute(
                     "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
@@ -86,13 +88,17 @@ class TestPostgresToGoogleCloudStorageOperator:
 
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""
-        op = PostgresToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
+        op = PostgresToGCSOperator(
+            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+        )
         assert op.task_id == TASK_ID
         assert op.sql == SQL
         assert op.bucket == BUCKET
         assert op.filename == FILENAME
 
-    def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
+    def _assert_uploaded_file_content(
+        self, bucket, obj, tmp_filename, mime_type, gzip, metadata=None
+    ):
         assert BUCKET == bucket
         assert FILENAME.format(0) == obj
         assert "application/json" == mime_type
@@ -119,7 +125,11 @@ class TestPostgresToGoogleCloudStorageOperator:
     )
     def test_convert_type(self, value, expected):
         op = PostgresToGCSOperator(
-            task_id=TASK_ID, postgres_conn_id=POSTGRES_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+            task_id=TASK_ID,
+            postgres_conn_id=POSTGRES_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
         )
         assert op.convert_type(value, None) == expected
 
@@ -127,7 +137,11 @@ class TestPostgresToGoogleCloudStorageOperator:
     def test_exec_success(self, gcs_hook_mock_class):
         """Test the execute function in case where the run is successful."""
         op = PostgresToGCSOperator(
-            task_id=TASK_ID, postgres_conn_id=POSTGRES_CONN_ID, sql=SQL, bucket=BUCKET, filename=FILENAME
+            task_id=TASK_ID,
+            postgres_conn_id=POSTGRES_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
         )
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
@@ -211,7 +225,11 @@ class TestPostgresToGoogleCloudStorageOperator:
         gcs_hook_mock.upload.side_effect = _assert_upload
 
         op = PostgresToGCSOperator(
-            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME, schema_filename=SCHEMA_FILENAME
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            schema_filename=SCHEMA_FILENAME,
         )
         op.execute(None)
 

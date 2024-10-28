@@ -72,7 +72,9 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         self.repository_id = repository_id
         self.workflow_invocation_id = workflow_invocation_id
         self.expected_statuses = (
-            {expected_statuses} if isinstance(expected_statuses, int) else expected_statuses
+            {expected_statuses}
+            if isinstance(expected_statuses, int)
+            else expected_statuses
         )
         self.failure_statuses = failure_statuses
         self.project_id = project_id
@@ -159,7 +161,9 @@ class DataformWorkflowInvocationActionStateSensor(BaseSensorOperator):
         self.hook: DataformHook | None = None
 
     def poke(self, context: Context) -> bool:
-        self.hook = DataformHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.hook = DataformHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         workflow_invocation_actions = self.hook.query_workflow_invocation_actions(
             project_id=self.project_id,
@@ -177,4 +181,6 @@ class DataformWorkflowInvocationActionStateSensor(BaseSensorOperator):
                     )
                 return state in self.expected_statuses
 
-        raise AirflowException(f"Workflow Invocation Action target {self.target_name} not found.")
+        raise AirflowException(
+            f"Workflow Invocation Action target {self.target_name} not found."
+        )

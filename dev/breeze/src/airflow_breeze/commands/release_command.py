@@ -35,7 +35,13 @@ def clone_asf_repo(working_dir):
     if confirm_action("Clone ASF repo?"):
         run_command(["rm", "-rf", f"{working_dir}/asf-dist"], check=True)
         run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
+            [
+                "svn",
+                "checkout",
+                "--depth=immediates",
+                "https://dist.apache.org/repos/dist",
+                "asf-dist",
+            ],
             check=True,
         )
         dev_dir = f"{working_dir}/asf-dist/dev/airflow"
@@ -46,7 +52,9 @@ def clone_asf_repo(working_dir):
 
 def create_version_dir(version):
     if confirm_action(f"Create SVN version directory for {version}?"):
-        run_command(["svn", "mkdir", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(
+            ["svn", "mkdir", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
+        )
         console_print(f"{version} directory created")
 
 
@@ -82,7 +90,11 @@ def commit_release(version, rc, svn_release_version_dir):
 
 def remove_old_release(previous_release):
     if confirm_action(f"Remove old release {previous_release}?"):
-        run_command(["svn", "rm", f"{previous_release}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(
+            ["svn", "rm", f"{previous_release}"],
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
+        )
         run_command(
             ["svn", "commit", "-m", f"Remove old release: {previous_release}"],
             dry_run_override=RUNNING_IN_CI,
@@ -98,7 +110,9 @@ def remove_old_release(previous_release):
 def verify_pypi_package(version):
     if confirm_action("Verify PyPI package?"):
         run_command(
-            ["twine", "check", "*.whl", f"*{version}.tar.gz"], dry_run_override=RUNNING_IN_CI, check=True
+            ["twine", "check", "*.whl", f"*{version}.tar.gz"],
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
         )
 
 
@@ -145,7 +159,9 @@ def retag_constraints(release_candidate, version):
 
 
 def tag_and_push_latest_constraint(version):
-    console_print("In case you release 'latest stable' version, also update 'latest' constraints")
+    console_print(
+        "In case you release 'latest stable' version, also update 'latest' constraints"
+    )
     if confirm_action("Tag latest constraint?"):
         run_command(
             [
@@ -177,16 +193,25 @@ def push_tag_for_final_version(version, release_candidate):
         in PyPI (both airflow and latest provider packages).
         """
         )
-        confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
+        confirm_action(
+            f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?",
+            abort=True,
+        )
 
-        run_command(["git", "checkout", f"{release_candidate}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(
+            ["git", "checkout", f"{release_candidate}"],
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
+        )
         run_command(
             ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"],
             dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         run_command(
-            ["git", "push", "origin", "tag", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
+            ["git", "push", "origin", "tag", f"{version}"],
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
         )
 
 
@@ -216,7 +241,10 @@ def airflow_release(release_candidate, previous_release):
     console_print("Below are your git remotes. We will push to origin:")
     run_command(["git", "remote", "-v"], check=True)
     console_print()
-    confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
+    confirm_action(
+        "Verify that the above information is correct. Do you want to continue?",
+        abort=True,
+    )
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
 
@@ -244,7 +272,9 @@ def airflow_release(release_candidate, previous_release):
     if os.path.exists(svn_release_version_dir):
         os.chdir(svn_release_version_dir)
     else:
-        confirm_action("Version directory does not exist. Do you want to Continue?", abort=True)
+        confirm_action(
+            "Version directory does not exist. Do you want to Continue?", abort=True
+        )
 
     # Copy artifacts to the version directory
     copy_artifacts_to_svn(release_candidate, svn_dev_repo)
@@ -253,7 +283,8 @@ def airflow_release(release_candidate, previous_release):
     commit_release(version, release_candidate, svn_release_version_dir)
 
     confirm_action(
-        "Verify that the artifacts appear in https://dist.apache.org/repos/dist/release/airflow/", abort=True
+        "Verify that the artifacts appear in https://dist.apache.org/repos/dist/release/airflow/",
+        abort=True,
     )
 
     # Remove old release

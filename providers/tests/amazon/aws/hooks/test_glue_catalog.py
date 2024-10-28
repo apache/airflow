@@ -77,7 +77,9 @@ class TestGlueCatalogHook:
         mock_conn.get_paginator.return_value = mock_paginator
         mock_get_conn.return_value = mock_conn
         hook = GlueCatalogHook(region_name="us-east-1")
-        result = hook.get_partitions("db", "tbl", expression="foo=bar", page_size=2, max_items=3)
+        result = hook.get_partitions(
+            "db", "tbl", expression="foo=bar", page_size=2, max_items=3
+        )
 
         assert result == {("2015-01-01",)}
         mock_conn.get_paginator.assert_called_once_with("get_partitions")
@@ -110,7 +112,10 @@ class TestGlueCatalogHook:
         result = self.hook.get_table(DB_NAME, TABLE_NAME)
 
         assert result["Name"] == TABLE_INPUT["Name"]
-        assert result["StorageDescriptor"]["Location"] == TABLE_INPUT["StorageDescriptor"]["Location"]
+        assert (
+            result["StorageDescriptor"]["Location"]
+            == TABLE_INPUT["StorageDescriptor"]["Location"]
+        )
 
     def test_get_table_not_exists(self):
         self.client.create_database(DatabaseInput={"Name": DB_NAME})
@@ -150,7 +155,9 @@ class TestGlueCatalogHook:
             self.hook.get_partition(DB_NAME, TABLE_NAME, PARTITION_INPUT["Values"])
 
         mocked_client.get_partition.assert_called_once_with(
-            DatabaseName=DB_NAME, TableName=TABLE_NAME, PartitionValues=PARTITION_INPUT["Values"]
+            DatabaseName=DB_NAME,
+            TableName=TABLE_NAME,
+            PartitionValues=PARTITION_INPUT["Values"],
         )
 
     def test_create_partition(self):

@@ -129,7 +129,10 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                 del dictionary[field_name]
             else:
                 self.log.debug(
-                    "The field %s is missing in %s at the path %s.", field_name, dictionary, current_path
+                    "The field %s is missing in %s at the path %s.",
+                    field_name,
+                    dictionary,
+                    current_path,
                 )
         else:
             field_name = field_split[0]
@@ -137,7 +140,10 @@ class GcpBodyFieldSanitizer(LoggingMixin):
             child = dictionary.get(field_name)
             if child is None:
                 self.log.debug(
-                    "The field %s is missing in %s at the path %s. ", field_name, dictionary, current_path
+                    "The field %s is missing in %s at the path %s. ",
+                    field_name,
+                    dictionary,
+                    current_path,
                 )
             elif isinstance(child, dict):
                 self._sanitize(child, remaining_path, f"{current_path}.{field_name}")
@@ -151,7 +157,9 @@ class GcpBodyFieldSanitizer(LoggingMixin):
                             index,
                             elem,
                         )
-                    self._sanitize(elem, remaining_path, f"{current_path}.{field_name}[{index}]")
+                    self._sanitize(
+                        elem, remaining_path, f"{current_path}.{field_name}[{index}]"
+                    )
             else:
                 self.log.warning(
                     "The field %s is of wrong type. It should be dict or list and it is %s. Skipping it.",

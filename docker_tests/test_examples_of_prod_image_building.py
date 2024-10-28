@@ -52,7 +52,9 @@ def get_latest_airflow_image():
     os.environ.get("CI") == "true",
     reason="Skipping the script builds on CI! They take very long time to build.",
 )
-@pytest.mark.parametrize("script_file", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/*.sh", recursive=True))
+@pytest.mark.parametrize(
+    "script_file", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/*.sh", recursive=True)
+)
 def test_shell_script_example(script_file):
     run_command(["bash", script_file])
 
@@ -79,7 +81,9 @@ def test_dockerfile_example(dockerfile, relative_path, tmp_path):
     test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
 
     test_image_file = tmp_path / image_name
-    test_image_file.write_text(re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content))
+    test_image_file.write_text(
+        re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content)
+    )
     try:
         image = docker.build(
             context_path=Path(dockerfile).parent,

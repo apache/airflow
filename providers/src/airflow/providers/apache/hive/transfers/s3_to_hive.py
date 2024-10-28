@@ -142,7 +142,9 @@ class S3ToHiveOperator(BaseOperator):
     def execute(self, context: Context):
         # Downloading file from S3
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
+        hive_hook = HiveCliHook(
+            hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth
+        )
         self.log.info("Downloading S3 file")
 
         if self.wildcard_match:
@@ -160,13 +162,17 @@ class S3ToHiveOperator(BaseOperator):
 
         _, file_ext = os.path.splitext(s3_key_object.key)
         if self.select_expression and self.input_compressed and file_ext.lower() != ".gz":
-            raise AirflowException("GZIP is the only compression format Amazon S3 Select supports")
+            raise AirflowException(
+                "GZIP is the only compression format Amazon S3 Select supports"
+            )
 
         with (
             TemporaryDirectory(prefix="tmps32hive_") as tmp_dir,
             NamedTemporaryFile(mode="wb", dir=tmp_dir, suffix=file_ext) as f,
         ):
-            self.log.info("Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name)
+            self.log.info(
+                "Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name
+            )
             if self.select_expression:
                 option = {}
                 if self.headers:
@@ -222,7 +228,9 @@ class S3ToHiveOperator(BaseOperator):
 
                 # Deleting top header row
                 self.log.info("Removing header from file %s", fn_uncompressed)
-                headless_file = self._delete_top_row_and_compress(fn_uncompressed, file_ext, tmp_dir)
+                headless_file = self._delete_top_row_and_compress(
+                    fn_uncompressed, file_ext, tmp_dir
+                )
                 self.log.info("Headless file %s", headless_file)
                 self.log.info("Loading file %s into Hive", headless_file)
                 hive_hook.load_file(
@@ -247,10 +255,14 @@ class S3ToHiveOperator(BaseOperator):
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
             self.log.warning(
-                "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names
+                "Headers count mismatch File headers:\n %s\nField names: \n %s\n",
+                header_list,
+                field_names,
             )
             return False
-        test_field_match = all(h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names))
+        test_field_match = all(
+            h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names)
+        )
         if test_field_match:
             return True
         else:

@@ -117,7 +117,9 @@ class ExpandableFactory(Protocol):
                     f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}"
                 )
         if len(kwargs_left) == 1:
-            raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
+            raise TypeError(
+                f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}"
+            )
         elif kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
@@ -214,7 +216,8 @@ class DecoratedOperator(BaseOperator):
         faulty_parameters = [
             param.name
             for param in signature.parameters.values()
-            if param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+            if param.name in KNOWN_CONTEXT_KEYS
+            and param.default not in (None, inspect.Parameter.empty)
         ]
         if faulty_parameters:
             message = f"Context key parameter {faulty_parameters[0]} can't have a default other than None"
@@ -264,7 +267,9 @@ class DecoratedOperator(BaseOperator):
             if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
-        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
+        return self._handle_output(
+            return_value=return_value, context=context, xcom_push=self.xcom_push
+        )
 
     def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
@@ -322,7 +327,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     :meta private:
     """
 
-    function: Callable[FParams, FReturn] = attr.ib(validator=attr.validators.is_callable())
+    function: Callable[FParams, FReturn] = attr.ib(
+        validator=attr.validators.is_callable()
+    )
     operator_class: type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
     kwargs: dict[str, Any] = attr.ib(factory=dict)
@@ -349,7 +356,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
-            return_type = typing_extensions.get_type_hints(fake, self.function.__globals__).get("return", Any)
+            return_type = typing_extensions.get_type_hints(
+                fake, self.function.__globals__
+            ).get("return", Any)
         except NameError as e:
             warnings.warn(
                 f"Cannot infer multiple_outputs for TaskFlow function {self.function.__name__!r} with forward"
@@ -373,7 +382,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
+        on_failure_fail_dagrun = self.kwargs.pop(
+            "on_failure_fail_dagrun", self.on_failure_fail_dagrun
+        )
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -415,13 +426,19 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+    def expand_kwargs(
+        self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
+    ) -> XComArg:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+                    raise TypeError(
+                        f"expected XComArg or list[dict], not {type(kwargs).__name__}"
+                    )
         elif not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+            raise TypeError(
+                f"expected XComArg or list[dict], not {type(kwargs).__name__}"
+            )
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
@@ -429,7 +446,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
         task_kwargs = self.kwargs.copy()
         dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
-        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
+        task_group = task_kwargs.pop(
+            "task_group", None
+        ) or TaskGroupContext.get_current_task_group(dag)
 
         default_args, partial_params = get_merged_defaults(
             dag=dag,
@@ -452,7 +471,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "task_concurrency",  # Deprecated(replaced by `max_active_tis_per_dag`).
         }
         partial_keys = set(base_signature.parameters) - ignore
-        partial_kwargs.update({key: value for key, value in default_args.items() if key in partial_keys})
+        partial_kwargs.update(
+            {key: value for key, value in default_args.items() if key in partial_keys}
+        )
         partial_kwargs.update(task_kwargs)
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
@@ -473,8 +494,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                 dag_str = ""
                 if dag:
                     dag_str = f" in dag {dag.dag_id}"
-                raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
-        partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
+                raise ValueError(
+                    f"pool slots for {task_id}{dag_str} cannot be less than 1"
+                )
+        partial_kwargs["retries"] = parse_retries(
+            partial_kwargs.get("retries", DEFAULT_RETRIES)
+        )
         partial_kwargs["retry_delay"] = coerce_timedelta(
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
             key="retry_delay",
@@ -532,14 +557,18 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         return XComArg(operator=operator)
 
-    def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
+    def partial(
+        self, **kwargs: Any
+    ) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)
         old_kwargs = self.kwargs.get("op_kwargs", {})
         prevent_duplicates(old_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(old_kwargs)
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": kwargs})
 
-    def override(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
+    def override(
+        self, **kwargs: Any
+    ) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         result = attr.evolve(self, kwargs={**self.kwargs, **kwargs})
         setattr(result, "is_setup", self.is_setup)
         setattr(result, "is_teardown", self.is_teardown)
@@ -573,15 +602,21 @@ class DecoratedMappedOperator(MappedOperator):
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
             raise AssertionError(f"unexpected expand_input: {self.expand_input}")
-        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session, include_xcom=include_xcom)
+        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(
+            context, session, include_xcom=include_xcom
+        )
         return {"op_kwargs": op_kwargs}, resolved_oids
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
+    def _get_unmap_kwargs(
+        self, mapped_kwargs: Mapping[str, Any], *, strict: bool
+    ) -> dict[str, Any]:
         partial_op_kwargs = self.partial_kwargs["op_kwargs"]
         mapped_op_kwargs = mapped_kwargs["op_kwargs"]
 
         if strict:
-            prevent_duplicates(partial_op_kwargs, mapped_op_kwargs, fail_reason="mapping already partial")
+            prevent_duplicates(
+                partial_op_kwargs, mapped_op_kwargs, fail_reason="mapping already partial"
+            )
 
         kwargs = {
             "multiple_outputs": self.multiple_outputs,
@@ -614,7 +649,9 @@ class Task(Protocol, Generic[FParams, FReturn]):
 
     def expand(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
+    def expand_kwargs(
+        self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
+    ) -> XComArg: ...
 
     def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 

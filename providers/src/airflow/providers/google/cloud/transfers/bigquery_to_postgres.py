@@ -22,7 +22,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_sql import (
+    BigQueryToSqlBaseOperator,
+)
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -68,15 +70,22 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
         **kwargs,
     ) -> None:
         if replace and not (selected_fields and replace_index):
-            raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names and a unique index.")
+            raise ValueError(
+                "PostgreSQL ON CONFLICT upsert syntax requires column names and a unique index."
+            )
         super().__init__(
-            target_table_name=target_table_name, replace=replace, selected_fields=selected_fields, **kwargs
+            target_table_name=target_table_name,
+            replace=replace,
+            selected_fields=selected_fields,
+            **kwargs,
         )
         self.postgres_conn_id = postgres_conn_id
         self.replace_index = replace_index
 
     def get_sql_hook(self) -> PostgresHook:
-        return PostgresHook(database=self.database, postgres_conn_id=self.postgres_conn_id)
+        return PostgresHook(
+            database=self.database, postgres_conn_id=self.postgres_conn_id
+        )
 
     def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(

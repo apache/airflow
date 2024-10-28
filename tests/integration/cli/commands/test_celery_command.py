@@ -43,7 +43,9 @@ class TestWorkerServeLogs:
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_serve_logs_on_worker_start(self):
-        with mock.patch("airflow.cli.commands.celery_command.Process") as mock_process, mock.patch(
+        with mock.patch(
+            "airflow.cli.commands.celery_command.Process"
+        ) as mock_process, mock.patch(
             "airflow.providers.celery.executors.celery_executor.app"
         ):
             args = self.parser.parse_args(["celery", "worker", "--concurrency", "1"])
@@ -55,10 +57,14 @@ class TestWorkerServeLogs:
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_skip_serve_logs_on_worker_start(self):
-        with mock.patch("airflow.cli.commands.celery_command.Process") as mock_popen, mock.patch(
+        with mock.patch(
+            "airflow.cli.commands.celery_command.Process"
+        ) as mock_popen, mock.patch(
             "airflow.providers.celery.executors.celery_executor.app"
         ):
-            args = self.parser.parse_args(["celery", "worker", "--concurrency", "1", "--skip-serve-logs"])
+            args = self.parser.parse_args(
+                ["celery", "worker", "--concurrency", "1", "--skip-serve-logs"]
+            )
 
             with mock.patch("celery.platforms.check_privileges") as mock_privil:
                 mock_privil.return_value = 0

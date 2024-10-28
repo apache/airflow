@@ -97,7 +97,9 @@ class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
 
     def execute(self, context: Context) -> dict[str, str | int]:
         # These are optional values which the API defaults to "application/json" if not provided here.
-        invoke_kwargs = prune_dict({"contentType": self.content_type, "accept": self.accept_type})
+        invoke_kwargs = prune_dict(
+            {"contentType": self.content_type, "accept": self.accept_type}
+        )
 
         response = self.hook.conn.invoke_model(
             body=json.dumps(self.input_data),
@@ -175,7 +177,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         wait_for_completion: bool = True,
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -196,14 +200,18 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
 
         self.valid_action_if_job_exists: set[str] = {"timestamp", "fail"}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
         self.log.info("Bedrock model customization job `%s` complete.", self.job_name)
-        return self.hook.conn.get_model_customization_job(jobIdentifier=event["job_name"])["jobArn"]
+        return self.hook.conn.get_model_customization_job(
+            jobIdentifier=event["job_name"]
+        )["jobArn"]
 
     def execute(self, context: Context) -> dict:
         response = {}
@@ -217,7 +225,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
             try:
                 # Ensure the loop is executed at least once, and not repeat unless explicitly set to do so.
                 retry = False
-                self.log.info("Creating Bedrock model customization job '%s'.", self.job_name)
+                self.log.info(
+                    "Creating Bedrock model customization job '%s'.", self.job_name
+                )
 
                 response = self.hook.conn.create_model_customization_job(
                     jobName=self.job_name,
@@ -230,16 +240,23 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
                     **self.customization_job_kwargs,
                 )
             except ClientError as error:
-                if error.response["Error"]["Message"] != "The provided job name is currently in use.":
+                if (
+                    error.response["Error"]["Message"]
+                    != "The provided job name is currently in use."
+                ):
                     raise error
                 if not self.ensure_unique_job_name:
                     raise error
                 retry = True
                 self.job_name = f"{self.job_name}-{int(utcnow().timestamp())}"
-                self.log.info("Changed job name to '%s' to avoid collision.", self.job_name)
+                self.log.info(
+                    "Changed job name to '%s' to avoid collision.", self.job_name
+                )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 201:
-            raise AirflowException(f"Bedrock model customization job creation failed: {response}")
+            raise AirflowException(
+                f"Bedrock model customization job creation failed: {response}"
+            )
 
         task_description = f"Bedrock model customization job {self.job_name} to complete."
         if self.deferrable:
@@ -257,7 +274,10 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
             self.log.info("Waiting for %s", task_description)
             self.hook.get_waiter("model_customization_job_complete").wait(
                 jobIdentifier=self.job_name,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
         return response["jobArn"]
@@ -310,7 +330,9 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -346,18 +368,26 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
             self.log.info("Waiting for provisioned throughput.")
             self.hook.get_waiter("provisioned_model_throughput_complete").wait(
                 provisionedModelId=provisioned_model_id,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
         return provisioned_model_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
-        self.log.info("Bedrock provisioned throughput job `%s` complete.", event["provisioned_model_id"])
+        self.log.info(
+            "Bedrock provisioned throughput job `%s` complete.",
+            event["provisioned_model_id"],
+        )
         return event["provisioned_model_id"]
 
 
@@ -425,7 +455,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -436,7 +468,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.embedding_model_arn = embedding_model_arn
         self.knowledge_base_config = {
             "type": "VECTOR",
-            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+            "vectorKnowledgeBaseConfiguration": {
+                "embeddingModelArn": self.embedding_model_arn
+            },
         }
         self.wait_for_indexing = wait_for_indexing
         self.indexing_error_retry_delay = indexing_error_retry_delay
@@ -447,7 +481,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -482,9 +518,12 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                 ):
                     self.indexing_error_max_attempts -= 1
                     self.log.warning(
-                        "Vector index not ready, retrying in %s seconds.", self.indexing_error_retry_delay
+                        "Vector index not ready, retrying in %s seconds.",
+                        self.indexing_error_retry_delay,
                     )
-                    self.log.debug("%s retries remaining.", self.indexing_error_max_attempts)
+                    self.log.debug(
+                        "%s retries remaining.", self.indexing_error_max_attempts
+                    )
                     sleep(self.indexing_error_retry_delay)
                     return _create_kb()
                 raise
@@ -507,7 +546,10 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
             self.log.info("Waiting for Knowledge Base creation.")
             self.hook.get_waiter("knowledge_base_active").wait(
                 knowledgeBaseId=knowledge_base_id,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
         return knowledge_base_id
@@ -619,7 +661,9 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -632,7 +676,9 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -852,7 +898,11 @@ class BedrockRetrieveOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
 
     def execute(self, context: Context) -> Any:
         retrieval_configuration = (
-            {"retrievalConfiguration": {"vectorSearchConfiguration": self.vector_search_config}}
+            {
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": self.vector_search_config
+                }
+            }
             if self.vector_search_config
             else {}
         )
@@ -864,5 +914,7 @@ class BedrockRetrieveOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
             **self.retrieve_kwargs,
         )
 
-        self.log.info("\nQuery: %s\nRetrieved: %s", self.retrieval_query, result["retrievalResults"])
+        self.log.info(
+            "\nQuery: %s\nRetrieved: %s", self.retrieval_query, result["retrievalResults"]
+        )
         return result

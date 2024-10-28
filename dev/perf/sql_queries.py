@@ -37,7 +37,9 @@ os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
 LOG_LEVEL = "INFO"
 LOG_FILE = "/files/sql_stats.log"  # Default to run in Breeze
 
-os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = "scripts.perf.sql_queries.DEBUG_LOGGING_CONFIG"
+os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = (
+    "scripts.perf.sql_queries.DEBUG_LOGGING_CONFIG"
+)
 
 DEBUG_LOGGING_CONFIG = {
     "version": 1,
@@ -123,7 +125,9 @@ def run_scheduler_job(with_db_reset=False) -> None:
 
     if with_db_reset:
         reset_db()
-    job_runner = SchedulerJobRunner(job=Job(), subdir=DAG_FOLDER, do_pickle=False, num_runs=3)
+    job_runner = SchedulerJobRunner(
+        job=Job(), subdir=DAG_FOLDER, do_pickle=False, num_runs=3
+    )
     run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
 
@@ -209,7 +213,10 @@ def main() -> None:
     msg = "Time for %d dag runs: %.4fs"
 
     if len(times) > 1:
-        print((msg + " (±%.3fs)") % (len(times), statistics.mean(times), statistics.stdev(times)))
+        print(
+            (msg + " (±%.3fs)")
+            % (len(times), statistics.mean(times), statistics.stdev(times))
+        )
     else:
         print(msg % (len(times), times[0]))
 

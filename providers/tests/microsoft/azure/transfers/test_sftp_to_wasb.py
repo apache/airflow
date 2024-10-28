@@ -22,7 +22,10 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SftpFile, SFTPToWasbOperator
+from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import (
+    SftpFile,
+    SFTPToWasbOperator,
+)
 
 TASK_ID = "test-gcs-to-sftp-operator"
 WASB_CONN_ID = "wasb_default"
@@ -56,7 +59,9 @@ class TestSFTPToWasbOperator:
         assert operator.blob_prefix == BLOB_PREFIX
         assert operator.create_container is False
 
-    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook", autospec=True)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook", autospec=True
+    )
     def test_execute_more_than_one_wildcard_exception(self, mock_hook):
         operator = SFTPToWasbOperator(
             task_id=TASK_ID,
@@ -164,10 +169,16 @@ class TestSFTPToWasbOperator:
         sftp_files = [SftpFile(EXPECTED_FILES[0], EXPECTED_BLOB_NAME)]
         files = operator.copy_files_to_wasb(sftp_files)
 
-        operator.sftp_hook.retrieve_file.assert_has_calls([mock.call("main_dir/test_object3.json", mock.ANY)])
+        operator.sftp_hook.retrieve_file.assert_has_calls(
+            [mock.call("main_dir/test_object3.json", mock.ANY)]
+        )
 
         mock_hook.return_value.load_file.assert_called_once_with(
-            mock.ANY, CONTAINER_NAME, EXPECTED_BLOB_NAME, create_container, overwrite=False
+            mock.ANY,
+            CONTAINER_NAME,
+            EXPECTED_BLOB_NAME,
+            create_container,
+            overwrite=False,
         )
 
         assert len(files) == 1, "no matched at expected uploaded files"
@@ -221,7 +232,11 @@ class TestSFTPToWasbOperator:
         )
 
         mock_hook.return_value.load_file.assert_called_once_with(
-            mock.ANY, CONTAINER_NAME, "test_object.json", create_container, overwrite=False
+            mock.ANY,
+            CONTAINER_NAME,
+            "test_object.json",
+            create_container,
+            overwrite=False,
         )
 
         sftp_hook.return_value.delete_file.assert_not_called()
@@ -258,6 +273,10 @@ class TestSFTPToWasbOperator:
         )
 
         mock_hook.return_value.load_file.assert_called_once_with(
-            mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object.json", create_container, overwrite=False
+            mock.ANY,
+            CONTAINER_NAME,
+            BLOB_PREFIX + "test_object.json",
+            create_container,
+            overwrite=False,
         )
         assert sftp_hook.return_value.delete_file.called is True, "File must be moved"

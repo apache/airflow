@@ -108,7 +108,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
 
     def create_limiter(self) -> Limiter:
         app = self.appbuilder.get_app
-        limiter = Limiter(key_func=app.config.get("RATELIMIT_KEY_FUNC", get_remote_address))
+        limiter = Limiter(
+            key_func=app.config.get("RATELIMIT_KEY_FUNC", get_remote_address)
+        )
         limiter.init_app(app)
         return limiter
 
@@ -117,7 +119,11 @@ class AirflowSecurityManagerV2(LoggingMixin):
         pass
 
     def has_access(
-        self, action_name: str, resource_name: str, user=None, resource_pk: str | None = None
+        self,
+        action_name: str,
+        resource_name: str,
+        user=None,
+        resource_pk: str | None = None,
     ) -> bool:
         """
         Verify whether a given user could perform a certain action on the given resource.
@@ -182,7 +188,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
         def get_connection_id(resource_pk):
             if not resource_pk:
                 return None
-            conn_id = session.scalar(select(Connection.conn_id).where(Connection.id == resource_pk).limit(1))
+            conn_id = session.scalar(
+                select(Connection.conn_id).where(Connection.id == resource_pk).limit(1)
+            )
             if not conn_id:
                 raise AirflowException("Connection not found")
             return conn_id
@@ -190,7 +198,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
         def get_dag_id_from_dagrun_id(resource_pk):
             if not resource_pk:
                 return None
-            dag_id = session.scalar(select(DagRun.dag_id).where(DagRun.id == resource_pk).limit(1))
+            dag_id = session.scalar(
+                select(DagRun.dag_id).where(DagRun.id == resource_pk).limit(1)
+            )
             if not dag_id:
                 raise AirflowException("DagRun not found")
             return dag_id
@@ -216,7 +226,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
         def get_variable_key(resource_pk):
             if not resource_pk:
                 return None
-            variable = session.scalar(select(Variable).where(Variable.id == resource_pk).limit(1))
+            variable = session.scalar(
+                select(Variable).where(Variable.id == resource_pk).limit(1)
+            )
             if not variable:
                 raise AirflowException("Variable not found")
             return variable.key
@@ -231,30 +243,42 @@ class AirflowSecurityManagerV2(LoggingMixin):
             return lambda action, resource_pk, user: auth_manager.is_authorized_dag(
                 method=methods[action],
                 access_entity=entity_,
-                details=DagDetails(id=details_func_(resource_pk)) if details_func_ else None,
+                details=DagDetails(id=details_func_(resource_pk))
+                if details_func_
+                else None,
                 user=user,
             )
 
         mapping = {
-            RESOURCE_CONFIG: lambda action, resource_pk, user: auth_manager.is_authorized_configuration(
+            RESOURCE_CONFIG: lambda action,
+            resource_pk,
+            user: auth_manager.is_authorized_configuration(
                 method=methods[action],
                 user=user,
             ),
-            RESOURCE_CONNECTION: lambda action, resource_pk, user: auth_manager.is_authorized_connection(
+            RESOURCE_CONNECTION: lambda action,
+            resource_pk,
+            user: auth_manager.is_authorized_connection(
                 method=methods[action],
                 details=ConnectionDetails(conn_id=get_connection_id(resource_pk)),
                 user=user,
             ),
-            RESOURCE_ASSET: lambda action, resource_pk, user: auth_manager.is_authorized_asset(
+            RESOURCE_ASSET: lambda action,
+            resource_pk,
+            user: auth_manager.is_authorized_asset(
                 method=methods[action],
                 user=user,
             ),
-            RESOURCE_POOL: lambda action, resource_pk, user: auth_manager.is_authorized_pool(
+            RESOURCE_POOL: lambda action,
+            resource_pk,
+            user: auth_manager.is_authorized_pool(
                 method=methods[action],
                 details=PoolDetails(name=get_pool_name(resource_pk)),
                 user=user,
             ),
-            RESOURCE_VARIABLE: lambda action, resource_pk, user: auth_manager.is_authorized_variable(
+            RESOURCE_VARIABLE: lambda action,
+            resource_pk,
+            user: auth_manager.is_authorized_variable(
                 method=methods[action],
                 details=VariableDetails(key=get_variable_key(resource_pk)),
                 user=user,
@@ -269,7 +293,11 @@ class AirflowSecurityManagerV2(LoggingMixin):
             (RESOURCE_TASK_RESCHEDULE, DagAccessEntity.TASK_RESCHEDULE, None),
             (RESOURCE_XCOM, DagAccessEntity.XCOM, None),
             (RESOURCE_DAG_RUN, DagAccessEntity.RUN, get_dag_id_from_dagrun_id),
-            (RESOURCE_TASK_INSTANCE, DagAccessEntity.TASK_INSTANCE, get_dag_id_from_task_instance),
+            (
+                RESOURCE_TASK_INSTANCE,
+                DagAccessEntity.TASK_INSTANCE,
+                get_dag_id_from_task_instance,
+            ),
         ]:
             mapping[resource] = _is_authorized_dag(entity, details_func)
         for resource, view in [
@@ -287,23 +315,33 @@ class AirflowSecurityManagerV2(LoggingMixin):
         is_authorized_method = self._auth_manager_is_authorized_map.get(fab_resource_name)
         if is_authorized_method:
             return is_authorized_method
-        elif fab_resource_name in [RESOURCE_DOCS_MENU, RESOURCE_ADMIN_MENU, RESOURCE_BROWSE_MENU]:
+        elif fab_resource_name in [
+            RESOURCE_DOCS_MENU,
+            RESOURCE_ADMIN_MENU,
+            RESOURCE_BROWSE_MENU,
+        ]:
             # Display the "Browse", "Admin" and "Docs" dropdowns in the menu if the user has access to at
             # least one dropdown child
             return self._is_authorized_category_menu(fab_resource_name)
         else:
             # The user is trying to access a page specific to the auth manager
             # (e.g. the user list view in FabAuthManager) or a page defined in a plugin
-            return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
-                method=get_method_from_fab_action_map().get(action, action),
-                resource_name=fab_resource_name,
-                user=user,
+            return (
+                lambda action,
+                resource_pk,
+                user: get_auth_manager().is_authorized_custom_view(
+                    method=get_method_from_fab_action_map().get(action, action),
+                    resource_name=fab_resource_name,
+                    user=user,
+                )
             )
 
     def _is_authorized_category_menu(self, category: str) -> Callable:
         items = {item.name for item in self.appbuilder.menu.find(category).childs}
         return lambda action, resource_pk, user: any(
-            self._get_auth_manager_is_authorized_method(fab_resource_name=item)(action, resource_pk, user)
+            self._get_auth_manager_is_authorized_method(fab_resource_name=item)(
+                action, resource_pk, user
+            )
             for item in items
         )
 

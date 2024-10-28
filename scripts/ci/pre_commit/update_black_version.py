@@ -32,6 +32,8 @@ if __name__ == "__main__":
         if repo["repo"] == "https://github.com/psf/black":
             black_version = repo["rev"]
             pre_commit_text = PRE_COMMIT_CONFIG_FILE.read_text()
-            pre_commit_text = re.sub(r"black==[0-9\.]*", f"black=={black_version}", pre_commit_text)
+            pre_commit_text = re.sub(
+                r"black==[0-9\.]*", f"black=={black_version}", pre_commit_text
+            )
             PRE_COMMIT_CONFIG_FILE.write_text(pre_commit_text)
             break

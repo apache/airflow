@@ -40,5 +40,7 @@ class LogTemplate(Base):
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     def __repr__(self) -> str:
-        attrs = ", ".join(f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id"))
+        attrs = ", ".join(
+            f"{k}={getattr(self, k)}" for k in ("filename", "elasticsearch_id")
+        )
         return f"LogTemplate({attrs})"

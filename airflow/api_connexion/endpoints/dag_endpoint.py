@@ -61,7 +61,9 @@ def get_dag(
     """Get basic information about a DAG."""
     dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
     if dag is None:
-        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
+        raise NotFound(
+            "DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found"
+        )
     try:
         dag_schema = DAGSchema(only=fields) if fields else DAGSchema()
     except ValueError as e:
@@ -80,7 +82,9 @@ def get_dag_details(
     """Get details of DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
-        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
+        raise NotFound(
+            "DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found"
+        )
     dag_model: DagModel = session.get(DagModel, dag_id)
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
@@ -134,11 +138,15 @@ def get_dags(
 
     try:
         dags_collection_schema = (
-            DAGCollectionSchema(only=[f"dags.{field}" for field in fields] + ["total_entries"])
+            DAGCollectionSchema(
+                only=[f"dags.{field}" for field in fields] + ["total_entries"]
+            )
             if fields
             else DAGCollectionSchema()
         )
-        return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
+        return dags_collection_schema.dump(
+            DAGCollection(dags=dags, total_entries=total_entries)
+        )
     except ValueError as e:
         raise BadRequest("DAGCollectionSchema error", detail=str(e))
 
@@ -147,7 +155,9 @@ def get_dags(
 @security.requires_access_dag("PUT")
 @action_logging
 @provide_session
-def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
+def patch_dag(
+    *, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION
+) -> APIResponse:
     """Update the specific DAG."""
     try:
         patch_body = dag_schema.load(request.json, session=session)
@@ -156,7 +166,9 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     if update_mask:
         patch_body_ = {}
         if update_mask != ["is_paused"]:
-            raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
+            raise BadRequest(
+                detail="Only `is_paused` field can be updated through the REST API"
+            )
         patch_body_[update_mask[0]] = patch_body[update_mask[0]]
         patch_body = patch_body_
     dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
@@ -172,7 +184,15 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
 @format_parameters({"limit": check_limit})
 @action_logging
 @provide_session
-def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
+def patch_dags(
+    limit,
+    session,
+    offset=0,
+    only_active=True,
+    tags=None,
+    dag_id_pattern=None,
+    update_mask=None,
+):
     """Patch multiple DAGs."""
     try:
         patch_body = dag_schema.load(request.json, session=session)
@@ -181,7 +201,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if update_mask:
         patch_body_ = {}
         if update_mask != ["is_paused"]:
-            raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
+            raise BadRequest(
+                detail="Only `is_paused` field can be updated through the REST API"
+            )
         update_mask = update_mask[0]
         patch_body_[update_mask] = patch_body[update_mask]
         patch_body = patch_body_
@@ -201,7 +223,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
 
     total_entries = get_query_count(dags_query, session=session)
 
-    dags = session.scalars(dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit)).all()
+    dags = session.scalars(
+        dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit)
+    ).all()
 
     dags_to_update = {dag.dag_id for dag in dags}
     session.execute(
@@ -213,7 +237,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
 
     session.flush()
 
-    return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
+    return dags_collection_schema.dump(
+        DAGCollection(dags=dags, total_entries=total_entries)
+    )
 
 
 @mark_fastapi_migration_done
@@ -229,6 +255,8 @@ def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except DagNotFound:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     except AirflowException:
-        raise AlreadyExists(detail=f"Task instances of dag with id: '{dag_id}' are still running")
+        raise AlreadyExists(
+            detail=f"Task instances of dag with id: '{dag_id}' are still running"
+        )
 
     return NoContent, HTTPStatus.NO_CONTENT

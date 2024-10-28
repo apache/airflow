@@ -66,5 +66,8 @@ class TestOracleToOracleTransfer:
         ]
         mock_cursor.fetchmany.assert_has_calls(calls)
         mock_dest_hook.bulk_insert_rows.assert_called_once_with(
-            destination_table, cursor_rows, commit_every=rows_chunk, target_fields=["id", "description"]
+            destination_table,
+            cursor_rows,
+            commit_every=rows_chunk,
+            target_fields=["id", "description"],
         )

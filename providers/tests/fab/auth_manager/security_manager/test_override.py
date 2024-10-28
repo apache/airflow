@@ -22,7 +22,9 @@ from unittest.mock import Mock
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        FabAirflowSecurityManagerOverride,
+    )
 
 
 class EmptySecurityManager(FabAirflowSecurityManagerOverride):

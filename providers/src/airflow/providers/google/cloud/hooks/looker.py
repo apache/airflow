@@ -61,19 +61,27 @@ class LookerHook(BaseHook):
         :param view: Required. The view of the PDT to start building.
         :param query_params: Optional. Additional materialization parameters.
         """
-        self.log.info("Submitting PDT materialization job. Model: '%s', view: '%s'.", model, view)
+        self.log.info(
+            "Submitting PDT materialization job. Model: '%s', view: '%s'.", model, view
+        )
         self.log.debug("PDT materialization job source: '%s'.", self.source)
 
         sdk = self.get_looker_sdk()
         looker_ver = sdk.versions().looker_release_version
         if parse_version(looker_ver) < parse_version("22.2.0"):
-            raise AirflowException(f"This API requires Looker version 22.2+. Found: {looker_ver}.")
+            raise AirflowException(
+                f"This API requires Looker version 22.2+. Found: {looker_ver}."
+            )
 
         # unpack query_params dict into kwargs (if not None)
         if query_params:
-            resp = sdk.start_pdt_build(model_name=model, view_name=view, source=self.source, **query_params)
+            resp = sdk.start_pdt_build(
+                model_name=model, view_name=view, source=self.source, **query_params
+            )
         else:
-            resp = sdk.start_pdt_build(model_name=model, view_name=view, source=self.source)
+            resp = sdk.start_pdt_build(
+                model_name=model, view_name=view, source=self.source
+            )
 
         self.log.info("Start PDT build response: '%s'.", resp)
 
@@ -88,7 +96,9 @@ class LookerHook(BaseHook):
 
         :param materialization_id: Required. The materialization id to check status for.
         """
-        self.log.info("Requesting PDT materialization job status. Job id: %s.", materialization_id)
+        self.log.info(
+            "Requesting PDT materialization job status. Job id: %s.", materialization_id
+        )
 
         sdk = self.get_looker_sdk()
         resp = sdk.check_pdt_build(materialization_id=materialization_id)
@@ -111,7 +121,9 @@ class LookerHook(BaseHook):
         status_dict = json.loads(status_json)
 
         self.log.info(
-            "PDT materialization job id: %s. Status: '%s'.", materialization_id, status_dict["status"]
+            "PDT materialization job id: %s. Status: '%s'.",
+            materialization_id,
+            status_dict["status"],
         )
 
         return status_dict
@@ -129,7 +141,9 @@ class LookerHook(BaseHook):
         self.log.debug("PDT materialization job source: '%s'.", self.source)
 
         sdk = self.get_looker_sdk()
-        resp = sdk.stop_pdt_build(materialization_id=materialization_id, source=self.source)
+        resp = sdk.stop_pdt_build(
+            materialization_id=materialization_id, source=self.source
+        )
 
         self.log.info("Stop PDT build response: '%s'.", resp)
         return resp
@@ -148,7 +162,10 @@ class LookerHook(BaseHook):
         :param timeout: Optional. How many seconds wait for job to be ready.
             Used only if ``asynchronous`` is False.
         """
-        self.log.info("Waiting for PDT materialization job to complete. Job id: %s.", materialization_id)
+        self.log.info(
+            "Waiting for PDT materialization job to complete. Job id: %s.",
+            materialization_id,
+        )
 
         status = None
         start = time.monotonic()
@@ -177,13 +194,18 @@ class LookerHook(BaseHook):
                 f'PDT materialization job failed. Job id: {materialization_id}. Message:\n"{msg}"'
             )
         if status == JobStatus.CANCELLED.value:
-            raise AirflowException(f"PDT materialization job was cancelled. Job id: {materialization_id}.")
+            raise AirflowException(
+                f"PDT materialization job was cancelled. Job id: {materialization_id}."
+            )
         if status == JobStatus.UNKNOWN.value:
             raise AirflowException(
                 f"PDT materialization job has unknown status. Job id: {materialization_id}."
             )
 
-        self.log.info("PDT materialization job completed successfully. Job id: %s.", materialization_id)
+        self.log.info(
+            "PDT materialization job completed successfully. Job id: %s.",
+            materialization_id,
+        )
 
     def get_looker_sdk(self):
         """Return Looker SDK client for Looker API 4.0."""
@@ -219,7 +241,9 @@ class LookerApiSettings(api_settings.ApiSettings):
         config = {}
 
         if self.conn.host is None:
-            raise AirflowException(f"No `host` was supplied in connection: {self.conn.id}.")
+            raise AirflowException(
+                f"No `host` was supplied in connection: {self.conn.id}."
+            )
 
         if self.conn.port:
             config["base_url"] = f"{self.conn.host}:{self.conn.port}"  # port is optional
@@ -229,12 +253,16 @@ class LookerApiSettings(api_settings.ApiSettings):
         if self.conn.login:
             config["client_id"] = self.conn.login
         else:
-            raise AirflowException(f"No `login` was supplied in connection: {self.conn.id}.")
+            raise AirflowException(
+                f"No `login` was supplied in connection: {self.conn.id}."
+            )
 
         if self.conn.password:
             config["client_secret"] = self.conn.password
         else:
-            raise AirflowException(f"No `password` was supplied in connection: {self.conn.id}.")
+            raise AirflowException(
+                f"No `password` was supplied in connection: {self.conn.id}."
+            )
 
         extras: dict = self.conn.extra_dejson
 

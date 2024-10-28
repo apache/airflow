@@ -71,7 +71,8 @@ class TestXComArgBuild:
         )
         assert str(actual) == expected_str
         assert (
-            f"echo {actual}" == "echo {{ task_instance.xcom_pull(task_ids='test_xcom_op', "
+            f"echo {actual}"
+            == "echo {{ task_instance.xcom_pull(task_ids='test_xcom_op', "
             "dag_id='test_xcom_dag', key='test_key') }}"
         )
 
@@ -212,14 +213,19 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
 
     # Run "push_letters" and "push_numbers".
     decision = dr.task_instance_scheduling_decisions(session=session)
-    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["push_letters", "push_numbers"]
+    assert sorted(ti.task_id for ti in decision.schedulable_tis) == [
+        "push_letters",
+        "push_numbers",
+    ]
     for ti in decision.schedulable_tis:
         ti.run(session=session)
     session.commit()
 
     # Run "pull".
     decision = dr.task_instance_scheduling_decisions(session=session)
-    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["pull"] * len(expected_results)
+    assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["pull"] * len(
+        expected_results
+    )
     for ti in decision.schedulable_tis:
         ti.run(session=session)
 

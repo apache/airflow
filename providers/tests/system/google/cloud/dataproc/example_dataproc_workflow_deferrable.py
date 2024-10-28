@@ -34,7 +34,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_workflow_def"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 REGION = "europe-west1"
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
@@ -91,11 +93,13 @@ with DAG(
     # [END how_to_cloud_dataproc_trigger_workflow_template_async]
 
     # [START how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
-    instantiate_inline_workflow_template_async = DataprocInstantiateInlineWorkflowTemplateOperator(
-        task_id="instantiate_inline_workflow_template_async",
-        template=WORKFLOW_TEMPLATE,
-        region=REGION,
-        deferrable=True,
+    instantiate_inline_workflow_template_async = (
+        DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id="instantiate_inline_workflow_template_async",
+            template=WORKFLOW_TEMPLATE,
+            region=REGION,
+            deferrable=True,
+        )
     )
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
 

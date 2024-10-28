@@ -35,7 +35,9 @@ TEST_JOB_ID = "123"
 class TestLookerCheckPdtBuildSensor:
     @mock.patch(SENSOR_PATH.format("LookerHook"))
     def test_done(self, mock_hook):
-        mock_hook.return_value.pdt_build_status.return_value = {"status": JobStatus.DONE.value}
+        mock_hook.return_value.pdt_build_status.return_value = {
+            "status": JobStatus.DONE.value
+        }
 
         # run task in mock context
         sensor = LookerCheckPdtBuildSensor(
@@ -46,7 +48,9 @@ class TestLookerCheckPdtBuildSensor:
         ret = sensor.poke(context={})
 
         # assert hook.pdt_build_status called once
-        mock_hook.return_value.pdt_build_status.assert_called_once_with(materialization_id=TEST_JOB_ID)
+        mock_hook.return_value.pdt_build_status.assert_called_once_with(
+            materialization_id=TEST_JOB_ID
+        )
 
         # assert we got a response
         assert ret
@@ -69,11 +73,15 @@ class TestLookerCheckPdtBuildSensor:
             sensor.poke(context={})
 
         # assert hook.pdt_build_status called once
-        mock_hook.return_value.pdt_build_status.assert_called_once_with(materialization_id=TEST_JOB_ID)
+        mock_hook.return_value.pdt_build_status.assert_called_once_with(
+            materialization_id=TEST_JOB_ID
+        )
 
     @mock.patch(SENSOR_PATH.format("LookerHook"))
     def test_wait(self, mock_hook):
-        mock_hook.return_value.pdt_build_status.return_value = {"status": JobStatus.RUNNING.value}
+        mock_hook.return_value.pdt_build_status.return_value = {
+            "status": JobStatus.RUNNING.value
+        }
 
         # run task in mock context
         sensor = LookerCheckPdtBuildSensor(
@@ -84,14 +92,18 @@ class TestLookerCheckPdtBuildSensor:
         ret = sensor.poke(context={})
 
         # assert hook.pdt_build_status called once
-        mock_hook.return_value.pdt_build_status.assert_called_once_with(materialization_id=TEST_JOB_ID)
+        mock_hook.return_value.pdt_build_status.assert_called_once_with(
+            materialization_id=TEST_JOB_ID
+        )
 
         # assert we got NO response
         assert not ret
 
     @mock.patch(SENSOR_PATH.format("LookerHook"))
     def test_cancelled(self, mock_hook):
-        mock_hook.return_value.pdt_build_status.return_value = {"status": JobStatus.CANCELLED.value}
+        mock_hook.return_value.pdt_build_status.return_value = {
+            "status": JobStatus.CANCELLED.value
+        }
 
         # run task in mock context
         sensor = LookerCheckPdtBuildSensor(
@@ -100,11 +112,15 @@ class TestLookerCheckPdtBuildSensor:
             materialization_id=TEST_JOB_ID,
         )
 
-        with pytest.raises(AirflowException, match="PDT materialization job was cancelled"):
+        with pytest.raises(
+            AirflowException, match="PDT materialization job was cancelled"
+        ):
             sensor.poke(context={})
 
         # assert hook.pdt_build_status called once
-        mock_hook.return_value.pdt_build_status.assert_called_once_with(materialization_id=TEST_JOB_ID)
+        mock_hook.return_value.pdt_build_status.assert_called_once_with(
+            materialization_id=TEST_JOB_ID
+        )
 
     def test_empty_materialization_id(self):
         # run task in mock context

@@ -83,7 +83,9 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
             )
         return self._conn
 
-    def query(self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0) -> dict:
+    def query(
+        self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0
+    ) -> dict:
         """
         Create a dynamic API call to any Google API registered in Google's API Client Library and queries it.
 
@@ -99,24 +101,35 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         """
         google_api_conn_client = self.get_conn()
 
-        api_response = self._call_api_request(google_api_conn_client, endpoint, data, paginate, num_retries)
+        api_response = self._call_api_request(
+            google_api_conn_client, endpoint, data, paginate, num_retries
+        )
         return api_response
 
-    def _call_api_request(self, google_api_conn_client, endpoint, data, paginate, num_retries):
+    def _call_api_request(
+        self, google_api_conn_client, endpoint, data, paginate, num_retries
+    ):
         api_endpoint_parts = endpoint.split(".")
 
         google_api_endpoint_instance = self._build_api_request(
-            google_api_conn_client, api_sub_functions=api_endpoint_parts[1:], api_endpoint_params=data
+            google_api_conn_client,
+            api_sub_functions=api_endpoint_parts[1:],
+            api_endpoint_params=data,
         )
 
         if paginate:
             return self._paginate_api(
-                google_api_endpoint_instance, google_api_conn_client, api_endpoint_parts, num_retries
+                google_api_endpoint_instance,
+                google_api_conn_client,
+                api_endpoint_parts,
+                num_retries,
             )
 
         return google_api_endpoint_instance.execute(num_retries=num_retries)
 
-    def _build_api_request(self, google_api_conn_client, api_sub_functions, api_endpoint_params):
+    def _build_api_request(
+        self, google_api_conn_client, api_sub_functions, api_endpoint_params
+    ):
         for sub_function in api_sub_functions:
             google_api_conn_client = getattr(google_api_conn_client, sub_function)
             if sub_function != api_sub_functions[-1]:
@@ -127,7 +140,11 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         return google_api_conn_client
 
     def _paginate_api(
-        self, google_api_endpoint_instance, google_api_conn_client, api_endpoint_parts, num_retries
+        self,
+        google_api_endpoint_instance,
+        google_api_conn_client,
+        api_endpoint_parts,
+        num_retries,
     ):
         api_responses = []
 
@@ -136,20 +153,31 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
             api_responses.append(api_response)
 
             google_api_endpoint_instance = self._build_next_api_request(
-                google_api_conn_client, api_endpoint_parts[1:], google_api_endpoint_instance, api_response
+                google_api_conn_client,
+                api_endpoint_parts[1:],
+                google_api_endpoint_instance,
+                api_response,
             )
 
         return api_responses
 
     def _build_next_api_request(
-        self, google_api_conn_client, api_sub_functions, api_endpoint_instance, api_response
+        self,
+        google_api_conn_client,
+        api_sub_functions,
+        api_endpoint_instance,
+        api_response,
     ):
         for sub_function in api_sub_functions:
             if sub_function != api_sub_functions[-1]:
                 google_api_conn_client = getattr(google_api_conn_client, sub_function)
                 google_api_conn_client = google_api_conn_client()
             else:
-                google_api_conn_client = getattr(google_api_conn_client, sub_function + "_next")
-                google_api_conn_client = google_api_conn_client(api_endpoint_instance, api_response)
+                google_api_conn_client = getattr(
+                    google_api_conn_client, sub_function + "_next"
+                )
+                google_api_conn_client = google_api_conn_client(
+                    api_endpoint_instance, api_response
+                )
 
         return google_api_conn_client

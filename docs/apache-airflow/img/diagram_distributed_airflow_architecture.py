@@ -59,7 +59,11 @@ def generate_distributed_airflow_diagram():
         deployment_manager = User("Deployment Manager")
 
         dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix(), height="1.8")
-        dag_author >> Edge(color="brown", style="solid", reverse=False, label="author\n\n") >> dag_files
+        (
+            dag_author
+            >> Edge(color="brown", style="solid", reverse=False, label="author\n\n")
+            >> dag_files
+        )
 
         with Cluster("Parsing, Scheduling & Executing"):
             schedulers = Custom("Scheduler(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
@@ -88,7 +92,11 @@ def generate_distributed_airflow_diagram():
         with Cluster("UI"):
             webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
-        webservers >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> operations_user
+        (
+            webservers
+            >> Edge(color="black", style="solid", reverse=True, label="operate\n\n")
+            >> operations_user
+        )
 
         metadata_db >> Edge(color="red", style="dotted", reverse=True) >> webservers
 
@@ -96,14 +104,26 @@ def generate_distributed_airflow_diagram():
         dag_files >> Edge(color="brown", style="solid", label="sync\n") >> schedulers
         dag_files >> Edge(color="brown", style="solid", label="sync\n") >> triggerer
 
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> workers
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> schedulers
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install\n\n")
+            >> workers
+        )
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install\n\n")
+            >> schedulers
+        )
         (
             plugins_and_packages
             >> Edge(color="blue", style="solid", taillabel="install\n\n\n\n\n\n\n")
             >> triggerer
         )
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> webservers
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install\n\n")
+            >> webservers
+        )
 
     console.print(f"[green]Generating architecture image {image_file}")
 

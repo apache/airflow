@@ -23,7 +23,9 @@ from unittest import mock
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3Operator
+from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import (
+    AzureBlobStorageToS3Operator,
+)
 
 TASK_ID = "test-gcs-list-operator"
 CONTAINER_NAME = "test-container"
@@ -191,7 +193,9 @@ class TestAzureBlobToS3Operator:
         s3_acl_policy = "test policy"
         s3_extra_args = {"ContentLanguage": "value"}
 
-        wasb_hook_mock.return_value.get_blobs_list_recursive.return_value = [wasb_blob_name]
+        wasb_hook_mock.return_value.get_blobs_list_recursive.return_value = [
+            wasb_blob_name
+        ]
         wasb_hook_mock.return_value.download.return_value = RawIOBase()
         mock_tempfile.return_value.__enter__.return_value.name = "test_temp_file"
 
@@ -209,7 +213,9 @@ class TestAzureBlobToS3Operator:
         )
 
         operator.execute(None)
-        s3_hook_mock.assert_called_once_with(aws_conn_id="aws_default", extra_args=s3_extra_args, verify=None)
+        s3_hook_mock.assert_called_once_with(
+            aws_conn_id="aws_default", extra_args=s3_extra_args, verify=None
+        )
         mock_load_files.assert_called_once_with(
             filename="test_temp_file",
             key=f"{S3_BUCKET}{wasb_blob_name}",

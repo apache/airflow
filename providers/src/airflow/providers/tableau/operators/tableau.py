@@ -101,7 +101,9 @@ class TableauOperator(BaseOperator):
         """
         available_resources = RESOURCES_METHODS.keys()
         if self.resource not in available_resources:
-            error_message = f"Resource not found! Available Resources: {available_resources}"
+            error_message = (
+                f"Resource not found! Available Resources: {available_resources}"
+            )
             raise AirflowException(error_message)
 
         available_methods = RESOURCES_METHODS[self.resource]
@@ -126,7 +128,9 @@ class TableauOperator(BaseOperator):
                         check_interval=self.check_interval,
                         target_state=TableauJobFinishCode.SUCCESS,
                     ):
-                        raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
+                        raise TableauJobFailedException(
+                            f"The Tableau Refresh {self.resource} Job failed!"
+                        )
 
         return job_id
 
@@ -140,4 +144,6 @@ class TableauOperator(BaseOperator):
                 self.log.info("Found matching with id %s", resource_id)
                 return resource_id
 
-        raise AirflowException(f"{self.resource} with {self.match_with} {self.find} not found!")
+        raise AirflowException(
+            f"{self.resource} with {self.match_with} {self.find} not found!"
+        )

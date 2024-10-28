@@ -105,7 +105,9 @@ def spark_read_from_jdbc(
 ) -> None:
     """Transfer data from JDBC source to Spark."""
     # first set common options
-    reader = set_common_options(spark_session.read, url, jdbc_table, user, password, driver)
+    reader = set_common_options(
+        spark_session.read, url, jdbc_table, user, password, driver
+    )
 
     # now set specific read options
     if fetch_size:
@@ -141,7 +143,9 @@ def _parse_arguments(args: list[str] | None = None) -> Any:
     parser.add_argument("-partitionColumn", dest="partition_column", action="store")
     parser.add_argument("-lowerBound", dest="lower_bound", action="store")
     parser.add_argument("-upperBound", dest="upper_bound", action="store")
-    parser.add_argument("-createTableColumnTypes", dest="create_table_column_types", action="store")
+    parser.add_argument(
+        "-createTableColumnTypes", dest="create_table_column_types", action="store"
+    )
     return parser.parse_args(args=args)
 
 

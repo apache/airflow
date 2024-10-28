@@ -48,7 +48,9 @@ global_version = tuple(
 
 
 if global_version < required_version:
-    console.print(f"[red]Python {required_version_str} or higher is required to install pre-commit.\n")
+    console.print(
+        f"[red]Python {required_version_str} or higher is required to install pre-commit.\n"
+    )
     console.print(f"[green]Current version is {global_version}\n")
     console.print(
         "[bright_yellow]Please follow those steps:[/]\n\n"

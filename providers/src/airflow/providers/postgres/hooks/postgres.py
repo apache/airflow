@@ -83,7 +83,11 @@ class PostgresHook(DbApiHook):
     supports_executemany = True
 
     def __init__(
-        self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
+        self,
+        *args,
+        options: str | None = None,
+        enable_log_db_messages: bool = False,
+        **kwargs,
     ) -> None:
         if "schema" in kwargs:
             warnings.warn(
@@ -144,7 +148,9 @@ class PostgresHook(DbApiHook):
             return cursor_types[_cursor]
         else:
             valid_cursors = ", ".join(cursor_types.keys())
-            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
+            raise ValueError(
+                f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}"
+            )
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""
@@ -198,7 +204,9 @@ class PostgresHook(DbApiHook):
             with open(filename, "w"):
                 pass
 
-        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
+        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(
+            conn.cursor()
+        ) as cur:
             cur.copy_expert(sql, file)
             file.truncate(file.tell())
             conn.commit()
@@ -260,8 +268,12 @@ class PostgresHook(DbApiHook):
             port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-            cluster_identifier = conn.extra_dejson.get("cluster-identifier", conn.host.split(".")[0])
-            redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
+            cluster_identifier = conn.extra_dejson.get(
+                "cluster-identifier", conn.host.split(".")[0]
+            )
+            redshift_client = AwsBaseHook(
+                aws_conn_id=aws_conn_id, client_type="redshift"
+            ).conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
                 DbUser=login,
@@ -278,7 +290,9 @@ class PostgresHook(DbApiHook):
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
-    def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
+    def get_table_primary_key(
+        self, table: str, schema: str | None = "public"
+    ) -> list[str] | None:
         """
         Get the table's primary key.
 
@@ -301,7 +315,12 @@ class PostgresHook(DbApiHook):
         return pk_columns or None
 
     def _generate_insert_sql(
-        self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
+        self,
+        table: str,
+        values: tuple[str, ...],
+        target_fields: Iterable[str],
+        replace: bool,
+        **kwargs,
     ) -> str:
         """
         Generate the INSERT SQL statement.
@@ -331,9 +350,13 @@ class PostgresHook(DbApiHook):
 
         if replace:
             if not target_fields:
-                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
+                raise ValueError(
+                    "PostgreSQL ON CONFLICT upsert syntax requires column names"
+                )
             if not replace_index:
-                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
+                raise ValueError(
+                    "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
+                )
             if isinstance(replace_index, str):
                 replace_index = [replace_index]
 
@@ -341,7 +364,9 @@ class PostgresHook(DbApiHook):
             replace_target = [f for f in target_fields if f not in replace_index]
 
             if replace_target:
-                replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)
+                replace_target_str = ", ".join(
+                    f"{col} = excluded.{col}" for col in replace_target
+                )
                 sql += f"{on_conflict_str} DO UPDATE SET {replace_target_str}"
             else:
                 sql += f"{on_conflict_str} DO NOTHING"
@@ -380,14 +405,18 @@ class PostgresHook(DbApiHook):
         aws_conn_id = connection.extra_dejson.get("aws_conn_id", "aws_default")
 
         port = connection.port or 5439
-        cluster_identifier = connection.extra_dejson.get("cluster-identifier", connection.host.split(".")[0])
+        cluster_identifier = connection.extra_dejson.get(
+            "cluster-identifier", connection.host.split(".")[0]
+        )
         region_name = AwsBaseHook(aws_conn_id=aws_conn_id).region_name
 
         return f"{cluster_identifier}.{region_name}:{port}"
 
     def get_openlineage_database_dialect(self, connection) -> str:
         """Return postgres/redshift dialect."""
-        return "redshift" if connection.extra_dejson.get("redshift", False) else "postgres"
+        return (
+            "redshift" if connection.extra_dejson.get("redshift", False) else "postgres"
+        )
 
     def get_openlineage_default_schema(self) -> str | None:
         """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""

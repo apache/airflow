@@ -105,17 +105,23 @@ class BaseTIDep:
         cxt = DepContext() if dep_context is None else dep_context
 
         if self.IGNORABLE and cxt.ignore_all_deps:
-            yield self._passing_status(reason="Context specified all dependencies should be ignored.")
+            yield self._passing_status(
+                reason="Context specified all dependencies should be ignored."
+            )
             return
 
         if self.IS_TASK_DEP and cxt.ignore_task_deps:
-            yield self._passing_status(reason="Context specified all task dependencies should be ignored.")
+            yield self._passing_status(
+                reason="Context specified all task dependencies should be ignored."
+            )
             return
 
         yield from self._get_dep_statuses(ti, session, cxt)
 
     @provide_session
-    def is_met(self, ti: TaskInstance, session: Session, dep_context: DepContext | None = None) -> bool:
+    def is_met(
+        self, ti: TaskInstance, session: Session, dep_context: DepContext | None = None
+    ) -> bool:
         """
         Return whether a dependency is met for a given task instance.
 
@@ -126,7 +132,9 @@ class BaseTIDep:
         :param dep_context: The context this dependency is being checked under that stores
             state that can be used by this dependency.
         """
-        return all(status.passed for status in self.get_dep_statuses(ti, session, dep_context))
+        return all(
+            status.passed for status in self.get_dep_statuses(ti, session, dep_context)
+        )
 
     @provide_session
     def get_failure_reasons(

@@ -74,7 +74,10 @@ class TestDb:
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             engine.connect(),
-            opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
+            opts={
+                "compare_type": compare_type,
+                "compare_server_default": compare_server_default,
+            },
         )
         diff = compare_metadata(mctx, all_meta_data)
 
@@ -101,7 +104,9 @@ class TestDb:
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 
-        assert not diff, "Database schema and SQLAlchemy model are not in sync: " + str(diff)
+        assert not diff, "Database schema and SQLAlchemy model are not in sync: " + str(
+            diff
+        )
 
     def test_only_single_head_revision_in_migrations(self):
         config = Config()
@@ -144,8 +149,15 @@ class TestDb:
     def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
         with mock.patch("airflow.utils.db.settings.engine.dialect"):
             with mock.patch("alembic.command.upgrade"):
-                with pytest.raises(ValueError, match="Error while checking history for revision range *:*"):
-                    upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
+                with pytest.raises(
+                    ValueError,
+                    match="Error while checking history for revision range *:*",
+                ):
+                    upgradedb(
+                        from_revision=from_revision,
+                        to_revision=to_revision,
+                        show_sql_only=True,
+                    )
 
     @pytest.mark.parametrize(
         "to_revision, from_revision",
@@ -157,7 +169,11 @@ class TestDb:
         with mock.patch("airflow.utils.db.settings.engine.dialect"):
             with mock.patch("alembic.command.upgrade"):
                 with redirect_stdout(StringIO()) as temp_stdout:
-                    upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
+                    upgradedb(
+                        to_revision=to_revision,
+                        from_revision=from_revision,
+                        show_sql_only=True,
+                    )
                 stdout = temp_stdout.getvalue()
                 assert "nothing to do" in stdout
 
@@ -176,7 +192,9 @@ class TestDb:
     def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
-            with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
+            with pytest.raises(
+                SystemExit, match="Offline migration not supported for SQLite"
+            ):
                 upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
     @mock.patch("airflow.utils.db._offline_migration")
@@ -205,7 +223,12 @@ class TestDb:
 
     @pytest.mark.parametrize("skip_init", [False, True])
     @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+        {
+            (
+                "database",
+                "external_db_managers",
+            ): "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        }
     )
     @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
@@ -241,7 +264,9 @@ class TestDb:
 
     def test_alembic_configuration(self):
         with mock.patch.dict(
-            os.environ, {"AIRFLOW__DATABASE__ALEMBIC_INI_FILE_PATH": "/tmp/alembic.ini"}, clear=True
+            os.environ,
+            {"AIRFLOW__DATABASE__ALEMBIC_INI_FILE_PATH": "/tmp/alembic.ini"},
+            clear=True,
         ):
             config = _get_alembic_config()
             assert config.config_file_name == "/tmp/alembic.ini"
@@ -250,4 +275,6 @@ class TestDb:
         config = _get_alembic_config()
         import airflow
 
-        assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
+        assert config.config_file_name == os.path.join(
+            os.path.dirname(airflow.__file__), "alembic.ini"
+        )

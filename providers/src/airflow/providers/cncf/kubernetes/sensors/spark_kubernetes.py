@@ -88,7 +88,9 @@ class SparkKubernetesSensor(BaseSensorOperator):
             return
         driver_pod_name = driver_info["podName"]
         namespace = response["metadata"]["namespace"]
-        log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
+        log_method = (
+            self.log.error if application_state in self.FAILURE_STATES else self.log.info
+        )
         try:
             log = ""
             for line in self.hook.get_pod_logs(
@@ -121,7 +123,10 @@ class SparkKubernetesSensor(BaseSensorOperator):
         except KeyError:
             return False
 
-        if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
+        if (
+            self.attach_log
+            and application_state in self.FAILURE_STATES + self.SUCCESS_STATES
+        ):
             self._log_driver(application_state, response)
 
         if application_state in self.FAILURE_STATES:

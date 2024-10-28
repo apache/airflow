@@ -74,7 +74,9 @@ class AwsTaskLogFetcher(Thread):
                 self.logger.info(self.event_to_str(log_event))
                 prev_timestamp_event = current_timestamp_event
 
-    def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
+    def _get_log_events(
+        self, skip_token: AwsLogsHook.ContinuationToken | None = None
+    ) -> Generator:
         if skip_token is None:
             skip_token = AwsLogsHook.ContinuationToken()
         try:
@@ -94,7 +96,9 @@ class AwsTaskLogFetcher(Thread):
                 )
             yield from ()
         except ConnectionClosedError as error:
-            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
+            self.logger.warning(
+                "ConnectionClosedError on retrieving Cloudwatch log events", error
+            )
             yield from ()
 
     @staticmethod

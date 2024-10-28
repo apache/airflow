@@ -246,7 +246,9 @@ class CloudDLPCreateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         result = DeidentifyTemplate.to_dict(template)
 
         project_id = self.project_id or hook.project_id
-        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
+        template_id = (
+            self.template_id or result["name"].split("/")[-1] if result["name"] else None
+        )
         if project_id and template_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
                 context=context,
@@ -467,7 +469,9 @@ class CloudDLPCreateInspectTemplateOperator(GoogleCloudBaseOperator):
 
         result = InspectTemplate.to_dict(template)
 
-        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
+        template_id = (
+            self.template_id or result["name"].split("/")[-1] if result["name"] else None
+        )
         project_id = self.project_id or hook.project_id
         if project_id and template_id:
             CloudDLPInspectTemplateDetailsLink.persist(
@@ -686,7 +690,9 @@ class CloudDLPCreateStoredInfoTypeOperator(GoogleCloudBaseOperator):
 
         project_id = self.project_id or hook.project_id
         stored_info_type_id = (
-            self.stored_info_type_id or result["name"].split("/")[-1] if result["name"] else None
+            self.stored_info_type_id or result["name"].split("/")[-1]
+            if result["name"]
+            else None
         )
         if project_id and stored_info_type_id:
             CloudDLPInfoTypeDetailsLink.persist(
@@ -1317,7 +1323,10 @@ class CloudDLPGetDeidentifyTemplateOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
-                context=context, task_instance=self, project_id=project_id, template_name=self.template_id
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                template_name=self.template_id,
             )
 
         return DeidentifyTemplate.to_dict(template)
@@ -2362,7 +2371,8 @@ class CloudDLPRedactImageOperator(GoogleCloudBaseOperator):
         *,
         project_id: str = PROVIDE_PROJECT_ID,
         inspect_config: dict | InspectConfig | None = None,
-        image_redaction_configs: None | (list[dict] | list[RedactImageRequest.ImageRedactionConfig]) = None,
+        image_redaction_configs: None
+        | (list[dict] | list[RedactImageRequest.ImageRedactionConfig]) = None,
         include_findings: bool | None = None,
         byte_item: dict | ByteContentItem | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

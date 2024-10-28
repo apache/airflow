@@ -57,21 +57,36 @@ class TestGetEksToken:
                 "test-region",
             ],
             [
-                ["airflow.providers.amazon.aws.utils.eks_get_token", "--cluster-name", "test-cluster"],
+                [
+                    "airflow.providers.amazon.aws.utils.eks_get_token",
+                    "--cluster-name",
+                    "test-cluster",
+                ],
                 None,
                 None,
             ],
         ],
     )
-    def test_run(self, mock_eks_hook, args, expected_aws_conn_id, expected_region_name, providers_src_folder):
+    def test_run(
+        self,
+        mock_eks_hook,
+        args,
+        expected_aws_conn_id,
+        expected_region_name,
+        providers_src_folder,
+    ):
         (
             mock_eks_hook.return_value.fetch_access_token_for_cluster.return_value
         ) = "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
 
-        with mock.patch("sys.argv", args), contextlib.redirect_stdout(StringIO()) as temp_stdout:
+        with mock.patch("sys.argv", args), contextlib.redirect_stdout(
+            StringIO()
+        ) as temp_stdout:
             os.chdir(providers_src_folder)
             # We are not using run_module because of https://github.com/pytest-dev/pytest/issues/9007
-            runpy.run_path("airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__")
+            runpy.run_path(
+                "airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__"
+            )
         output = temp_stdout.getvalue()
         token = "token: k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
         expected_token = output.split(",")[1].strip()
@@ -81,4 +96,6 @@ class TestGetEksToken:
         mock_eks_hook.assert_called_once_with(
             aws_conn_id=expected_aws_conn_id, region_name=expected_region_name
         )
-        mock_eks_hook.return_value.fetch_access_token_for_cluster.assert_called_once_with("test-cluster")
+        mock_eks_hook.return_value.fetch_access_token_for_cluster.assert_called_once_with(
+            "test-cluster"
+        )

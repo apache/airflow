@@ -21,7 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.common.deprecated import AirflowDeprecationAdapter, deprecated
+from airflow.providers.google.common.deprecated import (
+    AirflowDeprecationAdapter,
+    deprecated,
+)
 
 ADAPTER_PATH = "airflow.providers.google.common.deprecated"
 ADAPTER_CLASS_PATH = f"{ADAPTER_PATH}.AirflowDeprecationAdapter"
@@ -31,7 +34,9 @@ class TestAirflowDeprecationAdapter:
     @mock.patch(f"{ADAPTER_CLASS_PATH}._validate_fields")
     @mock.patch(f"{ADAPTER_CLASS_PATH}._validate_removal_release")
     @mock.patch(f"{ADAPTER_CLASS_PATH}._validate_date")
-    def test_init(self, mock_validate_date, mock_validate_removal_release, mock_validate_fields):
+    def test_init(
+        self, mock_validate_date, mock_validate_removal_release, mock_validate_fields
+    ):
         mock_date = mock_validate_date.return_value
         mock_release = mock_validate_removal_release.return_value
 
@@ -90,7 +95,10 @@ class TestAirflowDeprecationAdapter:
         ],
     )
     def test_validate_removal_release(self, release_string):
-        assert AirflowDeprecationAdapter._validate_removal_release(release_string) == release_string
+        assert (
+            AirflowDeprecationAdapter._validate_removal_release(release_string)
+            == release_string
+        )
 
     def test_validate_removal_release_none(self):
         assert AirflowDeprecationAdapter._validate_removal_release(None) is None
@@ -146,7 +154,12 @@ class TestAirflowDeprecationAdapter:
     @pytest.mark.parametrize(
         "module_path, qualified_name, _str, expected_path",
         [
-            ("test-module", "test-qualified-name", "test-str", "test-module.test-qualified-name"),
+            (
+                "test-module",
+                "test-qualified-name",
+                "test-str",
+                "test-module.test-qualified-name",
+            ),
             ("test-module", "", "test-str", "test-module"),
             ("", "test-qualified-name", "test-str", "test-str"),
             ("", "", "test-str", "test-str"),
@@ -173,7 +186,9 @@ class TestAirflowDeprecationAdapter:
             (None, None, "in the future"),
         ],
     )
-    def test_sunset_message(self, planned_removal_date, planned_removal_release, expected_message):
+    def test_sunset_message(
+        self, planned_removal_date, planned_removal_release, expected_message
+    ):
         adapter = AirflowDeprecationAdapter(
             planned_removal_date=planned_removal_date,
             planned_removal_release=planned_removal_release,
@@ -219,18 +234,21 @@ class TestAirflowDeprecationAdapter:
         entity_path = mock_entity_path.return_value
         entity_type = mock_entity_type.return_value
 
-        expected_message = (
-            f"The {entity_type} `{entity_path}` is deprecated and will be removed {sunset}. {replacement}"
-        )
+        expected_message = f"The {entity_type} `{entity_path}` is deprecated and will be removed {sunset}. {replacement}"
         if reason:
             expected_message += f" The reason is: {reason}"
         if instructions:
             expected_message += f" Instructions: {instructions}"
 
         mock_wrapped = mock.MagicMock()
-        adapter = AirflowDeprecationAdapter(reason=mock_wrapped, instructions=instructions)
+        adapter = AirflowDeprecationAdapter(
+            reason=mock_wrapped, instructions=instructions
+        )
 
-        assert adapter.get_deprecated_msg(mock.MagicMock(), mock.MagicMock()) == expected_message
+        assert (
+            adapter.get_deprecated_msg(mock.MagicMock(), mock.MagicMock())
+            == expected_message
+        )
         mock_entity_type.assert_called_once_with(entity=mock_wrapped)
         mock_entity_path.assert_called_once_with(entity=mock_wrapped)
         mock_sunset_message.assert_called_once_with()
@@ -261,4 +279,6 @@ def test_deprecated(mock_standard_deprecated):
 
     deprecated(*extra_args, **{**kwargs, **extra_kwargs})
 
-    mock_standard_deprecated.assert_called_once_with(*extra_args, **{**kwargs, **extra_kwargs})
+    mock_standard_deprecated.assert_called_once_with(
+        *extra_args, **{**kwargs, **extra_kwargs}
+    )

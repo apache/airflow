@@ -25,9 +25,16 @@ import pytest
 from airflow.models import DagBag
 from airflow.security import permissions
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_code,
+    clear_db_dags,
+    clear_db_serialized_dags,
+)
 
 pytestmark = [
     pytest.mark.db_test,
@@ -104,7 +111,9 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = self.client.get(
-            url, headers={"Accept": "image/webp"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "image/webp"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 406 == response.status_code
@@ -126,7 +135,9 @@ class TestGetSource:
         assert response.status_code == 403
         assert read_dag.status_code == 403
 
-    def test_should_respond_403_some_dags_not_readable_in_the_file(self, url_safe_serializer):
+    def test_should_respond_403_some_dags_not_readable_in_the_file(
+        self, url_safe_serializer
+    ):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         dag: DAG = dagbag.dags[TEST_MULTIPLE_DAGS_ID]

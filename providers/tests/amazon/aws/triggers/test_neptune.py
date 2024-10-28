@@ -41,7 +41,10 @@ class TestNeptuneClusterAvailableTrigger:
         """
         trigger = NeptuneClusterAvailableTrigger(db_cluster_id=CLUSTER_ID)
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.neptune.NeptuneClusterAvailableTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.neptune.NeptuneClusterAvailableTrigger"
+        )
         assert "db_cluster_id" in kwargs
         assert kwargs["db_cluster_id"] == CLUSTER_ID
 
@@ -67,7 +70,10 @@ class TestNeptuneClusterStoppedTrigger:
         """
         trigger = NeptuneClusterStoppedTrigger(db_cluster_id=CLUSTER_ID)
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.neptune.NeptuneClusterStoppedTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.neptune.NeptuneClusterStoppedTrigger"
+        )
         assert "db_cluster_id" in kwargs
         assert kwargs["db_cluster_id"] == CLUSTER_ID
 
@@ -119,7 +125,9 @@ class TestNeptuneClusterInstancesAvailableTrigger:
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
-        wait_mock.side_effect = WaiterError("name", "reason", {"test": [{"lastStatus": "my_status"}]})
+        wait_mock.side_effect = WaiterError(
+            "name", "reason", {"test": [{"lastStatus": "my_status"}]}
+        )
         a_mock.get_waiter().wait = wait_mock
         trigger = NeptuneClusterInstancesAvailableTrigger(
             db_cluster_id=CLUSTER_ID, waiter_delay=1, waiter_max_attempts=2

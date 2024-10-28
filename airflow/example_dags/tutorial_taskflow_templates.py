@@ -72,7 +72,9 @@ def tutorial_taskflow_templates():
 
         # Will print...
         # run_id: scheduled__2024-10-09T00:00:00+00:00; params.other_param: from_dag
-        template_str = "run_id: {{ run_id }}; params.other_param: {{ params.other_param }}"
+        template_str = (
+            "run_id: {{ run_id }}; params.other_param: {{ params.other_param }}"
+        )
         rendered_template = context["task"].render_template(
             template_str,
             context,

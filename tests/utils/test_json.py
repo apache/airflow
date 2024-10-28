@@ -74,7 +74,9 @@ class TestWebEncoder:
         assert json.dumps(np.bool_(True), cls=utils_json.WebEncoder) == "true"
 
     def test_encode_numpy_float(self):
-        assert json.dumps(np.float16(3.76953125), cls=utils_json.WebEncoder) == "3.76953125"
+        assert (
+            json.dumps(np.float16(3.76953125), cls=utils_json.WebEncoder) == "3.76953125"
+        )
 
 
 class TestXComEncoder:
@@ -115,22 +117,34 @@ class TestXComEncoder:
         x = 14
         u = U(x=x)
         s = json.dumps(u, cls=utils_json.XComEncoder)
-        o = json.loads(s, cls=utils_json.XComDecoder, object_hook=utils_json.XComDecoder.orm_object_hook)
+        o = json.loads(
+            s,
+            cls=utils_json.XComDecoder,
+            object_hook=utils_json.XComDecoder.orm_object_hook,
+        )
         assert o == f"{U.__module__}.{U.__qualname__}@version={U.__version__}(x={x})"
 
     def test_collections(self):
         i = [1, 2]
-        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        e = json.loads(
+            json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder
+        )
         assert i == e
 
         i = ("a", "b", "a", "c")
-        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        e = json.loads(
+            json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder
+        )
         assert i == e
 
         i = {2, 3}
-        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        e = json.loads(
+            json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder
+        )
         assert i == e
 
         i = frozenset({6, 7})
-        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        e = json.loads(
+            json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder
+        )
         assert i == e

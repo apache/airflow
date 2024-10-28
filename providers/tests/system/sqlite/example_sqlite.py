@@ -72,7 +72,9 @@ with DAG(
 
         rows = [("James", "11"), ("James", "22"), ("James", "33")]
         target_fields = ["first_name", "last_name"]
-        sqlite_hook.insert_rows(table="Customers", rows=rows, target_fields=target_fields, replace=True)
+        sqlite_hook.insert_rows(
+            table="Customers", rows=rows, target_fields=target_fields, replace=True
+        )
 
     # [START howto_operator_sqlite_external_file]
 

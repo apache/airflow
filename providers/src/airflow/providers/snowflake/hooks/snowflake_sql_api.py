@@ -132,7 +132,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             )
 
     def execute_query(
-        self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
+        self,
+        sql: str,
+        statement_count: int,
+        query_tag: str = "",
+        bindings: dict[str, Any] | None = None,
     ) -> list[str]:
         """
         Run the query in Snowflake using SnowflakeSQL API by making API request.
@@ -151,7 +155,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         req_id = uuid.uuid4()
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
-        params: dict[str, Any] | None = {"requestId": str(req_id), "async": True, "pageSize": 10}
+        params: dict[str, Any] | None = {
+            "requestId": str(req_id),
+            "async": True,
+            "pageSize": 10,
+        }
         headers = self.get_headers()
         sql_is_multi_stmt = ";" in sql.strip()
         if not isinstance(bindings, dict) and bindings is not None:
@@ -190,7 +198,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif "statementHandle" in json_response:
             self.query_ids.append(json_response["statementHandle"])
         else:
-            raise AirflowException("No statementHandle/statementHandles present in response")
+            raise AirflowException(
+                "No statementHandle/statementHandles present in response"
+            )
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
@@ -199,7 +209,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
         if all(
-            [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
+            [
+                conn_config.get("refresh_token"),
+                conn_config.get("client_id"),
+                conn_config.get("client_secret"),
+            ]
         ):
             oauth_token = self.get_oauth_token()
             headers = {
@@ -257,7 +271,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             raise AirflowException(msg)
         return response.json()["access_token"]
 
-    def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
+    def get_request_url_header_params(
+        self, query_id: str
+    ) -> tuple[dict[str, Any], dict[str, Any], str]:
         """
         Build the request header Url with account name identifier and query id from the connection params.
 
@@ -319,7 +335,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         resp = response.json()
         return self._process_response(status_code, resp)
 
-    async def get_sql_api_query_status_async(self, query_id: str) -> dict[str, str | list[str]]:
+    async def get_sql_api_query_status_async(
+        self, query_id: str
+    ) -> dict[str, str | list[str]]:
         """
         Based on the query id async HTTP request is made to snowflake SQL API and return response.
 

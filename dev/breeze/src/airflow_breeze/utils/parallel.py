@@ -55,7 +55,9 @@ def _init_worker(verbose: bool, dry_run: bool, forced_answer: str | None):
 
 def create_pool(parallelism: int) -> Pool:
     return Pool(
-        parallelism, initializer=_init_worker, initargs=(get_verbose(), get_dry_run(), get_forced_answer())
+        parallelism,
+        initializer=_init_worker,
+        initargs=(get_verbose(), get_dry_run(), get_forced_answer()),
     )
 
 
@@ -69,7 +71,9 @@ def get_temp_file_name() -> str:
 def get_output_files(titles: list[str]) -> list[Output]:
     outputs = [Output(title=title, file_name=get_temp_file_name()) for title in titles]
     for out in outputs:
-        get_console().print(f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}")
+        get_console().print(
+            f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}"
+        )
     return outputs
 
 
@@ -77,7 +81,11 @@ def nice_timedelta(delta: datetime.timedelta):
     d = {"d": delta.days}
     d["h"], rem = divmod(delta.seconds, 3600)
     d["m"], d["s"] = divmod(rem, 60)
-    return "{d} days {h:02}:{m:02}:{s:02}".format(**d) if d["d"] else "{h:02}:{m:02}:{s:02}".format(**d)
+    return (
+        "{d} days {h:02}:{m:02}:{s:02}".format(**d)
+        if d["d"]
+        else "{h:02}:{m:02}:{s:02}".format(**d)
+    )
 
 
 ANSI_COLOUR_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
@@ -87,7 +95,9 @@ def remove_ansi_colours(line: str):
     return ANSI_COLOUR_MATCHER.sub("", line)
 
 
-def get_last_lines_of_file(file_name: str, num_lines: int = 2) -> tuple[list[str], list[str]]:
+def get_last_lines_of_file(
+    file_name: str, num_lines: int = 2
+) -> tuple[list[str], list[str]]:
     """
     Get last lines of a file efficiently, without reading the whole file (with some limitations).
     Assumptions ara that line length not bigger than ~180 chars.
@@ -132,7 +142,9 @@ class DockerBuildxProgressMatcher(AbstractProgressInfoMatcher):
         self.last_docker_build_lines: dict[str, str] = {}
 
     def get_best_matching_lines(self, output: Output) -> list[str] | None:
-        last_lines, last_lines_no_colors = get_last_lines_of_file(output.file_name, num_lines=5)
+        last_lines, last_lines_no_colors = get_last_lines_of_file(
+            output.file_name, num_lines=5
+        )
         best_progress: int = 0
         best_line: str | None = None
         for index, line in enumerate(last_lines_no_colors):
@@ -173,7 +185,9 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
         self.last_good_match: dict[str, str] = {}
         self.matcher = re.compile(regexp)
         self.lines_to_search = lines_to_search
-        self.matcher_for_joined_line = re.compile(regexp_for_joined_line) if regexp_for_joined_line else None
+        self.matcher_for_joined_line = (
+            re.compile(regexp_for_joined_line) if regexp_for_joined_line else None
+        )
 
     def get_best_matching_lines(self, output: Output) -> list[str] | None:
         last_lines, last_lines_no_colors = get_last_lines_of_file(
@@ -186,7 +200,9 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
             if match:
                 best_line = last_lines[index]
                 if self.matcher_for_joined_line is not None and index > 0:
-                    if self.matcher_for_joined_line.match(last_lines_no_colors[index - 1]):
+                    if self.matcher_for_joined_line.match(
+                        last_lines_no_colors[index - 1]
+                    ):
                         previous_line = last_lines[index - 1].strip()
         if best_line is not None:
             if self.matcher_for_joined_line is not None and previous_line is not None:
@@ -274,7 +290,9 @@ class ParallelMonitor(Thread):
         self,
         outputs: list[Output],
         initial_time_in_seconds: int = 2,
-        time_in_seconds: int = int(os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")),
+        time_in_seconds: int = int(
+            os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")
+        ),
         debug_resources: bool = False,
         progress_matcher: AbstractProgressInfoMatcher | None = None,
     ):
@@ -288,14 +306,19 @@ class ParallelMonitor(Thread):
 
     def print_single_progress(self, output: Output):
         if self.progress_matcher:
-            progress_lines: list[str] | None = self.progress_matcher.get_best_matching_lines(output)
+            progress_lines: list[str] | None = (
+                self.progress_matcher.get_best_matching_lines(output)
+            )
             if progress_lines is not None:
                 first_line = True
                 for index, line in enumerate(progress_lines):
                     if len(remove_ansi_colours(line)) > MAX_LINE_LENGTH:
                         # This is a bit cheating - the line will be much shorter in case it contains colors
                         # Also we need to clear color just in case color reset is removed by textwrap.shorten
-                        current_line = textwrap.shorten(progress_lines[index], MAX_LINE_LENGTH) + "\033[0;0m"
+                        current_line = (
+                            textwrap.shorten(progress_lines[index], MAX_LINE_LENGTH)
+                            + "\033[0;0m"
+                        )
                     else:
                         current_line = progress_lines[index]
                     if current_line:
@@ -306,9 +329,15 @@ class ParallelMonitor(Thread):
                         print(f"{prefix}{current_line}\033[0;0m")
                         first_line = False
             else:
-                size = os.path.getsize(output.file_name) if Path(output.file_name).exists() else 0
+                size = (
+                    os.path.getsize(output.file_name)
+                    if Path(output.file_name).exists()
+                    else 0
+                )
                 default_output = f"File: {output.file_name} Size: {size:>10} bytes"
-                get_console().print(f"Progress: {output.escaped_title[:30]:<30} {default_output:>161}")
+                get_console().print(
+                    f"Progress: {output.escaped_title[:30]:<30} {default_output:>161}"
+                )
 
     def print_summary(self):
         import psutil
@@ -319,14 +348,20 @@ class ParallelMonitor(Thread):
             self.print_single_progress(output)
         get_console().rule(title=f"Time passed: {nice_timedelta(time_passed)}")
         if self.debug_resources:
-            get_console().print(get_single_tuple_array("Virtual memory", psutil.virtual_memory()))
+            get_console().print(
+                get_single_tuple_array("Virtual memory", psutil.virtual_memory())
+            )
             disk_stats = []
             for partition in psutil.disk_partitions(all=True):
                 if partition.fstype not in IGNORED_FSTYPES:
                     try:
-                        disk_stats.append((partition, psutil.disk_usage(partition.mountpoint)))
+                        disk_stats.append(
+                            (partition, psutil.disk_usage(partition.mountpoint))
+                        )
                     except Exception:
-                        get_console().print(f"No disk usage info for {partition.mountpoint}")
+                        get_console().print(
+                            f"No disk usage info for {partition.mountpoint}"
+                        )
             get_console().print(get_multi_tuple_array("Disk usage", disk_stats))
 
     def run(self):
@@ -427,7 +462,9 @@ def check_async_run_results(
         else:
             get_console().print(f"[success]{outputs[i].escaped_title} OK[/]")
     if summarize_on_ci != SummarizeAfter.NO_SUMMARY:
-        regex = re.compile(summary_start_regexp) if summary_start_regexp is not None else None
+        regex = (
+            re.compile(summary_start_regexp) if summary_start_regexp is not None else None
+        )
         for i, result in enumerate(results):
             failure = result.get()[0] != 0
             if summarize_on_ci in [
@@ -435,22 +472,37 @@ def check_async_run_results(
                 SummarizeAfter.FAILURE if failure else SummarizeAfter.SUCCESS,
             ]:
                 print_lines = False
-                for line in Path(outputs[i].file_name).read_bytes().decode(errors="ignore").splitlines():
-                    if not print_lines and (regex is None or regex.match(remove_ansi_colours(line))):
+                for line in (
+                    Path(outputs[i].file_name)
+                    .read_bytes()
+                    .decode(errors="ignore")
+                    .splitlines()
+                ):
+                    if not print_lines and (
+                        regex is None or regex.match(remove_ansi_colours(line))
+                    ):
                         print_lines = True
-                        get_console().print(f"\n[info]Summary: {outputs[i].escaped_title:<30}:\n")
+                        get_console().print(
+                            f"\n[info]Summary: {outputs[i].escaped_title:<30}:\n"
+                        )
                     if print_lines:
                         print(line)
     try:
         if errors:
-            get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
-            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+            get_console().print(
+                "\n[error]There were errors when running some tasks. Quitting.[/]\n"
+            )
+            from airflow_breeze.utils.docker_command_utils import (
+                fix_ownership_using_docker,
+            )
 
             fix_ownership_using_docker()
             sys.exit(1)
         else:
             get_console().print(f"\n[success]{success}[/]\n")
-            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+            from airflow_breeze.utils.docker_command_utils import (
+                fix_ownership_using_docker,
+            )
 
             fix_ownership_using_docker()
     finally:
@@ -464,7 +516,9 @@ def run_with_pool(
     parallelism: int,
     all_params: list[str],
     initial_time_in_seconds: int = 2,
-    time_in_seconds: int = int(os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")),
+    time_in_seconds: int = int(
+        os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")
+    ),
     debug_resources: bool = False,
     progress_matcher: AbstractProgressInfoMatcher | None = None,
 ) -> Generator[tuple[Pool, list[Output]], None, None]:

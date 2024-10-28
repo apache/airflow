@@ -40,7 +40,11 @@ class TestConsumerHook:
                 conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "localhost:9092",
+                        "group.id": "test_group",
+                    }
                 ),
             )
         )

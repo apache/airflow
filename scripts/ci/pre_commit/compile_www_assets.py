@@ -68,7 +68,9 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
+    subprocess.check_call(
+        ["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory)
+    )
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
     WWW_HASH_FILE.write_text(new_hash)

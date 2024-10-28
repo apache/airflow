@@ -23,7 +23,9 @@ import pytest
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.datafusion import PipelineStates
-from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
+from airflow.providers.google.cloud.sensors.datafusion import (
+    CloudDataFusionPipelineStateSensor,
+)
 
 LOCATION = "test-location"
 INSTANCE_NAME = "airflow-test-instance"
@@ -60,7 +62,9 @@ class TestCloudDataFusionPipelineStateSensor:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.get_pipeline_workflow.return_value = {"status": current_status}
+        mock_hook.return_value.get_pipeline_workflow.return_value = {
+            "status": current_status
+        }
         result = task.poke(mock.MagicMock())
 
         assert sensor_return == result
@@ -101,7 +105,9 @@ class TestCloudDataFusionPipelineStateSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
     def test_not_found_exception(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
-        mock_hook.return_value.get_pipeline_workflow.side_effect = AirflowNotFoundException()
+        mock_hook.return_value.get_pipeline_workflow.side_effect = (
+            AirflowNotFoundException()
+        )
 
         task = CloudDataFusionPipelineStateSensor(
             task_id="test_task_id",

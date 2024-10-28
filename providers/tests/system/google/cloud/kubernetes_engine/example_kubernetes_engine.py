@@ -37,7 +37,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 GCP_LOCATION = "europe-west1"
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
@@ -86,7 +88,11 @@ with DAG(
         do_xcom_push=True,
         namespace="default",
         image="alpine",
-        cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
+        cmds=[
+            "sh",
+            "-c",
+            "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json",
+        ],
         name="test-pod-xcom",
         in_cluster=False,
         on_finish_action="delete_pod",

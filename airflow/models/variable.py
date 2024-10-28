@@ -77,10 +77,15 @@ class Variable(Base, LoggingMixin):
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, "utf-8")).decode()
             except InvalidFernetToken:
-                self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
+                self.log.error(
+                    "Can't decrypt _val for key=%s, invalid token or value", self.key
+                )
                 return None
             except Exception:
-                self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
+                self.log.error(
+                    "Can't decrypt _val for key=%s, FERNET_KEY configuration missing",
+                    self.key,
+                )
                 return None
         else:
             return self._val
@@ -116,7 +121,12 @@ class Variable(Base, LoggingMixin):
         obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
         if obj is None:
             if default is not None:
-                Variable.set(key=key, value=default, description=description, serialize_json=deserialize_json)
+                Variable.set(
+                    key=key,
+                    value=default,
+                    description=description,
+                    serialize_json=deserialize_json,
+                )
                 return default
             else:
                 raise ValueError("Default Value must be set")
@@ -173,7 +183,11 @@ class Variable(Base, LoggingMixin):
         :param session: Session
         """
         Variable._set(
-            key=key, value=value, description=description, serialize_json=serialize_json, session=session
+            key=key,
+            value=value,
+            description=description,
+            serialize_json=serialize_json,
+            session=session,
         )
         # invalidate key in cache for faster propagation
         # we cannot save the value set because it's possible that it's shadowed by a custom backend
@@ -232,7 +246,9 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: Session
         """
-        Variable._update(key=key, value=value, serialize_json=serialize_json, session=session)
+        Variable._update(
+            key=key, value=value, serialize_json=serialize_json, session=session
+        )
         # We need to invalidate the cache for internal API cases on the client side
         SecretCache.invalidate_variable(key)
 
@@ -259,10 +275,16 @@ class Variable(Base, LoggingMixin):
             raise KeyError(f"Variable {key} does not exist")
         obj = session.scalar(select(Variable).where(Variable.key == key))
         if obj is None:
-            raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
+            raise AttributeError(
+                f"Variable {key} does not exist in the Database and cannot be updated."
+            )
 
         Variable.set(
-            key=key, value=value, description=obj.description, serialize_json=serialize_json, session=session
+            key=key,
+            value=value,
+            description=obj.description,
+            serialize_json=serialize_json,
+            session=session,
         )
 
     @staticmethod

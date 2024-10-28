@@ -39,4 +39,6 @@ class TestGitSSHKeySecret:
         )
 
         assert "release-name-ssh-secret" == jmespath.search("metadata.name", docs[0])
-        assert "Y205dElHbHpJSFJvWlNCcmFXNW4=" == jmespath.search("data.gitSshKey", docs[0])
+        assert "Y205dElHbHpJSFJvWlNCcmFXNW4=" == jmespath.search(
+            "data.gitSshKey", docs[0]
+        )

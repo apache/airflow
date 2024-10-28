@@ -113,7 +113,9 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
-        log.info("SSM contains one parameter for this test, but not the requested value: %s", e)
+        log.info(
+            "SSM contains one parameter for this test, but not the requested value: %s", e
+        )
     return value
 
 
@@ -141,7 +143,9 @@ class Variable:
         if to_split:
             self.delimiter = delimiter or ","
         elif delimiter:
-            raise ValueError(f"Variable {name} has a delimiter but split_string is set to False.")
+            raise ValueError(
+                f"Variable {name} has a delimiter but split_string is set to False."
+            )
 
         self.optional = optional
 
@@ -157,7 +161,9 @@ class Variable:
             )
 
         return self._format_value(
-            fetch_variable(key=self.name, test_name=self.test_name, optional=self.optional)
+            fetch_variable(
+                key=self.name, test_name=self.test_name, optional=self.optional
+            )
         )
 
     def set_default(self, default):
@@ -168,7 +174,9 @@ class Variable:
     def _format_value(self, value):
         if self.to_split:
             if not isinstance(value, str):
-                raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
+                raise TypeError(
+                    f"{self.name} is type {type(value)} and can not be split as requested."
+                )
             return value.split(self.delimiter)
         return value
 
@@ -195,7 +203,9 @@ class SystemTestContextBuilder:
     ):
         """Register a variable to fetch from environment or cloud parameter store"""
         if variable_name in [variable.name for variable in self.variables]:
-            raise ValueError(f"Variable name {variable_name} already exists in the fetched variables list.")
+            raise ValueError(
+                f"Variable name {variable_name} already exists in the fetched variables list."
+            )
 
         new_variable = Variable(
             name=variable_name,
@@ -342,12 +352,21 @@ def _purge_logs(
                 )["logStreams"]
 
                 for stream_name in [stream["logStreamName"] for stream in log_streams]:
-                    client.delete_log_stream(logGroupName=group, logStreamName=stream_name)
+                    client.delete_log_stream(
+                        logGroupName=group, logStreamName=stream_name
+                    )
 
-            if force_delete or not client.describe_log_streams(logGroupName=group)["logStreams"]:
+            if (
+                force_delete
+                or not client.describe_log_streams(logGroupName=group)["logStreams"]
+            ):
                 client.delete_log_group(logGroupName=group)
         except ClientError as e:
-            if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":
+            if (
+                not retry
+                or retry_times == 0
+                or e.response["Error"]["Code"] != "ResourceNotFoundException"
+            ):
                 raise e
 
             time.sleep(PURGE_LOGS_INTERVAL_PERIOD)

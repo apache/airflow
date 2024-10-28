@@ -35,7 +35,9 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValidationMixin):
+class BigtableTableReplicationCompletedSensor(
+    BaseSensorOperator, BigtableValidationMixin
+):
     """
     Sensor that waits for Cloud Bigtable table to be fully replicated to its clusters.
 
@@ -93,16 +95,22 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        instance = hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        )
         if not instance:
             self.log.info("Dependency: instance '%s' does not exist.", self.instance_id)
             return False
 
         try:
-            cluster_states = hook.get_cluster_states_for_table(instance=instance, table_id=self.table_id)
+            cluster_states = hook.get_cluster_states_for_table(
+                instance=instance, table_id=self.table_id
+            )
         except google.api_core.exceptions.NotFound:
             self.log.info(
-                "Dependency: table '%s' does not exist in instance '%s'.", self.table_id, self.instance_id
+                "Dependency: table '%s' does not exist in instance '%s'.",
+                self.table_id,
+                self.instance_id,
             )
             return False
 
@@ -111,7 +119,11 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         is_table_replicated = True
         for cluster_id in cluster_states.keys():
             if cluster_states[cluster_id] != ready_state:
-                self.log.info("Table '%s' is not yet replicated on cluster '%s'.", self.table_id, cluster_id)
+                self.log.info(
+                    "Table '%s' is not yet replicated on cluster '%s'.",
+                    self.table_id,
+                    cluster_id,
+                )
                 is_table_replicated = False
 
         if not is_table_replicated:

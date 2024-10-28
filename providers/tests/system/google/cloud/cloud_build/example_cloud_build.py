@@ -43,7 +43,9 @@ from airflow.providers.standard.operators.bash import BashOperator
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcp_cloud_build"
 
@@ -66,7 +68,9 @@ CREATE_BUILD_FROM_STORAGE_BODY = {
 
 # [START howto_operator_create_build_from_repo_body]
 CREATE_BUILD_FROM_REPO_BODY: dict[str, Any] = {
-    "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
+    "source": {
+        "repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}
+    },
     "steps": [{"name": "ubuntu", "args": ["echo", "Hello world", "sleep 200"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
@@ -158,7 +162,9 @@ with DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()),
+        build=yaml.safe_load(
+            (Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()
+        ),
         params={"name": "Airflow"},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
@@ -167,7 +173,9 @@ with DAG(
     create_build_from_file_deferrable = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file_deferrable",
         project_id=PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()),
+        build=yaml.safe_load(
+            (Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()
+        ),
         params={"name": "Airflow"},
         deferrable=True,
     )

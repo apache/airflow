@@ -75,6 +75,8 @@ class GithubOperator(BaseOperator):
             return github_result
 
         except GithubException as github_error:
-            raise AirflowException(f"Failed to execute GithubOperator, error: {github_error}")
+            raise AirflowException(
+                f"Failed to execute GithubOperator, error: {github_error}"
+            )
         except Exception as e:
             raise AirflowException(f"GitHub operator error: {e}")

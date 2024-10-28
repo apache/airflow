@@ -21,7 +21,10 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
+from airflow.providers.microsoft.azure.triggers.msgraph import (
+    MSGraphTrigger,
+    ResponseSerializer,
+)
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import TimeDeltaTrigger
 
@@ -83,7 +86,10 @@ class MSGraphSensor(BaseSensorOperator):
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
-        event_processor: Callable[[Context, Any], bool] = lambda context, e: e.get("status") == "Succeeded",
+        event_processor: Callable[[Context, Any], bool] = lambda context, e: e.get(
+            "status"
+        )
+        == "Succeeded",
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         retry_delay: timedelta | float = 60,
@@ -144,7 +150,9 @@ class MSGraphSensor(BaseSensorOperator):
         self.log.debug("context: %s", context)
 
         if event:
-            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
+            self.log.debug(
+                "%s completed with %s: %s", self.task_id, event.get("status"), event
+            )
 
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))

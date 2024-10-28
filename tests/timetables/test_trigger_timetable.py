@@ -37,7 +37,9 @@ PREV_DATA_INTERVAL_EXACT = DataInterval.exact(PREV_DATA_INTERVAL_END)
 CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
 
-HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("@hourly", timezone=utc, run_immediately=True)
+HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable(
+    "@hourly", timezone=utc, run_immediately=True
+)
 
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
@@ -207,20 +209,35 @@ def test_validate_failure() -> None:
     [
         (
             HOURLY_CRON_TRIGGER_TIMETABLE,
-            {"expression": "0 * * * *", "run_immediately": True, "timezone": "UTC", "interval": 0.0},
+            {
+                "expression": "0 * * * *",
+                "run_immediately": True,
+                "timezone": "UTC",
+                "interval": 0.0,
+            },
         ),
         (
             CronTriggerTimetable(
-                "0 0 1 12 *", timezone=utc, run_immediately=False, interval=datetime.timedelta(hours=2)
+                "0 0 1 12 *",
+                timezone=utc,
+                run_immediately=False,
+                interval=datetime.timedelta(hours=2),
             ),
-            {"expression": "0 0 1 12 *", "run_immediately": False, "timezone": "UTC", "interval": 7200.0},
+            {
+                "expression": "0 0 1 12 *",
+                "run_immediately": False,
+                "timezone": "UTC",
+                "interval": 7200.0,
+            },
         ),
         (
             CronTriggerTimetable(
                 "0 0 1 12 0",
                 timezone="Asia/Taipei",
                 run_immediately=False,
-                interval=dateutil.relativedelta.relativedelta(weekday=dateutil.relativedelta.MO),
+                interval=dateutil.relativedelta.relativedelta(
+                    weekday=dateutil.relativedelta.MO
+                ),
             ),
             {
                 "expression": "0 0 1 12 0",
@@ -231,7 +248,9 @@ def test_validate_failure() -> None:
         ),
     ],
 )
-def test_serialization(timetable: CronTriggerTimetable, data: dict[str, typing.Any]) -> None:
+def test_serialization(
+    timetable: CronTriggerTimetable, data: dict[str, typing.Any]
+) -> None:
     assert timetable.serialize() == data
 
     tt = CronTriggerTimetable.deserialize(data)

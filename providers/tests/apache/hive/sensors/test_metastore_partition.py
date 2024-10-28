@@ -22,13 +22,21 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
+from airflow.providers.apache.hive.sensors.metastore_partition import (
+    MetastorePartitionSensor,
+)
 
-from providers.tests.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, MockDBConnection, TestHiveEnvironment
+from providers.tests.apache.hive import (
+    DEFAULT_DATE,
+    DEFAULT_DATE_DS,
+    MockDBConnection,
+    TestHiveEnvironment,
+)
 
 
 @pytest.mark.skipif(
-    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    "AIRFLOW_RUNALL_TESTS" not in os.environ,
+    reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
 )
 class TestHivePartitionSensor(TestHiveEnvironment):
     def test_hive_metastore_sql_sensor(self):

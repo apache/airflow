@@ -44,7 +44,8 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
 LIST_OF_ALL_PROVIDER_TESTS = " ".join(
-    f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)
+    f"Providers[{provider}]"
+    for provider in get_available_packages(include_not_ready=True)
 )
 
 
@@ -67,11 +68,15 @@ def print_in_color(s: Any = ""):
 
 def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
     escaped_stderr = escape_ansi_colors(stderr)
-    received_output_as_dict = dict(line.split("=", 1) for line in escaped_stderr.splitlines() if "=" in line)
+    received_output_as_dict = dict(
+        line.split("=", 1) for line in escaped_stderr.splitlines() if "=" in line
+    )
     for expected_key, expected_value in expected_outputs.items():
         if expected_value is None:
             if expected_key in received_output_as_dict:
-                print_in_color(f"\n[red]ERROR: The '{expected_key}' should not be present in:[/]")
+                print_in_color(
+                    f"\n[red]ERROR: The '{expected_key}' should not be present in:[/]"
+                )
                 print_in_color(received_output_as_dict)
                 print_in_color("\n")
                 assert expected_key is not None
@@ -80,14 +85,18 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             received_value = received_output_as_dict.get(expected_key)
             if received_value != expected_value:
                 if received_value is not None:
-                    print_in_color(f"\n[red]ERROR: The key '{expected_key}' has unexpected value:")
+                    print_in_color(
+                        f"\n[red]ERROR: The key '{expected_key}' has unexpected value:"
+                    )
                     print(received_value)
                     print_in_color("Expected value:\n")
                     print(expected_value)
                     print_in_color("\nOutput received:")
                     print_in_color(received_output_as_dict)
                     print_in_color()
-                    assert received_value == expected_value, f"Correct value for {expected_key!r}"
+                    assert (
+                        received_value == expected_value
+                    ), f"Correct value for {expected_key!r}"
                 else:
                     print(
                         f"\n[red]ERROR: The key '{expected_key}' missing but "
@@ -926,7 +935,9 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({"3.9": ["cloudant"], "3.12": ["apache.beam"]}),
+            "excluded-providers-as-string": json.dumps(
+                {"3.9": ["cloudant"], "3.12": ["apache.beam"]}
+            ),
         },
         str(stderr),
     )
@@ -973,7 +984,9 @@ def test_excluded_providers():
         ),
     ],
 )
-def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_outputs: dict[str, str]):
+def test_full_test_needed_when_scripts_changes(
+    files: tuple[str, ...], expected_outputs: dict[str, str]
+):
     stderr = SelectiveChecks(
         files=files,
         github_event=GithubEvents.PULL_REQUEST,
@@ -1658,7 +1671,9 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "docs-build": "true",
             "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
             "upgrade-to-newer-dependencies": (
-                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
+                "true"
+                if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+                else "false"
             ),
             "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
             "needs-mypy": "true",
@@ -1766,7 +1781,10 @@ def test_upgrade_to_newer_dependencies(
             id="Airbyte provider docs changed",
         ),
         pytest.param(
-            ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
+            (
+                "docs/apache-airflow-providers-airbyte/docs.rst",
+                "docs/apache-airflow/docs.rst",
+            ),
             {
                 "docs-list-as-string": "apache-airflow airbyte",
             },
@@ -1862,7 +1880,9 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
         )
     ],
 )
-def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: dict[str, str]):
+def test_helm_tests_trigger_ci_build(
+    files: tuple[str, ...], expected_outputs: dict[str, str]
+):
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -2162,9 +2182,15 @@ def test_runs_on(
             get_output()
     else:
         stderr = get_output()
-        assert_outputs_are_printed({"runs-on-as-json-default": runs_on_as_json_default}, str(stderr))
-        assert_outputs_are_printed({"runs-on-as-json-docs-build": runs_on_as_docs_build}, str(stderr))
-        assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
+        assert_outputs_are_printed(
+            {"runs-on-as-json-default": runs_on_as_json_default}, str(stderr)
+        )
+        assert_outputs_are_printed(
+            {"runs-on-as-json-docs-build": runs_on_as_docs_build}, str(stderr)
+        )
+        assert_outputs_are_printed(
+            {"is-self-hosted-runner": is_self_hosted_runner}, str(stderr)
+        )
         assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
         assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
         assert_outputs_are_printed({"is-arm-runner": is_arm_runner}, str(stderr))
@@ -2196,7 +2222,9 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
             default_branch="main",
         )
     )
-    assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))
+    assert_outputs_are_printed(
+        {"has-migrations": str(has_migrations).lower()}, str(stderr)
+    )
 
 
 @pytest.mark.parametrize(
@@ -2217,12 +2245,18 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         ),
         pytest.param(
             ("all versions",),
-            {"providers-compatibility-checks": json.dumps(BASE_PROVIDERS_COMPATIBILITY_CHECKS)},
+            {
+                "providers-compatibility-checks": json.dumps(
+                    BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                )
+            },
             id="full tests",
         ),
     ],
 )
-def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs: dict[str, str]):
+def test_provider_compatibility_checks(
+    labels: tuple[str, ...], expected_outputs: dict[str, str]
+):
     stderr = SelectiveChecks(
         files=(),
         commit_ref=NEUTRAL_COMMIT,
@@ -2319,7 +2353,10 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
     ],
 )
 def test_mypy_matches(
-    files: tuple[str, ...], expected_outputs: dict[str, str], default_branch: str, pr_labels: tuple[str, ...]
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
+    default_branch: str,
+    pr_labels: tuple[str, ...],
 ):
     stderr = SelectiveChecks(
         files=files,
@@ -2387,7 +2424,10 @@ def test_mypy_matches(
     ],
 )
 def test_pr_labels(
-    files: tuple[str, ...], expected_outputs: dict[str, str], github_actor: str, pr_labels: tuple[str, ...]
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
+    github_actor: str,
+    pr_labels: tuple[str, ...],
 ):
     stderr = SelectiveChecks(
         files=files,

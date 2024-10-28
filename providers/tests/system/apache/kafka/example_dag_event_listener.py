@@ -40,7 +40,9 @@ def load_connections():
         Connection(
             conn_id="fizz_buzz_1",
             conn_type="kafka",
-            extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
+            extra=json.dumps(
+                {"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}
+            ),
         )
     )
 

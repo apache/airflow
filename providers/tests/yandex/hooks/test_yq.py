@@ -32,17 +32,23 @@ from airflow.providers.yandex.hooks.yq import YQHook
 
 OAUTH_TOKEN = "my_oauth_token"
 IAM_TOKEN = "my_iam_token"
-SERVICE_ACCOUNT_AUTH_KEY_JSON = """{"id":"my_id", "service_account_id":"my_sa1", "private_key":"my_pk"}"""
+SERVICE_ACCOUNT_AUTH_KEY_JSON = (
+    """{"id":"my_id", "service_account_id":"my_sa1", "private_key":"my_pk"}"""
+)
 
 
 class TestYandexCloudYqHook:
     def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+        with mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection"
+        ) as mock_get_connection:
             mock_get_connection.return_value = self.connection
             self.hook = YQHook(default_folder_id="my_folder_id")
 
     def setup_method(self):
-        self.connection = Connection(extra={"service_account_json": SERVICE_ACCOUNT_AUTH_KEY_JSON})
+        self.connection = Connection(
+            extra={"service_account_json": SERVICE_ACCOUNT_AUTH_KEY_JSON}
+        )
 
     @responses.activate()
     def test_oauth_token_usage(self):
@@ -50,7 +56,10 @@ class TestYandexCloudYqHook:
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
                 matchers.header_matcher(
-                    {"Content-Type": "application/json", "Authorization": f"Bearer {OAUTH_TOKEN}"}
+                    {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {OAUTH_TOKEN}",
+                    }
                 ),
                 matchers.query_param_matcher({"project": "my_folder_id"}),
             ],
@@ -75,7 +84,10 @@ class TestYandexCloudYqHook:
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
                 matchers.header_matcher(
-                    {"Content-Type": "application/json", "Authorization": f"Bearer {IAM_TOKEN}"}
+                    {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {IAM_TOKEN}",
+                    }
                 ),
                 matchers.query_param_matcher({"project": "my_folder_id"}),
             ],
@@ -114,14 +126,20 @@ class TestYandexCloudYqHook:
 
             query_id = self.hook.create_query(query_text="select 777", name="my query")
             assert query_id == "query1"
-            mocks["create_query"].assert_called_once_with(query_text="select 777", name="my query")
+            mocks["create_query"].assert_called_once_with(
+                query_text="select 777", name="my query"
+            )
 
-            results = self.hook.wait_results(query_id, execution_timeout=timedelta(minutes=10))
+            results = self.hook.wait_results(
+                query_id, execution_timeout=timedelta(minutes=10)
+            )
             assert results == {"x": 765}
             mocks["wait_query_to_succeed"].assert_called_once_with(
                 query_id, execution_timeout=timedelta(minutes=10), stop_on_timeout=True
             )
-            mocks["get_query_all_result_sets"].assert_called_once_with(query_id=query_id, result_set_count=2)
+            mocks["get_query_all_result_sets"].assert_called_once_with(
+                query_id=query_id, result_set_count=2
+            )
 
             assert self.hook.get_query_status(query_id) == "COMPLETED"
             mocks["get_query_status"].assert_called_once_with(query_id)

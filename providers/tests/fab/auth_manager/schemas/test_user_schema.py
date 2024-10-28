@@ -20,7 +20,10 @@ import pytest
 
 from airflow.utils import timezone
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_role,
+    delete_role,
+)
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):

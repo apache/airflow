@@ -127,7 +127,9 @@ def setup_connections(create_mock_connections):
 
 @pytest.fixture
 def hook():
-    client = AzureDataFactoryHook(azure_data_factory_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET)
+    client = AzureDataFactoryHook(
+        azure_data_factory_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET
+    )
     client._conn = MagicMock(
         spec=[
             "factories",
@@ -164,19 +166,36 @@ def test_provide_targeted_factory():
     hook.get_connection.return_value = conn
 
     conn.extra_dejson = {}
-    assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, FACTORY) == (RESOURCE_GROUP, FACTORY)
+    assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, FACTORY) == (
+        RESOURCE_GROUP,
+        FACTORY,
+    )
 
     conn.extra_dejson = {
         "resource_group_name": DEFAULT_RESOURCE_GROUP,
         "factory_name": DEFAULT_FACTORY,
     }
-    assert provide_targeted_factory(echo)(hook) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
-    assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, None) == (RESOURCE_GROUP, DEFAULT_FACTORY)
-    assert provide_targeted_factory(echo)(hook, None, FACTORY) == (DEFAULT_RESOURCE_GROUP, FACTORY)
-    assert provide_targeted_factory(echo)(hook, None, None) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
+    assert provide_targeted_factory(echo)(hook) == (
+        DEFAULT_RESOURCE_GROUP,
+        DEFAULT_FACTORY,
+    )
+    assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, None) == (
+        RESOURCE_GROUP,
+        DEFAULT_FACTORY,
+    )
+    assert provide_targeted_factory(echo)(hook, None, FACTORY) == (
+        DEFAULT_RESOURCE_GROUP,
+        FACTORY,
+    )
+    assert provide_targeted_factory(echo)(hook, None, None) == (
+        DEFAULT_RESOURCE_GROUP,
+        DEFAULT_FACTORY,
+    )
 
     conn.extra_dejson = {}
-    with pytest.raises(AirflowException, match="Could not determine the targeted data factory"):
+    with pytest.raises(
+        AirflowException, match="Could not determine the targeted data factory"
+    ):
         provide_targeted_factory(echo)(hook)
 
 
@@ -234,7 +253,9 @@ def test_get_factory(hook: AzureDataFactoryHook):
 def test_create_factory(hook: AzureDataFactoryHook):
     hook.create_factory(MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.factories.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, MODEL)
+    hook._conn.factories.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, MODEL
+    )
 
 
 def test_update_factory(hook: AzureDataFactoryHook):
@@ -242,7 +263,9 @@ def test_update_factory(hook: AzureDataFactoryHook):
         mock_factory_exists.return_value = True
         hook.update_factory(MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.factories.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, MODEL, None)
+    hook._conn.factories.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, MODEL, None
+    )
 
 
 def test_update_factory_non_existent(hook: AzureDataFactoryHook):
@@ -302,7 +325,9 @@ def test_get_dataset(hook: AzureDataFactoryHook):
 def test_create_dataset(hook: AzureDataFactoryHook):
     hook.create_dataset(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.datasets.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL)
+    hook._conn.datasets.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL
+    )
 
 
 def test_update_dataset(hook: AzureDataFactoryHook):
@@ -310,7 +335,9 @@ def test_update_dataset(hook: AzureDataFactoryHook):
         mock_dataset_exists.return_value = True
         hook.update_dataset(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.datasets.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL)
+    hook._conn.datasets.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL
+    )
 
 
 def test_update_dataset_non_existent(hook: AzureDataFactoryHook):
@@ -336,7 +363,9 @@ def test_get_dataflow(hook: AzureDataFactoryHook):
 def test_create_dataflow(hook: AzureDataFactoryHook):
     hook.create_dataflow(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.data_flows.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, None)
+    hook._conn.data_flows.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL, None
+    )
 
 
 def test_update_dataflow(hook: AzureDataFactoryHook):
@@ -344,7 +373,9 @@ def test_update_dataflow(hook: AzureDataFactoryHook):
         mock_dataflow_exists.return_value = True
         hook.update_dataflow(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.data_flows.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, None)
+    hook._conn.data_flows.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL, None
+    )
 
 
 def test_update_dataflow_non_existent(hook: AzureDataFactoryHook):
@@ -370,7 +401,9 @@ def test_get_pipeline(hook: AzureDataFactoryHook):
 def test_create_pipeline(hook: AzureDataFactoryHook):
     hook.create_pipeline(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.pipelines.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL)
+    hook._conn.pipelines.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL
+    )
 
 
 def test_update_pipeline(hook: AzureDataFactoryHook):
@@ -378,7 +411,9 @@ def test_update_pipeline(hook: AzureDataFactoryHook):
         mock_pipeline_exists.return_value = True
         hook.update_pipeline(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.pipelines.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL)
+    hook._conn.pipelines.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL
+    )
 
 
 def test_update_pipeline_non_existent(hook: AzureDataFactoryHook):
@@ -408,15 +443,51 @@ def test_get_pipeline_run(hook: AzureDataFactoryHook):
 
 
 _wait_for_pipeline_run_status_test_args = [
-    (AzureDataFactoryPipelineRunStatus.SUCCEEDED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
-    (AzureDataFactoryPipelineRunStatus.FAILED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, False),
-    (AzureDataFactoryPipelineRunStatus.CANCELLED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, False),
-    (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
-    (AzureDataFactoryPipelineRunStatus.QUEUED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
-    (AzureDataFactoryPipelineRunStatus.CANCELING, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
-    (AzureDataFactoryPipelineRunStatus.SUCCEEDED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
-    (AzureDataFactoryPipelineRunStatus.FAILED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
-    (AzureDataFactoryPipelineRunStatus.CANCELLED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+    (
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        True,
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.FAILED,
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        False,
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.CANCELLED,
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        False,
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.IN_PROGRESS,
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        "timeout",
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.QUEUED,
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        "timeout",
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.CANCELING,
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        "timeout",
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES,
+        True,
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.FAILED,
+        AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES,
+        True,
+    ),
+    (
+        AzureDataFactoryPipelineRunStatus.CANCELLED,
+        AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES,
+        True,
+    ),
 ]
 
 
@@ -430,7 +501,9 @@ _wait_for_pipeline_run_status_test_args = [
         for argval in _wait_for_pipeline_run_status_test_args
     ],
 )
-def test_wait_for_pipeline_run_status(hook, pipeline_run_status, expected_status, expected_output):
+def test_wait_for_pipeline_run_status(
+    hook, pipeline_run_status, expected_status, expected_output
+):
     config = {
         "resource_group_name": RESOURCE_GROUP,
         "factory_name": FACTORY,
@@ -465,7 +538,9 @@ def test_get_trigger(hook: AzureDataFactoryHook):
 def test_create_trigger(hook: AzureDataFactoryHook):
     hook.create_trigger(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.triggers.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL)
+    hook._conn.triggers.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL
+    )
 
 
 def test_update_trigger(hook: AzureDataFactoryHook):
@@ -473,7 +548,9 @@ def test_update_trigger(hook: AzureDataFactoryHook):
         mock_trigger_exists.return_value = True
         hook.update_trigger(NAME, MODEL, RESOURCE_GROUP, FACTORY)
 
-    hook._conn.triggers.create_or_update.assert_called_with(RESOURCE_GROUP, FACTORY, NAME, MODEL, None)
+    hook._conn.triggers.create_or_update.assert_called_with(
+        RESOURCE_GROUP, FACTORY, NAME, MODEL, None
+    )
 
 
 def test_update_trigger_non_existent(hook: AzureDataFactoryHook):
@@ -528,7 +605,9 @@ def test_connection_success(hook, factory_list_result):
 
 
 def test_connection_failure(hook):
-    hook.get_conn().factories.list = PropertyMock(side_effect=Exception("Authentication failed."))
+    hook.get_conn().factories.list = PropertyMock(
+        side_effect=Exception("Authentication failed.")
+    )
     status, msg = hook.test_connection()
 
     assert status is False
@@ -567,7 +646,9 @@ def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
     with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
         hook = AzureDataFactoryHook("my_conn")
         hook.delete_factory(RESOURCE_GROUP, FACTORY)
-        mock_connect.return_value.factories.delete.assert_called_with(RESOURCE_GROUP, FACTORY)
+        mock_connect.return_value.factories.delete.assert_called_with(
+            RESOURCE_GROUP, FACTORY
+        )
 
 
 @pytest.mark.parametrize(
@@ -602,7 +683,9 @@ def test_backcompat_prefix_both_prefers_short(mock_connect):
     ):
         hook = AzureDataFactoryHook("my_conn")
         hook.delete_factory(RESOURCE_GROUP, FACTORY)
-        mock_connect.return_value.factories.delete.assert_called_with(RESOURCE_GROUP, FACTORY)
+        mock_connect.return_value.factories.delete.assert_called_with(
+            RESOURCE_GROUP, FACTORY
+        )
 
 
 def test_refresh_conn(hook):
@@ -617,12 +700,16 @@ class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_queued(self, mock_get_pipeline_run, mock_conn):
+    async def test_get_adf_pipeline_run_status_queued(
+        self, mock_get_pipeline_run, mock_conn
+    ):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Queued"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
+        response = await hook.get_adf_pipeline_run_status(
+            RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME
+        )
         assert response == mock_status
 
     @pytest.mark.asyncio
@@ -637,40 +724,54 @@ class TestAzureDataFactoryAsyncHook:
         mock_status = "InProgress"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
+        response = await hook.get_adf_pipeline_run_status(
+            RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME
+        )
         assert response == mock_status
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_success(self, mock_get_pipeline_run, mock_conn):
+    async def test_get_adf_pipeline_run_status_success(
+        self, mock_get_pipeline_run, mock_conn
+    ):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Succeeded"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
+        response = await hook.get_adf_pipeline_run_status(
+            RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME
+        )
         assert response == mock_status
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_failed(self, mock_get_pipeline_run, mock_conn):
+    async def test_get_adf_pipeline_run_status_failed(
+        self, mock_get_pipeline_run, mock_conn
+    ):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Failed"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
+        response = await hook.get_adf_pipeline_run_status(
+            RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME
+        )
         assert response == mock_status
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_cancelled(self, mock_get_pipeline_run, mock_conn):
+    async def test_get_adf_pipeline_run_status_cancelled(
+        self, mock_get_pipeline_run, mock_conn
+    ):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Cancelled"
         mock_get_pipeline_run.return_value.status = mock_status
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        response = await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
+        response = await hook.get_adf_pipeline_run_status(
+            RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME
+        )
         assert response == mock_status
 
     @pytest.mark.asyncio
@@ -719,7 +820,8 @@ class TestAzureDataFactoryAsyncHook:
         assert isinstance(response, DataFactoryManagementClient)
 
         mock_default_azure_credential.assert_called_with(
-            managed_identity_client_id="test_client_id", workload_identity_tenant_id="test_tenant_id"
+            managed_identity_client_id="test_client_id",
+            workload_identity_tenant_id="test_tenant_id",
         )
 
     @pytest.mark.asyncio
@@ -833,7 +935,9 @@ class TestAzureDataFactoryAsyncHook:
         extras = mock_conn.extra_dejson
         assert get_field(extras, "tenantId", strict=True) == "tenantId"
         assert get_field(extras, "subscriptionId", strict=True) == "subscriptionId"
-        assert get_field(extras, "resource_group_name", strict=True) == RESOURCE_GROUP_NAME
+        assert (
+            get_field(extras, "resource_group_name", strict=True) == RESOURCE_GROUP_NAME
+        )
         assert get_field(extras, "factory_name", strict=True) == DATAFACTORY_NAME
         with pytest.raises(KeyError):
             get_field(extras, "non-existent-field", strict=True)
@@ -853,7 +957,9 @@ class TestAzureDataFactoryAsyncHook:
         extras = mock_conn.extra_dejson
         assert get_field(extras, "tenantId", strict=True) == "tenantId"
         assert get_field(extras, "subscriptionId", strict=True) == "subscriptionId"
-        assert get_field(extras, "resource_group_name", strict=True) == RESOURCE_GROUP_NAME
+        assert (
+            get_field(extras, "resource_group_name", strict=True) == RESOURCE_GROUP_NAME
+        )
         assert get_field(extras, "factory_name", strict=True) == DATAFACTORY_NAME
         with pytest.raises(KeyError):
             get_field(extras, "non-existent-field", strict=True)

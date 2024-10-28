@@ -25,9 +25,16 @@ from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
-from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    KubernetesHook,
+    _load_body_to_dict,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    add_unique_suffix,
+)
+from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
+    CustomObjectLauncher,
+)
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
@@ -69,7 +76,12 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param kubernetes_conn_id: the connection to Kubernetes cluster
     """
 
-    template_fields = ["application_file", "namespace", "template_spec", "kubernetes_conn_id"]
+    template_fields = [
+        "application_file",
+        "namespace",
+        "template_spec",
+        "kubernetes_conn_id",
+    ]
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
@@ -96,7 +108,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         **kwargs,
     ) -> None:
         if kwargs.get("xcom_push") is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+            raise AirflowException(
+                "'xcom_push' was deprecated, use 'do_xcom_push' instead"
+            )
         super().__init__(name=name, **kwargs)
         self.image = image
         self.code_path = code_path
@@ -114,13 +128,15 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         if self.base_container_name != self.BASE_CONTAINER_NAME:
             self.log.warning(
-                "base_container_name is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+                "base_container_name is not supported and will be overridden to %s",
+                self.BASE_CONTAINER_NAME,
             )
             self.base_container_name = self.BASE_CONTAINER_NAME
 
         if self.get_logs and self.container_logs != self.BASE_CONTAINER_NAME:
             self.log.warning(
-                "container_logs is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+                "container_logs is not supported and will be overridden to %s",
+                self.BASE_CONTAINER_NAME,
             )
             self.container_logs = [self.BASE_CONTAINER_NAME]
 
@@ -133,7 +149,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     ) -> None:
         if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
             seen_oids.add(id(content))
-            self._do_render_template_fields(content, ("value", "name"), context, jinja_env, seen_oids)
+            self._do_render_template_fields(
+                content, ("value", "name"), context, jinja_env, seen_oids
+            )
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
@@ -153,14 +171,18 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         elif self.template_spec:
             template_body = self.template_spec
         else:
-            raise AirflowException("either application_file or template_spec should be passed")
+            raise AirflowException(
+                "either application_file or template_spec should be passed"
+            )
         if "spark" not in template_body:
             template_body = {"spark": template_body}
         return template_body
 
     def create_job_name(self):
         name = (
-            self.name or self.template_body.get("spark", {}).get("metadata", {}).get("name") or self.task_id
+            self.name
+            or self.template_body.get("spark", {}).get("metadata", {}).get("name")
+            or self.task_id
         )
 
         updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
@@ -169,11 +191,22 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
-        filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != "try_number"}
-        return ",".join([label_id + "=" + label for label_id, label in sorted(filtered_labels.items())])
+        filtered_labels = {
+            label_id: label
+            for label_id, label in labels.items()
+            if label_id != "try_number"
+        }
+        return ",".join(
+            [
+                label_id + "=" + label
+                for label_id, label in sorted(filtered_labels.items())
+            ]
+        )
 
     @staticmethod
-    def create_labels_for_pod(context: dict | None = None, include_try_number: bool = True) -> dict:
+    def create_labels_for_pod(
+        context: dict | None = None, include_try_number: bool = True
+    ) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash.
 
@@ -230,36 +263,50 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def find_spark_job(self, context):
         labels = self.create_labels_for_pod(context, include_try_number=False)
-        label_selector = self._get_pod_identifying_label_string(labels) + ",spark-role=driver"
-        pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
+        label_selector = (
+            self._get_pod_identifying_label_string(labels) + ",spark-role=driver"
+        )
+        pod_list = self.client.list_namespaced_pod(
+            self.namespace, label_selector=label_selector
+        ).items
 
         pod = None
         if len(pod_list) > 1:  # and self.reattach_on_restart:
-            raise AirflowException(f"More than one pod running with labels: {label_selector}")
+            raise AirflowException(
+                f"More than one pod running with labels: {label_selector}"
+            )
         elif len(pod_list) == 1:
             pod = pod_list[0]
             self.log.info(
-                "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels
+                "Found matching driver pod %s with labels %s",
+                pod.metadata.name,
+                pod.metadata.labels,
             )
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
             self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
         return pod
 
-    def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context) -> k8s.V1Pod:
+    def get_or_create_spark_crd(
+        self, launcher: CustomObjectLauncher, context
+    ) -> k8s.V1Pod:
         if self.reattach_on_restart:
             driver_pod = self.find_spark_job(context)
             if driver_pod:
                 return driver_pod
 
         driver_pod, spark_obj_spec = launcher.start_spark_job(
-            image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
+            image=self.image,
+            code_path=self.code_path,
+            startup_timeout=self.startup_timeout_seconds,
         )
         return driver_pod
 
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
             if self.delete_on_termination:
-                self.log.info("Deleting spark job: %s", pod.metadata.name.replace("-driver", ""))
+                self.log.info(
+                    "Deleting spark job: %s", pod.metadata.name.replace("-driver", "")
+                )
                 self.launcher.delete_spark_job(pod.metadata.name.replace("-driver", ""))
             else:
                 self.log.info("skipping deleting spark job: %s", pod.metadata.name)
@@ -268,7 +315,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def hook(self) -> KubernetesHook:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
-            in_cluster=self.in_cluster or self.template_body.get("kubernetes", {}).get("in_cluster", False),
+            in_cluster=self.in_cluster
+            or self.template_body.get("kubernetes", {}).get("in_cluster", False),
             config_file=self.config_file
             or self.template_body.get("kubernetes", {}).get("kube_config_file", None),
             cluster_context=self.cluster_context

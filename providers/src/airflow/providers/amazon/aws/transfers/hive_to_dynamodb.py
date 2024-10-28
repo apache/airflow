@@ -106,7 +106,9 @@ class HiveToDynamoDBOperator(BaseOperator):
             dynamodb.write_batch_data(json.loads(data.to_json(orient="records")))
         else:
             dynamodb.write_batch_data(
-                self.pre_process(data=data, args=self.pre_process_args, kwargs=self.pre_process_kwargs)
+                self.pre_process(
+                    data=data, args=self.pre_process_args, kwargs=self.pre_process_kwargs
+                )
             )
 
         self.log.info("Done.")

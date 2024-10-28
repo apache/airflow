@@ -23,7 +23,11 @@ import pytest
 import requests
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
+from airflow.providers.apache.druid.hooks.druid import (
+    DruidDbApiHook,
+    DruidHook,
+    IngestionType,
+)
 
 
 # This test mocks the requests library to avoid making actual HTTP requests so database isolation mode
@@ -362,7 +366,9 @@ class TestDruidHook:
         ],
     )
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
-    def test_get_verify(self, mock_get_connection, verify_ssl_arg, ca_bundle_path, expected_return_value):
+    def test_get_verify(
+        self, mock_get_connection, verify_ssl_arg, ca_bundle_path, expected_return_value
+    ):
         get_conn_value = MagicMock()
         get_conn_value.extra_dejson = {"ca_bundle_path": ca_bundle_path}
         mock_get_connection.return_value = get_conn_value

@@ -40,7 +40,10 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 
 STATE_MACHINE_DEFINITION = {
     "StartAt": "Wait",
-    "States": {"Wait": {"Type": "Wait", "Seconds": 7, "Next": "Success"}, "Success": {"Type": "Succeed"}},
+    "States": {
+        "Wait": {"Type": "Wait", "Seconds": 7, "Next": "Success"},
+        "Success": {"Type": "Succeed"},
+    },
 }
 
 

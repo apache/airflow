@@ -198,11 +198,15 @@ def test_shell_params_to_env_var_conversion(
         for expected_key, expected_value in expected_vars.items():
             if expected_key not in env_vars:
                 if expected_value is not None:
-                    console.print(f"[red] Expected variable {expected_key} missing.[/]\nVariables retrieved:")
+                    console.print(
+                        f"[red] Expected variable {expected_key} missing.[/]\nVariables retrieved:"
+                    )
                     console.print(env_vars)
                     error = True
             elif expected_key is None:
-                console.print(f"[red] The variable {expected_key} is not expected.[/]\nVariables retrieved:")
+                console.print(
+                    f"[red] The variable {expected_key} is not expected.[/]\nVariables retrieved:"
+                )
                 console.print(env_vars)
                 error = True
             elif env_vars[expected_key] != expected_value:

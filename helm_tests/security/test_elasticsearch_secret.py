@@ -147,12 +147,18 @@ class TestElasticsearchSecret:
             ({"user": "admin", "pass": "password"}, "admin:password"),
         ],
     )
-    def test_url_generated_when_user_pass_empty_combinations(self, extra_conn_kwargs, expected_user_info):
+    def test_url_generated_when_user_pass_empty_combinations(
+        self, extra_conn_kwargs, expected_user_info
+    ):
         connection = self._get_connection(
             {
                 "elasticsearch": {
                     "enabled": True,
-                    "connection": {"host": "elastichostname", "port": 8080, **extra_conn_kwargs},
+                    "connection": {
+                        "host": "elastichostname",
+                        "port": 8080,
+                        **extra_conn_kwargs,
+                    },
                 }
             }
         )

@@ -81,8 +81,12 @@ If handler natively supports triggers, may want to disable sending trigger end m
 logger = logging.getLogger(__name__)
 
 
-DISABLE_WRAPPER = conf.getboolean("logging", "disable_trigger_handler_wrapper", fallback=False)
-DISABLE_LISTENER = conf.getboolean("logging", "disable_trigger_handler_queue_listener", fallback=False)
+DISABLE_WRAPPER = conf.getboolean(
+    "logging", "disable_trigger_handler_wrapper", fallback=False
+)
+DISABLE_LISTENER = conf.getboolean(
+    "logging", "disable_trigger_handler_queue_listener", fallback=False
+)
 
 
 def configure_trigger_log_handler():
@@ -99,14 +103,14 @@ def configure_trigger_log_handler():
     global HANDLER_SUPPORTS_TRIGGERER
 
     def should_wrap(handler):
-        return handler.__dict__.get("trigger_should_wrap", False) or handler.__class__.__dict__.get(
+        return handler.__dict__.get(
             "trigger_should_wrap", False
-        )
+        ) or handler.__class__.__dict__.get("trigger_should_wrap", False)
 
     def should_queue(handler):
-        return handler.__dict__.get("trigger_should_queue", True) or handler.__class__.__dict__.get(
+        return handler.__dict__.get(
             "trigger_should_queue", True
-        )
+        ) or handler.__class__.__dict__.get("trigger_should_queue", True)
 
     def send_trigger_end_marker(handler):
         val = handler.__dict__.get("trigger_send_end_marker", None)
@@ -146,7 +150,9 @@ def configure_trigger_log_handler():
         h = get_task_handler_from_logger(root_logger)
         if not h:
             # try to use handler configured from airflow task
-            logger.debug("No task logger configured for root logger; trying `airflow.task`.")
+            logger.debug(
+                "No task logger configured for root logger; trying `airflow.task`."
+            )
             h = get_task_handler_from_logger(logging.getLogger("airflow.task"))
             if h:
                 logger.debug("Using logging configuration from `airflow.task`")
@@ -235,7 +241,9 @@ def setup_queue_listener():
     this_logger = logging.getLogger(__name__)
     if handlers:
         this_logger.info("Setting up logging queue listener with handlers %s", handlers)
-        listener = logging.handlers.QueueListener(queue, *handlers, respect_handler_level=True)
+        listener = logging.handlers.QueueListener(
+            queue, *handlers, respect_handler_level=True
+        )
         listener.start()
         return listener
     else:
@@ -267,7 +275,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity} is invalid")
 
-        self.health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
+        self.health_check_threshold = conf.getint(
+            "triggerer", "triggerer_health_check_threshold"
+        )
 
         should_queue = True
         if DISABLE_WRAPPER:
@@ -284,7 +294,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 "`disable_trigger_handler_queue_listener=True`."
             )
         elif should_queue is False:
-            self.log.warning("Skipping trigger logger queue listener; disabled by handler setting.")
+            self.log.warning(
+                "Skipping trigger logger queue listener; disabled by handler setting."
+            )
         else:
             self.listener = setup_queue_listener()
         # Set up runner async thread
@@ -345,7 +357,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # Start our own DB loop in the main thread
             self._run_trigger_loop()
         except Exception:
-            self.log.exception("Exception when executing TriggererJobRunner._run_trigger_loop")
+            self.log.exception(
+                "Exception when executing TriggererJobRunner._run_trigger_loop"
+            )
             raise
         finally:
             self.log.info("Waiting for triggers to clean up")
@@ -363,7 +377,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             if not self.trigger_runner.is_alive():
                 self.log.error("Trigger runner thread has died! Exiting.")
                 break
-            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner") as span:
+            with Trace.start_span(
+                span_name="triggerer_job_loop", component="TriggererJobRunner"
+            ) as span:
                 # Clean out unused triggers
                 if span.is_recording():
                     span.add_event(name="Trigger.clean_unused")
@@ -383,7 +399,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 if span.is_recording():
                     span.add_event(name="perform_heartbeat")
                 perform_heartbeat(
-                    self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                    self.job,
+                    heartbeat_callback=self.heartbeat_callback,
+                    only_if_necessary=True,
                 )
                 # Collect stats
                 if span.is_recording():
@@ -426,14 +444,20 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     @add_span
     def emit_metrics(self):
-        Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.trigger_runner.triggers))
         Stats.gauge(
-            "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
+            f"triggers.running.{self.job.hostname}", len(self.trigger_runner.triggers)
+        )
+        Stats.gauge(
+            "triggers.running",
+            len(self.trigger_runner.triggers),
+            tags={"hostname": self.job.hostname},
         )
 
         capacity_left = self.capacity - len(self.trigger_runner.triggers)
         Stats.gauge(f"triggerer.capacity_left.{self.job.hostname}", capacity_left)
-        Stats.gauge("triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname})
+        Stats.gauge(
+            "triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname}
+        )
 
         span = Trace.get_current_span()
         span.set_attribute("trigger host", self.job.hostname)
@@ -528,7 +552,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             if trigger_id not in self.triggers:
                 ti: TaskInstance = trigger_instance.task_instance
                 self.triggers[trigger_id] = {
-                    "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
+                    "task": asyncio.create_task(
+                        self.run_trigger(trigger_id, trigger_instance)
+                    ),
                     "name": f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} "
                     f"(ID {trigger_id})",
                     "events": 0,
@@ -570,13 +596,16 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     continue
                 except BaseException as e:
                     # This is potentially bad, so log it.
-                    self.log.exception("Trigger %s exited with error %s", details["name"], e)
+                    self.log.exception(
+                        "Trigger %s exited with error %s", details["name"], e
+                    )
                     saved_exc = e
                 else:
                     # See if they foolishly returned a TriggerEvent
                     if isinstance(result, TriggerEvent):
                         self.log.error(
-                            "Trigger %s returned a TriggerEvent rather than yielding it", details["name"]
+                            "Trigger %s returned a TriggerEvent rather than yielding it",
+                            details["name"],
                         )
                 # See if this exited without sending an event, in which case
                 # any task instances depending on it need to be failed
@@ -634,12 +663,18 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         try:
             self.set_individual_trigger_logging(trigger)
             async for event in trigger.run():
-                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
+                self.log.info(
+                    "Trigger %s fired: %s", self.triggers[trigger_id]["name"], event
+                )
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
         except asyncio.CancelledError:
             if timeout := trigger.task_instance.trigger_timeout:
-                timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
+                timeout = (
+                    timeout.replace(tzinfo=timezone.utc)
+                    if not timeout.tzinfo
+                    else timeout
+                )
                 if timeout < timezone.utcnow():
                     self.log.error("Trigger cancelled due to timeout")
             raise
@@ -696,7 +731,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         for new_id in new_trigger_ids:
             # Check it didn't vanish in the meantime
             if new_id not in new_triggers:
-                self.log.warning("Trigger ID %s disappeared before we could start it", new_id)
+                self.log.warning(
+                    "Trigger ID %s disappeared before we could start it", new_id
+                )
                 continue
             # Resolve trigger record into an actual class instance
             try:
@@ -728,7 +765,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.failed_triggers.append((new_id, err))
                 continue
 
-            self.set_trigger_logging_metadata(new_trigger_orm.task_instance, new_id, new_trigger_instance)
+            self.set_trigger_logging_metadata(
+                new_trigger_orm.task_instance, new_id, new_trigger_instance
+            )
             self.to_create.append((new_id, new_trigger_instance))
         # Enqueue orphaned triggers for cancellation
         self.to_cancel.extend(cancel_trigger_ids)

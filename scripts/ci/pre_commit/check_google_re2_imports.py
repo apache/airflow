@@ -73,7 +73,9 @@ def main() -> int:
                     console.print(f"[yellow]{path}:[/] Not found provider.yaml")
                     continue
                 if "google-re2" not in provider_yaml.read_text():
-                    console.print(f"[yellow]{path}:[/] Not found google-re2 in {provider_yaml}")
+                    console.print(
+                        f"[yellow]{path}:[/] Not found google-re2 in {provider_yaml}"
+                    )
                     errors.append(f"{path}:{provider_yaml}")
     if errors:
         console.print(

@@ -58,7 +58,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def hook(self):
         """Returns S3Hook."""
         return S3Hook(
-            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), transfer_config_args={"use_threads": False}
+            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"),
+            transfer_config_args={"use_threads": False},
         )
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
@@ -69,7 +70,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             assert self.handler is not None
 
         full_path = self.handler.baseFilename
-        self.log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
+        self.log_relative_path = (
+            pathlib.Path(full_path).relative_to(self.local_base).as_posix()
+        )
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
         self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
         # Clear the file first so that duplicate data is not uploaded
@@ -104,7 +107,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(
+        self, ti, try_number, metadata=None
+    ) -> tuple[list[str], list[str]]:
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
         # in set_context method.
@@ -112,7 +117,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
         logs = []
         messages = []
-        bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, worker_log_rel_path))
+        bucket, prefix = self.hook.parse_s3_url(
+            s3url=os.path.join(self.remote_base, worker_log_rel_path)
+        )
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
             keys = sorted(f"s3://{bucket}/{key}" for key in keys)
@@ -152,7 +159,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
         return ""
 
-    def s3_write(self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1) -> bool:
+    def s3_write(
+        self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1
+    ) -> bool:
         """
         Write the log to the remote_log_location; return `True` or fails silently and return `False`.
 
@@ -185,7 +194,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 break
             except Exception:
                 if try_num < max_retry:
-                    self.log.warning("Failed attempt to write logs to %s, will retry", remote_log_location)
+                    self.log.warning(
+                        "Failed attempt to write logs to %s, will retry",
+                        remote_log_location,
+                    )
                 else:
                     self.log.exception("Could not write logs to %s", remote_log_location)
                     return False

@@ -35,7 +35,9 @@ import libcst as cst
 from libcst.codemod import CodemodContext
 from libcst.codemod.visitors import AddImportsVisitor
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+ROOT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
+)
 
 DEFERRABLE_DOC = (
     "https://github.com/apache/airflow/blob/main/docs/apache-airflow/"
@@ -76,7 +78,9 @@ class DefaultDeferrableTransformer(cst.CSTTransformer):
                 'conf.getboolean("operators", "default_deferrable", fallback=False)'
             )
 
-            if updated_node.default and updated_node.default.deep_equals(expected_default_cst):
+            if updated_node.default and updated_node.default.deep_equals(
+                expected_default_cst
+            ):
                 return updated_node
             return updated_node.with_changes(default=expected_default_cst)
         return updated_node
@@ -84,7 +88,10 @@ class DefaultDeferrableTransformer(cst.CSTTransformer):
 
 def _is_valid_deferrable_default(default: ast.AST) -> bool:
     """Check whether default is 'conf.getboolean("operators", "default_deferrable", fallback=False)'"""
-    return unparse(default) == "conf.getboolean('operators', 'default_deferrable', fallback=False)"
+    return (
+        unparse(default)
+        == "conf.getboolean('operators', 'default_deferrable', fallback=False)"
+    )
 
 
 def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
@@ -104,7 +111,9 @@ def _fix_invalide_deferrable_default_value(module_filename: str) -> None:
     transformer = DefaultDeferrableTransformer()
 
     source_cst_tree = cst.parse_module(open(module_filename).read())
-    modified_cst_tree = AddImportsVisitor(context).transform_module(source_cst_tree.visit(transformer))
+    modified_cst_tree = AddImportsVisitor(context).transform_module(
+        source_cst_tree.visit(transformer)
+    )
     if not source_cst_tree.deep_equals(modified_cst_tree):
         with open(module_filename, "w") as writer:
             writer.write(modified_cst_tree.code)
@@ -116,7 +125,11 @@ def main() -> int:
         glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
     )
 
-    errors = [error for module in modules for error in iter_check_deferrable_default_errors(module)]
+    errors = [
+        error
+        for module in modules
+        for error in iter_check_deferrable_default_errors(module)
+    ]
     if errors:
         print("Incorrect deferrable default values detected at:")
         for error in errors:

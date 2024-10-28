@@ -118,7 +118,8 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         wasb_conn_id: str = "wasb_default",
         s3_bucket: str,
         container_name: str,
-        s3_prefix: str | None = None,  # Only use this to pull an entire directory of files
+        s3_prefix: str
+        | None = None,  # Only use this to pull an entire directory of files
         s3_key: str | None = None,  # Only use this to pull a single file
         blob_prefix: str | None = None,
         blob_name: str | None = None,
@@ -152,7 +153,9 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
     @cached_property
     def s3_hook(self) -> S3Hook:
         """Create and return an S3Hook."""
-        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.s3_verify, **self.s3_extra_args)
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id, verify=self.s3_verify, **self.s3_extra_args
+        )
 
     @cached_property
     def wasb_hook(self) -> WasbHook:
@@ -162,7 +165,9 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
     def execute(self, context: Context) -> list[str]:
         """Execute logic below when operator is executed as a task."""
         self.log.info(
-            "Getting %s from %s" if self.s3_key else "Getting all files start with %s from %s",
+            "Getting %s from %s"
+            if self.s3_key
+            else "Getting all files start with %s from %s",
             self.s3_key if self.s3_key else self.s3_prefix,
             self.s3_bucket,
         )
@@ -196,8 +201,12 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         else:
             # Pull the keys from the s3_bucket using the provided prefix. Remove the prefix from the file
             # name, and add to the list of files to move
-            s3_keys: list[str] = self.s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_prefix)
-            files_to_move = [s3_key.replace(f"{self.s3_prefix}/", "", 1) for s3_key in s3_keys]
+            s3_keys: list[str] = self.s3_hook.list_keys(
+                bucket_name=self.s3_bucket, prefix=self.s3_prefix
+            )
+            files_to_move = [
+                s3_key.replace(f"{self.s3_prefix}/", "", 1) for s3_key in s3_keys
+            ]
 
             # Now, make sure that there are not too many files to move to a single Azure blob
             if self.blob_name and len(files_to_move) > 1:
@@ -246,7 +255,9 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             # from the list of files present in the s3_prefix, plus the blob_prefix. There may be
             # desire to only pass in an S3 key, in which case, the blob_name should be derived from
             # the S3 key
-            destination_azure_blob_name: str = self._create_key(self.blob_name, self.blob_prefix, file_name)
+            destination_azure_blob_name: str = self._create_key(
+                self.blob_name, self.blob_prefix, file_name
+            )
             self.wasb_hook.load_file(
                 file_path=temp_file.name,
                 container_name=self.container_name,

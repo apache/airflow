@@ -53,10 +53,19 @@ KUBERNETES_NETWORK_CONFIG: tuple[str, dict] = (
     {"serviceIpv4Cidr": "172.20.0.0/16"},
 )
 LABELS: tuple[str, dict] = ("labels", {"purpose": "example"})
-LAUNCH_TEMPLATE: tuple[str, dict] = ("launchTemplate", {"name": "myTemplate", "version": "2", "id": "123456"})
-LOGGING: tuple[str, dict] = ("logging", {"clusterLogging": [{"types": ["api"], "enabled": True}]})
+LAUNCH_TEMPLATE: tuple[str, dict] = (
+    "launchTemplate",
+    {"name": "myTemplate", "version": "2", "id": "123456"},
+)
+LOGGING: tuple[str, dict] = (
+    "logging",
+    {"clusterLogging": [{"types": ["api"], "enabled": True}]},
+)
 NODEROLE_ARN: tuple[str, str] = ("nodeRole", "arn:aws:iam::123456789012:role/role_name")
-POD_EXECUTION_ROLE_ARN: tuple[str, str] = ("podExecutionRoleArn", "arn:aws:iam::123456789012:role/role_name")
+POD_EXECUTION_ROLE_ARN: tuple[str, str] = (
+    "podExecutionRoleArn",
+    "arn:aws:iam::123456789012:role/role_name",
+)
 REMOTE_ACCESS: tuple[str, dict] = ("remoteAccess", {"ec2SshKey": "eksKeypair"})
 RESOURCES_VPC_CONFIG: tuple[str, dict] = (
     "resourcesVpcConfig",
@@ -67,7 +76,10 @@ RESOURCES_VPC_CONFIG: tuple[str, dict] = (
     },
 )
 ROLE_ARN: tuple[str, str] = ("roleArn", "arn:aws:iam::123456789012:role/role_name")
-SCALING_CONFIG: tuple[str, dict] = ("scalingConfig", {"minSize": 2, "maxSize": 3, "desiredSize": 2})
+SCALING_CONFIG: tuple[str, dict] = (
+    "scalingConfig",
+    {"minSize": 2, "maxSize": 3, "desiredSize": 2},
+)
 SELECTORS: tuple[str, list] = ("selectors", [{"namespace": "profile-namespace"}])
 STATUS: tuple[str, str] = ("status", "ACTIVE")
 SUBNETS: tuple[str, list] = ("subnets", SUBNET_IDS)
@@ -193,9 +205,7 @@ class PageCount:
 FARGATE_PROFILE_UUID_PATTERN: str = (
     r"(?P<fargate_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
 )
-NODEGROUP_UUID_PATTERN: str = (
-    r"(?P<nodegroup_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
-)
+NODEGROUP_UUID_PATTERN: str = r"(?P<nodegroup_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
 
 
 class RegExTemplates:

@@ -125,7 +125,9 @@ def run_command(
     if not title:
         shortened_command = [
             shorten_command(index, argument)
-            for index, argument in enumerate(cmd if isinstance(cmd, list) else shlex.split(cmd))
+            for index, argument in enumerate(
+                cmd if isinstance(cmd, list) else shlex.split(cmd)
+            )
             if not exclude_command(index, argument)
         ]
         # Heuristics to get a (possibly) short but explanatory title showing what the command does
@@ -140,10 +142,14 @@ def run_command(
         if "capture_output" not in kwargs or not kwargs["capture_output"]:
             kwargs["stdout"] = output.file
             kwargs["stderr"] = subprocess.STDOUT
-    command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
+    command_to_print = (
+        " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
+    )
     env_to_print = get_environments_to_print(env)
     if not get_verbose(verbose_override) and not get_dry_run(dry_run_override):
-        return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        return subprocess.run(
+            cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs
+        )
     with ci_group(title=f"Running command: {title}", message_type=None):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
         if input:
@@ -159,7 +165,9 @@ def run_command(
         try:
             if output_outside_the_group and os.environ.get("GITHUB_ACTIONS") == "true":
                 get_console().print("::endgroup::")
-            return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+            return subprocess.run(
+                cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs
+            )
         except subprocess.CalledProcessError as ex:
             if no_output_dump_on_exception:
                 if check:
@@ -196,10 +204,14 @@ def get_environments_to_print(env: Mapping[str, str] | None):
             system_env[key] = val
         else:
             my_env[key] = val
-    env_to_print = "".join(f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items()))
+    env_to_print = "".join(
+        f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items())
+    )
     env_to_print += r"""\
 """
-    env_to_print += "".join(f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items()))
+    env_to_print += "".join(
+        f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items())
+    )
     return env_to_print
 
 
@@ -213,7 +225,9 @@ def assert_pre_commit_installed():
     import yaml
     from packaging.version import Version
 
-    pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
+    pre_commit_config = yaml.safe_load(
+        (AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text()
+    )
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
@@ -273,7 +287,9 @@ def get_filesystem_type(filepath: str):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    get_console().print(f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n")
+    get_console().print(
+        f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n"
+    )
     get_console().print(
         f"\n[info]Please run at the earliest "
         f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
@@ -294,7 +310,9 @@ def change_file_permission(file_to_fix: Path):
     """Update file permissions to not be group-writeable. Needed to solve cache invalidation problems."""
     if file_to_fix.exists():
         current = stat.S_IMODE(os.stat(file_to_fix).st_mode)
-        new = current & ~stat.S_IWGRP & ~stat.S_IWOTH  # Removes group/other write permission
+        new = (
+            current & ~stat.S_IWGRP & ~stat.S_IWOTH
+        )  # Removes group/other write permission
         os.chmod(file_to_fix, new)
 
 
@@ -302,7 +320,9 @@ def change_directory_permission(directory_to_fix: Path):
     """Update directory permissions to not be group-writeable. Needed to solve cache invalidation problems."""
     if directory_to_fix.exists():
         current = stat.S_IMODE(os.stat(directory_to_fix).st_mode)
-        new = current & ~stat.S_IWGRP & ~stat.S_IWOTH  # Removes group/other write permission
+        new = (
+            current & ~stat.S_IWGRP & ~stat.S_IWOTH
+        )  # Removes group/other write permission
         new = (
             new | stat.S_IXGRP | stat.S_IXOTH
         )  # Add group/other execute permission (to be able to list directories)
@@ -314,13 +334,17 @@ def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
     if get_verbose():
         get_console().print("[info]Fixing group permissions[/]")
-    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
+    files_to_fix_result = run_command(
+        ["git", "ls-files", "./"], capture_output=True, text=True
+    )
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
-        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
+        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"],
+        capture_output=True,
+        text=True,
     )
     if directories_to_fix_result.returncode == 0:
         directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
@@ -337,8 +361,14 @@ def is_repo_rebased(repo: str, branch: str):
     headers_dict = {"Accept": "application/vnd.github.VERSION.sha"}
     latest_sha = requests.get(gh_url, headers=headers_dict).text.strip()
     rebased = False
-    command_result = run_command(["git", "log", "--format=format:%H"], capture_output=True, text=True)
-    commit_list = command_result.stdout.strip().splitlines() if command_result is not None else "missing"
+    command_result = run_command(
+        ["git", "log", "--format=format:%H"], capture_output=True, text=True
+    )
+    commit_list = (
+        command_result.stdout.strip().splitlines()
+        if command_result is not None
+        else "missing"
+    )
     if latest_sha in commit_list:
         rebased = True
     return rebased
@@ -366,7 +396,9 @@ def check_if_buildx_plugin_installed() -> bool:
 @cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
-    command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+    command_result = run_command(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False
+    )
     if command_result.stdout:
         return command_result.stdout.strip()
     else:
@@ -416,9 +448,15 @@ def _run_compile_internally(
                     asset_out.unlink(missing_ok=True)
                 return result
         except Timeout:
-            get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
-            get_console().print("[warning]If you are sure there is no other compilation,[/]")
-            get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
+            get_console().print(
+                "[error]Another asset compilation is running. Exiting[/]\n"
+            )
+            get_console().print(
+                "[warning]If you are sure there is no other compilation,[/]"
+            )
+            get_console().print(
+                "[warning]Remove the lock file and re-run compilation:[/]"
+            )
             get_console().print(compile_lock)
             get_console().print()
             sys.exit(1)
@@ -452,7 +490,9 @@ def run_compile_www_assets(
     if force_clean:
         clean_www_assets()
     if dev:
-        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[warning] The command below will run forever until you press Ctrl-C[/]\n"
+        )
         get_console().print(
             "\n[info]If you want to see output of the compilation command,\n"
             "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
@@ -483,10 +523,14 @@ def run_compile_www_assets(
             if os.getpid() != os.getsid(0):
                 # and create a new process group where we are the leader
                 os.setpgid(0, 0)
-            _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
+            _run_compile_internally(
+                command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE
+            )
             sys.exit(0)
     else:
-        return _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
+        return _run_compile_internally(
+            command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE
+        )
 
 
 def clean_ui_assets():
@@ -505,7 +549,9 @@ def run_compile_ui_assets(
     if force_clean:
         clean_ui_assets()
     if dev:
-        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[warning] The command below will run forever until you press Ctrl-C[/]\n"
+        )
         get_console().print(
             "\n[info]If you want to see output of the compilation command,\n"
             "[info]cancel it, go to airflow/ui folder and run 'pnpm dev'.\n"
@@ -536,7 +582,11 @@ def run_compile_ui_assets(
             if os.getpid() != os.getsid(0):
                 # and create a new process group where we are the leader
                 os.setpgid(0, 0)
-            _run_compile_internally(command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE)
+            _run_compile_internally(
+                command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE
+            )
             sys.exit(0)
     else:
-        return _run_compile_internally(command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE)
+        return _run_compile_internally(
+            command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE
+        )

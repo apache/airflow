@@ -89,10 +89,15 @@ class QuickSightHook(AwsBaseHook):
                 )
             return create_ingestion_response
         except Exception as general_error:
-            self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
+            self.log.error(
+                "Failed to run Amazon QuickSight create_ingestion API, error: %s",
+                general_error,
+            )
             raise
 
-    def get_status(self, aws_account_id: str | None, data_set_id: str, ingestion_id: str) -> str:
+    def get_status(
+        self, aws_account_id: str | None, data_set_id: str, ingestion_id: str
+    ) -> str:
         """
         Get the current status of QuickSight Create Ingestion API.
 
@@ -107,15 +112,21 @@ class QuickSightHook(AwsBaseHook):
         aws_account_id = aws_account_id or self.account_id
         try:
             describe_ingestion_response = self.conn.describe_ingestion(
-                AwsAccountId=aws_account_id, DataSetId=data_set_id, IngestionId=ingestion_id
+                AwsAccountId=aws_account_id,
+                DataSetId=data_set_id,
+                IngestionId=ingestion_id,
             )
             return describe_ingestion_response["Ingestion"]["IngestionStatus"]
         except KeyError as e:
-            raise AirflowException(f"Could not get status of the Amazon QuickSight Ingestion: {e}")
+            raise AirflowException(
+                f"Could not get status of the Amazon QuickSight Ingestion: {e}"
+            )
         except ClientError as e:
             raise AirflowException(f"AWS request failed: {e}")
 
-    def get_error_info(self, aws_account_id: str | None, data_set_id: str, ingestion_id: str) -> dict | None:
+    def get_error_info(
+        self, aws_account_id: str | None, data_set_id: str, ingestion_id: str
+    ) -> dict | None:
         """
         Get info about the error if any.
 
@@ -159,7 +170,9 @@ class QuickSightHook(AwsBaseHook):
             self.log.info("Current status is %s", status)
             if status in self.FAILED_STATES:
                 info = self.get_error_info(aws_account_id, data_set_id, ingestion_id)
-                raise AirflowException(f"The Amazon QuickSight Ingestion failed. Error info: {info}")
+                raise AirflowException(
+                    f"The Amazon QuickSight Ingestion failed. Error info: {info}"
+                )
             if status == "CANCELLED":
                 raise AirflowException("The Amazon QuickSight SPICE ingestion cancelled!")
             if status not in self.NON_TERMINAL_STATES or status == target_state:

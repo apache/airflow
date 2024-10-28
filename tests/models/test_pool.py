@@ -279,7 +279,9 @@ class TestPool:
 
     def test_create_pool(self, session):
         self.add_pools()
-        pool = Pool.create_or_update_pool(name="foo", slots=5, description="", include_deferred=True)
+        pool = Pool.create_or_update_pool(
+            name="foo", slots=5, description="", include_deferred=True
+        )
         assert pool.pool == "foo"
         assert pool.slots == 5
         assert pool.description == ""

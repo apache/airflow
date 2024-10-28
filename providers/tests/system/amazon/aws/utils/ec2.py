@@ -29,16 +29,24 @@ def _get_next_available_cidr(vpc_id: str) -> str:
     error_msg_template = "Can not calculate the next available CIDR block: {}"
     vpc_filter = {"Name": "vpc-id", "Values": [vpc_id]}
 
-    existing_subnets = boto3.client("ec2").describe_subnets(Filters=[vpc_filter])["Subnets"]
+    existing_subnets = boto3.client("ec2").describe_subnets(Filters=[vpc_filter])[
+        "Subnets"
+    ]
     if not existing_subnets:
-        raise ValueError(error_msg_template.format("No subnets are found on the provided VPC."))
+        raise ValueError(
+            error_msg_template.format("No subnets are found on the provided VPC.")
+        )
 
     # Pull all CIDR blocks from the JSON response and convert them
     # to IPv4Network objects which can be sorted and manipulated.
-    existing_cidr_blocks = [IPv4Network(subnet["CidrBlock"]) for subnet in existing_subnets]
+    existing_cidr_blocks = [
+        IPv4Network(subnet["CidrBlock"]) for subnet in existing_subnets
+    ]
     # Can not predict the next block if existing block sizes (prefixlen) are not consistent.
     if len({block.prefixlen for block in existing_cidr_blocks}) > 1:
-        raise ValueError(error_msg_template.format("Subnets do not all use the same CIDR block size."))
+        raise ValueError(
+            error_msg_template.format("Subnets do not all use the same CIDR block size.")
+        )
 
     last_used_block = max(existing_cidr_blocks)
     *_, last_reserved_ip = last_used_block
@@ -108,7 +116,10 @@ def create_private_subnets(
     client = boto3.client("ec2")
     subnet_ids = []
     tags = [{"Key": "Name", "Value": f"Private Subnet for {test_name}"}]
-    zone_names = [zone["ZoneName"] for zone in client.describe_availability_zones()["AvailabilityZones"]]
+    zone_names = [
+        zone["ZoneName"]
+        for zone in client.describe_availability_zones()["AvailabilityZones"]
+    ]
 
     # Create the requested number of subnets.
     for counter in range(number_to_make):

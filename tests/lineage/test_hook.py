@@ -47,9 +47,15 @@ class TestHookLineageCollector:
         input_hook = BaseHook()
         output_hook = BaseHook()
         self.collector.add_input_asset(input_hook, uri="s3://in_bucket/file")
-        self.collector.add_output_asset(output_hook, uri="postgres://example.com:5432/database/default/table")
+        self.collector.add_output_asset(
+            output_hook, uri="postgres://example.com:5432/database/default/table"
+        )
         assert self.collector.collected_assets == HookLineage(
-            [AssetLineageInfo(asset=Asset("s3://in_bucket/file"), count=1, context=input_hook)],
+            [
+                AssetLineageInfo(
+                    asset=Asset("s3://in_bucket/file"), count=1, context=input_hook
+                )
+            ],
             [
                 AssetLineageInfo(
                     asset=Asset("postgres://example.com:5432/database/default/table"),
@@ -78,7 +84,9 @@ class TestHookLineageCollector:
 
         self.collector.add_input_asset(context=hook_1, uri=uri)
         self.collector.add_input_asset(context=hook_2, uri=uri)
-        self.collector.add_input_asset(context=hook_1, uri=uri, asset_extra={"key": "value"})
+        self.collector.add_input_asset(
+            context=hook_1, uri=uri, asset_extra={"key": "value"}
+        )
 
         collected_inputs = self.collector.collected_assets.inputs
 
@@ -99,7 +107,10 @@ class TestHookLineageCollector:
 
         mock_providers_manager.return_value.asset_factories = {"myscheme": create_asset}
         assert self.collector.create_asset(
-            scheme="myscheme", uri=None, asset_kwargs={"arg1": "value_1"}, asset_extra=None
+            scheme="myscheme",
+            uri=None,
+            asset_kwargs={"arg1": "value_1"},
+            asset_extra=None,
         ) == Asset("myscheme://value_1/default")
         assert self.collector.create_asset(
             scheme="myscheme",

@@ -28,7 +28,9 @@ from airflow.providers.qdrant.hooks.qdrant import QdrantHook
 class TestQdrantHook:
     def setup_method(self):
         """Set up the test connection for the QdrantHook."""
-        with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
+        with patch(
+            "airflow.models.Connection.get_connection_from_secrets"
+        ) as mock_get_connection:
             mock_conn = Mock()
             mock_conn.host = "localhost"
             mock_conn.port = 6333
@@ -51,7 +53,11 @@ class TestQdrantHook:
         """Test the upsert method of the QdrantHook with appropriate arguments."""
         vectors = [[0.732, 0.611, 0.289], [0.217, 0.526, 0.416], [0.326, 0.483, 0.376]]
         ids = [32, 21, "b626f6a9-b14d-4af9-b7c3-43d8deb719a6"]
-        payloads = [{"meta": "data"}, {"meta": "data_2"}, {"meta": "data_3", "extra": "data"}]
+        payloads = [
+            {"meta": "data"},
+            {"meta": "data_2"},
+            {"meta": "data_3", "extra": "data"},
+        ]
         parallel = 2
         self.qdrant_hook.conn.upsert(
             collection_name=self.collection_name,
@@ -113,7 +119,10 @@ class TestQdrantHook:
         )
 
         conn.search.assert_called_once_with(
-            collection_name=self.collection_name, query_vector=[1.0, 2.0, 3.0], limit=10, with_vectors=True
+            collection_name=self.collection_name,
+            query_vector=[1.0, 2.0, 3.0],
+            limit=10,
+            with_vectors=True,
         )
 
     @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
@@ -130,4 +139,6 @@ class TestQdrantHook:
 
         self.qdrant_hook.conn.delete_collection(collection_name=self.collection_name)
 
-        conn.delete_collection.assert_called_once_with(collection_name=self.collection_name)
+        conn.delete_collection.assert_called_once_with(
+            collection_name=self.collection_name
+        )

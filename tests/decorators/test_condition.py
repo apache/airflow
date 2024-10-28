@@ -43,8 +43,12 @@ def test_skip_if(dag_maker, session):
         f.override(task_id="do_not_skip")()
 
     dag_run: DagRun = dag_maker.create_dagrun()
-    do_skip_ti: TaskInstance = dag_run.get_task_instance(task_id="do_skip", session=session)
-    do_not_skip_ti: TaskInstance = dag_run.get_task_instance(task_id="do_not_skip", session=session)
+    do_skip_ti: TaskInstance = dag_run.get_task_instance(
+        task_id="do_skip", session=session
+    )
+    do_not_skip_ti: TaskInstance = dag_run.get_task_instance(
+        task_id="do_not_skip", session=session
+    )
     do_skip_ti.run(session=session)
     do_not_skip_ti.run(session=session)
 
@@ -65,7 +69,9 @@ def test_run_if(dag_maker, session):
 
     dag_run: DagRun = dag_maker.create_dagrun()
     do_run_ti: TaskInstance = dag_run.get_task_instance(task_id="do_run", session=session)
-    do_not_run_ti: TaskInstance = dag_run.get_task_instance(task_id="do_not_run", session=session)
+    do_not_run_ti: TaskInstance = dag_run.get_task_instance(
+        task_id="do_not_run", session=session
+    )
     do_run_ti.run(session=session)
     do_not_run_ti.run(session=session)
 
@@ -94,7 +100,9 @@ def test_skip_if_with_other_pre_execute(dag_maker, session):
 
     with dag_maker(session=session):
 
-        @task.skip_if(lambda context: context["dag_run"].conf.get("some_key") == "some_value")
+        @task.skip_if(
+            lambda context: context["dag_run"].conf.get("some_key") == "some_value"
+        )
         @task.python(pre_execute=setup_conf)
         def f(): ...
 
@@ -114,7 +122,9 @@ def test_run_if_with_other_pre_execute(dag_maker, session):
 
     with dag_maker(session=session):
 
-        @task.run_if(lambda context: context["dag_run"].conf.get("some_key") == "some_value")
+        @task.run_if(
+            lambda context: context["dag_run"].conf.get("some_key") == "some_value"
+        )
         @task.python(pre_execute=setup_conf)
         def f(): ...
 

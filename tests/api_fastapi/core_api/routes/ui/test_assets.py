@@ -36,7 +36,9 @@ def cleanup():
 
 
 def test_next_run_assets(test_client, dag_maker):
-    with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
+    with dag_maker(
+        dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True
+    ):
         EmptyOperator(task_id="task1")
 
     dag_maker.create_dagrun()

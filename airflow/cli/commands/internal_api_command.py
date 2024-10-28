@@ -71,7 +71,11 @@ def internal_api(args):
     worker_timeout = args.worker_timeout
 
     if args.debug:
-        log.info("Starting the Internal API server on port %s and host %s.", args.port, args.hostname)
+        log.info(
+            "Starting the Internal API server on port %s and host %s.",
+            args.port,
+            args.hostname,
+        )
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
             debug=True,  # nosec
@@ -133,7 +137,9 @@ def internal_api(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        def kill_proc(signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen):
+        def kill_proc(
+            signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen
+        ):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
@@ -148,8 +154,12 @@ def internal_api(args):
 
         def monitor_gunicorn(gunicorn_master_proc: psutil.Process | subprocess.Popen):
             # Register signal handlers
-            signal.signal(signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
-            signal.signal(signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
+            signal.signal(
+                signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc)
+            )
+            signal.signal(
+                signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc)
+            )
 
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             GunicornMonitor(
@@ -186,7 +196,9 @@ def internal_api(args):
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)
-        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
+        monitor_pid_file = str(
+            pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}")
+        )
         run_command_with_daemon_option(
             args=args,
             process_name="internal-api",
@@ -238,7 +250,10 @@ def create_app(config=None, testing=False):
 
     init_dagbag(flask_app)
 
-    cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
+    cache_config = {
+        "CACHE_TYPE": "flask_caching.backends.filesystem",
+        "CACHE_DIR": gettempdir(),
+    }
     Cache(app=flask_app, config=cache_config)
 
     configure_logging()

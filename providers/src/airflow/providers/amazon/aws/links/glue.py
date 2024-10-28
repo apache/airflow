@@ -25,5 +25,6 @@ class GlueJobRunDetailsLink(BaseAwsLink):
     name = "AWS Glue Job Run Details"
     key = "glue_job_run_details"
     format_str = (
-        BASE_AWS_CONSOLE_LINK + "/gluestudio/home?region={region_name}#/job/{job_name}/run/{job_run_id}"
+        BASE_AWS_CONSOLE_LINK
+        + "/gluestudio/home?region={region_name}#/job/{job_name}/run/{job_run_id}"
     )

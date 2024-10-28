@@ -56,12 +56,22 @@ def upgrade():
             name=op.f("dataset_alias_dataset_dataset_id_fkey"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("alias_id", "dataset_id", name=op.f("dataset_alias_dataset_pkey")),
+        sa.PrimaryKeyConstraint(
+            "alias_id", "dataset_id", name=op.f("dataset_alias_dataset_pkey")
+        ),
     )
     op.create_index(
-        "idx_dataset_alias_dataset_alias_dataset_id", "dataset_alias_dataset", ["dataset_id"], unique=False
+        "idx_dataset_alias_dataset_alias_dataset_id",
+        "dataset_alias_dataset",
+        ["dataset_id"],
+        unique=False,
     )
-    op.create_index("idx_dataset_alias_dataset_alias_id", "dataset_alias_dataset", ["alias_id"], unique=False)
+    op.create_index(
+        "idx_dataset_alias_dataset_alias_id",
+        "dataset_alias_dataset",
+        ["alias_id"],
+        unique=False,
+    )
 
 
 def downgrade():

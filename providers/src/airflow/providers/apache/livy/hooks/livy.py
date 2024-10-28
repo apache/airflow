@@ -161,7 +161,10 @@ class LivyHook(HttpHook, LoggingMixin):
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
         response = self.run_method(
-            method="POST", endpoint="/batches", data=batch_submit_body, headers=self.extra_headers
+            method="POST",
+            endpoint="/batches",
+            data=batch_submit_body,
+            headers=self.extra_headers,
         )
         self.log.debug("Got response: %s", response.text)
 
@@ -190,19 +193,25 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %s", session_id)
-        response = self.run_method(endpoint=f"/batches/{session_id}", headers=self.extra_headers)
+        response = self.run_method(
+            endpoint=f"/batches/{session_id}", headers=self.extra_headers
+        )
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
+            self.log.warning(
+                "Got status code %d for session %s", err.response.status_code, session_id
+            )
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
             )
 
         return response.json()
 
-    def get_batch_state(self, session_id: int | str, retry_args: dict[str, Any] | None = None) -> BatchState:
+    def get_batch_state(
+        self, session_id: int | str, retry_args: dict[str, Any] | None = None
+    ) -> BatchState:
         """
         Fetch the state of the specified batch.
 
@@ -215,13 +224,17 @@ class LivyHook(HttpHook, LoggingMixin):
 
         self.log.debug("Fetching info for batch session %s", session_id)
         response = self.run_method(
-            endpoint=f"/batches/{session_id}/state", retry_args=retry_args, headers=self.extra_headers
+            endpoint=f"/batches/{session_id}/state",
+            retry_args=retry_args,
+            headers=self.extra_headers,
         )
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
+            self.log.warning(
+                "Got status code %d for session %s", err.response.status_code, session_id
+            )
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
             )
@@ -248,14 +261,18 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
+            self.log.warning(
+                "Got status code %d for session %s", err.response.status_code, session_id
+            )
             raise AirflowException(
                 f"Could not kill the batch with session id: {session_id}. Message: {err.response.text}"
             )
 
         return response.json()
 
-    def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> dict:
+    def get_batch_logs(
+        self, session_id: int | str, log_start_position, log_batch_size
+    ) -> dict:
         """
         Get the session logs for a specified batch.
 
@@ -268,12 +285,16 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
         response = self.run_method(
-            endpoint=f"/batches/{session_id}/log", data=log_params, headers=self.extra_headers
+            endpoint=f"/batches/{session_id}/log",
+            data=log_params,
+            headers=self.extra_headers,
         )
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
+            self.log.warning(
+                "Got status code %d for session %s", err.response.status_code, session_id
+            )
             raise AirflowException(
                 f"Could not fetch the logs for batch with session id: {session_id}. "
                 f"Message: {err.response.text}"
@@ -420,7 +441,9 @@ class LivyHook(HttpHook, LoggingMixin):
         :param size: size value
         :return: true if valid format
         """
-        if size and not (isinstance(size, str) and re.fullmatch(r"\d+[kmgt]b?", size, re.IGNORECASE)):
+        if size and not (
+            isinstance(size, str) and re.fullmatch(r"\d+[kmgt]b?", size, re.IGNORECASE)
+        ):
             raise ValueError(f"Invalid java size format for string'{size}'")
         return True
 
@@ -526,11 +549,18 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
                 try:
                     _headers.update(conn.extra_dejson)
                 except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
+                    self.log.warning(
+                        "Connection to %s has invalid extra field.", conn.host
+                    )
         if headers:
             _headers.update(headers)
 
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+        if (
+            self.base_url
+            and not self.base_url.endswith("/")
+            and endpoint
+            and not endpoint.startswith("/")
+        ):
             url = self.base_url + "/" + endpoint
         else:
             url = (self.base_url or "") + (endpoint or "")
@@ -543,7 +573,10 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
             elif self.method == "PATCH":
                 request_func = session.patch
             else:
-                return {"Response": f"Unexpected HTTP Method: {self.method}", "status": "error"}
+                return {
+                    "Response": f"Unexpected HTTP Method: {self.method}",
+                    "status": "error",
+                }
 
             for attempt_num in range(1, 1 + self.retry_limit):
                 response = await request_func(
@@ -564,11 +597,18 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
                         self.retry_limit,
                         url,
                     )
-                    if not self._retryable_error_async(e) or attempt_num == self.retry_limit:
+                    if (
+                        not self._retryable_error_async(e)
+                        or attempt_num == self.retry_limit
+                    ):
                         self.log.exception("HTTP error, status code: %s", e.status)
                         # In this case, the user probably made a mistake.
                         # Don't retry.
-                        return {"Response": {e.message}, "Status Code": {e.status}, "status": "error"}
+                        return {
+                            "Response": {e.message},
+                            "Status Code": {e.status},
+                            "status": "error",
+                        }
 
                 await asyncio.sleep(self.retry_delay)
 
@@ -606,7 +646,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         back_method = self.method
         self.method = method
         try:
-            result = await self._do_api_call_async(endpoint, data, headers, self.extra_options)
+            result = await self._do_api_call_async(
+                endpoint, data, headers, self.extra_options
+            )
         finally:
             self.method = back_method
         return {"status": "success", "response": result}
@@ -627,7 +669,8 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
 
         if "state" not in result["response"]:
             self.log.info(
-                "batch_state: error with as it is unable to get state for batch with id: %s", session_id
+                "batch_state: error with as it is unable to get state for batch with id: %s",
+                session_id,
             )
             return {
                 "batch_state": "error",
@@ -655,7 +698,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
-        result = await self.run_method(endpoint=f"/batches/{session_id}/log", data=log_params)
+        result = await self.run_method(
+            endpoint=f"/batches/{session_id}/log", data=log_params
+        )
         if result["status"] == "error":
             self.log.info(result)
             return {"response": result["response"], "status": "error"}
@@ -801,7 +846,9 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         :param size: size value
         :return: true if valid format
         """
-        if size and not (isinstance(size, str) and re.fullmatch(r"\d+[kmgt]b?", size, re.IGNORECASE)):
+        if size and not (
+            isinstance(size, str) and re.fullmatch(r"\d+[kmgt]b?", size, re.IGNORECASE)
+        ):
             raise ValueError(f"Invalid java size format for string'{size}'")
         return True
 

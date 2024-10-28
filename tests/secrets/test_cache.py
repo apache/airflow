@@ -94,7 +94,9 @@ class TestSecretCache:
             SecretCache.get_variable("key")
 
     def test_invalidate_key_not_present(self):
-        SecretCache.invalidate_variable("not present")  # simply shouldn't raise any exception.
+        SecretCache.invalidate_variable(
+            "not present"
+        )  # simply shouldn't raise any exception.
 
     def test_expiration(self):
         SecretCache.save_variable("key", "some_value")

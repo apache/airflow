@@ -127,7 +127,9 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
             console.print(f"[blue]Internal API started at {pid_internal_api}")
             console.print("[blue]Running airflow internal-api process:")
             # Assert that the internal-api and gunicorn processes are running (by name rather than pid).
-            assert self._find_process(r"airflow internal-api --daemon", print_found_process=True)
+            assert self._find_process(
+                r"airflow internal-api --daemon", print_found_process=True
+            )
             console.print("[blue]Waiting for gunicorn processes:")
             # wait for gunicorn to start
             for _ in range(30):
@@ -144,7 +146,9 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
             )
             self._terminate_multiple_process([pid_internal_api, pid_monitor])
             self._check_processes(ignore_running=False)
-            console.print("[magenta]All internal-api and gunicorn processes are terminated.")
+            console.print(
+                "[magenta]All internal-api and gunicorn processes are terminated."
+            )
         except Exception:
             console.print("[red]Exception occurred. Dumping all logs.")
             # Dump all logs

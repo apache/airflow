@@ -34,7 +34,14 @@ from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
 from wtforms import widgets
-from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
+from wtforms.fields import (
+    Field,
+    IntegerField,
+    PasswordField,
+    SelectField,
+    StringField,
+    TextAreaField,
+)
 from wtforms.validators import InputRequired, Optional
 
 from airflow.configuration import conf
@@ -54,7 +61,9 @@ class DateTimeWithTimezoneField(Field):
 
     widget = widgets.TextInput()
 
-    def __init__(self, label=None, validators=None, datetime_format="%Y-%m-%d %H:%M:%S%Z", **kwargs):
+    def __init__(
+        self, label=None, validators=None, datetime_format="%Y-%m-%d %H:%M:%S%Z", **kwargs
+    ):
         super().__init__(label, validators, **kwargs)
         self.format = datetime_format
         self.data = None
@@ -74,7 +83,9 @@ class DateTimeWithTimezoneField(Field):
             # Check if the datetime string is in the format without timezone, if so convert it to the
             # default timezone
             if len(date_str) == 19:
-                parsed_datetime = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                parsed_datetime = datetime.datetime.strptime(
+                    date_str, "%Y-%m-%d %H:%M:%S"
+                )
                 default_timezone = self._get_default_timezone()
                 self.data = default_timezone.convert(parsed_datetime)
             else:
@@ -95,7 +106,9 @@ class DateTimeWithTimezoneField(Field):
 class DateTimeForm(FlaskForm):
     """Date filter form needed for task views."""
 
-    execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
+    execution_date = DateTimeWithTimezoneField(
+        "Logical date", widget=AirflowDateTimePickerWidget()
+    )
 
 
 class DagRunEditForm(DynamicForm):
@@ -105,21 +118,33 @@ class DagRunEditForm(DynamicForm):
     Only note field is editable, so everything else is read-only here.
     """
 
-    dag_id = StringField(lazy_gettext("Dag Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
+    dag_id = StringField(
+        lazy_gettext("Dag Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget()
+    )
     start_date = DateTimeWithTimezoneField(
-        lazy_gettext("Start Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+        lazy_gettext("Start Date"),
+        validators=[ReadOnly()],
+        widget=AirflowDateTimePickerROWidget(),
     )
     end_date = DateTimeWithTimezoneField(
-        lazy_gettext("End Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+        lazy_gettext("End Date"),
+        validators=[ReadOnly()],
+        widget=AirflowDateTimePickerROWidget(),
     )
-    run_id = StringField(lazy_gettext("Run Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
-    state = StringField(lazy_gettext("State"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
+    run_id = StringField(
+        lazy_gettext("Run Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget()
+    )
+    state = StringField(
+        lazy_gettext("State"), validators=[ReadOnly()], widget=BS3TextFieldROWidget()
+    )
     execution_date = DateTimeWithTimezoneField(
         lazy_gettext("Logical Date"),
         validators=[ReadOnly()],
         widget=AirflowDateTimePickerROWidget(),
     )
-    conf = TextAreaField(lazy_gettext("Conf"), validators=[ReadOnly()], widget=BS3TextAreaROWidget())
+    conf = TextAreaField(
+        lazy_gettext("Conf"), validators=[ReadOnly()], widget=BS3TextAreaROWidget()
+    )
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
@@ -140,16 +165,24 @@ class TaskInstanceEditForm(DynamicForm):
     """
 
     dag_id = StringField(
-        lazy_gettext("Dag Id"), validators=[InputRequired(), ReadOnly()], widget=BS3TextFieldROWidget()
+        lazy_gettext("Dag Id"),
+        validators=[InputRequired(), ReadOnly()],
+        widget=BS3TextFieldROWidget(),
     )
     task_id = StringField(
-        lazy_gettext("Task Id"), validators=[InputRequired(), ReadOnly()], widget=BS3TextFieldROWidget()
+        lazy_gettext("Task Id"),
+        validators=[InputRequired(), ReadOnly()],
+        widget=BS3TextFieldROWidget(),
     )
     start_date = DateTimeWithTimezoneField(
-        lazy_gettext("Start Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+        lazy_gettext("Start Date"),
+        validators=[ReadOnly()],
+        widget=AirflowDateTimePickerROWidget(),
     )
     end_date = DateTimeWithTimezoneField(
-        lazy_gettext("End Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+        lazy_gettext("End Date"),
+        validators=[ReadOnly()],
+        widget=AirflowDateTimePickerROWidget(),
     )
     state = SelectField(
         lazy_gettext("State"),
@@ -217,12 +250,18 @@ def create_connection_form_class() -> type[DynamicForm]:
                 "corresponding Airflow Provider Package."
             ),
         )
-        description = StringField(lazy_gettext("Description"), widget=BS3TextAreaFieldWidget())
+        description = StringField(
+            lazy_gettext("Description"), widget=BS3TextAreaFieldWidget()
+        )
         host = StringField(lazy_gettext("Host"), widget=BS3TextFieldWidget())
         schema = StringField(lazy_gettext("Schema"), widget=BS3TextFieldWidget())
         login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
-        password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
-        port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
+        password = PasswordField(
+            lazy_gettext("Password"), widget=BS3PasswordFieldWidget()
+        )
+        port = IntegerField(
+            lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget()
+        )
         extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
 
     for key, value in providers_manager.connection_form_widgets.items():

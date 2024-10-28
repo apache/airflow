@@ -30,7 +30,11 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
+from azure.kusto.data import (
+    ClientRequestProperties,
+    KustoClient,
+    KustoConnectionStringBuilder,
+)
 from azure.kusto.data.exceptions import KustoServiceError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -87,18 +91,25 @@ class AzureDataExplorerHook(BaseHook):
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
         return {
             "tenant": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
-            "auth_method": StringField(lazy_gettext("Authentication Method"), widget=BS3TextFieldWidget()),
+            "auth_method": StringField(
+                lazy_gettext("Authentication Method"), widget=BS3TextFieldWidget()
+            ),
             "certificate": PasswordField(
-                lazy_gettext("Application PEM Certificate"), widget=BS3PasswordFieldWidget()
+                lazy_gettext("Application PEM Certificate"),
+                widget=BS3PasswordFieldWidget(),
             ),
             "thumbprint": PasswordField(
-                lazy_gettext("Application Certificate Thumbprint"), widget=BS3PasswordFieldWidget()
+                lazy_gettext("Application Certificate Thumbprint"),
+                widget=BS3PasswordFieldWidget(),
             ),
         }
 
@@ -170,7 +181,9 @@ class AzureDataExplorerHook(BaseHook):
                 )
                 value = extras.get(backcompat_key)
             if not value:
-                raise AirflowException(f"Required connection parameter is missing: `{name}`")
+                raise AirflowException(
+                    f"Required connection parameter is missing: `{name}`"
+                )
             return value
 
         auth_method = get_required_param("auth_method")
@@ -199,8 +212,12 @@ class AzureDataExplorerHook(BaseHook):
         elif auth_method == "AAD_DEVICE":
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
         elif auth_method == "AZURE_TOKEN_CRED":
-            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
-            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            managed_identity_client_id = conn.extra_dejson.get(
+                "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = conn.extra_dejson.get(
+                "workload_identity_tenant_id"
+            )
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
@@ -214,7 +231,9 @@ class AzureDataExplorerHook(BaseHook):
 
         return KustoClient(kcsb)
 
-    def run_query(self, query: str, database: str, options: dict | None = None) -> KustoResponseDataSetV2:
+    def run_query(
+        self, query: str, database: str, options: dict | None = None
+    ) -> KustoResponseDataSetV2:
         """
         Run KQL query using provided configuration, and return KustoResponseDataSet instance.
 

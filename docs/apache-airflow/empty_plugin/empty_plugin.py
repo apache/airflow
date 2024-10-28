@@ -54,4 +54,6 @@ class EmptyPlugin(AirflowPlugin):
 
     name = "Empty Plugin"
     flask_blueprints = [bp]
-    appbuilder_views = [{"name": "Empty Plugin", "category": "Extra Views", "view": EmptyPluginView()}]
+    appbuilder_views = [
+        {"name": "Empty Plugin", "category": "Extra Views", "view": EmptyPluginView()}
+    ]

@@ -26,11 +26,16 @@ import boto3
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.amazon.aws.auth_manager.constants import CONF_REGION_NAME_KEY, CONF_SECTION_NAME
+from airflow.providers.amazon.aws.auth_manager.constants import (
+    CONF_REGION_NAME_KEY,
+    CONF_SECTION_NAME,
+)
 from airflow.utils import cli as cli_utils
 
 try:
-    from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+    from airflow.utils.providers_configuration_loader import (
+        providers_configuration_loaded,
+    )
 except ImportError:
     raise AirflowOptionalProviderFeatureException(
         "Failed to import avp_commands. This feature is only available in Airflow "
@@ -91,7 +96,9 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
     """
     paginator = client.get_paginator("list_policy_stores")
     pages = paginator.paginate()
-    policy_stores = [application for page in pages for application in page["policyStores"]]
+    policy_stores = [
+        application for page in pages for application in page["policyStores"]
+    ]
     existing_policy_stores = [
         policy_store
         for policy_store in policy_stores
@@ -108,7 +115,9 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
         )
         return existing_policy_stores[0]["policyStoreId"], False
     else:
-        print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
+        print(
+            f"No policy store with description '{args.policy_store_description}' found, creating one."
+        )
         if args.dry_run:
             print(
                 f"Dry run, not creating the policy store with description '{args.policy_store_description}'."
@@ -132,7 +141,9 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
 def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
     """Set the policy store schema."""
     if args.dry_run:
-        print(f"Dry run, not updating the schema of the policy store with ID '{policy_store_id}'.")
+        print(
+            f"Dry run, not updating the schema of the policy store with ID '{policy_store_id}'."
+        )
         return
 
     schema_path = Path(__file__).parents[1] / "avp" / "schema.json"

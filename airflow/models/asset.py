@@ -42,7 +42,9 @@ from airflow.utils.sqlalchemy import UtcDateTime
 alias_association_table = Table(
     "asset_alias_asset",
     Base.metadata,
-    Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True
+    ),
     Column("asset_id", ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_asset_id", "asset_id"),
@@ -51,8 +53,12 @@ alias_association_table = Table(
 asset_alias_asset_event_assocation_table = Table(
     "asset_alias_asset_event",
     Base.metadata,
-    Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
-    Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True
+    ),
+    Column(
+        "event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True
+    ),
     Index("idx_asset_alias_asset_event_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_event_event_id", "event_id"),
 )
@@ -108,7 +114,9 @@ class AssetAliasModel(Base):
         secondary=asset_alias_asset_event_assocation_table,
         back_populates="source_aliases",
     )
-    consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
+    consuming_dags = relationship(
+        "DagScheduleAssetAliasReference", back_populates="asset_alias"
+    )
 
     @classmethod
     def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
@@ -179,9 +187,13 @@ class AssetModel(Base):
     extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
 
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    updated_at = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
-    active = relationship("AssetActive", uselist=False, viewonly=True, back_populates="asset")
+    active = relationship(
+        "AssetActive", uselist=False, viewonly=True, back_populates="asset"
+    )
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
@@ -290,7 +302,9 @@ class DagScheduleAssetAliasReference(Base):
     alias_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    updated_at = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
     asset_alias = relationship("AssetAliasModel", back_populates="consuming_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_alias_references")
@@ -322,7 +336,9 @@ class DagScheduleAssetAliasReference(Base):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = [f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key]
+        args = [
+            f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
@@ -332,7 +348,9 @@ class DagScheduleAssetReference(Base):
     asset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    updated_at = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
     asset = relationship("AssetModel", back_populates="consuming_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
@@ -373,7 +391,10 @@ class DagScheduleAssetReference(Base):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = [f"{attr}={getattr(self, attr)!r}" for attr in [x.name for x in self.__mapper__.primary_key]]
+        args = [
+            f"{attr}={getattr(self, attr)!r}"
+            for attr in [x.name for x in self.__mapper__.primary_key]
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
@@ -384,7 +405,9 @@ class TaskOutletAssetReference(Base):
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    updated_at = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
     asset = relationship("AssetModel", back_populates="producing_tasks")
 
@@ -454,7 +477,10 @@ class AssetDagRunQueue(Base):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.asset_id == other.asset_id and self.target_dag_id == other.target_dag_id
+            return (
+                self.asset_id == other.asset_id
+                and self.target_dag_id == other.target_dag_id
+            )
         else:
             return NotImplemented
 
@@ -472,7 +498,9 @@ association_table = Table(
     "dagrun_asset_event",
     Base.metadata,
     Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
-    Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True
+    ),
     Index("idx_dagrun_asset_events_dag_run_id", "dag_run_id"),
     Index("idx_dagrun_asset_events_event_id", "event_id"),
 )

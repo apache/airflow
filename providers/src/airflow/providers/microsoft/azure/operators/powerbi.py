@@ -85,7 +85,9 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        self.hook = PowerBIHook(
+            conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout
+        )
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.wait_for_termination = True
@@ -129,6 +131,12 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                 raise AirflowException(event["message"])
 
             self.xcom_push(
-                context=context, key="powerbi_dataset_refresh_Id", value=event["dataset_refresh_id"]
+                context=context,
+                key="powerbi_dataset_refresh_Id",
+                value=event["dataset_refresh_id"],
             )
-            self.xcom_push(context=context, key="powerbi_dataset_refresh_status", value=event["status"])
+            self.xcom_push(
+                context=context,
+                key="powerbi_dataset_refresh_status",
+                value=event["status"],
+            )

@@ -110,7 +110,10 @@ class TestGlueCatalogPartitionSensorTrigger:
             verify=True,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.glue.GlueCatalogPartitionTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.glue.GlueCatalogPartitionTrigger"
+        )
         assert kwargs == {
             "database_name": "test_database",
             "table_name": "test_table",
@@ -129,9 +132,15 @@ class TestGlueDataQualityEvaluationRunCompletedTrigger:
 
     def test_serialization(self):
         """Assert that arguments and classpath are correctly serialized."""
-        trigger = GlueDataQualityRuleSetEvaluationRunCompleteTrigger(evaluation_run_id=self.RUN_ID)
+        trigger = GlueDataQualityRuleSetEvaluationRunCompleteTrigger(
+            evaluation_run_id=self.RUN_ID
+        )
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "GlueDataQualityRuleSetEvaluationRunCompleteTrigger"
+        assert (
+            classpath
+            == BASE_TRIGGER_CLASSPATH
+            + "GlueDataQualityRuleSetEvaluationRunCompleteTrigger"
+        )
         assert kwargs.get("evaluation_run_id") == self.RUN_ID
 
     @pytest.mark.asyncio
@@ -140,12 +149,16 @@ class TestGlueDataQualityEvaluationRunCompletedTrigger:
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
-        trigger = GlueDataQualityRuleSetEvaluationRunCompleteTrigger(evaluation_run_id=self.RUN_ID)
+        trigger = GlueDataQualityRuleSetEvaluationRunCompleteTrigger(
+            evaluation_run_id=self.RUN_ID
+        )
 
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "evaluation_run_id": self.RUN_ID})
+        assert response == TriggerEvent(
+            {"status": "success", "evaluation_run_id": self.RUN_ID}
+        )
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         mock_get_waiter().wait.assert_called_once()
 
@@ -156,9 +169,15 @@ class TestGlueDataQualityRuleRecommendationRunCompleteTrigger:
 
     def test_serialization(self):
         """Assert that arguments and classpath are correctly serialized."""
-        trigger = GlueDataQualityRuleRecommendationRunCompleteTrigger(recommendation_run_id=self.RUN_ID)
+        trigger = GlueDataQualityRuleRecommendationRunCompleteTrigger(
+            recommendation_run_id=self.RUN_ID
+        )
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "GlueDataQualityRuleRecommendationRunCompleteTrigger"
+        assert (
+            classpath
+            == BASE_TRIGGER_CLASSPATH
+            + "GlueDataQualityRuleRecommendationRunCompleteTrigger"
+        )
         assert kwargs.get("recommendation_run_id") == self.RUN_ID
 
     @pytest.mark.asyncio
@@ -167,11 +186,15 @@ class TestGlueDataQualityRuleRecommendationRunCompleteTrigger:
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
-        trigger = GlueDataQualityRuleRecommendationRunCompleteTrigger(recommendation_run_id=self.RUN_ID)
+        trigger = GlueDataQualityRuleRecommendationRunCompleteTrigger(
+            recommendation_run_id=self.RUN_ID
+        )
 
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "recommendation_run_id": self.RUN_ID})
+        assert response == TriggerEvent(
+            {"status": "success", "recommendation_run_id": self.RUN_ID}
+        )
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         mock_get_waiter().wait.assert_called_once()

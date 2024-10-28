@@ -30,7 +30,10 @@ from airflow.www import app as application
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -54,7 +57,9 @@ def test_doc_urls(admin_client, monkeypatch):
     # Mocking this way is tying the test closer to the implementation much more than I'd like. :shrug:
     from airflow.www.views import AirflowBaseView
 
-    monkeypatch.setitem(AirflowBaseView.extra_args, "get_docs_url", lambda _: "!!DOCS_URL!!")
+    monkeypatch.setitem(
+        AirflowBaseView.extra_args, "get_docs_url", lambda _: "!!DOCS_URL!!"
+    )
     resp = admin_client.get("/", follow_redirects=True)
 
     check_content_in_response("!!DOCS_URL!!", resp)
@@ -126,7 +131,9 @@ def test_health(request, admin_client, heartbeat):
     resp_json = json.loads(resp.data.decode("utf-8"))
     assert "healthy" == resp_json["metadatabase"]["status"]
     assert scheduler_status == resp_json["scheduler"]["status"]
-    assert last_scheduler_heartbeat == resp_json["scheduler"]["latest_scheduler_heartbeat"]
+    assert (
+        last_scheduler_heartbeat == resp_json["scheduler"]["latest_scheduler_heartbeat"]
+    )
 
 
 def test_users_list(admin_client):
@@ -179,27 +186,37 @@ def exist_role(app, exist_role_name):
 
 
 def test_roles_create(app, admin_client, non_exist_role_name):
-    admin_client.post("roles/add", data={"name": non_exist_role_name}, follow_redirects=True)
+    admin_client.post(
+        "roles/add", data={"name": non_exist_role_name}, follow_redirects=True
+    )
     assert app.appbuilder.sm.find_role(non_exist_role_name) is not None
 
 
 def test_roles_create_unauthorized(app, viewer_client, non_exist_role_name):
-    resp = viewer_client.post("roles/add", data={"name": non_exist_role_name}, follow_redirects=True)
+    resp = viewer_client.post(
+        "roles/add", data={"name": non_exist_role_name}, follow_redirects=True
+    )
     check_content_in_response("Access is Denied", resp)
     assert app.appbuilder.sm.find_role(non_exist_role_name) is None
 
 
 def test_roles_edit(app, admin_client, non_exist_role_name, exist_role):
     admin_client.post(
-        f"roles/edit/{exist_role.id}", data={"name": non_exist_role_name}, follow_redirects=True
+        f"roles/edit/{exist_role.id}",
+        data={"name": non_exist_role_name},
+        follow_redirects=True,
     )
     updated_role = app.appbuilder.sm.find_role(non_exist_role_name)
     assert exist_role.id == updated_role.id
 
 
-def test_roles_edit_unauthorized(app, viewer_client, non_exist_role_name, exist_role_name, exist_role):
+def test_roles_edit_unauthorized(
+    app, viewer_client, non_exist_role_name, exist_role_name, exist_role
+):
     resp = viewer_client.post(
-        f"roles/edit/{exist_role.id}", data={"name": non_exist_role_name}, follow_redirects=True
+        f"roles/edit/{exist_role.id}",
+        data={"name": non_exist_role_name},
+        follow_redirects=True,
     )
     check_content_in_response("Access is Denied", resp)
     assert app.appbuilder.sm.find_role(exist_role_name)
@@ -284,7 +301,9 @@ def test_views_post(admin_client, url, check_response):
 def test_resetmypasswordview_edit(app, request, url, client, content, username):
     user = app.appbuilder.sm.find_user(username)
     resp = request.getfixturevalue(client).post(
-        url.format(user.id), data={"password": "blah", "conf_password": "blah"}, follow_redirects=True
+        url.format(user.id),
+        data={"password": "blah", "conf_password": "blah"},
+        follow_redirects=True,
     )
     check_content_in_response(content, resp)
 

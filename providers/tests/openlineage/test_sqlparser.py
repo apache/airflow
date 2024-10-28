@@ -24,7 +24,11 @@ from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset
 from openlineage.common.sql import DbTableMeta
 
-from airflow.providers.openlineage.sqlparser import DatabaseInfo, GetTableSchemasParams, SQLParser
+from airflow.providers.openlineage.sqlparser import (
+    DatabaseInfo,
+    GetTableSchemasParams,
+    SQLParser,
+)
 
 DB_NAME = "FOOD_DELIVERY"
 DB_SCHEMA_NAME = "PUBLIC"
@@ -142,7 +146,9 @@ class TestSQLParser:
         assert SQLParser.normalize_sql("select * from asdf") == "select * from asdf"
 
         assert (
-            SQLParser.normalize_sql(["select * from asdf", "insert into asdf values (1,2,3)"])
+            SQLParser.normalize_sql(
+                ["select * from asdf", "insert into asdf values (1,2,3)"]
+            )
             == "select * from asdf;\ninsert into asdf values (1,2,3)"
         )
 
@@ -167,9 +173,13 @@ class TestSQLParser:
         )
 
     def test_normalize_sql_with_no_common_sql_provider(self):
-        with mock.patch.dict("sys.modules", {"airflow.providers.common.sql.hooks.sql": None}):
+        with mock.patch.dict(
+            "sys.modules", {"airflow.providers.common.sql.hooks.sql": None}
+        ):
             assert (
-                SQLParser.normalize_sql("select * from asdf;insert into asdf values (1,2,3)")
+                SQLParser.normalize_sql(
+                    "select * from asdf;insert into asdf values (1,2,3)"
+                )
                 == "select * from asdf;\ninsert into asdf values (1,2,3)"
             )
 
@@ -197,8 +207,12 @@ class TestSQLParser:
             fields=[
                 schema_dataset.SchemaDatasetFacetFields(name="ID", type="int4"),
                 schema_dataset.SchemaDatasetFacetFields(name="AMOUNT_OFF", type="int4"),
-                schema_dataset.SchemaDatasetFacetFields(name="CUSTOMER_EMAIL", type="varchar"),
-                schema_dataset.SchemaDatasetFacetFields(name="STARTS_ON", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="CUSTOMER_EMAIL", type="varchar"
+                ),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="STARTS_ON", type="timestamp"
+                ),
                 schema_dataset.SchemaDatasetFacetFields(name="ENDS_ON", type="timestamp"),
             ]
         )
@@ -230,7 +244,9 @@ class TestSQLParser:
 
     @pytest.mark.parametrize("parser_returns_schema", [True, False])
     @mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.parse")
-    def test_generate_openlineage_metadata_from_sql(self, mock_parse, parser_returns_schema):
+    def test_generate_openlineage_metadata_from_sql(
+        self, mock_parse, parser_returns_schema
+    ):
         parser = SQLParser(default_schema="ANOTHER_SCHEMA")
         db_info = DatabaseInfo(scheme="myscheme", authority="host:port")
 
@@ -279,7 +295,9 @@ class TestSQLParser:
         FROM top_delivery_times --irrelevant comment
         );"""
 
-        hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = returned_rows
+        hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = (
+            returned_rows
+        )
 
         mock_sql_meta = MagicMock()
         if parser_returns_schema:
@@ -320,9 +338,15 @@ class TestSQLParser:
                 facets={
                     "schema": schema_dataset.SchemaDatasetFacet(
                         fields=[
-                            schema_dataset.SchemaDatasetFacetFields(name="order_id", type="int4"),
-                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                            schema_dataset.SchemaDatasetFacetFields(name="customer_email", type="varchar"),
+                            schema_dataset.SchemaDatasetFacetFields(
+                                name="order_id", type="int4"
+                            ),
+                            schema_dataset.SchemaDatasetFacetFields(
+                                name="order_placed_on", type="timestamp"
+                            ),
+                            schema_dataset.SchemaDatasetFacetFields(
+                                name="customer_email", type="varchar"
+                            ),
                         ]
                     )
                 },
@@ -333,9 +357,15 @@ class TestSQLParser:
         assert metadata.outputs[0].name == f"{expected_schema}.popular_orders_day_of_week"
         assert metadata.outputs[0].facets["schema"] == schema_dataset.SchemaDatasetFacet(
             fields=[
-                schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="order_day_of_week", type="varchar"
+                ),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="order_placed_on", type="timestamp"
+                ),
+                schema_dataset.SchemaDatasetFacetFields(
+                    name="orders_placed", type="int4"
+                ),
             ]
         )
         assert metadata.outputs[0].facets[
@@ -355,4 +385,6 @@ class TestSQLParser:
                 )
             }
         )
-        assert metadata.job_facets["sql"].query.replace(" ", "") == formatted_sql.replace(" ", "")
+        assert metadata.job_facets["sql"].query.replace(" ", "") == formatted_sql.replace(
+            " ", ""
+        )

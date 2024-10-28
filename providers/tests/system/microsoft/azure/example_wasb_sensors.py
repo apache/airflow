@@ -31,7 +31,10 @@ import os
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
+from airflow.providers.microsoft.azure.sensors.wasb import (
+    WasbBlobSensor,
+    WasbPrefixSensor,
+)
 
 CONTAINER_NAME = os.environ.get("CONTAINER_NAME", "example-container-name")
 BLOB_NAME = os.environ.get("BLOB_NAME", "example-blob-name")

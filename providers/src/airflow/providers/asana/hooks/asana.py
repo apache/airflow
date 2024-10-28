@@ -67,7 +67,9 @@ class AsanaHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "workspace": StringField(lazy_gettext("Workspace"), widget=BS3TextFieldWidget()),
+            "workspace": StringField(
+                lazy_gettext("Workspace"), widget=BS3TextFieldWidget()
+            ),
             "project": StringField(lazy_gettext("Project"), widget=BS3TextFieldWidget()),
         }
 
@@ -109,7 +111,9 @@ class AsanaHook(BaseHook):
         response = self.client.tasks.create(params=merged_params)
         return response
 
-    def _merge_create_task_parameters(self, task_name: str, task_params: dict | None) -> dict:
+    def _merge_create_task_parameters(
+        self, task_name: str, task_params: dict | None
+    ) -> dict:
         """
         Merge create_task parameters with default params from the connection.
 
@@ -180,7 +184,9 @@ class AsanaHook(BaseHook):
         if self.project:
             merged_params["project"] = self.project
         # Only use default workspace if user did not provide a project id
-        elif self.workspace and not (search_parameters and ("project" in search_parameters)):
+        elif self.workspace and not (
+            search_parameters and ("project" in search_parameters)
+        ):
             merged_params["workspace"] = self.workspace
         if search_parameters:
             merged_params.update(search_parameters)

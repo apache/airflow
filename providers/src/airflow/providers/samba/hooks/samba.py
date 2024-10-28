@@ -48,7 +48,9 @@ class SambaHook(BaseHook):
     conn_type = "samba"
     hook_name = "Samba"
 
-    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
+    def __init__(
+        self, samba_conn_id: str = default_conn_name, share: str | None = None
+    ) -> None:
         super().__init__()
         conn = self.get_connection(samba_conn_id)
 
@@ -106,7 +108,9 @@ class SambaHook(BaseHook):
 
     @wraps(smbclient.makedirs)
     def makedirs(self, path, exist_ok=False):
-        return smbclient.makedirs(self._join_path(path), exist_ok=exist_ok, **self._conn_kwargs)
+        return smbclient.makedirs(
+            self._join_path(path), exist_ok=exist_ok, **self._conn_kwargs
+        )
 
     @wraps(smbclient.mkdir)
     def mkdir(self, path):
@@ -154,11 +158,15 @@ class SambaHook(BaseHook):
 
     @wraps(smbclient.rename)
     def rename(self, src, dst):
-        return smbclient.rename(self._join_path(src), self._join_path(dst), **self._conn_kwargs)
+        return smbclient.rename(
+            self._join_path(src), self._join_path(dst), **self._conn_kwargs
+        )
 
     @wraps(smbclient.replace)
     def replace(self, src, dst):
-        return smbclient.replace(self._join_path(src), self._join_path(dst), **self._conn_kwargs)
+        return smbclient.replace(
+            self._join_path(src), self._join_path(dst), **self._conn_kwargs
+        )
 
     @wraps(smbclient.rmdir)
     def rmdir(self, path):
@@ -174,7 +182,9 @@ class SambaHook(BaseHook):
 
     @wraps(smbclient.stat)
     def stat(self, path, follow_symlinks=True):
-        return smbclient.stat(self._join_path(path), follow_symlinks=follow_symlinks, **self._conn_kwargs)
+        return smbclient.stat(
+            self._join_path(path), follow_symlinks=follow_symlinks, **self._conn_kwargs
+        )
 
     @wraps(smbclient.stat_volume)
     def stat_volume(self, path):
@@ -220,7 +230,10 @@ class SambaHook(BaseHook):
     @wraps(smbclient.getxattr)
     def getxattr(self, path, attribute, follow_symlinks=True):
         return smbclient.getxattr(
-            self._join_path(path), attribute, follow_symlinks=follow_symlinks, **self._conn_kwargs
+            self._join_path(path),
+            attribute,
+            follow_symlinks=follow_symlinks,
+            **self._conn_kwargs,
         )
 
     @wraps(smbclient.listxattr)
@@ -232,7 +245,10 @@ class SambaHook(BaseHook):
     @wraps(smbclient.removexattr)
     def removexattr(self, path, attribute, follow_symlinks=True):
         return smbclient.removexattr(
-            self._join_path(path), attribute, follow_symlinks=follow_symlinks, **self._conn_kwargs
+            self._join_path(path),
+            attribute,
+            follow_symlinks=follow_symlinks,
+            **self._conn_kwargs,
         )
 
     @wraps(smbclient.setxattr)
@@ -246,7 +262,12 @@ class SambaHook(BaseHook):
             **self._conn_kwargs,
         )
 
-    def push_from_local(self, destination_filepath: str, local_filepath: str, buffer_size: int | None = None):
+    def push_from_local(
+        self,
+        destination_filepath: str,
+        local_filepath: str,
+        buffer_size: int | None = None,
+    ):
         """
         Push local file to samba server.
 
@@ -257,7 +278,9 @@ class SambaHook(BaseHook):
             speed up large file transfers
         """
         extra_args = (buffer_size,) if buffer_size else ()
-        with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
+        with open(local_filepath, "rb") as f, self.open_file(
+            destination_filepath, mode="wb"
+        ) as g:
             copyfileobj(f, g, *extra_args)
 
     @classmethod

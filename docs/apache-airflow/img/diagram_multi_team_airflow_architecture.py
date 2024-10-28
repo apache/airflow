@@ -46,7 +46,9 @@ edge_attr = {
 
 def generate_dag_processor_airflow_diagram():
     dag_processor_architecture_image_file = (MY_DIR / MY_FILENAME).with_suffix(".png")
-    console.print(f"[bright_blue]Generating architecture image {dag_processor_architecture_image_file}")
+    console.print(
+        f"[bright_blue]Generating architecture image {dag_processor_architecture_image_file}"
+    )
     with Diagram(
         name="",
         show=False,
@@ -57,39 +59,63 @@ def generate_dag_processor_airflow_diagram():
         edge_attr=edge_attr,
     ):
         with Cluster(
-            "Common Organization Airflow Deployment", graph_attr={"bgcolor": "lightgrey", "fontsize": "22"}
+            "Common Organization Airflow Deployment",
+            graph_attr={"bgcolor": "lightgrey", "fontsize": "22"},
         ):
             with Cluster("Scheduling\n\n"):
-                executor_1 = Custom("Executor\nTeam 1", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                executor_2 = Custom("Executor\nTeam 2", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                executor_1 = Custom(
+                    "Executor\nTeam 1", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
+                executor_2 = Custom(
+                    "Executor\nTeam 2", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
                 schedulers = Custom("Scheduler(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                executor_1 - Edge(color="black", style="dashed", reverse=True) - schedulers
-                executor_2 - Edge(color="black", style="dashed", reverse=True) - schedulers
+                (
+                    executor_1
+                    - Edge(color="black", style="dashed", reverse=True)
+                    - schedulers
+                )
+                (
+                    executor_2
+                    - Edge(color="black", style="dashed", reverse=True)
+                    - schedulers
+                )
 
-            with Cluster("Organization DB", graph_attr={"bgcolor": "#D0BBCC", "fontsize": "22"}):
+            with Cluster(
+                "Organization DB", graph_attr={"bgcolor": "#D0BBCC", "fontsize": "22"}
+            ):
                 metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
 
             with Cluster("UI"):
                 webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                auth_manager = Custom("Auth\nManager", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                auth_manager = Custom(
+                    "Auth\nManager", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
 
             organization_plugins_and_packages = Custom(
                 "Common\nOrganization\nPlugins &\nPackages", PACKAGES_IMAGE.as_posix()
             )
 
-            organization_config_file = Custom("Config\nFile\nCommon\nOrganization", CONFIG_FILE.as_posix())
+            organization_config_file = Custom(
+                "Config\nFile\nCommon\nOrganization", CONFIG_FILE.as_posix()
+            )
 
-            internal_api = Custom("Task SDK\nGRPC API", PYTHON_MULTIPROCESS_LOGO.as_posix())
+            internal_api = Custom(
+                "Task SDK\nGRPC API", PYTHON_MULTIPROCESS_LOGO.as_posix()
+            )
             (
                 internal_api
-                >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n\n\n")
+                >> Edge(
+                    color="red", style="dotted", reverse=True, label="DB Access\n\n\n"
+                )
                 >> metadata_db
             )
 
         organization_deployment_manager = User("Deployment Manager\nOrganization")
 
         with Cluster(
-            "Organization UI access Management", graph_attr={"bgcolor": "lightgrey", "fontsize": "22"}
+            "Organization UI access Management",
+            graph_attr={"bgcolor": "lightgrey", "fontsize": "22"},
         ):
             organization_admin = User("Organization Admin")
             external_organization_identity_system = Dex("Identity System")
@@ -106,15 +132,24 @@ def generate_dag_processor_airflow_diagram():
         deployment_manager_1 = User("Deployment\nManager\nTeam 1")
         dag_author_1 = User("DAG Author\nTeamt 1")
 
-        with Cluster("Team 1 Airflow Deployment", graph_attr={"bgcolor": "#AAAABB", "fontsize": "22"}):
+        with Cluster(
+            "Team 1 Airflow Deployment",
+            graph_attr={"bgcolor": "#AAAABB", "fontsize": "22"},
+        ):
             with Cluster("No DB access"):
                 with Cluster("Execution"):
                     workers_1 = Custom("Worker(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                    triggerer_1 = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                    triggerer_1 = Custom(
+                        "Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                    )
                 with Cluster("Parsing"):
-                    dag_processors_1 = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                    dag_processors_1 = Custom(
+                        "DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                    )
                 dag_files_1 = Custom("DAGS/Team 1", MULTIPLE_FILES_IMAGE.as_posix())
-                plugins_and_packages_1 = Custom("Plugins\n& Packages\nTenant 1", PACKAGES_IMAGE.as_posix())
+                plugins_and_packages_1 = Custom(
+                    "Plugins\n& Packages\nTenant 1", PACKAGES_IMAGE.as_posix()
+                )
                 config_file_1 = Custom("Config\nFile\nTeam 1", CONFIG_FILE.as_posix())
         operations_user_1 = User("Operations User\nTeam 1")
 
@@ -125,29 +160,49 @@ def generate_dag_processor_airflow_diagram():
             with Cluster("No DB access"):
                 with Cluster("Execution"):
                     workers_2 = Custom("Worker(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                    triggerer_2 = Custom("Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                    triggerer_2 = Custom(
+                        "Triggerer(s)", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                    )
                 with Cluster("Parsing"):
-                    dag_processors_2 = Custom("DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                    dag_processors_2 = Custom(
+                        "DAG\nProcessor(s)", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                    )
                 dag_files_2 = Custom("DAGS/Team 2", MULTIPLE_FILES_IMAGE.as_posix())
-                plugins_and_packages_2 = Custom("Plugins\n& Packages\nTeam 2", PACKAGES_IMAGE.as_posix())
+                plugins_and_packages_2 = Custom(
+                    "Plugins\n& Packages\nTeam 2", PACKAGES_IMAGE.as_posix()
+                )
                 config_file_2 = Custom("Config\nFile\nTeam 2", CONFIG_FILE.as_posix())
         operations_user_2 = User("Operations User\nTeam 2")
 
         (
             operations_user_1
-            >> Edge(color="black", style="solid", reverse=True, label="operates\nTeam 1 Only\n\n")
+            >> Edge(
+                color="black",
+                style="solid",
+                reverse=True,
+                label="operates\nTeam 1 Only\n\n",
+            )
             >> auth_manager
         )
         (
             operations_user_2
-            >> Edge(color="black", style="solid", reverse=True, label="operates\nTeam 2 Only\n\n")
+            >> Edge(
+                color="black",
+                style="solid",
+                reverse=True,
+                label="operates\nTeam 2 Only\n\n",
+            )
             >> auth_manager
         )
 
         workers_1 - Edge(color="black", style="dashed", reverse=True) - executor_1
         workers_2 - Edge(color="black", style="dashed", reverse=True) - executor_2
 
-        dag_author_1 >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n") >> dag_files_1
+        (
+            dag_author_1
+            >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n")
+            >> dag_files_1
+        )
         (
             deployment_manager_1
             >> Edge(color="blue", style="dashed", reverse=False, label="install\n\n")
@@ -160,7 +215,11 @@ def generate_dag_processor_airflow_diagram():
             >> config_file_1
         )
 
-        dag_author_2 >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n") >> dag_files_2
+        (
+            dag_author_2
+            >> Edge(color="brown", style="dashed", reverse=False, label="author\n\n")
+            >> dag_files_2
+        )
         (
             deployment_manager_2
             >> Edge(color="blue", style="solid", reverse=False, label="install\n\n")
@@ -193,8 +252,16 @@ def generate_dag_processor_airflow_diagram():
         plugins_and_packages_2 >> Edge(style="invis") >> dag_processors_2
         plugins_and_packages_2 >> Edge(style="invis") >> triggerer_2
 
-        metadata_db >> Edge(color="red", style="dotted", reverse=True, label="DB Access") >> webservers
-        metadata_db >> Edge(color="red", style="dotted", reverse=True, label="DB Access") >> schedulers
+        (
+            metadata_db
+            >> Edge(color="red", style="dotted", reverse=True, label="DB Access")
+            >> webservers
+        )
+        (
+            metadata_db
+            >> Edge(color="red", style="dotted", reverse=True, label="DB Access")
+            >> schedulers
+        )
 
         (
             dag_processors_1
@@ -229,11 +296,19 @@ def generate_dag_processor_airflow_diagram():
         )
 
         dag_files_1 >> Edge(color="brown", style="solid", label="sync\n\n") >> workers_1
-        dag_files_1 >> Edge(color="brown", style="solid", label="sync\n\n") >> dag_processors_1
+        (
+            dag_files_1
+            >> Edge(color="brown", style="solid", label="sync\n\n")
+            >> dag_processors_1
+        )
         dag_files_1 >> Edge(color="brown", style="solid", label="sync\n\n") >> triggerer_1
 
         dag_files_2 >> Edge(color="brown", style="solid", label="sync\n\n") >> workers_2
-        dag_files_2 >> Edge(color="brown", style="solid", label="sync\n\n") >> dag_processors_2
+        (
+            dag_files_2
+            >> Edge(color="brown", style="solid", label="sync\n\n")
+            >> dag_processors_2
+        )
         dag_files_2 >> Edge(color="brown", style="solid", label="sync\n\n") >> triggerer_2
 
         # This is for better layout. Invisible edges are used to align the nodes better
@@ -246,7 +321,9 @@ def generate_dag_processor_airflow_diagram():
 
         external_organization_identity_system - Edge(style="invis") - organization_admin
 
-    console.print(f"[green]Generating architecture image {dag_processor_architecture_image_file}")
+    console.print(
+        f"[green]Generating architecture image {dag_processor_architecture_image_file}"
+    )
 
 
 if __name__ == "__main__":

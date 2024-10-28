@@ -64,7 +64,9 @@ class TestTaskDoneTrigger:
         a_mock = mock.MagicMock()
         client_mock.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
-        wait_mock.side_effect = WaiterError("name", "reason", {"tasks": [{"lastStatus": "my_status"}]})
+        wait_mock.side_effect = WaiterError(
+            "name", "reason", {"tasks": [{"lastStatus": "my_status"}]}
+        )
         a_mock.get_waiter().wait = wait_mock
 
         trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)

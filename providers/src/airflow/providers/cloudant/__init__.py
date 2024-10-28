@@ -31,9 +31,9 @@ __all__ = ["__version__"]
 
 __version__ = "4.0.2"
 
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.8.0"
-):
+if packaging.version.parse(
+    packaging.version.parse(airflow_version).base_version
+) < packaging.version.parse("2.8.0"):
     raise RuntimeError(
         f"The package `apache-airflow-providers-cloudant:{__version__}` needs Apache Airflow 2.8.0+"
     )

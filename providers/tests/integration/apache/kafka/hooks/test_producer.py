@@ -27,7 +27,10 @@ from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
 from airflow.utils import db
 
 log = logging.getLogger(__name__)
-config = {"bootstrap.servers": "broker:29092", "group.id": "hook.producer.integration.test"}
+config = {
+    "bootstrap.servers": "broker:29092",
+    "group.id": "hook.producer.integration.test",
+}
 
 
 @pytest.mark.integration("kafka")

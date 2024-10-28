@@ -24,7 +24,10 @@ import pytest
 from airflow.models import Pool
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -89,17 +92,35 @@ def test_list(app, admin_client, pool_factory):
             description="test-pool-description"
         )
 
-        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="running")
-        used_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        url = flask.url_for(
+            "TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="running"
+        )
+        used_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(
+            url=url, slots=0
+        )
 
-        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="queued")
-        queued_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        url = flask.url_for(
+            "TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="queued"
+        )
+        queued_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(
+            url=url, slots=0
+        )
 
-        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="scheduled")
-        scheduled_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        url = flask.url_for(
+            "TaskInstanceModelView.list",
+            _flt_3_pool="test-pool",
+            _flt_3_state="scheduled",
+        )
+        scheduled_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(
+            url=url, slots=0
+        )
 
-        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="deferred")
-        deferred_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        url = flask.url_for(
+            "TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="deferred"
+        )
+        deferred_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(
+            url=url, slots=0
+        )
 
     check_content_in_response(description_tag, resp)
     check_content_in_response(used_tag, resp)

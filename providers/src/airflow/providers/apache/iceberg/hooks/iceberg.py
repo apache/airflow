@@ -79,7 +79,11 @@ class IcebergHook(BaseHook):
         base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password
-        data = {"client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials"}
+        data = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
+        }
 
         response = requests.post(f"{base_url}/{TOKENS_ENDPOINT}", data=data)
         response.raise_for_status()

@@ -25,7 +25,13 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
+from vertexai.generative_models import (
+    HarmBlockThreshold,
+    HarmCategory,
+    Part,
+    Tool,
+    grounding,
+)
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.models.dag import DAG
@@ -49,7 +55,9 @@ TEXT_EMBEDDING_MODEL = "textembedding-gecko"
 MULTIMODAL_MODEL = "gemini-pro"
 MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
 VISION_PROMPT = "In 10 words or less, describe this content."
-MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+MEDIA_GCS_PATH = (
+    "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+)
 MIME_TYPE = "image/jpeg"
 TOOLS = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
 

@@ -74,7 +74,9 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -132,7 +134,9 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+    def execute_complete(
+        self, context: dict[str, Any], event: dict[str, str] | None = None
+    ) -> str:
         """
         Act as a callback for when the trigger fires - returns immediately.
 
@@ -189,7 +193,9 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -207,7 +213,11 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
-        self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
+        self.log.info(
+            'Sensor checks existence of partition: "%s" in table: %s',
+            self.partition_id,
+            table_uri,
+        )
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -241,14 +251,20 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+    def execute_complete(
+        self, context: dict[str, Any], event: dict[str, str] | None = None
+    ) -> str:
         """
         Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
-        self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
+        self.log.info(
+            'Sensor checks existence of partition: "%s" in table: %s',
+            self.partition_id,
+            table_uri,
+        )
         if event:
             if event["status"] == "success":
                 return event["message"]

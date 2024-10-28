@@ -22,7 +22,10 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.providers.amazon.aws.auth_manager.cli.avp_commands import init_avp, update_schema
+from airflow.providers.amazon.aws.auth_manager.cli.avp_commands import (
+    init_avp,
+    update_schema,
+)
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 from tests_common.test_utils.config import conf_vars
@@ -119,7 +122,14 @@ class TestAvpCommands:
 
         paginator = Mock()
         paginator.paginate.return_value = [
-            {"policyStores": [{"description": policy_store_description, "policyStoreId": policy_store_id}]}
+            {
+                "policyStores": [
+                    {
+                        "description": policy_store_description,
+                        "policyStoreId": policy_store_id,
+                    }
+                ]
+            }
         ]
 
         mock_boto3.get_paginator.return_value = paginator

@@ -19,9 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.marketing_platform.hooks.analytics_admin import GoogleAnalyticsAdminHook
+from airflow.providers.google.marketing_platform.hooks.analytics_admin import (
+    GoogleAnalyticsAdminHook,
+)
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 GCP_CONN_ID = "test_gcp_conn_id"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
@@ -40,7 +44,9 @@ class TestGoogleAnalyticsAdminHook:
         ):
             self.hook = GoogleAnalyticsAdminHook(GCP_CONN_ID)
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__"
+    )
     def test_init(self, mock_base_init):
         GoogleAnalyticsAdminHook(
             GCP_CONN_ID,
@@ -60,7 +66,9 @@ class TestGoogleAnalyticsAdminHook:
 
         result = self.hook.get_conn()
 
-        mock_client.assert_called_once_with(credentials=mock_credentials, client_info=mock_client_info)
+        mock_client.assert_called_once_with(
+            credentials=mock_credentials, client_info=mock_client_info
+        )
         assert self.hook._conn == result
 
     @mock.patch(f"{ANALYTICS_HOOK_PATH}.GoogleAnalyticsAdminHook.get_conn")
@@ -68,9 +76,14 @@ class TestGoogleAnalyticsAdminHook:
         list_accounts_expected = mock.MagicMock()
         mock_list_accounts = mock_get_conn.return_value.list_accounts
         mock_list_accounts.return_value = list_accounts_expected
-        mock_page_size, mock_page_token, mock_show_deleted, mock_retry, mock_timeout, mock_metadata = (
-            mock.MagicMock() for _ in range(6)
-        )
+        (
+            mock_page_size,
+            mock_page_token,
+            mock_show_deleted,
+            mock_retry,
+            mock_timeout,
+            mock_metadata,
+        ) = (mock.MagicMock() for _ in range(6))
 
         request = {
             "page_size": mock_page_size,
@@ -87,7 +100,10 @@ class TestGoogleAnalyticsAdminHook:
             metadata=mock_metadata,
         )
         mock_list_accounts.assert_called_once_with(
-            request=request, retry=mock_retry, timeout=mock_timeout, metadata=mock_metadata
+            request=request,
+            retry=mock_retry,
+            timeout=mock_timeout,
+            metadata=mock_metadata,
         )
         assert list_accounts_received == list_accounts_expected
 
@@ -97,15 +113,23 @@ class TestGoogleAnalyticsAdminHook:
 
         mock_create_property = mock_get_conn.return_value.create_property
         mock_create_property.return_value = property_expected
-        mock_property, mock_retry, mock_timeout, mock_metadata = (mock.MagicMock() for _ in range(4))
+        mock_property, mock_retry, mock_timeout, mock_metadata = (
+            mock.MagicMock() for _ in range(4)
+        )
 
         property_created = self.hook.create_property(
-            analytics_property=mock_property, retry=mock_retry, timeout=mock_timeout, metadata=mock_metadata
+            analytics_property=mock_property,
+            retry=mock_retry,
+            timeout=mock_timeout,
+            metadata=mock_metadata,
         )
 
         request = {"property": mock_property}
         mock_create_property.assert_called_once_with(
-            request=request, retry=mock_retry, timeout=mock_timeout, metadata=mock_metadata
+            request=request,
+            retry=mock_retry,
+            timeout=mock_timeout,
+            metadata=mock_metadata,
         )
         assert property_created == property_expected
 
@@ -136,7 +160,9 @@ class TestGoogleAnalyticsAdminHook:
         data_stream_expected = mock.MagicMock()
         mock_create_data_stream = mock_get_conn.return_value.create_data_stream
         mock_create_data_stream.return_value = data_stream_expected
-        mock_data_stream, mock_retry, mock_timeout, mock_metadata = (mock.MagicMock() for _ in range(4))
+        mock_data_stream, mock_retry, mock_timeout, mock_metadata = (
+            mock.MagicMock() for _ in range(4)
+        )
 
         data_stream_created = self.hook.create_data_stream(
             property_id=TEST_PROPERTY_ID,
@@ -148,7 +174,10 @@ class TestGoogleAnalyticsAdminHook:
 
         request = {"parent": TEST_PROPERTY_NAME, "data_stream": mock_data_stream}
         mock_create_data_stream.assert_called_once_with(
-            request=request, retry=mock_retry, timeout=mock_timeout, metadata=mock_metadata
+            request=request,
+            retry=mock_retry,
+            timeout=mock_timeout,
+            metadata=mock_metadata,
         )
         assert data_stream_created == data_stream_expected
 
@@ -187,7 +216,14 @@ class TestGoogleAnalyticsAdminHook:
             metadata=mock_metadata,
         )
 
-        request = {"parent": TEST_PROPERTY_NAME, "page_size": mock_page_size, "page_token": mock_page_token}
+        request = {
+            "parent": TEST_PROPERTY_NAME,
+            "page_size": mock_page_size,
+            "page_token": mock_page_token,
+        }
         mock_get_conn.return_value.list_google_ads_links.assert_called_once_with(
-            request=request, retry=mock_retry, timeout=mock_timeout, metadata=mock_metadata
+            request=request,
+            retry=mock_retry,
+            timeout=mock_timeout,
+            metadata=mock_metadata,
         )

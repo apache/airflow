@@ -65,7 +65,9 @@ def main() -> int:
                     if path not in EXCEPTIONS:
                         local_error_count += 1
                         errors.append(f"{path}: ({'.'.join(imp.module)})")
-        console.print(f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}")
+        console.print(
+            f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}"
+        )
     if errors:
         console.print(
             "[red]Some files imports from `airflow.providers.cncf.kubernetes` and they are not allowed.[/]\n"

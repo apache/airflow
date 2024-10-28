@@ -24,7 +24,9 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 def test_aws_template_fields():
     result = aws_template_fields()
     assert result == ("aws_conn_id", "region_name", "verify")
-    assert aws_template_fields() is result, "aws_template_fields expect to return cached result"
+    assert (
+        aws_template_fields() is result
+    ), "aws_template_fields expect to return cached result"
 
     assert aws_template_fields("foo", "aws_conn_id", "bar") == (
         "aws_conn_id",
@@ -36,5 +38,7 @@ def test_aws_template_fields():
 
 
 def test_aws_template_fields_incorrect_types():
-    with pytest.raises(TypeError, match="Expected that all provided arguments are strings"):
+    with pytest.raises(
+        TypeError, match="Expected that all provided arguments are strings"
+    ):
         aws_template_fields(1, None, "test")

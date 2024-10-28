@@ -68,7 +68,9 @@ def example_weaviate_openai():
     def update_vector_data_in_json(**kwargs):
         ti = kwargs["ti"]
         data = json.load(Path("jeopardy_data_without_vectors.json").open())
-        embedded_data = ti.xcom_pull(task_ids="embedding_using_xcom_data", key="return_value")
+        embedded_data = ti.xcom_pull(
+            task_ids="embedding_using_xcom_data", key="return_value"
+        )
         for i, vector in enumerate(embedded_data):
             data[i]["Vector"] = vector
         return data
@@ -95,8 +97,13 @@ def example_weaviate_openai():
         query_vector = ti.xcom_pull(task_ids="embed_query", key="return_value")
         weaviate_hook = WeaviateHook()
         properties = ["question", "answer", "category"]
-        response = weaviate_hook.query_with_vector(query_vector, COLLECTION_NAME, properties)
-        assert "In 1953 Watson & Crick built a model" in response.objects[0].properties["question"]
+        response = weaviate_hook.query_with_vector(
+            query_vector, COLLECTION_NAME, properties
+        )
+        assert (
+            "In 1953 Watson & Crick built a model"
+            in response.objects[0].properties["question"]
+        )
 
     @teardown
     @task

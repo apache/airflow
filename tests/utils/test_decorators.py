@@ -28,9 +28,16 @@ if TYPE_CHECKING:
 _CONDITION_DECORATORS = frozenset({"skip_if", "run_if"})
 _NO_SOURCE_DECORATORS = frozenset({"sensor"})
 DECORATORS = sorted(
-    set(x for x in dir(task) if not x.startswith("_")) - _CONDITION_DECORATORS - _NO_SOURCE_DECORATORS
+    set(x for x in dir(task) if not x.startswith("_"))
+    - _CONDITION_DECORATORS
+    - _NO_SOURCE_DECORATORS
 )
-DECORATORS_USING_SOURCE = ("external_python", "virtualenv", "branch_virtualenv", "branch_external_python")
+DECORATORS_USING_SOURCE = (
+    "external_python",
+    "virtualenv",
+    "branch_virtualenv",
+    "branch_external_python",
+)
 
 
 @pytest.fixture
@@ -102,7 +109,10 @@ def test_skip_if_allow_decorator():
     def f():
         return "hello world"
 
-    assert parse_python_source(f) == '@non_task_decorator\ndef f():\n    return "hello world"\n'
+    assert (
+        parse_python_source(f)
+        == '@non_task_decorator\ndef f():\n    return "hello world"\n'
+    )
 
 
 def test_run_if_allow_decorator():
@@ -115,14 +125,19 @@ def test_run_if_allow_decorator():
     def f():
         return "hello world"
 
-    assert parse_python_source(f) == '@non_task_decorator\ndef f():\n    return "hello world"\n'
+    assert (
+        parse_python_source(f)
+        == '@non_task_decorator\ndef f():\n    return "hello world"\n'
+    )
 
 
 def parse_python_source(task: Task, custom_operator_name: str | None = None) -> str:
     operator = task().operator
     if custom_operator_name:
         custom_operator_name = (
-            custom_operator_name if custom_operator_name.startswith("@") else f"@{custom_operator_name}"
+            custom_operator_name
+            if custom_operator_name.startswith("@")
+            else f"@{custom_operator_name}"
         )
         operator.__dict__["custom_operator_name"] = custom_operator_name
     return operator.get_python_source()

@@ -103,13 +103,21 @@ class TestDataSyncHookMocked:
             pytest.param("smb://spam/egg/", "create_location_smb", id="smb"),
             pytest.param("s3://foo/bar", "create_location_s3", id="s3"),
             pytest.param("nfs://server:2049/path", "create_location_nfs", id="nfs"),
-            pytest.param("efs://12345.efs.aws-region.amazonaws.com/path", "create_location_efs", id="efs"),
+            pytest.param(
+                "efs://12345.efs.aws-region.amazonaws.com/path",
+                "create_location_efs",
+                id="efs",
+            ),
         ],
     )
-    def test_create_location_method_mapping(self, mock_get_conn, location_uri, expected_method):
+    def test_create_location_method_mapping(
+        self, mock_get_conn, location_uri, expected_method
+    ):
         """Test expected location URI and mapping with DataSync.Client methods."""
         mock_get_conn.return_value = self.client
-        assert hasattr(self.client, expected_method), f"{self.client} doesn't have method {expected_method}"
+        assert hasattr(
+            self.client, expected_method
+        ), f"{self.client} doesn't have method {expected_method}"
         with mock.patch.object(self.client, expected_method) as m:
             self.hook.create_location(location_uri, foo="bar", spam="egg")
             m.assert_called_once_with(foo="bar", spam="egg")
@@ -126,7 +134,9 @@ class TestDataSyncHookMocked:
     def test_create_location_unknown_type(self, mock_get_conn, location_uri):
         """Test unsupported location URI."""
         mock_get_conn.return_value = mock.MagicMock()
-        with pytest.raises(AirflowException, match="Invalid/Unsupported location type: .*"):
+        with pytest.raises(
+            AirflowException, match="Invalid/Unsupported location type: .*"
+        ):
             self.hook.create_location(location_uri, foo="bar", spam="egg")
 
     def test_create_location_smb(self, mock_get_conn):
@@ -292,7 +302,9 @@ class TestDataSyncHookMocked:
         # ### Begin tests:
 
         # Get true location_arn from boto/moto self.client
-        location_uri = f"smb://{self.source_server_hostname.upper()}/{self.source_subdirectory}"
+        location_uri = (
+            f"smb://{self.source_server_hostname.upper()}/{self.source_subdirectory}"
+        )
         locations = self.client.list_locations()
         for location in locations["Locations"]:
             if location["LocationUri"] == location_uri.lower():
@@ -318,9 +330,13 @@ class TestDataSyncHookMocked:
                 location_arn = location["LocationArn"]
 
         # Verify our self.hook manages trailing / correctly
-        location_arns = self.hook.get_location_arns(location_uri, ignore_trailing_slash=False)
+        location_arns = self.hook.get_location_arns(
+            location_uri, ignore_trailing_slash=False
+        )
         assert len(location_arns) == 0
-        location_arns = self.hook.get_location_arns(location_uri, ignore_trailing_slash=True)
+        location_arns = self.hook.get_location_arns(
+            location_uri, ignore_trailing_slash=True
+        )
         assert len(location_arns) == 1
         assert location_arns[0] == location_arn
 
@@ -353,7 +369,9 @@ class TestDataSyncHookMocked:
         assert "CurrentTaskExecutionArn" in task
         assert task["CurrentTaskExecutionArn"] == task_execution_arn
 
-        task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
+        task_execution = self.client.describe_task_execution(
+            TaskExecutionArn=task_execution_arn
+        )
         assert "Status" in task_execution
 
     def test_cancel_task_execution(self, mock_get_conn):

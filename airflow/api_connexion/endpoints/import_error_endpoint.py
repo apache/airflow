@@ -43,7 +43,9 @@ if TYPE_CHECKING:
 
 @security.requires_access_view(AccessView.IMPORT_ERRORS)
 @provide_session
-def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
+def get_import_error(
+    *, import_error_id: int, session: Session = NEW_SESSION
+) -> APIResponse:
     """Get an import error."""
     error = session.get(ParseImportError, import_error_id)
     if error is None:
@@ -58,16 +60,22 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
         readable_dag_ids = security.get_readable_dags()
         file_dag_ids = {
             dag_id[0]
-            for dag_id in session.query(DagModel.dag_id).filter(DagModel.fileloc == error.filename).all()
+            for dag_id in session.query(DagModel.dag_id)
+            .filter(DagModel.fileloc == error.filename)
+            .all()
         }
 
         # Can the user read any DAGs in the file?
         if not readable_dag_ids.intersection(file_dag_ids):
-            raise PermissionDenied(detail="You do not have read permission on any of the DAGs in the file")
+            raise PermissionDenied(
+                detail="You do not have read permission on any of the DAGs in the file"
+            )
 
         # Check if user has read access to all the DAGs defined in the file
         if not file_dag_ids.issubset(readable_dag_ids):
-            error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+            error.stacktrace = (
+                "REDACTED - you do not have read permission on all DAGs in the file"
+            )
 
     return import_error_schema.dump(error)
 
@@ -94,7 +102,11 @@ def get_import_errors(
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
+        dagfiles_stmt = (
+            select(DagModel.fileloc)
+            .distinct()
+            .where(DagModel.dag_id.in_(readable_dag_ids))
+        )
         query = query.where(ParseImportError.filename.in_(dagfiles_stmt))
         count_query = count_query.where(ParseImportError.filename.in_(dagfiles_stmt))
 
@@ -105,7 +117,9 @@ def get_import_errors(
         for import_error in import_errors:
             # Check if user has read access to all the DAGs defined in the file
             file_dag_ids = (
-                session.query(DagModel.dag_id).filter(DagModel.fileloc == import_error.filename).all()
+                session.query(DagModel.dag_id)
+                .filter(DagModel.fileloc == import_error.filename)
+                .all()
             )
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
@@ -116,7 +130,9 @@ def get_import_errors(
             ]
             if not get_auth_manager().batch_is_authorized_dag(requests):
                 session.expunge(import_error)
-                import_error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+                import_error.stacktrace = (
+                    "REDACTED - you do not have read permission on all DAGs in the file"
+                )
 
     return import_error_collection_schema.dump(
         ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)

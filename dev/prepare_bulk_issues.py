@@ -46,7 +46,9 @@ SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
+@click.group(
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500}
+)
 def cli(): ...
 
 
@@ -159,10 +161,15 @@ option_labels = click.option(
 
 
 option_template_file = click.option(
-    "--template-file", type=str, required=True, help="Jinja template file to use for issue content"
+    "--template-file",
+    type=str,
+    required=True,
+    help="Jinja template file to use for issue content",
 )
 
-option_max_issues = click.option("--max-issues", type=int, help="Maximum number of issues to create")
+option_max_issues = click.option(
+    "--max-issues", type=int, help="Maximum number of issues to create"
+)
 
 option_start_from = click.option(
     "--start-from",
@@ -204,7 +211,9 @@ def prepare_bulk_issues(
     processed_issues = 0
     if dry_run:
         for name in names[:max_issues]:
-            issue_content, issue_title = get_issue_details(issues, name, template_file, title)
+            issue_content, issue_title = get_issue_details(
+                issues, name, template_file, title
+            )
             console.print(f"[yellow]### {issue_title} #####[/]")
             console.print(issue_content)
             console.print()
@@ -213,15 +222,23 @@ def prepare_bulk_issues(
         console.print(f"Displayed {processed_issues} issue(s).")
     else:
         labels_list: list[str] = labels.split(",") if labels else []
-        issues_to_create = int(min(total_issues, max_issues if max_issues is not None else total_issues))
+        issues_to_create = int(
+            min(total_issues, max_issues if max_issues is not None else total_issues)
+        )
         with Progress(console=console) as progress:
-            task = progress.add_task(f"Creating {issues_to_create} issue(s)", total=issues_to_create)
+            task = progress.add_task(
+                f"Creating {issues_to_create} issue(s)", total=issues_to_create
+            )
             g = Github(github_token)
             repo = g.get_repo(repository)
             try:
                 for name in names[:max_issues]:
-                    issue_content, issue_title = get_issue_details(issues, name, template_file, title)
-                    repo.create_issue(title=issue_title, body=issue_content, labels=labels_list)
+                    issue_content, issue_title = get_issue_details(
+                        issues, name, template_file, title
+                    )
+                    repo.create_issue(
+                        title=issue_title, body=issue_content, labels=labels_list
+                    )
                     progress.advance(task)
                     processed_issues += 1
                     sleep(2)  # avoid secondary rate limit!

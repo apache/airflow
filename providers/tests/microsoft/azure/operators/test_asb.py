@@ -75,8 +75,13 @@ class TestAzureServiceBusCreateQueueOperator:
         assert asb_create_queue_operator.task_id == "asb_create_queue"
         assert asb_create_queue_operator.queue_name == QUEUE_NAME
         assert asb_create_queue_operator.max_delivery_count == 10
-        assert asb_create_queue_operator.dead_lettering_on_message_expiration is mock_dl_msg_expiration
-        assert asb_create_queue_operator.enable_batched_operations is mock_batched_operation
+        assert (
+            asb_create_queue_operator.dead_lettering_on_message_expiration
+            is mock_dl_msg_expiration
+        )
+        assert (
+            asb_create_queue_operator.enable_batched_operations is mock_batched_operation
+        )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
     def test_create_queue(self, mock_get_conn):
@@ -121,7 +126,9 @@ class TestAzureServiceBusDeleteQueueOperator:
             queue_name=QUEUE_NAME,
         )
         asb_delete_queue_operator.execute(None)
-        mock_get_conn.return_value.__enter__.return_value.delete_queue.assert_called_once_with(QUEUE_NAME)
+        mock_get_conn.return_value.__enter__.return_value.delete_queue.assert_called_once_with(
+            QUEUE_NAME
+        )
 
 
 class TestAzureServiceBusSendMessageOperator:
@@ -145,7 +152,10 @@ class TestAzureServiceBusSendMessageOperator:
             message=mock_message,
             batch=mock_batch_flag,
         )
-        assert asb_send_message_queue_operator.task_id == "asb_send_message_queue_without_batch"
+        assert (
+            asb_send_message_queue_operator.task_id
+            == "asb_send_message_queue_without_batch"
+        )
         assert asb_send_message_queue_operator.queue_name == QUEUE_NAME
         assert asb_send_message_queue_operator.message == mock_message
         assert asb_send_message_queue_operator.batch is mock_batch_flag
@@ -231,7 +241,9 @@ class TestAzureServiceBusReceiveMessageOperator:
             print(msg)
 
         asb_receive_queue_operator = AzureServiceBusReceiveMessageOperator(
-            task_id="asb_receive_message_queue", queue_name=QUEUE_NAME, message_callback=message_callback
+            task_id="asb_receive_message_queue",
+            queue_name=QUEUE_NAME,
+            message_callback=message_callback,
         )
         asb_receive_queue_operator.execute(Context())
         assert len(messages_received) == 1
@@ -263,7 +275,9 @@ class TestABSTopicCreateOperator:
             topic_name=TOPIC_NAME,
         )
         mock_topic_properties.name = TOPIC_NAME
-        mock_get_conn.return_value.__enter__.return_value.create_topic.return_value = mock_topic_properties
+        mock_get_conn.return_value.__enter__.return_value.create_topic.return_value = (
+            mock_topic_properties
+        )
 
         with mock.patch.object(asb_create_topic.log, "info") as mock_log_info:
             asb_create_topic.execute(None)
@@ -312,9 +326,7 @@ class TestASBCreateSubscriptionOperator:
         )
         mock_subscription_properties.name = SUBSCRIPTION_NAME
         mock_subscription_properties.to = SUBSCRIPTION_NAME
-        mock_get_conn.return_value.__enter__.return_value.create_subscription.return_value = (
-            mock_subscription_properties
-        )
+        mock_get_conn.return_value.__enter__.return_value.create_subscription.return_value = mock_subscription_properties
 
         with mock.patch.object(asb_create_subscription.log, "info") as mock_log_info:
             asb_create_subscription.execute(None)
@@ -399,9 +411,7 @@ class TestAzureServiceBusUpdateSubscriptionOperator:
         """
         mock_subscription_properties.name = SUBSCRIPTION_NAME
         mock_subscription_properties.max_delivery_count = 20
-        mock_get_conn.return_value.__enter__.return_value.get_subscription.return_value = (
-            mock_subscription_properties
-        )
+        mock_get_conn.return_value.__enter__.return_value.get_subscription.return_value = mock_subscription_properties
         asb_update_subscription = AzureServiceBusUpdateSubscriptionOperator(
             task_id="asb_update_subscription",
             topic_name=TOPIC_NAME,
@@ -410,7 +420,9 @@ class TestAzureServiceBusUpdateSubscriptionOperator:
         )
         with mock.patch.object(asb_update_subscription.log, "info") as mock_log_info:
             asb_update_subscription.execute(None)
-        mock_log_info.assert_called_with("Subscription Updated successfully %s", mock_subscription_properties)
+        mock_log_info.assert_called_with(
+            "Subscription Updated successfully %s", mock_subscription_properties
+        )
 
 
 class TestASBSubscriptionReceiveMessageOperator:
@@ -426,7 +438,9 @@ class TestASBSubscriptionReceiveMessageOperator:
             subscription_name=SUBSCRIPTION_NAME,
             max_message_count=10,
         )
-        assert asb_subscription_receive_message.task_id == "asb_subscription_receive_message"
+        assert (
+            asb_subscription_receive_message.task_id == "asb_subscription_receive_message"
+        )
         assert asb_subscription_receive_message.topic_name == TOPIC_NAME
         assert asb_subscription_receive_message.subscription_name == SUBSCRIPTION_NAME
         assert asb_subscription_receive_message.max_message_count == 10
@@ -528,7 +542,9 @@ class TestASBTopicDeleteOperator:
             topic_name=TOPIC_NAME,
         )
         mock_topic_properties.name = TOPIC_NAME
-        mock_get_conn.return_value.__enter__.return_value.get_topic.return_value = mock_topic_properties
+        mock_get_conn.return_value.__enter__.return_value.get_topic.return_value = (
+            mock_topic_properties
+        )
         with mock.patch.object(asb_delete_topic.log, "info") as mock_log_info:
             asb_delete_topic.execute(None)
         mock_log_info.assert_called_with("Topic %s deleted.", TOPIC_NAME)

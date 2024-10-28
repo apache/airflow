@@ -30,7 +30,9 @@ pytestmark = pytest.mark.db_test
 
 
 def get_session_cookie(client):
-    return next((cookie for cookie in client.cookie_jar if cookie.name == "session"), None)
+    return next(
+        (cookie for cookie in client.cookie_jar if cookie.name == "session"), None
+    )
 
 
 def test_session_cookie_created_on_login(user_client):
@@ -64,7 +66,9 @@ def test_invalid_session_backend_option():
         ]
     )
     def poorly_configured_app_factory():
-        with conf_vars({("webserver", "session_backend"): "invalid_value_for_session_backend"}):
+        with conf_vars(
+            {("webserver", "session_backend"): "invalid_value_for_session_backend"}
+        ):
             return app.create_app(testing=True)
 
     expected_exc_regex = (
@@ -82,10 +86,14 @@ def test_session_id_rotates(app, user_client):
     resp = user_client.post("/logout/")
     assert resp.status_code == 302
 
-    patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
+    patch_path = (
+        "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
+    )
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
-        resp = user_client.post("/login/", data={"username": "test_user", "password": "test_user"})
+        resp = user_client.post(
+            "/login/", data={"username": "test_user", "password": "test_user"}
+        )
     assert resp.status_code == 302
 
     new_session_cookie = get_session_cookie(user_client)

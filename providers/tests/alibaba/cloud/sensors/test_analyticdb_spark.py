@@ -43,7 +43,9 @@ class TestAnalyticDBSparkSensor:
     def test_get_hook(self, mock_service):
         """Test get_hook function works as expected."""
         self.sensor.hook
-        mock_service.assert_called_once_with(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION)
+        mock_service.assert_called_once_with(
+            adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION
+        )
 
     @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkSensor.hook"))
     def test_poke_terminal_state(self, mock_service):

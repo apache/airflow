@@ -122,7 +122,12 @@ class Pool(Base):
 
         pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
-            pool = Pool(pool=name, slots=slots, description=description, include_deferred=include_deferred)
+            pool = Pool(
+                pool=name,
+                slots=slots,
+                description=description,
+                include_deferred=include_deferred,
+            )
             session.add(pool)
         else:
             pool.slots = slots
@@ -189,7 +194,9 @@ class Pool(Base):
             TaskInstanceState.SCHEDULED,
         }
         state_count_by_pool = session.execute(
-            select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
+            select(
+                TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots)
+            )
             .filter(TaskInstance.state.in_(allowed_execution_states))
             .group_by(TaskInstance.pool, TaskInstance.state)
         )
@@ -212,11 +219,15 @@ class Pool(Base):
             elif state == TaskInstanceState.SCHEDULED:
                 stats_dict["scheduled"] = count
             else:
-                raise AirflowException(f"Unexpected state. Expected values: {allowed_execution_states}.")
+                raise AirflowException(
+                    f"Unexpected state. Expected values: {allowed_execution_states}."
+                )
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
-            stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
+            stats_dict["open"] = (
+                stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
+            )
             if pool_includes_deferred[pool_name]:
                 stats_dict["open"] -= stats_dict["deferred"]
 
@@ -334,7 +345,8 @@ class Pool(Base):
         return int(
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots)).where(
-                    TaskInstance.pool == self.pool, TaskInstance.state == TaskInstanceState.DEFERRED
+                    TaskInstance.pool == self.pool,
+                    TaskInstance.state == TaskInstanceState.DEFERRED,
                 )
             )
             or 0

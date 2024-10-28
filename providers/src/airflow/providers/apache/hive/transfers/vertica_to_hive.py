@@ -125,7 +125,9 @@ class VerticaToHiveOperator(BaseOperator):
             field_dict = {}
             for col_count, field in enumerate(cursor.description, start=1):
                 col_position = f"Column{col_count}"
-                field_dict[col_position if field[0] == "" else field[0]] = self.type_map(field[1])
+                field_dict[col_position if field[0] == "" else field[0]] = self.type_map(
+                    field[1]
+                )
             csv_writer.writerows(cursor.iterate())
             f.flush()
             cursor.close()

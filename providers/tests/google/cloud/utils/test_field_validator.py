@@ -41,7 +41,8 @@ class TestGcpBodyFieldValidator:
         validator = GcpBodyFieldValidator(specification, "v1")
 
         with pytest.raises(
-            RuntimeError, match="The body to validate is `None`. Please provide a dictionary to validate."
+            RuntimeError,
+            match="The body to validate is `None`. Please provide a dictionary to validate.",
         ):
             validator.validate(body)
 
@@ -139,7 +140,9 @@ class TestGcpBodyFieldValidator:
 
         assert validator.validate(body) is None
 
-    def test_validate_should_raise_exception_if_optional_clause_is_false_and_field_not_present(self):
+    def test_validate_should_raise_exception_if_optional_clause_is_false_and_field_not_present(
+        self,
+    ):
         specification = [dict(name="name", allow_empty=False, optional=False)]
         body = {}
 
@@ -166,7 +169,9 @@ class TestGcpBodyFieldValidator:
             validator.validate(body)
 
     def test_validate_should_not_allow_both_type_and_allow_empty_in_a_spec(self):
-        specification = [dict(name="labels", optional=True, type="dict", allow_empty=True)]
+        specification = [
+            dict(name="labels", optional=True, type="dict", allow_empty=True)
+        ]
         body = {"labels": 1}
 
         validator = GcpBodyFieldValidator(specification, "v1")
@@ -189,7 +194,12 @@ class TestGcpBodyFieldValidator:
                 type="union",
                 optional=False,
                 fields=[
-                    dict(name="variant_1", regexp=r"^.+$", optional=False, allow_empty=False),
+                    dict(
+                        name="variant_1",
+                        regexp=r"^.+$",
+                        optional=False,
+                        allow_empty=False,
+                    ),
                 ],
             )
         ]
@@ -273,9 +283,13 @@ class TestGcpBodyFieldValidator:
     def test_validate_should_raise_if_custom_validation_is_not_true(self):
         def _int_equal_to_zero(value):
             if int(value) != 0:
-                raise GcpFieldValidationException("The available memory has to be equal to 0")
+                raise GcpFieldValidationException(
+                    "The available memory has to be equal to 0"
+                )
 
-        specification = [dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)]
+        specification = [
+            dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)
+        ]
         body = {"availableMemoryMb": 1}
 
         validator = GcpBodyFieldValidator(specification, "v1")
@@ -285,9 +299,13 @@ class TestGcpBodyFieldValidator:
     def test_validate_should_not_raise_if_custom_validation_is_true(self):
         def _int_equal_to_zero(value):
             if int(value) != 0:
-                raise GcpFieldValidationException("The available memory has to be equal to 0")
+                raise GcpFieldValidationException(
+                    "The available memory has to be equal to 0"
+                )
 
-        specification = [dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)]
+        specification = [
+            dict(name="availableMemoryMb", custom_validation=_int_equal_to_zero)
+        ]
         body = {"availableMemoryMb": 0}
 
         validator = GcpBodyFieldValidator(specification, "v1")
@@ -304,7 +322,11 @@ class TestGcpBodyFieldValidator:
                 fields=[
                     dict(name="variant_1", regexp=r"^.+$"),
                     dict(name="variant_2", regexp=r"^.+$", api_version="v1beta2"),
-                    dict(name="variant_3", type="dict", fields=[dict(name="url", regexp=r"^.+$")]),
+                    dict(
+                        name="variant_3",
+                        type="dict",
+                        fields=[dict(name="url", regexp=r"^.+$")],
+                    ),
                     dict(name="variant_4"),
                 ],
             ),

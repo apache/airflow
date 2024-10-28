@@ -23,14 +23,20 @@ from typing import TYPE_CHECKING, Sequence, TypedDict
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
+from airflow.providers.amazon.aws.auth_manager.avp.entities import (
+    AvpEntities,
+    get_action_id,
+    get_entity_type,
+)
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_AVP_POLICY_STORE_ID_KEY,
     CONF_CONN_ID_KEY,
     CONF_REGION_NAME_KEY,
     CONF_SECTION_NAME,
 )
-from airflow.providers.amazon.aws.hooks.verified_permissions import VerifiedPermissionsHook
+from airflow.providers.amazon.aws.hooks.verified_permissions import (
+    VerifiedPermissionsHook,
+)
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -65,7 +71,9 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         """Build Amazon Verified Permissions client."""
         aws_conn_id = conf.get(CONF_SECTION_NAME, CONF_CONN_ID_KEY)
         region_name = conf.get(CONF_SECTION_NAME, CONF_REGION_NAME_KEY)
-        return VerifiedPermissionsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        return VerifiedPermissionsHook(
+            aws_conn_id=aws_conn_id, region_name=region_name
+        ).conn
 
     @cached_property
     def avp_policy_store_id(self):
@@ -112,12 +120,18 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         request_params = prune_dict(
             {
                 "policyStoreId": self.avp_policy_store_id,
-                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+                "principal": {
+                    "entityType": get_entity_type(AvpEntities.USER),
+                    "entityId": user.get_id(),
+                },
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
                     "actionId": get_action_id(entity_type, method),
                 },
-                "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
+                "resource": {
+                    "entityType": get_entity_type(entity_type),
+                    "entityId": entity_id or "*",
+                },
                 "entities": {"entityList": entity_list},
                 "context": self._build_context(context),
             }
@@ -129,9 +143,12 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
         if len(resp.get("errors", [])) > 0:
             self.log.error(
-                "Error occurred while making an authorization decision. Errors: %s", resp["errors"]
+                "Error occurred while making an authorization decision. Errors: %s",
+                resp["errors"],
             )
-            raise AirflowException("Error occurred while making an authorization decision.")
+            raise AirflowException(
+                "Error occurred while making an authorization decision."
+            )
 
         return resp["decision"] == "ALLOW"
 
@@ -151,9 +168,16 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         """
         entity_list = self._get_user_group_entities(user)
 
-        self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
+        self.log.debug(
+            "Making batch authorization request for user=%s, requests=%s",
+            user.get_id(),
+            requests,
+        )
 
-        avp_requests = [self._build_is_authorized_request_payload(request, user) for request in requests]
+        avp_requests = [
+            self._build_is_authorized_request_payload(request, user)
+            for request in requests
+        ]
         avp_requests_chunks = [
             avp_requests[i : i + NB_REQUESTS_PER_BATCH]
             for i in range(0, len(avp_requests), NB_REQUESTS_PER_BATCH)
@@ -169,13 +193,18 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
             self.log.debug("Authorization response: %s", resp)
 
-            has_errors = any(len(result.get("errors", [])) > 0 for result in resp["results"])
+            has_errors = any(
+                len(result.get("errors", [])) > 0 for result in resp["results"]
+            )
 
             if has_errors:
                 self.log.error(
-                    "Error occurred while making a batch authorization decision. Result: %s", resp["results"]
+                    "Error occurred while making a batch authorization decision. Result: %s",
+                    resp["results"],
                 )
-                raise AirflowException("Error occurred while making a batch authorization decision.")
+                raise AirflowException(
+                    "Error occurred while making a batch authorization decision."
+                )
 
             results.extend(resp["results"])
 
@@ -243,14 +272,22 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
     @staticmethod
     def _get_user_group_entities(user: AwsAuthManagerUser) -> list[dict]:
         user_entity = {
-            "identifier": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+            "identifier": {
+                "entityType": get_entity_type(AvpEntities.USER),
+                "entityId": user.get_id(),
+            },
             "parents": [
                 {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}
                 for group in user.get_groups()
             ],
         }
         group_entities = [
-            {"identifier": {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}}
+            {
+                "identifier": {
+                    "entityType": get_entity_type(AvpEntities.GROUP),
+                    "entityId": group,
+                }
+            }
             for group in user.get_groups()
         ]
         return [user_entity, *group_entities]
@@ -264,7 +301,9 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
             "contextMap": context,
         }
 
-    def _build_is_authorized_request_payload(self, request: IsAuthorizedRequest, user: AwsAuthManagerUser):
+    def _build_is_authorized_request_payload(
+        self, request: IsAuthorizedRequest, user: AwsAuthManagerUser
+    ):
         """
         Build a payload of an individual authorization request that could be sent through the ``batch_is_authorized`` API.
 
@@ -273,7 +312,10 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         """
         return prune_dict(
             {
-                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+                "principal": {
+                    "entityType": get_entity_type(AvpEntities.USER),
+                    "entityId": user.get_id(),
+                },
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
                     "actionId": get_action_id(request["entity_type"], request["method"]),

@@ -123,7 +123,9 @@ class TestAwsBaseOperator:
     def test_no_aws_hook_class_attr(self):
         class NoAwsHookClassOperator(AwsBaseOperator): ...
 
-        error_match = r"Class attribute 'NoAwsHookClassOperator\.aws_hook_class' should be set"
+        error_match = (
+            r"Class attribute 'NoAwsHookClassOperator\.aws_hook_class' should be set"
+        )
         with pytest.raises(AttributeError, match=error_match):
             NoAwsHookClassOperator(task_id="fake-task-id")
 
@@ -131,9 +133,7 @@ class TestAwsBaseOperator:
         class WrongHookOperator(AwsBaseOperator):
             aws_hook_class = BaseHook
 
-        error_match = (
-            r"Class attribute 'WrongHookOperator.aws_hook_class' is not a subclass of AwsGenericHook"
-        )
+        error_match = r"Class attribute 'WrongHookOperator.aws_hook_class' is not a subclass of AwsGenericHook"
         with pytest.raises(AttributeError, match=error_match):
             WrongHookOperator(task_id="fake-task-id")
 

@@ -29,9 +29,7 @@ def get_docs_url(page: str | None = None) -> str:
     from airflow.version import version
 
     if any(suffix in version for suffix in ["dev", "a", "b"]):
-        result = (
-            "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/"
-        )
+        result = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/"
     else:
         result = f"https://airflow.apache.org/docs/apache-airflow/{version}/"
     if page:
@@ -57,7 +55,9 @@ def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
                 if item.lower().startswith("documentation"):
                     _, _, url = item.partition(",")
                     parsed_url = urlparse(url)
-                    if url and (parsed_url.scheme in ("http", "https") and bool(parsed_url.netloc)):
+                    if url and (
+                        parsed_url.scheme in ("http", "https") and bool(parsed_url.netloc)
+                    ):
                         return url.strip()
     except metadata.PackageNotFoundError:
         pass

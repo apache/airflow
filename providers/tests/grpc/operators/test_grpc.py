@@ -43,7 +43,9 @@ class TestGrpcOperator:
         )
 
         operator.execute({})
-        mock_hook.assert_called_once_with("grpc_default", interceptors=[], custom_connection_func=None)
+        mock_hook.assert_called_once_with(
+            "grpc_default", interceptors=[], custom_connection_func=None
+        )
 
     @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
     def test_with_custom_connection_func(self, mock_hook):
@@ -56,7 +58,9 @@ class TestGrpcOperator:
 
         operator.execute({})
         mock_hook.assert_called_once_with(
-            "grpc_default", interceptors=None, custom_connection_func=self.custom_conn_func
+            "grpc_default",
+            interceptors=None,
+            custom_connection_func=self.custom_conn_func,
         )
 
     @mock.patch("airflow.providers.grpc.operators.grpc.GrpcHook")
@@ -74,8 +78,12 @@ class TestGrpcOperator:
         with mock.patch.object(operator.log, "info") as mock_info:
             operator.execute({})
 
-            mock_hook.assert_called_once_with("grpc_default", interceptors=None, custom_connection_func=None)
-            mocked_hook.run.assert_called_once_with(StubClass, "stream_call", data={}, streaming=False)
+            mock_hook.assert_called_once_with(
+                "grpc_default", interceptors=None, custom_connection_func=None
+            )
+            mocked_hook.run.assert_called_once_with(
+                StubClass, "stream_call", data={}, streaming=False
+            )
             mock_info.assert_any_call("Calling gRPC service")
             mock_info.assert_any_call("%r", "value1")
             mock_info.assert_any_call("%r", "value2")
@@ -87,13 +95,20 @@ class TestGrpcOperator:
         mock_hook.return_value = mocked_hook
         mocked_hook.configure_mock(**{"run.return_value": ["value1", "value2"]})
         operator = GrpcOperator(
-            stub_class=StubClass, call_func="stream_call", task_id="test_grpc", response_callback=callback
+            stub_class=StubClass,
+            call_func="stream_call",
+            task_id="test_grpc",
+            response_callback=callback,
         )
 
         with mock.patch.object(operator.log, "info") as mock_info:
             operator.execute({})
-            mock_hook.assert_called_once_with("grpc_default", interceptors=None, custom_connection_func=None)
-            mocked_hook.run.assert_called_once_with(StubClass, "stream_call", data={}, streaming=False)
+            mock_hook.assert_called_once_with(
+                "grpc_default", interceptors=None, custom_connection_func=None
+            )
+            mocked_hook.run.assert_called_once_with(
+                StubClass, "stream_call", data={}, streaming=False
+            )
             assert ("'value1'", "'value2'") not in mock_info.call_args_list
             mock_info.assert_any_call("Calling gRPC service")
             callback.assert_any_call("value1", {})

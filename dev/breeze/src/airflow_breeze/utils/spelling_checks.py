@@ -103,7 +103,9 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingEr
                 sphinx_spelling_errors.append(
                     SpellingError(
                         file_path=os.path.join(docs_dir, warning_parts[0]),
-                        line_no=int(warning_parts[1]) if warning_parts[1] not in ("None", "") else None,
+                        line_no=int(warning_parts[1])
+                        if warning_parts[1] not in ("None", "")
+                        else None,
                         spelling=warning_parts[2],
                         suggestion=warning_parts[3] if warning_parts[3] else None,
                         context_line=warning_parts[4],
@@ -136,10 +138,14 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingEr
     return sphinx_spelling_errors
 
 
-def display_spelling_error_summary(spelling_errors: dict[str, list[SpellingError]]) -> None:
+def display_spelling_error_summary(
+    spelling_errors: dict[str, list[SpellingError]],
+) -> None:
     """Displays summary of Spelling errors"""
     console.print()
-    console.print("[red]" + "#" * 30 + " Start spelling errors summary " + "#" * 30 + "[/]")
+    console.print(
+        "[red]" + "#" * 30 + " Start spelling errors summary " + "#" * 30 + "[/]"
+    )
     console.print()
 
     for package_name, errors in sorted(spelling_errors.items()):
@@ -168,7 +174,9 @@ issue unrelated to spelling. Please review the traceback.
     console.print(msg)
     console.print()
     console.print()
-    console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
+    console.print(
+        "[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]"
+    )
     console.print()
 
 
@@ -183,6 +191,10 @@ def _display_error(error: SpellingError):
             console.print(f"Suggested Spelling: '{error.suggestion}'")
         if error.context_line:
             console.print(f"Line with Error: '{error.context_line}'")
-        if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
+        if (
+            error.file_path
+            and not error.file_path.endswith("<unknown>")
+            and error.line_no
+        ):
             console.print(f"Line Number: {error.line_no}")
             console.print(prepare_code_snippet(error.file_path, error.line_no))

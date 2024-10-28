@@ -30,7 +30,9 @@ from kubernetes.client import models as k8s
 
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
-from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import (
+    SparkKubernetesOperator,
+)
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
@@ -49,7 +51,9 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
     )
     mock_kubernetes_hook.assert_not_called()  # constructor shouldn't call the hook
 
-    assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
+    assert (
+        "hook" not in operator.__dict__
+    )  # Cached property has not been accessed as part of construction.
 
 
 def test_init_spark_kubernetes_operator(data_file):
@@ -117,7 +121,12 @@ TEST_K8S_DICT = {
             "affinity": {"nodeAffinity": {}, "podAffinity": {}, "podAntiAffinity": {}},
         },
         "hadoopConf": {},
-        "dynamicAllocation": {"enabled": False, "initialExecutors": 1, "maxExecutors": 1, "minExecutors": 1},
+        "dynamicAllocation": {
+            "enabled": False,
+            "initialExecutors": 1,
+            "maxExecutors": 1,
+            "minExecutors": 1,
+        },
         "image": "gcr.io/spark-operator/spark:v2.4.5",
         "imagePullPolicy": "Always",
         "mainApplicationFile": "local:///opt/test.py",
@@ -161,7 +170,9 @@ TEST_APPLICATION_DICT = {
         "restartPolicy": {"type": "Never"},
         "sparkVersion": "2.4.5",
         "type": "Scala",
-        "volumes": [{"hostPath": {"path": "/tmp", "type": "Directory"}, "name": "test-volume"}],
+        "volumes": [
+            {"hostPath": {"path": "/tmp", "type": "Directory"}, "name": "test-volume"}
+        ],
     },
 }
 
@@ -189,19 +200,35 @@ def create_context(task):
 
 
 @pytest.mark.db_test
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
-@patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+@patch(
+    "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs"
+)
+@patch(
+    "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion"
+)
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
-@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name")
+@patch(
+    "airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client"
+)
+@patch(
+    "airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name"
+)
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
-@patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
-@patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch(
+    "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status"
+)
+@patch(
+    "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object"
+)
 class TestSparkKubernetesOperator:
     def setup_method(self):
         db.merge_conn(
-            Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
+            Connection(
+                conn_id="kubernetes_default_kube_config",
+                conn_type="kubernetes",
+                extra=json.dumps({}),
+            )
         )
         db.merge_conn(
             Connection(
@@ -384,7 +411,9 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         op = SparkKubernetesOperator(
-            application_file=data_file("spark/application_test_with_no_name_from_config.yaml").as_posix(),
+            application_file=data_file(
+                "spark/application_test_with_no_name_from_config.yaml"
+            ).as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id="create_app_and_use_name_from_task_id",
         )
@@ -401,7 +430,9 @@ class TestSparkKubernetesOperator:
         assert op.name.startswith("create_app_and_use_name_from_task_id")
 
         op = SparkKubernetesOperator(
-            application_file=data_file("spark/application_test_with_no_name_from_config.json").as_posix(),
+            application_file=data_file(
+                "spark/application_test_with_no_name_from_config.json"
+            ).as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id="create_app_and_use_name_from_task_id",
         )
@@ -463,7 +494,9 @@ class TestSparkKubernetesOperator:
     ):
         task_name = "default_yaml_template"
 
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
         TEST_K8S_DICT["metadata"]["name"] = task_name
@@ -489,14 +522,20 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "default_env"
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         # test env vars
         job_spec["kubernetes"]["env_vars"] = {"TEST_ENV_1": "VALUE1"}
 
         # test env from
         env_from = [
-            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="env-direct-configmap")),
-            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="env-direct-secret")),
+            k8s.V1EnvFromSource(
+                config_map_ref=k8s.V1ConfigMapEnvSource(name="env-direct-configmap")
+            ),
+            k8s.V1EnvFromSource(
+                secret_ref=k8s.V1SecretEnvSource(name="env-direct-secret")
+            ),
         ]
         job_spec["kubernetes"]["env_from"] = copy.deepcopy(env_from)
 
@@ -513,7 +552,9 @@ class TestSparkKubernetesOperator:
         ]
 
         env_from = env_from + [
-            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="env-from-configmap")),
+            k8s.V1EnvFromSource(
+                config_map_ref=k8s.V1ConfigMapEnvSource(name="env-from-configmap")
+            ),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="env-from-secret")),
         ]
         assert op.launcher.body["spec"]["driver"]["envFrom"] == env_from
@@ -533,11 +574,15 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "default_volume"
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         volumes = [
             k8s.V1Volume(
                 name="test-pvc",
-                persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name="test-pvc"),
+                persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
+                    claim_name="test-pvc"
+                ),
             ),
             k8s.V1Volume(
                 name="test-configmap-mount",
@@ -550,13 +595,17 @@ class TestSparkKubernetesOperator:
         ]
         job_spec["kubernetes"]["volumes"] = copy.deepcopy(volumes)
         job_spec["kubernetes"]["volume_mounts"] = copy.deepcopy(volume_mounts)
-        job_spec["kubernetes"]["config_map_mounts"] = {"test-configmap-mounts-field": "/cm-path"}
+        job_spec["kubernetes"]["config_map_mounts"] = {
+            "test-configmap-mounts-field": "/cm-path"
+        }
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
         assert op.launcher.body["spec"]["volumes"] == volumes + [
             k8s.V1Volume(
                 name="test-configmap-mounts-field",
-                config_map=k8s.V1ConfigMapVolumeSource(name="test-configmap-mounts-field"),
+                config_map=k8s.V1ConfigMapVolumeSource(
+                    name="test-configmap-mounts-field"
+                ),
             )
         ]
         volume_mounts = volume_mounts + [
@@ -579,11 +628,15 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "test_pull_secret"
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         job_spec["kubernetes"]["image_pull_secrets"] = "secret1,secret2"
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
-        exp_secrets = [k8s.V1LocalObjectReference(name=secret) for secret in ["secret1", "secret2"]]
+        exp_secrets = [
+            k8s.V1LocalObjectReference(name=secret) for secret in ["secret1", "secret2"]
+        ]
         assert op.launcher.body["spec"]["imagePullSecrets"] == exp_secrets
 
     def test_affinity(
@@ -600,7 +653,9 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "test_affinity"
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         job_spec["kubernetes"]["affinity"] = k8s.V1Affinity(
             node_affinity=k8s.V1NodeAffinity(
                 required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
@@ -660,7 +715,9 @@ class TestSparkKubernetesOperator:
             effect="NoSchedule",
         )
         task_name = "test_tolerations"
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         job_spec["kubernetes"]["tolerations"] = [toleration]
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
@@ -681,7 +738,9 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "test_get_logs_from_driver"
-        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        job_spec = yaml.safe_load(
+            data_file("spark/application_template.yaml").read_text()
+        )
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
         mock_fetch_requested_container_logs.assert_called_once_with(
@@ -706,14 +765,18 @@ def test_template_body_templating(create_task_instance_of_operator, session):
     session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
-    assert task.template_body == {"spark": {"foo": "2024-02-01", "bar": "test_template_body_templating_dag"}}
+    assert task.template_body == {
+        "spark": {"foo": "2024-02-01", "bar": "test_template_body_templating_dag"}
+    }
 
 
 @pytest.mark.db_test
 def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
     execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
-    (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
+    (tmp_path / filename).write_text(
+        "foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg"
+    )
 
     with dag_maker(
         dag_id="test_resolve_application_file_template_file",
@@ -750,7 +813,9 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
         pytest.param(None, id="none"),
     ],
 )
-def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body, session):
+def test_resolve_application_file_template_non_dictionary(
+    dag_maker, tmp_path, body, session
+):
     execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     with open((tmp_path / filename), "w") as fp:
@@ -772,16 +837,20 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
     session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
-    with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
+    with pytest.raises(
+        TypeError, match="application_file body can't transformed into the dictionary"
+    ):
         _ = task.template_body
 
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    "use_literal_value", [pytest.param(True, id="literal-value"), pytest.param(False, id="whitespace-compat")]
+    "use_literal_value",
+    [pytest.param(True, id="literal-value"), pytest.param(False, id="whitespace-compat")],
 )
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
+    not AIRFLOW_V_2_8_PLUS,
+    reason="Skipping tests that require LiteralValue for Airflow < 2.8.0",
 )
 def test_resolve_application_file_real_file(
     create_task_instance_of_operator, tmp_path, use_literal_value, session
@@ -816,9 +885,12 @@ def test_resolve_application_file_real_file(
 
 @pytest.mark.db_test
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
+    not AIRFLOW_V_2_8_PLUS,
+    reason="Skipping tests that require LiteralValue for Airflow < 2.8.0",
 )
-def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path, session):
+def test_resolve_application_file_real_file_not_exists(
+    create_task_instance_of_operator, tmp_path, session
+):
     application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
     from airflow.template.templater import LiteralValue
 
@@ -834,5 +906,7 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
     session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
-    with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
+    with pytest.raises(
+        TypeError, match="application_file body can't transformed into the dictionary"
+    ):
         _ = task.template_body

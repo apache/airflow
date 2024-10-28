@@ -22,7 +22,11 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Log
 from airflow.utils import timezone
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_logs
 
@@ -118,7 +122,9 @@ class TestGetEventLog(TestEventLogEndpoint):
         }
 
     def test_should_respond_404(self):
-        response = self.client.get("/api/v1/eventLogs/1", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/eventLogs/1", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 404
         assert {
             "detail": None,
@@ -145,12 +151,16 @@ class TestGetEventLogs(TestEventLogEndpoint):
     def test_should_respond_200(self, session, create_log_model):
         log_model_1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
         log_model_2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
-        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
+        log_model_3 = Log(
+            event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}'
+        )
         log_model_3.dttm = self.default_time_2
 
         session.add(log_model_3)
         session.flush()
-        response = self.client.get("/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {
             "event_logs": [
@@ -199,8 +209,12 @@ class TestGetEventLogs(TestEventLogEndpoint):
 
     def test_order_eventlogs_by_owner(self, create_log_model, session):
         log_model_1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
-        log_model_2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2, owner="zsh")
-        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
+        log_model_2 = create_log_model(
+            event="TEST_EVENT_2", when=self.default_time_2, owner="zsh"
+        )
+        log_model_3 = Log(
+            event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}'
+        )
         log_model_3.dttm = self.default_time_2
         session.add(log_model_3)
         session.flush()
@@ -277,9 +291,15 @@ class TestGetEventLogs(TestEventLogEndpoint):
             assert response.json["event_logs"][0]["event"] == expected_eventlog_event
 
     def test_should_filter_eventlogs_by_run_id(self, create_log_model, session):
-        eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time, run_id="run_1")
-        eventlog2 = create_log_model(event="TEST_EVENT_2", when=self.default_time, run_id="run_2")
-        eventlog3 = create_log_model(event="TEST_EVENT_3", when=self.default_time, run_id="run_2")
+        eventlog1 = create_log_model(
+            event="TEST_EVENT_1", when=self.default_time, run_id="run_1"
+        )
+        eventlog2 = create_log_model(
+            event="TEST_EVENT_2", when=self.default_time, run_id="run_2"
+        )
+        eventlog3 = create_log_model(
+            event="TEST_EVENT_3", when=self.default_time, run_id="run_2"
+        )
         session.add_all([eventlog1, eventlog2, eventlog3])
         session.commit()
         for run_id, expected_eventlogs in {
@@ -293,8 +313,12 @@ class TestGetEventLogs(TestEventLogEndpoint):
             assert response.status_code == 200
             assert response.json["total_entries"] == len(expected_eventlogs)
             assert len(response.json["event_logs"]) == len(expected_eventlogs)
-            assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
-            assert all({eventlog["run_id"] == run_id for eventlog in response.json["event_logs"]})
+            assert {
+                eventlog["event"] for eventlog in response.json["event_logs"]
+            } == expected_eventlogs
+            assert all(
+                {eventlog["run_id"] == run_id for eventlog in response.json["event_logs"]}
+            )
 
 
 class TestGetEventLogPagination(TestEventLogEndpoint):
@@ -353,7 +377,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.flush()
 
-        response = self.client.get("/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
 
         assert response.json["total_entries"] == 200
@@ -365,7 +391,8 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.flush()
 
         response = self.client.get(
-            "/api/v1/eventLogs?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/eventLogs?order_by=invalid",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
@@ -377,9 +404,14 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.flush()
 
-        response = self.client.get("/api/v1/eventLogs?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/eventLogs?limit=180", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert len(response.json["event_logs"]) == 150
 
     def _create_event_logs(self, task_instance, count):
-        return [Log(event=f"TEST_EVENT_{i}", task_instance=task_instance) for i in range(1, count + 1)]
+        return [
+            Log(event=f"TEST_EVENT_{i}", task_instance=task_instance)
+            for i in range(1, count + 1)
+        ]

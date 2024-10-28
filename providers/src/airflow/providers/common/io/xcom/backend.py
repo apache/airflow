@@ -51,7 +51,9 @@ def _get_compression_suffix(compression: str) -> str:
         if c == compression:
             return suffix
 
-    raise ValueError(f"Compression {compression} is not supported. Make sure it is installed.")
+    raise ValueError(
+        f"Compression {compression} is not supported. Make sure it is installed."
+    )
 
 
 @cache
@@ -122,7 +124,9 @@ class XComObjectStorageBackend(BaseXCom):
             suffix = ""
 
         threshold = _get_threshold()
-        if threshold < 0 or len(s_val) < threshold:  # Either no threshold or value is small enough.
+        if (
+            threshold < 0 or len(s_val) < threshold
+        ):  # Either no threshold or value is small enough.
             return s_val
 
         base_path = _get_base_path()

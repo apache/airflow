@@ -24,7 +24,9 @@ import pytest
 from google.cloud.dataform_v1beta1.types import Target, WorkflowInvocationAction
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationActionStateSensor
+from airflow.providers.google.cloud.sensors.dataform import (
+    DataformWorkflowInvocationActionStateSensor,
+)
 
 TEST_TASK_ID = "task_id"
 TEST_PROJECT_ID = "test_project"
@@ -40,8 +42,16 @@ class TestDataformWorkflowInvocationActionStateSensor:
     @pytest.mark.parametrize(
         "expected_status, current_status, sensor_return",
         [
-            (WorkflowInvocationAction.State.SUCCEEDED, WorkflowInvocationAction.State.SUCCEEDED, True),
-            (WorkflowInvocationAction.State.SUCCEEDED, WorkflowInvocationAction.State.RUNNING, False),
+            (
+                WorkflowInvocationAction.State.SUCCEEDED,
+                WorkflowInvocationAction.State.SUCCEEDED,
+                True,
+            ),
+            (
+                WorkflowInvocationAction.State.SUCCEEDED,
+                WorkflowInvocationAction.State.RUNNING,
+                False,
+            ),
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.dataform.DataformHook")
@@ -53,8 +63,12 @@ class TestDataformWorkflowInvocationActionStateSensor:
         sensor_return: bool,
     ):
         target = Target(database="", schema="", name=TEST_TARGET_NAME)
-        workflow_invocation_action = WorkflowInvocationAction(target=target, state=current_status)
-        mock_query_workflow_invocation_actions = mock_hook.return_value.query_workflow_invocation_actions
+        workflow_invocation_action = WorkflowInvocationAction(
+            target=target, state=current_status
+        )
+        mock_query_workflow_invocation_actions = (
+            mock_hook.return_value.query_workflow_invocation_actions
+        )
         mock_query_workflow_invocation_actions.return_value = [workflow_invocation_action]
 
         task = DataformWorkflowInvocationActionStateSensor(
@@ -89,7 +103,9 @@ class TestDataformWorkflowInvocationActionStateSensor:
         workflow_invocation_action = WorkflowInvocationAction(
             target=target, state=WorkflowInvocationAction.State.FAILED
         )
-        mock_query_workflow_invocation_actions = mock_hook.return_value.query_workflow_invocation_actions
+        mock_query_workflow_invocation_actions = (
+            mock_hook.return_value.query_workflow_invocation_actions
+        )
         mock_query_workflow_invocation_actions.return_value = [workflow_invocation_action]
 
         task = DataformWorkflowInvocationActionStateSensor(
@@ -120,7 +136,9 @@ class TestDataformWorkflowInvocationActionStateSensor:
 
     @mock.patch("airflow.providers.google.cloud.sensors.dataform.DataformHook")
     def test_target_not_found_raises_exception(self, mock_hook: mock.MagicMock):
-        mock_query_workflow_invocation_actions = mock_hook.return_value.query_workflow_invocation_actions
+        mock_query_workflow_invocation_actions = (
+            mock_hook.return_value.query_workflow_invocation_actions
+        )
         mock_query_workflow_invocation_actions.return_value = []
 
         task = DataformWorkflowInvocationActionStateSensor(

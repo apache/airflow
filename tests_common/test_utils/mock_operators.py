@@ -79,7 +79,9 @@ class MockOperatorWithNestedFields(BaseOperator):
 
             if template_fields:
                 seen_oids.add(id(content))
-                self._do_render_template_fields(content, template_fields, context, jinja_env, seen_oids)
+                self._do_render_template_fields(
+                    content, template_fields, context, jinja_env, seen_oids
+                )
                 return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
@@ -131,7 +133,10 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         search_queries = XCom.get_one(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            key="search_query",
         )
         if not search_queries:
             return None
@@ -148,7 +153,10 @@ class CustomOpLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         search_query = XCom.get_one(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            key="search_query",
         )
         if not search_query:
             return None

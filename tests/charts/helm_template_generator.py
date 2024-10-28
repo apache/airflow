@@ -61,7 +61,8 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     request.raise_for_status()
     schema = json.loads(
         request.text.replace(
-            "kubernetesjsonschema.dev", "raw.githubusercontent.com/yannh/kubernetes-json-schema/master"
+            "kubernetesjsonschema.dev",
+            "raw.githubusercontent.com/yannh/kubernetes-json-schema/master",
         )
     )
     return schema
@@ -98,7 +99,9 @@ def validate_k8s_object(instance, kubernetes_version):
     if chart and "postgresql" in chart:
         return
 
-    validate = create_validator(instance.get("apiVersion"), instance.get("kind"), kubernetes_version)
+    validate = create_validator(
+        instance.get("apiVersion"), instance.get("kind"), kubernetes_version
+    )
     validate.validate(instance)
 
 
@@ -142,7 +145,9 @@ def render_chart(
                 command.extend(["--show-only", i])
         result = subprocess.run(command, capture_output=True, cwd=chart_dir)
         if result.returncode:
-            raise HelmFailedError(result.returncode, result.args, result.stdout, result.stderr)
+            raise HelmFailedError(
+                result.returncode, result.args, result.stdout, result.stderr
+            )
         templates = result.stdout
         k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
@@ -157,7 +162,8 @@ def prepare_k8s_lookup_dict(k8s_objects) -> dict[tuple[str, str], dict[str, Any]
     The keys of the dict are the k8s object's kind and name
     """
     k8s_obj_by_key = {
-        (k8s_object["kind"], k8s_object["metadata"]["name"]): k8s_object for k8s_object in k8s_objects
+        (k8s_object["kind"], k8s_object["metadata"]["name"]): k8s_object
+        for k8s_object in k8s_objects
     }
     return k8s_obj_by_key
 

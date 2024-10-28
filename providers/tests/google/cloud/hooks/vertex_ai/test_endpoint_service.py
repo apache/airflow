@@ -26,7 +26,9 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
+from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import (
+    EndpointServiceHook,
+)
 
 from providers.tests.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -45,7 +47,9 @@ TEST_TRAFFIC_SPLIT: dict = {}
 TEST_UPDATE_MASK: dict = {}
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
-ENDPOINT_SERVICE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service.{}"
+ENDPOINT_SERVICE_STRING = (
+    "airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service.{}"
+)
 
 
 class TestEndpointServiceWithDefaultProjectIdHook:
@@ -55,11 +59,14 @@ class TestEndpointServiceWithDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = EndpointServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_create_endpoint(self, mock_client) -> None:
         self.hook.create_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -83,7 +90,9 @@ class TestEndpointServiceWithDefaultProjectIdHook:
             TEST_REGION,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_delete_endpoint(self, mock_client) -> None:
         self.hook.delete_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -105,7 +114,9 @@ class TestEndpointServiceWithDefaultProjectIdHook:
             TEST_ENDPOINT_NAME,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_deploy_model(self, mock_client) -> None:
         self.hook.deploy_model(
             project_id=TEST_PROJECT_ID,
@@ -131,7 +142,9 @@ class TestEndpointServiceWithDefaultProjectIdHook:
             TEST_ENDPOINT_NAME,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_get_endpoint(self, mock_client) -> None:
         self.hook.get_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -153,7 +166,9 @@ class TestEndpointServiceWithDefaultProjectIdHook:
             TEST_ENDPOINT_NAME,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_list_endpoints(self, mock_client) -> None:
         self.hook.list_endpoints(
             project_id=TEST_PROJECT_ID,
@@ -178,7 +193,9 @@ class TestEndpointServiceWithDefaultProjectIdHook:
             TEST_REGION,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_undeploy_model(self, mock_client) -> None:
         self.hook.undeploy_model(
             project_id=TEST_PROJECT_ID,
@@ -202,7 +219,9 @@ class TestEndpointServiceWithDefaultProjectIdHook:
             TEST_PROJECT_ID, TEST_REGION, TEST_ENDPOINT_NAME
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_update_endpoint(self, mock_client) -> None:
         self.hook.update_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -226,11 +245,14 @@ class TestEndpointServiceWithDefaultProjectIdHook:
 class TestEndpointServiceWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = EndpointServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_create_endpoint(self, mock_client) -> None:
         self.hook.create_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -254,7 +276,9 @@ class TestEndpointServiceWithoutDefaultProjectIdHook:
             TEST_REGION,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_delete_endpoint(self, mock_client) -> None:
         self.hook.delete_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -276,7 +300,9 @@ class TestEndpointServiceWithoutDefaultProjectIdHook:
             TEST_ENDPOINT_NAME,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_deploy_model(self, mock_client) -> None:
         self.hook.deploy_model(
             project_id=TEST_PROJECT_ID,
@@ -302,7 +328,9 @@ class TestEndpointServiceWithoutDefaultProjectIdHook:
             TEST_ENDPOINT_NAME,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_get_endpoint(self, mock_client) -> None:
         self.hook.get_endpoint(
             project_id=TEST_PROJECT_ID,
@@ -324,7 +352,9 @@ class TestEndpointServiceWithoutDefaultProjectIdHook:
             TEST_ENDPOINT_NAME,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_list_endpoints(self, mock_client) -> None:
         self.hook.list_endpoints(
             project_id=TEST_PROJECT_ID,
@@ -349,7 +379,9 @@ class TestEndpointServiceWithoutDefaultProjectIdHook:
             TEST_REGION,
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_undeploy_model(self, mock_client) -> None:
         self.hook.undeploy_model(
             project_id=TEST_PROJECT_ID,
@@ -373,7 +405,9 @@ class TestEndpointServiceWithoutDefaultProjectIdHook:
             TEST_PROJECT_ID, TEST_REGION, TEST_ENDPOINT_NAME
         )
 
-    @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
+    @mock.patch(
+        ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client")
+    )
     def test_update_endpoint(self, mock_client) -> None:
         self.hook.update_endpoint(
             project_id=TEST_PROJECT_ID,

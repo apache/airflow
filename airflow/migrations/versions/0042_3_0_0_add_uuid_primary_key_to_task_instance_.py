@@ -172,7 +172,9 @@ def upgrade():
     conn = op.get_bind()
     dialect_name = conn.dialect.name
 
-    op.add_column("task_instance", sa.Column("id", _get_type_id_column(dialect_name), nullable=True))
+    op.add_column(
+        "task_instance", sa.Column("id", _get_type_id_column(dialect_name), nullable=True)
+    )
 
     if dialect_name == "postgresql":
         op.execute(pg_uuid7_fn)
@@ -186,7 +188,9 @@ def upgrade():
         op.execute(pg_uuid7_fn_drop)
 
         # Drop existing primary key constraint to task_instance table
-        op.execute("ALTER TABLE IF EXISTS task_instance DROP CONSTRAINT task_instance_pkey CASCADE")
+        op.execute(
+            "ALTER TABLE IF EXISTS task_instance DROP CONSTRAINT task_instance_pkey CASCADE"
+        )
 
     elif dialect_name == "mysql":
         op.execute(mysql_uuid7_fn)
@@ -227,7 +231,9 @@ def upgrade():
 
     # Add primary key and unique constraint to task_instance table
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.alter_column("id", type_=_get_type_id_column(dialect_name), nullable=False)
+        batch_op.alter_column(
+            "id", type_=_get_type_id_column(dialect_name), nullable=False
+        )
         batch_op.create_unique_constraint("task_instance_composite_key", ti_fk_cols)
         batch_op.create_primary_key("task_instance_pkey", ["id"])
 
@@ -249,7 +255,9 @@ def downgrade():
     dialect_name = conn.dialect.name
 
     if dialect_name == "postgresql":
-        op.execute("ALTER TABLE IF EXISTS task_instance DROP CONSTRAINT task_instance_composite_key CASCADE")
+        op.execute(
+            "ALTER TABLE IF EXISTS task_instance DROP CONSTRAINT task_instance_composite_key CASCADE"
+        )
         op.execute(pg_uuid7_fn_drop)
 
     elif dialect_name == "mysql":

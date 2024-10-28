@@ -62,7 +62,9 @@ class TestSerializedDagModel:
     )
     def setup_test_cases(self, request, monkeypatch):
         db.clear_db_serialized_dags()
-        with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
+        with mock.patch(
+            "airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param
+        ):
             yield
         db.clear_db_serialized_dags()
 
@@ -135,7 +137,9 @@ class TestSerializedDagModel:
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
+            dag_updated = SDM.write_dag(
+                dag=example_bash_op_dag, processor_subdir="/tmp/test"
+            )
             s_dag_1 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
@@ -144,7 +148,9 @@ class TestSerializedDagModel:
             session.flush()
 
             # Update DAG
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/other")
+            dag_updated = SDM.write_dag(
+                dag=example_bash_op_dag, processor_subdir="/tmp/other"
+            )
             s_dag_2 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
@@ -251,13 +257,18 @@ class TestSerializedDagModel:
                     outlets=[Asset("0*"), Asset("6*")],
                     bash_command="sleep 5",
                 )
-            deps_order = [x["dependency_id"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]
+            deps_order = [
+                x["dependency_id"]
+                for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]
+            ]
             # in below assert, 0 and 6 both come at end because "source" is different for them and source
             # is the first field in DagDependency class
             assert deps_order == ["1", "2", "3", "4", "5", "0*", "6*"]
 
             # for good measure, let's check that the dag hash is consistent
-            dag_json = json.dumps(SerializedDAG.to_dict(dag6), sort_keys=True).encode("utf-8")
+            dag_json = json.dumps(SerializedDAG.to_dict(dag6), sort_keys=True).encode(
+                "utf-8"
+            )
             this_dag_hash = md5(dag_json).hexdigest()
 
             # set first dag hash on first pass
@@ -277,7 +288,9 @@ class TestSerializedDagModel:
             ordered_example_dags = dict(sorted(example_dags.items()))
             hashes = set()
             for dag_id in ordered_example_dags.keys():
-                smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
+                smd = session.execute(
+                    select(SDM.dag_hash).where(SDM.dag_id == dag_id)
+                ).one()
                 hashes.add(smd.dag_hash)
             return hashes
 

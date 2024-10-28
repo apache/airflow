@@ -40,7 +40,10 @@ from google.cloud.pubsub_v1.types import (
 )
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
-from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
+from airflow.providers.google.cloud.links.pubsub import (
+    PubSubSubscriptionLink,
+    PubSubTopicLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -62,15 +65,21 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
     not cause the DAG to fail. ::
 
         with DAG("successful DAG") as dag:
-            create_topic = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
-            create_topic_again = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
+            create_topic = PubSubCreateTopicOperator(
+                project_id="my-project", topic="my_new_topic"
+            )
+            create_topic_again = PubSubCreateTopicOperator(
+                project_id="my-project", topic="my_new_topic"
+            )
 
             create_topic >> create_topic_again
 
     The operator can be configured to fail if the topic already exists. ::
 
         with DAG("failing DAG") as dag:
-            create_topic = PubSubCreateTopicOperator(project_id="my-project", topic="my_new_topic")
+            create_topic = PubSubCreateTopicOperator(
+                project_id="my-project", topic="my_new_topic"
+            )
             create_topic_again = PubSubCreateTopicOperator(
                 project_id="my-project", topic="my_new_topic", fail_if_exists=True
             )
@@ -218,7 +227,10 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
                 project_id="my-project", topic="my-topic", subscription="my-subscription"
             )
             create_subscription_again = PubSubCreateSubscriptionOperator(
-                project_id="my-project", topic="my-topic", subscription="my-subscription", fail_if_exists=True
+                project_id="my-project",
+                topic="my-topic",
+                subscription="my-subscription",
+                fail_if_exists=True,
             )
 
             create_subscription >> create_subscription_again
@@ -388,7 +400,8 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         PubSubSubscriptionLink.persist(
             context=context,
             task_instance=self,
-            subscription_id=self.subscription or result,  # result returns subscription name
+            subscription_id=self.subscription
+            or result,  # result returns subscription name
             project_id=self.project_id or hook.project_id,
         )
         return result
@@ -505,7 +518,9 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
     not cause the DAG to fail. ::
 
         with DAG("successful DAG") as dag:
-            PubSubDeleteSubscriptionOperator(project_id="my-project", subscription="non-existing")
+            PubSubDeleteSubscriptionOperator(
+                project_id="my-project", subscription="non-existing"
+            )
 
     The operator can be configured to fail if the subscription already exists.
 

@@ -28,7 +28,9 @@ from airflow.typing_compat import Protocol
 
 DeltaType = Union[int, float, datetime.timedelta]
 
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+metrics_consistency_on = conf.getboolean(
+    "metrics", "metrics_consistency_on", fallback=True
+)
 if not metrics_consistency_on:
     warnings.warn(
         "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
@@ -128,7 +130,9 @@ class Timer(TimerProtocol):
         """Stop the timer, and optionally send it to stats backend."""
         if self._start_time is not None:
             if metrics_consistency_on:
-                self.duration = 1000.0 * (time.perf_counter() - self._start_time)  # Convert to milliseconds.
+                self.duration = 1000.0 * (
+                    time.perf_counter() - self._start_time
+                )  # Convert to milliseconds.
             else:
                 self.duration = time.perf_counter() - self._start_time
         if send and self.real_timer:

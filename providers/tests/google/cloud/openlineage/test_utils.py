@@ -40,7 +40,11 @@ TEST_DATASET = "test-dataset"
 TEST_TABLE_ID = "test-table-id"
 TEST_PROJECT_ID = "test-project-id"
 TEST_TABLE_API_REPR = {
-    "tableReference": {"projectId": TEST_PROJECT_ID, "datasetId": TEST_DATASET, "tableId": TEST_TABLE_ID},
+    "tableReference": {
+        "projectId": TEST_PROJECT_ID,
+        "datasetId": TEST_DATASET,
+        "tableId": TEST_TABLE_ID,
+    },
     "description": "Table description.",
     "schema": {
         "fields": [
@@ -51,7 +55,11 @@ TEST_TABLE_API_REPR = {
 }
 TEST_TABLE: Table = Table.from_api_repr(TEST_TABLE_API_REPR)
 TEST_EMPTY_TABLE_API_REPR = {
-    "tableReference": {"projectId": TEST_PROJECT_ID, "datasetId": TEST_DATASET, "tableId": TEST_TABLE_ID}
+    "tableReference": {
+        "projectId": TEST_PROJECT_ID,
+        "datasetId": TEST_DATASET,
+        "tableId": TEST_TABLE_ID,
+    }
 }
 TEST_EMPTY_TABLE: Table = Table.from_api_repr(TEST_EMPTY_TABLE_API_REPR)
 
@@ -78,7 +86,9 @@ def test_get_facets_from_bq_table():
     expected_facets = {
         "schema": SchemaDatasetFacet(
             fields=[
-                SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                SchemaDatasetFacetFields(
+                    name="field1", type="STRING", description="field1 description"
+                ),
                 SchemaDatasetFacetFields(name="field2", type="INTEGER"),
             ]
         ),
@@ -139,7 +149,9 @@ def test_get_identity_column_lineage_facet_multiple_input_datasets():
             ),
         }
     )
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+    result = get_identity_column_lineage_facet(
+        field_names=field_names, input_datasets=input_datasets
+    )
     assert result == expected_facet
 
 
@@ -150,7 +162,9 @@ def test_get_identity_column_lineage_facet_no_field_names():
         Dataset(namespace="gs://second_bucket", name="dir2"),
     ]
     expected_facet = ColumnLineageDatasetFacet(fields={})
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+    result = get_identity_column_lineage_facet(
+        field_names=field_names, input_datasets=input_datasets
+    )
     assert result == expected_facet
 
 
@@ -159,4 +173,6 @@ def test_get_identity_column_lineage_facet_no_input_datasets():
     input_datasets = []
 
     with pytest.raises(ValueError):
-        get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+        get_identity_column_lineage_facet(
+            field_names=field_names, input_datasets=input_datasets
+        )

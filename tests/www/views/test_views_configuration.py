@@ -23,7 +23,10 @@ import pytest
 from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -62,7 +65,9 @@ def test_configuration_redacted_in_running_configuration(admin_client):
     for section, key in conf.sensitive_config_values:
         value = conf.get(section, key, fallback="")
         if value and value != "airflow":
-            check_content_not_in_response("<td class='code'>" + html.escape(value) + "</td", resp)
+            check_content_not_in_response(
+                "<td class='code'>" + html.escape(value) + "</td", resp
+            )
 
 
 @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})

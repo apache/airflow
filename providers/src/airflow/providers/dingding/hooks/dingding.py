@@ -79,7 +79,9 @@ class DingdingHook(HttpHook):
         if self.message_type in ["text", "markdown"]:
             data = {
                 "msgtype": self.message_type,
-                self.message_type: {"content": self.message} if self.message_type == "text" else self.message,
+                self.message_type: {"content": self.message}
+                if self.message_type == "text"
+                else self.message,
                 "at": {"atMobiles": self.at_mobiles, "isAtAll": self.at_all},
             }
         else:
@@ -112,10 +114,14 @@ class DingdingHook(HttpHook):
         data = self._build_message()
         self.log.info("Sending Dingding type %s message %s", self.message_type, data)
         resp = self.run(
-            endpoint=self._get_endpoint(), data=data, headers={"Content-Type": "application/json"}
+            endpoint=self._get_endpoint(),
+            data=data,
+            headers={"Content-Type": "application/json"},
         )
 
         # Success send message will return errcode = 0
         if int(resp.json().get("errcode")) != 0:
-            raise AirflowException(f"Send Dingding message failed, receive error message {resp.text}")
+            raise AirflowException(
+                f"Send Dingding message failed, receive error message {resp.text}"
+            )
         self.log.info("Success Send Dingding message")

@@ -83,7 +83,9 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 
     if "placeholders" in field_behaviors:
         placeholders = field_behaviors["placeholders"]
-        field_behaviors["placeholders"] = {ensure_prefix(k): v for k, v in placeholders.items()}
+        field_behaviors["placeholders"] = {
+            ensure_prefix(k): v for k, v in placeholders.items()
+        }
 
     return field_behaviors
 
@@ -171,7 +173,9 @@ def _create_customized_form_field_behaviours_schema_validator():
     """Create JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
-    schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
+    schema = _read_schema_from_resources_or_local_file(
+        "customized_form_field_behaviours.schema.json"
+    )
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -305,10 +309,14 @@ def log_import_warning(class_name, e, provider_package):
 # where they have optional features. We are going to add tests in our CI to catch all such cases and will
 # fix them, but until now all "known unhandled optional feature errors" from community providers
 # should be added here
-KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [
+    ("apache-airflow-providers-google", "No module named 'paramiko'")
+]
 
 
-def _correctness_check(provider_package: str, class_name: str, provider_info: ProviderInfo) -> Any:
+def _correctness_check(
+    provider_package: str, class_name: str, provider_info: ProviderInfo
+) -> Any:
     """
     Perform coherence check on provider classes.
 
@@ -362,7 +370,9 @@ def _correctness_check(provider_package: str, class_name: str, provider_info: Pr
 
 # We want to have better control over initialization of parameters and be able to debug and test it
 # So we add our own decorator
-def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Callable[PS, None]]:
+def provider_info_cache(
+    cache_name: str,
+) -> Callable[[Callable[PS, None]], Callable[PS, None]]:
     """
     Decorate and cache provider info.
 
@@ -419,7 +429,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Initialize the manager."""
         super().__init__()
         ProvidersManager._initialized = True
-        ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
+        ProvidersManager._initialization_stack_trace = "".join(
+            traceback.format_stack(inspect.currentframe())
+        )
         self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: dict[str, ProviderInfo] = {}
@@ -433,7 +445,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
-        self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
+        self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = (
+            LazyDictWithCache()
+        )
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -502,7 +516,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for provider_id, info in self._provider_dict.items():
             min_version = MIN_PROVIDER_VERSIONS.get(provider_id)
             if min_version:
-                if packaging_version.parse(min_version) > packaging_version.parse(info.version):
+                if packaging_version.parse(min_version) > packaging_version.parse(
+                    info.version
+                ):
                     log.warning(
                         "The package %s is not compatible with this version of Airflow. "
                         "The package has version %s but the minimum supported version "
@@ -634,7 +650,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info, "package")
+                self._provider_dict[package_name] = ProviderInfo(
+                    version, provider_info, "package"
+                )
             else:
                 log.warning(
                     "The provider for package '%s' could not be registered from because providers for that "
@@ -668,7 +686,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     seen.add(path)
                     self._add_provider_info_from_local_source_files_on_path(path)
             except Exception as e:
-                log.warning("Error when loading 'provider.yaml' files from %s airflow sources: %s", path, e)
+                log.warning(
+                    "Error when loading 'provider.yaml' files from %s airflow sources: %s",
+                    path,
+                    e,
+                )
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
@@ -680,13 +702,17 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for folder, subdirs, files in os.walk(path, topdown=True):
             for filename in fnmatch.filter(files, "provider.yaml"):
                 try:
-                    package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
+                    package_name = "apache-airflow-providers" + folder[
+                        len(root_path) :
+                    ].replace(os.sep, "-")
                     self._add_provider_info_from_local_source_file(
                         os.path.join(folder, filename), package_name
                     )
                     subdirs[:] = []
                 except Exception as e:
-                    log.warning("Error when loading 'provider.yaml' file from %s %e", folder, e)
+                    log.warning(
+                        "Error when loading 'provider.yaml' file from %s %e", folder, e
+                    )
 
     def _add_provider_info_from_local_source_file(self, path, package_name) -> None:
         """
@@ -702,7 +728,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             self._provider_schema_validator.validate(provider_info)
             version = provider_info["versions"][0]
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info, "source")
+                self._provider_dict[package_name] = ProviderInfo(
+                    version, provider_info, "source"
+                )
             else:
                 log.warning(
                     "The providers for package '%s' could not be registered because providers for that "
@@ -805,10 +833,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 if not hook_info:
                     # Problem why importing class - we ignore it. Log is written at import time
                     continue
-                already_registered = self._hook_provider_dict.get(hook_info.connection_type)
+                already_registered = self._hook_provider_dict.get(
+                    hook_info.connection_type
+                )
                 if already_registered:
                     if already_registered.package_name != package_name:
-                        already_registered_warning_connection_types.add(hook_info.connection_type)
+                        already_registered_warning_connection_types.add(
+                            hook_info.connection_type
+                        )
                     else:
                         if already_registered.hook_class_name != hook_class_name:
                             log.warning(
@@ -821,8 +853,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                                 hook_class_name,
                             )
                 else:
-                    self._hook_provider_dict[hook_info.connection_type] = HookClassProvider(
-                        hook_class_name=hook_class_name, package_name=package_name
+                    self._hook_provider_dict[hook_info.connection_type] = (
+                        HookClassProvider(
+                            hook_class_name=hook_class_name, package_name=package_name
+                        )
                     )
                     self._hooks_lazy_dict[hook_info.connection_type] = hook_info
 
@@ -836,7 +870,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     DeprecationWarning,
                     stacklevel=1,
                 )
-        for already_registered_connection_type in already_registered_warning_connection_types:
+        for (
+            already_registered_connection_type
+        ) in already_registered_warning_connection_types:
             log.warning(
                 "The connection_type '%s' has been already registered by provider '%s.'",
                 already_registered_connection_type,
@@ -849,7 +885,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             duplicated_connection_types: set[str] = set()
             hook_class_names_registered: set[str] = set()
             provider_uses_connection_types = self._discover_hooks_from_connection_types(
-                hook_class_names_registered, duplicated_connection_types, package_name, provider
+                hook_class_names_registered,
+                duplicated_connection_types,
+                package_name,
+                provider,
             )
             self._discover_hooks_from_hook_class_names(
                 hook_class_names_registered,
@@ -878,7 +917,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Retrieve all filesystems defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             for fs_module_name in provider.data.get("filesystems", []):
-                if _correctness_check(provider_package, f"{fs_module_name}.get_fs", provider):
+                if _correctness_check(
+                    provider_package, f"{fs_module_name}.get_fs", provider
+                ):
                     self._fs_set.add(fs_module_name)
         self._fs_set = set(sorted(self._fs_set))
 
@@ -911,7 +952,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             for uri_info in provider.data.get("asset-uris", []):
                 if "schemes" not in uri_info or "handler" not in uri_info:
                     continue  # Both schemas and handler must be explicitly set, handler can be set to null
-                common_args = {"schemes_list": uri_info["schemes"], "provider_package_name": provider_name}
+                common_args = {
+                    "schemes_list": uri_info["schemes"],
+                    "provider_package_name": provider_name,
+                }
                 _safe_register_resource(
                     resource_path=uri_info["handler"],
                     resource_registry=self._asset_uri_handlers,
@@ -936,7 +980,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     taskflow_decorator["name"], taskflow_decorator["class-name"], name
                 )
 
-    def _add_taskflow_decorator(self, name, decorator_class_name: str, provider_package: str) -> None:
+    def _add_taskflow_decorator(
+        self, name, decorator_class_name: str, provider_package: str
+    ) -> None:
         if not _check_builtin_provider_prefix(provider_package, decorator_class_name):
             return
 
@@ -955,13 +1001,19 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             )
             return
 
-        self._taskflow_decorators[name] = functools.partial(import_string, decorator_class_name)
+        self._taskflow_decorators[name] = functools.partial(
+            import_string, decorator_class_name
+        )
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
         """Retrieve attributes of an object, or warn if not found."""
         if not hasattr(obj, attr_name):
-            log.warning("The object '%s' is missing %s attribute and cannot be registered", obj, attr_name)
+            log.warning(
+                "The object '%s' is missing %s attribute and cannot be registered",
+                obj,
+                attr_name,
+            )
             return None
         return getattr(obj, attr_name)
 
@@ -1005,7 +1057,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        hook_class: type[BaseHook] | None = _correctness_check(package_name, hook_class_name, provider_info)
+        hook_class: type[BaseHook] | None = _correctness_check(
+            package_name, hook_class_name, provider_info
+        )
         if hook_class is None:
             return None
         try:
@@ -1031,7 +1085,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             if "get_ui_field_behaviour" in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
-                    self._add_customized_fields(package_name, hook_class, field_behaviours)
+                    self._add_customized_fields(
+                        package_name, hook_class, field_behaviours
+                    )
         except ImportError as e:
             if "No module named 'flask_appbuilder'" in e.msg:
                 log.warning(
@@ -1098,23 +1154,29 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 )
                 # In case of inherited hooks this might be happening several times
             else:
-                self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
-                    hook_class.__name__,
-                    package_name,
-                    field,
-                    field_identifier,
-                    hasattr(field.field_class.widget, "input_type")
-                    and field.field_class.widget.input_type == "password",
+                self._connection_form_widgets[prefixed_field_name] = (
+                    ConnectionFormWidgetInfo(
+                        hook_class.__name__,
+                        package_name,
+                        field,
+                        field_identifier,
+                        hasattr(field.field_class.widget, "input_type")
+                        and field.field_class.widget.input_type == "password",
+                    )
                 )
 
-    def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
+    def _add_customized_fields(
+        self, package_name: str, hook_class: type, customized_fields: dict
+    ):
         try:
             connection_type = getattr(hook_class, "conn_type")
 
             self._customized_form_fields_schema_validator.validate(customized_fields)
 
             if connection_type:
-                customized_fields = _ensure_prefix_for_placeholders(customized_fields, connection_type)
+                customized_fields = _ensure_prefix_for_placeholders(
+                    customized_fields, connection_type
+                )
 
             if connection_type in self._field_behaviours:
                 log.warning(
@@ -1139,7 +1201,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-managers"):
                 for auth_manager_class_name in provider.data["auth-managers"]:
-                    if _correctness_check(provider_package, auth_manager_class_name, provider):
+                    if _correctness_check(
+                        provider_package, auth_manager_class_name, provider
+                    ):
                         self._auth_manager_class_name_set.add(auth_manager_class_name)
 
     def _discover_notifications(self) -> None:
@@ -1147,7 +1211,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("notifications"):
                 for notification_class_name in provider.data["notifications"]:
-                    if _correctness_check(provider_package, notification_class_name, provider):
+                    if _correctness_check(
+                        provider_package, notification_class_name, provider
+                    ):
                         self._notification_info_set.add(notification_class_name)
 
     def _discover_extra_links(self) -> None:
@@ -1155,7 +1221,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("extra-links"):
                 for extra_link_class_name in provider.data["extra-links"]:
-                    if _correctness_check(provider_package, extra_link_class_name, provider):
+                    if _correctness_check(
+                        provider_package, extra_link_class_name, provider
+                    ):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
@@ -1171,15 +1239,21 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("secrets-backends"):
                 for secrets_backends_class_name in provider.data["secrets-backends"]:
-                    if _correctness_check(provider_package, secrets_backends_class_name, provider):
-                        self._secrets_backend_class_name_set.add(secrets_backends_class_name)
+                    if _correctness_check(
+                        provider_package, secrets_backends_class_name, provider
+                    ):
+                        self._secrets_backend_class_name_set.add(
+                            secrets_backends_class_name
+                        )
 
     def _discover_auth_backends(self) -> None:
         """Retrieve all API auth backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-backends"):
                 for auth_backend_module_name in provider.data["auth-backends"]:
-                    if _correctness_check(provider_package, auth_backend_module_name + ".init_app", provider):
+                    if _correctness_check(
+                        provider_package, auth_backend_module_name + ".init_app", provider
+                    ):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
 
     def _discover_executors(self) -> None:
@@ -1187,7 +1261,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("executors"):
                 for executors_class_name in provider.data["executors"]:
-                    if _correctness_check(provider_package, executors_class_name, provider):
+                    if _correctness_check(
+                        provider_package, executors_class_name, provider
+                    ):
                         self._executor_class_name_set.add(executors_class_name)
 
     def _discover_config(self) -> None:
@@ -1200,8 +1276,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Retrieve all plugins defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             for plugin_dict in provider.data.get("plugins", ()):
-                if not _correctness_check(provider_package, plugin_dict["plugin-class"], provider):
-                    log.warning("Plugin not loaded due to above correctness check problem.")
+                if not _correctness_check(
+                    provider_package, plugin_dict["plugin-class"], provider
+                ):
+                    log.warning(
+                        "Plugin not loaded due to above correctness check problem."
+                    )
                     continue
                 self._plugins_set.add(
                     PluginInfo(

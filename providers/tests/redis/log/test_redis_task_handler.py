@@ -38,9 +38,13 @@ class TestRedisTaskHandler:
     @pytest.fixture
     def ti(self):
         date = datetime(2020, 1, 1)
-        dag = DAG(dag_id="dag_for_testing_redis_task_handler", schedule=None, start_date=date)
+        dag = DAG(
+            dag_id="dag_for_testing_redis_task_handler", schedule=None, start_date=date
+        )
         task = EmptyOperator(task_id="task_for_testing_redis_log_handler", dag=dag)
-        dag_run = DagRun(dag_id=dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=date, run_id="test", run_type="scheduled"
+        )
 
         with create_session() as session:
             session.add(dag_run)

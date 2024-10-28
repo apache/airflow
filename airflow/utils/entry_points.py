@@ -40,7 +40,9 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
             for e in dist.entry_points:
                 mapping[e.group].append((e, dist))
         except Exception as e:
-            log.warning("Error when retrieving package metadata (skipping it): %s, %s", dist, e)
+            log.warning(
+                "Error when retrieving package metadata (skipping it): %s, %s", dist, e
+            )
     return mapping
 
 

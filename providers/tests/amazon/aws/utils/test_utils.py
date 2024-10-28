@@ -63,6 +63,12 @@ def test_botocore_version():
 
     botocore_version = get_botocore_version()
     assert len(botocore_version) == 3
-    assert isinstance(botocore_version[0], int), "botocore major version expected to be an integer"
-    assert isinstance(botocore_version[1], int), "botocore minor version expected to be an integer"
-    assert isinstance(botocore_version[2], int), "botocore patch version expected to be an integer"
+    assert isinstance(
+        botocore_version[0], int
+    ), "botocore major version expected to be an integer"
+    assert isinstance(
+        botocore_version[1], int
+    ), "botocore minor version expected to be an integer"
+    assert isinstance(
+        botocore_version[2], int
+    ), "botocore patch version expected to be an integer"

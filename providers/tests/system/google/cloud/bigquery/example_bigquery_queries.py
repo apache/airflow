@@ -43,7 +43,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 LOCATION = "us-east1"
 QUERY_SQL_PATH = "resources/example_bigquery_query.sql"
 
@@ -77,7 +79,11 @@ for index, location in enumerate(locations, 1):
         start_date=datetime(2021, 1, 1),
         catchup=False,
         tags=["example", "bigquery"],
-        user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1, "QUERY_SQL_PATH": QUERY_SQL_PATH},
+        user_defined_macros={
+            "DATASET": DATASET,
+            "TABLE": TABLE_1,
+            "QUERY_SQL_PATH": QUERY_SQL_PATH,
+        },
     ) as dag:
         create_dataset = BigQueryCreateEmptyDatasetOperator(
             task_id="create_dataset",
@@ -241,10 +247,23 @@ for index, location in enumerate(locations, 1):
         # TEST SETUP
         create_dataset >> [create_table_1, create_table_2]
         # TEST BODY
-        [create_table_1, create_table_2] >> insert_query_job >> [select_query_job, execute_insert_query]
+        (
+            [create_table_1, create_table_2]
+            >> insert_query_job
+            >> [select_query_job, execute_insert_query]
+        )
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
-        execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
-        execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+        (
+            execute_insert_query
+            >> execute_query_save
+            >> bigquery_execute_multi_query
+            >> delete_dataset
+        )
+        (
+            execute_insert_query
+            >> [check_count, check_value, check_interval]
+            >> delete_dataset
+        )
         execute_insert_query >> [column_check, table_check] >> delete_dataset
 
         from tests_common.test_utils.watcher import watcher

@@ -26,7 +26,9 @@ from airflow.models import DAG
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
-SFTP_DIRECTORY = os.environ.get("SFTP_DIRECTORY", "example-empty-directory").rstrip("/") + "/"
+SFTP_DIRECTORY = (
+    os.environ.get("SFTP_DIRECTORY", "example-empty-directory").rstrip("/") + "/"
+)
 FULL_FILE_PATH = f"{SFTP_DIRECTORY}example_test_sftp_sensor_decory_file.txt"
 SFTP_DEFAULT_CONNECTION = "sftp_default"
 
@@ -64,21 +66,30 @@ with DAG(
         ssh_conn_id=SFTP_DEFAULT_CONNECTION,
     )
     remove_file_task_end = SSHOperator(
-        task_id="remove_file_end", command=f"rm {FULL_FILE_PATH} || true", ssh_conn_id=SFTP_DEFAULT_CONNECTION
+        task_id="remove_file_end",
+        command=f"rm {FULL_FILE_PATH} || true",
+        ssh_conn_id=SFTP_DEFAULT_CONNECTION,
     )
     create_decoy_file_task = SSHOperator(
-        task_id="create_file", command=f"touch {FULL_FILE_PATH}", ssh_conn_id=SFTP_DEFAULT_CONNECTION
+        task_id="create_file",
+        command=f"touch {FULL_FILE_PATH}",
+        ssh_conn_id=SFTP_DEFAULT_CONNECTION,
     )
     sleep_task = sleep_function()
     sftp_with_sensor = sftp_sensor_decorator()
 
     # [START howto_operator_sftp_sensor]
-    sftp_with_operator = SFTPSensor(task_id="sftp_operator", path=FULL_FILE_PATH, poke_interval=10)
+    sftp_with_operator = SFTPSensor(
+        task_id="sftp_operator", path=FULL_FILE_PATH, poke_interval=10
+    )
     # [END howto_operator_sftp_sensor]
 
     # [START howto_sensor_sftp_deferrable]
     sftp_sensor_with_async = SFTPSensor(
-        task_id="sftp_operator_async", path=FULL_FILE_PATH, poke_interval=10, deferrable=True
+        task_id="sftp_operator_async",
+        path=FULL_FILE_PATH,
+        poke_interval=10,
+        deferrable=True,
     )
     # [END howto_sensor_sftp_deferrable]
 

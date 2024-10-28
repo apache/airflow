@@ -78,10 +78,16 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Sensor is checking for the file %s in the folder %s", self.file_name, self.folder_id)
+        self.log.info(
+            "Sensor is checking for the file %s in the folder %s",
+            self.file_name,
+            self.folder_id,
+        )
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.exists(folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id)
+        return hook.exists(
+            folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id
+        )

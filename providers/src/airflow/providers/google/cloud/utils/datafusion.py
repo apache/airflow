@@ -30,4 +30,6 @@ class DataFusionPipelineType(Enum):
         value_to_item = {item.value: item for item in DataFusionPipelineType}
         if value in value_to_item:
             return value_to_item[value]
-        raise ValueError(f"Invalid value '{value}'. Valid values are: {[i for i in value_to_item.keys()]}")
+        raise ValueError(
+            f"Invalid value '{value}'. Valid values are: {[i for i in value_to_item.keys()]}"
+        )

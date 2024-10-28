@@ -34,7 +34,9 @@ def get_test_run(dag, **test_kwargs):
     def callback(context: Context):
         ti = context["dag_run"].get_task_instances()
         if not ti:
-            logger.warning("could not retrieve tasks that ran in the DAG, cannot display a summary")
+            logger.warning(
+                "could not retrieve tasks that ran in the DAG, cannot display a summary"
+            )
             return
 
         ti.sort(key=lambda x: x.end_date)
@@ -44,9 +46,14 @@ def get_test_run(dag, **test_kwargs):
         for t in ti:
             results.append([t.task_id, t.state])
 
-        logger.info("EXECUTION SUMMARY:\n%s", tabulate(results, headers=headers, tablefmt="fancy_grid"))
+        logger.info(
+            "EXECUTION SUMMARY:\n%s",
+            tabulate(results, headers=headers, tablefmt="fancy_grid"),
+        )
 
-    def add_callback(current: list[Callable] | Callable | None, new: Callable) -> list[Callable] | Callable:
+    def add_callback(
+        current: list[Callable] | Callable | None, new: Callable
+    ) -> list[Callable] | Callable:
         if not current:
             return new
         elif isinstance(current, list):

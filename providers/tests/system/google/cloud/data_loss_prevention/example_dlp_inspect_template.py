@@ -42,7 +42,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_inspect_template"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 TEMPLATE_ID = f"dlp-inspect-{ENV_ID}"
 ITEM = ContentItem(
@@ -51,7 +53,9 @@ ITEM = ContentItem(
         "rows": [{"values": [{"string_value": "My phone number is (206) 555-0123"}]}],
     }
 )
-INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
+INSPECT_CONFIG = InspectConfig(
+    info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}]
+)
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 
 

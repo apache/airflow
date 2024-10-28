@@ -104,15 +104,21 @@ def upgrade():
     else:
         op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS unique_conn_id")
         # Dropping and recreating cause there's no IF NOT EXISTS
-        op.execute("ALTER TABLE connection DROP CONSTRAINT IF EXISTS connection_conn_id_uq")
+        op.execute(
+            "ALTER TABLE connection DROP CONSTRAINT IF EXISTS connection_conn_id_uq"
+        )
 
     with op.batch_alter_table("connection") as batch_op:
-        batch_op.create_unique_constraint(batch_op.f("connection_conn_id_uq"), ["conn_id"])
+        batch_op.create_unique_constraint(
+            batch_op.f("connection_conn_id_uq"), ["conn_id"]
+        )
 
     max_cons = sa.table("dag", sa.column("max_consecutive_failed_dag_runs"))
     op.execute(max_cons.update().values(max_consecutive_failed_dag_runs=literal("0")))
     with op.batch_alter_table("dag") as batch_op:
-        batch_op.alter_column("max_consecutive_failed_dag_runs", existing_type=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "max_consecutive_failed_dag_runs", existing_type=sa.Integer(), nullable=False
+        )
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_constraint("task_instance_dag_run_fkey", type_="foreignkey")
@@ -265,15 +271,27 @@ def upgrade():
             )
 
     else:
-        op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_uq")
-        op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_uq")
+        op.execute(
+            "ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_uq"
+        )
+        op.execute(
+            "ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_uq"
+        )
         # below we drop and recreate the constraints because there's no IF NOT EXISTS
-        op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_key")
-        op.execute("ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_key")
+        op.execute(
+            "ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_execution_date_key"
+        )
+        op.execute(
+            "ALTER TABLE dag_run DROP CONSTRAINT IF EXISTS dag_run_dag_id_run_id_key"
+        )
 
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.create_unique_constraint("dag_run_dag_id_execution_date_key", ["dag_id", "execution_date"])
-        batch_op.create_unique_constraint("dag_run_dag_id_run_id_key", ["dag_id", "run_id"])
+        batch_op.create_unique_constraint(
+            "dag_run_dag_id_execution_date_key", ["dag_id", "execution_date"]
+        )
+        batch_op.create_unique_constraint(
+            "dag_run_dag_id_run_id_key", ["dag_id", "run_id"]
+        )
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.create_foreign_key(

@@ -34,7 +34,9 @@ if TYPE_CHECKING:
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
     except ModuleNotFoundError:
-        logger.warning("The package 'mysql-connector-python' is not installed. Import skipped")
+        logger.warning(
+            "The package 'mysql-connector-python' is not installed. Import skipped"
+        )
     from MySQLdb.connections import Connection as MySQLdbConnection
 
 MySQLConnectionTypes = Union["MySQLdbConnection", "MySQLConnectionAbstract"]
@@ -85,7 +87,9 @@ class MySqlHook(DbApiHook):
         :param conn: connection to set autocommit setting
         :param autocommit: autocommit setting
         """
-        if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
+        if hasattr(conn.__class__, "autocommit") and isinstance(
+            conn.__class__.autocommit, property
+        ):
             conn.autocommit = autocommit
         else:
             conn.autocommit(autocommit)  # type: ignore[operator]
@@ -100,7 +104,9 @@ class MySqlHook(DbApiHook):
         :param conn: connection to get autocommit setting from.
         :return: connection autocommit setting
         """
-        if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
+        if hasattr(conn.__class__, "autocommit") and isinstance(
+            conn.__class__.autocommit, property
+        ):
             return conn.autocommit
         else:
             return conn.get_autocommit()  # type: ignore[union-attr]
@@ -270,7 +276,11 @@ class MySqlHook(DbApiHook):
         return token, port
 
     def bulk_load_custom(
-        self, table: str, tmp_file: str, duplicate_key_handling: str = "IGNORE", extra_options: str = ""
+        self,
+        table: str,
+        tmp_file: str,
+        duplicate_key_handling: str = "IGNORE",
+        extra_options: str = "",
     ) -> None:
         """
         Load local data from a file into the database in a more configurable way.
@@ -309,7 +319,9 @@ class MySqlHook(DbApiHook):
 
         return DatabaseInfo(
             scheme=self.get_openlineage_database_dialect(connection),
-            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=3306),
+            authority=DbApiHook.get_openlineage_authority_part(
+                connection, default_port=3306
+            ),
             information_schema_columns=[
                 "table_schema",
                 "table_name",

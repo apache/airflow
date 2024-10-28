@@ -59,7 +59,15 @@ with DAG(
             (11, 10, 50, "Product 4A", "prod-4-A", 4, 100),
             (12, 10, 50, "Product 4B", "prod-4-B", 4, 100),
         ]
-        columns = ["id", "parent_id", "category_id", "name", "serial_number", "key", "3rd"]
+        columns = [
+            "id",
+            "parent_id",
+            "category_id",
+            "name",
+            "serial_number",
+            "key",
+            "3rd",
+        ]
         df = session.create_dataframe(data, schema=columns)
         table_name = "sample_product_data"
         df.write.save_as_table(table_name, mode="overwrite")

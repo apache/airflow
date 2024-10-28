@@ -26,7 +26,9 @@ import airflow.templates
 
 @pytest.fixture
 def env():
-    return airflow.templates.SandboxedEnvironment(undefined=jinja2.StrictUndefined, cache_size=0)
+    return airflow.templates.SandboxedEnvironment(
+        undefined=jinja2.StrictUndefined, cache_size=0
+    )
 
 
 def test_protected_access(env):

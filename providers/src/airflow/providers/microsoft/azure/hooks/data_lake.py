@@ -41,7 +41,9 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
 )
 
-Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]
+Credentials = Union[
+    ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential
+]
 
 
 class AzureDataLakeHook(BaseHook):
@@ -76,7 +78,9 @@ class AzureDataLakeHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "tenant": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
+            "tenant": StringField(
+                lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()
+            ),
             "account_name": StringField(
                 lazy_gettext("Azure DataLake Store Name"), widget=BS3TextFieldWidget()
             ),
@@ -123,10 +127,16 @@ class AzureDataLakeHook(BaseHook):
             credential: Credentials
             tenant = self._get_field(extras, "tenant")
             if tenant:
-                credential = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
+                credential = lib.auth(
+                    tenant_id=tenant, client_secret=conn.password, client_id=conn.login
+                )
             else:
-                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
-                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                managed_identity_client_id = self._get_field(
+                    extras, "managed_identity_client_id"
+                )
+                workload_identity_tenant_id = self._get_field(
+                    extras, "workload_identity_tenant_id"
+                )
                 credential = AzureIdentityCredentialAdapter(
                     managed_identity_client_id=managed_identity_client_id,
                     workload_identity_tenant_id=workload_identity_tenant_id,
@@ -242,7 +252,9 @@ class AzureDataLakeHook(BaseHook):
         else:
             return self.get_conn().walk(path)
 
-    def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
+    def remove(
+        self, path: str, recursive: bool = False, ignore_not_found: bool = True
+    ) -> None:
         """
         Remove files in Azure Data Lake Storage.
 
@@ -286,13 +298,17 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
         return {
             "connection_string": PasswordField(
-                lazy_gettext("ADLS Gen2 Connection String (optional)"), widget=BS3PasswordFieldWidget()
+                lazy_gettext("ADLS Gen2 Connection String (optional)"),
+                widget=BS3PasswordFieldWidget(),
             ),
             "tenant_id": StringField(
                 lazy_gettext("Tenant ID (Active Directory)"), widget=BS3TextFieldWidget()
@@ -348,7 +364,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
-            return DataLakeServiceClient.from_connection_string(connection_string, **extra)
+            return DataLakeServiceClient.from_connection_string(
+                connection_string, **extra
+            )
 
         credential: Credentials
         tenant = self._get_field(extra, "tenant_id")
@@ -359,19 +377,28 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             proxies = extra.get("proxies", {})
 
             credential = ClientSecretCredential(
-                tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
+                tenant_id=tenant,
+                client_id=app_id,
+                client_secret=app_secret,
+                proxies=proxies,
             )
         elif conn.password:
             credential = conn.password
         else:
-            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            managed_identity_client_id = self._get_field(
+                extra, "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = self._get_field(
+                extra, "workload_identity_tenant_id"
+            )
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
-        account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
+        account_url = extra.pop(
+            "account_url", f"https://{conn.host}.dfs.core.windows.net"
+        )
 
         self.log.info("account_url: %s", account_url)
 
@@ -392,15 +419,24 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         created file system.
         """
         try:
-            file_system_client = self.service_client.create_file_system(file_system=file_system_name)
+            file_system_client = self.service_client.create_file_system(
+                file_system=file_system_name
+            )
             self.log.info("Created file system: %s", file_system_client.file_system_name)
         except ResourceExistsError:
-            self.log.info("Attempted to create file system %r but it already exists.", file_system_name)
+            self.log.info(
+                "Attempted to create file system %r but it already exists.",
+                file_system_name,
+            )
         except Exception as e:
-            self.log.info("Error while attempting to create file system %r: %s", file_system_name, e)
+            self.log.info(
+                "Error while attempting to create file system %r: %s", file_system_name, e
+            )
             raise
 
-    def get_file_system(self, file_system: FileSystemProperties | str) -> FileSystemClient:
+    def get_file_system(
+        self, file_system: FileSystemProperties | str
+    ) -> FileSystemClient:
         """
         Get a client to interact with the specified file system.
 
@@ -408,13 +444,17 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             or an instance of FileSystemProperties.
         """
         try:
-            file_system_client = self.service_client.get_file_system_client(file_system=file_system)
+            file_system_client = self.service_client.get_file_system_client(
+                file_system=file_system
+            )
             return file_system_client
         except ResourceNotFoundError:
             self.log.info("file system %r doesn't exists.", file_system)
             raise
         except Exception as e:
-            self.log.info("Error while attempting to get file system %r: %s", file_system, e)
+            self.log.info(
+                "Error while attempting to get file system %r: %s", file_system, e
+            )
             raise
 
     def create_directory(
@@ -426,7 +466,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory which needs to be created in the file system.
         """
-        result = self.get_file_system(file_system_name).create_directory(directory_name, kwargs)
+        result = self.get_file_system(file_system_name).create_directory(
+            directory_name, kwargs
+        )
         return result
 
     def get_directory_client(
@@ -442,18 +484,24 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             retrieved from the file system.
         """
         try:
-            directory_client = self.get_file_system(file_system_name).get_directory_client(directory_name)
+            directory_client = self.get_file_system(
+                file_system_name
+            ).get_directory_client(directory_name)
             return directory_client
         except ResourceNotFoundError:
             self.log.info(
-                "Directory %s doesn't exists in the file system %s", directory_name, file_system_name
+                "Directory %s doesn't exists in the file system %s",
+                directory_name,
+                file_system_name,
             )
             raise
         except Exception as e:
             self.log.info(e)
             raise
 
-    def create_file(self, file_system_name: FileSystemProperties | str, file_name: str) -> DataLakeFileClient:
+    def create_file(
+        self, file_system_name: FileSystemProperties | str, file_name: str
+    ) -> DataLakeFileClient:
         """
         Create a file under the file system.
 
@@ -501,7 +549,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         :param file_path: Path to the file to load.
         :param overwrite: Boolean flag to overwrite an existing file or not.
         """
-        directory_client = self.get_directory_client(file_system_name, directory_name=directory_name)
+        directory_client = self.get_directory_client(
+            file_system_name, directory_name=directory_name
+        )
         file_client = directory_client.create_file(file_name, kwargs=kwargs)
         with open(file_path, "rb") as data:
             file_client.upload_data(data, overwrite=overwrite, kwargs=kwargs)
@@ -515,7 +565,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.
         """
-        paths = self.get_file_system(file_system=file_system_name).get_paths(directory_name)
+        paths = self.get_file_system(file_system=file_system_name).get_paths(
+            directory_name
+        )
         directory_lists = []
         for path in paths:
             directory_lists.append(path.name)
@@ -553,10 +605,16 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         except ResourceNotFoundError:
             self.log.info("file system %r doesn't exists.", file_system_name)
         except Exception as e:
-            self.log.info("Error while attempting to deleting file system %r: %s", file_system_name, e)
+            self.log.info(
+                "Error while attempting to deleting file system %r: %s",
+                file_system_name,
+                e,
+            )
             raise
 
-    def delete_directory(self, file_system_name: FileSystemProperties | str, directory_name: str) -> None:
+    def delete_directory(
+        self, file_system_name: FileSystemProperties | str, directory_name: str
+    ) -> None:
         """
         Delete the specified directory in a file system.
 

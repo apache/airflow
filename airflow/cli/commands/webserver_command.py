@@ -101,8 +101,12 @@ class GunicornMonitor(LoggingMixin):
 
         self._num_workers_running = 0
         self._num_ready_workers_running = 0
-        self._last_refresh_time = time.monotonic() if worker_refresh_interval > 0 else None
-        self._last_plugin_state = self._generate_plugin_state() if reload_on_plugin_change else None
+        self._last_refresh_time = (
+            time.monotonic() if worker_refresh_interval > 0 else None
+        )
+        self._last_plugin_state = (
+            self._generate_plugin_state() if reload_on_plugin_change else None
+        )
         self._restart_on_next_plugin_check = False
 
     def _generate_plugin_state(self) -> dict[str, float]:
@@ -156,7 +160,9 @@ class GunicornMonitor(LoggingMixin):
         start_time = time.monotonic()
         while not fn():
             if 0 < timeout <= time.monotonic() - start_time:
-                raise AirflowWebServerTimeout(f"No response from gunicorn master within {timeout} seconds")
+                raise AirflowWebServerTimeout(
+                    f"No response from gunicorn master within {timeout} seconds"
+                )
             sleep(0.1)
 
     def _spawn_new_workers(self, count: int) -> None:
@@ -171,7 +177,8 @@ class GunicornMonitor(LoggingMixin):
             self.gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
             self._wait_until_true(
-                lambda: self.num_workers_expected + excess == self._get_num_workers_running(),
+                lambda: self.num_workers_expected + excess
+                == self._get_num_workers_running(),
                 timeout=self.master_timeout,
             )
 
@@ -186,7 +193,8 @@ class GunicornMonitor(LoggingMixin):
             # TTOU: Decrement the number of processes by one
             self.gunicorn_master_proc.send_signal(signal.SIGTTOU)
             self._wait_until_true(
-                lambda: self.num_workers_expected + count == self._get_num_workers_running(),
+                lambda: self.num_workers_expected + count
+                == self._get_num_workers_running(),
                 timeout=self.master_timeout,
             )
 
@@ -202,7 +210,8 @@ class GunicornMonitor(LoggingMixin):
         self.gunicorn_master_proc.send_signal(signal.SIGHUP)
         sleep(1)
         self._wait_until_true(
-            lambda: self.num_workers_expected == self._get_num_workers_running(), timeout=self.master_timeout
+            lambda: self.num_workers_expected == self._get_num_workers_running(),
+            timeout=self.master_timeout,
         )
 
     def start(self) -> NoReturn:
@@ -245,9 +254,15 @@ class GunicornMonitor(LoggingMixin):
         # If there are too many workers, then kill a worker gracefully by asking gunicorn to reduce
         # number of workers
         if num_workers_running > self.num_workers_expected:
-            excess = min(num_workers_running - self.num_workers_expected, self.worker_refresh_batch_size)
+            excess = min(
+                num_workers_running - self.num_workers_expected,
+                self.worker_refresh_batch_size,
+            )
             self.log.debug(
-                "[%d / %d] Killing %s workers", num_ready_workers_running, num_workers_running, excess
+                "[%d / %d] Killing %s workers",
+                num_ready_workers_running,
+                num_workers_running,
+                excess,
             )
             self._kill_old_workers(excess)
             return
@@ -264,7 +279,8 @@ class GunicornMonitor(LoggingMixin):
             num_workers_running = self._get_num_workers_running()
             if num_workers_running < self.num_workers_expected:
                 new_worker_count = min(
-                    self.num_workers_expected - num_workers_running, self.worker_refresh_batch_size
+                    self.num_workers_expected - num_workers_running,
+                    self.worker_refresh_batch_size,
                 )
                 # log at info since we are trying fix an error logged just above
                 self.log.info(
@@ -342,13 +358,19 @@ def webserver(args):
     error_logfile = args.error_logfile or conf.get("webserver", "error_logfile")
     access_logformat = args.access_logformat or conf.get("webserver", "access_logformat")
     num_workers = args.workers or conf.get("webserver", "workers")
-    worker_timeout = args.worker_timeout or conf.get("webserver", "web_server_worker_timeout")
+    worker_timeout = args.worker_timeout or conf.get(
+        "webserver", "web_server_worker_timeout"
+    )
     ssl_cert = args.ssl_cert or conf.get("webserver", "web_server_ssl_cert")
     ssl_key = args.ssl_key or conf.get("webserver", "web_server_ssl_key")
     if not ssl_cert and ssl_key:
-        raise AirflowException("An SSL certificate must also be provided for use with " + ssl_key)
+        raise AirflowException(
+            "An SSL certificate must also be provided for use with " + ssl_key
+        )
     if ssl_cert and not ssl_key:
-        raise AirflowException("An SSL key must also be provided for use with " + ssl_cert)
+        raise AirflowException(
+            "An SSL key must also be provided for use with " + ssl_cert
+        )
 
     from airflow.www.app import create_app
 
@@ -426,7 +448,9 @@ def webserver(args):
             # all writing to the database at the same time, we use the --preload option.
             run_args += ["--preload"]
 
-        def kill_proc(signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen) -> NoReturn:
+        def kill_proc(
+            signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen
+        ) -> NoReturn:
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
@@ -439,18 +463,28 @@ def webserver(args):
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_proc: psutil.Process | subprocess.Popen) -> NoReturn:
+        def monitor_gunicorn(
+            gunicorn_master_proc: psutil.Process | subprocess.Popen,
+        ) -> NoReturn:
             # Register signal handlers
-            signal.signal(signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
-            signal.signal(signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
+            signal.signal(
+                signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc)
+            )
+            signal.signal(
+                signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc)
+            )
 
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             GunicornMonitor(
                 gunicorn_master_pid=gunicorn_master_proc.pid,
                 num_workers_expected=num_workers,
                 master_timeout=conf.getint("webserver", "web_server_master_timeout"),
-                worker_refresh_interval=conf.getint("webserver", "worker_refresh_interval", fallback=30),
-                worker_refresh_batch_size=conf.getint("webserver", "worker_refresh_batch_size", fallback=1),
+                worker_refresh_interval=conf.getint(
+                    "webserver", "worker_refresh_interval", fallback=30
+                ),
+                worker_refresh_batch_size=conf.getint(
+                    "webserver", "worker_refresh_batch_size", fallback=1
+                ),
                 reload_on_plugin_change=conf.getboolean(
                     "webserver", "reload_on_plugin_change", fallback=False
                 ),
@@ -481,7 +515,9 @@ def webserver(args):
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)
-        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
+        monitor_pid_file = str(
+            pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}")
+        )
         run_command_with_daemon_option(
             args=args,
             process_name="webserver",

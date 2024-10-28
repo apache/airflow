@@ -98,10 +98,12 @@ class SFTPTrigger(BaseTrigger):
                         if _newer_than:
                             if file.attrs.mtime is None:
                                 continue
-                            mod_time = datetime.fromtimestamp(float(file.attrs.mtime)).strftime(
-                                "%Y%m%d%H%M%S"
+                            mod_time = datetime.fromtimestamp(
+                                float(file.attrs.mtime)
+                            ).strftime("%Y%m%d%H%M%S")
+                            mod_time_utc = convert_to_utc(
+                                datetime.strptime(mod_time, "%Y%m%d%H%M%S")
                             )
-                            mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                             if _newer_than <= mod_time_utc:
                                 files_sensed.append(file.filename)
                         else:
@@ -117,12 +119,21 @@ class SFTPTrigger(BaseTrigger):
                 else:
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:
-                        mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                        mod_time_utc = convert_to_utc(
+                            datetime.strptime(mod_time, "%Y%m%d%H%M%S")
+                        )
                         if _newer_than <= mod_time_utc:
-                            yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                            yield TriggerEvent(
+                                {
+                                    "status": "success",
+                                    "message": f"Sensed file: {self.path}",
+                                }
+                            )
                             return
                     else:
-                        yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                        yield TriggerEvent(
+                            {"status": "success", "message": f"Sensed file: {self.path}"}
+                        )
                         return
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:

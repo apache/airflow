@@ -45,7 +45,10 @@ class LogFinder(astor.TreeWalk):
                 or self.cur_node.func.value.id == "logging"
                 or self.cur_node.func.value.id == "log"
             )
-            or (self.cur_node.func.attr in ["log", "debug", "warning", "info", "error", "critical"])
+            or (
+                self.cur_node.func.attr
+                in ["log", "debug", "warning", "info", "error", "critical"]
+            )
         ):
             line = astor.to_source(self.cur_node, add_line_information=True)
             if LOGGIN_MATCHER.match(line) or SELF_LOG_MATCHER.match(line):
@@ -70,7 +73,9 @@ def check_logging() -> int:
             "\n[yellow]Please convert all the logging instructions above "
             "to use '%-formatting' rather than f-strings."
         )
-        console.print("Why?: https://docs.python.org/3/howto/logging.html#logging-variable-data\n")
+        console.print(
+            "Why?: https://docs.python.org/3/howto/logging.html#logging-variable-data\n"
+        )
     return 1 if total_error_count else 0
 
 

@@ -68,7 +68,11 @@ class TestSparkSqlHook:
     @classmethod
     def setup_class(cls) -> None:
         clear_db_connections(add_default_connections_back=False)
-        db.merge_conn(Connection(conn_id="spark_default", conn_type="spark", host="yarn://yarn-master"))
+        db.merge_conn(
+            Connection(
+                conn_id="spark_default", conn_type="spark", host="yarn://yarn-master"
+            )
+        )
 
     @classmethod
     def teardown_class(cls) -> None:

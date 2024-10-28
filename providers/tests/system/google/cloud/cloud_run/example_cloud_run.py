@@ -292,14 +292,22 @@ with DAG(
     # [END howto_operator_cloud_run_execute_job_with_overrides]
 
     assert_executed_jobs = PythonOperator(
-        task_id="assert-executed-jobs", python_callable=_assert_executed_jobs_xcom, dag=dag
+        task_id="assert-executed-jobs",
+        python_callable=_assert_executed_jobs_xcom,
+        dag=dag,
     )
 
     list_jobs_limit = CloudRunListJobsOperator(
-        task_id=list_jobs_limit_task_name, project_id=PROJECT_ID, region=region, dag=dag, limit=1
+        task_id=list_jobs_limit_task_name,
+        project_id=PROJECT_ID,
+        region=region,
+        dag=dag,
+        limit=1,
     )
 
-    assert_jobs_limit = PythonOperator(task_id="assert-jobs-limit", python_callable=_assert_one_job, dag=dag)
+    assert_jobs_limit = PythonOperator(
+        task_id="assert-jobs-limit", python_callable=_assert_one_job, dag=dag
+    )
 
     # [START howto_operator_cloud_run_list_jobs]
     list_jobs = CloudRunListJobsOperator(
@@ -307,7 +315,9 @@ with DAG(
     )
     # [END howto_operator_cloud_run_list_jobs]
 
-    assert_jobs = PythonOperator(task_id="assert-jobs", python_callable=_assert_jobs, dag=dag)
+    assert_jobs = PythonOperator(
+        task_id="assert-jobs", python_callable=_assert_jobs, dag=dag
+    )
 
     # [START howto_operator_cloud_update_job]
     update_job1 = CloudRunUpdateJobOperator(

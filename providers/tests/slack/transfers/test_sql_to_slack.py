@@ -21,7 +21,10 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSkipException
-from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator, SqlToSlackOperator
+from airflow.providers.slack.transfers.sql_to_slack import (
+    SqlToSlackApiFileOperator,
+    SqlToSlackOperator,
+)
 from airflow.utils import timezone
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
@@ -39,7 +42,9 @@ class TestSqlToSlackApiFileOperator:
             "parameters": None,
         }
 
-    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
+    @mock.patch(
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results"
+    )
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
     @pytest.mark.parametrize(
         "filename,df_method",
@@ -60,7 +65,12 @@ class TestSqlToSlackApiFileOperator:
         [
             pytest.param(
                 {},
-                {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None},
+                {
+                    "base_url": None,
+                    "timeout": None,
+                    "proxy": None,
+                    "retry_handlers": None,
+                },
                 id="default-hook-parameters",
             ),
             pytest.param(
@@ -158,8 +168,12 @@ class TestSqlToSlackApiFileOperator:
             op.execute(mock.MagicMock())
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
-    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
-    def test_null_output_sending_empty_file_by_default(self, mock_get_query_results, mock_slack_hook_cls):
+    @mock.patch(
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results"
+    )
+    def test_null_output_sending_empty_file_by_default(
+        self, mock_get_query_results, mock_slack_hook_cls
+    ):
         op_kwargs = {
             **self.default_op_kwargs,
             "slack_conn_id": "expected-test-slack-conn-id",
@@ -179,8 +193,12 @@ class TestSqlToSlackApiFileOperator:
         mock_slack_hook_cls.assert_called_once()
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
-    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
-    def test_null_output_skip_sending_file(self, mock_get_query_results, mock_slack_hook_cls):
+    @mock.patch(
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results"
+    )
+    def test_null_output_skip_sending_file(
+        self, mock_get_query_results, mock_slack_hook_cls
+    ):
         op_kwargs = {
             **self.default_op_kwargs,
             "slack_conn_id": "expected-test-slack-conn-id",
@@ -202,7 +220,9 @@ class TestSqlToSlackApiFileOperator:
         mock_slack_hook_cls.assert_not_called()
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
-    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
+    @mock.patch(
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results"
+    )
     def test_null_output_raise_error(self, mock_get_query_results, mock_slack_hook_cls):
         op_kwargs = {
             **self.default_op_kwargs,

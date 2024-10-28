@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.google.cloud.utils.helpers import normalize_directory_path, resource_path_to_dict
+from airflow.providers.google.cloud.utils.helpers import (
+    normalize_directory_path,
+    resource_path_to_dict,
+)
 
 
 class TestHelpers:

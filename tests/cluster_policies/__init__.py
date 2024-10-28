@@ -33,7 +33,9 @@ if TYPE_CHECKING:
 # [START example_cluster_policy_rule]
 def task_must_have_owners(task: BaseOperator):
     if task.owner and not isinstance(task.owner, str):
-        raise AirflowClusterPolicyViolation(f"""owner should be a string. Current value: {task.owner!r}""")
+        raise AirflowClusterPolicyViolation(
+            f"""owner should be a string. Current value: {task.owner!r}"""
+        )
 
     if not task.owner or task.owner.lower() == conf.get("operators", "default_owner"):
         raise AirflowClusterPolicyViolation(

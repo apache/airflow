@@ -24,9 +24,14 @@ from unittest import mock
 import pytest
 
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
-from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
+from tests_common.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+)
 
-BACKEND_IMPORT_PATH = "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
+BACKEND_IMPORT_PATH = (
+    "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
+)
 
 
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
@@ -36,7 +41,9 @@ class TestCloudSecretManagerBackendVariableSystem(GoogleSystemTest):
         self.name = f"airflow-system-test-{self.unique_suffix}"
         self.secret_name = f"airflow-variables-{self.name}"
 
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
+    @provide_gcp_context(
+        GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id()
+    )
     @mock.patch.dict("os.environ", AIRFLOW__SECRETS__BACKEND=BACKEND_IMPORT_PATH)
     def test_should_read_secret_from_variable(self):
         cmd = f'echo -n "TEST_CONTENT" | gcloud secrets create \
@@ -45,9 +52,13 @@ class TestCloudSecretManagerBackendVariableSystem(GoogleSystemTest):
         result = subprocess.check_output(["airflow", "variables", "get", self.name])
         assert "TEST_CONTENT" in result.decode()
 
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
+    @provide_gcp_context(
+        GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id()
+    )
     def teardown_method(self) -> None:
-        subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False)
+        subprocess.run(
+            ["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False
+        )
 
 
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
@@ -57,16 +68,24 @@ class TestCloudSecretManagerBackendConnectionSystem(GoogleSystemTest):
         self.name = f"airflow-system-test-{self.unique_suffix}"
         self.secret_name = f"airflow-connections-{self.name}"
 
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
+    @provide_gcp_context(
+        GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id()
+    )
     @mock.patch.dict("os.environ", AIRFLOW__SECRETS__BACKEND=BACKEND_IMPORT_PATH)
     def test_should_read_secret_from_variable(self):
         cmd = f'echo -n "mysql://user:pass@example.org" | gcloud secrets create \
             {self.secret_name} --data-file=- --replication-policy=automatic'
         subprocess.run(["bash", "-c", cmd], check=True)
-        result = subprocess.check_output(["airflow", "connections", "get", self.name, "--output", "json"])
+        result = subprocess.check_output(
+            ["airflow", "connections", "get", self.name, "--output", "json"]
+        )
         assert "mysql://user:pass@example.org" in result.decode()
         assert self.name in result.decode()
 
-    @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
+    @provide_gcp_context(
+        GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id()
+    )
     def teardown_method(self) -> None:
-        subprocess.run(["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False)
+        subprocess.run(
+            ["gcloud", "secrets", "delete", self.secret_name, "--quiet"], check=False
+        )

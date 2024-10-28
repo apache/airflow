@@ -59,7 +59,9 @@ class AzureBatchHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
+            "account_url": StringField(
+                lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -106,8 +108,12 @@ class AzureBatchHook(BaseHook):
         if all([conn.login, conn.password]):
             credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         else:
-            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
-            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            managed_identity_client_id = conn.extra_dejson.get(
+                "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = conn.extra_dejson.get(
+                "workload_identity_tenant_id"
+            )
             credentials = AzureIdentityCredentialAdapter(
                 None,
                 resource_id="https://batch.core.windows.net/.default",
@@ -169,7 +175,9 @@ class AzureBatchHook(BaseHook):
 
         """
         if use_latest_image_and_sku:
-            self.log.info("Using latest verified virtual machine image with node agent sku")
+            self.log.info(
+                "Using latest verified virtual machine image with node agent sku"
+            )
             sku_to_use, image_ref_to_use = self._get_latest_verified_image_vm_and_sku(
                 publisher=vm_publisher, offer=vm_offer, sku_starts_with=sku_starts_with
             )
@@ -251,8 +259,12 @@ class AzureBatchHook(BaseHook):
             For example, UbuntuServer or WindowsServer.
         :param sku_starts_with: The start name of the sku to search
         """
-        options = batch_models.AccountListSupportedImagesOptions(filter="verificationType eq 'verified'")
-        images = self.connection.account.list_supported_images(account_list_supported_images_options=options)
+        options = batch_models.AccountListSupportedImagesOptions(
+            filter="verificationType eq 'verified'"
+        )
+        images = self.connection.account.list_supported_images(
+            account_list_supported_images_options=options
+        )
         # pick the latest supported sku
         skus_to_use = [
             (image.node_agent_sku_id, image.image_reference)
@@ -273,15 +285,21 @@ class AzureBatchHook(BaseHook):
         :param pool_id: A string that identifies the pool
         :param node_state: A set of batch_models.ComputeNodeState
         """
-        self.log.info("waiting for all nodes in pool %s to reach one of: %s", pool_id, node_state)
+        self.log.info(
+            "waiting for all nodes in pool %s to reach one of: %s", pool_id, node_state
+        )
         while True:
             # refresh pool to ensure that there is no resize error
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
                 resize_errors = "\n".join(repr(e) for e in pool.resize_errors)
-                raise RuntimeError(f"resize error encountered for pool {pool.id}:\n{resize_errors}")
+                raise RuntimeError(
+                    f"resize error encountered for pool {pool.id}:\n{resize_errors}"
+                )
             nodes = list(self.connection.compute_node.list(pool.id))
-            if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):
+            if len(nodes) >= pool.target_dedicated_nodes and all(
+                node.state in node_state for node in nodes
+            ):
                 return nodes
             # Allow the timeout to be controlled by the AzureBatchOperator
             # specified timeout. This way we don't interrupt a startTask inside
@@ -369,7 +387,9 @@ class AzureBatchHook(BaseHook):
             else:
                 self.log.info("Task %s already exists", task.id)
 
-    def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> list[batch_models.CloudTask]:
+    def wait_for_job_tasks_to_complete(
+        self, job_id: str, timeout: int
+    ) -> list[batch_models.CloudTask]:
         """
         Wait for tasks in a particular job to complete.
 
@@ -380,17 +400,24 @@ class AzureBatchHook(BaseHook):
         while timezone.utcnow() < timeout_time:
             tasks = list(self.connection.task.list(job_id))
 
-            incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
+            incomplete_tasks = [
+                task for task in tasks if task.state != batch_models.TaskState.completed
+            ]
             if not incomplete_tasks:
                 # detect if any task in job has failed
                 fail_tasks = [
                     task
                     for task in tasks
-                    if task.execution_info.result == batch_models.TaskExecutionResult.failure
+                    if task.execution_info.result
+                    == batch_models.TaskExecutionResult.failure
                 ]
                 return fail_tasks
             for task in incomplete_tasks:
-                self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)
+                self.log.info(
+                    "Waiting for %s to complete, currently on %s state",
+                    task.id,
+                    task.state,
+                )
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
 

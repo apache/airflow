@@ -25,16 +25,26 @@ from typing import TYPE_CHECKING, Sequence
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
-from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
+from google.cloud.aiplatform_v1 import (
+    JobServiceAsyncClient,
+    JobServiceClient,
+    JobState,
+    types,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import AsyncRetry, Retry
-    from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
+    from google.cloud.aiplatform_v1.services.job_service.pagers import (
+        ListBatchPredictionJobsPager,
+    )
 
 
 class BatchPredictionJobHook(GoogleBaseHook):
@@ -60,12 +70,16 @@ class BatchPredictionJobHook(GoogleBaseHook):
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Return JobServiceClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=self.client_info,
+            client_options=client_options,
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
@@ -533,9 +547,15 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
             **kwargs,
         )
 
-    async def get_job_service_client(self, region: str | None = None) -> JobServiceAsyncClient:
+    async def get_job_service_client(
+        self, region: str | None = None
+    ) -> JobServiceAsyncClient:
         """Return JobServiceAsyncClient object."""
-        endpoint = f"{region}-aiplatform.googleapis.com:443" if region and region != "global" else None
+        endpoint = (
+            f"{region}-aiplatform.googleapis.com:443"
+            if region and region != "global"
+            else None
+        )
         return JobServiceAsyncClient(
             credentials=(await self.get_sync_hook()).get_credentials(),
             client_info=CLIENT_INFO,
@@ -605,7 +625,9 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
                 self.log.exception("Exception occurred while requesting job %s", job_id)
                 raise AirflowException(ex)
 
-            self.log.info("Status of the batch prediction job %s is %s", job.name, job.state.name)
+            self.log.info(
+                "Status of the batch prediction job %s is %s", job.name, job.state.name
+            )
             if job.state in statuses_complete:
                 return job
 

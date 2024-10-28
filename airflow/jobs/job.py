@@ -64,9 +64,13 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
     grace_multiplier = 2.1
     health_check_threshold_value: int | float
     if job_type == "SchedulerJob":
-        health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
+        health_check_threshold_value = conf.getint(
+            "scheduler", "scheduler_health_check_threshold"
+        )
     elif job_type == "TriggererJob":
-        health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+        health_check_threshold_value = conf.getfloat(
+            "triggerer", "triggerer_health_check_threshold"
+        )
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value
@@ -177,7 +181,9 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def heartbeat(
-        self, heartbeat_callback: Callable[[Session], None], session: Session = NEW_SESSION
+        self,
+        heartbeat_callback: Callable[[Session], None],
+        session: Session = NEW_SESSION,
     ) -> None:
         """
         Update the job's entry in the database with the latest_heartbeat timestamp.
@@ -212,7 +218,8 @@ class Job(Base, LoggingMixin):
                 sleep_for = 0
                 if self.latest_heartbeat:
                     seconds_remaining = (
-                        self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                        self.heartrate
+                        - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                     )
                     sleep_for = max(0, seconds_remaining)
                 if span.is_recording():
@@ -221,10 +228,17 @@ class Job(Base, LoggingMixin):
 
                 job = Job._update_heartbeat(job=self, session=session)
                 self._merge_from(job)
-                time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
-                health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
+                time_since_last_heartbeat = (
+                    timezone.utcnow() - previous_heartbeat
+                ).total_seconds()
+                health_check_threshold_value = health_check_threshold(
+                    self.job_type, self.heartrate
+                )
                 if time_since_last_heartbeat > health_check_threshold_value:
-                    self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
+                    self.log.info(
+                        "Heartbeat recovered after %.2f seconds",
+                        time_since_last_heartbeat,
+                    )
                 # At this point, the DB has updated.
                 previous_heartbeat = self.latest_heartbeat
 
@@ -232,9 +246,16 @@ class Job(Base, LoggingMixin):
                 self.log.debug("[heartbeat]")
                 self.heartbeat_failed = False
             except OperationalError:
-                Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+                Stats.incr(
+                    convert_camel_to_snake(self.__class__.__name__)
+                    + "_heartbeat_failure",
+                    1,
+                    1,
+                )
                 if not self.heartbeat_failed:
-                    self.log.exception("%s heartbeat failed with error", self.__class__.__name__)
+                    self.log.exception(
+                        "%s heartbeat failed with error", self.__class__.__name__
+                    )
                     self.heartbeat_failed = True
                     msg = f"{self.__class__.__name__} heartbeat got an exception"
                     if span.is_recording():
@@ -310,7 +331,8 @@ class Job(Base, LoggingMixin):
     ) -> bool:
         return (
             state == JobState.RUNNING
-            and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold_value
+            and (timezone.utcnow() - latest_heartbeat).total_seconds()
+            < health_check_threshold_value
         )
 
     @staticmethod
@@ -327,7 +349,9 @@ class Job(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     @retry_db_transaction
-    def _fetch_from_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
+    def _fetch_from_db(
+        job: Job | JobPydantic, session: Session = NEW_SESSION
+    ) -> Job | JobPydantic | None:
         if isinstance(job, Job):
             # not Internal API
             session.merge(job)
@@ -338,7 +362,9 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def _add_to_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
+    def _add_to_db(
+        job: Job | JobPydantic, session: Session = NEW_SESSION
+    ) -> Job | JobPydantic:
         if isinstance(job, JobPydantic):
             orm_job = Job()
             orm_job._merge_from(job)
@@ -368,7 +394,9 @@ class Job(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     @retry_db_transaction
-    def _update_heartbeat(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
+    def _update_heartbeat(
+        job: Job | JobPydantic, session: Session = NEW_SESSION
+    ) -> Job | JobPydantic:
         orm_job: Job | None = session.scalar(select(Job).where(Job.id == job.id).limit(1))
         if orm_job is None:
             return job
@@ -380,7 +408,9 @@ class Job(Base, LoggingMixin):
 
 @internal_api_call
 @provide_session
-def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
+def most_recent_job(
+    job_type: str, session: Session = NEW_SESSION
+) -> Job | JobPydantic | None:
     """
     Return the most recent job of this type, if any, based on last heartbeat received.
 
@@ -471,7 +501,9 @@ def perform_heartbeat(
     """
     seconds_remaining: float = 0.0
     if job.latest_heartbeat and job.heartrate:
-        seconds_remaining = job.heartrate - (timezone.utcnow() - job.latest_heartbeat).total_seconds()
+        seconds_remaining = (
+            job.heartrate - (timezone.utcnow() - job.latest_heartbeat).total_seconds()
+        )
     if seconds_remaining > 0 and only_if_necessary:
         return
     job.heartbeat(heartbeat_callback=heartbeat_callback)

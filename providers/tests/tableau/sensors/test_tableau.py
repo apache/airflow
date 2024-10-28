@@ -33,7 +33,12 @@ class TestTableauJobStatusSensor:
     """
 
     def setup_method(self):
-        self.kwargs = {"job_id": "job_2", "site_id": "test_site", "task_id": "task", "dag": None}
+        self.kwargs = {
+            "job_id": "job_2",
+            "site_id": "test_site",
+            "task_id": "task",
+            "dag": None,
+        }
 
     @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
     def test_poke(self, mock_tableau_hook):

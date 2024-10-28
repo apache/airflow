@@ -62,7 +62,9 @@ class KerberosMode(Enum):
 
 def get_kerberos_principle(principal: str | None) -> str:
     """Retrieve Kerberos principal. Fallback to principal from Airflow configuration if not provided."""
-    return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
+    return principal or conf.get_mandatory_value("kerberos", "principal").replace(
+        "_HOST", get_hostname()
+    )
 
 
 def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
@@ -101,7 +103,9 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
         conf.get_mandatory_value("kerberos", "ccache"),  # specify credentials cache
         cmd_principal,
     ]
-    log.info("Re-initialising kerberos from keytab: %s", " ".join(shlex.quote(f) for f in cmdv))
+    log.info(
+        "Re-initialising kerberos from keytab: %s", " ".join(shlex.quote(f) for f in cmdv)
+    )
 
     with subprocess.Popen(
         cmdv,

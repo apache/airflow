@@ -90,7 +90,9 @@ class TestCloudComposerEnvironmentSensor:
                 region=TEST_REGION,
                 operation_name=TEST_OPERATION_NAME,
             )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
+        with pytest.raises(
+            AirflowException, match="No event received in trigger callback"
+        ):
             task.execute_complete(context={}, event=None)
 
     def test_cloud_composer_existence_sensor_async_execute_complete(self):
@@ -104,15 +106,20 @@ class TestCloudComposerEnvironmentSensor:
             )
         with mock.patch.object(task.log, "info"):
             task.execute_complete(
-                context={}, event={"operation_done": True, "operation_name": TEST_OPERATION_NAME}
+                context={},
+                event={"operation_done": True, "operation_name": TEST_OPERATION_NAME},
             )
 
 
 class TestCloudComposerDAGRunSensor:
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict"
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
     def test_wait_ready(self, mock_hook, to_dict_mode):
-        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT("success")
+        mock_hook.return_value.wait_command_execution_result.return_value = (
+            TEST_EXEC_RESULT("success")
+        )
 
         task = CloudComposerDAGRunSensor(
             task_id="task-id",
@@ -125,10 +132,14 @@ class TestCloudComposerDAGRunSensor:
 
         assert task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
 
-    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict"
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
     def test_wait_not_ready(self, mock_hook, to_dict_mode):
-        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT("running")
+        mock_hook.return_value.wait_command_execution_result.return_value = (
+            TEST_EXEC_RESULT("running")
+        )
 
         task = CloudComposerDAGRunSensor(
             task_id="task-id",

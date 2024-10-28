@@ -36,7 +36,10 @@ import argcomplete
 # any possible import cycles with settings downstream.
 from airflow import configuration
 from airflow.cli import cli_parser
-from airflow.configuration import AirflowConfigParser, write_webserver_configuration_if_needed
+from airflow.configuration import (
+    AirflowConfigParser,
+    write_webserver_configuration_if_needed,
+)
 from airflow.exceptions import AirflowException
 
 

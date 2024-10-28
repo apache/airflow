@@ -22,7 +22,9 @@ import textwrap
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
+from airflow.providers.databricks.sensors.databricks_partition import (
+    DatabricksPartitionSensor,
+)
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
 # [Env variable to be used from the OS]

@@ -44,7 +44,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "dataplex"
 
@@ -100,7 +102,11 @@ with DAG(
     )
     # [START howto_dataplex_create_lake_operator]
     create_lake = DataplexCreateLakeOperator(
-        project_id=PROJECT_ID, region=REGION, body=EXAMPLE_LAKE_BODY, lake_id=LAKE_ID, task_id="create_lake"
+        project_id=PROJECT_ID,
+        region=REGION,
+        body=EXAMPLE_LAKE_BODY,
+        lake_id=LAKE_ID,
+        task_id="create_lake",
     )
     # [END howto_dataplex_create_lake_operator]
 
@@ -139,7 +145,10 @@ with DAG(
 
     # [START howto_dataplex_list_tasks_operator]
     list_dataplex_task = DataplexListTasksOperator(
-        project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, task_id="list_dataplex_task"
+        project_id=PROJECT_ID,
+        region=REGION,
+        lake_id=LAKE_ID,
+        task_id="list_dataplex_task",
     )
     # [END howto_dataplex_list_tasks_operator]
 
@@ -185,7 +194,9 @@ with DAG(
     # [END howto_dataplex_delete_lake_operator]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

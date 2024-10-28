@@ -27,7 +27,9 @@ from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
 )
-from tests_common.test_utils.salesforce_system_helpers import provide_salesforce_connection
+from tests_common.test_utils.salesforce_system_helpers import (
+    provide_salesforce_connection,
+)
 from tests_common.test_utils.system_tests import get_test_run
 
 CREDENTIALS_DIR = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")

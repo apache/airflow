@@ -73,7 +73,9 @@ def find_session_idx(func: Callable[PS, RT]) -> int:
         # func_params is an ordered dict -- this is the "recommended" way of getting the position
         session_args_idx = tuple(func_params).index("session")
     except ValueError:
-        raise ValueError(f"Function {func.__qualname__} has no `session` argument") from None
+        raise ValueError(
+            f"Function {func.__qualname__} has no `session` argument"
+        ) from None
 
     return session_args_idx
 

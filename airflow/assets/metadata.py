@@ -36,7 +36,10 @@ class Metadata:
     alias_name: str | None = None
 
     def __init__(
-        self, target: str | Asset, extra: dict[str, Any], alias: AssetAlias | str | None = None
+        self,
+        target: str | Asset,
+        extra: dict[str, Any],
+        alias: AssetAlias | str | None = None,
     ) -> None:
         self.uri = extract_event_key(target)
         self.extra = extra

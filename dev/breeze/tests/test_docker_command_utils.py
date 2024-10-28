@@ -90,7 +90,9 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
+def test_check_docker_version_ok(
+    mock_get_console, mock_run_command, mock_check_docker_permission_denied
+):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "24.0.0"
@@ -104,13 +106,17 @@ def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0.[/]")
+    mock_get_console.return_value.print.assert_called_with(
+        "[success]Good version of Docker: 24.0.0.[/]"
+    )
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
+def test_check_docker_version_higher(
+    mock_get_console, mock_run_command, mock_check_docker_permission_denied
+):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "24.0.0"
@@ -124,7 +130,9 @@ def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_ch
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0.[/]")
+    mock_get_console.return_value.print.assert_called_with(
+        "[success]Good version of Docker: 24.0.0.[/]"
+    )
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
@@ -196,7 +204,9 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
 
 
 def _fake_ctx_output(*names: str) -> str:
-    return "\n".join(json.dumps({"Name": name, "DockerEndpoint": f"unix://{name}"}) for name in names)
+    return "\n".join(
+        json.dumps({"Name": name, "DockerEndpoint": f"unix://{name}"}) for name in names
+    )
 
 
 @pytest.mark.parametrize(
@@ -235,11 +245,17 @@ def _fake_ctx_output(*names: str) -> str:
         ),
     ],
 )
-def test_autodetect_docker_context(context_output: str, selected_context: str, console_output: str):
-    with mock.patch("airflow_breeze.utils.docker_command_utils.run_command") as mock_run_command:
+def test_autodetect_docker_context(
+    context_output: str, selected_context: str, console_output: str
+):
+    with mock.patch(
+        "airflow_breeze.utils.docker_command_utils.run_command"
+    ) as mock_run_command:
         mock_run_command.return_value.returncode = 0
         mock_run_command.return_value.stdout = context_output
-        with mock.patch("airflow_breeze.utils.docker_command_utils.get_console") as mock_get_console:
+        with mock.patch(
+            "airflow_breeze.utils.docker_command_utils.get_console"
+        ) as mock_get_console:
             mock_get_console.return_value.input.return_value = selected_context
             assert autodetect_docker_context() == selected_context
             mock_get_console.return_value.print.assert_called_once()
@@ -251,9 +267,17 @@ SOCKET_INFO = json.dumps(
         {
             "Name": "default",
             "Metadata": {},
-            "Endpoints": {"docker": {"Host": "unix:///not-standard/docker.sock", "SkipTLSVerify": False}},
+            "Endpoints": {
+                "docker": {
+                    "Host": "unix:///not-standard/docker.sock",
+                    "SkipTLSVerify": False,
+                }
+            },
             "TLSMaterial": {},
-            "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
+            "Storage": {
+                "MetadataPath": "\u003cIN MEMORY\u003e",
+                "TLSPath": "\u003cIN MEMORY\u003e",
+            },
         }
     ]
 )
@@ -264,10 +288,16 @@ SOCKET_INFO_DESKTOP_LINUX = json.dumps(
             "Name": "desktop-linux",
             "Metadata": {},
             "Endpoints": {
-                "docker": {"Host": "unix:///VERY_NON_STANDARD/docker.sock", "SkipTLSVerify": False}
+                "docker": {
+                    "Host": "unix:///VERY_NON_STANDARD/docker.sock",
+                    "SkipTLSVerify": False,
+                }
             },
             "TLSMaterial": {},
-            "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
+            "Storage": {
+                "MetadataPath": "\u003cIN MEMORY\u003e",
+                "TLSPath": "\u003cIN MEMORY\u003e",
+            },
         }
     ]
 )

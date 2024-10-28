@@ -59,7 +59,10 @@ def read_file_content(file_path: str) -> str:
 
 
 def get_sorted_events(event_dir: str) -> list[str]:
-    event_paths = [os.path.join(event_dir, event_path) for event_path in sorted(os.listdir(event_dir))]
+    event_paths = [
+        os.path.join(event_dir, event_path)
+        for event_path in sorted(os.listdir(event_dir))
+    ]
     return [json.loads(read_file_content(event_path)) for event_path in event_paths]
 
 
@@ -97,7 +100,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task(task_name)
 
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dag.create_dagrun(
                 run_id=run_id,
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -107,15 +112,26 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             )
             ti = TaskInstance(task=task, run_id=run_id)
             job = Job(id=random.randint(0, 23478197), dag_id=ti.dag_id)
-            job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+            job_runner = LocalTaskJobRunner(
+                job=job, task_instance=ti, ignore_ti_state=True
+            )
             task_runner = StandardTaskRunner(job_runner)
-            with mock.patch("airflow.task.task_runner.get_task_runner", return_value=task_runner):
+            with mock.patch(
+                "airflow.task.task_runner.get_task_runner", return_value=task_runner
+            ):
                 job_runner._execute()
 
             return task_runner.return_code(timeout=60)
 
         @pytest.mark.db_test
-        @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
+        @conf_vars(
+            {
+                (
+                    "openlineage",
+                    "transport",
+                ): f'{{"type": "file", "log_file_path": "{listener_path}"}}'
+            }
+        )
         def test_not_stalled_task_emits_proper_lineage(self):
             task_name = "execute_no_stall"
             run_id = "test1"
@@ -126,7 +142,14 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 
         @pytest.mark.db_test
-        @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
+        @conf_vars(
+            {
+                (
+                    "openlineage",
+                    "transport",
+                ): f'{{"type": "file", "log_file_path": "{listener_path}"}}'
+            }
+        )
         def test_not_stalled_failing_task_emits_proper_lineage(self):
             task_name = "execute_fail"
             run_id = "test_failure"
@@ -138,25 +161,35 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
 
         @conf_vars(
             {
-                ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
+                (
+                    "openlineage",
+                    "transport",
+                ): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
                 ("openlineage", "execution_timeout"): "15",
             }
         )
         @pytest.mark.db_test
         def test_short_stalled_task_emits_proper_lineage(self):
-            self.setup_job("execute_short_stall", "test_short_stalled_task_emits_proper_lineage")
+            self.setup_job(
+                "execute_short_stall", "test_short_stalled_task_emits_proper_lineage"
+            )
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 
         @conf_vars(
             {
-                ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
+                (
+                    "openlineage",
+                    "transport",
+                ): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
                 ("openlineage", "execution_timeout"): "3",
             }
         )
         @pytest.mark.db_test
-        def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(self):
+        def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(
+            self,
+        ):
             self.setup_job(
                 "execute_short_stall",
                 "test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout",
@@ -165,23 +198,37 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
 
-        @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
+        @conf_vars(
+            {
+                (
+                    "openlineage",
+                    "transport",
+                ): f'{{"type": "file", "log_file_path": "{listener_path}"}}'
+            }
+        )
         @pytest.mark.db_test
         def test_mid_stalled_task_is_killed_by_ol_timeout(self):
-            self.setup_job("execute_mid_stall", "test_mid_stalled_task_is_killed_by_openlineage")
+            self.setup_job(
+                "execute_mid_stall", "test_mid_stalled_task_is_killed_by_openlineage"
+            )
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
 
         @conf_vars(
             {
-                ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
+                (
+                    "openlineage",
+                    "transport",
+                ): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
                 ("openlineage", "execution_timeout"): "60",
                 ("core", "task_success_overtime"): "3",
             }
         )
         @pytest.mark.db_test
-        def test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough(self):
+        def test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough(
+            self,
+        ):
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)
@@ -196,7 +243,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task("execute_long_stall")
 
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dag.create_dagrun(
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -209,7 +258,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
             )
             job = Job(id="1", dag_id=ti.dag_id)
-            job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+            job_runner = LocalTaskJobRunner(
+                job=job, task_instance=ti, ignore_ti_state=True
+            )
             job_runner._execute()
 
             events = get_sorted_events(tmp_dir)

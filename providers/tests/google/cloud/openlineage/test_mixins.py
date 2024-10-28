@@ -83,12 +83,18 @@ class TestBigQueryOpenLineageMixin:
         self.job_details["configuration"]["query"].pop("query")
         assert lineage.run_facets == {
             "bigQuery_job": BigQueryJobRunFacet(
-                cached=False, billedBytes=111149056, properties=json.dumps(self.job_details)
+                cached=False,
+                billedBytes=111149056,
+                properties=json.dumps(self.job_details),
             ),
             "bigQueryJob": BigQueryJobRunFacet(
-                cached=False, billedBytes=111149056, properties=json.dumps(self.job_details)
+                cached=False,
+                billedBytes=111149056,
+                properties=json.dumps(self.job_details),
             ),
-            "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
+            "externalQuery": ExternalQueryRunFacet(
+                externalQueryId="job_id", source="bigquery"
+            ),
         }
         assert lineage.inputs == [
             InputDataset(
@@ -97,10 +103,18 @@ class TestBigQueryOpenLineageMixin:
                 facets={
                     "schema": SchemaDatasetFacet(
                         fields=[
-                            SchemaDatasetFacetFields("state", "STRING", "2-digit state code"),
-                            SchemaDatasetFacetFields("gender", "STRING", "Sex (M=male or F=female)"),
-                            SchemaDatasetFacetFields("year", "INTEGER", "4-digit year of birth"),
-                            SchemaDatasetFacetFields("name", "STRING", "Given name of a person at birth"),
+                            SchemaDatasetFacetFields(
+                                "state", "STRING", "2-digit state code"
+                            ),
+                            SchemaDatasetFacetFields(
+                                "gender", "STRING", "Sex (M=male or F=female)"
+                            ),
+                            SchemaDatasetFacetFields(
+                                "year", "INTEGER", "4-digit year of birth"
+                            ),
+                            SchemaDatasetFacetFields(
+                                "name", "STRING", "Given name of a person at birth"
+                            ),
                             SchemaDatasetFacetFields(
                                 "number", "INTEGER", "Number of occurrences of the name"
                             ),
@@ -133,12 +147,18 @@ class TestBigQueryOpenLineageMixin:
         self.script_job_details["configuration"]["query"].pop("query")
         assert lineage.run_facets == {
             "bigQueryJob": BigQueryJobRunFacet(
-                cached=False, billedBytes=120586240, properties=json.dumps(self.script_job_details)
+                cached=False,
+                billedBytes=120586240,
+                properties=json.dumps(self.script_job_details),
             ),
             "bigQuery_job": BigQueryJobRunFacet(
-                cached=False, billedBytes=120586240, properties=json.dumps(self.script_job_details)
+                cached=False,
+                billedBytes=120586240,
+                properties=json.dumps(self.script_job_details),
             ),
-            "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
+            "externalQuery": ExternalQueryRunFacet(
+                externalQueryId="job_id", source="bigquery"
+            ),
         }
         assert lineage.inputs == [
             InputDataset(
@@ -147,10 +167,18 @@ class TestBigQueryOpenLineageMixin:
                 facets={
                     "schema": SchemaDatasetFacet(
                         fields=[
-                            SchemaDatasetFacetFields("state", "STRING", "2-digit state code"),
-                            SchemaDatasetFacetFields("gender", "STRING", "Sex (M=male or F=female)"),
-                            SchemaDatasetFacetFields("year", "INTEGER", "4-digit year of birth"),
-                            SchemaDatasetFacetFields("name", "STRING", "Given name of a person at birth"),
+                            SchemaDatasetFacetFields(
+                                "state", "STRING", "2-digit state code"
+                            ),
+                            SchemaDatasetFacetFields(
+                                "gender", "STRING", "Sex (M=male or F=female)"
+                            ),
+                            SchemaDatasetFacetFields(
+                                "year", "INTEGER", "4-digit year of birth"
+                            ),
+                            SchemaDatasetFacetFields(
+                                "name", "STRING", "Given name of a person at birth"
+                            ),
                             SchemaDatasetFacetFields(
                                 "number", "INTEGER", "Number of occurrences of the name"
                             ),
@@ -177,24 +205,32 @@ class TestBigQueryOpenLineageMixin:
             OutputDataset(
                 name="d1",
                 namespace="",
-                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)},
+                outputFacets={
+                    "outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)
+                },
             ),
             OutputDataset(
                 name="d1",
                 namespace="",
-                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)},
+                outputFacets={
+                    "outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)
+                },
                 facets={"t1": "t1"},
             ),
             OutputDataset(
                 name="d2",
                 namespace="",
-                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(6, 7)},
+                outputFacets={
+                    "outputStatistics": OutputStatisticsOutputDatasetFacet(6, 7)
+                },
                 facets={"t2": "t2"},
             ),
             OutputDataset(
                 name="d2",
                 namespace="",
-                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(60, 70)},
+                outputFacets={
+                    "outputStatistics": OutputStatisticsOutputDatasetFacet(60, 70)
+                },
                 facets={"t20": "t20"},
             ),
         ]
@@ -245,7 +281,9 @@ class TestBigQueryOpenLineageMixin:
 
     def test_get_statistics_dataset_facet_no_stats(self):
         properties = {
-            "statistics": {"query": {"totalBytesBilled": 10, "queryPlan": [{"test": "test"}]}},
+            "statistics": {
+                "query": {"totalBytesBilled": 10, "queryPlan": [{"test": "test"}]}
+            },
             "configuration": {"query": {"query": "SELECT ..."}},
         }
         result = self.operator._get_statistics_dataset_facet(properties)

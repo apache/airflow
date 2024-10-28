@@ -105,16 +105,23 @@ class SnowflakeHook(DbApiHook):
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
-            "warehouse": StringField(lazy_gettext("Warehouse"), widget=BS3TextFieldWidget()),
-            "database": StringField(lazy_gettext("Database"), widget=BS3TextFieldWidget()),
+            "warehouse": StringField(
+                lazy_gettext("Warehouse"), widget=BS3TextFieldWidget()
+            ),
+            "database": StringField(
+                lazy_gettext("Database"), widget=BS3TextFieldWidget()
+            ),
             "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
             "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
-            "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
+            "private_key_file": StringField(
+                lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()
+            ),
             "private_key_content": PasswordField(
                 lazy_gettext("Private key (Text)"), widget=BS3PasswordFieldWidget()
             ),
             "insecure_mode": BooleanField(
-                label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
+                label=lazy_gettext("Insecure mode"),
+                description="Turns off OCSP certificate checks",
             ),
         }
 
@@ -201,7 +208,9 @@ class SnowflakeHook(DbApiHook):
         role = self._get_field(extra_dict, "role") or ""
         insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
         schema = conn.schema or ""
-        client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
+        client_request_mfa_token = _try_to_boolean(
+            self._get_field(extra_dict, "client_request_mfa_token")
+        )
 
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
@@ -244,10 +253,17 @@ class SnowflakeHook(DbApiHook):
             )
         elif private_key_file:
             private_key_file_path = Path(private_key_file)
-            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
-                raise ValueError("The private_key_file path points to an empty or invalid file.")
+            if (
+                not private_key_file_path.is_file()
+                or private_key_file_path.stat().st_size == 0
+            ):
+                raise ValueError(
+                    "The private_key_file path points to an empty or invalid file."
+                )
             if private_key_file_path.stat().st_size > 4096:
-                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
+                raise ValueError(
+                    "The private_key_file size is too big. Please keep it less than 4 KB."
+                )
             private_key_pem = Path(private_key_file_path).read_bytes()
         elif private_key_content:
             private_key_pem = private_key_content.encode()
@@ -293,7 +309,12 @@ class SnowflakeHook(DbApiHook):
                 for k, v in conn_params.items()
                 if v
                 and k
-                not in ["session_parameters", "insecure_mode", "private_key", "client_request_mfa_token"]
+                not in [
+                    "session_parameters",
+                    "insecure_mode",
+                    "private_key",
+                    "client_request_mfa_token",
+                ]
             }
         )
 
@@ -319,7 +340,9 @@ class SnowflakeHook(DbApiHook):
             if conn_params.get(key):
                 engine_kwargs.setdefault("connect_args", {})
                 engine_kwargs["connect_args"][key] = conn_params[key]
-        return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
+        return create_engine(
+            self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs
+        )
 
     def get_snowpark_session(self):
         """
@@ -422,7 +445,9 @@ class SnowflakeHook(DbApiHook):
             sql_list = sql
 
         if sql_list:
-            self.log.debug("Executing following statements against Snowflake DB: %s", sql_list)
+            self.log.debug(
+                "Executing following statements against Snowflake DB: %s", sql_list
+            )
         else:
             raise ValueError("List of SQL statements is empty")
 
@@ -436,7 +461,9 @@ class SnowflakeHook(DbApiHook):
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))  # type: ignore[attr-defined]
-                        if return_single_query_results(sql, return_last, split_statements):
+                        if return_single_query_results(
+                            sql, return_last, split_statements
+                        ):
                             _last_result = result
                             _last_description = cur.description
                         else:
@@ -505,14 +532,18 @@ class SnowflakeHook(DbApiHook):
         return urlparse(uri).hostname
 
     def get_openlineage_database_specific_lineage(self, _) -> OperatorLineage | None:
-        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
+        from airflow.providers.common.compat.openlineage.facet import (
+            ExternalQueryRunFacet,
+        )
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if self.query_ids:
             self.log.debug("openlineage: getting connection to get database info")
             connection = self.get_connection(self.get_conn_id())
-            namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+            namespace = SQLParser.create_namespace(
+                self.get_openlineage_database_info(connection)
+            )
             return OperatorLineage(
                 run_facets={
                     "externalQuery": ExternalQueryRunFacet(

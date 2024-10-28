@@ -25,7 +25,9 @@ from coverage.exceptions import NoSource
 
 
 def run_tests(command_list, source, files_not_fully_covered):
-    source_set = {path for item in source for path in glob.glob(item + "/**/*.py", recursive=True)}
+    source_set = {
+        path for item in source for path in glob.glob(item + "/**/*.py", recursive=True)
+    }
     not_covered = {path for path in files_not_fully_covered}
     source_files = sorted(source_set)
     covered = sorted(source_set - not_covered)
@@ -48,7 +50,9 @@ def run_tests(command_list, source, files_not_fully_covered):
         try:
             missing_lines = cov.analysis2(path)[3]
             if not missing_lines:
-                print(f"Error: {path} now has full coverage. Please remove from files_not_fully_covered")
+                print(
+                    f"Error: {path} now has full coverage. Please remove from files_not_fully_covered"
+                )
                 failed = True
         except NoSource:
             continue

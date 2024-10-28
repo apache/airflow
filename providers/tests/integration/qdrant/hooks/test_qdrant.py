@@ -51,7 +51,9 @@ class TestQdrant:
             self.test_collection_name,
             points=[
                 models.PointStruct(
-                    id=idx, vector=vector.tolist(), payload={"color": "red", "rand_number": idx % 10}
+                    id=idx,
+                    vector=vector.tolist(),
+                    payload={"color": "red", "rand_number": idx % 10},
                 )
                 for idx, vector in enumerate(vectors)
             ],
@@ -63,7 +65,11 @@ class TestQdrant:
         self.hook.conn.delete(
             self.test_collection_name,
             points_selector=models.Filter(
-                must=[models.FieldCondition(key="color", match=models.MatchValue(value="red"))]
+                must=[
+                    models.FieldCondition(
+                        key="color", match=models.MatchValue(value="red")
+                    )
+                ]
             ),
         )
 

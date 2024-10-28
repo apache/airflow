@@ -35,7 +35,11 @@ with DAG(
     # [START howto_operator_pinot_admin_hook]
     @task
     def pinot_admin():
-        PinotAdminHook(conn_id="pinot_admin_default", cmd_path="pinot-admin.sh", pinot_admin_system_exit=True)
+        PinotAdminHook(
+            conn_id="pinot_admin_default",
+            cmd_path="pinot-admin.sh",
+            pinot_admin_system_exit=True,
+        )
 
     # [END howto_operator_pinot_admin_hook]
     # [START howto_operator_pinot_dbapi_example]

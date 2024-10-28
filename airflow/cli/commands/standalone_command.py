@@ -187,7 +187,9 @@ class StandaloneCommand:
         self.print_output("standalone", "Database ready")
 
         # Then create a "default" admin user if necessary
-        from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+        from airflow.providers.fab.auth_manager.cli_commands.utils import (
+            get_application_builder,
+        )
 
         with get_application_builder() as appbuilder:
             user_name, password = appbuilder.sm.create_admin_standalone()

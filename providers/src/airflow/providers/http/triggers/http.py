@@ -103,7 +103,9 @@ class HttpTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode(
+                        "ascii"
+                    ),
                 }
             )
         except Exception as e:
@@ -117,7 +119,9 @@ class HttpTrigger(BaseTrigger):
         response.status_code = client_response.status
         response.headers = CaseInsensitiveDict(client_response.headers)
         response.url = str(client_response.url)
-        response.history = [await HttpTrigger._convert_response(h) for h in client_response.history]
+        response.history = [
+            await HttpTrigger._convert_response(h) for h in client_response.history
+        ]
         response.encoding = client_response.get_encoding()
         response.reason = str(client_response.reason)
         cookies = RequestsCookieJar()

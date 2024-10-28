@@ -54,16 +54,24 @@ class OpenLineageExecutionOperator(BaseOperator):
 
 with DAG(
     dag_id="test_openlineage_execution",
-    default_args={"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)},
+    default_args={
+        "owner": "airflow",
+        "retries": 3,
+        "start_date": datetime.datetime(2022, 1, 1),
+    },
     schedule="0 0 * * *",
     dagrun_timeout=datetime.timedelta(minutes=60),
 ):
     no_stall = OpenLineageExecutionOperator(task_id="execute_no_stall")
 
-    short_stall = OpenLineageExecutionOperator(task_id="execute_short_stall", stall_amount=5)
+    short_stall = OpenLineageExecutionOperator(
+        task_id="execute_short_stall", stall_amount=5
+    )
 
     mid_stall = OpenLineageExecutionOperator(task_id="execute_mid_stall", stall_amount=15)
 
-    long_stall = OpenLineageExecutionOperator(task_id="execute_long_stall", stall_amount=30)
+    long_stall = OpenLineageExecutionOperator(
+        task_id="execute_long_stall", stall_amount=30
+    )
 
     fail = OpenLineageExecutionOperator(task_id="execute_fail", fail=True)

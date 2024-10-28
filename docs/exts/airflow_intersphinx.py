@@ -52,7 +52,9 @@ def _generate_provider_intersphinx_mapping():
             continue
 
         provider_base_url = f"/docs/{package_name}/{current_version}/"
-        doc_inventory = f"{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv"
+        doc_inventory = (
+            f"{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv"
+        )
         cache_inventory = f"{DOCS_DIR}/_inventory_cache/{package_name}/objects.inv"
 
         # Skip adding the mapping if the path does not exist
@@ -126,7 +128,9 @@ if __name__ == "__main__":
             cache: dict[Any, Any] = {}
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 for name, (uri, invs) in intersphinx_mapping.values():
-                    pool.submit(fetch_inventory_group, name, uri, invs, cache, _MockApp(), now)
+                    pool.submit(
+                        fetch_inventory_group, name, uri, invs, cache, _MockApp(), now
+                    )
 
             inv_dict = {}
             for uri, (name, now, invdata) in cache.items():

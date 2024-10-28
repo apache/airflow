@@ -59,13 +59,17 @@ def mock_auth_bearer_token():
 
 @pytest.fixture
 def mock_auth_client_credentials():
-    with mock.patch("airflow.providers.weaviate.hooks.weaviate.Auth.client_credentials") as m:
+    with mock.patch(
+        "airflow.providers.weaviate.hooks.weaviate.Auth.client_credentials"
+    ) as m:
         yield m
 
 
 @pytest.fixture
 def mock_auth_client_password():
-    with mock.patch("airflow.providers.weaviate.hooks.weaviate.Auth.client_password") as m:
+    with mock.patch(
+        "airflow.providers.weaviate.hooks.weaviate.Auth.client_password"
+    ) as m:
         yield m
 
 
@@ -115,14 +119,22 @@ class TestWeaviateHook:
                 host=self.host,
                 port=self.port,
                 conn_type="weaviate",
-                extra={"api_key": self.api_key, "grpc_host": self.grpc_host, "grpc_port": self.grpc_port},
+                extra={
+                    "api_key": self.api_key,
+                    "grpc_host": self.grpc_host,
+                    "grpc_port": self.grpc_port,
+                },
             ),
             Connection(
                 conn_id=self.weaviate_api_key2,
                 host=self.host,
                 port=self.port,
                 conn_type="weaviate",
-                extra={"token": self.api_key, "grpc_host": self.grpc_host, "grpc_port": self.grpc_port},
+                extra={
+                    "token": self.api_key,
+                    "grpc_host": self.grpc_host,
+                    "grpc_port": self.grpc_port,
+                },
             ),
             Connection(
                 conn_id=self.weaviate_client_credentials,
@@ -163,7 +175,9 @@ class TestWeaviateHook:
             monkeypatch.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
-    def test_get_conn_with_api_key_in_extra(self, mock_connect_to_custom, mock_auth_api_key):
+    def test_get_conn_with_api_key_in_extra(
+        self, mock_connect_to_custom, mock_auth_api_key
+    ):
         hook = WeaviateHook(conn_id=self.weaviate_api_key1)
         hook.get_conn()
         mock_auth_api_key.assert_called_once_with(api_key=self.api_key)
@@ -179,7 +193,9 @@ class TestWeaviateHook:
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
-    def test_get_conn_with_token_in_extra(self, mock_connect_to_custom, mock_auth_api_key):
+    def test_get_conn_with_token_in_extra(
+        self, mock_connect_to_custom, mock_auth_api_key
+    ):
         # when token is passed in extra
         hook = WeaviateHook(conn_id=self.weaviate_api_key2)
         hook.get_conn()
@@ -196,11 +212,15 @@ class TestWeaviateHook:
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
-    def test_get_conn_with_access_token_in_extra(self, mock_connect_to_custom, mock_auth_bearer_token):
+    def test_get_conn_with_access_token_in_extra(
+        self, mock_connect_to_custom, mock_auth_bearer_token
+    ):
         hook = WeaviateHook(conn_id=self.client_bearer_token)
         hook.get_conn()
         mock_auth_bearer_token.assert_called_once_with(
-            access_token=self.client_bearer_token, expires_in=30, refresh_token="refresh_token"
+            access_token=self.client_bearer_token,
+            expires_in=30,
+            refresh_token="refresh_token",
         )
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
@@ -210,13 +230,17 @@ class TestWeaviateHook:
             grpc_port=50051,
             grpc_secure=False,
             auth_credentials=mock_auth_bearer_token(
-                access_token=self.client_bearer_token, expires_in=30, refresh_token="refresh_token"
+                access_token=self.client_bearer_token,
+                expires_in=30,
+                refresh_token="refresh_token",
             ),
             headers={},
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
-    def test_get_conn_with_client_secret_in_extra(self, mock_connect_to_custom, mock_auth_client_credentials):
+    def test_get_conn_with_client_secret_in_extra(
+        self, mock_connect_to_custom, mock_auth_client_credentials
+    ):
         hook = WeaviateHook(conn_id=self.weaviate_client_credentials)
         hook.get_conn()
         mock_auth_client_credentials.assert_called_once_with(
@@ -229,15 +253,21 @@ class TestWeaviateHook:
             grpc_host="localhost",
             grpc_port=50051,
             grpc_secure=False,
-            auth_credentials=mock_auth_client_credentials(api_key=self.client_secret, scope=self.scope),
+            auth_credentials=mock_auth_client_credentials(
+                api_key=self.client_secret, scope=self.scope
+            ),
             headers={},
         )
 
     @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
-    def test_get_conn_with_client_password_in_extra(self, mock_connect_to_custom, mock_auth_client_password):
+    def test_get_conn_with_client_password_in_extra(
+        self, mock_connect_to_custom, mock_auth_client_password
+    ):
         hook = WeaviateHook(conn_id=self.client_password)
         hook.get_conn()
-        mock_auth_client_password.assert_called_once_with(username="login", password="password", scope=None)
+        mock_auth_client_password.assert_called_once_with(
+            username="login", password="password", scope=None
+        )
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
             http_port=80,
@@ -245,7 +275,9 @@ class TestWeaviateHook:
             grpc_host="localhost",
             grpc_port=50051,
             grpc_secure=False,
-            auth_credentials=mock_auth_client_password(username="login", password="password", scope=None),
+            auth_credentials=mock_auth_client_password(
+                username="login", password="password", scope=None
+            ),
             headers={},
         )
 
@@ -295,7 +327,9 @@ class TestWeaviateHook:
         mock_collection = MagicMock()
         weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
 
-        weaviate_hook.get_or_create_object(data_object={"name": "Test"}, collection_name="TestCollection")
+        weaviate_hook.get_or_create_object(
+            data_object={"name": "Test"}, collection_name="TestCollection"
+        )
 
         mock_collection.query.fetch_objects.assert_called_once_with()
 
@@ -310,7 +344,9 @@ class TestWeaviateHook:
         mock_create_object = MagicMock()
         weaviate_hook.create_object = mock_create_object
 
-        weaviate_hook.get_or_create_object(data_object={"name": "Test"}, collection_name="TestCollection")
+        weaviate_hook.get_or_create_object(
+            data_object={"name": "Test"}, collection_name="TestCollection"
+        )
 
         mock_create_object.assert_called_once_with(
             data_object={"name": "Test"},
@@ -331,9 +367,13 @@ class TestWeaviateHook:
         weaviate_hook.create_object = mock_create_object
 
         with pytest.raises(ValueError):
-            weaviate_hook.get_or_create_object(data_object=None, collection_name="TestCollection")
+            weaviate_hook.get_or_create_object(
+                data_object=None, collection_name="TestCollection"
+            )
         with pytest.raises(ValueError):
-            weaviate_hook.get_or_create_object(data_object={"name": "Test"}, collection_name=None)
+            weaviate_hook.get_or_create_object(
+                data_object={"name": "Test"}, collection_name=None
+            )
 
     def test_get_all_objects(self, weaviate_hook):
         """
@@ -384,7 +424,9 @@ class TestWeaviateHook:
         weaviate_hook.get_object = mock_get_object
         mock_get_object.side_effect = objects
 
-        return_value = weaviate_hook.get_all_objects(collection_name="TestCollection", as_dataframe=True)
+        return_value = weaviate_hook.get_all_objects(
+            collection_name="TestCollection", as_dataframe=True
+        )
 
         assert weaviate_hook.get_object.call_args_list == [
             mock.call(after=None, collection_name="TestCollection"),
@@ -416,7 +458,9 @@ class TestWeaviateHook:
             uuid="uuid", collection_name="TestCollection", properties={"name": "Test"}
         )
 
-        mock_collection.data.update.assert_called_once_with(properties={"name": "Test"}, uuid="uuid")
+        mock_collection.data.update.assert_called_once_with(
+            properties={"name": "Test"}, uuid="uuid"
+        )
 
     def test_replace_object(self, weaviate_hook):
         """
@@ -454,7 +498,9 @@ def test_create_collection(weaviate_hook):
     weaviate_hook.get_conn = MagicMock(return_value=mock_client)
 
     # Test the create_collection method
-    weaviate_hook.create_collection("TestCollection", description="Test class for unit testing")
+    weaviate_hook.create_collection(
+        "TestCollection", description="Test class for unit testing"
+    )
 
     # Assert that the create_collection method was called with the correct arguments
     mock_client.collections.create.assert_called_once_with(
@@ -505,8 +551,9 @@ def test_batch_data_retry(weaviate_hook):
 
     weaviate_hook.batch_data("TestCollection", data)
 
-    assert mock_collection.batch.dynamic.return_value.__enter__.return_value.add_object.call_count == len(
-        side_effect
+    assert (
+        mock_collection.batch.dynamic.return_value.__enter__.return_value.add_object.call_count
+        == len(side_effect)
     )
 
 
@@ -520,8 +567,8 @@ def test_delete_collections(get_conn, weaviate_hook):
     error_list = weaviate_hook.delete_collections(collection_names, if_error="continue")
     assert error_list == ["collection_a"]
 
-    get_conn.return_value.collections.delete.side_effect = weaviate.UnexpectedStatusCodeException(
-        "something failed", requests.Response()
+    get_conn.return_value.collections.delete.side_effect = (
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response())
     )
     with pytest.raises(weaviate.UnexpectedStatusCodeException):
         weaviate_hook.delete_collections("class_a", if_error="stop")
@@ -545,26 +592,36 @@ def test_http_errors_of_delete_collections(get_conn, weaviate_hook):
 
 @mock.patch("weaviate.util.generate_uuid5")
 def test___generate_uuids(generate_uuid5, weaviate_hook):
-    df = pd.DataFrame.from_dict({"name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]})
+    df = pd.DataFrame.from_dict(
+        {"name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
+    )
     with pytest.raises(ValueError, match=r"Columns last_name don't exist in dataframe"):
         weaviate_hook._generate_uuids(
-            df=df, collection_name="test", unique_columns=["name", "age", "gender", "last_name"]
+            df=df,
+            collection_name="test",
+            unique_columns=["name", "age", "gender", "last_name"],
         )
 
     df = pd.DataFrame.from_dict(
         {"id": [1, 2], "name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
     )
     with pytest.raises(
-        ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify 'uuid_column'"
+        ValueError,
+        match=r"Property 'id' already in dataset. Consider renaming or specify 'uuid_column'",
     ):
-        weaviate_hook._generate_uuids(df=df, collection_name="test", unique_columns=["name", "age", "gender"])
+        weaviate_hook._generate_uuids(
+            df=df, collection_name="test", unique_columns=["name", "age", "gender"]
+        )
 
     with pytest.raises(
         ValueError,
         match=r"Property age already in dataset. Consider renaming or specify a different 'uuid_column'.",
     ):
         weaviate_hook._generate_uuids(
-            df=df, uuid_column="age", collection_name="test", unique_columns=["name", "age", "gender"]
+            df=df,
+            uuid_column="age",
+            collection_name="test",
+            unique_columns=["name", "age", "gender"],
         )
 
 
@@ -581,7 +638,13 @@ def test__delete_objects(delete_object, weaviate_hook):
         message="object not found", response=resp
     )
 
-    delete_object.side_effect = [not_found_exception, None, http_429_exception, http_429_exception, None]
+    delete_object.side_effect = [
+        not_found_exception,
+        None,
+        http_429_exception,
+        http_429_exception,
+        None,
+    ]
     weaviate_hook._delete_objects(uuids=["1", "2", "3"], collection_name="test")
     assert delete_object.call_count == 5
 
@@ -598,9 +661,15 @@ def test__prepare_document_to_uuid_map(weaviate_hook):
     assert grouped_data == {"m": {"ross", "bob"}, "f": {"joy"}}
 
 
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._prepare_document_to_uuid_map")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_documents_to_uuid_map")
-def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook):
+@mock.patch(
+    "airflow.providers.weaviate.hooks.weaviate.WeaviateHook._prepare_document_to_uuid_map"
+)
+@mock.patch(
+    "airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_documents_to_uuid_map"
+)
+def test___get_segregated_documents(
+    _get_documents_to_uuid_map, _prepare_document_to_uuid_map, weaviate_hook
+):
     _get_documents_to_uuid_map.return_value = {
         "abc.doc": {"uuid1", "uuid2", "uuid2"},
         "xyz.doc": {"uuid4", "uuid5"},
@@ -627,7 +696,9 @@ def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_documen
     assert new_documents == {"hjk.doc"}
 
 
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch(
+    "airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents"
+)
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_error_option_of_create_or_replace_document_objects(
     _generate_uuids, _get_segregated_documents, weaviate_hook
@@ -644,7 +715,10 @@ def test_error_option_of_create_or_replace_document_objects(
 
     _get_segregated_documents.return_value = ({}, {"abc.xml"}, {}, {"zyx.html"})
     _generate_uuids.return_value = (df, "id")
-    with pytest.raises(ValueError, match="Documents abc.xml already exists. You can either skip or replace"):
+    with pytest.raises(
+        ValueError,
+        match="Documents abc.xml already exists. You can either skip or replace",
+    ):
         weaviate_hook.create_or_replace_document_objects(
             data=df, document_column="doc", collection_name="test", existing="error"
         )
@@ -652,7 +726,9 @@ def test_error_option_of_create_or_replace_document_objects(
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_objects")
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch(
+    "airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents"
+)
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_skip_option_of_create_or_replace_document_objects(
     _generate_uuids, _get_segregated_documents, batch_data, _delete_objects, weaviate_hook
@@ -691,12 +767,20 @@ def test_skip_option_of_create_or_replace_document_objects(
     )
 
 
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects")
+@mock.patch(
+    "airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects"
+)
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch(
+    "airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents"
+)
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
 def test_replace_option_of_create_or_replace_document_objects(
-    _generate_uuids, _get_segregated_documents, batch_data, _delete_all_documents_objects, weaviate_hook
+    _generate_uuids,
+    _get_segregated_documents,
+    batch_data,
+    _delete_all_documents_objects,
+    weaviate_hook,
 ):
     df = pd.DataFrame.from_dict(
         {
@@ -724,7 +808,10 @@ def test_replace_option_of_create_or_replace_document_objects(
     )
     _generate_uuids.return_value = (df, "id")
     weaviate_hook.create_or_replace_document_objects(
-        data=df, collection_name=collection_name, existing="replace", document_column="doc"
+        data=df,
+        collection_name=collection_name,
+        existing="replace",
+        document_column="doc",
     )
     _delete_all_documents_objects.assert_called_with(
         document_keys=list(changed_documents),

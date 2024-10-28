@@ -44,7 +44,10 @@ def should_retry_eni(exception: Exception):
     if isinstance(exception, EcsTaskFailToStart):
         return any(
             eni_reason in exception.message
-            for eni_reason in ["network interface provisioning", "ResourceInitializationError"]
+            for eni_reason in [
+                "network interface provisioning",
+                "ResourceInitializationError",
+            ]
         )
     return False
 
@@ -109,7 +112,9 @@ class EcsHook(AwsGenericHook):
 
         :param cluster_name: ECS Cluster name or full cluster Amazon Resource Name (ARN) entry.
         """
-        return self.conn.describe_clusters(clusters=[cluster_name])["clusters"][0]["status"]
+        return self.conn.describe_clusters(clusters=[cluster_name])["clusters"][0][
+            "status"
+        ]
 
     def get_task_definition_state(self, task_definition: str) -> str:
         """
@@ -122,7 +127,9 @@ class EcsHook(AwsGenericHook):
             family and revision ( family:revision ) for a specific revision in the family,
             or full Amazon Resource Name (ARN) of the task definition to describe.
         """
-        return self.conn.describe_task_definition(taskDefinition=task_definition)["taskDefinition"]["status"]
+        return self.conn.describe_task_definition(taskDefinition=task_definition)[
+            "taskDefinition"
+        ]["status"]
 
     def get_task_state(self, cluster, task) -> str:
         """
@@ -135,7 +142,9 @@ class EcsHook(AwsGenericHook):
             of the cluster that hosts the task or tasks to describe.
         :param task: Task ID or full ARN entry.
         """
-        return self.conn.describe_tasks(cluster=cluster, tasks=[task])["tasks"][0]["lastStatus"]
+        return self.conn.describe_tasks(cluster=cluster, tasks=[task])["tasks"][0][
+            "lastStatus"
+        ]
 
 
 @runtime_checkable
@@ -191,7 +200,9 @@ class EcsProtocol(Protocol):
         """
         ...
 
-    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
+    def list_tasks(
+        self, cluster: str, launchType: str, desiredStatus: str, family: str
+    ) -> dict:
         """
         List tasks.
 

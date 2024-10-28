@@ -38,7 +38,9 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
     def test_cli_initdb(self, mock_initdb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="`db init` is deprecated"):
+        with pytest.warns(
+            expected_warning=DeprecationWarning, match="`db init` is deprecated"
+        ):
             db_command.initdb(self.parser.parse_args(["db", "init"]))
         mock_initdb.assert_called_once_with()
 
@@ -50,7 +52,9 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.db.resetdb")
     def test_cli_resetdb_skip_init(self, mock_resetdb):
-        db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--skip-init"]))
+        db_command.resetdb(
+            self.parser.parse_args(["db", "reset", "--yes", "--skip-init"])
+        )
         mock_resetdb.assert_called_once_with(skip_init=True)
 
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
@@ -123,7 +127,13 @@ class TestCliDb:
                 ),
             ),
             (
-                ["--to-version", "2.10.0", "--from-revision", "abc123", "--show-sql-only"],
+                [
+                    "--to-version",
+                    "2.10.0",
+                    "--from-revision",
+                    "abc123",
+                    "--show-sql-only",
+                ],
                 dict(
                     to_revision="22ed7efa9da2",
                     from_revision="abc123",
@@ -159,8 +169,14 @@ class TestCliDb:
                 "Cannot supply both",
                 id="from both version and revision",
             ),
-            pytest.param(["--to-version", "2.1.25"], "Unknown version '2.1.25'", id="unknown to version"),
-            pytest.param(["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"),
+            pytest.param(
+                ["--to-version", "2.1.25"],
+                "Unknown version '2.1.25'",
+                id="unknown to version",
+            ),
+            pytest.param(
+                ["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"
+            ),
             pytest.param(
                 ["--to-revision", "abc", "--from-revision", "abc123"],
                 "used with `--show-sql-only`",
@@ -172,7 +188,13 @@ class TestCliDb:
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "2.10.0", "--from-version", "2.1.25", "--show-sql-only"],
+                [
+                    "--to-revision",
+                    "2.10.0",
+                    "--from-version",
+                    "2.1.25",
+                    "--show-sql-only",
+                ],
                 "Unknown version '2.1.25'",
                 id="unknown from version",
             ),
@@ -190,19 +212,24 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.migratedb")
     def test_cli_upgrade(self, mock_migratedb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="`db upgrade` is deprecated"):
+        with pytest.warns(
+            expected_warning=DeprecationWarning, match="`db upgrade` is deprecated"
+        ):
             db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
         mock_migratedb.assert_called_once()
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
     @mock.patch(
-        "airflow.cli.commands.db_command.settings.engine.url", make_url("mysql://root@mysql:3306/airflow")
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("mysql://root@mysql:3306/airflow"),
     )
     def test_cli_shell_mysql(self, mock_tmp_file, mock_execute_interactive):
         mock_tmp_file.return_value.__enter__.return_value.name = "/tmp/name"
         db_command.shell(self.parser.parse_args(["db", "shell"]))
-        mock_execute_interactive.assert_called_once_with(["mysql", "--defaults-extra-file=/tmp/name"])
+        mock_execute_interactive.assert_called_once_with(
+            ["mysql", "--defaults-extra-file=/tmp/name"]
+        )
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
             b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306"
             b"\ndatabase = airflow"
@@ -210,11 +237,16 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
-    @mock.patch("airflow.cli.commands.db_command.settings.engine.url", make_url("mysql://root@mysql/airflow"))
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("mysql://root@mysql/airflow"),
+    )
     def test_cli_shell_mysql_without_port(self, mock_tmp_file, mock_execute_interactive):
         mock_tmp_file.return_value.__enter__.return_value.name = "/tmp/name"
         db_command.shell(self.parser.parse_args(["db", "shell"]))
-        mock_execute_interactive.assert_called_once_with(["mysql", "--defaults-extra-file=/tmp/name"])
+        mock_execute_interactive.assert_called_once_with(
+            ["mysql", "--defaults-extra-file=/tmp/name"]
+        )
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
             b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306"
             b"\ndatabase = airflow"
@@ -222,11 +254,14 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
-        "airflow.cli.commands.db_command.settings.engine.url", make_url("sqlite:////root/airflow/airflow.db")
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("sqlite:////root/airflow/airflow.db"),
     )
     def test_cli_shell_sqlite(self, mock_execute_interactive):
         db_command.shell(self.parser.parse_args(["db", "shell"]))
-        mock_execute_interactive.assert_called_once_with(["sqlite3", "/root/airflow/airflow.db"])
+        mock_execute_interactive.assert_called_once_with(
+            ["sqlite3", "/root/airflow/airflow.db"]
+        )
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
@@ -277,12 +312,32 @@ class TestCliDb:
     @pytest.mark.parametrize(
         "args, match",
         [
-            (["-y", "--to-revision", "abc", "--to-version", "2.2.0"], "Cannot supply both"),
-            (["-y", "--to-revision", "abc1", "--from-revision", "abc2"], "only .* with `--show-sql-only`"),
-            (["-y", "--to-revision", "abc1", "--from-version", "2.2.2"], "only .* with `--show-sql-only`"),
-            (["-y", "--to-version", "2.2.2", "--from-version", "2.2.2"], "only .* with `--show-sql-only`"),
             (
-                ["-y", "--to-revision", "abc", "--from-version", "2.2.0", "--from-revision", "abc"],
+                ["-y", "--to-revision", "abc", "--to-version", "2.2.0"],
+                "Cannot supply both",
+            ),
+            (
+                ["-y", "--to-revision", "abc1", "--from-revision", "abc2"],
+                "only .* with `--show-sql-only`",
+            ),
+            (
+                ["-y", "--to-revision", "abc1", "--from-version", "2.2.2"],
+                "only .* with `--show-sql-only`",
+            ),
+            (
+                ["-y", "--to-version", "2.2.2", "--from-version", "2.2.2"],
+                "only .* with `--show-sql-only`",
+            ),
+            (
+                [
+                    "-y",
+                    "--to-revision",
+                    "abc",
+                    "--from-version",
+                    "2.2.0",
+                    "--from-revision",
+                    "abc",
+                ],
                 "may not be combined",
             ),
             (["-y", "--to-version", "abc"], r"Downgrading to .* not supported\."),
@@ -306,11 +361,17 @@ class TestCliDb:
             ),
             (
                 ["-y", "--to-revision", "abc1", "--from-version", "2.10.0", "-s"],
-                dict(to_revision="abc1", from_revision="22ed7efa9da2", show_sql_only=True),
+                dict(
+                    to_revision="abc1", from_revision="22ed7efa9da2", show_sql_only=True
+                ),
             ),
             (
                 ["-y", "--to-version", "2.10.0", "--from-version", "2.10.0", "-s"],
-                dict(to_revision="22ed7efa9da2", from_revision="22ed7efa9da2", show_sql_only=True),
+                dict(
+                    to_revision="22ed7efa9da2",
+                    from_revision="22ed7efa9da2",
+                    show_sql_only=True,
+                ),
             ),
             (["-y", "--to-version", "2.10.0"], dict(to_revision="22ed7efa9da2")),
         ],
@@ -336,10 +397,16 @@ class TestCliDb:
         mock_input.return_value = resp
         if raise_:
             with pytest.raises(SystemExit):
-                db_command.downgrade(self.parser.parse_args(["db", "downgrade", "--to-revision", "abc"]))
+                db_command.downgrade(
+                    self.parser.parse_args(["db", "downgrade", "--to-revision", "abc"])
+                )
         else:
-            db_command.downgrade(self.parser.parse_args(["db", "downgrade", "--to-revision", "abc"]))
-            mock_dg.assert_called_with(to_revision="abc", from_revision=None, show_sql_only=False)
+            db_command.downgrade(
+                self.parser.parse_args(["db", "downgrade", "--to-revision", "abc"])
+            )
+            mock_dg.assert_called_with(
+                to_revision="abc", from_revision=None, show_sql_only=False
+            )
 
     def test_check(self):
         retry, retry_delay = 6, 9  # arbitrary but distinct number
@@ -350,12 +417,16 @@ class TestCliDb:
         always_pass = Mock()
         always_fail = Mock(side_effect=OperationalError("", None, None))
 
-        with patch("time.sleep", new=sleep), patch("airflow.utils.db.check", new=always_pass):
+        with patch("time.sleep", new=sleep), patch(
+            "airflow.utils.db.check", new=always_pass
+        ):
             db_command.check(args)
             always_pass.assert_called_once()
             sleep.assert_not_called()
 
-        with patch("time.sleep", new=sleep), patch("airflow.utils.db.check", new=always_fail):
+        with patch("time.sleep", new=sleep), patch(
+            "airflow.utils.db.check", new=always_fail
+        ):
             with pytest.raises(OperationalError):
                 db_command.check(args)
             # With N retries there are N+1 total checks, hence N sleeps
@@ -377,7 +448,9 @@ class TestCLIDBClean:
         """
         timestamp = "2021-01-01 00:00:00"
         with patch("airflow.settings.TIMEZONE", pendulum.timezone(timezone)):
-            args = self.parser.parse_args(["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"])
+            args = self.parser.parse_args(
+                ["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"]
+            )
             db_command.cleanup_tables(args)
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
@@ -396,7 +469,9 @@ class TestCLIDBClean:
         """
         timestamp = "2021-01-01 00:00:00+03:00"
         with patch("airflow.settings.TIMEZONE", pendulum.timezone(timezone)):
-            args = self.parser.parse_args(["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"])
+            args = self.parser.parse_args(
+                ["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"]
+            )
             db_command.cleanup_tables(args)
 
         run_cleanup_mock.assert_called_once_with(
@@ -434,7 +509,9 @@ class TestCLIDBClean:
             skip_archive=False,
         )
 
-    @pytest.mark.parametrize("extra_arg, expected", [(["--skip-archive"], True), ([], False)])
+    @pytest.mark.parametrize(
+        "extra_arg, expected", [(["--skip-archive"], True), ([], False)]
+    )
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_skip_archive(self, run_cleanup_mock, extra_arg, expected):
         """
@@ -460,7 +537,9 @@ class TestCLIDBClean:
             skip_archive=expected,
         )
 
-    @pytest.mark.parametrize("dry_run_arg, expected", [(["--dry-run"], True), ([], False)])
+    @pytest.mark.parametrize(
+        "dry_run_arg, expected", [(["--dry-run"], True), ([], False)]
+    )
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_dry_run(self, run_cleanup_mock, dry_run_arg, expected):
         """
@@ -487,7 +566,8 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        "extra_args, expected",
+        [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)],
     )
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_tables(self, run_cleanup_mock, extra_args, expected):
@@ -554,11 +634,16 @@ class TestCLIDBClean:
         db_command.export_archived(args)
 
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=None, drop_archives=False, needs_confirm=True
+            export_format="csv",
+            output_path="path",
+            table_names=None,
+            drop_archives=False,
+            needs_confirm=True,
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        "extra_args, expected",
+        [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)],
     )
     @patch("airflow.cli.commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
@@ -583,7 +668,9 @@ class TestCLIDBClean:
             needs_confirm=True,
         )
 
-    @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
+    @pytest.mark.parametrize(
+        "extra_args, expected", [(["--drop-archives"], True), ([], False)]
+    )
     @patch("airflow.cli.commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_drop_archives_in_export_archived_records_command(
@@ -608,10 +695,13 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        "extra_args, expected",
+        [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)],
     )
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
-    def test_tables_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
+    def test_tables_in_drop_archived_records_command(
+        self, mock_drop_archived_records, extra_args, expected
+    ):
         args = self.parser.parse_args(
             [
                 "db",
@@ -620,11 +710,15 @@ class TestCLIDBClean:
             ]
         )
         db_command.drop_archived(args)
-        mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
+        mock_drop_archived_records.assert_called_once_with(
+            table_names=expected, needs_confirm=True
+        )
 
     @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
-    def test_confirm_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
+    def test_confirm_in_drop_archived_records_command(
+        self, mock_drop_archived_records, extra_args, expected
+    ):
         args = self.parser.parse_args(
             [
                 "db",
@@ -633,4 +727,6 @@ class TestCLIDBClean:
             ]
         )
         db_command.drop_archived(args)
-        mock_drop_archived_records.assert_called_once_with(table_names=None, needs_confirm=expected)
+        mock_drop_archived_records.assert_called_once_with(
+            table_names=None, needs_confirm=expected
+        )

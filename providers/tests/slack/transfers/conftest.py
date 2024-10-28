@@ -23,5 +23,7 @@ import pytest
 
 @pytest.fixture
 def mocked_get_connection():
-    with mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection") as m:
+    with mock.patch(
+        "airflow.providers.common.sql.operators.sql.BaseHook.get_connection"
+    ) as m:
         yield m

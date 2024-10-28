@@ -32,11 +32,17 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
-from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
+from airflow.providers.amazon.aws.sensors.glue_catalog_partition import (
+    GlueCatalogPartitionSensor,
+)
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+from providers.tests.system.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    prune_logs,
+)
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -164,7 +170,11 @@ with DAG(
         script_location=f"s3://{bucket_name}/etl_script.py",
         s3_bucket=bucket_name,
         iam_role_name=role_name,
-        create_job_kwargs={"GlueVersion": "3.0", "NumberOfWorkers": 2, "WorkerType": "G.1X"},
+        create_job_kwargs={
+            "GlueVersion": "3.0",
+            "NumberOfWorkers": 2,
+            "WorkerType": "G.1X",
+        },
     )
     # [END howto_operator_glue]
 

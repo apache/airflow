@@ -106,7 +106,8 @@ class PagerdutyNotifier(BaseNotifier):
     def hook(self) -> PagerdutyEventsHook:
         """Pagerduty Events Hook."""
         return PagerdutyEventsHook(
-            pagerduty_events_conn_id=self.pagerduty_events_conn_id, integration_key=self.integration_key
+            pagerduty_events_conn_id=self.pagerduty_events_conn_id,
+            integration_key=self.integration_key,
         )
 
     def notify(self, context):

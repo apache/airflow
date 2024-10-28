@@ -30,7 +30,8 @@ if __name__ == "__main__":
     dir = Path("airflow") / "ui"
     subprocess.check_call(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
     subprocess.check_call(
-        ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir
+        ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
+        cwd=dir,
     )
     subprocess.check_call(["pnpm", "codegen"], cwd=dir)
     subprocess.check_call(["pnpm", "format"], cwd=dir)

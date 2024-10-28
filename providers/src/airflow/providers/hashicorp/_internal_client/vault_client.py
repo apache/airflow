@@ -109,7 +109,8 @@ class _VaultClient(LoggingMixin):
         assume_role_kwargs: dict | None = None,
         role_id: str | None = None,
         kubernetes_role: str | None = None,
-        kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        kubernetes_jwt_path: str
+        | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -130,27 +131,48 @@ class _VaultClient(LoggingMixin):
             raise VaultError(
                 f"The auth_type is not supported: {auth_type}. It should be one of {VALID_AUTH_TYPES}"
             )
-        if auth_type == "token" and not token and not token_path and "VAULT_TOKEN" not in os.environ:
-            raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
+        if (
+            auth_type == "token"
+            and not token
+            and not token_path
+            and "VAULT_TOKEN" not in os.environ
+        ):
+            raise VaultError(
+                "The 'token' authentication type requires 'token' or 'token_path'"
+            )
         if auth_type == "github" and not token and not token_path:
-            raise VaultError("The 'github' authentication type requires 'token' or 'token_path'")
+            raise VaultError(
+                "The 'github' authentication type requires 'token' or 'token_path'"
+            )
         if auth_type == "approle" and not role_id:
             raise VaultError("The 'approle' authentication type requires 'role_id'")
         if auth_type == "kubernetes":
             if not kubernetes_role:
-                raise VaultError("The 'kubernetes' authentication type requires 'kubernetes_role'")
+                raise VaultError(
+                    "The 'kubernetes' authentication type requires 'kubernetes_role'"
+                )
             if not kubernetes_jwt_path:
-                raise VaultError("The 'kubernetes' authentication type requires 'kubernetes_jwt_path'")
+                raise VaultError(
+                    "The 'kubernetes' authentication type requires 'kubernetes_jwt_path'"
+                )
         if auth_type == "azure":
             if not azure_resource:
-                raise VaultError("The 'azure' authentication type requires 'azure_resource'")
+                raise VaultError(
+                    "The 'azure' authentication type requires 'azure_resource'"
+                )
             if not azure_tenant_id:
-                raise VaultError("The 'azure' authentication type requires 'azure_tenant_id'")
+                raise VaultError(
+                    "The 'azure' authentication type requires 'azure_tenant_id'"
+                )
         if auth_type == "radius":
             if not radius_host:
-                raise VaultError("The 'radius' authentication type requires 'radius_host'")
+                raise VaultError(
+                    "The 'radius' authentication type requires 'radius_host'"
+                )
             if not radius_secret:
-                raise VaultError("The 'radius' authentication type requires 'radius_secret'")
+                raise VaultError(
+                    "The 'radius' authentication type requires 'radius_secret'"
+                )
 
         self.kv_engine_version = kv_engine_version or 2
         self.url = url
@@ -248,7 +270,9 @@ class _VaultClient(LoggingMixin):
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
             _client.auth.userpass.login(
-                username=self.username, password=self.password, mount_point=self.auth_mount_point
+                username=self.username,
+                password=self.password,
+                mount_point=self.auth_mount_point,
             )
         else:
             _client.auth.userpass.login(username=self.username, password=self.password)
@@ -269,14 +293,18 @@ class _VaultClient(LoggingMixin):
     def _auth_ldap(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
             _client.auth.ldap.login(
-                username=self.username, password=self.password, mount_point=self.auth_mount_point
+                username=self.username,
+                password=self.password,
+                mount_point=self.auth_mount_point,
             )
         else:
             _client.auth.ldap.login(username=self.username, password=self.password)
 
     def _auth_kubernetes(self, _client: hvac.Client) -> None:
         if not self.kubernetes_jwt_path:
-            raise VaultError("The kubernetes_jwt_path should be set here. This should not happen.")
+            raise VaultError(
+                "The kubernetes_jwt_path should be set here. This should not happen."
+            )
         with open(self.kubernetes_jwt_path) as f:
             jwt = f.read().strip()
             if self.auth_mount_point:
@@ -303,7 +331,9 @@ class _VaultClient(LoggingMixin):
             key_path=self.gcp_key_path, keyfile_dict=self.gcp_keyfile_dict, scopes=scopes
         )
         if self.auth_mount_point:
-            _client.auth.gcp.configure(credentials=credentials, mount_point=self.auth_mount_point)
+            _client.auth.gcp.configure(
+                credentials=credentials, mount_point=self.auth_mount_point
+            )
         else:
             _client.auth.gcp.configure(credentials=credentials)
 
@@ -359,7 +389,9 @@ class _VaultClient(LoggingMixin):
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
             _client.auth.approle.login(
-                role_id=self.role_id, secret_id=self.secret_id, mount_point=self.auth_mount_point
+                role_id=self.role_id,
+                secret_id=self.secret_id,
+                mount_point=self.auth_mount_point,
             )
         else:
             _client.auth.approle.login(role_id=self.role_id, secret_id=self.secret_id)
@@ -380,7 +412,9 @@ class _VaultClient(LoggingMixin):
         else:
             return self.mount_point, secret_path
 
-    def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
+    def get_secret(
+        self, secret_path: str, secret_version: int | None = None
+    ) -> dict | None:
         """
         Get secret value from the KV engine.
 
@@ -398,8 +432,12 @@ class _VaultClient(LoggingMixin):
             mount_point, secret_path = self._parse_secret_path(secret_path)
             if self.kv_engine_version == 1:
                 if secret_version:
-                    raise VaultError("Secret version can only be used with version 2 of the KV engine")
-                response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
+                    raise VaultError(
+                        "Secret version can only be used with version 2 of the KV engine"
+                    )
+                response = self.client.secrets.kv.v1.read_secret(
+                    path=secret_path, mount_point=mount_point
+                )
             else:
                 response = self.client.secrets.kv.v2.read_secret_version(
                     path=secret_path,
@@ -408,10 +446,14 @@ class _VaultClient(LoggingMixin):
                     raise_on_deleted_version=True,
                 )
         except InvalidPath:
-            self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
+            self.log.debug(
+                "Secret not found %s with mount point %s", secret_path, mount_point
+            )
             return None
 
-        return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
+        return_data = (
+            response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
+        )
         return return_data
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
@@ -425,13 +467,19 @@ class _VaultClient(LoggingMixin):
 
         """
         if self.kv_engine_version == 1:
-            raise VaultError("Metadata might only be used with version 2 of the KV engine.")
+            raise VaultError(
+                "Metadata might only be used with version 2 of the KV engine."
+            )
         mount_point = None
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
-            return self.client.secrets.kv.v2.read_secret_metadata(path=secret_path, mount_point=mount_point)
+            return self.client.secrets.kv.v2.read_secret_metadata(
+                path=secret_path, mount_point=mount_point
+            )
         except InvalidPath:
-            self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
+            self.log.debug(
+                "Secret not found %s with mount point %s", secret_path, mount_point
+            )
             return None
 
     def get_secret_including_metadata(
@@ -449,7 +497,9 @@ class _VaultClient(LoggingMixin):
                  and "metadata" mapping keeping metadata of the secret.
         """
         if self.kv_engine_version == 1:
-            raise VaultError("Metadata might only be used with version 2 of the KV engine.")
+            raise VaultError(
+                "Metadata might only be used with version 2 of the KV engine."
+            )
         mount_point = None
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
@@ -469,7 +519,11 @@ class _VaultClient(LoggingMixin):
             return None
 
     def create_or_update_secret(
-        self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
+        self,
+        secret_path: str,
+        secret: dict,
+        method: str | None = None,
+        cas: int | None = None,
     ) -> Response:
         """
         Create or updates secret.

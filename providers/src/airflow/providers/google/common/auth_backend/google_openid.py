@@ -32,7 +32,9 @@ from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 
 from airflow.configuration import conf
-from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
+from airflow.providers.google.common.utils.id_token_credentials import (
+    get_default_id_token_credentials,
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,8 +46,10 @@ def create_client_session():
     """Create a HTTP authorized client."""
     service_account_path = conf.get("api", "google_key_path")
     if service_account_path:
-        id_token_credentials = service_account.IDTokenCredentials.from_service_account_file(
-            service_account_path
+        id_token_credentials = (
+            service_account.IDTokenCredentials.from_service_account_file(
+                service_account_path
+            )
         )
     else:
         id_token_credentials = get_default_id_token_credentials(target_audience=AUDIENCE)
@@ -64,7 +68,10 @@ def _get_id_token_from_request(request) -> str | None:
 
     authorization_header_parts = authorization_header.split(" ", 2)
 
-    if len(authorization_header_parts) != 2 or authorization_header_parts[0].lower() != "bearer":
+    if (
+        len(authorization_header_parts) != 2
+        or authorization_header_parts[0].lower() != "bearer"
+    ):
         return None
 
     id_token = authorization_header_parts[1]

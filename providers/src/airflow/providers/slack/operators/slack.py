@@ -137,7 +137,13 @@ class SlackAPIPostOperator(SlackAPIOperator):
         See https://api.slack.com/docs/attachments
     """
 
-    template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
+    template_fields: Sequence[str] = (
+        "username",
+        "text",
+        "attachments",
+        "blocks",
+        "channel",
+    )
     ui_color = "#FFBA40"
 
     def __init__(
@@ -245,7 +251,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
                 stacklevel=2,
             )
             if channels:
-                raise ValueError(f"Cannot set both arguments: channel={channel!r} and channels={channels!r}.")
+                raise ValueError(
+                    f"Cannot set both arguments: channel={channel!r} and channels={channels!r}."
+                )
             channels = channel  # type: ignore[assignment]
 
         super().__init__(method="files.upload", **kwargs)

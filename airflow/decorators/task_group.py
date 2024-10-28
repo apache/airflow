@@ -28,7 +28,17 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Mapping, Sequence, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Generic,
+    Mapping,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
 import attr
 
@@ -59,9 +69,15 @@ task_group_sig = inspect.signature(TaskGroup.__init__)
 
 @attr.define()
 class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
-    function: Callable[FParams, FReturn] = attr.ib(validator=attr.validators.is_callable())
-    tg_kwargs: dict[str, Any] = attr.ib(factory=dict)  # Parameters forwarded to TaskGroup.
-    partial_kwargs: dict[str, Any] = attr.ib(factory=dict)  # Parameters forwarded to 'function'.
+    function: Callable[FParams, FReturn] = attr.ib(
+        validator=attr.validators.is_callable()
+    )
+    tg_kwargs: dict[str, Any] = attr.ib(
+        factory=dict
+    )  # Parameters forwarded to TaskGroup.
+    partial_kwargs: dict[str, Any] = attr.ib(
+        factory=dict
+    )  # Parameters forwarded to 'function'.
 
     _task_group_created: bool = attr.ib(False, init=False)
 
@@ -80,7 +96,9 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
                 group_id = repr(self.tg_kwargs["group_id"])
             except KeyError:
                 group_id = f"at {hex(id(self))}"
-            warnings.warn(f"Partial task group {group_id} was never mapped!", stacklevel=1)
+            warnings.warn(
+                f"Partial task group {group_id} was never mapped!", stacklevel=1
+            )
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> DAGNode:
         """
@@ -92,7 +110,9 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         """
         return self._create_task_group(TaskGroup, *args, **kwargs)
 
-    def _create_task_group(self, tg_factory: Callable[..., TaskGroup], *args: Any, **kwargs: Any) -> DAGNode:
+    def _create_task_group(
+        self, tg_factory: Callable[..., TaskGroup], *args: Any, **kwargs: Any
+    ) -> DAGNode:
         with tg_factory(add_suffix_on_collision=True, **self.tg_kwargs) as task_group:
             if self.function.__doc__ and not task_group.tooltip:
                 task_group.tooltip = self.function.__doc__
@@ -132,7 +152,9 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         if not kwargs:
             raise TypeError("no arguments to expand against")
         self._validate_arg_names("expand", kwargs)
-        prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="mapping already partial")
+        prevent_duplicates(
+            self.partial_kwargs, kwargs, fail_reason="mapping already partial"
+        )
         expand_input = DictOfListsExpandInput(kwargs)
         return self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
@@ -144,23 +166,32 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+                    raise TypeError(
+                        f"expected XComArg or list[dict], not {type(kwargs).__name__}"
+                    )
         elif not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+            raise TypeError(
+                f"expected XComArg or list[dict], not {type(kwargs).__name__}"
+            )
 
         # It's impossible to build a dict of stubs as keyword arguments if the
         # function uses * or ** wildcard arguments.
         function_has_vararg = any(
-            v.kind == inspect.Parameter.VAR_POSITIONAL or v.kind == inspect.Parameter.VAR_KEYWORD
+            v.kind == inspect.Parameter.VAR_POSITIONAL
+            or v.kind == inspect.Parameter.VAR_KEYWORD
             for v in self.function_signature.parameters.values()
         )
         if function_has_vararg:
-            raise TypeError("calling expand_kwargs() on task group function with * or ** is not supported")
+            raise TypeError(
+                "calling expand_kwargs() on task group function with * or ** is not supported"
+            )
 
         # We can't be sure how each argument is used in the function (well
         # technically we can with AST but let's not), so we have to create stubs
         # for every argument, including those with default values.
-        map_kwargs = (k for k in self.function_signature.parameters if k not in self.partial_kwargs)
+        map_kwargs = (
+            k for k in self.function_signature.parameters if k not in self.partial_kwargs
+        )
 
         expand_input = ListOfDictsExpandInput(kwargs)
         return self._create_task_group(
@@ -193,7 +224,9 @@ def task_group(
 
 # This covers the @task_group case (no parentheses).
 @overload
-def task_group(python_callable: Callable[FParams, FReturn]) -> _TaskGroupFactory[FParams, FReturn]: ...
+def task_group(
+    python_callable: Callable[FParams, FReturn],
+) -> _TaskGroupFactory[FParams, FReturn]: ...
 
 
 def task_group(python_callable=None, **tg_kwargs):

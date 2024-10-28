@@ -114,7 +114,9 @@ def test_import_variables_failed(session, admin_client):
         bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
         resp = admin_client.post(
-            "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
+            "/variable/varimport",
+            data={"file": (bytes_content, "test.json")},
+            follow_redirects=True,
         )
         check_content_in_response("1 variable(s) failed to be updated.", resp)
 
@@ -126,13 +128,19 @@ def test_import_variables_success(session, admin_client):
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = admin_client.post(
-        "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
+        "/variable/varimport",
+        data={"file": (bytes_content, "test.json")},
+        follow_redirects=True,
     )
     check_content_in_response("4 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    _check_last_log(
+        session, dag_id=None, event="variables.varimport", execution_date=None
+    )
 
 
-def test_import_variables_override_existing_variables_if_set(session, admin_client, caplog):
+def test_import_variables_override_existing_variables_if_set(
+    session, admin_client, caplog
+):
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
@@ -144,7 +152,9 @@ def test_import_variables_override_existing_variables_if_set(session, admin_clie
         follow_redirects=True,
     )
     check_content_in_response("2 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    _check_last_log(
+        session, dag_id=None, event="variables.varimport", execution_date=None
+    )
 
 
 def test_import_variables_skips_update_if_set(session, admin_client, caplog):
@@ -161,13 +171,18 @@ def test_import_variables_skips_update_if_set(session, admin_client, caplog):
     check_content_in_response("1 variable(s) successfully updated.", resp)
 
     check_content_in_response(
-        "The variables with these keys: &#39;str_key&#39; were skipped because they already exists", resp
+        "The variables with these keys: &#39;str_key&#39; were skipped because they already exists",
+        resp,
     )
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    _check_last_log(
+        session, dag_id=None, event="variables.varimport", execution_date=None
+    )
     assert "Variable: str_key already exists, skipping." in caplog.text
 
 
-def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_client, caplog):
+def test_import_variables_fails_if_action_if_exists_is_fail(
+    session, admin_client, caplog
+):
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
@@ -178,7 +193,9 @@ def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_clien
         data={"file": (bytes_content, "test.json"), "action_if_exists": "fail"},
         follow_redirects=True,
     )
-    assert "Failed. The variables with these keys: 'str_key' already exists." in caplog.text
+    assert (
+        "Failed. The variables with these keys: 'str_key' already exists." in caplog.text
+    )
 
 
 def test_import_variables_anon(session, app):
@@ -188,7 +205,9 @@ def test_import_variables_anon(session, app):
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = app.test_client().post(
-        "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
+        "/variable/varimport",
+        data={"file": (bytes_content, "test.json")},
+        follow_redirects=True,
     )
     check_content_not_in_response("variable(s) successfully updated.", resp)
     check_content_in_response("Sign In", resp)
@@ -199,7 +218,9 @@ def test_import_variables_access_denied(session, app, viewer_client):
     bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = viewer_client.post(
-        "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
+        "/variable/varimport",
+        data={"file": (bytes_content, "test.json")},
+        follow_redirects=True,
     )
     check_content_in_response("Access is Denied", resp)
 

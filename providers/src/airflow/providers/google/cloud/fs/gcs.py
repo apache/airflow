@@ -39,7 +39,9 @@ GCS_VERSION_AWARE = "gcs.version-aware"
 schemes = ["gs", "gcs"]
 
 
-def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -> AbstractFileSystem:
+def get_fs(
+    conn_id: str | None, storage_options: dict[str, str] | None = None
+) -> AbstractFileSystem:
     # https://gcsfs.readthedocs.io/en/latest/api.html#gcsfs.core.GCSFileSystem
     from gcsfs import GCSFileSystem
 

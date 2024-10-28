@@ -47,7 +47,9 @@ class TestDagProcessorCommand:
     )
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     @pytest.mark.skipif(
-        conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("sqlite"),
+        conf.get_mandatory_value("database", "sql_alchemy_conn")
+        .lower()
+        .startswith("sqlite"),
         reason="Standalone Dag Processor doesn't support sqlite.",
     )
     def test_start_job(

@@ -26,7 +26,9 @@ from airflow.providers.google.marketing_platform.hooks.search_ads import (
     GoogleSearchAdsReportingHook,
 )
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 GCP_CONN_ID = "google_cloud_default"
 API_VERSION = "v0"
@@ -64,8 +66,14 @@ class TestGoogleSearchAdsReportingHook:
         [
             ({"page_token": None}, {}),
             ({"page_token": "next_page_token"}, {"pageToken": "next_page_token"}),
-            ({"summary_row_setting": "summary line content"}, {"summaryRowSetting": "summary line content"}),
-            ({"page_size": 10, "validate_only": True}, {"pageSize": 10, "validateOnly": True}),
+            (
+                {"summary_row_setting": "summary line content"},
+                {"summaryRowSetting": "summary line content"},
+            ),
+            (
+                {"page_size": 10, "validate_only": True},
+                {"pageSize": 10, "validateOnly": True},
+            ),
         ],
     )
     def test_search(self, customer_service_mock, given_args, expected_args_extras):
@@ -86,7 +94,9 @@ class TestGoogleSearchAdsReportingHook:
                 **expected_args_extras,
             },
         }
-        customer_service_mock.searchAds360.return_value.search.assert_called_once_with(**expected_args)
+        customer_service_mock.searchAds360.return_value.search.assert_called_once_with(
+            **expected_args
+        )
 
         assert return_value == result
 
@@ -100,7 +110,9 @@ class TestGoogleSearchAdsReportingHook:
             customer_service_mock.customColumns.return_value.get.return_value.execute
         ).return_value = return_value
 
-        result = self.hook.get_custom_column(customer_id=CUSTOMER_ID, custom_column_id=custom_column_id)
+        result = self.hook.get_custom_column(
+            customer_id=CUSTOMER_ID, custom_column_id=custom_column_id
+        )
 
         customer_service_mock.customColumns.return_value.get.assert_called_once_with(
             resourceName=f"customers/{CUSTOMER_ID}/customColumns/{custom_column_id}"
@@ -124,7 +136,9 @@ class TestGoogleSearchAdsReportingHook:
 
         result = self.hook.list_custom_columns(customer_id=CUSTOMER_ID)
 
-        customer_service_mock.customColumns.return_value.list.assert_called_once_with(customerId=CUSTOMER_ID)
+        customer_service_mock.customColumns.return_value.list.assert_called_once_with(
+            customerId=CUSTOMER_ID
+        )
 
         assert return_value == result
 
@@ -141,7 +155,9 @@ class TestGoogleSearchAdsReportingHook:
 
         result = self.hook.get_field(field_name=field_name)
 
-        fields_service_mock.get.assert_called_once_with(resourceName=f"searchAds360Fields/{field_name}")
+        fields_service_mock.get.assert_called_once_with(
+            resourceName=f"searchAds360Fields/{field_name}"
+        )
 
         assert return_value == result
 
@@ -160,8 +176,14 @@ class TestGoogleSearchAdsReportingHook:
         query = "SELECT field1, field2 FROM campaigns;"
         return_value = {
             "results": [
-                {"name": "Field 1", "resourceName": f"customers/{CUSTOMER_ID}/searchAds360Fields/field1"},
-                {"name": "Field 2", "resourceName": f"customers/{CUSTOMER_ID}/searchAds360Fields/field2"},
+                {
+                    "name": "Field 1",
+                    "resourceName": f"customers/{CUSTOMER_ID}/searchAds360Fields/field1",
+                },
+                {
+                    "name": "Field 2",
+                    "resourceName": f"customers/{CUSTOMER_ID}/searchAds360Fields/field2",
+                },
             ]
         }
         fields_service_mock.search.return_value.execute.return_value = return_value
@@ -182,7 +204,9 @@ class TestSearchAdsHook:
         ):
             self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)
 
-    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook._authorize"
+    )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()

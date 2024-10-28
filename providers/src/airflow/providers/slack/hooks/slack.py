@@ -81,7 +81,9 @@ class SlackHook(BaseHook):
 
         # Call generic API with parameters (errors are handled by hook)
         #  For more details check https://api.slack.com/methods/chat.postMessage
-        slack_hook.call("chat.postMessage", json={"channel": "#random", "text": "Hello world!"})
+        slack_hook.call(
+            "chat.postMessage", json={"channel": "#random", "text": "Hello world!"}
+        )
 
         # Call method from Slack SDK (you have to handle errors yourself)
         #  For more details check https://slack.dev/python-slack-sdk/web/index.html#messaging
@@ -152,7 +154,10 @@ class SlackHook(BaseHook):
             raise AirflowNotFoundException(
                 f"Connection ID {self.slack_conn_id!r} does not contain password (Slack API Token)."
             )
-        conn_params: dict[str, Any] = {"token": conn.password, "retry_handlers": self.retry_handlers}
+        conn_params: dict[str, Any] = {
+            "token": conn.password,
+            "retry_handlers": self.retry_handlers,
+        }
         extra_config = ConnectionExtraConfig(
             conn_type=self.conn_type, conn_id=conn.conn_id, extra=conn.extra_dejson
         )
@@ -316,7 +321,10 @@ class SlackHook(BaseHook):
             raise ValueError("Either `file` or `content` must be provided, not both.")
         if file:
             file = Path(file)
-            file_uploads: FileUploadTypeDef = {"file": file.__fspath__(), "filename": filename or file.name}
+            file_uploads: FileUploadTypeDef = {
+                "file": file.__fspath__(),
+                "filename": filename or file.name,
+            }
         else:
             file_uploads = {"content": content, "filename": filename}
 
@@ -333,7 +341,9 @@ class SlackHook(BaseHook):
         for channel in channels_to_share:
             responses.append(
                 self.send_file_v2(
-                    channel_id=channel, file_uploads=file_uploads, initial_comment=initial_comment
+                    channel_id=channel,
+                    file_uploads=file_uploads,
+                    initial_comment=initial_comment,
                 )
             )
         return responses
@@ -352,7 +362,9 @@ class SlackHook(BaseHook):
         """
         next_cursor = None
         while not (channel_id := self._channels_mapping.get(channel_name)):
-            res = self.client.conversations_list(cursor=next_cursor, types="public_channel,private_channel")
+            res = self.client.conversations_list(
+                cursor=next_cursor, types="public_channel,private_channel"
+            )
             if TYPE_CHECKING:
                 # Slack SDK response type too broad, this should make mypy happy
                 assert isinstance(res.data, dict)
@@ -360,7 +372,9 @@ class SlackHook(BaseHook):
             for channel_data in res.data.get("channels", []):
                 self._channels_mapping[channel_data["name"]] = channel_data["id"]
 
-            if not (next_cursor := res.data.get("response_metadata", {}).get("next_cursor")):
+            if not (
+                next_cursor := res.data.get("response_metadata", {}).get("next_cursor")
+            ):
                 channel_id = self._channels_mapping.get(channel_name)
                 break
 

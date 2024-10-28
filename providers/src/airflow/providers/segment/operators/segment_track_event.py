@@ -60,7 +60,10 @@ class SegmentTrackEventOperator(BaseOperator):
         self.segment_conn_id = segment_conn_id
 
     def execute(self, context: Context) -> None:
-        hook = SegmentHook(segment_conn_id=self.segment_conn_id, segment_debug_mode=self.segment_debug_mode)
+        hook = SegmentHook(
+            segment_conn_id=self.segment_conn_id,
+            segment_debug_mode=self.segment_debug_mode,
+        )
 
         self.log.info(
             "Sending track event (%s) for user id: %s with properties: %s",

@@ -108,13 +108,17 @@ class GoogleAdsToGcsOperator(BaseOperator):
             google_ads_conn_id=self.google_ads_conn_id,
             api_version=self.api_version,
         )
-        rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
+        rows = service.search(
+            client_ids=self.client_ids, query=self.query, page_size=self.page_size
+        )
 
         try:
             getter = attrgetter(*self.attributes)
             converted_rows = [getter(row) for row in rows]
         except Exception as e:
-            self.log.error("An error occurred in converting the Google Ad Rows. \n Error %s", e)
+            self.log.error(
+                "An error occurred in converting the Google Ad Rows. \n Error %s", e
+            )
             raise
 
         with NamedTemporaryFile("w", suffix=".csv") as csvfile:
@@ -122,7 +126,9 @@ class GoogleAdsToGcsOperator(BaseOperator):
             writer.writerows(converted_rows)
             csvfile.flush()
 
-            hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+            hook = GCSHook(
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            )
             hook.upload(
                 bucket_name=self.bucket,
                 object_name=self.obj,

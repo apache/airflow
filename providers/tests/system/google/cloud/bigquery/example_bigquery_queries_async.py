@@ -257,7 +257,12 @@ with DAG(
     insert_query_job >> get_data >> get_data_result
     insert_query_job >> execute_query_save >> bigquery_execute_multi_query
     insert_query_job >> execute_long_running_query >> check_value >> check_interval
-    [check_count, check_interval, bigquery_execute_multi_query, get_data_result] >> delete_dataset
+    [
+        check_count,
+        check_interval,
+        bigquery_execute_multi_query,
+        get_data_result,
+    ] >> delete_dataset
 
     from tests_common.test_utils.watcher import watcher
 

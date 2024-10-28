@@ -115,7 +115,9 @@ class AddSpacepadSubstReference(SphinxTransform):
         substitution_defs = self.document.substitution_defs
         version = substitution_defs["version"].astext()
         pad = " " * len(version)
-        substitution_defs["version-spacepad"] = nodes.substitution_definition(version, pad)
+        substitution_defs["version-spacepad"] = nodes.substitution_definition(
+            version, pad
+        )
         ...
 
 

@@ -24,7 +24,9 @@ from airflow.models import Connection
 OSS_PROJECT_ID_HOOK_UNIT_TEST = "example-project"
 
 
-def mock_oss_hook_default_project_id(self, oss_conn_id="mock_oss_default", region="mock_region"):
+def mock_oss_hook_default_project_id(
+    self, oss_conn_id="mock_oss_default", region="mock_region"
+):
     self.oss_conn_id = oss_conn_id
     self.oss_conn = Connection(
         extra=json.dumps(

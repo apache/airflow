@@ -54,7 +54,9 @@ if TYPE_CHECKING:
         CLICommand,
     )
 
-airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
+airflow_commands = (
+    core_commands.copy()
+)  # make a copy to prevent bad interactions in tests
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +80,9 @@ try:
     airflow_commands.extend(auth_mgr.get_cli_commands())
 except Exception as e:
     log.warning("cannot load CLI commands from auth manager: %s", e)
-    log.warning("Authentication manager is not configured and webserver will not be able to start.")
+    log.warning(
+        "Authentication manager is not configured and webserver will not be able to start."
+    )
     # do not re-raise for the same reason as above
     if len(sys.argv) > 1 and sys.argv[1] == "webserver":
         log.exception(e)
@@ -168,7 +172,10 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
         sub_proc = subparsers.add_parser(sub.name, epilog=sub.epilog)
     else:
         sub_proc = subparsers.add_parser(
-            sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
+            sub.name,
+            help=sub.help,
+            description=sub.description or sub.help,
+            epilog=sub.epilog,
         )
     sub_proc.formatter_class = LazyRichHelpFormatter
 

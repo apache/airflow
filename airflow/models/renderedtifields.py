@@ -62,7 +62,10 @@ def get_serialized_template_fields(task: Operator):
 
     :meta private:
     """
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    return {
+        field: serialize_template_field(getattr(task, field), field)
+        for field in task.template_fields
+    }
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
@@ -132,10 +135,14 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
             # of kubernetes provider installed to reach this place
-            from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
+            from airflow.providers.cncf.kubernetes.template_rendering import (
+                render_k8s_pod_yaml,
+            )
 
             self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
-        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
+        self.rendered_fields = rendered_fields or get_serialized_template_fields(
+            task=ti.task
+        )
 
         self._redact()
 
@@ -169,7 +176,9 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
         rtif = RenderedTaskInstanceFields(ti)
         RenderedTaskInstanceFields.write(rtif, session=session)
-        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+        RenderedTaskInstanceFields.delete_old_records(
+            ti.task_id, ti.dag_id, session=session
+        )
 
     @classmethod
     @provide_session
@@ -200,7 +209,9 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @classmethod
     @provide_session
-    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+    def get_k8s_pod_yaml(
+        cls, ti: TaskInstance, session: Session = NEW_SESSION
+    ) -> dict | None:
         """
         Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
 
@@ -234,7 +245,9 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         cls,
         task_id: str,
         dag_id: str,
-        num_to_keep: int = conf.getint("core", "max_num_rendered_ti_fields_per_task", fallback=0),
+        num_to_keep: int = conf.getint(
+            "core", "max_num_rendered_ti_fields_per_task", fallback=0
+        ),
         session: Session = NEW_SESSION,
     ) -> None:
         """

@@ -42,7 +42,11 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
     template_fields = ["materialization_id"]
 
     def __init__(
-        self, materialization_id: str, looker_conn_id: str, cancel_on_kill: bool = True, **kwargs
+        self,
+        materialization_id: str,
+        looker_conn_id: str,
+        cancel_on_kill: bool = True,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.materialization_id = materialization_id
@@ -58,7 +62,9 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
             raise AirflowException(message)
 
         # materialization_id is templated var pulling output from start task
-        status_dict = self.hook.pdt_build_status(materialization_id=self.materialization_id)
+        status_dict = self.hook.pdt_build_status(
+            materialization_id=self.materialization_id
+        )
         status = status_dict["status"]
 
         if status == JobStatus.ERROR.value:
@@ -73,11 +79,15 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
             raise AirflowException(message)
         elif status == JobStatus.DONE.value:
             self.log.debug(
-                "PDT materialization job completed successfully. Job id: %s.", self.materialization_id
+                "PDT materialization job completed successfully. Job id: %s.",
+                self.materialization_id,
             )
             return True
 
-        self.log.info("Waiting for PDT materialization job to complete. Job id: %s.", self.materialization_id)
+        self.log.info(
+            "Waiting for PDT materialization job to complete. Job id: %s.",
+            self.materialization_id,
+        )
         return False
 
     def on_kill(self):

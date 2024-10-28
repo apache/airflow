@@ -52,7 +52,9 @@ def _render_content():
         try:
             providers.append(provider_yamls[package_name])
         except KeyError:
-            print(f"WARNING! Could not find provider.yaml file for package: {package_name}")
+            print(
+                f"WARNING! Could not find provider.yaml file for package: {package_name}"
+            )
 
     content = _render_template("dev_index_template.html.jinja2", providers=providers)
     return content
@@ -71,6 +73,8 @@ def generate_index(out_file: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("outfile", nargs="?", type=argparse.FileType("w"), default=sys.stdout)
+    parser.add_argument(
+        "outfile", nargs="?", type=argparse.FileType("w"), default=sys.stdout
+    )
     args = parser.parse_args()
     args.outfile.write(_render_content())

@@ -159,7 +159,13 @@ class SparkJDBCHook(SparkSubmitHook):
         self._use_krb5ccache = use_krb5ccache
 
     def _resolve_jdbc_connection(self) -> dict[str, Any]:
-        conn_data = {"url": "", "schema": "", "conn_prefix": "", "user": "", "password": ""}
+        conn_data = {
+            "url": "",
+            "schema": "",
+            "conn_prefix": "",
+            "user": "",
+            "password": "",
+        }
         try:
             conn = self.get_connection(self._jdbc_conn_id)
             if "/" in conn.host:
@@ -177,7 +183,9 @@ class SparkJDBCHook(SparkSubmitHook):
             conn_data["conn_prefix"] = extra.get("conn_prefix", "")
         except AirflowException:
             self.log.debug(
-                "Could not load jdbc connection string %s, defaulting to %s", self._jdbc_conn_id, ""
+                "Could not load jdbc connection string %s, defaulting to %s",
+                self._jdbc_conn_id,
+                "",
             )
         return conn_data
 
@@ -209,7 +217,12 @@ class SparkJDBCHook(SparkSubmitHook):
             arguments += ["-fetchsize", str(self._fetch_size)]
         if self._num_partitions:
             arguments += ["-numPartitions", str(self._num_partitions)]
-        if self._partition_column and self._lower_bound and self._upper_bound and self._num_partitions:
+        if (
+            self._partition_column
+            and self._lower_bound
+            and self._upper_bound
+            and self._num_partitions
+        ):
             # these 3 parameters need to be used all together to take effect.
             arguments += [
                 "-partitionColumn",
@@ -229,8 +242,12 @@ class SparkJDBCHook(SparkSubmitHook):
 
     def submit_jdbc_job(self) -> None:
         """Submit Spark JDBC job."""
-        self._application_args = self._build_jdbc_application_arguments(self._jdbc_connection)
-        self.submit(application=f"{os.path.dirname(os.path.abspath(__file__))}/spark_jdbc_script.py")
+        self._application_args = self._build_jdbc_application_arguments(
+            self._jdbc_connection
+        )
+        self.submit(
+            application=f"{os.path.dirname(os.path.abspath(__file__))}/spark_jdbc_script.py"
+        )
 
     def get_conn(self) -> Any:
         pass

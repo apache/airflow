@@ -58,12 +58,20 @@ class TestPsrpOperator:
         [
             # These tuples map the command parameter to an execution method and parameter set.
             pytest.param(
-                ExecuteParameter("command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None, None),
+                ExecuteParameter(
+                    "command", call.add_script("cmd.exe /c @'\nfoo\n'@"), None, None
+                ),
                 id="command",
             ),
-            pytest.param(ExecuteParameter("powershell", call.add_script("foo"), None, None), id="powershell"),
             pytest.param(
-                ExecuteParameter("cmdlet", call.add_cmdlet("foo"), ["abc"], {"bar": "baz"}), id="cmdlet"
+                ExecuteParameter("powershell", call.add_script("foo"), None, None),
+                id="powershell",
+            ),
+            pytest.param(
+                ExecuteParameter(
+                    "cmdlet", call.add_cmdlet("foo"), ["abc"], {"bar": "baz"}
+                ),
+                id="cmdlet",
             ),
         ],
     )
@@ -91,15 +99,25 @@ class TestPsrpOperator:
             runspace_pool=runspace_pool,
         )
         hook_impl.configure_mock(
-            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
+            **{
+                "return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps
+            }
         )
         if had_errors or rc:
-            exception_msg = "Process failed" if had_errors else "Process exited with non-zero status code: 1"
+            exception_msg = (
+                "Process failed"
+                if had_errors
+                else "Process exited with non-zero status code: 1"
+            )
             with pytest.raises(AirflowException, match=exception_msg):
                 op.execute(None)
         else:
             output = op.execute(None)
-            assert output == [json.loads(output) for output in ps.output] if do_xcom_push else ps.output
+            assert (
+                output == [json.loads(output) for output in ps.output]
+                if do_xcom_push
+                else ps.output
+            )
             is_logged = hook_impl.call_args.kwargs["on_output_callback"] == op.log.info
             assert do_xcom_push ^ is_logged
         expected_ps_calls = [

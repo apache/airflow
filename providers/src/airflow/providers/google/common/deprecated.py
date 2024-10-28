@@ -55,7 +55,9 @@ class AirflowDeprecationAdapter(ClassicAdapter):
     ):
         super().__init__(**kwargs)
         self.planned_removal_date: date | None = self._validate_date(planned_removal_date)
-        self.planned_removal_release: str | None = self._validate_removal_release(planned_removal_release)
+        self.planned_removal_release: str | None = self._validate_removal_release(
+            planned_removal_release
+        )
         self.use_instead: str | None = use_instead
         self.reason: str = reason or ""
         self.instructions: str | None = instructions
@@ -132,7 +134,9 @@ class AirflowDeprecationAdapter(ClassicAdapter):
 
     def replacement_message(self):
         if self.use_instead:
-            replacements = ", ".join(f"`{replacement}`" for replacement in self.use_instead.split(", "))
+            replacements = ", ".join(
+                f"`{replacement}`" for replacement in self.use_instead.split(", ")
+            )
             return f"Please use {replacements} instead."
         return "There is no replacement."
 

@@ -87,7 +87,9 @@ class TestCustomEmrServiceWaiters:
         ]
         waiter = EmrHook(aws_conn_id=None).get_waiter("steps_wait_for_terminal")
 
-        with pytest.raises(WaiterError, match="Waiter encountered a terminal failure state"):
+        with pytest.raises(
+            WaiterError, match="Waiter encountered a terminal failure state"
+        ):
             waiter.wait(
                 ClusterId=self.JOBFLOW_ID,
                 StepIds=[self.STEP_ID1, self.STEP_ID2],

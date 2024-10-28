@@ -55,7 +55,10 @@ class MappedTaskUpstreamDep(BaseTIDep):
 
         if isinstance(ti.task, MappedOperator):
             mapped_dependencies = ti.task.iter_mapped_dependencies()
-        elif ti.task is not None and (task_group := ti.task.get_closest_mapped_task_group()) is not None:
+        elif (
+            ti.task is not None
+            and (task_group := ti.task.get_closest_mapped_task_group()) is not None
+        ):
             mapped_dependencies = task_group.iter_mapped_dependencies()
         else:
             return
@@ -67,7 +70,9 @@ class MappedTaskUpstreamDep(BaseTIDep):
         mapped_dependency_tis = (
             session.scalars(
                 select(TaskInstance).where(
-                    TaskInstance.task_id.in_(operator.task_id for operator in mapped_dependencies),
+                    TaskInstance.task_id.in_(
+                        operator.task_id for operator in mapped_dependencies
+                    ),
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.run_id == ti.run_id,
                     TaskInstance.map_index == -1,
@@ -77,10 +82,14 @@ class MappedTaskUpstreamDep(BaseTIDep):
             else []
         )
         if not mapped_dependency_tis:
-            yield self._passing_status(reason="There are no (unexpanded) mapped dependencies!")
+            yield self._passing_status(
+                reason="There are no (unexpanded) mapped dependencies!"
+            )
             return
 
-        finished_states = {ti.state for ti in mapped_dependency_tis if ti.state in State.finished}
+        finished_states = {
+            ti.state for ti in mapped_dependency_tis if ti.state in State.finished
+        }
         if not finished_states:
             return
         if finished_states == {TaskInstanceState.SUCCESS}:
@@ -101,4 +110,6 @@ class MappedTaskUpstreamDep(BaseTIDep):
                 new_state = TaskInstanceState.SKIPPED
             if new_state is not None and ti.set_state(new_state, session):
                 dep_context.have_changed_ti_states = True
-        yield self._failing_status(reason="At least one of task's mapped dependencies has not succeeded!")
+        yield self._failing_status(
+            reason="At least one of task's mapped dependencies has not succeeded!"
+        )

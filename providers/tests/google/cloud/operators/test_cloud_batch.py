@@ -30,7 +30,9 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchSubmitJobOperator,
 )
 
-CLOUD_BATCH_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_batch.CloudBatchHook"
+CLOUD_BATCH_HOOK_PATH = (
+    "airflow.providers.google.cloud.operators.cloud_batch.CloudBatchHook"
+)
 TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
@@ -44,7 +46,11 @@ class TestCloudBatchSubmitJobOperator:
     def test_execute(self, mock):
         mock.return_value.wait_for_job.return_value = JOB
         operator = CloudBatchSubmitJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
         )
 
         completed_job = operator.execute(context=mock.MagicMock())
@@ -59,7 +65,12 @@ class TestCloudBatchSubmitJobOperator:
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_deferrable(self, mock):
         operator = CloudBatchSubmitJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
+            deferrable=True,
         )
 
         with pytest.raises(expected_exception=TaskDeferred):
@@ -69,7 +80,12 @@ class TestCloudBatchSubmitJobOperator:
     def test_execute_complete(self, mock):
         mock.return_value.get_job.return_value = JOB
         operator = CloudBatchSubmitJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
+            deferrable=True,
         )
 
         event = {"status": "success", "job_name": JOB_NAME, "message": "test error"}
@@ -82,12 +98,18 @@ class TestCloudBatchSubmitJobOperator:
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_complete_exception(self, mock):
         operator = CloudBatchSubmitJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
+            deferrable=True,
         )
 
         event = {"status": "error", "job_name": JOB_NAME, "message": "test error"}
         with pytest.raises(
-            expected_exception=AirflowException, match="Unexpected error in the operation: test error"
+            expected_exception=AirflowException,
+            match="Unexpected error in the operation: test error",
         ):
             operator.execute_complete(context=mock.MagicMock(), event=event)
 
@@ -124,7 +146,11 @@ class TestCloudBatchListJobsOperator:
         filter = "filter_description"
         limit = 2
         operator = CloudBatchListJobsOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, filter=filter, limit=limit
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            filter=filter,
+            limit=limit,
         )
 
         operator.execute(context=mock.MagicMock())
@@ -140,7 +166,11 @@ class TestCloudBatchListJobsOperator:
 
         with pytest.raises(expected_exception=AirflowException):
             CloudBatchListJobsOperator(
-                task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, filter=filter, limit=limit
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                filter=filter,
+                limit=limit,
             )
 
 

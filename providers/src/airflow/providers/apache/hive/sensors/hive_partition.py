@@ -72,7 +72,12 @@ class HivePartitionSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         if "." in self.table:
             self.schema, self.table = self.table.split(".")
-        self.log.info("Poking for table %s.%s, partition %s", self.schema, self.table, self.partition)
+        self.log.info(
+            "Poking for table %s.%s, partition %s",
+            self.schema,
+            self.table,
+            self.partition,
+        )
         if not hasattr(self, "hook"):
             hook = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         return hook.check_for_partition(self.schema, self.table, self.partition)

@@ -27,7 +27,10 @@ from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
@@ -92,7 +95,9 @@ def get_export_time(table_name: str):
         TableName=table_name,
     )
 
-    return r["ContinuousBackupsDescription"]["PointInTimeRecoveryDescription"]["EarliestRestorableDateTime"]
+    return r["ContinuousBackupsDescription"]["PointInTimeRecoveryDescription"][
+        "EarliestRestorableDateTime"
+    ]
 
 
 @task
@@ -123,7 +128,9 @@ def incremental_export(table_name: str, start_time: datetime):
             TableName=table_name,
         )
 
-        return r["ContinuousBackupsDescription"]["PointInTimeRecoveryDescription"]["LatestRestorableDateTime"]
+        return r["ContinuousBackupsDescription"]["PointInTimeRecoveryDescription"][
+            "LatestRestorableDateTime"
+        ]
 
     end_time = get_latest_export_time(table_name)
 
@@ -151,15 +158,24 @@ def incremental_export(table_name: str, start_time: datetime):
     def skip_incremental_export(start_time: datetime, end_time: datetime):
         not_enough_time = end_time < (start_time + timedelta(minutes=15))
         return (
-            end_workflow.task_id if not_enough_time else backup_db_to_point_in_time_incremental_export.task_id
+            end_workflow.task_id
+            if not_enough_time
+            else backup_db_to_point_in_time_incremental_export.task_id
         )
 
     skip_incremental = skip_incremental_export(start_time, end_time)
 
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    end_workflow = EmptyOperator(
+        task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
 
     chain(end_time, skip_incremental, Label("Incremental backup skipped"), end_workflow)
-    chain(end_time, skip_incremental, backup_db_to_point_in_time_incremental_export, end_workflow)
+    chain(
+        end_time,
+        skip_incremental,
+        backup_db_to_point_in_time_incremental_export,
+        end_workflow,
+    )
 
 
 with DAG(
@@ -176,7 +192,9 @@ with DAG(
 
     create_table = set_up_table(table_name=table_name)
 
-    create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
+    create_bucket = S3CreateBucketOperator(
+        task_id="create_bucket", bucket_name=bucket_name
+    )
 
     # [START howto_transfer_dynamodb_to_s3]
     backup_db = DynamoDBToS3Operator(

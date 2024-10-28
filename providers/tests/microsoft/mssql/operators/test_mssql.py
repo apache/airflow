@@ -34,7 +34,9 @@ MSSQL_DEFAULT = "mssql_default"
 
 
 class TestMsSqlOperator:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_get_hook_from_conn(self, mock_get_db_hook):
         """
         :class:`~.MsSqlOperator` should use the hook returned by :meth:`airflow.models.Connection.get_hook`
@@ -52,7 +54,8 @@ class TestMsSqlOperator:
         assert op.get_db_hook() == mock_hook
 
     @mock.patch(
-        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", autospec=MsSqlHook
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook",
+        autospec=MsSqlHook,
     )
     def test_get_hook_default(self, mock_get_db_hook):
         """

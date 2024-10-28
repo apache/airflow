@@ -56,7 +56,9 @@ from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
     SetDefaultVersionOnModelOperator,
     UploadModelOperator,
 )
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import (
+    GCSToLocalFilesystemOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -78,7 +80,11 @@ TABULAR_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
+                "gcs_source": {
+                    "uri": [
+                        f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"
+                    ]
+                }
             }
         },
         Value(),
@@ -91,7 +97,9 @@ CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-2:latest"
 # For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
 # Because `gcs/data/` is shared folder for Airflow's workers.
 IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
-LOCAL_TRAINING_SCRIPT_PATH = "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
+LOCAL_TRAINING_SCRIPT_PATH = (
+    "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
+)
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -199,7 +207,10 @@ with DAG(
 
     # [START how_to_cloud_vertex_ai_list_model_versions_operator]
     list_model_versions = ListModelVersionsOperator(
-        task_id="list_model_versions", region=REGION, project_id=PROJECT_ID, model_id=model_id_v1
+        task_id="list_model_versions",
+        region=REGION,
+        project_id=PROJECT_ID,
+        model_id=model_id_v1,
     )
     # [END how_to_cloud_vertex_ai_list_model_versions_operator]
 

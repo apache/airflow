@@ -49,7 +49,9 @@ def load_connections():
         Connection(
             conn_id="t1-3",
             conn_type="kafka",
-            extra=json.dumps({"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}),
+            extra=json.dumps(
+                {"socket.timeout.ms": 10, "bootstrap.servers": "broker:29092"}
+            ),
         )
     )
 
@@ -125,7 +127,9 @@ consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
     key = json.loads(message.key())
     value = json.loads(message.value())
-    consumer_logger.info("%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value)
+    consumer_logger.info(
+        "%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value
+    )
     return
 
 
@@ -133,7 +137,9 @@ def consumer_function_batch(messages, prefix=None):
     for message in messages:
         key = json.loads(message.key())
         value = json.loads(message.value())
-        consumer_logger.info("%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value)
+        consumer_logger.info(
+            "%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value
+        )
     return
 
 
@@ -210,7 +216,9 @@ with DAG(
         kafka_config_id="t4b",
         task_id="consume_from_topic_2_b",
         topics=["test_1"],
-        apply_function_batch=functools.partial(consumer_function_batch, prefix="consumed:::"),
+        apply_function_batch=functools.partial(
+            consumer_function_batch, prefix="consumed:::"
+        ),
         commit_cadence="end_of_batch",
         max_messages=30,
         max_batch_size=10,
@@ -234,7 +242,9 @@ with DAG(
 
     t6 = PythonOperator(task_id="hello_kafka", python_callable=hello_kafka)
 
-    t6.doc_md = "The task that is executed after the deferrable task returns for execution."
+    t6.doc_md = (
+        "The task that is executed after the deferrable task returns for execution."
+    )
 
     t0 >> t1 >> t2
     t0 >> t3 >> [t4, t4b] >> t5 >> t6

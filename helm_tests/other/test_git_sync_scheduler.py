@@ -31,7 +31,9 @@ class TestGitSyncSchedulerTest:
         )
 
         # check that there is a volume and git-sync and scheduler container mount it
-        assert len(jmespath.search("spec.template.spec.volumes[?name=='dags']", docs[0])) > 0
+        assert (
+            len(jmespath.search("spec.template.spec.volumes[?name=='dags']", docs[0])) > 0
+        )
         assert (
             len(
                 jmespath.search(
@@ -95,8 +97,14 @@ class TestGitSyncSchedulerTest:
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {
+                    "name": "GIT_SYNC_REPO",
+                    "value": "https://github.com/apache/airflow.git",
+                },
+                {
+                    "name": "GITSYNC_REPO",
+                    "value": "https://github.com/apache/airflow.git",
+                },
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
                 {"name": "GITSYNC_DEPTH", "value": "1"},
                 {"name": "GIT_SYNC_ROOT", "value": "/git"},
@@ -157,8 +165,14 @@ class TestGitSyncSchedulerTest:
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {
+                    "name": "GIT_SYNC_REPO",
+                    "value": "https://github.com/apache/airflow.git",
+                },
+                {
+                    "name": "GITSYNC_REPO",
+                    "value": "https://github.com/apache/airflow.git",
+                },
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
                 {"name": "GITSYNC_DEPTH", "value": "1"},
                 {"name": "GIT_SYNC_ROOT", "value": "/git"},
@@ -192,12 +206,14 @@ class TestGitSyncSchedulerTest:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
+        assert {
+            "name": "GIT_SSH_KEY_FILE",
+            "value": "/etc/git-secret/ssh",
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "name": "GITSYNC_SSH_KEY_FILE",
+            "value": "/etc/git-secret/ssh",
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
@@ -228,12 +244,14 @@ class TestGitSyncSchedulerTest:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
+        assert {
+            "name": "GIT_SSH_KEY_FILE",
+            "value": "/etc/git-secret/ssh",
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "name": "GITSYNC_SSH_KEY_FILE",
+            "value": "/etc/git-secret/ssh",
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
@@ -261,7 +279,9 @@ class TestGitSyncSchedulerTest:
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+        assert "git-sync-ssh-key" not in jmespath.search(
+            "spec.template.spec.volumes[].name", docs[0]
+        )
 
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
@@ -279,41 +299,57 @@ class TestGitSyncSchedulerTest:
 
         assert {
             "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}
+            },
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
         assert {
             "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}
+            },
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
         # Testing git-sync v4
         assert {
             "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}
+            },
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
         assert {
             "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}
+            },
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
-            values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
+            values={
+                "dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}
+            },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}} in jmespath.search(
-            "spec.template.spec.volumes", docs[0]
-        )
+        assert {
+            "name": "dags",
+            "persistentVolumeClaim": {"claimName": "test-claim"},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                     "extraVolumeMounts": [
-                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                        {
+                            "name": "test-volume-{{ .Chart.Name }}",
+                            "mountPath": "/opt/test",
+                        }
                     ],
                 },
                 "dags": {
@@ -328,22 +364,28 @@ class TestGitSyncSchedulerTest:
         assert {"name": "test-volume-airflow", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in jmespath.search(
-            "spec.template.spec.containers[0].volumeMounts", docs[0]
-        )
+        assert {
+            "name": "test-volume-airflow",
+            "mountPath": "/opt/test",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
     def test_extra_volume_and_git_sync_extra_volume_mount(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Values.executor }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Values.executor }}", "emptyDir": {}}
+                    ],
                 },
                 "dags": {
                     "gitSync": {
                         "enabled": True,
                         "extraVolumeMounts": [
-                            {"mountPath": "/opt/test", "name": "test-volume-{{ .Values.executor }}"}
+                            {
+                                "mountPath": "/opt/test",
+                                "name": "test-volume-{{ .Values.executor }}",
+                            }
                         ],
                     }
                 },
@@ -357,9 +399,10 @@ class TestGitSyncSchedulerTest:
         assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
-        assert {"name": "test-volume-CeleryExecutor", "mountPath": "/opt/test"} in jmespath.search(
-            "spec.template.spec.containers[1].volumeMounts", docs[0]
-        )
+        assert {
+            "name": "test-volume-CeleryExecutor",
+            "mountPath": "/opt/test",
+        } in jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0])
 
     def test_should_add_env(self):
         docs = render_chart(
@@ -393,8 +436,12 @@ class TestGitSyncSchedulerTest:
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[1].resources.limits.memory", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[1].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[1].resources.requests.cpu", docs[0]
+        )

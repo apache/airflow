@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
+from airflow.providers.amazon.aws.auth_manager.avp.entities import (
+    AvpEntities,
+    get_action_id,
+    get_entity_type,
+)
 
 
 def test_get_entity_type():

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 
 def test_import():
-    from airflow.providers.common.compat.openlineage.utils.utils import translate_airflow_asset
+    from airflow.providers.common.compat.openlineage.utils.utils import (
+        translate_airflow_asset,
+    )
 
     assert translate_airflow_asset is not None

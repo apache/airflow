@@ -21,7 +21,9 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.microsoft.azure.operators.adls import ADLSDeleteOperator
-from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
+from airflow.providers.microsoft.azure.transfers.local_to_adls import (
+    LocalFilesystemToADLSOperator,
+)
 
 LOCAL_FILE_PATH = os.environ.get("LOCAL_FILE_PATH", "localfile.txt")
 REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", "remote.txt")
@@ -41,7 +43,9 @@ with models.DAG(
         remote_path=REMOTE_FILE_PATH,
     )
     # [START howto_operator_adls_delete]
-    remove_file = ADLSDeleteOperator(task_id="delete_task", path=REMOTE_FILE_PATH, recursive=True)
+    remove_file = ADLSDeleteOperator(
+        task_id="delete_task", path=REMOTE_FILE_PATH, recursive=True
+    )
     # [END howto_operator_adls_delete]
 
     upload_file >> remove_file

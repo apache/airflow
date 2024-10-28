@@ -67,7 +67,9 @@ class RedisHook(BaseHook):
         self.host = conn.host
         self.port = conn.port
         self.username = conn.login
-        self.password = None if str(conn.password).lower() in ["none", "false", ""] else conn.password
+        self.password = (
+            None if str(conn.password).lower() in ["none", "false", ""] else conn.password
+        )
         self.db = conn.extra_dejson.get("db")
 
         # check for ssl parameters in conn.extra
@@ -79,10 +81,15 @@ class RedisHook(BaseHook):
             "ssl_certfile",
             "ssl_check_hostname",
         ]
-        ssl_args = {name: val for name, val in conn.extra_dejson.items() if name in ssl_arg_names}
+        ssl_args = {
+            name: val for name, val in conn.extra_dejson.items() if name in ssl_arg_names
+        }
 
         # This logic is for backward compatibility only
-        if "ssl_cert_file" in conn.extra_dejson and "ssl_certfile" not in conn.extra_dejson:
+        if (
+            "ssl_cert_file" in conn.extra_dejson
+            and "ssl_certfile" not in conn.extra_dejson
+        ):
             warnings.warn(
                 "Extra parameter `ssl_cert_file` deprecated and will be removed "
                 "in a future release. Please use `ssl_certfile` instead.",
@@ -127,7 +134,9 @@ class RedisHook(BaseHook):
         from wtforms.validators import Optional, any_of
 
         return {
-            "db": IntegerField(lazy_gettext("DB"), widget=BS3TextFieldWidget(), default=0),
+            "db": IntegerField(
+                lazy_gettext("DB"), widget=BS3TextFieldWidget(), default=0
+            ),
             "ssl": BooleanField(lazy_gettext("Enable SSL"), default=False),
             "ssl_cert_reqs": StringField(
                 lazy_gettext("SSL verify mode"),
@@ -154,5 +163,7 @@ class RedisHook(BaseHook):
                 validators=[Optional()],
                 default=None,
             ),
-            "ssl_check_hostname": BooleanField(lazy_gettext("Enable hostname check"), default=False),
+            "ssl_check_hostname": BooleanField(
+                lazy_gettext("Enable hostname check"), default=False
+            ),
         }

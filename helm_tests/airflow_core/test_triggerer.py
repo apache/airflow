@@ -59,7 +59,9 @@ class TestTriggerer:
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+    def test_revision_history_limit(
+        self, revision_history_limit, global_revision_history_limit
+    ):
         values = {
             "triggerer": {
                 "enabled": True,
@@ -86,7 +88,8 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         actual = jmespath.search(
-            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']",
+            docs[0],
         )
         assert actual is None
 
@@ -95,7 +98,10 @@ class TestTriggerer:
             values={
                 "triggerer": {
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name }}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -126,7 +132,10 @@ class TestTriggerer:
             values={
                 "triggerer": {
                     "extraInitContainers": [
-                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "test-init-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -142,7 +151,9 @@ class TestTriggerer:
         docs = render_chart(
             values={
                 "triggerer": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                    "extraInitContainers": [
+                        {"name": "{{ .Release.Name }}-test-init-container"}
+                    ],
                 },
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
@@ -156,16 +167,23 @@ class TestTriggerer:
         docs = render_chart(
             values={
                 "triggerer": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                     "extraVolumeMounts": [
-                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                        {
+                            "name": "test-volume-{{ .Chart.Name }}",
+                            "mountPath": "/opt/test",
+                        }
                     ],
                 },
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.volumes[1].name", docs[0]
+        )
         assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
@@ -182,7 +200,9 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.volumes[1].name", docs[0]
+        )
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
@@ -195,11 +215,18 @@ class TestTriggerer:
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
                             "name": "TEST_ENV_2",
-                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "my-secret", "key": "my-key"}
+                            },
                         },
                         {
                             "name": "TEST_ENV_3",
-                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "my-config-map",
+                                    "key": "my-key",
+                                }
+                            },
                         },
                     ],
                 }
@@ -246,7 +273,10 @@ class TestTriggerer:
         )
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_scheduler_name(self):
         docs = render_chart(
@@ -269,7 +299,11 @@ class TestTriggerer:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -277,7 +311,12 @@ class TestTriggerer:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 },
@@ -303,7 +342,9 @@ class TestTriggerer:
             docs[0],
         )
 
-    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(
+        self,
+    ):
         """When given both global and triggerer affinity etc, triggerer affinity etc is used."""
         expected_affinity = {
             "nodeAffinity": {
@@ -329,7 +370,12 @@ class TestTriggerer:
                 "triggerer": {
                     "affinity": expected_affinity,
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
@@ -341,7 +387,11 @@ class TestTriggerer:
                                 "weight": 1,
                                 "preference": {
                                     "matchExpressions": [
-                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "not-me",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 },
                             }
@@ -349,7 +399,12 @@ class TestTriggerer:
                     }
                 },
                 "tolerations": [
-                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "not-me",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "topologySpreadConstraints": [
                     {
@@ -364,7 +419,9 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
+        assert expected_affinity == jmespath.search(
+            "spec.template.spec.affinity", docs[0]
+        )
         assert "ssd" == jmespath.search(
             "spec.template.spec.nodeSelector.type",
             docs[0],
@@ -411,7 +468,9 @@ class TestTriggerer:
         assert 333 == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.failureThreshold", docs[0]
         )
-        assert 444 == jmespath.search("spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0])
+        assert 444 == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0]
+        )
 
         assert ["sh", "-c", "echo", "wow such test"] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
@@ -420,18 +479,25 @@ class TestTriggerer:
     @pytest.mark.parametrize(
         "airflow_version, probe_command",
         [
-            ("2.4.9", "airflow jobs check --job-type TriggererJob --hostname $(hostname)"),
+            (
+                "2.4.9",
+                "airflow jobs check --job-type TriggererJob --hostname $(hostname)",
+            ),
             ("2.5.0", "airflow jobs check --job-type TriggererJob --local"),
         ],
     )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_livenessprobe_command_depends_on_airflow_version(
+        self, airflow_version, probe_command
+    ):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert (
             probe_command
-            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+            in jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
+            )[-1]
         )
 
     @pytest.mark.parametrize(
@@ -439,7 +505,10 @@ class TestTriggerer:
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {
+                    "persistence": {"enabled": False},
+                    "emptyDirConfig": {"sizeLimit": "10Gi"},
+                },
                 {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
             (
@@ -477,17 +546,25 @@ class TestTriggerer:
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.cpu", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.cpu", docs[0]
+        )
 
         assert "128Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
         )
-        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+        assert "200m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
         )
@@ -499,17 +576,25 @@ class TestTriggerer:
         docs = render_chart(
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
 
     @pytest.mark.parametrize(
         "persistence, update_strategy, expected_update_strategy",
         [
             (False, None, None),
-            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             (True, None, None),
         ],
     )
-    def test_update_strategy(self, persistence, update_strategy, expected_update_strategy):
+    def test_update_strategy(
+        self, persistence, update_strategy, expected_update_strategy
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": "2.6.0",
@@ -539,7 +624,10 @@ class TestTriggerer:
     def test_strategy(self, persistence, strategy, expected_strategy):
         docs = render_chart(
             values={
-                "triggerer": {"persistence": {"enabled": persistence}, "strategy": strategy},
+                "triggerer": {
+                    "persistence": {"enabled": persistence},
+                    "strategy": strategy,
+                },
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
@@ -551,7 +639,9 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert ["bash", "-c", "exec airflow triggerer"] == jmespath.search(
             "spec.template.spec.containers[0].args", docs[0]
         )
@@ -564,19 +654,28 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                "triggerer": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]},
+                "triggerer": {
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                },
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
@@ -584,14 +683,19 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
         assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            c["name"]
+            for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
     def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            values={
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}
+            },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -600,16 +704,22 @@ class TestTriggerer:
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
         ]
         assert "git-sync-init" not in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            c["name"]
+            for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/triggerer/triggerer-deployment.yaml"]
+            values={"airflowLocalSettings": None},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts)
-        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts_init = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
@@ -623,8 +733,12 @@ class TestTriggerer:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         }
-        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts", docs[0]
+        )
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
@@ -636,7 +750,10 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+        assert (
+            jmespath.search("metadata.annotations", docs[0])["test_annotation"]
+            == "test_annotation_value"
+        )
 
     def test_triggerer_pod_hostaliases(self):
         docs = render_chart(
@@ -648,12 +765,22 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
-        assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+        assert "127.0.0.1" == jmespath.search(
+            "spec.template.spec.hostAliases[0].ip", docs[0]
+        )
+        assert "foo.local" == jmespath.search(
+            "spec.template.spec.hostAliases[0].hostnames[0]", docs[0]
+        )
 
     def test_triggerer_template_storage_class_name(self):
         docs = render_chart(
-            values={"triggerer": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            values={
+                "triggerer": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class"
+                    }
+                }
+            },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert "release-name-storage-class" == jmespath.search(
@@ -694,7 +821,10 @@ class TestTriggererServiceAccount:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
@@ -711,7 +841,10 @@ class TestTriggererServiceAccount:
         docs = render_chart(
             values={
                 "triggerer": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/triggerer/triggerer-serviceaccount.yaml"],
@@ -741,7 +874,10 @@ class TestTriggererKedaAutoScaler:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -786,7 +922,9 @@ class TestTriggererKedaAutoScaler:
             },
             show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
         )
-        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+        assert expected_query == jmespath.search(
+            "spec.triggers[0].metadata.query", docs[0]
+        )
 
     def test_mysql_db_backend_keda_default_value(self):
         docs = render_chart(
@@ -800,7 +938,10 @@ class TestTriggererKedaAutoScaler:
             show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
         )
 
-        assert jmespath.search("spec.triggerers[0].metadata.keda.usePgBouncer", docs[0]) is None
+        assert (
+            jmespath.search("spec.triggerers[0].metadata.keda.usePgBouncer", docs[0])
+            is None
+        )
 
     def test_mysql_db_backend_keda(self):
         docs = render_chart(
@@ -814,7 +955,14 @@ class TestTriggererKedaAutoScaler:
             show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
         )
         assert "1" == jmespath.search("spec.triggers[0].metadata.queryValue", docs[0])
-        assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
+        assert (
+            jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
+        )
 
-        assert "KEDA_DB_CONN" == jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0])
-        assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
+        assert "KEDA_DB_CONN" == jmespath.search(
+            "spec.triggers[0].metadata.connectionStringFromEnv", docs[0]
+        )
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0])
+            is None
+        )

@@ -125,7 +125,9 @@ def send_email_smtp(
     :param custom_headers: Dictionary of custom headers to include in the email.
     :param kwargs: Additional keyword arguments.
 
-    >>> send_email("test@example.com", "foo", "<b>Foo</b> bar", ["/dev/null"], dryrun=True)
+    >>> send_email(
+    ...     "test@example.com", "foo", "<b>Foo</b> bar", ["/dev/null"], dryrun=True
+    ... )
     """
     smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
 
@@ -151,7 +153,9 @@ def send_email_smtp(
         custom_headers=custom_headers,
     )
 
-    send_mime_email(e_from=mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
+    send_mime_email(
+        e_from=mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun
+    )
 
 
 def build_mime_message(
@@ -254,13 +258,17 @@ def send_mime_email(
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:
-        log.debug("No user/password found for SMTP, so logging in with no authentication.")
+        log.debug(
+            "No user/password found for SMTP, so logging in with no authentication."
+        )
 
     if not dryrun:
         for attempt in range(1, smtp_retry_limit + 1):
             log.info("Email alerting: attempt %s", str(attempt))
             try:
-                smtp_conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
+                smtp_conn = _get_smtp_connection(
+                    smtp_host, smtp_port, smtp_timeout, smtp_ssl
+                )
             except smtplib.SMTPServerDisconnected:
                 if attempt == smtp_retry_limit:
                     raise
@@ -290,10 +298,14 @@ def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
             raise TypeError("The items in your iterable must be strings.")
         return list(addresses)
     else:
-        raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
+        raise TypeError(
+            f"Unexpected argument type: Received '{type(addresses).__name__}'."
+        )
 
 
-def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
+def _get_smtp_connection(
+    host: str, port: int, timeout: int, with_ssl: bool
+) -> smtplib.SMTP:
     """
     Return an SMTP connection to the specified host and port, with optional SSL encryption.
 
@@ -316,7 +328,9 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
                 f"The email.ssl_context configuration variable must "
                 f"be set to 'default' or 'none' and is '{ssl_context_string}."
             )
-        return smtplib.SMTP_SSL(host=host, port=port, timeout=timeout, context=ssl_context)
+        return smtplib.SMTP_SSL(
+            host=host, port=port, timeout=timeout, context=ssl_context
+        )
 
 
 def _get_email_list_from_str(addresses: str) -> list[str]:

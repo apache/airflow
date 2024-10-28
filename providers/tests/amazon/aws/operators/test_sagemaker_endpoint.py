@@ -46,7 +46,10 @@ CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
         }
     ],
 }
-CREATE_ENDPOINT_PARAMS: dict = {"EndpointName": "endpoint_name", "EndpointConfigName": "config_name"}
+CREATE_ENDPOINT_PARAMS: dict = {
+    "EndpointName": "endpoint_name",
+    "EndpointConfigName": "config_name",
+}
 
 CONFIG: dict = {
     "Model": CREATE_MODEL_PARAMS,
@@ -54,7 +57,9 @@ CONFIG: dict = {
     "Endpoint": CREATE_ENDPOINT_PARAMS,
 }
 
-EXPECTED_INTEGER_FIELDS: list[list[str]] = [["EndpointConfig", "ProductionVariants", "InitialInstanceCount"]]
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
+    ["EndpointConfig", "ProductionVariants", "InitialInstanceCount"]
+]
 
 
 class TestSageMakerEndpointOperator:
@@ -72,8 +77,13 @@ class TestSageMakerEndpointOperator:
     @mock.patch.object(SageMakerHook, "create_endpoint_config")
     @mock.patch.object(SageMakerHook, "create_endpoint")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_integer_fields(self, serialize, mock_endpoint, mock_endpoint_config, mock_model, mock_client):
-        mock_endpoint.return_value = {"EndpointArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
+    def test_integer_fields(
+        self, serialize, mock_endpoint, mock_endpoint_config, mock_model, mock_client
+    ):
+        mock_endpoint.return_value = {
+            "EndpointArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for variant in self.sagemaker.config["EndpointConfig"]["ProductionVariants"]:
@@ -84,14 +94,21 @@ class TestSageMakerEndpointOperator:
     @mock.patch.object(SageMakerHook, "create_endpoint_config")
     @mock.patch.object(SageMakerHook, "create_endpoint")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute(self, serialize, mock_endpoint, mock_endpoint_config, mock_model, mock_client):
-        mock_endpoint.return_value = {"EndpointArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
+    def test_execute(
+        self, serialize, mock_endpoint, mock_endpoint_config, mock_model, mock_client
+    ):
+        mock_endpoint.return_value = {
+            "EndpointArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
 
         self.sagemaker.execute(None)
 
         mock_model.assert_called_once_with(CREATE_MODEL_PARAMS)
         mock_endpoint_config.assert_called_once_with(CREATE_ENDPOINT_CONFIG_PARAMS)
-        mock_endpoint.assert_called_once_with(CREATE_ENDPOINT_PARAMS, wait_for_completion=False)
+        mock_endpoint.assert_called_once_with(
+            CREATE_ENDPOINT_PARAMS, wait_for_completion=False
+        )
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for variant in self.sagemaker.config["EndpointConfig"]["ProductionVariants"]:
             assert variant["InitialInstanceCount"] == int(variant["InitialInstanceCount"])
@@ -100,8 +117,13 @@ class TestSageMakerEndpointOperator:
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "create_endpoint_config")
     @mock.patch.object(SageMakerHook, "create_endpoint")
-    def test_execute_with_failure(self, mock_endpoint, mock_endpoint_config, mock_model, mock_client):
-        mock_endpoint.return_value = {"EndpointArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 404}}
+    def test_execute_with_failure(
+        self, mock_endpoint, mock_endpoint_config, mock_model, mock_client
+    ):
+        mock_endpoint.return_value = {
+            "EndpointArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 404},
+        }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
 
@@ -112,12 +134,23 @@ class TestSageMakerEndpointOperator:
     @mock.patch.object(SageMakerHook, "update_endpoint")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute_with_duplicate_endpoint_creation(
-        self, serialize, mock_endpoint_update, mock_endpoint, mock_endpoint_config, mock_model, mock_client
+        self,
+        serialize,
+        mock_endpoint_update,
+        mock_endpoint,
+        mock_endpoint_config,
+        mock_model,
+        mock_client,
     ):
         response = {
-            "Error": {"Code": "ValidationException", "Message": "Cannot create already existing endpoint."}
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "Cannot create already existing endpoint.",
+            }
         }
-        mock_endpoint.side_effect = ClientError(error_response=response, operation_name="CreateEndpoint")
+        mock_endpoint.side_effect = ClientError(
+            error_response=response, operation_name="CreateEndpoint"
+        )
         mock_endpoint_update.return_value = {
             "EndpointArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},

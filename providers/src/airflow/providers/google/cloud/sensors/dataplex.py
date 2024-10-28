@@ -100,7 +100,9 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Waiting for task %s to be %s", self.dataplex_task_id, TaskState.ACTIVE)
+        self.log.info(
+            "Waiting for task %s to be %s", self.dataplex_task_id, TaskState.ACTIVE
+        )
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -121,7 +123,11 @@ class DataplexTaskStateSensor(BaseSensorOperator):
             message = f"Task is going to be deleted {self.dataplex_task_id}"
             raise AirflowException(message)
 
-        self.log.info("Current status of the Dataplex task %s => %s", self.dataplex_task_id, task_status)
+        self.log.info(
+            "Current status of the Dataplex task %s => %s",
+            self.dataplex_task_id,
+            task_status,
+        )
 
         return task_status == TaskState.ACTIVE
 
@@ -195,13 +201,13 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         return time.monotonic() - self.start_sensor_time
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Waiting for job %s to be %s", self.job_id, DataScanJob.State.SUCCEEDED)
+        self.log.info(
+            "Waiting for job %s to be %s", self.job_id, DataScanJob.State.SUCCEEDED
+        )
         if self.result_timeout:
             duration = self._duration()
             if duration > self.result_timeout:
-                message = (
-                    f"Timeout: Data Quality scan {self.job_id} is not ready after {self.result_timeout}s"
-                )
+                message = f"Timeout: Data Quality scan {self.job_id} is not ready after {self.result_timeout}s"
                 raise AirflowDataQualityScanResultTimeoutException(message)
 
         hook = DataplexHook(
@@ -226,7 +232,9 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
 
         job_status = job.state
         self.log.info(
-            "Current status of the Dataplex Data Quality scan job %s => %s", self.job_id, job_status
+            "Current status of the Dataplex Data Quality scan job %s => %s",
+            self.job_id,
+            job_status,
         )
         if job_status == DataScanJob.State.FAILED:
             message = f"Data Quality scan job failed: {self.job_id}"
@@ -235,7 +243,10 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
             message = f"Data Quality scan job cancelled: {self.job_id}"
             raise AirflowException(message)
         if self.fail_on_dq_failure:
-            if job_status == DataScanJob.State.SUCCEEDED and not job.data_quality_result.passed:
+            if (
+                job_status == DataScanJob.State.SUCCEEDED
+                and not job.data_quality_result.passed
+            ):
                 message = (
                     f"Data Quality job {self.job_id} execution failed due to failure of its scanning "
                     f"rules: {self.data_scan_id}"
@@ -308,13 +319,13 @@ class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
         return time.monotonic() - self.start_sensor_time
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Waiting for job %s to be %s", self.job_id, DataScanJob.State.SUCCEEDED)
+        self.log.info(
+            "Waiting for job %s to be %s", self.job_id, DataScanJob.State.SUCCEEDED
+        )
         if self.result_timeout:
             duration = self._duration()
             if duration > self.result_timeout:
-                message = (
-                    f"Timeout: Data Profile scan {self.job_id} is not ready after {self.result_timeout}s"
-                )
+                message = f"Timeout: Data Profile scan {self.job_id} is not ready after {self.result_timeout}s"
                 raise AirflowDataQualityScanResultTimeoutException(message)
 
         hook = DataplexHook(
@@ -339,7 +350,9 @@ class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
 
         job_status = job.state
         self.log.info(
-            "Current status of the Dataplex Data Profile scan job %s => %s", self.job_id, job_status
+            "Current status of the Dataplex Data Profile scan job %s => %s",
+            self.job_id,
+            job_status,
         )
         if job_status == DataScanJob.State.FAILED:
             message = f"Data Profile scan job failed: {self.job_id}"

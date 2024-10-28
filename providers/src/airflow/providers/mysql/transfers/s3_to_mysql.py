@@ -79,13 +79,17 @@ class S3ToMySqlOperator(BaseOperator):
 
         :param context: The context that is being provided when executing.
         """
-        self.log.info("Loading %s to MySql table %s...", self.s3_source_key, self.mysql_table)
+        self.log.info(
+            "Loading %s to MySql table %s...", self.s3_source_key, self.mysql_table
+        )
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         file = s3_hook.download_file(key=self.s3_source_key)
 
         try:
-            mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id, local_infile=self.mysql_local_infile)
+            mysql = MySqlHook(
+                mysql_conn_id=self.mysql_conn_id, local_infile=self.mysql_local_infile
+            )
             mysql.bulk_load_custom(
                 table=self.mysql_table,
                 tmp_file=file,

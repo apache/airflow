@@ -64,13 +64,16 @@ class TestCliDeprecatedCommandsValue:
         cls.parser = cli_parser.get_parser()
 
     def test_should_display_value(self):
-        with pytest.raises(SystemExit) as ctx, contextlib.redirect_stderr(StringIO()) as temp_stderr:
+        with pytest.raises(SystemExit) as ctx, contextlib.redirect_stderr(
+            StringIO()
+        ) as temp_stderr:
             config_command.get_value(self.parser.parse_args(["worker"]))
 
         assert 2 == ctx.value.code
         assert (
             "`airflow worker` command, has been removed, "
-            "please use `airflow celery worker`, see help above." in temp_stderr.getvalue().strip()
+            "please use `airflow celery worker`, see help above."
+            in temp_stderr.getvalue().strip()
         )
 
     def test_command_map(self):

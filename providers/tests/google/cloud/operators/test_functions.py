@@ -39,7 +39,9 @@ GCP_PROJECT_ID = "test_project_id"
 GCP_LOCATION = "test_region"
 GCF_SOURCE_ARCHIVE_URL = "gs://folder/file.zip"
 GCF_ENTRYPOINT = "helloWorld"
-FUNCTION_NAME = f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/functions/{GCF_ENTRYPOINT}"
+FUNCTION_NAME = (
+    f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/functions/{GCF_ENTRYPOINT}"
+)
 GCF_RUNTIME = "nodejs6"
 VALID_RUNTIMES = ["nodejs6", "nodejs8", "python37"]
 VALID_BODY = {
@@ -61,7 +63,10 @@ def _prepare_test_bodies():
     body_values = [
         # ({}, "The required parameter 'body' is missing"),
         (body_no_name, "The required body field 'name' is missing"),
-        (body_empty_entry_point, "The body field 'entryPoint' of value '' does not match"),
+        (
+            body_empty_entry_point,
+            "The body field 'entryPoint' of value '' does not match",
+        ),
         (body_empty_runtime, "The body field 'runtime' of value '' does not match"),
     ]
     return body_values
@@ -80,7 +85,10 @@ class TestGcfFunctionDeploy:
     def test_body_empty(self):
         with pytest.raises(AirflowException):
             CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body={}, task_id="id"
+                project_id="test_project_id",
+                location="test_region",
+                body={},
+                task_id="id",
             )
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
@@ -90,7 +98,10 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.return_value.create_new_function.return_value = True
         op = CloudFunctionDeployFunctionOperator(
-            project_id=GCP_PROJECT_ID, location=GCP_LOCATION, body=deepcopy(VALID_BODY), task_id="id"
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
+            body=deepcopy(VALID_BODY),
+            task_id="id",
         )
         op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
@@ -102,7 +113,9 @@ class TestGcfFunctionDeploy:
             "projects/test_project_id/locations/test_region/functions/helloWorld"
         )
         expected_body = deepcopy(VALID_BODY)
-        expected_body["labels"] = {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
+        expected_body["labels"] = {
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        }
         mock_hook.return_value.create_new_function.assert_called_once_with(
             project_id="test_project_id", location="test_region", body=expected_body
         )
@@ -112,7 +125,10 @@ class TestGcfFunctionDeploy:
         mock_hook.return_value.get_function.return_value = True
         mock_hook.return_value.update_function.return_value = True
         op = CloudFunctionDeployFunctionOperator(
-            project_id=GCP_PROJECT_ID, location=GCP_LOCATION, body=deepcopy(VALID_BODY), task_id="id"
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
+            body=deepcopy(VALID_BODY),
+            task_id="id",
         )
         op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
@@ -124,7 +140,9 @@ class TestGcfFunctionDeploy:
             "projects/test_project_id/locations/test_region/functions/helloWorld"
         )
         expected_body = deepcopy(VALID_BODY)
-        expected_body["labels"] = {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
+        expected_body["labels"] = {
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        }
         mock_hook.return_value.update_function.assert_called_once_with(
             "projects/test_project_id/locations/test_region/functions/helloWorld",
             expected_body,
@@ -134,7 +152,9 @@ class TestGcfFunctionDeploy:
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_empty_project_id_is_ok(self, mock_hook):
-        mock_hook.return_value.get_function.side_effect = HttpError(resp=MOCK_RESP_404, content=b"not found")
+        mock_hook.return_value.get_function.side_effect = HttpError(
+            resp=MOCK_RESP_404, content=b"not found"
+        )
         operator = CloudFunctionDeployFunctionOperator(
             location="test_region", body=deepcopy(VALID_BODY), task_id="id"
         )
@@ -145,7 +165,9 @@ class TestGcfFunctionDeploy:
             impersonation_chain=None,
         )
         new_body = deepcopy(VALID_BODY)
-        new_body["labels"] = {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
+        new_body["labels"] = {
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        }
         mock_hook.return_value.create_new_function.assert_called_once_with(
             project_id=None, location="test_region", body=new_body
         )
@@ -163,7 +185,10 @@ class TestGcfFunctionDeploy:
     def test_empty_body(self, mock_hook):
         with pytest.raises(AirflowException) as ctx:
             CloudFunctionDeployFunctionOperator(
-                project_id="test_project_id", location="test_region", body=None, task_id="id"
+                project_id="test_project_id",
+                location="test_region",
+                body=None,
+                task_id="id",
             )
         err = ctx.value
         assert "The required parameter 'body' is missing" in str(err)
@@ -210,7 +235,9 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
-    @pytest.mark.parametrize("labels", [{}, {"label": "value-01"}, {"label_324234_a_b_c": "value-01_93"}])
+    @pytest.mark.parametrize(
+        "labels", [{}, {"label": "value-01"}, {"label_324234_a_b_c": "value-01_93"}]
+    )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_valid_labels_field(self, mock_hook, labels):
         mock_hook.return_value.create_new_function.return_value = True
@@ -230,9 +257,16 @@ class TestGcfFunctionDeploy:
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_validation_disabled(self, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
-        body = {"name": "function_name", "some_invalid_body_field": "some_invalid_body_field_value"}
+        body = {
+            "name": "function_name",
+            "some_invalid_body_field": "some_invalid_body_field_value",
+        }
         op = CloudFunctionDeployFunctionOperator(
-            project_id="test_project_id", location="test_region", body=body, validate_body=False, task_id="id"
+            project_id="test_project_id",
+            location="test_region",
+            body=body,
+            validate_body=False,
+            task_id="id",
         )
         op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
@@ -265,14 +299,22 @@ class TestGcfFunctionDeploy:
         "key, value, message",
         [
             ("name", "", "The body field 'name' of value '' does not match"),
-            ("description", "", "The body field 'description' of value '' does not match"),
+            (
+                "description",
+                "",
+                "The body field 'description' of value '' does not match",
+            ),
             ("entryPoint", "", "The body field 'entryPoint' of value '' does not match"),
             ("availableMemoryMb", "0", "The available memory has to be greater than 0"),
             ("availableMemoryMb", "-1", "The available memory has to be greater than 0"),
             ("availableMemoryMb", "ss", "invalid literal for int() with base 10: 'ss'"),
             ("network", "", "The body field 'network' of value '' does not match"),
             ("maxInstances", "0", "The max instances parameter has to be greater than 0"),
-            ("maxInstances", "-1", "The max instances parameter has to be greater than 0"),
+            (
+                "maxInstances",
+                "-1",
+                "The max instances parameter has to be greater than 0",
+            ),
             ("maxInstances", "ss", "invalid literal for int() with base 10: 'ss'"),
         ],
     )
@@ -466,13 +508,21 @@ class TestGcfFunctionDeploy:
     @pytest.mark.parametrize(
         "trigger, message",
         [
-            ({"eventTrigger": {}}, "The required body field 'trigger.eventTrigger.eventType' is missing"),
+            (
+                {"eventTrigger": {}},
+                "The required body field 'trigger.eventTrigger.eventType' is missing",
+            ),
             (
                 {"eventTrigger": {"eventType": "providers/test/eventTypes/a.b"}},
                 "The required body field 'trigger.eventTrigger.resource' is missing",
             ),
             (
-                {"eventTrigger": {"eventType": "providers/test/eventTypes/a.b", "resource": ""}},
+                {
+                    "eventTrigger": {
+                        "eventType": "providers/test/eventTypes/a.b",
+                        "resource": "",
+                    }
+                },
                 "The body field 'trigger.eventTrigger.resource' of value '' does not match",
             ),
             (
@@ -526,7 +576,12 @@ class TestGcfFunctionDeploy:
         "trigger",
         [
             {"httpsTrigger": {}},
-            {"eventTrigger": {"eventType": "providers/test/eventTypes/a.b", "resource": "res"}},
+            {
+                "eventTrigger": {
+                    "eventType": "providers/test/eventTypes/a.b",
+                    "resource": "res",
+                }
+            },
             {
                 "eventTrigger": {
                     "eventType": "providers/test/eventTypes/a.b",
@@ -600,12 +655,16 @@ class TestGcfFunctionDeploy:
 
 
 class TestGcfFunctionDelete:
-    _FUNCTION_NAME = "projects/project_name/locations/project_location/functions/function_name"
+    _FUNCTION_NAME = (
+        "projects/project_name/locations/project_location/functions/function_name"
+    )
     _DELETE_FUNCTION_EXPECTED = {
         "@type": "type.googleapis.com/google.cloud.functions.v1.CloudFunction",
         "name": _FUNCTION_NAME,
         "sourceArchiveUrl": "gs://functions/hello.zip",
-        "httpsTrigger": {"url": "https://project_location-project_name.cloudfunctions.net/function_name"},
+        "httpsTrigger": {
+            "url": "https://project_location-project_name.cloudfunctions.net/function_name"
+        },
         "status": "ACTIVE",
         "entryPoint": "entry_point",
         "timeout": "60s",
@@ -618,7 +677,9 @@ class TestGcfFunctionDelete:
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_delete_execute(self, mock_hook):
-        mock_hook.return_value.delete_function.return_value = self._DELETE_FUNCTION_EXPECTED
+        mock_hook.return_value.delete_function.return_value = (
+            self._DELETE_FUNCTION_EXPECTED
+        )
         op = CloudFunctionDeleteFunctionOperator(name=self._FUNCTION_NAME, task_id="id")
         result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
@@ -634,7 +695,8 @@ class TestGcfFunctionDelete:
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_correct_name(self, mock_hook):
         op = CloudFunctionDeleteFunctionOperator(
-            name="projects/project_name/locations/project_location/functions/function_name", task_id="id"
+            name="projects/project_name/locations/project_location/functions/function_name",
+            task_id="id",
         )
         op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
@@ -649,7 +711,9 @@ class TestGcfFunctionDelete:
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_empty_name(self, mock_hook):
-        mock_hook.return_value.delete_function.return_value = self._DELETE_FUNCTION_EXPECTED
+        mock_hook.return_value.delete_function.return_value = (
+            self._DELETE_FUNCTION_EXPECTED
+        )
         with pytest.raises(AttributeError) as ctx:
             CloudFunctionDeleteFunctionOperator(name="", task_id="id")
         err = ctx.value
@@ -694,7 +758,9 @@ class TestGcfFunctionDelete:
 
 
 class TestGcfFunctionInvokeOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.functions.GoogleCloudBaseOperator.xcom_push")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.functions.GoogleCloudBaseOperator.xcom_push"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_execute(self, mock_gcf_hook, mock_xcom):
         exec_id = "exec_id"
@@ -726,7 +792,10 @@ class TestGcfFunctionInvokeOperator:
         )
 
         mock_gcf_hook.return_value.call_function.assert_called_once_with(
-            function_id=function_id, input_data=payload, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
         )
 
         mock_xcom.assert_called_with(

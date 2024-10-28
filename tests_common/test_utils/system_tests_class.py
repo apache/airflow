@@ -127,7 +127,9 @@ class SystemTest:
                 for name in filenames:
                     filepath = os.path.join(dirpath, name)
                     print()
-                    print(f" ================ Content of {filepath} ===============================")
+                    print(
+                        f" ================ Content of {filepath} ==============================="
+                    )
                     print()
                     with open(filepath) as f:
                         print(f.read())

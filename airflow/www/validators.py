@@ -42,14 +42,18 @@ class GreaterEqualThan(EqualTo):
         try:
             other = form[self.fieldname]
         except KeyError:
-            raise ValidationError(field.gettext(f"Invalid field name '{self.fieldname}'."))
+            raise ValidationError(
+                field.gettext(f"Invalid field name '{self.fieldname}'.")
+            )
 
         if field.data is None or other.data is None:
             return
 
         if field.data < other.data:
             message_args = {
-                "other_label": hasattr(other, "label") and other.label.text or self.fieldname,
+                "other_label": hasattr(other, "label")
+                and other.label.text
+                or self.fieldname,
                 "other_name": self.fieldname,
             }
             message = self.message
@@ -136,4 +140,6 @@ class ValidConnID:
     def __call__(self, form, field):
         if field.data:
             if sanitize_conn_id(field.data, self.max_length) is None:
-                raise ValidationError(f"{self.message} for 1 and up to {self.max_length} matches")
+                raise ValidationError(
+                    f"{self.message} for 1 and up to {self.max_length} matches"
+                )

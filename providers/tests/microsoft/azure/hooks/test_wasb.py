@@ -33,9 +33,7 @@ pytestmark = pytest.mark.db_test
 
 
 # connection_string has a format
-CONN_STRING = (
-    "DefaultEndpointsProtocol=https;AccountName=testname;AccountKey=wK7BOz;EndpointSuffix=core.windows.net"
-)
+CONN_STRING = "DefaultEndpointsProtocol=https;AccountName=testname;AccountKey=wK7BOz;EndpointSuffix=core.windows.net"
 
 ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 PROXIES = {"http": "http_proxy_uri", "https": "https_proxy_uri"}
@@ -43,19 +41,25 @@ PROXIES = {"http": "http_proxy_uri", "https": "https_proxy_uri"}
 
 @pytest.fixture
 def mocked_blob_service_client():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient") as m:
+    with mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient"
+    ) as m:
         yield m
 
 
 @pytest.fixture
 def mocked_default_azure_credential():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.get_sync_default_azure_credential") as m:
+    with mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.get_sync_default_azure_credential"
+    ) as m:
         yield m
 
 
 @pytest.fixture
 def mocked_client_secret_credential():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.ClientSecretCredential") as m:
+    with mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.ClientSecretCredential"
+    ) as m:
         yield m
 
 
@@ -146,7 +150,10 @@ class TestWasbHook:
             Connection(
                 conn_id=self.http_sas_conn_id,
                 conn_type=self.connection_type,
-                extra={"sas_token": "https://login.blob.core.windows.net/token", "proxies": self.proxies},
+                extra={
+                    "sas_token": "https://login.blob.core.windows.net/token",
+                    "proxies": self.proxies,
+                },
             ),
             Connection(
                 conn_id=self.extra__wasb__http_sas_conn_id,
@@ -188,7 +195,9 @@ class TestWasbHook:
             shared_access_key="token",
         )
 
-    def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
+    def test_managed_identity(
+        self, mocked_default_azure_credential, mocked_blob_service_client
+    ):
         mocked_default_azure_credential.assert_not_called()
         mocked_default_azure_credential.return_value = "foo-bar"
         WasbHook(wasb_conn_id=self.managed_identity_conn_id).get_conn()
@@ -201,7 +210,9 @@ class TestWasbHook:
             proxies=self.proxies,
         )
 
-    def test_azure_directory_connection(self, mocked_client_secret_credential, mocked_blob_service_client):
+    def test_azure_directory_connection(
+        self, mocked_client_secret_credential, mocked_blob_service_client
+    ):
         mocked_client_secret_credential.return_value = "spam-egg"
         WasbHook(wasb_conn_id=self.ad_conn_id).get_conn()
         mocked_client_secret_credential.assert_called_once_with(
@@ -232,7 +243,10 @@ class TestWasbHook:
         indirect=True,
     )
     def test_active_directory_id_used_as_host(
-        self, mocked_connection, mocked_default_azure_credential, mocked_blob_service_client
+        self,
+        mocked_connection,
+        mocked_default_azure_credential,
+        mocked_blob_service_client,
     ):
         mocked_default_azure_credential.return_value = "fake-credential"
         WasbHook(wasb_conn_id="testconn").get_conn()
@@ -282,7 +296,10 @@ class TestWasbHook:
         indirect=True,
     )
     def test_account_url_without_host(
-        self, mocked_connection, mocked_blob_service_client, mocked_default_azure_credential
+        self,
+        mocked_connection,
+        mocked_blob_service_client,
+        mocked_default_azure_credential,
     ):
         mocked_default_azure_credential.return_value = "default-creds"
         WasbHook(wasb_conn_id=mocked_connection.conn_id).get_conn()
@@ -364,7 +381,11 @@ class TestWasbHook:
         ],
     )
     def test_proper_account_url_update(
-        self, mocked_blob_service_client, provided_host, expected_host, create_mock_connection
+        self,
+        mocked_blob_service_client,
+        provided_host,
+        expected_host,
+        create_mock_connection,
     ):
         conn = create_mock_connection(
             Connection(
@@ -375,7 +396,9 @@ class TestWasbHook:
             )
         )
         WasbHook(wasb_conn_id=conn.conn_id).get_conn()
-        mocked_blob_service_client.assert_called_once_with(account_url=expected_host, credential="testpass")
+        mocked_blob_service_client.assert_called_once_with(
+            account_url=expected_host, credential="testpass"
+        )
 
     def test_check_for_blob(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
@@ -388,18 +411,26 @@ class TestWasbHook:
     def test_check_for_prefix(self, get_blobs_list):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         assert hook.check_for_prefix("container", "prefix", timeout=3)
-        get_blobs_list.assert_called_once_with(container_name="container", prefix="prefix", timeout=3)
+        get_blobs_list.assert_called_once_with(
+            container_name="container", prefix="prefix", timeout=3
+        )
 
     @mock.patch.object(WasbHook, "get_blobs_list", return_value=[])
     def test_check_for_prefix_empty(self, get_blobs_list):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         assert not hook.check_for_prefix("container", "prefix", timeout=3)
-        get_blobs_list.assert_called_once_with(container_name="container", prefix="prefix", timeout=3)
+        get_blobs_list.assert_called_once_with(
+            container_name="container", prefix="prefix", timeout=3
+        )
 
     def test_get_blobs_list(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        hook.get_blobs_list(container_name="mycontainer", prefix="my", include=None, delimiter="/")
-        mock_container_client = mocked_blob_service_client.return_value.get_container_client
+        hook.get_blobs_list(
+            container_name="mycontainer", prefix="my", include=None, delimiter="/"
+        )
+        mock_container_client = (
+            mocked_blob_service_client.return_value.get_container_client
+        )
         mock_container_client.assert_called_once_with("mycontainer")
         mock_container_client.return_value.walk_blobs.assert_called_once_with(
             name_starts_with="my", include=None, delimiter="/"
@@ -408,9 +439,14 @@ class TestWasbHook:
     def test_get_blobs_list_recursive(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.get_blobs_list_recursive(
-            container_name="mycontainer", prefix="test", include=None, endswith="file_extension"
+            container_name="mycontainer",
+            prefix="test",
+            include=None,
+            endswith="file_extension",
         )
-        mock_container_client = mocked_blob_service_client.return_value.get_container_client
+        mock_container_client = (
+            mocked_blob_service_client.return_value.get_container_client
+        )
         mock_container_client.assert_called_once_with("mycontainer")
         mock_container_client.return_value.list_blobs.assert_called_once_with(
             name_starts_with="test", include=None
@@ -433,7 +469,9 @@ class TestWasbHook:
     def test_load_file(self, mock_upload, create_container):
         with mock.patch("builtins.open", mock.mock_open(read_data="data")):
             hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-            hook.load_file("path", "container", "blob", create_container, max_connections=1)
+            hook.load_file(
+                "path", "container", "blob", create_container, max_connections=1
+            )
 
         mock_upload.assert_called_with(
             container_name="container",
@@ -447,7 +485,9 @@ class TestWasbHook:
     @mock.patch.object(WasbHook, "upload")
     def test_load_string(self, mock_upload, create_container):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        hook.load_string("big string", "container", "blob", create_container, max_connections=1)
+        hook.load_string(
+            "big string", "container", "blob", create_container, max_connections=1
+        )
         mock_upload.assert_called_once_with(
             container_name="container",
             blob_name="blob",
@@ -461,7 +501,9 @@ class TestWasbHook:
         with mock.patch("builtins.open", mock.mock_open(read_data="data")):
             hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
             hook.get_file("path", "container", "blob", max_connections=1)
-        mock_download.assert_called_once_with(container_name="container", blob_name="blob", max_connections=1)
+        mock_download.assert_called_once_with(
+            container_name="container", blob_name="blob", max_connections=1
+        )
         mock_download.return_value.readall.assert_called()
 
     @mock.patch.object(WasbHook, "download")
@@ -483,9 +525,13 @@ class TestWasbHook:
         )
         mock_blob_client = mocked_blob_service_client.return_value.get_blob_client
         mock_blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
-        mock_blob_client.return_value.upload_blob.assert_called_once_with(b"mydata", "BlockBlob", length=4)
+        mock_blob_client.return_value.upload_blob.assert_called_once_with(
+            b"mydata", "BlockBlob", length=4
+        )
 
-        mock_container_client = mocked_blob_service_client.return_value.get_container_client
+        mock_container_client = (
+            mocked_blob_service_client.return_value.get_container_client
+        )
         if create_container:
             mock_container_client.assert_called_with("mycontainer")
         else:
@@ -494,14 +540,18 @@ class TestWasbHook:
     def test_download(self, mocked_blob_service_client):
         blob_client = mocked_blob_service_client.return_value.get_blob_client
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        hook.download(container_name="mycontainer", blob_name="myblob", offset=2, length=4)
+        hook.download(
+            container_name="mycontainer", blob_name="myblob", offset=2, length=4
+        )
         blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
         blob_client.return_value.download_blob.assert_called_once_with(offset=2, length=4)
 
     def test_get_container_client(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook._get_container_client("mycontainer")
-        mocked_blob_service_client.return_value.get_container_client.assert_called_once_with("mycontainer")
+        mocked_blob_service_client.return_value.get_container_client.assert_called_once_with(
+            "mycontainer"
+        )
 
     def test_get_blob_client(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
@@ -519,7 +569,9 @@ class TestWasbHook:
     def test_delete_container(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.delete_container("mycontainer")
-        mocked_container_client = mocked_blob_service_client.return_value.get_container_client
+        mocked_container_client = (
+            mocked_blob_service_client.return_value.get_container_client
+        )
         mocked_container_client.assert_called_once_with("mycontainer")
         mocked_container_client.return_value.delete_container.assert_called()
 
@@ -537,7 +589,9 @@ class TestWasbHook:
     def test_delete_container_resource_not_found(self, caplog):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         with mock.patch.object(WasbHook, "_get_container_client") as m:
-            m.return_value.delete_container.side_effect = ResourceNotFoundError("FakeException")
+            m.return_value.delete_container.side_effect = ResourceNotFoundError(
+                "FakeException"
+            )
             caplog.clear()
             caplog.set_level("WARNING")
             hook.delete_container("mycontainer")
@@ -552,12 +606,16 @@ class TestWasbHook:
     @mock.patch.object(WasbHook, "delete_blobs")
     @mock.patch.object(WasbHook, "get_blobs_list")
     @mock.patch.object(WasbHook, "check_for_blob")
-    def test_delete_multiple_blobs(self, mock_check, mock_get_blobslist, mock_delete_blobs):
+    def test_delete_multiple_blobs(
+        self, mock_check, mock_get_blobslist, mock_delete_blobs
+    ):
         mock_check.return_value = False
         mock_get_blobslist.return_value = ["blob_prefix/blob1", "blob_prefix/blob2"]
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.delete_file("container", "blob_prefix", is_prefix=True)
-        mock_get_blobslist.assert_called_once_with("container", prefix="blob_prefix", delimiter="")
+        mock_get_blobslist.assert_called_once_with(
+            "container", prefix="blob_prefix", delimiter=""
+        )
         mock_delete_blobs.assert_any_call(
             "container",
             "blob_prefix/blob1",
@@ -568,12 +626,16 @@ class TestWasbHook:
     @mock.patch.object(WasbHook, "delete_blobs")
     @mock.patch.object(WasbHook, "get_blobs_list")
     @mock.patch.object(WasbHook, "check_for_blob")
-    def test_delete_more_than_256_blobs(self, mock_check, mock_get_blobslist, mock_delete_blobs):
+    def test_delete_more_than_256_blobs(
+        self, mock_check, mock_get_blobslist, mock_delete_blobs
+    ):
         mock_check.return_value = False
         mock_get_blobslist.return_value = [f"blob_prefix/blob{i}" for i in range(300)]
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         hook.delete_file("container", "blob_prefix", is_prefix=True)
-        mock_get_blobslist.assert_called_once_with("container", prefix="blob_prefix", delimiter="")
+        mock_get_blobslist.assert_called_once_with(
+            "container", prefix="blob_prefix", delimiter=""
+        )
         # The maximum number of blobs that can be deleted in a single request is 256 using the underlying
         # `ContainerClient.delete_blobs()` method. Therefore the deletes need to be in batches of <= 256.
         # Therefore, providing a list of 300 blobs to delete should yield 2 calls of
@@ -582,19 +644,33 @@ class TestWasbHook:
 
     @mock.patch.object(WasbHook, "get_blobs_list")
     @mock.patch.object(WasbHook, "check_for_blob")
-    def test_delete_nonexisting_blob_fails(self, mock_check, mock_getblobs, mocked_blob_service_client):
+    def test_delete_nonexisting_blob_fails(
+        self, mock_check, mock_getblobs, mocked_blob_service_client
+    ):
         mock_getblobs.return_value = []
         mock_check.return_value = False
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        with pytest.raises(AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob")):
-            hook.delete_file("container", "nonexisting_blob", is_prefix=False, ignore_if_missing=False)
+        with pytest.raises(
+            AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob")
+        ):
+            hook.delete_file(
+                "container", "nonexisting_blob", is_prefix=False, ignore_if_missing=False
+            )
 
     @mock.patch.object(WasbHook, "get_blobs_list")
     def test_delete_multiple_nonexisting_blobs_fails(self, mock_getblobs):
         mock_getblobs.return_value = []
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        with pytest.raises(AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob_prefix")):
-            hook.delete_file("container", "nonexisting_blob_prefix", is_prefix=True, ignore_if_missing=False)
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("Blob(s) not found: nonexisting_blob_prefix"),
+        ):
+            hook.delete_file(
+                "container",
+                "nonexisting_blob_prefix",
+                is_prefix=True,
+                ignore_if_missing=False,
+            )
 
     def test_connection_success(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
@@ -632,10 +708,14 @@ class TestWasbHook:
             "extra__wasb__http_sas_conn_id",
         ],
     )
-    def test_extract_account_name_from_connection(self, conn_id_str, mocked_blob_service_client):
+    def test_extract_account_name_from_connection(
+        self, conn_id_str, mocked_blob_service_client
+    ):
         expected_account_name = "testname"
         if conn_id_str == "azure_test_connection_string":
-            mocked_blob_service_client.from_connection_string().account_name = expected_account_name
+            mocked_blob_service_client.from_connection_string().account_name = (
+                expected_account_name
+            )
         else:
             mocked_blob_service_client.return_value.account_name = expected_account_name
 

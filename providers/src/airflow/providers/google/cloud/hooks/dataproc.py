@@ -80,7 +80,10 @@ class DataProcJobBuilder:
             "job": {
                 "reference": {"project_id": project_id, "job_id": name},
                 "placement": {"cluster_name": cluster_name},
-                "labels": {"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")},
+                "labels": {
+                    "airflow-version": "v"
+                    + airflow_version.replace(".", "-").replace("+", "-")
+                },
                 job_type: {},
             }
         }
@@ -166,7 +169,9 @@ class DataProcJobBuilder:
         if pyfiles is not None:
             self.job["job"][self.job_type]["python_file_uris"] = pyfiles
 
-    def set_main(self, main_jar: str | None = None, main_class: str | None = None) -> None:
+    def set_main(
+        self, main_jar: str | None = None, main_class: str | None = None
+    ) -> None:
         """
         Set Dataproc main class.
 
@@ -234,40 +239,58 @@ class DataprocHook(GoogleBaseHook):
         """Create a ClusterControllerClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return ClusterControllerClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
-    def get_template_client(self, region: str | None = None) -> WorkflowTemplateServiceClient:
+    def get_template_client(
+        self, region: str | None = None
+    ) -> WorkflowTemplateServiceClient:
         """Create a WorkflowTemplateServiceClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return WorkflowTemplateServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_job_client(self, region: str | None = None) -> JobControllerClient:
         """Create a JobControllerClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return JobControllerClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_batch_client(self, region: str | None = None) -> BatchControllerClient:
         """Create a BatchControllerClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return BatchControllerClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_operations_client(self, region: str | None):
@@ -333,7 +356,9 @@ class DataprocHook(GoogleBaseHook):
         # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
         # semantic versioning spec: x.y.z).
         labels = labels or {}
-        labels.update({"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")})
+        labels.update(
+            {"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")}
+        )
 
         cluster = {
             "project_id": project_id,
@@ -480,7 +505,11 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(region=region)
         result = client.get_cluster(
-            request={"project_id": project_id, "region": region, "cluster_name": cluster_name},
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -518,7 +547,12 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(region=region)
         result = client.list_clusters(
-            request={"project_id": project_id, "region": region, "filter": filter_, "page_size": page_size},
+            request={
+                "project_id": project_id,
+                "region": region,
+                "filter": filter_,
+                "page_size": page_size,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -731,7 +765,10 @@ class DataprocHook(GoogleBaseHook):
         client = self.get_template_client(region)
         parent = f"projects/{project_id}/regions/{region}"
         return client.create_workflow_template(
-            request={"parent": parent, "template": template}, retry=retry, timeout=timeout, metadata=metadata
+            request={"parent": parent, "template": template},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -776,7 +813,12 @@ class DataprocHook(GoogleBaseHook):
         client = self.get_template_client(region)
         name = f"projects/{project_id}/regions/{region}/workflowTemplates/{template_name}"
         operation = client.instantiate_workflow_template(
-            request={"name": name, "version": version, "request_id": request_id, "parameters": parameters},
+            request={
+                "name": name,
+                "version": version,
+                "request_id": request_id,
+                "parameters": parameters,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -847,15 +889,24 @@ class DataprocHook(GoogleBaseHook):
             raise TypeError("missing 1 required keyword argument: 'region'")
         state = None
         start = time.monotonic()
-        while state not in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
+        while state not in (
+            JobStatus.State.ERROR,
+            JobStatus.State.DONE,
+            JobStatus.State.CANCELLED,
+        ):
             if timeout and start + timeout < time.monotonic():
-                raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
+                raise AirflowException(
+                    f"Timeout: dataproc job {job_id} is not ready after {timeout}s"
+                )
             time.sleep(wait_time)
             try:
                 job = self.get_job(project_id=project_id, region=region, job_id=job_id)
                 state = job.status.state
             except ServerError as err:
-                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
+                self.log.info(
+                    "Retrying. Dataproc API returned server error when waiting for job: %s",
+                    err,
+                )
 
         if state == JobStatus.State.ERROR:
             raise AirflowException(f"Job failed:\n{job}")
@@ -928,7 +979,12 @@ class DataprocHook(GoogleBaseHook):
             raise TypeError("missing 1 required keyword argument: 'region'")
         client = self.get_job_client(region=region)
         return client.submit_job(
-            request={"project_id": project_id, "region": region, "job": job, "request_id": request_id},
+            request={
+                "project_id": project_id,
+                "region": region,
+                "job": job,
+                "request_id": request_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1227,24 +1283,36 @@ class DataprocAsyncHook(GoogleBaseHook):
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self._cached_client: JobControllerAsyncClient | None = None
 
-    def get_cluster_client(self, region: str | None = None) -> ClusterControllerAsyncClient:
+    def get_cluster_client(
+        self, region: str | None = None
+    ) -> ClusterControllerAsyncClient:
         """Create a ClusterControllerAsyncClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return ClusterControllerAsyncClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
-    def get_template_client(self, region: str | None = None) -> WorkflowTemplateServiceAsyncClient:
+    def get_template_client(
+        self, region: str | None = None
+    ) -> WorkflowTemplateServiceAsyncClient:
         """Create a WorkflowTemplateServiceAsyncClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return WorkflowTemplateServiceAsyncClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_job_client(self, region: str | None = None) -> JobControllerAsyncClient:
@@ -1252,7 +1320,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         if self._cached_client is None:
             client_options = None
             if region and region != "global":
-                client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+                client_options = ClientOptions(
+                    api_endpoint=f"{region}-dataproc.googleapis.com:443"
+                )
 
             self._cached_client = JobControllerAsyncClient(
                 credentials=self.get_credentials(),
@@ -1265,10 +1335,14 @@ class DataprocAsyncHook(GoogleBaseHook):
         """Create a BatchControllerAsyncClient."""
         client_options = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-dataproc.googleapis.com:443"
+            )
 
         return BatchControllerAsyncClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_operations_client(self, region: str) -> OperationsClient:
@@ -1319,7 +1393,9 @@ class DataprocAsyncHook(GoogleBaseHook):
         # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
         # semantic versioning spec: x.y.z).
         labels = labels or {}
-        labels.update({"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")})
+        labels.update(
+            {"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")}
+        )
 
         cluster = {
             "project_id": project_id,
@@ -1466,7 +1542,11 @@ class DataprocAsyncHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(region=region)
         result = await client.get_cluster(
-            request={"project_id": project_id, "region": region, "cluster_name": cluster_name},
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1504,7 +1584,12 @@ class DataprocAsyncHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(region=region)
         result = await client.list_clusters(
-            request={"project_id": project_id, "region": region, "filter": filter_, "page_size": page_size},
+            request={
+                "project_id": project_id,
+                "region": region,
+                "filter": filter_,
+                "page_size": page_size,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1627,7 +1712,10 @@ class DataprocAsyncHook(GoogleBaseHook):
         client = self.get_template_client(region)
         parent = f"projects/{project_id}/regions/{region}"
         return await client.create_workflow_template(
-            request={"parent": parent, "template": template}, retry=retry, timeout=timeout, metadata=metadata
+            request={"parent": parent, "template": template},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -1672,7 +1760,12 @@ class DataprocAsyncHook(GoogleBaseHook):
         client = self.get_template_client(region)
         name = f"projects/{project_id}/regions/{region}/workflowTemplates/{template_name}"
         operation = await client.instantiate_workflow_template(
-            request={"name": name, "version": version, "request_id": request_id, "parameters": parameters},
+            request={
+                "name": name,
+                "version": version,
+                "request_id": request_id,
+                "parameters": parameters,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1790,7 +1883,12 @@ class DataprocAsyncHook(GoogleBaseHook):
             raise TypeError("missing 1 required keyword argument: 'region'")
         client = self.get_job_client(region=region)
         return await client.submit_job(
-            request={"project_id": project_id, "region": region, "job": job, "request_id": request_id},
+            request={
+                "project_id": project_id,
+                "region": region,
+                "job": job,
+                "request_id": request_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

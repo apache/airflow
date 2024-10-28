@@ -49,7 +49,9 @@ def upgrade():
         sa.Column("task_id", StringID(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("run_id", StringID(), nullable=False),
-        sa.Column("map_index", sa.Integer(), server_default=sa.text("-1"), nullable=False),
+        sa.Column(
+            "map_index", sa.Integer(), server_default=sa.text("-1"), nullable=False
+        ),
         sa.Column("try_number", sa.Integer(), nullable=False),
         sa.Column("start_date", UtcDateTime(timezone=True), nullable=True),
         sa.Column("end_date", UtcDateTime(timezone=True), nullable=True),

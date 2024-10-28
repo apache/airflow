@@ -59,7 +59,9 @@ class PagerdutyEventsHook(BaseHook):
         }
 
     def __init__(
-        self, integration_key: str | None = None, pagerduty_events_conn_id: str | None = None
+        self,
+        integration_key: str | None = None,
+        pagerduty_events_conn_id: str | None = None,
     ) -> None:
         super().__init__()
         self.integration_key = None

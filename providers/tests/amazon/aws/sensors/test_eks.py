@@ -48,10 +48,12 @@ CLUSTER_PENDING_STATES = sorted(
     frozenset(ClusterStates) - frozenset(CLUSTER_TERMINAL_STATES), key=lambda x: x.name
 )
 FARGATE_PENDING_STATES = sorted(
-    frozenset(FargateProfileStates) - frozenset(FARGATE_TERMINAL_STATES), key=lambda x: x.name
+    frozenset(FargateProfileStates) - frozenset(FARGATE_TERMINAL_STATES),
+    key=lambda x: x.name,
 )
 NODEGROUP_PENDING_STATES = sorted(
-    frozenset(NodegroupStates) - frozenset(NODEGROUP_TERMINAL_STATES), key=lambda x: x.name
+    frozenset(NodegroupStates) - frozenset(NODEGROUP_TERMINAL_STATES),
+    key=lambda x: x.name,
 )
 
 CLUSTER_UNEXPECTED_TERMINAL_STATES = sorted(
@@ -91,8 +93,12 @@ class TestEksClusterStateSensor:
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_cluster_state")
-    @pytest.mark.parametrize("unexpected_terminal_state", CLUSTER_UNEXPECTED_TERMINAL_STATES)
-    def test_poke_reached_unexpected_terminal_state(self, mock_get_cluster_state, unexpected_terminal_state):
+    @pytest.mark.parametrize(
+        "unexpected_terminal_state", CLUSTER_UNEXPECTED_TERMINAL_STATES
+    )
+    def test_poke_reached_unexpected_terminal_state(
+        self, mock_get_cluster_state, unexpected_terminal_state
+    ):
         expected_message = (
             f"Terminal state reached. Current state: {unexpected_terminal_state}, "
             f"Expected state: {self.target_state}"
@@ -117,16 +123,22 @@ class TestEksFargateProfileStateSensor:
             target_state=self.target_state,
         )
 
-    @mock.patch.object(EksHook, "get_fargate_profile_state", return_value=FargateProfileStates.ACTIVE)
+    @mock.patch.object(
+        EksHook, "get_fargate_profile_state", return_value=FargateProfileStates.ACTIVE
+    )
     def test_poke_reached_target_state(self, mock_get_fargate_profile_state):
         assert self.sensor.poke({}) is True
         mock_get_fargate_profile_state.assert_called_once_with(
             clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_fargate_profile_state")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.eks.EksHook.get_fargate_profile_state"
+    )
     @pytest.mark.parametrize("pending_state", FARGATE_PENDING_STATES)
-    def test_poke_reached_pending_state(self, mock_get_fargate_profile_state, pending_state):
+    def test_poke_reached_pending_state(
+        self, mock_get_fargate_profile_state, pending_state
+    ):
         mock_get_fargate_profile_state.return_value = pending_state
 
         assert self.sensor.poke({}) is False
@@ -134,8 +146,12 @@ class TestEksFargateProfileStateSensor:
             clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
         )
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_fargate_profile_state")
-    @pytest.mark.parametrize("unexpected_terminal_state", FARGATE_UNEXPECTED_TERMINAL_STATES)
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.eks.EksHook.get_fargate_profile_state"
+    )
+    @pytest.mark.parametrize(
+        "unexpected_terminal_state", FARGATE_UNEXPECTED_TERMINAL_STATES
+    )
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_fargate_profile_state, unexpected_terminal_state
     ):
@@ -165,7 +181,9 @@ class TestEksNodegroupStateSensor:
             target_state=self.target_state,
         )
 
-    @mock.patch.object(EksHook, "get_nodegroup_state", return_value=NodegroupStates.ACTIVE)
+    @mock.patch.object(
+        EksHook, "get_nodegroup_state", return_value=NodegroupStates.ACTIVE
+    )
     def test_poke_reached_target_state(self, mock_get_nodegroup_state):
         assert self.sensor.poke({}) is True
         mock_get_nodegroup_state.assert_called_once_with(
@@ -183,7 +201,9 @@ class TestEksNodegroupStateSensor:
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_nodegroup_state")
-    @pytest.mark.parametrize("unexpected_terminal_state", NODEGROUP_UNEXPECTED_TERMINAL_STATES)
+    @pytest.mark.parametrize(
+        "unexpected_terminal_state", NODEGROUP_UNEXPECTED_TERMINAL_STATES
+    )
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_nodegroup_state, unexpected_terminal_state
     ):

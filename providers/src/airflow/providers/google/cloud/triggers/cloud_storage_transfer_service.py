@@ -81,7 +81,9 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                     jobs.append(job)
                     awaitable_operations.append(awaitable_operation)
 
-                operations: Iterable[TransferOperation | None] = await asyncio.gather(*awaitable_operations)
+                operations: Iterable[TransferOperation | None] = await asyncio.gather(
+                    *awaitable_operations
+                )
 
                 for job, operation in zip(jobs, operations):
                     if operation is None:
@@ -111,7 +113,11 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                 return
 
             jobs_total = len(self.job_names)
-            self.log.info("Transfer jobs completed: %s of %s", jobs_completed_successfully, jobs_total)
+            self.log.info(
+                "Transfer jobs completed: %s of %s",
+                jobs_completed_successfully,
+                jobs_total,
+            )
             if jobs_completed_successfully == jobs_total:
                 s = "s" if jobs_total > 1 else ""
                 job_names = ", ".join(j for j in self.job_names)

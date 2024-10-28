@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from typing import IO, Any
 
-from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
+from azure.storage.fileshare import (
+    FileProperties,
+    ShareDirectoryClient,
+    ShareFileClient,
+    ShareServiceClient,
+)
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -46,12 +51,17 @@ class AzureFileShareHook(BaseHook):
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
         return {
-            "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
+            "sas_token": PasswordField(
+                lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()
+            ),
             "connection_string": StringField(
                 lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
             ),
@@ -125,7 +135,9 @@ class AzureFileShareHook(BaseHook):
             )
         elif self._account_url and (self._sas_token or self._account_access_key):
             credential = self._sas_token or self._account_access_key
-            return ShareServiceClient(account_url=self._account_url, credential=credential)
+            return ShareServiceClient(
+                account_url=self._account_url, credential=credential
+            )
         else:
             return ShareServiceClient(
                 account_url=self._account_url,
@@ -195,7 +207,11 @@ class AzureFileShareHook(BaseHook):
 
     def list_files(self) -> list[str]:
         """Return the list of files stored on a Azure File Share."""
-        return [obj.name for obj in self.list_directories_and_files() if isinstance(obj, FileProperties)]
+        return [
+            obj.name
+            for obj in self.list_directories_and_files()
+            if isinstance(obj, FileProperties)
+        ]
 
     def create_share(self, share_name: str, **kwargs) -> bool:
         """

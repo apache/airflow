@@ -36,14 +36,18 @@ DLP_DEIDENTIFY_TEMPLATE_DETAILS_LINK = (
     + "/projects/{project_id}/locations/global/deidentifyTemplates/{template_name}?project={project_id}"
 )
 
-DLP_JOB_TRIGGER_LIST_LINK = DLP_BASE_LINK + "/landing/inspection/triggers?project={project_id}"
+DLP_JOB_TRIGGER_LIST_LINK = (
+    DLP_BASE_LINK + "/landing/inspection/triggers?project={project_id}"
+)
 DLP_JOB_TRIGGER_DETAILS_LINK = (
-    DLP_BASE_LINK + "/projects/{project_id}/locations/global/jobTriggers/{trigger_name}?project={project_id}"
+    DLP_BASE_LINK
+    + "/projects/{project_id}/locations/global/jobTriggers/{trigger_name}?project={project_id}"
 )
 
 DLP_JOBS_LIST_LINK = DLP_BASE_LINK + "/landing/inspection/jobs?project={project_id}"
 DLP_JOB_DETAILS_LINK = (
-    DLP_BASE_LINK + "/projects/{project_id}/locations/global/dlpJobs/{job_name}?project={project_id}"
+    DLP_BASE_LINK
+    + "/projects/{project_id}/locations/global/dlpJobs/{job_name}?project={project_id}"
 )
 
 DLP_INSPECT_TEMPLATES_LIST_LINK = (
@@ -55,7 +59,8 @@ DLP_INSPECT_TEMPLATE_DETAILS_LINK = (
 )
 
 DLP_INFO_TYPES_LIST_LINK = (
-    DLP_BASE_LINK + "/landing/configuration/infoTypes/stored?cloudshell=false&project={project_id}"
+    DLP_BASE_LINK
+    + "/landing/configuration/infoTypes/stored?cloudshell=false&project={project_id}"
 )
 DLP_INFO_TYPE_DETAILS_LINK = (
     DLP_BASE_LINK

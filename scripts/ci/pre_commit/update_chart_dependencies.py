@@ -24,7 +24,9 @@ from pathlib import Path
 import requests
 import yaml
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, console
 
 VALUES_YAML_FILE = AIRFLOW_SOURCES_ROOT_PATH / "chart" / "values.yaml"
@@ -32,7 +34,9 @@ VALUES_SCHEMA_FILE = AIRFLOW_SOURCES_ROOT_PATH / "chart" / "values.schema.json"
 
 
 def get_latest_prometheus_statsd_exporter_version() -> str:
-    quay_data = requests.get("https://quay.io/api/v1/repository/prometheus/statsd-exporter/tag/").json()
+    quay_data = requests.get(
+        "https://quay.io/api/v1/repository/prometheus/statsd-exporter/tag/"
+    ).json()
     for version in quay_data["tags"]:
         if version["name"].startswith("v"):
             return version["name"]
@@ -42,8 +46,13 @@ def get_latest_prometheus_statsd_exporter_version() -> str:
 if __name__ == "__main__":
     yaml_content = yaml.safe_load(VALUES_YAML_FILE.read_text())
     chart_prometheus_statsd_exporter_version = yaml_content["images"]["statsd"]["tag"]
-    latest_prometheus_statsd_exporter_version = get_latest_prometheus_statsd_exporter_version()
-    if chart_prometheus_statsd_exporter_version != latest_prometheus_statsd_exporter_version:
+    latest_prometheus_statsd_exporter_version = (
+        get_latest_prometheus_statsd_exporter_version()
+    )
+    if (
+        chart_prometheus_statsd_exporter_version
+        != latest_prometheus_statsd_exporter_version
+    ):
         console.print(
             f"[yellow]Updating prometheus statsd exporter version "
             f"from {chart_prometheus_statsd_exporter_version} "
@@ -74,7 +83,7 @@ if __name__ == "__main__":
     result_lines.append("")
     VALUES_YAML_FILE.write_text("\n".join(result_lines))
     schema_file = json.loads(VALUES_SCHEMA_FILE.read_text())
-    schema_file["properties"]["images"]["properties"]["statsd"]["properties"]["tag"]["default"] = (
-        latest_prometheus_statsd_exporter_version
-    )
+    schema_file["properties"]["images"]["properties"]["statsd"]["properties"]["tag"][
+        "default"
+    ] = latest_prometheus_statsd_exporter_version
     VALUES_SCHEMA_FILE.write_text(json.dumps(schema_file, indent=4) + "\n")

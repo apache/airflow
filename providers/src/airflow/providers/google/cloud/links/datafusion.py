@@ -30,7 +30,9 @@ if TYPE_CHECKING:
 
 
 BASE_LINK = "https://console.cloud.google.com/data-fusion"
-DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+DATAFUSION_INSTANCE_LINK = (
+    BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+)
 DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/{namespace}/pipelines"
 DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/{namespace}/view/{pipeline_name}"
 

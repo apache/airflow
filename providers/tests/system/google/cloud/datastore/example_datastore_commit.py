@@ -36,13 +36,18 @@ from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreGetOperationOperator,
     CloudDatastoreImportEntitiesOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "datastore_commit"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -68,7 +73,10 @@ with DAG(
     tags=["example", "datastore"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID, location="EU"
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,
+        location="EU",
     )
 
     # [START how_to_allocate_ids]
@@ -101,7 +109,9 @@ with DAG(
     # [END how_to_commit_def]
 
     # [START how_to_commit_task]
-    commit_task = CloudDatastoreCommitOperator(task_id="commit_task", body=COMMIT_BODY, project_id=PROJECT_ID)
+    commit_task = CloudDatastoreCommitOperator(
+        task_id="commit_task", body=COMMIT_BODY, project_id=PROJECT_ID
+    )
     # [END how_to_commit_task]
 
     # [START how_to_export_task]
@@ -124,7 +134,8 @@ with DAG(
 
     # [START get_operation_state]
     get_operation = CloudDatastoreGetOperationOperator(
-        task_id="get_operation", name="{{ task_instance.xcom_pull('export_task')['name'] }}"
+        task_id="get_operation",
+        name="{{ task_instance.xcom_pull('export_task')['name'] }}",
     )
     # [END get_operation_state]
 
@@ -143,7 +154,9 @@ with DAG(
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

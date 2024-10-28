@@ -35,7 +35,9 @@ from providers.tests.amazon.aws.utils.test_template_fields import validate_templ
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-ENTRIES = [{"Detail": "test-detail", "Source": "test-source", "DetailType": "test-detail-type"}]
+ENTRIES = [
+    {"Detail": "test-detail", "Source": "test-source", "DetailType": "test-detail-type"}
+]
 FAILED_ENTRIES_RESPONSE = [{"ErrorCode": "test_code"}, {"ErrorCode": "test_code"}]
 EVENT_PATTERN = '{"source": ["aws.s3"]}'
 RULE_NAME = "match_s3_events"

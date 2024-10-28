@@ -74,6 +74,8 @@ def deserialize(classname: str, version: int, data: dict):
         else:
             storage_options = properties
 
-        return DeltaTable(data["table_uri"], version=data["version"], storage_options=storage_options)
+        return DeltaTable(
+            data["table_uri"], version=data["version"], storage_options=storage_options
+        )
 
     raise TypeError(f"do not know how to deserialize {classname}")

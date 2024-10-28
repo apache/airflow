@@ -65,7 +65,9 @@ def return_on_error(return_value: RT):
                 return func(*args, **kwargs)
             except Exception:
                 log.debug(
-                    "Encountered error during execution function/method %r", func.__name__, exc_info=True
+                    "Encountered error during execution function/method %r",
+                    func.__name__,
+                    exc_info=True,
                 )
                 return return_value
 

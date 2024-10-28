@@ -130,7 +130,10 @@ TRANSFER_SPEC = "transferSpec"
 YEAR = "year"
 ALREADY_EXIST_CODE = 409
 
-NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStatus.ABORTED}
+NEGATIVE_STATUSES = {
+    GcpTransferOperationStatus.FAILED,
+    GcpTransferOperationStatus.ABORTED,
+}
 
 
 def gen_job_name(job_name: str) -> str:
@@ -181,7 +184,10 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                "storagetransfer", self.api_version, http=http_authorized, cache_discovery=False
+                "storagetransfer",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
             )
         return self._conn
 
@@ -198,7 +204,10 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         try:
             transfer_job = (
-                self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
+                self.get_conn()
+                .transferJobs()
+                .create(body=body)
+                .execute(num_retries=self.num_retries)
             )
         except HttpError as e:
             # If status code "Conflict"
@@ -206,7 +215,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             # we should try to find this job
             job_name = body.get(JOB_NAME, "")
             if int(e.resp.status) == ALREADY_EXIST_CODE and job_name:
-                transfer_job = self.get_transfer_job(job_name=job_name, project_id=body.get(PROJECT_ID))
+                transfer_job = self.get_transfer_job(
+                    job_name=job_name, project_id=body.get(PROJECT_ID)
+                )
                 # Generate new job_name, if jobs status is deleted
                 # and try to create this job again
                 if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
@@ -218,10 +229,15 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     )
 
                     return (
-                        self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
+                        self.get_conn()
+                        .transferJobs()
+                        .create(body=body)
+                        .execute(num_retries=self.num_retries)
                     )
                 elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
-                    return self.enable_transfer_job(job_name=job_name, project_id=body.get(PROJECT_ID))
+                    return self.enable_transfer_job(
+                        job_name=job_name, project_id=body.get(PROJECT_ID)
+                    )
             else:
                 raise e
         self.log.info("Created job %s", transfer_job[NAME])
@@ -245,7 +261,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def list_transfer_job(self, request_filter: dict | None = None, **kwargs) -> list[dict]:
+    def list_transfer_job(
+        self, request_filter: dict | None = None, **kwargs
+    ) -> list[dict]:
         """
         List long-running operations in Google Storage Transfer Service.
 
@@ -261,17 +279,23 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             if "filter" in kwargs:
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
-                    raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
+                    raise ValueError(
+                        f"The request_filter should be dict and is {type(request_filter)}"
+                    )
                 warnings.warn(
                     "Use 'request_filter' instead of 'filter'",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             else:
-                raise TypeError("list_transfer_job missing 1 required positional argument: 'request_filter'")
+                raise TypeError(
+                    "list_transfer_job missing 1 required positional argument: 'request_filter'"
+                )
 
         conn = self.get_conn()
-        request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
+        request_filter = self._inject_project_id(
+            request_filter, FILTER, FILTER_PROJECT_ID
+        )
         request = conn.transferJobs().list(filter=json.dumps(request_filter))
         jobs: list[dict] = []
 
@@ -279,7 +303,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             response = request.execute(num_retries=self.num_retries)
             jobs.extend(response[TRANSFER_JOBS])
 
-            request = conn.transferJobs().list_next(previous_request=request, previous_response=response)
+            request = conn.transferJobs().list_next(
+                previous_request=request, previous_response=response
+            )
 
         return jobs
 
@@ -386,7 +412,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         :param operation_name: Name of the transfer operation.
         """
-        self.get_conn().transferOperations().cancel(name=operation_name).execute(num_retries=self.num_retries)
+        self.get_conn().transferOperations().cancel(name=operation_name).execute(
+            num_retries=self.num_retries
+        )
 
     def get_transfer_operation(self, operation_name: str) -> dict:
         """
@@ -404,7 +432,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def list_transfer_operations(self, request_filter: dict | None = None, **kwargs) -> list[dict]:
+    def list_transfer_operations(
+        self, request_filter: dict | None = None, **kwargs
+    ) -> list[dict]:
         """
         Get a transfer operation in Google Storage Transfer Service.
 
@@ -422,7 +452,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             if "filter" in kwargs:
                 request_filter = kwargs["filter"]
                 if not isinstance(request_filter, dict):
-                    raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
+                    raise ValueError(
+                        f"The request_filter should be dict and is {type(request_filter)}"
+                    )
                 warnings.warn(
                     "Use 'request_filter' instead of 'filter'",
                     AirflowProviderDeprecationWarning,
@@ -435,11 +467,15 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         conn = self.get_conn()
 
-        request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
+        request_filter = self._inject_project_id(
+            request_filter, FILTER, FILTER_PROJECT_ID
+        )
 
         operations: list[dict] = []
 
-        request = conn.transferOperations().list(name=TRANSFER_OPERATIONS, filter=json.dumps(request_filter))
+        request = conn.transferOperations().list(
+            name=TRANSFER_OPERATIONS, filter=json.dumps(request_filter)
+        )
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
@@ -458,7 +494,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         :param operation_name: (Required) Name of the transfer operation.
         """
-        self.get_conn().transferOperations().pause(name=operation_name).execute(num_retries=self.num_retries)
+        self.get_conn().transferOperations().pause(name=operation_name).execute(
+            num_retries=self.num_retries
+        )
 
     def resume_transfer_operation(self, operation_name: str) -> None:
         """
@@ -466,7 +504,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         :param operation_name: (Required) Name of the transfer operation.
         """
-        self.get_conn().transferOperations().resume(name=operation_name).execute(num_retries=self.num_retries)
+        self.get_conn().transferOperations().resume(name=operation_name).execute(
+            num_retries=self.num_retries
+        )
 
     def wait_for_transfer_job(
         self,
@@ -485,7 +525,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             specified, defaults to 60 seconds.
         """
         expected_statuses = (
-            {GcpTransferOperationStatus.SUCCESS} if not expected_statuses else expected_statuses
+            {GcpTransferOperationStatus.SUCCESS}
+            if not expected_statuses
+            else expected_statuses
         )
         if timeout is None:
             timeout = 60
@@ -494,16 +536,25 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         start_time = time.monotonic()
         while time.monotonic() - start_time < timeout:
-            request_filter = {FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
+            request_filter = {
+                FILTER_PROJECT_ID: job[PROJECT_ID],
+                FILTER_JOB_NAMES: [job[NAME]],
+            }
             operations = self.list_transfer_operations(request_filter=request_filter)
 
             for operation in operations:
-                self.log.info("Progress for operation %s: %s", operation[NAME], operation[METADATA][COUNTERS])
+                self.log.info(
+                    "Progress for operation %s: %s",
+                    operation[NAME],
+                    operation[METADATA][COUNTERS],
+                )
 
             if self.operations_contain_expected_statuses(operations, expected_statuses):
                 return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
-        raise AirflowException("Timeout. The operation could not be completed within the allotted time.")
+        raise AirflowException(
+            "Timeout. The operation could not be completed within the allotted time."
+        )
 
     def _inject_project_id(self, body: dict, param_name: str, target_key: str) -> dict:
         body = deepcopy(body)
@@ -531,7 +582,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
             or ABORTED in the list.
         """
         expected_statuses_set = (
-            {expected_statuses} if isinstance(expected_statuses, str) else set(expected_statuses)
+            {expected_statuses}
+            if isinstance(expected_statuses, str)
+            else set(expected_statuses)
         )
         if not operations:
             return False
@@ -596,7 +649,9 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         latest_operation_name = job.latest_operation_name
         if latest_operation_name:
             client = await self.get_conn()
-            response_operation = await client.transport.operations_client.get_operation(latest_operation_name)
+            response_operation = await client.transport.operations_client.get_operation(
+                latest_operation_name
+            )
             operation = TransferOperation.deserialize(response_operation.metadata.value)
             return operation
         return None

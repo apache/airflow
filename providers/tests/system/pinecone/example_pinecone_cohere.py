@@ -54,7 +54,10 @@ with DAG(
     @task
     def transform_output(embedding_output) -> list[dict]:
         # Convert each embedding to a map with an ID and the embedding vector
-        return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output)]
+        return [
+            dict(id=str(i), values=embedding)
+            for i, embedding in enumerate(embedding_output)
+        ]
 
     transformed_output = transform_output(embed_task.output)
 
@@ -74,7 +77,13 @@ with DAG(
         hook = PineconeHook()
         hook.delete_index(index_name=index_name)
 
-    create_index() >> embed_task >> transformed_output >> perform_ingestion >> delete_index()
+    (
+        create_index()
+        >> embed_task
+        >> transformed_output
+        >> perform_ingestion
+        >> delete_index()
+    )
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

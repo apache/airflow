@@ -40,7 +40,9 @@ class TestDiscordWebhookOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
-        operator = DiscordWebhookOperator(task_id="discord_webhook_task", dag=self.dag, **self._config)
+        operator = DiscordWebhookOperator(
+            task_id="discord_webhook_task", dag=self.dag, **self._config
+        )
 
         assert self._config["http_conn_id"] == operator.http_conn_id
         assert self._config["webhook_endpoint"] == operator.webhook_endpoint

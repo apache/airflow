@@ -19,7 +19,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest import mock
 
-from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
+from airflow.providers.google.suite.transfers.local_to_drive import (
+    LocalFilesystemToGoogleDriveOperator,
+)
 
 GCP_CONN_ID = "test"
 DRIVE_FOLDER = Path("test_folder")

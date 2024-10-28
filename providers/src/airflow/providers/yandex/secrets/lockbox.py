@@ -136,12 +136,20 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         if not any([yc_oauth_token, yc_sa_key_json, yc_sa_key_json_path]):
             self.yc_connection_id = yc_connection_id or default_conn_name
         elif yc_connection_id is not None:
-            raise ValueError("`yc_connection_id` should not be used if other credentials are specified")
+            raise ValueError(
+                "`yc_connection_id` should not be used if other credentials are specified"
+            )
 
         self.folder_id = folder_id
-        self.connections_prefix = connections_prefix.rstrip(sep) if connections_prefix is not None else None
-        self.variables_prefix = variables_prefix.rstrip(sep) if variables_prefix is not None else None
-        self.config_prefix = config_prefix.rstrip(sep) if config_prefix is not None else None
+        self.connections_prefix = (
+            connections_prefix.rstrip(sep) if connections_prefix is not None else None
+        )
+        self.variables_prefix = (
+            variables_prefix.rstrip(sep) if variables_prefix is not None else None
+        )
+        self.config_prefix = (
+            config_prefix.rstrip(sep) if config_prefix is not None else None
+        )
         self.sep = sep
         self.endpoint = endpoint
 
@@ -205,7 +213,9 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
             service_account_json_path=self.yc_sa_key_json_path,
         )
         sdk_config = self._get_endpoint()
-        return yandexcloud.SDK(user_agent=provider_user_agent(), **credentials, **sdk_config).client
+        return yandexcloud.SDK(
+            user_agent=provider_user_agent(), **credentials, **sdk_config
+        ).client
 
     def _get_endpoint(self) -> dict[str, str]:
         sdk_config = {}
@@ -251,7 +261,9 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         payload = self._get_payload(secret.id, secret.current_version.id)
-        entries = {entry.key: entry.text_value for entry in payload.entries if entry.text_value}
+        entries = {
+            entry.key: entry.text_value for entry in payload.entries if entry.text_value
+        }
 
         if len(entries) == 0:
             return None
@@ -282,7 +294,9 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         )
         return self._client(payload_service_pb_grpc.PayloadServiceStub).Get(request)
 
-    def _list_secrets(self, folder_id: str, page_token: str = "") -> secret_service_pb.ListSecretsResponse:
+    def _list_secrets(
+        self, folder_id: str, page_token: str = ""
+    ) -> secret_service_pb.ListSecretsResponse:
         request = secret_service_pb.ListSecretsRequest(
             folder_id=folder_id,
             page_token=page_token,

@@ -41,7 +41,10 @@ class TestSagemakerTrigger:
             aws_conn_id=AWS_CONN_ID,
         )
         class_path, args = sagemaker_trigger.serialize()
-        assert class_path == "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger"
+        assert (
+            class_path
+            == "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger"
+        )
         assert args["job_name"] == JOB_NAME
         assert args["job_type"] == JOB_TYPE
         assert args["poke_interval"] == POKE_INTERVAL
@@ -61,7 +64,9 @@ class TestSagemakerTrigger:
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.async_conn")
-    async def test_sagemaker_trigger_run_all_job_types(self, mock_async_conn, mock_get_waiter, job_type):
+    async def test_sagemaker_trigger_run_all_job_types(
+        self, mock_async_conn, mock_get_waiter, job_type
+    ):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
 
         mock_get_waiter().wait = AsyncMock()

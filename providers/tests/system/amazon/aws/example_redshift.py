@@ -43,7 +43,10 @@ SECURITY_GROUP_KEY = "SECURITY_GROUP"
 CLUSTER_SUBNET_GROUP_KEY = "CLUSTER_SUBNET_GROUP"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(SECURITY_GROUP_KEY).add_variable(CLUSTER_SUBNET_GROUP_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(SECURITY_GROUP_KEY)
+    .add_variable(CLUSTER_SUBNET_GROUP_KEY)
+    .build()
 )
 
 DB_LOGIN = "adminuser"

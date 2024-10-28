@@ -33,11 +33,19 @@ FTP_PATH_MULTIPLE = "/tmp/"
 
 class TestFTPToS3Operator:
     def assert_execute(
-        self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file, ftp_file, s3_file
+        self,
+        mock_local_tmp_file,
+        mock_s3_hook_load_file,
+        mock_ftp_hook_retrieve_file,
+        ftp_file,
+        s3_file,
     ):
-        mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
+        mock_local_tmp_file_value = (
+            mock_local_tmp_file.return_value.__enter__.return_value
+        )
         mock_ftp_hook_retrieve_file.assert_called_once_with(
-            local_full_path_or_buffer=mock_local_tmp_file_value.name, remote_full_path=ftp_file
+            local_full_path_or_buffer=mock_local_tmp_file_value.name,
+            remote_full_path=ftp_file,
         )
 
         mock_s3_hook_load_file.assert_called_once_with(
@@ -53,8 +61,12 @@ class TestFTPToS3Operator:
     @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.retrieve_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.load_file")
     @mock.patch("airflow.providers.amazon.aws.transfers.ftp_to_s3.NamedTemporaryFile")
-    def test_execute(self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file):
-        operator = FTPToS3Operator(task_id=TASK_ID, s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
+    def test_execute(
+        self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file
+    ):
+        operator = FTPToS3Operator(
+            task_id=TASK_ID, s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH
+        )
         operator.execute(None)
 
         self.assert_execute(

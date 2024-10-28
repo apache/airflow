@@ -57,7 +57,9 @@ def await_bucket(bucket_name):
 @task
 def read_results_from_s3(bucket_name, query_execution_id):
     s3_hook = S3Hook()
-    file_obj = s3_hook.get_conn().get_object(Bucket=bucket_name, Key=f"{query_execution_id}.csv")
+    file_obj = s3_hook.get_conn().get_object(
+        Bucket=bucket_name, Key=f"{query_execution_id}.csv"
+    )
     file_content = file_obj["Body"].read().decode("utf-8")
     print(file_content)
 
@@ -88,7 +90,9 @@ with DAG(
     query_drop_table = f"DROP TABLE IF EXISTS {athena_database}.{athena_table}"
     query_drop_database = f"DROP DATABASE IF EXISTS {athena_database}"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket
+    )
 
     upload_sample_data = S3CreateObjectOperator(
         task_id="upload_sample_data",

@@ -34,7 +34,9 @@ from cassandra.policies import (
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
+Policy = Union[
+    DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy
+]
 
 
 class CassandraHook(BaseHook, LoggingMixin):
@@ -98,7 +100,9 @@ class CassandraHook(BaseHook, LoggingMixin):
             conn_config["port"] = int(conn.port)
 
         if conn.login:
-            conn_config["auth_provider"] = PlainTextAuthProvider(username=conn.login, password=conn.password)
+            conn_config["auth_provider"] = PlainTextAuthProvider(
+                username=conn.login, password=conn.password
+            )
 
         policy_name = conn.extra_dejson.get("load_balancing_policy", None)
         policy_args = conn.extra_dejson.get("load_balancing_policy_args", {})
@@ -163,11 +167,15 @@ class CassandraHook(BaseHook, LoggingMixin):
                 "DCAwareRoundRobinPolicy",
                 "WhiteListRoundRobinPolicy",
             )
-            child_policy_name = policy_args.get("child_load_balancing_policy", "RoundRobinPolicy")
+            child_policy_name = policy_args.get(
+                "child_load_balancing_policy", "RoundRobinPolicy"
+            )
             child_policy_args = policy_args.get("child_load_balancing_policy_args", {})
             if child_policy_name not in allowed_child_policies:
                 return TokenAwarePolicy(RoundRobinPolicy())
-            child_policy = CassandraHook.get_lb_policy(child_policy_name, child_policy_args)
+            child_policy = CassandraHook.get_lb_policy(
+                child_policy_name, child_policy_args
+            )
             return TokenAwarePolicy(child_policy)
 
         # Fallback to default RoundRobinPolicy
@@ -184,7 +192,10 @@ class CassandraHook(BaseHook, LoggingMixin):
         if "." in table:
             keyspace, table = table.split(".", 1)
         cluster_metadata = self.get_conn().cluster.metadata
-        return keyspace in cluster_metadata.keyspaces and table in cluster_metadata.keyspaces[keyspace].tables
+        return (
+            keyspace in cluster_metadata.keyspaces
+            and table in cluster_metadata.keyspaces[keyspace].tables
+        )
 
     @staticmethod
     def _sanitize_input(input_string: str) -> str:

@@ -51,7 +51,9 @@ except ImportError:
         try:
             import dill
         except ModuleNotFoundError:
-            log.error("Unable to import `dill` module. Please please make sure that it installed.")
+            log.error(
+                "Unable to import `dill` module. Please please make sure that it installed."
+            )
             raise
         return dill
 
@@ -116,7 +118,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     custom_operator_name = "@task.docker"
 
-    template_fields: Sequence[str] = (*DockerOperator.template_fields, "op_args", "op_kwargs")
+    template_fields: Sequence[str] = (
+        *DockerOperator.template_fields,
+        "op_args",
+        "op_kwargs",
+    )
 
     def __init__(
         self,
@@ -153,7 +159,10 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         self.serializer: Serializer = serializer
 
         super().__init__(
-            command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
+            command=command,
+            retrieve_output=True,
+            retrieve_output_path="/tmp/script.out",
+            **kwargs,
         )
 
     def generate_command(self):
@@ -171,7 +180,9 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
             with open(input_filename, "wb") as file:
                 if self.op_args or self.op_kwargs:
-                    self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
+                    self.pickling_library.dump(
+                        {"args": self.op_args, "kwargs": self.op_kwargs}, file
+                    )
             py_source = self.get_python_source()
             write_python_script(
                 jinja_context={

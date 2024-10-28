@@ -126,7 +126,11 @@ class SFTPToWasbOperator(BaseOperator):
             sftp_complete_path, prefix=prefix, delimiter=delimiter
         )
 
-        self.log.info("Found %d files at sftp source path: %s", len(found_files), self.sftp_source_path)
+        self.log.info(
+            "Found %d files at sftp source path: %s",
+            len(found_files),
+            self.sftp_source_path,
+        )
 
         for file in found_files:
             future_blob_name = self.get_full_path_blob(file)

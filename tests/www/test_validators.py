@@ -44,7 +44,9 @@ class TestGreaterEqualThan:
         return validator(self.form_mock, self.form_field_mock)
 
     def test_field_not_found(self):
-        with pytest.raises(validators.ValidationError, match="^Invalid field name 'some'.$"):
+        with pytest.raises(
+            validators.ValidationError, match="^Invalid field name 'some'.$"
+        ):
             self._validate(
                 fieldname="some",
             )
@@ -72,7 +74,8 @@ class TestGreaterEqualThan:
         self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(
-            validators.ValidationError, match="^Field must be greater than or equal to other field.$"
+            validators.ValidationError,
+            match="^Field must be greater than or equal to other field.$",
         ):
             self._validate()
 
@@ -80,7 +83,8 @@ class TestGreaterEqualThan:
         self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(
-            validators.ValidationError, match="^This field must be greater than or equal to MyField.$"
+            validators.ValidationError,
+            match="^This field must be greater than or equal to MyField.$",
         ):
             self._validate(
                 message="This field must be greater than or equal to MyField.",

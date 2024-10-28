@@ -81,7 +81,11 @@ class AirflowRescheduleException(AirflowException):
 
     def serialize(self):
         cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {"reschedule_date": self.reschedule_date},
+        )
 
 
 class InvalidStatsNameException(AirflowException):
@@ -230,7 +234,9 @@ class DagRunNotFound(AirflowNotFoundException):
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
-    def __init__(self, dag_run: DagRun, execution_date: datetime.datetime, run_id: str) -> None:
+    def __init__(
+        self, dag_run: DagRun, execution_date: datetime.datetime, run_id: str
+    ) -> None:
         super().__init__(
             f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
         )
@@ -255,7 +261,11 @@ class DagRunAlreadyExists(AirflowBadRequest):
         return (
             f"{cls.__module__}.{cls.__name__}",
             (),
-            {"dag_run": dag_run, "execution_date": self.execution_date, "run_id": self.run_id},
+            {
+                "dag_run": dag_run,
+                "execution_date": self.execution_date,
+                "run_id": self.run_id,
+            },
         )
 
 
@@ -264,7 +274,11 @@ class DagFileExists(AirflowBadRequest):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "DagFileExists is deprecated and will be removed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 class FailStopDagInvalidTriggerRule(AirflowException):
@@ -293,7 +307,9 @@ class DuplicateTaskIdFound(AirflowException):
 class TaskAlreadyInTaskGroup(AirflowException):
     """Raise when a Task cannot be added to a TaskGroup since it already belongs to another TaskGroup."""
 
-    def __init__(self, task_id: str, existing_group_id: str | None, new_group_id: str) -> None:
+    def __init__(
+        self, task_id: str, existing_group_id: str | None, new_group_id: str
+    ) -> None:
         super().__init__(task_id, new_group_id)
         self.task_id = task_id
         self.existing_group_id = existing_group_id
@@ -346,7 +362,9 @@ class AirflowFileParseException(AirflowException):
     :param parse_errors: File syntax errors
     """
 
-    def __init__(self, msg: str, file_path: str, parse_errors: list[FileSyntaxError]) -> None:
+    def __init__(
+        self, msg: str, file_path: str, parse_errors: list[FileSyntaxError]
+    ) -> None:
         super().__init__(msg)
         self.msg = msg
         self.file_path = file_path
@@ -364,7 +382,11 @@ class AirflowFileParseException(AirflowException):
             if parse_error.line_no:
                 result += f"Line number:  {parse_error.line_no}\n"
                 if parse_error.line_no and is_tty():
-                    result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
+                    result += (
+                        "\n"
+                        + prepare_code_snippet(self.file_path, parse_error.line_no)
+                        + "\n"
+                    )
 
         return result
 

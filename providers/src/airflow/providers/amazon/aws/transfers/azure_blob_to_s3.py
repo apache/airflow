@@ -133,7 +133,9 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         )
 
         files = wasb_hook.get_blobs_list_recursive(
-            container_name=self.container_name, prefix=self.prefix, endswith=self.delimiter
+            container_name=self.container_name,
+            prefix=self.prefix,
+            endswith=self.delimiter,
         )
 
         if not self.replace:
@@ -147,7 +149,9 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             # in case that no files exists, return an empty array to avoid errors
             existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
-            existing_files = [file.replace(f"{prefix}/", "", 1) for file in existing_files]
+            existing_files = [
+                file.replace(f"{prefix}/", "", 1) for file in existing_files
+            ]
             files = list(set(files) - set(existing_files))
 
         if files:

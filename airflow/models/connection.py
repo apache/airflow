@@ -124,7 +124,9 @@ class Connection(Base, LoggingMixin):
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
-    description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
+    description = Column(
+        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite")
+    )
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(Text())
@@ -189,7 +191,9 @@ class Connection(Base, LoggingMixin):
                     "representation of a Python dict."
                 )
         except json.JSONDecodeError:
-            raise ValueError(f"Encountered non-JSON in `extra` field for connection {conn_id!r}.")
+            raise ValueError(
+                f"Encountered non-JSON in `extra` field for connection {conn_id!r}."
+            )
         return None
 
     @reconstructor
@@ -214,7 +218,9 @@ class Connection(Base, LoggingMixin):
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
-        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        rest_of_the_url = uri.replace(
+            f"{conn_type}://", ("" if host_with_protocol else "//")
+        )
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
@@ -225,8 +231,12 @@ class Connection(Base, LoggingMixin):
         self.host = self._create_host(protocol, host)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
-        self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
-        self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
+        self.login = (
+            unquote(uri_parts.username) if uri_parts.username else uri_parts.username
+        )
+        self.password = (
+            unquote(uri_parts.password) if uri_parts.password else uri_parts.password
+        )
         self.port = uri_parts.port
         if uri_parts.query:
             query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
@@ -297,10 +307,14 @@ class Connection(Base, LoggingMixin):
                 query: str | None = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+            if query and self.extra_dejson == dict(
+                parse_qsl(query, keep_blank_values=True)
+            ):
                 uri += ("?" if self.schema else "/?") + query
             else:
-                uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+                uri += ("?" if self.schema else "/?") + urlencode(
+                    {self.EXTRA_KEY: self.extra}
+                )
 
         return uri
 
@@ -327,7 +341,9 @@ class Connection(Base, LoggingMixin):
     @declared_attr
     def password(cls):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
+        return synonym(
+            "_password", descriptor=property(cls.get_password, cls.set_password)
+        )
 
     def get_extra(self) -> str:
         """Return encrypted extra-data."""
@@ -389,7 +405,9 @@ class Connection(Base, LoggingMixin):
             raise
         if hook_params is None:
             hook_params = {}
-        return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
+        return hook_class(
+            **{hook.connection_id_attribute_name: self.conn_id}, **hook_params
+        )
 
     def __repr__(self):
         return self.conn_id or ""
@@ -402,9 +420,7 @@ class Connection(Base, LoggingMixin):
             if getattr(hook, "test_connection", False):
                 status, message = hook.test_connection()
             else:
-                message = (
-                    f"Hook {hook.__class__.__name__} doesn't implement or inherit test_connection method"
-                )
+                message = f"Hook {hook.__class__.__name__} doesn't implement or inherit test_connection method"
         except Exception as e:
             message = str(e)
 
@@ -473,7 +489,9 @@ class Connection(Base, LoggingMixin):
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
-    def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
+    def to_dict(
+        self, *, prune_empty: bool = False, validate: bool = True
+    ) -> dict[str, Any]:
         """
         Convert Connection to json-serializable dictionary.
 
@@ -515,7 +533,9 @@ class Connection(Base, LoggingMixin):
             try:
                 kwargs["port"] = int(port)
             except ValueError:
-                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+                raise ValueError(
+                    f"Expected integer value for `port`, but got {port!r} instead."
+                )
         return Connection(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:

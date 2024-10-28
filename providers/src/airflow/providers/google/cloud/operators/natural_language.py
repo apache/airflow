@@ -103,7 +103,10 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(GoogleCloudBaseOperator):
 
         self.log.info("Start analyzing entities")
         response = hook.analyze_entities(
-            document=self.document, retry=self.retry, timeout=self.timeout, metadata=self.metadata
+            document=self.document,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
         self.log.info("Finished analyzing entities")
 
@@ -251,7 +254,10 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(GoogleCloudBaseOperator):
 
         self.log.info("Start sentiment analyze")
         response = hook.analyze_sentiment(
-            document=self.document, retry=self.retry, timeout=self.timeout, metadata=self.metadata
+            document=self.document,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
         self.log.info("Finished sentiment analyze")
 
@@ -319,7 +325,10 @@ class CloudNaturalLanguageClassifyTextOperator(GoogleCloudBaseOperator):
 
         self.log.info("Start text classify")
         response = hook.classify_text(
-            document=self.document, retry=self.retry, timeout=self.timeout, metadata=self.metadata
+            document=self.document,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
         )
         self.log.info("Finished text classify")
 

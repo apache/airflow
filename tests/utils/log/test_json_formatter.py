@@ -62,9 +62,14 @@ class TestJSONFormatter:
         Test format with extras method from JSONFormatter
         """
         log_record = makeLogRecord({"label": "value"})
-        json_fmt = JSONFormatter(json_fields=["label"], extras={"pod_extra": "useful_message"})
+        json_fmt = JSONFormatter(
+            json_fields=["label"], extras={"pod_extra": "useful_message"}
+        )
         # compare as a dicts to not fail on sorting errors
-        assert json.loads(json_fmt.format(log_record)) == {"label": "value", "pod_extra": "useful_message"}
+        assert json.loads(json_fmt.format(log_record)) == {
+            "label": "value",
+            "pod_extra": "useful_message",
+        }
 
     def test_format_with_exception(self):
         """

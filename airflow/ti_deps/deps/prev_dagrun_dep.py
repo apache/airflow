@@ -104,7 +104,9 @@ class PrevDagrunDep(BaseTIDep):
         )
 
     @staticmethod
-    def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator, *, session: Session) -> bool:
+    def _has_unsuccessful_dependants(
+        dagrun: DagRun, task: Operator, *, session: Session
+    ) -> bool:
         """
         Check if any of the task's dependants are unsuccessful in a given run.
 
@@ -136,7 +138,9 @@ class PrevDagrunDep(BaseTIDep):
 
         if not ti.task.depends_on_past:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
-            yield self._passing_status(reason="The task did not have depends_on_past set.")
+            yield self._passing_status(
+                reason="The task did not have depends_on_past set."
+            )
             return
 
         dr = ti.get_dagrun(session=session)
@@ -148,12 +152,16 @@ class PrevDagrunDep(BaseTIDep):
                 )
             )
             if sort_ordinal == 1:
-                yield self._passing_status(reason="Task instance is first run in a backfill.")
+                yield self._passing_status(
+                    reason="Task instance is first run in a backfill."
+                )
                 return
 
         if not dr:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
-            yield self._passing_status(reason="This task instance does not belong to a DAG.")
+            yield self._passing_status(
+                reason="This task instance does not belong to a DAG."
+            )
             return
 
         # Don't depend on the previous task instance if we are the first task.
@@ -165,13 +173,17 @@ class PrevDagrunDep(BaseTIDep):
         # First ever run for this DAG.
         if not last_dagrun:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
-            yield self._passing_status(reason="This task instance was the first task instance for its task.")
+            yield self._passing_status(
+                reason="This task instance was the first task instance for its task."
+            )
             return
 
         # There was a DAG run, but the task wasn't active back then.
         if catchup and last_dagrun.execution_date < ti.task.start_date:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
-            yield self._passing_status(reason="This task instance was the first task instance for its task.")
+            yield self._passing_status(
+                reason="This task instance was the first task instance for its task."
+            )
             return
 
         if not self._has_tis(last_dagrun, ti.task_id, session=session):
@@ -190,7 +202,9 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        unsuccessful_tis_count = self._count_unsuccessful_tis(last_dagrun, ti.task_id, session=session)
+        unsuccessful_tis_count = self._count_unsuccessful_tis(
+            last_dagrun, ti.task_id, session=session
+        )
         if unsuccessful_tis_count > 0:
             reason = (
                 f"depends_on_past is true for this task, but {unsuccessful_tis_count} "

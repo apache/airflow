@@ -64,14 +64,17 @@ with DAG(
 ) as dag:
     run_this = PapermillOperator(
         task_id="run_example_notebook",
-        input_nb=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_notebook.ipynb"),
+        input_nb=os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "input_notebook.ipynb"
+        ),
         output_nb="/tmp/out-{{ execution_date }}.ipynb",
         parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"},
         kernel_conn_id="jupyter_kernel_default",
     )
 
     run_this >> check_notebook(
-        output_notebook="/tmp/out-{{ execution_date }}.ipynb", execution_date="{{ execution_date }}"
+        output_notebook="/tmp/out-{{ execution_date }}.ipynb",
+        execution_date="{{ execution_date }}",
     )
 # [END howto_verify_operator_papermill_remote_kernel]
 

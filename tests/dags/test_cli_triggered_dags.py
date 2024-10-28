@@ -43,6 +43,10 @@ dag1 = DAG(
     schedule=None,
     default_args={"depends_on_past": True, **default_args},
 )
-dag1_task1 = PythonOperator(task_id="test_run_dependency_task", python_callable=fail, dag=dag1)
-dag1_task2 = PythonOperator(task_id="test_run_dependent_task", python_callable=success, dag=dag1)
+dag1_task1 = PythonOperator(
+    task_id="test_run_dependency_task", python_callable=fail, dag=dag1
+)
+dag1_task2 = PythonOperator(
+    task_id="test_run_dependent_task", python_callable=success, dag=dag1
+)
 dag1_task1.set_downstream(dag1_task2)

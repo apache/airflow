@@ -64,7 +64,12 @@ class TestPythonSensor(BasePythonTest):
 
         task = self.render_templates(
             lambda: 0,
-            op_args=[4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple],
+            op_args=[
+                4,
+                date(2019, 1, 1),
+                "dag {{dag.dag_id}} ran on {{ds}}.",
+                named_tuple,
+            ],
         )
         rendered_op_args = task.op_args
         assert len(rendered_op_args) == 4
@@ -86,4 +91,7 @@ class TestPythonSensor(BasePythonTest):
         rendered_op_kwargs = task.op_kwargs
         assert rendered_op_kwargs["an_int"] == 4
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
-        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        assert (
+            rendered_op_kwargs["a_templated_string"]
+            == f"dag {self.dag_id} ran on {self.ds_templated}."
+        )

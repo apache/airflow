@@ -46,7 +46,9 @@ try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 except ImportError:
     # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+        KubernetesPodOperator,
+    )
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -60,7 +62,9 @@ DEFAULT_FARGATE_PROFILE_NAME = "profile"
 DEFAULT_NAMESPACE_NAME = "default"
 DEFAULT_NODEGROUP_NAME = "nodegroup"
 
-CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
+CAN_NOT_DELETE_MSG = (
+    "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
+)
 MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
 SUCCESS_MSG = "No {compute} remain, deleting cluster."
 
@@ -124,12 +128,17 @@ def _create_compute(
             **create_fargate_profile_kwargs,
         )
         if wait_for_completion:
-            log.info("Waiting for Fargate profile to provision.  This will take some time.")
+            log.info(
+                "Waiting for Fargate profile to provision.  This will take some time."
+            )
             wait(
                 waiter=eks_hook.conn.get_waiter("fargate_profile_active"),
                 waiter_delay=waiter_delay,
                 waiter_max_attempts=waiter_max_attempts,
-                args={"clusterName": cluster_name, "fargateProfileName": fargate_profile_name},
+                args={
+                    "clusterName": cluster_name,
+                    "fargateProfileName": fargate_profile_name,
+                },
                 failure_message="Fargate profile creation failed",
                 status_message="Fargate profile status is",
                 status_args=["fargateProfile.status"],
@@ -232,7 +241,9 @@ class EksCreateClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
         **kwargs,
@@ -254,7 +265,9 @@ class EksCreateClusterOperator(BaseOperator):
         self.region = region
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
+        self.fargate_selectors = fargate_selectors or [
+            {"namespace": DEFAULT_NAMESPACE_NAME}
+        ]
         self.fargate_profile_name = fargate_profile_name
         self.deferrable = deferrable
         super().__init__(
@@ -271,12 +284,15 @@ class EksCreateClusterOperator(BaseOperator):
                 raise ValueError("Provided compute type is not supported.")
             elif (self.compute == "nodegroup") and not self.nodegroup_role_arn:
                 raise ValueError(
-                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement="nodegroup_role_arn")
+                    MISSING_ARN_MSG.format(
+                        compute=NODEGROUP_FULL_NAME, requirement="nodegroup_role_arn"
+                    )
                 )
             elif (self.compute == "fargate") and not self.fargate_pod_execution_role_arn:
                 raise ValueError(
                     MISSING_ARN_MSG.format(
-                        compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
+                        compute=FARGATE_FULL_NAME,
+                        requirement="fargate_pod_execution_role_arn",
                     )
                 )
         self.hook.create_cluster(
@@ -310,14 +326,20 @@ class EksCreateClusterOperator(BaseOperator):
         try:
             client.get_waiter("cluster_active").wait(
                 name=self.cluster_name,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
         except (ClientError, WaiterError) as e:
             self.log.error("Cluster failed to start and will be torn down.\n %s", e)
             self.hook.delete_cluster(name=self.cluster_name)
             client.get_waiter("cluster_deleted").wait(
                 name=self.cluster_name,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
             raise
         _create_compute(
@@ -338,7 +360,9 @@ class EksCreateClusterOperator(BaseOperator):
             subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
         )
 
-    def deferrable_create_cluster_next(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def deferrable_create_cluster_next(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
@@ -387,7 +411,9 @@ class EksCreateClusterOperator(BaseOperator):
                         region_name=self.region,
                     ),
                     method_name="execute_complete",
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                    timeout=timedelta(
+                        seconds=self.waiter_max_attempts * self.waiter_delay
+                    ),
                 )
             elif self.compute == "nodegroup":
                 self.defer(
@@ -400,10 +426,14 @@ class EksCreateClusterOperator(BaseOperator):
                         waiter_max_attempts=self.waiter_max_attempts,
                     ),
                     method_name="execute_complete",
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                    timeout=timedelta(
+                        seconds=self.waiter_max_attempts * self.waiter_delay
+                    ),
                 )
 
-    def execute_failed(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_failed(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         if event is None:
             self.log.info("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
@@ -411,7 +441,9 @@ class EksCreateClusterOperator(BaseOperator):
             self.log.info("Cluster deleted")
         raise AirflowException("Error creating cluster")
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         resource = "fargate profile" if self.compute == "fargate" else self.compute
@@ -475,7 +507,9 @@ class EksCreateNodegroupOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         self.nodegroup_subnets = nodegroup_subnets
@@ -500,7 +534,9 @@ class EksCreateNodegroupOperator(BaseOperator):
             nodegroup_subnets_list: list[str] = []
             if self.nodegroup_subnets != "":
                 try:
-                    nodegroup_subnets_list = cast(list, literal_eval(self.nodegroup_subnets))
+                    nodegroup_subnets_list = cast(
+                        list, literal_eval(self.nodegroup_subnets)
+                    )
                 except ValueError:
                     self.log.warning(
                         "The nodegroup_subnets should be List or string representing "
@@ -536,10 +572,14 @@ class EksCreateNodegroupOperator(BaseOperator):
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                timeout=timedelta(
+                    seconds=self.waiter_max_attempts * self.waiter_delay + 60
+                ),
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -600,7 +640,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -648,10 +690,14 @@ class EksCreateFargateProfileOperator(BaseOperator):
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
+                timeout=timedelta(
+                    seconds=(self.waiter_max_attempts * self.waiter_delay + 60)
+                ),
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -702,7 +748,9 @@ class EksDeleteClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
         **kwargs,
@@ -756,12 +804,22 @@ class EksDeleteClusterOperator(BaseOperator):
         """
         nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups:
-            self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
+            self.log.info(
+                CAN_NOT_DELETE_MSG.format(
+                    compute=NODEGROUP_FULL_NAME, count=len(nodegroups)
+                )
+            )
             for group in nodegroups:
-                eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+                eks_hook.delete_nodegroup(
+                    clusterName=self.cluster_name, nodegroupName=group
+                )
             # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
-            self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
-            eks_hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
+            self.log.info(
+                "Waiting for all nodegroups to delete.  This will take some time."
+            )
+            eks_hook.get_waiter("all_nodegroups_deleted").wait(
+                clusterName=self.cluster_name
+            )
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:
@@ -773,19 +831,29 @@ class EksDeleteClusterOperator(BaseOperator):
         """
         fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
         if fargate_profiles:
-            self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=len(fargate_profiles)))
-            self.log.info("Waiting for Fargate profiles to delete.  This will take some time.")
+            self.log.info(
+                CAN_NOT_DELETE_MSG.format(
+                    compute=FARGATE_FULL_NAME, count=len(fargate_profiles)
+                )
+            )
+            self.log.info(
+                "Waiting for Fargate profiles to delete.  This will take some time."
+            )
             for profile in fargate_profiles:
                 # The API will return a (cluster) ResourceInUseException if you try
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
                 # so each must be deleted sequentially
-                eks_hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+                eks_hook.delete_fargate_profile(
+                    clusterName=self.cluster_name, fargateProfileName=profile
+                )
                 eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
                     clusterName=self.cluster_name, fargateProfileName=profile
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] == "success":
@@ -835,7 +903,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -854,7 +924,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
             region_name=self.region,
         )
 
-        eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+        eks_hook.delete_nodegroup(
+            clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+        )
         if self.deferrable:
             self.defer(
                 trigger=EksDeleteNodegroupTrigger(
@@ -868,7 +940,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                timeout=timedelta(
+                    seconds=self.waiter_max_attempts * self.waiter_delay + 60
+                ),
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
@@ -876,7 +950,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
                 clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -925,7 +1001,9 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -960,17 +1038,26 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
+                timeout=timedelta(
+                    seconds=(self.waiter_max_attempts * self.waiter_delay + 60)
+                ),
             )
         elif self.wait_for_completion:
-            self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
+            self.log.info(
+                "Waiting for Fargate profile to delete.  This will take some time."
+            )
             eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
                 clusterName=self.cluster_name,
                 fargateProfileName=self.fargate_profile_name,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -1051,7 +1138,9 @@ class EksPodOperator(KubernetesPodOperator):
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the EksPodOperator.
         if self.config_file:
-            raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
+            raise AirflowException(
+                "The config_file is not an allowed parameter for the EksPodOperator."
+            )
 
     def execute(self, context: Context):
         eks_hook = EksHook(

@@ -33,7 +33,10 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrModifyClusterOperator,
     EmrTerminateJobFlowOperator,
 )
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -152,7 +155,9 @@ with DAG(
 
     # [START howto_operator_emr_modify_cluster]
     modify_cluster = EmrModifyClusterOperator(
-        task_id="modify_cluster", cluster_id=create_job_flow.output, step_concurrency_level=1
+        task_id="modify_cluster",
+        cluster_id=create_job_flow.output,
+        step_concurrency_level=1,
     )
     # [END howto_operator_emr_modify_cluster]
 
@@ -183,7 +188,9 @@ with DAG(
     remove_cluster.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_sensor_emr_job_flow]
-    check_job_flow = EmrJobFlowSensor(task_id="check_job_flow", job_flow_id=create_job_flow.output)
+    check_job_flow = EmrJobFlowSensor(
+        task_id="check_job_flow", job_flow_id=create_job_flow.output
+    )
     # [END howto_sensor_emr_job_flow]
     check_job_flow.poke_interval = 10
 
@@ -196,7 +203,9 @@ with DAG(
     create_s3_bucket: S3CreateBucketOperator | None = None
     delete_s3_bucket: S3DeleteBucketOperator | None = None
     if not test_context[BUCKET_NAME_KEY]:
-        create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+        create_s3_bucket = S3CreateBucketOperator(
+            task_id="create_s3_bucket", bucket_name=s3_bucket
+        )
         delete_s3_bucket = S3DeleteBucketOperator(
             task_id="delete_s3_bucket",
             bucket_name=s3_bucket,

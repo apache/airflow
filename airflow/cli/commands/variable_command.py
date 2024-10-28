@@ -40,7 +40,9 @@ def variables_list(args):
     """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+    AirflowConsole().print_as(
+        data=variables, output=args.output, mapper=lambda x: {"key": x.key}
+    )
 
 
 @suppress_logs_and_warning
@@ -52,7 +54,9 @@ def variables_get(args):
             var = Variable.get(args.key, deserialize_json=args.json)
             print(var)
         else:
-            var = Variable.get(args.key, deserialize_json=args.json, default_var=args.default)
+            var = Variable.get(
+                args.key, deserialize_json=args.json, default_var=args.default
+            )
             print(var)
     except (ValueError, KeyError) as e:
         raise SystemExit(str(e).strip("'\""))
@@ -91,7 +95,9 @@ def variables_import(args, session):
     action_on_existing = args.action_on_existing_key
     existing_keys = set()
     if action_on_existing != "overwrite":
-        existing_keys = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
+        existing_keys = set(
+            session.scalars(select(Variable.key).where(Variable.key.in_(var_json)))
+        )
     if action_on_existing == "fail" and existing_keys:
         raise SystemExit(f"Failed. These keys: {sorted(existing_keys)} already exists.")
     for k, v in var_json.items():

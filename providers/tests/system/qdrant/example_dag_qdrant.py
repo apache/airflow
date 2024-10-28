@@ -28,7 +28,11 @@ with DAG(
     catchup=False,
 ) as dag:
     # [START howto_operator_qdrant_ingest]
-    vectors = [[0.732, 0.611, 0.289, 0.421], [0.217, 0.526, 0.416, 0.981], [0.326, 0.483, 0.376, 0.136]]
+    vectors = [
+        [0.732, 0.611, 0.289, 0.421],
+        [0.217, 0.526, 0.416, 0.981],
+        [0.326, 0.483, 0.376, 0.136],
+    ]
     ids: list[str | int] = [32, 21, "b626f6a9-b14d-4af9-b7c3-43d8deb719a6"]
     payload = [{"meta": "data"}, {"meta": "data_2"}, {"meta": "data_3", "extra": "data"}]
 

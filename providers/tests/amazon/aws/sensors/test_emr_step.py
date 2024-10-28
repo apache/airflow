@@ -30,7 +30,10 @@ from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
 from airflow.providers.amazon.aws.triggers.emr import EmrStepSensorTrigger
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {
-    "ResponseMetadata": {"HTTPStatusCode": 200, "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6"},
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
+        "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6",
+    },
     "Step": {
         "ActionOnFailure": "CONTINUE",
         "Config": {
@@ -52,7 +55,10 @@ DESCRIBE_JOB_STEP_RUNNING_RETURN = {
 }
 
 DESCRIBE_JOB_STEP_CANCELLED_RETURN = {
-    "ResponseMetadata": {"HTTPStatusCode": 200, "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6"},
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
+        "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6",
+    },
     "Step": {
         "ActionOnFailure": "CONTINUE",
         "Config": {
@@ -74,7 +80,10 @@ DESCRIBE_JOB_STEP_CANCELLED_RETURN = {
 }
 
 DESCRIBE_JOB_STEP_FAILED_RETURN = {
-    "ResponseMetadata": {"HTTPStatusCode": 200, "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6"},
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
+        "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6",
+    },
     "Step": {
         "ActionOnFailure": "CONTINUE",
         "Config": {
@@ -100,7 +109,10 @@ DESCRIBE_JOB_STEP_FAILED_RETURN = {
 }
 
 DESCRIBE_JOB_STEP_INTERRUPTED_RETURN = {
-    "ResponseMetadata": {"HTTPStatusCode": 200, "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6"},
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
+        "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6",
+    },
     "Step": {
         "ActionOnFailure": "CONTINUE",
         "Config": {
@@ -122,7 +134,10 @@ DESCRIBE_JOB_STEP_INTERRUPTED_RETURN = {
 }
 
 DESCRIBE_JOB_STEP_COMPLETED_RETURN = {
-    "ResponseMetadata": {"HTTPStatusCode": 200, "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6"},
+    "ResponseMetadata": {
+        "HTTPStatusCode": 200,
+        "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6",
+    },
     "Step": {
         "ActionOnFailure": "CONTINUE",
         "Config": {
@@ -214,4 +229,6 @@ class TestEmrStepSensor:
         with patch.object(EmrStepSensor, "poke", return_value=False):
             with pytest.raises(TaskDeferred) as exc:
                 sensor.execute(context=None)
-        assert isinstance(exc.value.trigger, EmrStepSensorTrigger), "Trigger is not a EmrStepSensorTrigger"
+        assert isinstance(
+            exc.value.trigger, EmrStepSensorTrigger
+        ), "Trigger is not a EmrStepSensorTrigger"

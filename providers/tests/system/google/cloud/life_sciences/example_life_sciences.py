@@ -23,15 +23,24 @@ from pathlib import Path
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.operators.life_sciences import (
+    LifeSciencesRunPipelineOperator,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "life_sciences"
 
 BUCKET_NAME = f"bucket_{DAG_ID}-{ENV_ID}"
@@ -94,7 +103,9 @@ with DAG(
     catchup=False,
     tags=["example", "life-sciences"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file",
@@ -113,11 +124,16 @@ with DAG(
     # [END howto_run_pipeline]
 
     multiple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
-        task_id="multi-action-pipeline", body=MULTI_ACTION_PIPELINE, project_id=PROJECT_ID, location=LOCATION
+        task_id="multi-action-pipeline",
+        body=MULTI_ACTION_PIPELINE,
+        project_id=PROJECT_ID,
+        location=LOCATION,
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

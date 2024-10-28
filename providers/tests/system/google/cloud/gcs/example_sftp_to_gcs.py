@@ -27,7 +27,10 @@ from pathlib import Path
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -35,7 +38,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "example_sftp_to_gcs"
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
@@ -60,10 +65,13 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     unzip_file = BashOperator(
-        task_id="unzip_data_file", bash_command=f"tar xvf {LOCAL_PATH}/{FILE_NAME} -C {LOCAL_PATH}"
+        task_id="unzip_data_file",
+        bash_command=f"tar xvf {LOCAL_PATH}/{FILE_NAME} -C {LOCAL_PATH}",
     )
 
     # [START howto_operator_sftp_to_gcs_copy_single_file]
@@ -103,7 +111,9 @@ with DAG(
     # [END howto_operator_sftp_to_gcs_move_specific_files]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

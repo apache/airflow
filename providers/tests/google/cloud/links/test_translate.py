@@ -60,7 +60,12 @@ class TestTranslationLegacyDatasetLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
+        link.persist(
+            context={"ti": ti},
+            task_instance=ti.task,
+            dataset_id=DATASET,
+            project_id=GCP_PROJECT_ID,
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 

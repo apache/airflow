@@ -69,7 +69,12 @@ class TestOpenSearchQueryOperator:
             index_name="test_index",
             query={
                 "size": 5,
-                "query": {"multi_match": {"query": "test", "fields": ["test_title^2", "test_type"]}},
+                "query": {
+                    "multi_match": {
+                        "query": "test",
+                        "fields": ["test_title^2", "test_type"],
+                    }
+                },
             },
         )
 
@@ -90,7 +95,9 @@ class TestOpenSearchCreateIndexOperator:
         self.dag = dag_setup
 
         self.open_search = OpenSearchCreateIndexOperator(
-            task_id="test_opensearch_query_operator", index_name="test_index", index_body={"test": 1}
+            task_id="test_opensearch_query_operator",
+            index_name="test_index",
+            index_body={"test": 1},
         )
 
     def test_init(self):
@@ -112,7 +119,9 @@ class TestOpenSearchAddDocumentOperator:
 
         self.open_search_with_doc_class = OpenSearchAddDocumentOperator(
             task_id="test_opensearch_doc_class_operator",
-            doc_class=FakeDocument(meta={"id": 2}, title="Hamlet", author="Shakespeare", published="1299"),
+            doc_class=FakeDocument(
+                meta={"id": 2}, title="Hamlet", author="Shakespeare", published="1299"
+            ),
         )
 
     def test_init_with_args(self):
@@ -124,7 +133,10 @@ class TestOpenSearchAddDocumentOperator:
         # This operator uses the OpenSearch client method directly, testing here just
         # confirming that the object is an instance of the class.
         assert isinstance(self.open_search_with_doc_class.doc_class, FakeDocument)
-        assert self.open_search_with_doc_class.task_id == "test_opensearch_doc_class_operator"
+        assert (
+            self.open_search_with_doc_class.task_id
+            == "test_opensearch_doc_class_operator"
+        )
 
     def test_add_document_using_args(self, mock_hook):
         result = self.open_search.execute({})

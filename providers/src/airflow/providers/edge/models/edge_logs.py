@@ -61,7 +61,9 @@ class EdgeLogsModel(Base, LoggingMixin):
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    map_index = Column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
     try_number = Column(Integer, primary_key=True, default=0)
     log_chunk_time = Column(UtcDateTime, primary_key=True, nullable=False)
     log_chunk_data = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
@@ -124,9 +126,16 @@ class EdgeLogs(BaseModel, LoggingMixin):
         logfile_path = EdgeLogs.logfile_path(task)
         if not logfile_path.exists():
             new_folder_permissions = int(
-                conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+                conf.get(
+                    "logging",
+                    "file_task_handler_new_folder_permissions",
+                    fallback="0o775",
+                ),
+                8,
             )
-            logfile_path.parent.mkdir(parents=True, exist_ok=True, mode=new_folder_permissions)
+            logfile_path.parent.mkdir(
+                parents=True, exist_ok=True, mode=new_folder_permissions
+            )
         with logfile_path.open("a") as logfile:
             logfile.write(log_chunk_data)
 
@@ -145,7 +154,10 @@ class EdgeLogs(BaseModel, LoggingMixin):
         if TYPE_CHECKING:
             assert ti
         base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-        return Path(base_log_folder, FileTaskHandler(base_log_folder)._render_filename(ti, task.try_number))
+        return Path(
+            base_log_folder,
+            FileTaskHandler(base_log_folder)._render_filename(ti, task.try_number),
+        )
 
 
 EdgeLogs.model_rebuild()

@@ -109,7 +109,9 @@ class BatchJobCollection:
         self.key_to_id[airflow_task_key] = job_id
         self.id_to_key[job_id] = airflow_task_key
         self.id_to_failure_counts[job_id] = attempt_number
-        self.id_to_job_info[job_id] = BatchJobInfo(cmd=airflow_cmd, queue=queue, config=exec_config)
+        self.id_to_job_info[job_id] = BatchJobInfo(
+            cmd=airflow_cmd, queue=queue, config=exec_config
+        )
 
     def pop_by_id(self, job_id: str) -> TaskInstanceKey:
         """Delete job from collection based off of Batch Job ID."""

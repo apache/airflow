@@ -29,7 +29,9 @@ from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.utils.trigger_rule import TriggerRule
 
-DAGS_DIR = os.path.join(os.path.dirname(__file__), "../src/performance_dags/performance_dag")
+DAGS_DIR = os.path.join(
+    os.path.dirname(__file__), "../src/performance_dags/performance_dag"
+)
 
 
 def setup_dag(
@@ -115,10 +117,14 @@ def get_import_errors():
         return os.path.relpath(path, DAGS_DIR)
 
     # prepend "(None,None)" to ensure that a test object is always created even if it's a no op.
-    return [(None, None)] + [(strip_path_prefix(k), v.strip()) for k, v in dag_bag.import_errors.items()]
+    return [(None, None)] + [
+        (strip_path_prefix(k), v.strip()) for k, v in dag_bag.import_errors.items()
+    ]
 
 
-@pytest.mark.parametrize("rel_path,rv", get_import_errors(), ids=[x[0] for x in get_import_errors()])
+@pytest.mark.parametrize(
+    "rel_path,rv", get_import_errors(), ids=[x[0] for x in get_import_errors()]
+)
 def test_file_imports(rel_path, rv):
     """Test for import errors on a file."""
     if rel_path and rv:
@@ -139,7 +145,9 @@ def test_performance_dag(dag_count, task_count):
         for task in performance_dag.tasks:
             t_rule = task.trigger_rule
             assert t_rule == "all_success", f"{task} in DAG has the trigger rule {t_rule}"
-            assert task.operator_name == "BashOperator", f"{task} should be based on bash operator"
+            assert (
+                task.operator_name == "BashOperator"
+            ), f"{task} should be based on bash operator"
 
 
 def test_performance_dag_shape_binary_tree():

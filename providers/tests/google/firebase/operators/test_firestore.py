@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
+from airflow.providers.google.firebase.operators.firestore import (
+    CloudFirestoreExportDatabaseOperator,
+)
 
 TEST_OUTPUT_URI_PREFIX: str = "gs://example-bucket/path"
 TEST_PROJECT_ID: str = "test-project-id"
@@ -30,7 +32,9 @@ EXPORT_DOCUMENT_BODY = {
 
 
 class TestCloudFirestoreExportDatabaseOperator:
-    @mock.patch("airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook")
+    @mock.patch(
+        "airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook"
+    )
     def test_execute(self, mock_firestore_hook):
         op = CloudFirestoreExportDatabaseOperator(
             task_id="test-task",

@@ -43,8 +43,14 @@ class TestSqliteHookConn:
             (Connection(host="host", extra='{"mode":"ro"}'), "file:host?mode=ro"),
             (Connection(host=":memory:"), "file::memory:"),
             (Connection(), "file:"),
-            (Connection(uri="sqlite://relative/path/to/db?mode=ro"), "file:relative/path/to/db?mode=ro"),
-            (Connection(uri="sqlite:///absolute/path/to/db?mode=ro"), "file:/absolute/path/to/db?mode=ro"),
+            (
+                Connection(uri="sqlite://relative/path/to/db?mode=ro"),
+                "file:relative/path/to/db?mode=ro",
+            ),
+            (
+                Connection(uri="sqlite:///absolute/path/to/db?mode=ro"),
+                "file:/absolute/path/to/db?mode=ro",
+            ),
             (Connection(uri="sqlite://?mode=ro"), "file:?mode=ro"),
         ],
     )

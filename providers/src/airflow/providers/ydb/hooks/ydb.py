@@ -23,10 +23,16 @@ from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.ydb.hooks._vendor.dbapi.connection import Connection as DbApiConnection
+from airflow.providers.ydb.hooks._vendor.dbapi.connection import (
+    Connection as DbApiConnection,
+)
 from airflow.providers.ydb.hooks._vendor.dbapi.cursor import YdbQuery
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
-from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME
+from airflow.providers.ydb.utils.defaults import (
+    CONN_NAME_ATTR,
+    CONN_TYPE,
+    DEFAULT_CONN_NAME,
+)
 
 DEFAULT_YDB_GRPCS_PORT: int = 2135
 
@@ -98,7 +104,9 @@ class YDBConnection:
     def __init__(self, ydb_session_pool: Any, is_ddl: bool, use_scan_query: bool):
         self.is_ddl = is_ddl
         self.use_scan_query = use_scan_query
-        self.delegatee: DbApiConnection = DbApiConnection(ydb_session_pool=ydb_session_pool)
+        self.delegatee: DbApiConnection = DbApiConnection(
+            ydb_session_pool=ydb_session_pool
+        )
         self.delegatee.set_ydb_scan_query(use_scan_query)
 
     def cursor(self) -> YDBCursor:
@@ -122,8 +130,12 @@ class YDBConnection:
     def close(self) -> None:
         self.delegatee.close()
 
-    def bulk_upsert(self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns):
-        self.delegatee.driver.table_client.bulk_upsert(table_name, rows=rows, column_types=column_types)
+    def bulk_upsert(
+        self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns
+    ):
+        self.delegatee.driver.table_client.bulk_upsert(
+            table_name, rows=rows, column_types=column_types
+        )
 
 
 class YDBHook(DbApiHook):
@@ -136,7 +148,9 @@ class YDBHook(DbApiHook):
     supports_autocommit: bool = True
     supports_executemany: bool = True
 
-    def __init__(self, *args, is_ddl: bool = False, use_scan_query: bool = False, **kwargs) -> None:
+    def __init__(
+        self, *args, is_ddl: bool = False, use_scan_query: bool = False, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.is_ddl = is_ddl
         self.use_scan_query = use_scan_query
@@ -155,7 +169,10 @@ class YDBHook(DbApiHook):
 
         endpoint = f"{host}:{port}"
         credentials = get_credentials_from_connection(
-            endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra
+            endpoint=endpoint,
+            database=database,
+            connection=conn,
+            connection_extra=connection_extra,
         )
 
         driver_config = ydb.DriverConfig(
@@ -172,7 +189,10 @@ class YDBHook(DbApiHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to YDB connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, PasswordField, StringField
 
@@ -237,13 +257,17 @@ class YDBHook(DbApiHook):
 
     def get_conn(self) -> YDBConnection:
         """Establish a connection to a YDB database."""
-        return YDBConnection(self.ydb_session_pool, is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
+        return YDBConnection(
+            self.ydb_session_pool, is_ddl=self.is_ddl, use_scan_query=self.use_scan_query
+        )
 
     @staticmethod
     def _serialize_cell(cell: object, conn: YDBConnection | None = None) -> Any:
         return cell
 
-    def bulk_upsert(self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns):
+    def bulk_upsert(
+        self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns
+    ):
         """
         BulkUpsert into database. More optimal way to insert rows into db.
 

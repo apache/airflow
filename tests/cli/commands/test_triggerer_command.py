@@ -54,7 +54,9 @@ class TestTriggererCommand:
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
     @mock.patch("airflow.cli.commands.triggerer_command.run_job")
     @mock.patch("airflow.cli.commands.triggerer_command.Process")
-    def test_trigger_run_serve_logs(self, mock_process, mock_run_job, mock_trigger_job_runner):
+    def test_trigger_run_serve_logs(
+        self, mock_process, mock_run_job, mock_trigger_job_runner
+    ):
         """Ensure that trigger runner and server log functions execute as intended"""
         triggerer_command.triggerer_run(False, 1, 10.3)
 

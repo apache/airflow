@@ -24,7 +24,10 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import PredictionServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -34,7 +37,9 @@ if TYPE_CHECKING:
 class PredictionServiceHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Prediction API."""
 
-    def get_prediction_service_client(self, region: str | None = None) -> PredictionServiceClient:
+    def get_prediction_service_client(
+        self, region: str | None = None
+    ) -> PredictionServiceClient:
         """
         Return PredictionServiceClient object.
 
@@ -43,12 +48,16 @@ class PredictionServiceHook(GoogleBaseHook):
         :return: `google.cloud.aiplatform_v1.services.prediction_service.client.PredictionServiceClient` instance.
         """
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return PredictionServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -84,7 +93,11 @@ class PredictionServiceHook(GoogleBaseHook):
         client = self.get_prediction_service_client(location)
         endpoint = f"projects/{project_id}/locations/{location}/endpoints/{endpoint_id}"
         return client.predict(
-            request={"endpoint": endpoint, "instances": instances, "parameters": parameters},
+            request={
+                "endpoint": endpoint,
+                "instances": instances,
+                "parameters": parameters,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

@@ -44,7 +44,9 @@ class TaskSchema(Schema):
     end_date = fields.DateTime(dump_only=True)
     trigger_rule = fields.String(dump_only=True)
     extra_links = fields.List(
-        fields.Nested(ClassReferenceSchema), dump_only=True, attribute="operator_extra_links"
+        fields.Nested(ClassReferenceSchema),
+        dump_only=True,
+        attribute="operator_extra_links",
     )
     depends_on_past = fields.Boolean(dump_only=True)
     wait_for_downstream = fields.Boolean(dump_only=True)

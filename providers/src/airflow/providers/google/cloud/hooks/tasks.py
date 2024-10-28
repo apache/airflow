@@ -27,7 +27,10 @@ from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -78,7 +81,9 @@ class CloudTasksHook(GoogleBaseHook):
         :return: Google Cloud Tasks API Client
         """
         if self._client is None:
-            self._client = CloudTasksClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = CloudTasksClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -113,7 +118,9 @@ class CloudTasksHook(GoogleBaseHook):
         client = self.get_conn()
 
         if queue_name:
-            full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+            full_queue_name = (
+                f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+            )
             if isinstance(task_queue, Queue):
                 task_queue.name = full_queue_name
             elif isinstance(task_queue, dict):
@@ -165,7 +172,9 @@ class CloudTasksHook(GoogleBaseHook):
         client = self.get_conn()
 
         if queue_name and location:
-            full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+            full_queue_name = (
+                f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+            )
             if isinstance(task_queue, Queue):
                 task_queue.name = full_queue_name
             elif isinstance(task_queue, dict):
@@ -205,7 +214,9 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         return client.get_queue(
             request={"name": full_queue_name},
             retry=retry,
@@ -244,7 +255,11 @@ class CloudTasksHook(GoogleBaseHook):
 
         full_location_path = f"projects/{project_id}/locations/{location}"
         queues = client.list_queues(
-            request={"parent": full_location_path, "filter": results_filter, "page_size": page_size},
+            request={
+                "parent": full_location_path,
+                "filter": results_filter,
+                "page_size": page_size,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -277,7 +292,9 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         client.delete_queue(
             request={"name": full_queue_name},
             retry=retry,
@@ -311,7 +328,9 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         return client.purge_queue(
             request={"name": full_queue_name},
             retry=retry,
@@ -345,7 +364,9 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         return client.pause_queue(
             request={"name": full_queue_name},
             retry=retry,
@@ -379,7 +400,9 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         return client.resume_queue(
             request={"name": full_queue_name},
             retry=retry,
@@ -423,18 +446,22 @@ class CloudTasksHook(GoogleBaseHook):
         client = self.get_conn()
 
         if task_name:
-            full_task_name = (
-                f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
-            )
+            full_task_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
             if isinstance(task, Task):
                 task.name = full_task_name
             elif isinstance(task, dict):
                 task["name"] = full_task_name
             else:
                 raise AirflowException("Unable to set task_name.")
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         return client.create_task(
-            request={"parent": full_queue_name, "task": task, "response_view": response_view},
+            request={
+                "parent": full_queue_name,
+                "task": task,
+                "response_view": response_view,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -510,9 +537,15 @@ class CloudTasksHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
         client = self.get_conn()
-        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        full_queue_name = (
+            f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        )
         tasks = client.list_tasks(
-            request={"parent": full_queue_name, "response_view": response_view, "page_size": page_size},
+            request={
+                "parent": full_queue_name,
+                "response_view": response_view,
+                "page_size": page_size,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

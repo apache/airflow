@@ -29,11 +29,13 @@ if TYPE_CHECKING:
 
 BASE_LINK = "/memorystore"
 MEMCACHED_LINK = (
-    BASE_LINK + "/memcached/locations/{location_id}/instances/{instance_id}/details?project={project_id}"
+    BASE_LINK
+    + "/memcached/locations/{location_id}/instances/{instance_id}/details?project={project_id}"
 )
 MEMCACHED_LIST_LINK = BASE_LINK + "/memcached/instances?project={project_id}"
 REDIS_LINK = (
-    BASE_LINK + "/redis/locations/{location_id}/instances/{instance_id}/details/overview?project={project_id}"
+    BASE_LINK
+    + "/redis/locations/{location_id}/instances/{instance_id}/details/overview?project={project_id}"
 )
 REDIS_LIST_LINK = BASE_LINK + "/redis/instances?project={project_id}"
 
@@ -56,7 +58,11 @@ class MemcachedInstanceDetailsLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=MemcachedInstanceDetailsLink.key,
-            value={"instance_id": instance_id, "location_id": location_id, "project_id": project_id},
+            value={
+                "instance_id": instance_id,
+                "location_id": location_id,
+                "project_id": project_id,
+            },
         )
 
 
@@ -98,7 +104,11 @@ class RedisInstanceDetailsLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=RedisInstanceDetailsLink.key,
-            value={"instance_id": instance_id, "location_id": location_id, "project_id": project_id},
+            value={
+                "instance_id": instance_id,
+                "location_id": location_id,
+                "project_id": project_id,
+            },
         )
 
 

@@ -148,7 +148,9 @@ class TestDataflowCreatePythonJobOperator:
                 poll_sleep=POLL_SLEEP,
                 location=TEST_LOCATION,
             )
-        self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
+        self.expected_airflow_version = "v" + airflow.version.version.replace(
+            ".", "-"
+        ).replace("+", "-")
 
     def test_init(self):
         """Test DataflowCreatePythonJobOperator instance is properly initialized."""
@@ -167,7 +169,9 @@ class TestDataflowCreatePythonJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.BeamHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.GCSHook")
-    def test_exec(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id):
+    def test_exec(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id
+    ):
         """Test DataflowHook is created and the right args are passed to
         start_python_workflow.
 
@@ -230,7 +234,9 @@ class TestDataflowCreateJavaJobOperator:
                 poll_sleep=POLL_SLEEP,
                 location=TEST_LOCATION,
             )
-        self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
+        self.expected_airflow_version = "v" + airflow.version.version.replace(
+            ".", "-"
+        ).replace("+", "-")
 
     def test_init(self):
         """Test DataflowCreateJavaJobOperator instance is properly initialized."""
@@ -249,7 +255,9 @@ class TestDataflowCreateJavaJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.BeamHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.GCSHook")
-    def test_exec(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id):
+    def test_exec(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id
+    ):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
 
@@ -315,7 +323,9 @@ class TestDataflowCreateJavaJobOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=variables, location=TEST_LOCATION)
+        dataflow_running.assert_called_once_with(
+            name=JOB_NAME, variables=variables, location=TEST_LOCATION
+        )
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.dataflow.process_line_and_extract_dataflow_job_id_callback"
@@ -439,7 +449,9 @@ class TestDataflowCreateJavaJobOperatorWithLocal:
                 poll_sleep=POLL_SLEEP,
                 location=TEST_LOCATION,
             )
-        self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
+        self.expected_airflow_version = "v" + airflow.version.version.replace(
+            ".", "-"
+        ).replace("+", "-")
 
     def test_init(self):
         """Test DataflowCreateJavaJobOperator instance is properly initialized."""
@@ -551,7 +563,9 @@ class TestDataflowTemplatedJobStartOperator:
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.defer")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
-    def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
+    def test_execute_with_deferrable_mode(
+        self, mock_hook, mock_defer_method, deferrable_operator
+    ):
         deferrable_operator.execute(mock.MagicMock())
         expected_variables = {
             "project": "test",
@@ -677,10 +691,16 @@ class TestDataflowStartFlexTemplateOperator:
 
     def test_on_kill(self, sync_operator):
         sync_operator.hook = mock.MagicMock()
-        sync_operator.job = {"id": JOB_ID, "projectId": TEST_PROJECT, "location": TEST_LOCATION}
+        sync_operator.job = {
+            "id": JOB_ID,
+            "projectId": TEST_PROJECT,
+            "location": TEST_LOCATION,
+        }
         sync_operator.on_kill()
         sync_operator.hook.cancel_job.assert_called_once_with(
-            job_id="test-dataflow-pipeline-id", project_id=TEST_PROJECT, location=TEST_LOCATION
+            job_id="test-dataflow-pipeline-id",
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
         )
 
     def test_validation_deferrable_params_raises_error(self):
@@ -698,7 +718,9 @@ class TestDataflowStartFlexTemplateOperator:
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartFlexTemplateOperator.defer")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
-    def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
+    def test_execute_with_deferrable_mode(
+        self, mock_hook, mock_defer_method, deferrable_operator
+    ):
         deferrable_operator.execute(mock.MagicMock())
 
         mock_hook.return_value.launch_job_with_flex_template.assert_called_once_with(
@@ -794,7 +816,9 @@ class TestDataflowStartYamlJobOperator:
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.defer")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
-    def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
+    def test_execute_with_deferrable_mode(
+        self, mock_hook, mock_defer_method, deferrable_operator
+    ):
         deferrable_operator.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             poll_sleep=deferrable_operator.poll_sleep,
@@ -808,7 +832,9 @@ class TestDataflowStartYamlJobOperator:
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.xcom_push")
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
-    def test_execute_complete_success(self, mock_hook, mock_xcom_push, deferrable_operator):
+    def test_execute_complete_success(
+        self, mock_hook, mock_xcom_push, deferrable_operator
+    ):
         expected_result = {"id": JOB_ID}
         actual_result = deferrable_operator.execute_complete(
             context=None,
@@ -964,7 +990,10 @@ class TestDataflowCreatePipelineOperator:
         """
         init_kwargs = {
             "task_id": "test_create_datapipeline",
-            "body": {"name": TEST_PIPELINE_NAME, "error": "Testing that AirflowException is raised"},
+            "body": {
+                "name": TEST_PIPELINE_NAME,
+                "error": "Testing that AirflowException is raised",
+            },
             "project_id": TEST_PROJECT,
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
@@ -988,7 +1017,9 @@ class TestDataflowCreatePipelineOperator:
         )
 
         mock_hook.return_value.get_data_pipeline.assert_called_once_with(
-            project_id=TEST_PROJECT, pipeline_name=TEST_PIPELINE_NAME, location=TEST_LOCATION
+            project_id=TEST_PROJECT,
+            pipeline_name=TEST_PIPELINE_NAME,
+            location=TEST_LOCATION,
         )
 
 
@@ -1078,9 +1109,9 @@ class TestDataflowRunPipelineOperator:
             "gcp_conn_id": GCP_CONN_ID,
         }
         with pytest.raises(AirflowException):
-            DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
-                "error": {"message": "example error"}
-            }
+            DataflowRunPipelineOperator(**init_kwargs).execute(
+                mock.MagicMock()
+            ).return_value = {"error": {"message": "example error"}}
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
@@ -1187,6 +1218,6 @@ class TestDataflowDeletePipelineOperator:
             "gcp_conn_id": GCP_CONN_ID,
         }
         with pytest.raises(AirflowException):
-            DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
-                "error": {"message": "example error"}
-            }
+            DataflowDeletePipelineOperator(**init_kwargs).execute(
+                mock.MagicMock()
+            ).return_value = {"error": {"message": "example error"}}

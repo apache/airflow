@@ -44,9 +44,7 @@ CLASS_PATH = (
     "airflow.providers.google.cloud.triggers.cloud_storage_transfer_service"
     ".CloudStorageTransferServiceCreateJobsTrigger"
 )
-ASYNC_HOOK_CLASS_PATH = (
-    "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceAsyncHook"
-)
+ASYNC_HOOK_CLASS_PATH = "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceAsyncHook"
 
 
 @pytest.fixture(scope="session")
@@ -97,9 +95,13 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
     async def test_run(self, get_jobs, get_latest_operation, trigger):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES)
+        get_jobs.return_value = mock_jobs(
+            names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES
+        )
         get_latest_operation.side_effect = [
-            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
+            create_mock_operation(
+                status=TransferOperation.Status.SUCCESS, name="operation_" + job_name
+            )
             for job_name in JOB_NAMES
         ]
         expected_event = TriggerEvent(
@@ -126,15 +128,20 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
     @mock.patch("asyncio.sleep")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation", autospec=True)
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs", autospec=True)
-    async def test_run_poll_interval(self, get_jobs, get_latest_operation, mock_sleep, trigger, status):
+    async def test_run_poll_interval(
+        self, get_jobs, get_latest_operation, mock_sleep, trigger, status
+    ):
         get_jobs.side_effect = [
             mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES),
             mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES),
         ]
         get_latest_operation.side_effect = [
-            create_mock_operation(status=status, name="operation_" + job_name) for job_name in JOB_NAMES
+            create_mock_operation(status=status, name="operation_" + job_name)
+            for job_name in JOB_NAMES
         ] + [
-            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
+            create_mock_operation(
+                status=TransferOperation.Status.SUCCESS, name="operation_" + job_name
+            )
             for job_name in JOB_NAMES
         ]
         expected_event = TriggerEvent(
@@ -161,11 +168,20 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
     async def test_run_error_job_has_no_latest_operation(
-        self, get_jobs, get_latest_operation, trigger, latest_operations_names, expected_failed_job
+        self,
+        get_jobs,
+        get_latest_operation,
+        trigger,
+        latest_operations_names,
+        expected_failed_job,
     ):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=latest_operations_names)
+        get_jobs.return_value = mock_jobs(
+            names=JOB_NAMES, latest_operation_names=latest_operations_names
+        )
         get_latest_operation.side_effect = [
-            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
+            create_mock_operation(
+                status=TransferOperation.Status.SUCCESS, name="operation_" + job_name
+            )
             if job_name
             else None
             for job_name in latest_operations_names
@@ -219,7 +235,9 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         failed_operation,
         expected_status,
     ):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES)
+        get_jobs.return_value = mock_jobs(
+            names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES
+        )
         get_latest_operation.side_effect = [
             create_mock_operation(status=status, name=operation_name)
             for status, operation_name in zip(job_statuses, LATEST_OPERATION_NAMES)
@@ -239,12 +257,16 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
     @pytest.mark.asyncio
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
-    async def test_run_get_jobs_airflow_exception(self, get_jobs, get_latest_operation, trigger):
+    async def test_run_get_jobs_airflow_exception(
+        self, get_jobs, get_latest_operation, trigger
+    ):
         expected_error_message = "Mock error message"
         get_jobs.side_effect = AirflowException(expected_error_message)
 
         get_latest_operation.side_effect = [
-            create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
+            create_mock_operation(
+                status=TransferOperation.Status.SUCCESS, name="operation_" + job_name
+            )
             for job_name in JOB_NAMES
         ]
         expected_event = TriggerEvent(
@@ -262,8 +284,12 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
     @pytest.mark.asyncio
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_latest_operation")
     @mock.patch(ASYNC_HOOK_CLASS_PATH + ".get_jobs")
-    async def test_run_get_latest_operation_airflow_exception(self, get_jobs, get_latest_operation, trigger):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES)
+    async def test_run_get_latest_operation_airflow_exception(
+        self, get_jobs, get_latest_operation, trigger
+    ):
+        get_jobs.return_value = mock_jobs(
+            names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES
+        )
         expected_error_message = "Mock error message"
         get_latest_operation.side_effect = AirflowException(expected_error_message)
 
@@ -285,7 +311,9 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
     async def test_run_get_latest_operation_google_api_call_error(
         self, get_jobs, get_latest_operation, trigger
     ):
-        get_jobs.return_value = mock_jobs(names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES)
+        get_jobs.return_value = mock_jobs(
+            names=JOB_NAMES, latest_operation_names=LATEST_OPERATION_NAMES
+        )
         error_message = "Mock error message"
         get_latest_operation.side_effect = GoogleAPICallError(error_message)
 

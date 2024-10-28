@@ -56,7 +56,9 @@ def is_subclass_of_dbapihook(node: ast.ClassDef) -> bool:
 def has_make_serializable_method(node: ast.ClassDef) -> bool:
     """Return True if the given class implements `_make_common_data_structure` method."""
     for body_element in node.body:
-        if isinstance(body_element, ast.FunctionDef) and (body_element.name == MAKE_COMMON_METHOD_NAME):
+        if isinstance(body_element, ast.FunctionDef) and (
+            body_element.name == MAKE_COMMON_METHOD_NAME
+        ):
             return True
     return False
 
@@ -98,11 +100,15 @@ def check_sql_providers_dependency():
             continue
 
         for clazz in get_classes(path):
-            if is_subclass_of_dbapihook(node=clazz) and has_make_serializable_method(node=clazz):
+            if is_subclass_of_dbapihook(node=clazz) and has_make_serializable_method(
+                node=clazz
+            ):
                 provider_yaml_path: str = determine_provider_yaml_path(file_path=path)
                 provider_metadata: dict = get_yaml_content(file_path=provider_yaml_path)
 
-                if version_constraint := get_common_sql_constraints(provider_metadata=provider_metadata):
+                if version_constraint := get_common_sql_constraints(
+                    provider_metadata=provider_metadata
+                ):
                     if not do_version_satisfies_constraints(version=version_constraint):
                         error_count += 1
                         console.print(

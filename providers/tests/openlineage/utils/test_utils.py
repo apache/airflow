@@ -29,7 +29,10 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
+from airflow.providers.openlineage.plugins.facets import (
+    AirflowDagRunFacet,
+    AirflowJobFacet,
+)
 from airflow.providers.openlineage.utils.utils import (
     _get_task_groups_details,
     _get_tasks_details,
@@ -61,7 +64,9 @@ class CustomOperatorFromEmpty(EmptyOperator):
 
 
 def test_get_airflow_job_facet():
-    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(
+        dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)
+    ) as dag:
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
 
         with TaskGroup("section_1", prefix_group_id=True):
@@ -130,12 +135,18 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.dag = dag
     dagrun_mock.conf = {}
     dagrun_mock.dag_id = dag.dag_id
-    dagrun_mock.data_interval_start = datetime.datetime(2024, 6, 1, 1, 2, 3, tzinfo=datetime.timezone.utc)
-    dagrun_mock.data_interval_end = datetime.datetime(2024, 6, 1, 2, 3, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.data_interval_start = datetime.datetime(
+        2024, 6, 1, 1, 2, 3, tzinfo=datetime.timezone.utc
+    )
+    dagrun_mock.data_interval_end = datetime.datetime(
+        2024, 6, 1, 2, 3, 4, tzinfo=datetime.timezone.utc
+    )
     dagrun_mock.external_trigger = True
     dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
     dagrun_mock.run_type = DagRunType.MANUAL
-    dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.start_date = datetime.datetime(
+        2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc
+    )
 
     result = get_airflow_dag_run_facet(dagrun_mock)
 
@@ -194,7 +205,9 @@ def test_get_fully_qualified_class_name_mapped_operator():
 
 
 def test_get_fully_qualified_class_name_bash_operator():
-    result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="echo 0;"))
+    result = get_fully_qualified_class_name(
+        BashOperator(task_id="test", bash_command="echo 0;")
+    )
     expected_result = f"{BASH_OPERATOR_PATH}.BashOperator"
     assert result == expected_result
 
@@ -244,7 +257,9 @@ def test_get_tasks_details():
     def sum_values(values: list[int]) -> int:
         return sum(values)
 
-    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(
+        dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)
+    ) as dag:
         task_ = CustomOperatorForTest(task_id="task", bash_command="exit 0;")
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = CustomOperatorFromEmpty(task_id="task_1")
@@ -457,7 +472,12 @@ def test_get_tasks_details():
 
 
 def test_get_tasks_details_empty_dag():
-    assert _get_tasks_details(DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))) == {}
+    assert (
+        _get_tasks_details(
+            DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))
+        )
+        == {}
+    )
 
 
 def test_get_tasks_large_dag():
@@ -466,21 +486,27 @@ def test_get_tasks_large_dag():
         start = EmptyOperator(task_id="start")
 
         a = [
-            start >> EmptyOperator(task_id=f"a_1_{i}") >> EmptyOperator(task_id=f"a_2_{i}")
+            start
+            >> EmptyOperator(task_id=f"a_1_{i}")
+            >> EmptyOperator(task_id=f"a_2_{i}")
             for i in range(200)
         ]
 
         middle = EmptyOperator(task_id="middle")
 
         b = [
-            middle >> EmptyOperator(task_id=f"b_1_{i}") >> EmptyOperator(task_id=f"b_2_{i}")
+            middle
+            >> EmptyOperator(task_id=f"b_1_{i}")
+            >> EmptyOperator(task_id=f"b_2_{i}")
             for i in range(200)
         ]
 
         middle2 = EmptyOperator(task_id="middle2")
 
         c = [
-            middle2 >> EmptyOperator(task_id=f"c_1_{i}") >> EmptyOperator(task_id=f"c_2_{i}")
+            middle2
+            >> EmptyOperator(task_id=f"c_1_{i}")
+            >> EmptyOperator(task_id=f"c_2_{i}")
             for i in range(200)
         ]
 
@@ -499,7 +525,9 @@ def test_get_tasks_large_dag():
 
     assert len(result) == 1204
     for task_id, task_info in result.items():
-        assert len(task_info["downstream_task_ids"]) == expected_dependencies.get(task_id, 1)
+        assert len(task_info["downstream_task_ids"]) == expected_dependencies.get(
+            task_id, 1
+        )
 
 
 def test_get_task_groups_details():
@@ -578,10 +606,13 @@ def test_get_task_groups_details_no_task_groups():
 
 
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
-def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_facet_funcs):
+def test_get_user_provided_run_facets_with_no_function_definition(
+    mock_custom_facet_funcs,
+):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
@@ -591,18 +622,24 @@ def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_fa
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet"},
+    return_value={
+        "providers.tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet"
+    },
 )
 def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 1
-    assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
+    assert (
+        result["additional_run_facet"].name
+        == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
+    )
     assert result["additional_run_facet"].cluster == "TEST_test-dag.test-task"
 
 
@@ -634,16 +671,22 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
         "providers.tests.openlineage.utils.custom_facet_fixture.get_another_test_facet",
     },
 )
-def test_get_user_provided_run_facets_with_multiple_function_definition(mock_custom_facet_funcs):
+def test_get_user_provided_run_facets_with_multiple_function_definition(
+    mock_custom_facet_funcs,
+):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 2
-    assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
+    assert (
+        result["additional_run_facet"].name
+        == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
+    )
     assert result["additional_run_facet"].cluster == "TEST_test-dag.test-task"
     assert result["another_run_facet"] == {"name": "another-lineage-namespace"}
 
@@ -658,13 +701,17 @@ def test_get_user_provided_run_facets_with_multiple_function_definition(mock_cus
 def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert len(result) == 1
-    assert result["additional_run_facet"].name == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
+    assert (
+        result["additional_run_facet"].name
+        == f"test-lineage-namespace-{TaskInstanceState.RUNNING}"
+    )
     assert result["additional_run_facet"].cluster == "TEST_test-dag.test-task"
 
 
@@ -672,10 +719,13 @@ def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_face
     "airflow.providers.openlineage.conf.custom_run_facets",
     return_value={"invalid_function"},
 )
-def test_get_user_provided_run_facets_with_invalid_function_definition(mock_custom_facet_funcs):
+def test_get_user_provided_run_facets_with_invalid_function_definition(
+    mock_custom_facet_funcs,
+):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
@@ -685,12 +735,17 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
+    return_value={
+        "providers.tests.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"
+    },
 )
-def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
+def test_get_user_provided_run_facets_with_wrong_return_type_function(
+    mock_custom_facet_funcs,
+):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
@@ -700,12 +755,15 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
+    return_value={
+        "providers.tests.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"
+    },
 )
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task",
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )

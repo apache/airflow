@@ -29,7 +29,10 @@ def source():
 
 def test_format_tags_with_dict(source):
     formatted_tags = format_tags(source)
-    expected_result = [{"Key": "key1", "Value": "value1"}, {"Key": "key2", "Value": "value2"}]
+    expected_result = [
+        {"Key": "key1", "Value": "value1"},
+        {"Key": "key2", "Value": "value2"},
+    ]
     assert formatted_tags == expected_result
 
 
@@ -41,7 +44,10 @@ def test_format_tags_with_other_input():
 
 def test_format_tags_with_custom_labels(source):
     formatted_tags = format_tags(source, key_label="TagKey", value_label="TagValue")
-    expected_result = [{"TagKey": "key1", "TagValue": "value1"}, {"TagKey": "key2", "TagValue": "value2"}]
+    expected_result = [
+        {"TagKey": "key1", "TagValue": "value1"},
+        {"TagKey": "key2", "TagValue": "value2"},
+    ]
     assert formatted_tags == expected_result
 
 

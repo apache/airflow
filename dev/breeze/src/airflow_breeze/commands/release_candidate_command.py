@@ -28,7 +28,10 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, OUT_DIR
 from airflow_breeze.utils.python_versions import check_python_version
-from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
+from airflow_breeze.utils.reproducible import (
+    get_source_date_epoch,
+    repack_deterministically,
+)
 from airflow_breeze.utils.run_utils import run_command
 
 CI = os.environ.get("CI")
@@ -56,7 +59,9 @@ def merge_pr(version_branch):
             dry_run_override=RUNNING_IN_CI,
             check=True,
         )
-        if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
+        if confirm_action(
+            "Do you want to push the changes? Pushing the changes closes the PR"
+        ):
             run_command(
                 ["git", "push", "origin", f"v{version_branch}-stable"],
                 dry_run_override=RUNNING_IN_CI,
@@ -82,7 +87,9 @@ def git_tag(version):
 
 def git_clean():
     if confirm_action("Clean git repo?"):
-        run_command(["breeze", "ci", "fix-ownership"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(
+            ["breeze", "ci", "fix-ownership"], dry_run_override=RUNNING_IN_CI, check=True
+        )
         run_command(["git", "clean", "-fxd"], dry_run_override=RUNNING_IN_CI, check=True)
         console_print("[success]Git repo cleaned")
 
@@ -109,7 +116,9 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
         check=False,
     )
     if result.returncode != 0:
-        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        console_print(
+            f"[error]Failed to create tarball {temporary_archive} for Airflow {version}"
+        )
         exit(result.returncode)
     final_archive = DIST_DIR / archive_name
     result = repack_deterministically(
@@ -119,7 +128,9 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
         timestamp=source_date_epoch,
     )
     if result.returncode != 0:
-        console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
+        console_print(
+            f"[error]Failed to create tarball {temporary_archive} for Airflow {version}"
+        )
         exit(result.returncode)
     console_print(f"[success]Tarball created in {final_archive}")
 
@@ -131,7 +142,9 @@ def create_artifacts_with_hatch(source_date_epoch: int):
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     run_command(
-        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=env_copy
+        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"],
+        check=True,
+        env=env_copy,
     )
     console_print("[success]Successfully prepared Airflow packages:")
     for file in sorted(DIST_DIR.glob("apache_airflow*")):
@@ -157,7 +170,9 @@ def create_artifacts_with_docker():
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(f"{repo_root}/dist")
-        run_command("./../dev/sign.sh *", dry_run_override=RUNNING_IN_CI, check=True, shell=True)
+        run_command(
+            "./../dev/sign.sh *", dry_run_override=RUNNING_IN_CI, check=True, shell=True
+        )
         console_print("[success]Release signed")
 
 
@@ -192,19 +207,32 @@ def clone_asf_repo(version, repo_root):
     if confirm_action("Do you want to clone asf repo?"):
         os.chdir(repo_root)
         run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
+            [
+                "svn",
+                "checkout",
+                "--depth=immediates",
+                "https://dist.apache.org/repos/dist",
+                "asf-dist",
+            ],
             check=True,
         )
-        run_command(["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"], check=True)
+        run_command(
+            ["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"], check=True
+        )
         console_print("[success]Cloned ASF repo successfully")
 
 
 def move_artifacts_to_svn(version, repo_root):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
-        run_command(["svn", "mkdir", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True)
         run_command(
-            f"mv {repo_root}/dist/* {version}/", dry_run_override=RUNNING_IN_CI, check=True, shell=True
+            ["svn", "mkdir", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
+        )
+        run_command(
+            f"mv {repo_root}/dist/* {version}/",
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
+            shell=True,
         )
         console_print("[success]Moved artifacts to SVN:")
         run_command(["ls"], dry_run_override=RUNNING_IN_CI)
@@ -239,7 +267,9 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
     if confirm_action("Prepare pypi packages?"):
         console_print("[info]Preparing PyPI packages")
         os.chdir(repo_root)
-        run_command(["git", "checkout", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(
+            ["git", "checkout", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
+        )
         run_command(
             [
                 "breeze",
@@ -262,7 +292,11 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
 
 def push_packages_to_pypi(version):
     if confirm_action("Do you want to push packages to production PyPI?"):
-        run_command(["twine", "upload", "-r", "pypi", "dist/*"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(
+            ["twine", "upload", "-r", "pypi", "dist/*"],
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
+        )
         console_print("[success]Packages pushed to production PyPI")
         console_print(
             "Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow"
@@ -297,15 +331,22 @@ def push_release_candidate_tag_to_github(version):
         in PyPI (both airflow and latest provider packages).
         """
         )
-        confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
+        confirm_action(
+            f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?",
+            abort=True,
+        )
         run_command(
-            ["git", "push", "origin", "tag", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
+            ["git", "push", "origin", "tag", f"{version}"],
+            dry_run_override=RUNNING_IN_CI,
+            check=True,
         )
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
 def remove_old_releases(version, repo_root):
-    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
+    if confirm_action(
+        "In beta release we do not remove old RCs. Is this a beta release?"
+    ):
         return
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
@@ -323,7 +364,9 @@ def remove_old_releases(version, repo_root):
 
     for old_release in old_releases:
         if confirm_action(f"Remove old RC {old_release}?"):
-            run_command(["svn", "rm", old_release], dry_run_override=RUNNING_IN_CI, check=True)
+            run_command(
+                ["svn", "rm", old_release], dry_run_override=RUNNING_IN_CI, check=True
+            )
             run_command(
                 ["svn", "commit", "-m", f"Remove old release: {old_release}"],
                 dry_run_override=RUNNING_IN_CI,
@@ -338,7 +381,10 @@ def remove_old_releases(version, repo_root):
     help="Prepare airflow's source tarball.",
 )
 @click.option(
-    "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
+    "--version",
+    required=True,
+    help="The release candidate version e.g. 2.4.3rc1",
+    envvar="VERSION",
 )
 def prepare_airflow_tarball(version: str):
     check_python_version()
@@ -351,7 +397,9 @@ def prepare_airflow_tarball(version: str):
     version_without_rc = airflow_version.base_version
     # Create the tarball
     tarball_release(
-        version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+        version=version,
+        version_without_rc=version_without_rc,
+        source_date_epoch=source_date_epoch,
     )
 
 
@@ -360,10 +408,15 @@ def prepare_airflow_tarball(version: str):
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
 )
-@click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
-@click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
 @click.option(
-    "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
+    "--version", required=True, help="The release candidate version e.g. 2.4.3rc1"
+)
+@click.option(
+    "--previous-version", required=True, help="Previous version released e.g. 2.4.2"
+)
+@click.option(
+    "--github-token",
+    help="GitHub token to use in generating issue for testing of release candidate",
 )
 @option_answer
 def publish_release_candidate(version, previous_version, github_token):
@@ -382,7 +435,9 @@ def publish_release_candidate(version, previous_version, github_token):
             confirm_action("Do you want to continue?", abort=True)
 
     version_suffix = airflow_version.pre[0] + str(airflow_version.pre[1])
-    version_branch = str(airflow_version.release[0]) + "-" + str(airflow_version.release[1])
+    version_branch = (
+        str(airflow_version.release[0]) + "-" + str(airflow_version.release[1])
+    )
     version_without_rc = airflow_version.base_version
     os.chdir(AIRFLOW_SOURCES_ROOT)
     airflow_repo_root = os.getcwd()
@@ -399,7 +454,10 @@ def publish_release_candidate(version, previous_version, github_token):
     console_print("Below are your git remotes. We will push to origin:")
     run_command(["git", "remote", "-v"], dry_run_override=RUNNING_IN_CI)
     console_print()
-    confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
+    confirm_action(
+        "Verify that the above information is correct. Do you want to continue?",
+        abort=True,
+    )
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
     # Merge the sync PR
@@ -418,7 +476,9 @@ def publish_release_candidate(version, previous_version, github_token):
     if confirm_action("Create tarball?"):
         # Create the tarball
         tarball_release(
-            version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+            version=version,
+            version_without_rc=version_without_rc,
+            source_date_epoch=source_date_epoch,
         )
     # Sign the release
     sign_the_release(airflow_repo_root)

@@ -53,7 +53,9 @@ class DataprocMetastoreHook(GoogleBaseHook):
         client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
 
         return DataprocMetastoreClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_dataproc_metastore_client_v1beta(self):
@@ -62,7 +64,9 @@ class DataprocMetastoreHook(GoogleBaseHook):
 
         client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
         return DataprocMetastoreClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def wait_for_operation(self, timeout: float | None, operation: Operation):

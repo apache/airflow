@@ -46,4 +46,6 @@ class TestRedisPublishOperator:
         operator.execute(self.mock_context)
 
         mock_redis_conn.assert_called_once_with()
-        mock_redis_conn().publish.assert_called_once_with(channel="test_channel", message="test_message")
+        mock_redis_conn().publish.assert_called_once_with(
+            channel="test_channel", message="test_message"
+        )

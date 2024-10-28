@@ -27,7 +27,11 @@ from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOpe
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
-from providers.tests.apache.hive import MockHiveServer2Hook, MockMySqlHook, TestHiveEnvironment
+from providers.tests.apache.hive import (
+    MockHiveServer2Hook,
+    MockMySqlHook,
+    TestHiveEnvironment,
+)
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
@@ -48,13 +52,18 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
     def test_execute(self, mock_hive_hook, mock_mysql_hook):
         HiveToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_hive_hook.assert_called_once_with(hiveserver2_conn_id=self.kwargs["hiveserver2_conn_id"])
-        mock_hive_hook.return_value.get_records.assert_called_once_with("sql", parameters={})
+        mock_hive_hook.assert_called_once_with(
+            hiveserver2_conn_id=self.kwargs["hiveserver2_conn_id"]
+        )
+        mock_hive_hook.return_value.get_records.assert_called_once_with(
+            "sql", parameters={}
+        )
         mock_mysql_hook.assert_called_once_with(
             mysql_conn_id=self.kwargs["mysql_conn_id"], local_infile=False
         )
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs["mysql_table"], rows=mock_hive_hook.return_value.get_records.return_value
+            table=self.kwargs["mysql_table"],
+            rows=mock_hive_hook.return_value.get_records.return_value,
         )
 
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook")
@@ -64,7 +73,9 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
 
         HiveToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs["mysql_preoperator"])
+        mock_mysql_hook.return_value.run.assert_called_once_with(
+            self.kwargs["mysql_preoperator"]
+        )
 
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook")
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.HiveServer2Hook")
@@ -73,12 +84,16 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
 
         HiveToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs["mysql_postoperator"])
+        mock_mysql_hook.return_value.run.assert_called_once_with(
+            self.kwargs["mysql_postoperator"]
+        )
 
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook")
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.NamedTemporaryFile")
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.HiveServer2Hook")
-    def test_execute_bulk_load(self, mock_hive_hook, mock_tmp_file_context, mock_mysql_hook):
+    def test_execute_bulk_load(
+        self, mock_hive_hook, mock_tmp_file_context, mock_mysql_hook
+    ):
         mock_tmp_file = MagicMock()
         mock_tmp_file.name = "tmp_file"
         mock_tmp_file_context.return_value.__enter__.return_value = mock_tmp_file
@@ -87,7 +102,9 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
 
         HiveToMySqlOperator(**self.kwargs).execute(context=context)
 
-        mock_mysql_hook.assert_called_once_with(mysql_conn_id=self.kwargs["mysql_conn_id"], local_infile=True)
+        mock_mysql_hook.assert_called_once_with(
+            mysql_conn_id=self.kwargs["mysql_conn_id"], local_infile=True
+        )
         mock_tmp_file_context.assert_called_once_with()
         mock_hive_hook.return_value.to_csv.assert_called_once_with(
             self.kwargs["sql"],
@@ -100,7 +117,9 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
         mock_mysql_hook.return_value.bulk_load.assert_called_once_with(
             table=self.kwargs["mysql_table"], tmp_file="tmp_file"
         )
-        mock_tmp_file_context.return_value.__exit__.assert_called_once_with(None, None, None)
+        mock_tmp_file_context.return_value.__exit__.assert_called_once_with(
+            None, None, None
+        )
 
     @patch("airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook")
     def test_execute_with_hive_conf(self, mock_mysql_hook):
@@ -119,10 +138,13 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
             hive_conf = context_to_airflow_vars(context)
             hive_conf.update(self.kwargs["hive_conf"])
 
-        mock_hive_hook.get_records.assert_called_once_with(self.kwargs["sql"], parameters=hive_conf)
+        mock_hive_hook.get_records.assert_called_once_with(
+            self.kwargs["sql"], parameters=hive_conf
+        )
 
     @pytest.mark.skipif(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+        "AIRFLOW_RUNALL_TESTS" not in os.environ,
+        reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
     )
     def test_hive_to_mysql(self):
         test_hive_results = "test_hive_results"
@@ -158,7 +180,9 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
                     dag=self.dag,
                 )
                 op.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                op.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
 
         raw_select_name_query = mock_hive_hook.get_records.call_args_list[0][0][0]
         actual_select_name_query = re.sub(r"\s{2,}", " ", raw_select_name_query).strip()
@@ -180,4 +204,6 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
         ]
         mock_mysql_hook.run.assert_called_with(expected_mysql_preoperator)
 
-        mock_mysql_hook.insert_rows.assert_called_with(table="test_static_babynames", rows=test_hive_results)
+        mock_mysql_hook.insert_rows.assert_called_with(
+            table="test_static_babynames", rows=test_hive_results
+        )

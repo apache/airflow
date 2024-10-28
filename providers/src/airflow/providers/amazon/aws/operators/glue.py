@@ -112,7 +112,9 @@ class GlueJobOperator(BaseOperator):
         create_job_kwargs: dict | None = None,
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         verbose: bool = False,
         replace_script_file: bool = False,
         update_config: bool = False,
@@ -159,7 +161,9 @@ class GlueJobOperator(BaseOperator):
                 bucket_name=self.s3_bucket,
                 replace=self.replace_script_file,
             )
-            s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
+            s3_script_location = (
+                f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
+            )
         else:
             s3_script_location = self.script_location
         return GlueJobHook(
@@ -190,10 +194,14 @@ class GlueJobOperator(BaseOperator):
             self.job_name,
             self.wait_for_completion,
         )
-        glue_job_run = self.glue_job_hook.initialize_job(self.script_args, self.run_job_kwargs)
+        glue_job_run = self.glue_job_hook.initialize_job(
+            self.script_args, self.run_job_kwargs
+        )
         self._job_run_id = glue_job_run["JobRunId"]
         glue_job_run_url = GlueJobRunDetailsLink.format_str.format(
-            aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.glue_job_hook.conn_partition),
+            aws_domain=GlueJobRunDetailsLink.get_aws_domain(
+                self.glue_job_hook.conn_partition
+            ),
             region_name=self.glue_job_hook.conn_region_name,
             job_name=urllib.parse.quote(self.job_name, safe=""),
             job_run_id=self._job_run_id,
@@ -220,7 +228,9 @@ class GlueJobOperator(BaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            glue_job_run = self.glue_job_hook.job_completion(self.job_name, self._job_run_id, self.verbose)
+            glue_job_run = self.glue_job_hook.job_completion(
+                self.job_name, self._job_run_id, self.verbose
+            )
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,
@@ -231,7 +241,9 @@ class GlueJobOperator(BaseOperator):
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
         return self._job_run_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -241,13 +253,19 @@ class GlueJobOperator(BaseOperator):
     def on_kill(self):
         """Cancel the running AWS Glue Job."""
         if self.stop_job_run_on_kill:
-            self.log.info("Stopping AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
+            self.log.info(
+                "Stopping AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id
+            )
             response = self.glue_job_hook.conn.batch_stop_job_run(
                 JobName=self.job_name,
                 JobRunIds=[self._job_run_id],
             )
             if not response["SuccessfulSubmissions"]:
-                self.log.error("Failed to stop AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
+                self.log.error(
+                    "Failed to stop AWS Glue Job: %s. Run Id: %s",
+                    self.job_name,
+                    self._job_run_id,
+                )
 
 
 class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
@@ -278,7 +296,12 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
     """
 
     aws_hook_class = GlueDataQualityHook
-    template_fields: Sequence[str] = ("name", "ruleset", "description", "data_quality_ruleset_kwargs")
+    template_fields: Sequence[str] = (
+        "name",
+        "ruleset",
+        "description",
+        "data_quality_ruleset_kwargs",
+    )
 
     template_fields_renderers = {
         "data_quality_ruleset_kwargs": "json",
@@ -382,7 +405,10 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         "rule_set_evaluation_run_kwargs",
     )
 
-    template_fields_renderers = {"datasource": "json", "rule_set_evaluation_run_kwargs": "json"}
+    template_fields_renderers = {
+        "datasource": "json",
+        "rule_set_evaluation_run_kwargs": "json",
+    }
 
     ui_color = "#ededed"
 
@@ -400,7 +426,9 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
@@ -423,7 +451,9 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         glue_table = self.datasource.get("GlueTable", {})
 
         if not glue_table.get("DatabaseName") or not glue_table.get("TableName"):
-            raise AttributeError("DataSource glue table must have DatabaseName and TableName")
+            raise AttributeError(
+                "DataSource glue table must have DatabaseName and TableName"
+            )
 
         not_found_ruleset = [
             ruleset_name
@@ -432,13 +462,16 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         ]
 
         if not_found_ruleset:
-            raise AirflowException(f"Following RulesetNames are not found {not_found_ruleset}")
+            raise AirflowException(
+                f"Following RulesetNames are not found {not_found_ruleset}"
+            )
 
     def execute(self, context: Context) -> str:
         self.validate_inputs()
 
         self.log.info(
-            "Submitting AWS Glue data quality ruleset evaluation run for RulesetNames %s", self.rule_set_names
+            "Submitting AWS Glue data quality ruleset evaluation run for RulesetNames %s",
+            self.rule_set_names,
         )
 
         response = self.hook.conn.start_data_quality_ruleset_evaluation_run(
@@ -452,9 +485,7 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
 
         evaluation_run_id = response["RunId"]
 
-        message_description = (
-            f"AWS Glue data quality ruleset evaluation run RunId: {evaluation_run_id} to complete."
-        )
+        message_description = f"AWS Glue data quality ruleset evaluation run RunId: {evaluation_run_id} to complete."
         if self.deferrable:
             self.log.info("Deferring %s", message_description)
             self.defer(
@@ -472,11 +503,15 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
 
             self.hook.get_waiter("data_quality_ruleset_evaluation_run_complete").wait(
                 RunId=evaluation_run_id,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
             self.log.info(
-                "AWS Glue data quality ruleset evaluation run completed RunId: %s", evaluation_run_id
+                "AWS Glue data quality ruleset evaluation run completed RunId: %s",
+                evaluation_run_id,
             )
 
             self.hook.validate_evaluation_run_results(
@@ -485,15 +520,22 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
                 verify_result_status=self.verify_result_status,
             )
         else:
-            self.log.info("AWS Glue data quality ruleset evaluation run runId: %s.", evaluation_run_id)
+            self.log.info(
+                "AWS Glue data quality ruleset evaluation run runId: %s.",
+                evaluation_run_id,
+            )
 
         return evaluation_run_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            raise AirflowException(f"Error: AWS Glue data quality ruleset evaluation run: {event}")
+            raise AirflowException(
+                f"Error: AWS Glue data quality ruleset evaluation run: {event}"
+            )
 
         self.hook.validate_evaluation_run_results(
             evaluation_run_id=event["evaluation_run_id"],
@@ -547,7 +589,10 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         "recommendation_run_kwargs",
     )
 
-    template_fields_renderers = {"datasource": "json", "recommendation_run_kwargs": "json"}
+    template_fields_renderers = {
+        "datasource": "json",
+        "recommendation_run_kwargs": "json",
+    }
 
     ui_color = "#ededed"
 
@@ -563,7 +608,9 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
@@ -584,9 +631,13 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         glue_table = self.datasource.get("GlueTable", {})
 
         if not glue_table.get("DatabaseName") or not glue_table.get("TableName"):
-            raise AttributeError("DataSource glue table must have DatabaseName and TableName")
+            raise AttributeError(
+                "DataSource glue table must have DatabaseName and TableName"
+            )
 
-        self.log.info("Submitting AWS Glue data quality recommendation run with %s", self.datasource)
+        self.log.info(
+            "Submitting AWS Glue data quality recommendation run with %s", self.datasource
+        )
 
         try:
             response = self.hook.conn.start_data_quality_rule_recommendation_run(
@@ -603,9 +654,7 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
 
         recommendation_run_id = response["RunId"]
 
-        message_description = (
-            f"AWS Glue data quality recommendation run RunId: {recommendation_run_id} to complete."
-        )
+        message_description = f"AWS Glue data quality recommendation run RunId: {recommendation_run_id} to complete."
         if self.deferrable:
             self.log.info("Deferring %s", message_description)
             self.defer(
@@ -623,10 +672,14 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
 
             self.hook.get_waiter("data_quality_rule_recommendation_run_complete").wait(
                 RunId=recommendation_run_id,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
             self.log.info(
-                "AWS Glue data quality recommendation run completed RunId: %s", recommendation_run_id
+                "AWS Glue data quality recommendation run completed RunId: %s",
+                recommendation_run_id,
             )
 
             if self.show_results:
@@ -637,11 +690,15 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
 
         return recommendation_run_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            raise AirflowException(f"Error: AWS Glue data quality rule recommendation run: {event}")
+            raise AirflowException(
+                f"Error: AWS Glue data quality rule recommendation run: {event}"
+            )
 
         if self.show_results:
             self.hook.log_recommendation_results(run_id=event["recommendation_run_id"])

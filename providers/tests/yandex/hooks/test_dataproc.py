@@ -62,7 +62,9 @@ HAS_CREDENTIALS = OAUTH_TOKEN != "my_oauth_token"
 
 class TestYandexCloudDataprocHook:
     def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+        with mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection"
+        ) as mock_get_connection:
             mock_get_connection.return_value = self.connection
             self.hook = DataprocHook()
 
@@ -186,6 +188,8 @@ class TestYandexCloudDataprocHook:
             main_python_file_uri="s3a://some-in-bucket/jobs/sources/pyspark-001/main.py",
             name="Pyspark job",
             properties={"spark.submit.deployMode": "cluster"},
-            python_file_uris=["s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py"],
+            python_file_uris=[
+                "s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py"
+            ],
         )
         assert mock_create_operation.called

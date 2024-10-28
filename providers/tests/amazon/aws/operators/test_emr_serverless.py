@@ -382,7 +382,9 @@ class TestEmrServerlessCreateApplicationOperator:
             waiter_delay=0,
         )
 
-        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+        template_fields = list(operator.template_fields) + list(
+            operator.template_fields_renderers.keys()
+        )
 
         class_fields = operator.__dict__
 
@@ -505,16 +507,22 @@ class TestEmrServerlessStartJobOperator:
     @mock.patch("time.sleep", return_value=True)
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_job_run_app_not_started_app_failed(self, mock_conn, mock_get_waiter, mock_time):
+    def test_job_run_app_not_started_app_failed(
+        self, mock_conn, mock_get_waiter, mock_time
+    ):
         error1 = WaiterError(
             name="test_name",
             reason="test-reason",
-            last_response={"application": {"state": "CREATING", "stateDetails": "test-details"}},
+            last_response={
+                "application": {"state": "CREATING", "stateDetails": "test-details"}
+            },
         )
         error2 = WaiterError(
             name="test_name",
             reason="Waiter encountered a terminal failure state:",
-            last_response={"application": {"state": "TERMINATED", "stateDetails": "test-details"}},
+            last_response={
+                "application": {"state": "TERMINATED", "stateDetails": "test-details"}
+            },
         )
         mock_get_waiter().wait.side_effect = [error1, error2]
         mock_conn.start_job_run.return_value = {
@@ -538,7 +546,9 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_job_run_app_not_started_no_wait_for_completion(self, mock_conn, mock_get_waiter):
+    def test_job_run_app_not_started_no_wait_for_completion(
+        self, mock_conn, mock_get_waiter
+    ):
         mock_get_waiter().wait.return_value = True
         mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
         mock_conn.start_job_run.return_value = {
@@ -852,8 +862,12 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist")
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist"
+    )
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink.persist")
     def test_links_start_job_default(
@@ -888,8 +902,12 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist")
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist"
+    )
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink.persist")
     def test_links_s3_enabled(
@@ -933,8 +951,12 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist")
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist"
+    )
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink.persist")
     def test_links_cloudwatch_enabled(
@@ -977,8 +999,12 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist")
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist"
+    )
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink.persist")
     def test_links_applicationui_enabled(
@@ -1030,8 +1056,12 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist")
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist"
+    )
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink.persist")
     def test_links_applicationui_with_spark_enabled(
@@ -1092,8 +1122,12 @@ class TestEmrServerlessStartJobOperator:
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist")
-    @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist")
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink.persist"
+    )
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink.persist")
     def test_links_spark_without_applicationui_enabled(
@@ -1146,7 +1180,9 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
         )
 
-        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+        template_fields = list(operator.template_fields) + list(
+            operator.template_fields_renderers.keys()
+        )
 
         class_fields = operator.__dict__
 
@@ -1158,10 +1194,14 @@ class TestEmrServerlessStartJobOperator:
 class TestEmrServerlessDeleteOperator:
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_delete_application_with_wait_for_completion_successfully(self, mock_conn, mock_get_waiter):
+    def test_delete_application_with_wait_for_completion_successfully(
+        self, mock_conn, mock_get_waiter
+    ):
         mock_get_waiter().wait.return_value = True
         mock_conn.stop_application.return_value = {}
-        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_conn.delete_application.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200}
+        }
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id, application_id=application_id_delete_operator
@@ -1172,14 +1212,20 @@ class TestEmrServerlessDeleteOperator:
         assert operator.wait_for_completion is True
         assert mock_get_waiter().wait.call_count == 2
         mock_conn.stop_application.assert_called_once()
-        mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
+        mock_conn.delete_application.assert_called_once_with(
+            applicationId=application_id_delete_operator
+        )
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_delete_application_without_wait_for_completion_successfully(self, mock_conn, mock_get_waiter):
+    def test_delete_application_without_wait_for_completion_successfully(
+        self, mock_conn, mock_get_waiter
+    ):
         mock_get_waiter().wait.return_value = True
         mock_conn.stop_application.return_value = {}
-        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_conn.delete_application.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200}
+        }
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id,
@@ -1191,14 +1237,18 @@ class TestEmrServerlessDeleteOperator:
 
         mock_get_waiter().wait.assert_called_once()
         mock_conn.stop_application.assert_called_once()
-        mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
+        mock_conn.delete_application.assert_called_once_with(
+            applicationId=application_id_delete_operator
+        )
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_delete_application_failed_deletion(self, mock_conn, mock_get_waiter):
         mock_get_waiter().wait.return_value = True
         mock_conn.stop_application.return_value = {}
-        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 400}}
+        mock_conn.delete_application.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 400}
+        }
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id, application_id=application_id_delete_operator
@@ -1210,7 +1260,9 @@ class TestEmrServerlessDeleteOperator:
 
         mock_get_waiter().wait.assert_called_once()
         mock_conn.stop_application.assert_called_once()
-        mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
+        mock_conn.delete_application.assert_called_once_with(
+            applicationId=application_id_delete_operator
+        )
 
     @pytest.mark.parametrize(
         "waiter_delay, waiter_max_attempts, expected",
@@ -1237,7 +1289,9 @@ class TestEmrServerlessDeleteOperator:
 
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_delete_application_deferrable(self, mock_conn):
-        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_conn.delete_application.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200}
+        }
 
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id,
@@ -1252,7 +1306,9 @@ class TestEmrServerlessDeleteOperator:
             task_id=task_id, application_id=application_id_delete_operator
         )
 
-        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+        template_fields = list(operator.template_fields) + list(
+            operator.template_fields_renderers.keys()
+        )
 
         class_fields = operator.__dict__
 
@@ -1266,7 +1322,9 @@ class TestEmrServerlessStopOperator:
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_stop(self, mock_conn: MagicMock, mock_get_waiter: MagicMock):
         mock_get_waiter().wait.return_value = True
-        operator = EmrServerlessStopApplicationOperator(task_id=task_id, application_id="test")
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test"
+        )
 
         operator.execute({})
 
@@ -1304,7 +1362,9 @@ class TestEmrServerlessStopOperator:
         mock_get_waiter().wait.assert_called_once()
 
     @mock.patch.object(EmrServerlessHook, "cancel_running_jobs")
-    def test_stop_application_deferrable_with_force_stop(self, mock_cancel_running_jobs, caplog):
+    def test_stop_application_deferrable_with_force_stop(
+        self, mock_cancel_running_jobs, caplog
+    ):
         mock_cancel_running_jobs.return_value = 2
         operator = EmrServerlessStopApplicationOperator(
             task_id=task_id, application_id="test", deferrable=True, force_stop=True

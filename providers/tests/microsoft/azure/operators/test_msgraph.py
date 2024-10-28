@@ -109,7 +109,9 @@ class TestMSGraphAsyncOperator(Base):
     def test_execute_when_an_exception_occurs_on_custom_event_handler(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
-            def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
+            def custom_event_handler(
+                context: Context, event: dict[Any, Any] | None = None
+            ):
                 if event:
                     if event.get("status") == "failure":
                         return None
@@ -173,7 +175,9 @@ class TestMSGraphAsyncOperator(Base):
         )
         context = mock_context(task=operator)
         response = load_json("resources", "users.json")
-        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
+        next_link, query_parameters = MSGraphAsyncOperator.paginate(
+            operator, response, context
+        )
 
         assert next_link == response["@odata.nextLink"]
         assert query_parameters is None

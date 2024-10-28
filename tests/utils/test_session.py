@@ -29,7 +29,9 @@ class TestSession:
         return session
 
     def test_raised_provide_session(self):
-        with pytest.raises(ValueError, match="Function .*dummy has no `session` argument"):
+        with pytest.raises(
+            ValueError, match="Function .*dummy has no `session` argument"
+        ):
 
             @provide_session
             def dummy():

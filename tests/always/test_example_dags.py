@@ -66,14 +66,19 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
 )
 
 
-def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
+def match_optional_dependencies(
+    distribution_name: str, specifier: str | None
+) -> tuple[bool, str]:
     try:
         package_version = Version(importlib_metadata.version(distribution_name))
     except ImportError:
         return False, f"{distribution_name!r} not installed."
 
     if specifier and package_version not in SpecifierSet(specifier):
-        return False, f"{distribution_name!r} required {specifier}, but installed {package_version}."
+        return (
+            False,
+            f"{distribution_name!r} required {specifier}, but installed {package_version}.",
+        )
 
     return True, ""
 
@@ -135,9 +140,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         for prefix in PROVIDERS_PREFIXES
         for provider in current_python_excluded_providers_folders
     ]
-    providers_folders = tuple([AIRFLOW_SOURCES_ROOT.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES])
+    providers_folders = tuple(
+        [AIRFLOW_SOURCES_ROOT.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES]
+    )
     for example_dir in example_dirs:
-        candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
+        candidates = glob(
+            f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True
+        )
         for candidate in sorted(candidates):
             param_marks = []
 
@@ -146,13 +155,17 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
 
             if candidate.startswith(tuple(current_python_excluded_providers_folders)):
                 param_marks.append(
-                    pytest.mark.skip(reason=f"Not supported for Python {CURRENT_PYTHON_VERSION}")
+                    pytest.mark.skip(
+                        reason=f"Not supported for Python {CURRENT_PYTHON_VERSION}"
+                    )
                 )
 
             for optional, dependencies in OPTIONAL_PROVIDERS_DEPENDENCIES.items():
                 if re.match(optional, candidate):
                     for distribution_name, specifier in dependencies.items():
-                        result, reason = match_optional_dependencies(distribution_name, specifier)
+                        result, reason = match_optional_dependencies(
+                            distribution_name, specifier
+                        )
                         if not result:
                             param_marks.append(pytest.mark.skip(reason=reason))
 
@@ -168,7 +181,9 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                 # Instead, it is advisable to periodically review the warning reports and implement manual
                 # updates as needed.
                 param_marks.append(
-                    pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning")
+                    pytest.mark.filterwarnings(
+                        "default::airflow.exceptions.RemovedInAirflow3Warning"
+                    )
                 )
                 if candidate.endswith(IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING):
                     param_marks.append(
@@ -177,7 +192,9 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                         )
                     )
 
-            yield pytest.param(candidate, marks=tuple(param_marks), id=relative_path(candidate))
+            yield pytest.param(
+                candidate, marks=tuple(param_marks), id=relative_path(candidate)
+            )
 
 
 def relative_path(path):

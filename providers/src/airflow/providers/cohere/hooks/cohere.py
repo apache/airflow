@@ -56,7 +56,10 @@ class CohereHook(BaseHook):
     def get_conn(self) -> cohere.Client:  # type: ignore[override]
         conn = self.get_connection(self.conn_id)
         return cohere.Client(
-            api_key=conn.password, timeout=self.timeout, max_retries=self.max_retries, api_url=conn.host
+            api_key=conn.password,
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+            api_url=conn.host,
         )
 
     def create_embeddings(

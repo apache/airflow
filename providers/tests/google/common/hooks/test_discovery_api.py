@@ -42,7 +42,9 @@ class TestGoogleDiscoveryApiHook:
         )
 
     @patch("airflow.providers.google.common.hooks.discovery_api.build")
-    @patch("airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook._authorize")
+    @patch(
+        "airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook._authorize"
+    )
     def test_get_conn(self, mock_authorize, mock_build):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
             gcp_conn_id="google_test", api_service_name="youtube", api_version="v2"
@@ -58,10 +60,14 @@ class TestGoogleDiscoveryApiHook:
         )
 
     @patch("airflow.providers.google.common.hooks.discovery_api.getattr")
-    @patch("airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn")
+    @patch(
+        "airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn"
+    )
     def test_query(self, mock_get_conn, mock_getattr):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
-            gcp_conn_id="google_test", api_service_name="analyticsreporting", api_version="v4"
+            gcp_conn_id="google_test",
+            api_service_name="analyticsreporting",
+            api_version="v4",
         )
         endpoint = "analyticsreporting.reports.batchGet"
         data = {
@@ -85,14 +91,19 @@ class TestGoogleDiscoveryApiHook:
             [
                 call(mock_get_conn.return_value, google_api_endpoint_name_parts[1]),
                 call()(),
-                call(mock_getattr.return_value.return_value, google_api_endpoint_name_parts[2]),
+                call(
+                    mock_getattr.return_value.return_value,
+                    google_api_endpoint_name_parts[2],
+                ),
                 call()(**data),
                 call()().execute(num_retries=num_retries),
             ]
         )
 
     @patch("airflow.providers.google.common.hooks.discovery_api.getattr")
-    @patch("airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn")
+    @patch(
+        "airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn"
+    )
     def test_query_with_pagination(self, mock_get_conn, mock_getattr):
         google_api_conn_client_sub_call = mock_getattr.return_value.return_value
         mock_getattr.return_value.side_effect = [
@@ -104,7 +115,9 @@ class TestGoogleDiscoveryApiHook:
             None,
         ]
         google_discovery_api_hook = GoogleDiscoveryApiHook(
-            gcp_conn_id="google_test", api_service_name="analyticsreporting", api_version="v4"
+            gcp_conn_id="google_test",
+            api_service_name="analyticsreporting",
+            api_version="v4",
         )
         endpoint = "analyticsreporting.reports.batchGet"
         data = {
@@ -121,7 +134,9 @@ class TestGoogleDiscoveryApiHook:
         }
         num_retries = 1
 
-        google_discovery_api_hook.query(endpoint, data, paginate=True, num_retries=num_retries)
+        google_discovery_api_hook.query(
+            endpoint, data, paginate=True, num_retries=num_retries
+        )
 
         api_endpoint_name_parts = endpoint.split(".")
         google_api_conn_client = mock_get_conn.return_value
@@ -135,13 +150,23 @@ class TestGoogleDiscoveryApiHook:
                 call()().execute(num_retries=num_retries),
                 call(google_api_conn_client, api_endpoint_name_parts[1]),
                 call()(),
-                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"),
-                call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
+                call(
+                    google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"
+                ),
+                call()(
+                    google_api_conn_client_sub_call,
+                    google_api_conn_client_sub_call.execute.return_value,
+                ),
                 call()().__bool__(),
                 call()().execute(num_retries=num_retries),
                 call(google_api_conn_client, api_endpoint_name_parts[1]),
                 call()(),
-                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"),
-                call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
+                call(
+                    google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"
+                ),
+                call()(
+                    google_api_conn_client_sub_call,
+                    google_api_conn_client_sub_call.execute.return_value,
+                ),
             ]
         )

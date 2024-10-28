@@ -23,7 +23,10 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 if sys.version_info < (3, 10):
-    from airflow.providers.cloudant.cloudant_fake import CloudantV1, CouchDbSessionAuthenticator
+    from airflow.providers.cloudant.cloudant_fake import (
+        CloudantV1,
+        CouchDbSessionAuthenticator,
+    )
 else:
     from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
@@ -76,7 +79,9 @@ class CloudantHook(BaseHook):
 
         self._validate_connection(conn)
 
-        authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
+        authenticator = CouchDbSessionAuthenticator(
+            username=conn.login, password=conn.password
+        )
         service = CloudantV1(authenticator=authenticator)
         service.set_service_url(f"https://{conn.host}.cloudant.com")
 

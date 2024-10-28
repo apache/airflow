@@ -52,7 +52,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 ENV_ID_LOWER = ENV_ID.lower() if ENV_ID else ""
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "cloud_memorystore_redis"
 
@@ -79,7 +81,9 @@ with DAG(
     tags=["example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, resource={"predefined_acl": "public_read_write"}
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        resource={"predefined_acl": "public_read_write"},
     )
 
     # [START howto_operator_create_instance]
@@ -239,7 +243,9 @@ with DAG(
     export_and_delete_instance.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

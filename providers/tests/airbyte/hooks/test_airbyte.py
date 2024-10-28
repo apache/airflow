@@ -125,7 +125,10 @@ class TestAirbyteHook:
         with pytest.raises(AirflowException, match="Job failed"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(self.job_id)),
+            mock.call(request=GetJobRequest(self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
@@ -136,7 +139,10 @@ class TestAirbyteHook:
         ]
         self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(self.job_id)),
+            mock.call(request=GetJobRequest(self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
@@ -167,7 +173,10 @@ class TestAirbyteHook:
         with pytest.raises(AirflowException, match="unexpected state"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(self.job_id)),
+            mock.call(request=GetJobRequest(self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
@@ -179,7 +188,10 @@ class TestAirbyteHook:
         with pytest.raises(AirflowException, match="Job was cancelled"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(request=GetJobRequest(self.job_id)), mock.call(request=GetJobRequest(self.job_id))]
+        calls = [
+            mock.call(request=GetJobRequest(self.job_id)),
+            mock.call(request=GetJobRequest(self.job_id)),
+        ]
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch("airbyte_api.health.Health.get_health_check")

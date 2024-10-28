@@ -24,11 +24,16 @@ import pytest
 
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
 
-from providers.tests.apache.hive import DEFAULT_DATE, MockHiveMetastoreHook, TestHiveEnvironment
+from providers.tests.apache.hive import (
+    DEFAULT_DATE,
+    MockHiveMetastoreHook,
+    TestHiveEnvironment,
+)
 
 
 @pytest.mark.skipif(
-    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    "AIRFLOW_RUNALL_TESTS" not in os.environ,
+    reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
 )
 @patch(
     "airflow.providers.apache.hive.sensors.hive_partition.HiveMetastoreHook",
@@ -37,6 +42,8 @@ from providers.tests.apache.hive import DEFAULT_DATE, MockHiveMetastoreHook, Tes
 class TestHivePartitionSensor(TestHiveEnvironment):
     def test_hive_partition_sensor(self, mock_hive_metastore_hook):
         op = HivePartitionSensor(
-            task_id="hive_partition_check", table="airflow.static_babynames_partitioned", dag=self.dag
+            task_id="hive_partition_check",
+            table="airflow.static_babynames_partitioned",
+            dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

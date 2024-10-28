@@ -95,7 +95,10 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     user_display = get_auth_manager().get_user_display_name()
 
                 isAPIRequest = request.blueprint == "/api/v1"
-                hasJsonBody = request.headers.get("content-type") == "application/json" and request.json
+                hasJsonBody = (
+                    request.headers.get("content-type") == "application/json"
+                    and request.json
+                )
 
                 fields_skip_logging = {
                     "csrf_token",
@@ -109,7 +112,9 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                 }
                 extra_fields = {
                     k: secrets_masker.redact(v, k)
-                    for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
+                    for k, v in itertools.chain(
+                        request.values.items(multi=True), request.view_args.items()
+                    )
                     if k not in fields_skip_logging
                 }
                 if event and event.startswith("variable."):
@@ -121,7 +126,9 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                         request.json if isAPIRequest and hasJsonBody else extra_fields
                     )
                 elif hasJsonBody:
-                    masked_json = {k: secrets_masker.redact(v, k) for k, v in request.json.items()}
+                    masked_json = {
+                        k: secrets_masker.redact(v, k) for k, v in request.json.items()
+                    }
                     extra_fields = {**extra_fields, **masked_json}
 
                 params = {**request.values, **request.view_args}
@@ -148,10 +155,13 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                 if "execution_date" in request.values:
                     execution_date_value = request.values.get("execution_date")
                     try:
-                        log.execution_date = pendulum.parse(execution_date_value, strict=False)
+                        log.execution_date = pendulum.parse(
+                            execution_date_value, strict=False
+                        )
                     except ParserError:
                         logger.exception(
-                            "Failed to parse execution_date from the request: %s", execution_date_value
+                            "Failed to parse execution_date from the request: %s",
+                            execution_date_value,
                         )
 
                 session.add(log)

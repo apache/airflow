@@ -39,16 +39,26 @@ def check_dir_init_file(folders: list[Path]) -> None:
             missing_init_dirs.append(Path(root))
 
     if missing_init_dirs:
-        with ROOT_DIR.joinpath("scripts/ci/license-templates/LICENSE.txt").open() as license:
+        with ROOT_DIR.joinpath(
+            "scripts/ci/license-templates/LICENSE.txt"
+        ).open() as license:
             license_txt = license.readlines()
-        prefixed_licensed_txt = [f"# {line}" if line != "\n" else "#\n" for line in license_txt]
+        prefixed_licensed_txt = [
+            f"# {line}" if line != "\n" else "#\n" for line in license_txt
+        ]
 
         for missing_init_dir in missing_init_dirs:
             (missing_init_dir / "__init__.py").write_text("".join(prefixed_licensed_txt))
 
         print("No __init__.py file was found in the following provider directories:")
-        print("\n".join([missing_init_dir.as_posix() for missing_init_dir in missing_init_dirs]))
-        print("\nThe missing __init__.py files have been created. Please add these new files to a commit.")
+        print(
+            "\n".join(
+                [missing_init_dir.as_posix() for missing_init_dir in missing_init_dirs]
+            )
+        )
+        print(
+            "\nThe missing __init__.py files have been created. Please add these new files to a commit."
+        )
         sys.exit(1)
 
 

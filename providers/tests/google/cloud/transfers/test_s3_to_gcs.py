@@ -24,7 +24,9 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException, TaskDeferred
-from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
+    CloudDataTransferServiceHook,
+)
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
 from airflow.utils.timezone import utcnow
 
@@ -58,7 +60,13 @@ PARAMETRIZED_OBJECT_PATHS = (
     "apply_gcs_prefix, s3_prefix, s3_object, gcs_destination, gcs_object",
     [
         (False, "", MOCK_FILE_1, GCS_PATH_PREFIX, GCS_PREFIX + MOCK_FILE_1),
-        (False, S3_PREFIX, MOCK_FILE_1, GCS_PATH_PREFIX, GCS_PREFIX + S3_PREFIX + MOCK_FILE_1),
+        (
+            False,
+            S3_PREFIX,
+            MOCK_FILE_1,
+            GCS_PATH_PREFIX,
+            GCS_PREFIX + S3_PREFIX + MOCK_FILE_1,
+        ),
         (False, "", MOCK_FILE_1, GCS_BUCKET_URI, MOCK_FILE_1),
         (False, S3_PREFIX, MOCK_FILE_1, GCS_BUCKET_URI, S3_PREFIX + MOCK_FILE_1),
         (True, "", MOCK_FILE_1, GCS_PATH_PREFIX, GCS_PREFIX + MOCK_FILE_1),
@@ -193,11 +201,15 @@ class TestS3ToGoogleCloudStorageOperator:
             gzip=True,
         )
         mock_gcs_hook.list.return_value = existing_objects
-        files_reduced = operator.exclude_existing_objects(s3_objects=source_objects, gcs_hook=mock_gcs_hook)
+        files_reduced = operator.exclude_existing_objects(
+            s3_objects=source_objects, gcs_hook=mock_gcs_hook
+        )
         assert set(files_reduced) == set(objects_expected)
 
     @pytest.mark.parametrize(*PARAMETRIZED_OBJECT_PATHS)
-    def test_s3_to_gcs_object(self, apply_gcs_prefix, s3_prefix, s3_object, gcs_destination, gcs_object):
+    def test_s3_to_gcs_object(
+        self, apply_gcs_prefix, s3_prefix, s3_object, gcs_destination, gcs_object
+    ):
         operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
@@ -211,7 +223,9 @@ class TestS3ToGoogleCloudStorageOperator:
         assert operator.s3_to_gcs_object(s3_object=s3_prefix + s3_object) == gcs_object
 
     @pytest.mark.parametrize(*PARAMETRIZED_OBJECT_PATHS)
-    def test_gcs_to_s3_object(self, apply_gcs_prefix, s3_prefix, s3_object, gcs_destination, gcs_object):
+    def test_gcs_to_s3_object(
+        self, apply_gcs_prefix, s3_prefix, s3_object, gcs_destination, gcs_object
+    ):
         operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
@@ -272,11 +286,15 @@ class TestS3ToGoogleCloudStorageOperator:
 
 
 class TestS3ToGoogleCloudStorageOperatorDeferrable:
-    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.CloudDataTransferServiceHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.CloudDataTransferServiceHook"
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
     @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
-    def test_execute_deferrable(self, mock_gcs_hook, mock_s3_super_hook, mock_s3_hook, mock_transfer_hook):
+    def test_execute_deferrable(
+        self, mock_gcs_hook, mock_s3_super_hook, mock_s3_hook, mock_transfer_hook
+    ):
         mock_gcs_hook.return_value.project_id = PROJECT_ID
 
         mock_list_keys = mock.MagicMock()
@@ -306,9 +324,14 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         with pytest.raises(TaskDeferred) as exception_info:
             operator.execute(None)
 
-        mock_s3_super_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=operator.verify)
+        mock_s3_super_hook.assert_called_once_with(
+            aws_conn_id=AWS_CONN_ID, verify=operator.verify
+        )
         mock_list_keys.assert_called_once_with(
-            bucket_name=S3_BUCKET, prefix=S3_PREFIX, delimiter=S3_DELIMITER, apply_wildcard=False
+            bucket_name=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            apply_wildcard=False,
         )
         mock_create_transfer_job.assert_called_once()
         assert hasattr(exception_info.value, "trigger")
@@ -344,10 +367,14 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             dest_gcs=GCS_PATH_PREFIX,
         )
 
-        with mock.patch.object(operator, "submit_transfer_jobs") as mock_submit_transfer_jobs:
+        with mock.patch.object(
+            operator, "submit_transfer_jobs"
+        ) as mock_submit_transfer_jobs:
             mock_submit_transfer_jobs.return_value = expected_job_names
             with pytest.raises(TaskDeferred) as exception_info:
-                operator.transfer_files_async(files=MOCK_FILES, gcs_hook=mock_gcs_hook, s3_hook=mock_s3_hook)
+                operator.transfer_files_async(
+                    files=MOCK_FILES, gcs_hook=mock_gcs_hook, s3_hook=mock_s3_hook
+                )
 
         mock_submit_transfer_jobs.assert_called_once_with(
             files=MOCK_FILES, gcs_hook=mock_gcs_hook, s3_hook=mock_s3_hook
@@ -365,7 +392,9 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
     @pytest.mark.parametrize("invalid_poll_interval", [-5, 0])
     def test_init_error_polling_interval(self, invalid_poll_interval):
         operator = None
-        expected_error_message = "Invalid value for poll_interval. Expected value greater than 0"
+        expected_error_message = (
+            "Invalid value for poll_interval. Expected value greater than 0"
+        )
         with pytest.raises(ValueError, match=expected_error_message):
             operator = S3ToGCSOperator(
                 task_id=TASK_ID,
@@ -389,7 +418,9 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         )
         expected_error_message = "List of transferring files cannot be empty"
         with pytest.raises(ValueError, match=expected_error_message):
-            operator.transfer_files_async(files=[], gcs_hook=mock.MagicMock(), s3_hook=mock.MagicMock())
+            operator.transfer_files_async(
+                files=[], gcs_hook=mock.MagicMock(), s3_hook=mock.MagicMock()
+            )
 
     @pytest.mark.parametrize(
         "file_names, chunks, expected_job_names",
@@ -431,7 +462,9 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
 
         now_time = utcnow()
         with time_machine.travel(now_time):
-            with mock.patch.object(operator, "get_transfer_hook") as mock_get_transfer_hook:
+            with mock.patch.object(
+                operator, "get_transfer_hook"
+            ) as mock_get_transfer_hook:
                 mock_create_transfer_job = mock.MagicMock(
                     side_effect=[dict(name=job_name) for job_name in expected_job_names]
                 )
@@ -449,7 +482,8 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         assert job_names == expected_job_names
 
     @mock.patch(
-        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log",
+        new_callable=PropertyMock,
     )
     def test_execute_complete_success(self, mock_log):
         expected_event_message = "Event message (success)"
@@ -465,7 +499,8 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         )
 
     @mock.patch(
-        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log",
+        new_callable=PropertyMock,
     )
     def test_execute_complete_error(self, mock_log):
         expected_event_message = "Event error message"

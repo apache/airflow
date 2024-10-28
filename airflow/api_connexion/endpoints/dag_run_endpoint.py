@@ -82,13 +82,17 @@ if TYPE_CHECKING:
 @security.requires_access_dag("DELETE", DagAccessEntity.RUN)
 @provide_session
 @action_logging
-def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def delete_dag_run(
+    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Delete a DAG Run."""
     deleted_count = session.execute(
         delete(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
     ).rowcount
     if deleted_count == 0:
-        raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
+        raise NotFound(
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found"
+        )
     return NoContent, HTTPStatus.NO_CONTENT
 
 
@@ -96,10 +100,16 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_run(
-    *, dag_id: str, dag_run_id: str, fields: Collection[str] | None = None, session: Session = NEW_SESSION
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    fields: Collection[str] | None = None,
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get a DAG Run."""
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+    dag_run = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+    )
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
@@ -107,7 +117,9 @@ def get_dag_run(
         )
     try:
         # parse fields to Schema @post_dump
-        dagrun_schema = DAGRunSchema(context={"fields": fields}) if fields else DAGRunSchema()
+        dagrun_schema = (
+            DAGRunSchema(context={"fields": fields}) if fields else DAGRunSchema()
+        )
         return dagrun_schema.dump(dag_run)
     except ValueError as e:
         # Invalid fields
@@ -117,7 +129,9 @@ def get_dag_run(
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_asset("GET")
 @provide_session
-def get_upstream_asset_events(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_upstream_asset_events(
+    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(
@@ -229,7 +243,9 @@ def get_dag_runs(
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
         query = query.where(
-            DagRun.dag_id.in_(get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user))
+            DagRun.dag_id.in_(
+                get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+            )
         )
     else:
         query = query.where(DagRun.dag_id == dag_id)
@@ -254,9 +270,13 @@ def get_dag_runs(
     )
     try:
         dagrun_collection_schema = (
-            DAGRunCollectionSchema(context={"fields": fields}) if fields else DAGRunCollectionSchema()
+            DAGRunCollectionSchema(context={"fields": fields})
+            if fields
+            else DAGRunCollectionSchema()
         )
-        return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
+        return dagrun_collection_schema.dump(
+            DAGRunCollection(dag_runs=dag_run, total_entries=total_entries)
+        )
     except ValueError as e:
         raise BadRequest("DAGRunCollectionSchema error", detail=str(e))
 
@@ -271,7 +291,9 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(
+        methods=["GET"], user=g.user
+    )
     query = select(DagRun)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
@@ -297,7 +319,9 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
         session=session,
     )
 
-    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
+    return dagrun_collection_schema.dump(
+        DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries)
+    )
 
 
 @security.requires_access_dag("POST", DagAccessEntity.RUN)
@@ -305,9 +329,13 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
-    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    dm = session.scalar(
+        select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1)
+    )
     if not dm:
-        raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
+        raise NotFound(
+            title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found"
+        )
     if dm.has_import_errors:
         raise BadRequest(
             title="DAG cannot be triggered",
@@ -340,7 +368,9 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                     end=pendulum.instance(data_interval_end),
                 )
             else:
-                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                data_interval = dag.timetable.infer_manual_data_interval(
+                    run_after=logical_date
+                )
 
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
@@ -370,13 +400,17 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             ),
         )
 
-    raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
+    raise AlreadyExists(
+        detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists"
+    )
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
 @action_logging
-def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def update_dag_run_state(
+    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Set a state of a dag run."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
@@ -404,7 +438,9 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @action_logging
 @provide_session
-def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def clear_dag_run(
+    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Clear a dag run."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
@@ -440,14 +476,18 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             task_ids=None,
             only_failed=False,
         )
-        dag_run = session.execute(select(DagRun).where(DagRun.id == dag_run.id)).scalar_one()
+        dag_run = session.execute(
+            select(DagRun).where(DagRun.id == dag_run.id)
+        ).scalar_one()
         return dagrun_schema.dump(dag_run)
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @action_logging
 @provide_session
-def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def set_dag_run_note(
+    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Set the note for a dag run."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)

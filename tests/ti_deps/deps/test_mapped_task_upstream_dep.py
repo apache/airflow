@@ -158,7 +158,11 @@ def test_mapped_task_upstream_dep(
 @pytest.mark.parametrize("skip_upstream", [True, False])
 @pytest.mark.parametrize("testcase", ["task", "group"])
 def test_step_by_step(
-    dag_maker, session: Session, failure_mode: TaskInstanceState | None, skip_upstream: bool, testcase: str
+    dag_maker,
+    session: Session,
+    failure_mode: TaskInstanceState | None,
+    skip_upstream: bool,
+    testcase: str,
 ):
     from airflow.decorators import task, task_group
 
@@ -253,8 +257,12 @@ def test_step_by_step(
         "t4": SUCCESS,
     }
     if not expect_passed:
-        expected_finished_tis_states[mapped_task_1] = UPSTREAM_FAILED if failure_mode else SKIPPED
-        expected_finished_tis_states[mapped_task_2] = UPSTREAM_FAILED if failure_mode else SKIPPED
+        expected_finished_tis_states[mapped_task_1] = (
+            UPSTREAM_FAILED if failure_mode else SKIPPED
+        )
+        expected_finished_tis_states[mapped_task_2] = (
+            UPSTREAM_FAILED if failure_mode else SKIPPED
+        )
     assert finished_tis_states == expected_finished_tis_states
 
     if expect_passed:
@@ -262,14 +270,18 @@ def test_step_by_step(
         for i in range(4):
             schedulable_tis[f"{mapped_task_1}_{i}"].run()
             expected_finished_tis_states[f"{mapped_task_1}_{i}"] = SUCCESS
-        schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+        schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(
+            dr, session
+        )
         assert sorted(schedulable_tis) == [f"{mapped_task_2}_{i}" for i in range(4)]
         assert finished_tis_states == expected_finished_tis_states
         # Run the m2 tasks
         for i in range(4):
             schedulable_tis[f"{mapped_task_2}_{i}"].run()
             expected_finished_tis_states[f"{mapped_task_2}_{i}"] = SUCCESS
-        schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
+        schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(
+            dr, session
+        )
         assert finished_tis_states == expected_finished_tis_states
         assert not schedulable_tis
 
@@ -323,7 +335,10 @@ def test_mapped_in_mapped_task_group(dag_maker, session: Session):
         # Add a test once mapped tasks within mapped task groups become supported
         with pytest.raises(NotImplementedError) as ctx:
             g.expand(x=t())
-        assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+        assert (
+            str(ctx.value)
+            == "operator expansion in an expanded task group is not yet supported"
+        )
 
 
 @pytest.mark.parametrize("testcase", ["task", "group"])
@@ -394,7 +409,10 @@ def test_non_mapped_task_group(dag_maker, session: Session):
 @pytest.mark.parametrize("upstream_instance_state", [None, SKIPPED, FAILED])
 @pytest.mark.parametrize("testcase", ["task", "group"])
 def test_upstream_mapped_expanded(
-    dag_maker, session: Session, upstream_instance_state: TaskInstanceState | None, testcase: str
+    dag_maker,
+    session: Session,
+    upstream_instance_state: TaskInstanceState | None,
+    testcase: str,
 ):
     from airflow.decorators import task, task_group
 
@@ -429,7 +447,11 @@ def test_upstream_mapped_expanded(
 
     # Initial decision
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
-    assert sorted(schedulable_tis) == [f"{mapped_task_1}_0", f"{mapped_task_1}_1", f"{mapped_task_1}_2"]
+    assert sorted(schedulable_tis) == [
+        f"{mapped_task_1}_0",
+        f"{mapped_task_1}_1",
+        f"{mapped_task_1}_2",
+    ]
     assert not finished_tis_states
 
     # Run expanded m1 tasks
@@ -458,7 +480,12 @@ def test_upstream_mapped_expanded(
     assert not schedulable_tis
     expected_finished_tis_states = {
         ti: "success"
-        for ti in (f"{mapped_task_1}_1", f"{mapped_task_1}_2", f"{mapped_task_2}_0", f"{mapped_task_2}_1")
+        for ti in (
+            f"{mapped_task_1}_1",
+            f"{mapped_task_1}_2",
+            f"{mapped_task_2}_0",
+            f"{mapped_task_2}_1",
+        )
     }
     if upstream_instance_state is None:
         expected_finished_tis_states[f"{mapped_task_1}_0"] = "success"

@@ -44,7 +44,9 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         with op.batch_alter_table("xcom", schema=None) as batch_op:
-            batch_op.alter_column("value", type_=sa.LargeBinary().with_variant(LONGBLOB, "mysql"))
+            batch_op.alter_column(
+                "value", type_=sa.LargeBinary().with_variant(LONGBLOB, "mysql")
+            )
 
 
 def downgrade():

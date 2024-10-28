@@ -67,7 +67,9 @@ class BaseAzureServiceBusHook(BaseHook):
             "fully_qualified_namespace": StringField(
                 lazy_gettext("Fully Qualified Namespace"), widget=BS3TextFieldWidget()
             ),
-            "credential": PasswordField(lazy_gettext("Credential"), widget=BS3TextFieldWidget()),
+            "credential": PasswordField(
+                lazy_gettext("Credential"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -119,11 +121,17 @@ class AdminClientHook(BaseAzureServiceBusHook):
         conn = self.get_connection(self.conn_id)
         connection_string: str = str(conn.schema)
         if connection_string:
-            client = ServiceBusAdministrationClient.from_connection_string(connection_string)
+            client = ServiceBusAdministrationClient.from_connection_string(
+                connection_string
+            )
         else:
             extras = conn.extra_dejson
-            credential: str | DefaultAzureCredential = self._get_field(extras=extras, field_name="credential")
-            fully_qualified_namespace = self._get_field(extras=extras, field_name="fully_qualified_namespace")
+            credential: str | DefaultAzureCredential = self._get_field(
+                extras=extras, field_name="credential"
+            )
+            fully_qualified_namespace = self._get_field(
+                extras=extras, field_name="fully_qualified_namespace"
+            )
             if not credential:
                 managed_identity_client_id = self._get_field(
                     extras=extras, field_name="managed_identity_client_id"
@@ -213,11 +221,17 @@ class MessageHook(BaseAzureServiceBusHook):
         conn = self.get_connection(self.conn_id)
         connection_string: str = str(conn.schema)
         if connection_string:
-            client = ServiceBusClient.from_connection_string(connection_string, logging_enable=True)
+            client = ServiceBusClient.from_connection_string(
+                connection_string, logging_enable=True
+            )
         else:
             extras = conn.extra_dejson
-            credential: str | DefaultAzureCredential = self._get_field(extras=extras, field_name="credential")
-            fully_qualified_namespace = self._get_field(extras=extras, field_name="fully_qualified_namespace")
+            credential: str | DefaultAzureCredential = self._get_field(
+                extras=extras, field_name="credential"
+            )
+            fully_qualified_namespace = self._get_field(
+                extras=extras, field_name="fully_qualified_namespace"
+            )
             if not credential:
                 managed_identity_client_id = self._get_field(
                     extras=extras, field_name="managed_identity_client_id"
@@ -237,7 +251,9 @@ class MessageHook(BaseAzureServiceBusHook):
         self.log.info("Create and returns ServiceBusClient")
         return client
 
-    def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
+    def send_message(
+        self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False
+    ):
         """
         Use ServiceBusClient Send to send message(s) to a Service Bus Queue.
 
@@ -353,7 +369,9 @@ class MessageHook(BaseAzureServiceBusHook):
                 max_message_count=max_message_count, max_wait_time=max_wait_time
             )
             for msg in received_msgs:
-                self._process_message(msg, context, message_callback, subscription_receiver)
+                self._process_message(
+                    msg, context, message_callback, subscription_receiver
+                )
 
     def _process_message(
         self,

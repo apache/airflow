@@ -130,7 +130,9 @@ class TestStandardTaskRunner:
                 time.sleep(0.01)
 
         assert runner_pgid > 0
-        assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+        assert runner_pgid != os.getpgid(
+            0
+        ), "Task should be in a different process group to us"
         processes = list(self._procs_in_pgroup(runner_pgid))
         task_runner.terminate()
 
@@ -154,7 +156,9 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_example_bash_operator")
         task = dag.get_task("runme_1")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             run_id="test",
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -198,7 +202,9 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_failing_bash_operator")
         task = dag.get_task("failing_task")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             run_id="test",
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -237,7 +243,9 @@ class TestStandardTaskRunner:
 
         path_listener_writer = tmp_path / "test_ol_does_not_block_xcoms"
 
-        listener = xcom_listener.XComListener(os.fspath(path_listener_writer), "push_and_pull")
+        listener = xcom_listener.XComListener(
+            os.fspath(path_listener_writer), "push_and_pull"
+        )
         get_listener_manager().add_listener(listener)
 
         dagbag = DagBag(
@@ -246,7 +254,9 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_dag_xcom_openlineage")
         task = dag.get_task("push_and_pull")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             run_id="test",
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -304,7 +314,9 @@ class TestStandardTaskRunner:
 
             pgid = os.getpgid(task_runner.process.pid)
             assert pgid > 0
-            assert pgid != os.getpgid(0), "Task should be in a different process group to us"
+            assert pgid != os.getpgid(
+                0
+            ), "Task should be in a different process group to us"
 
             processes = list(self._procs_in_pgroup(pgid))
         finally:
@@ -377,7 +389,9 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_on_kill")
         task = dag.get_task("task1")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             run_id="test",
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -406,7 +420,9 @@ class TestStandardTaskRunner:
                 time.sleep(0.01)
         logger.info("Task started. Give the task some time to settle")
         time.sleep(3)
-        logger.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
+        logger.info(
+            "Terminating processes %s belonging to %s group", processes, runner_pgid
+        )
         task_runner.terminate()
 
         logger.info("Waiting for the on kill killed file to appear")
@@ -432,7 +448,9 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_parsing_context")
         task = dag.get_task("task1")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dag.create_dagrun(
             run_id="test",
@@ -456,7 +474,9 @@ class TestStandardTaskRunner:
                 time.sleep(0.01)
 
         assert runner_pgid > 0
-        assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+        assert runner_pgid != os.getpgid(
+            0
+        ), "Task should be in a different process group to us"
         processes = list(self._procs_in_pgroup(runner_pgid))
         psutil.wait_procs([task_runner.process])
 

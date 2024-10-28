@@ -157,7 +157,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         TaskInstance._run_execute_callback(self=self, context=context, task=task)  # type: ignore[arg-type]
 
     def render_templates(self, context: Context | None = None, jinja_env=None):
-        return TaskInstance.render_templates(self=self, context=context, jinja_env=jinja_env)  # type: ignore[arg-type]
+        return TaskInstance.render_templates(
+            self=self, context=context, jinja_env=jinja_env
+        )  # type: ignore[arg-type]
 
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
@@ -226,7 +228,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :return: Pydantic serialized version of DagRun
         """
-        return TaskInstance._get_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
+        return TaskInstance._get_dagrun(
+            dag_id=self.dag_id, run_id=self.run_id, session=session
+        )
 
     def _execute_task(self, context, task_orig):
         """
@@ -239,7 +243,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _execute_task(task_instance=self, context=context, task_orig=task_orig)
 
-    def refresh_from_db(self, session: Session | None = None, lock_for_update: bool = False) -> None:
+    def refresh_from_db(
+        self, session: Session | None = None, lock_for_update: bool = False
+    ) -> None:
         """
         Refresh the task instance from the database based on the primary key.
 
@@ -250,7 +256,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _refresh_from_db
 
-        _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
+        _refresh_from_db(
+            task_instance=self, session=session, lock_for_update=lock_for_update
+        )
 
     def set_duration(self) -> None:
         """Set task instance duration."""
@@ -375,7 +383,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _get_previous_execution_date
 
-        return _get_previous_execution_date(task_instance=self, state=state, session=session)
+        return _get_previous_execution_date(
+            task_instance=self, state=state, session=session
+        )
 
     def get_previous_start_date(
         self,
@@ -414,7 +424,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _get_email_subject_content
 
-        return _get_email_subject_content(task_instance=self, exception=exception, task=task)
+        return _get_email_subject_content(
+            task_instance=self, exception=exception, task=task
+        )
 
     def get_previous_ti(
         self,
@@ -463,7 +475,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             session=session,
         )
 
-    def schedule_downstream_tasks(self, session: Session | None = None, max_tis_per_query: int | None = None):
+    def schedule_downstream_tasks(
+        self, session: Session | None = None, max_tis_per_query: int | None = None
+    ):
         """
         Schedule downstream tasks of this task instance.
 
@@ -531,7 +545,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             test_mode=test_mode,
             session=session,
         )
-        _set_ti_attrs(self, updated_ti)  # _handle_reschedule is a remote call that mutates the TI
+        _set_ti_attrs(
+            self, updated_ti
+        )  # _handle_reschedule is a remote call that mutates the TI
 
     def get_relevant_upstream_map_indexes(
         self,

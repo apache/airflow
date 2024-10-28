@@ -129,7 +129,9 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     if isinstance(o, dict):
         if CLASSNAME in o or SCHEMA_ID in o:
-            raise AttributeError(f"reserved key {CLASSNAME} or {SCHEMA_ID} found in dict to serialize")
+            raise AttributeError(
+                f"reserved key {CLASSNAME} or {SCHEMA_ID} found in dict to serialize"
+            )
 
         return {str(k): serialize(v, depth + 1) for k, v in o.items()}
 
@@ -148,7 +150,9 @@ def serialize(o: object, depth: int = 0) -> U | None:
     if qn in _serializers:
         data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
         if is_serialized:
-            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
+            return encode(
+                classname or serialized_classname, version, serialize(data, depth + 1)
+            )
 
     # custom serializers
     dct = {
@@ -183,7 +187,9 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # attr annotated
     if attr.has(cls):
         # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=False, filter=lambda a, v: a.init)
+        data = attr.asdict(
+            cast(attr.AttrsInstance, o), recurse=False, filter=lambda a, v: a.init
+        )
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -261,7 +267,9 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     # registered deserializer
     if classname in _deserializers:
-        return _deserializers[classname].deserialize(classname, version, deserialize(value))
+        return _deserializers[classname].deserialize(
+            classname, version, deserialize(value)
+        )
 
     # class has deserialization function
     if hasattr(cls, "deserialize"):
@@ -291,7 +299,11 @@ def _convert(old: dict) -> dict:
         if old[OLD_TYPE] == OLD_DICT:
             return old[OLD_DATA]
         else:
-            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
+            return {
+                CLASSNAME: old[OLD_TYPE],
+                VERSION: DEFAULT_VERSION,
+                DATA: old[OLD_DATA],
+            }
 
     return old
 
@@ -345,7 +357,11 @@ def _is_pydantic(cls: Any) -> bool:
     Checking is done by attributes as it is significantly faster than
     using isinstance.
     """
-    return hasattr(cls, "model_config") and hasattr(cls, "model_fields") and hasattr(cls, "model_fields_set")
+    return (
+        hasattr(cls, "model_config")
+        and hasattr(cls, "model_fields")
+        and hasattr(cls, "model_fields_set")
+    )
 
 
 def _is_namedtuple(cls: Any) -> bool:
@@ -355,7 +371,11 @@ def _is_namedtuple(cls: Any) -> bool:
     Checking is done by attributes as it is significantly faster than
     using isinstance.
     """
-    return hasattr(cls, "_asdict") and hasattr(cls, "_fields") and hasattr(cls, "_field_defaults")
+    return (
+        hasattr(cls, "_asdict")
+        and hasattr(cls, "_fields")
+        and hasattr(cls, "_field_defaults")
+    )
 
 
 def _register():
@@ -371,14 +391,18 @@ def _register():
                 if not isinstance(s, str):
                     s = qualname(s)
                 if s in _serializers and _serializers[s] != name:
-                    raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
+                    raise AttributeError(
+                        f"duplicate {s} for serialization in {name} and {_serializers[s]}"
+                    )
                 log.debug("registering %s for serialization", s)
                 _serializers[s] = name
             for d in getattr(name, "deserializers", ()):
                 if not isinstance(d, str):
                     d = qualname(d)
                 if d in _deserializers and _deserializers[d] != name:
-                    raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
+                    raise AttributeError(
+                        f"duplicate {d} for deserialization in {name} and {_serializers[d]}"
+                    )
                 log.debug("registering %s for deserialization", d)
                 _deserializers[d] = name
                 _extra_allowed.add(d)
@@ -386,7 +410,9 @@ def _register():
                 if not isinstance(c, str):
                     c = qualname(c)
                 if c in _deserializers and _deserializers[c] != name:
-                    raise AttributeError(f"duplicate {c} for stringifiers in {name} and {_stringifiers[c]}")
+                    raise AttributeError(
+                        f"duplicate {c} for stringifiers in {name} and {_stringifiers[c]}"
+                    )
                 log.debug("registering %s for stringifying", c)
                 _stringifiers[c] = name
 
@@ -395,12 +421,18 @@ def _register():
 
 @functools.lru_cache(maxsize=None)
 def _get_patterns() -> list[Pattern]:
-    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes").split()]
+    return [
+        re2.compile(p)
+        for p in conf.get("core", "allowed_deserialization_classes").split()
+    ]
 
 
 @functools.lru_cache(maxsize=None)
 def _get_regexp_patterns() -> list[Pattern]:
-    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
+    return [
+        re2.compile(p)
+        for p in conf.get("core", "allowed_deserialization_classes_regexp").split()
+    ]
 
 
 _register()

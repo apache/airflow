@@ -66,19 +66,24 @@ class TestHive2SambaOperator(TestHiveEnvironment):
 
         HiveToSambaOperator(**self.kwargs).execute(context)
 
-        mock_hive_hook.assert_called_once_with(hiveserver2_conn_id=self.kwargs["hiveserver2_conn_id"])
+        mock_hive_hook.assert_called_once_with(
+            hiveserver2_conn_id=self.kwargs["hiveserver2_conn_id"]
+        )
         mock_hive_hook.return_value.to_csv.assert_called_once_with(
             self.kwargs["hql"],
             csv_filepath=mock_tmp_file.name,
             hive_conf=context_to_airflow_vars(context),
         )
-        mock_samba_hook.assert_called_once_with(samba_conn_id=self.kwargs["samba_conn_id"])
+        mock_samba_hook.assert_called_once_with(
+            samba_conn_id=self.kwargs["samba_conn_id"]
+        )
         mock_samba_hook.return_value.push_from_local.assert_called_once_with(
             self.kwargs["destination_filepath"], mock_tmp_file.name
         )
 
     @pytest.mark.skipif(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+        "AIRFLOW_RUNALL_TESTS" not in os.environ,
+        reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
     )
     @patch("tempfile.tempdir", "/tmp/")
     @patch("tempfile._RandomNameSequence.__next__")
@@ -93,7 +98,8 @@ class TestHive2SambaOperator(TestHiveEnvironment):
         samba_hook.upload = MagicMock()
 
         with patch(
-            "airflow.providers.apache.hive.transfers.hive_to_samba.SambaHook", return_value=samba_hook
+            "airflow.providers.apache.hive.transfers.hive_to_samba.SambaHook",
+            return_value=samba_hook,
         ):
             samba_hook.conn.upload = MagicMock()
             op = HiveToSambaOperator(

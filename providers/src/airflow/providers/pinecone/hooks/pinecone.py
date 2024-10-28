@@ -31,7 +31,11 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from pinecone import Vector
     from pinecone.core.client.model.sparse_values import SparseValues
-    from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
+    from pinecone.core.client.models import (
+        DescribeIndexStatsResponse,
+        QueryResponse,
+        UpsertResponse,
+    )
 
     from airflow.models.connection import Connection
 
@@ -57,8 +61,12 @@ class PineconeHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "region": StringField(lazy_gettext("Pinecone Region"), widget=BS3TextFieldWidget(), default=None),
-            "debug_curl": BooleanField(lazy_gettext("PINECONE_DEBUG_CURL"), default=False),
+            "region": StringField(
+                lazy_gettext("Pinecone Region"), widget=BS3TextFieldWidget(), default=None
+            ),
+            "debug_curl": BooleanField(
+                lazy_gettext("PINECONE_DEBUG_CURL"), default=False
+            ),
             "project_id": StringField(
                 lazy_gettext("Project ID"),
                 widget=BS3TextFieldWidget(),
@@ -78,7 +86,10 @@ class PineconeHook(BaseHook):
         }
 
     def __init__(
-        self, conn_id: str = default_conn_name, environment: str | None = None, region: str | None = None
+        self,
+        conn_id: str = default_conn_name,
+        environment: str | None = None,
+        region: str | None = None,
     ) -> None:
         self.conn_id = conn_id
         self._environment = environment
@@ -118,7 +129,9 @@ class PineconeHook(BaseHook):
         enable_curl_debug = extras.get("debug_curl")
         if enable_curl_debug:
             os.environ["PINECONE_DEBUG_CURL"] = "true"
-        return Pinecone(api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id)
+        return Pinecone(
+            api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id
+        )
 
     @cached_property
     def conn(self) -> Connection:
@@ -203,7 +216,9 @@ class PineconeHook(BaseHook):
             source_collection=source_collection,
         )
 
-    def get_serverless_spec_obj(self, *, cloud: str, region: str | None = None) -> ServerlessSpec:
+    def get_serverless_spec_obj(
+        self, *, cloud: str, region: str | None = None
+    ) -> ServerlessSpec:
         """
         Get a ServerlessSpec object.
 
@@ -265,7 +280,9 @@ class PineconeHook(BaseHook):
         :param replicas: The new number of replicas.
         :param pod_type: the new pod_type for the index.
         """
-        self.pinecone_client.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
+        self.pinecone_client.configure_index(
+            name=index_name, replicas=replicas, pod_type=pod_type
+        )
 
     def create_collection(self, collection_name: str, index_name: str) -> None:
         """
@@ -303,7 +320,8 @@ class PineconeHook(BaseHook):
         query_id: str | None = None,
         top_k: int = 10,
         namespace: str | None = None,
-        query_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]] | None = None,
+        query_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]]
+        | None = None,
         include_values: bool | None = None,
         include_metadata: bool | None = None,
         sparse_vector: SparseValues | dict[str, list[float] | list[int]] | None = None,
@@ -365,7 +383,10 @@ class PineconeHook(BaseHook):
         responses = []
         with self.pinecone_client.Index(index_name, pool_threads=pool_threads) as index:
             if async_req and pool_threads:
-                async_results = [index.upsert(vectors=chunk, async_req=True) for chunk in self._chunks(data)]
+                async_results = [
+                    index.upsert(vectors=chunk, async_req=True)
+                    for chunk in self._chunks(data)
+                ]
                 responses = [async_result.get() for async_result in async_results]
             else:
                 for chunk in self._chunks(data):
@@ -376,7 +397,8 @@ class PineconeHook(BaseHook):
     def describe_index_stats(
         self,
         index_name: str,
-        stats_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]] | None = None,
+        stats_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]]
+        | None = None,
         **kwargs: Any,
     ) -> DescribeIndexStatsResponse:
         """

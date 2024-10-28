@@ -41,7 +41,9 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_HANDLER = "task"
-TASK_HANDLER_CLASS = "airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter"
+TASK_HANDLER_CLASS = (
+    "airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter"
+)
 PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG["handlers"]["task"]
 
 DAG_ID = "task_handler_with_custom_formatter_dag"
@@ -66,7 +68,9 @@ def custom_task_log_handler_config():
 def task_instance(dag_maker):
     with dag_maker(DAG_ID, start_date=DEFAULT_DATE, serialized=True) as dag:
         task = EmptyOperator(task_id=TASK_ID)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dagrun = dag_maker.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=DEFAULT_DATE,
@@ -81,7 +85,9 @@ def task_instance(dag_maker):
 
 
 def assert_prefix_once(task_instance: TaskInstance, prefix: str) -> None:
-    handler = next((h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None)
+    handler = next(
+        (h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None
+    )
     assert handler is not None, "custom task log handler not set up correctly"
     assert handler.formatter is not None, "custom task log formatter not set up correctly"
     previous_formatter = handler.formatter
@@ -92,7 +98,9 @@ def assert_prefix_once(task_instance: TaskInstance, prefix: str) -> None:
 
 
 def assert_prefix_multiple(task_instance: TaskInstance, prefix: str) -> None:
-    handler = next((h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None)
+    handler = next(
+        (h for h in task_instance.log.handlers if h.name == TASK_HANDLER), None
+    )
     assert handler is not None, "custom task log handler not set up correctly"
     assert handler.formatter is not None, "custom task log formatter not set up correctly"
     previous_formatter = handler.formatter

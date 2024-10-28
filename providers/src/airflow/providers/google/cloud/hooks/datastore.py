@@ -93,7 +93,9 @@ class DatastoreHook(GoogleBaseHook):
         return resp["keys"]
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: str, transaction_options: dict[str, Any]) -> str:
+    def begin_transaction(
+        self, project_id: str, transaction_options: dict[str, Any]
+    ) -> str:
         """
         Begins a new transaction.
 
@@ -108,7 +110,9 @@ class DatastoreHook(GoogleBaseHook):
 
         resp = (
             conn.projects()
-            .beginTransaction(projectId=project_id, body={"transactionOptions": transaction_options})
+            .beginTransaction(
+                projectId=project_id, body={"transactionOptions": transaction_options}
+            )
             .execute(num_retries=self.num_retries)
         )
 
@@ -128,7 +132,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().commit(projectId=project_id, body=body).execute(num_retries=self.num_retries)
+        resp = (
+            conn.projects()
+            .commit(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -160,7 +168,11 @@ class DatastoreHook(GoogleBaseHook):
             body["readConsistency"] = read_consistency
         if transaction:
             body["transaction"] = transaction
-        resp = conn.projects().lookup(projectId=project_id, body=body).execute(num_retries=self.num_retries)
+        resp = (
+            conn.projects()
+            .lookup(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -177,9 +189,9 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn: Any = self.get_conn()
 
-        conn.projects().rollback(projectId=project_id, body={"transaction": transaction}).execute(
-            num_retries=self.num_retries
-        )
+        conn.projects().rollback(
+            projectId=project_id, body={"transaction": transaction}
+        ).execute(num_retries=self.num_retries)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_query(self, body: dict, project_id: str) -> dict:
@@ -195,7 +207,11 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().runQuery(projectId=project_id, body=body).execute(num_retries=self.num_retries)
+        resp = (
+            conn.projects()
+            .runQuery(projectId=project_id, body=body)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp["batch"]
 
@@ -211,7 +227,12 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn: Any = self.get_conn()
 
-        resp = conn.projects().operations().get(name=name).execute(num_retries=self.num_retries)
+        resp = (
+            conn.projects()
+            .operations()
+            .get(name=name)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
@@ -227,11 +248,18 @@ class DatastoreHook(GoogleBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().operations().delete(name=name).execute(num_retries=self.num_retries)
+        resp = (
+            conn.projects()
+            .operations()
+            .delete(name=name)
+            .execute(num_retries=self.num_retries)
+        )
 
         return resp
 
-    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> dict:
+    def poll_operation_until_done(
+        self, name: str, polling_interval_in_seconds: float
+    ) -> dict:
         """
         Poll backup operation state until it's completed.
 
@@ -245,7 +273,8 @@ class DatastoreHook(GoogleBaseHook):
             state: str = result["metadata"]["common"]["state"]
             if state == "PROCESSING":
                 self.log.info(
-                    "Operation is processing. Re-polling state in %s seconds", polling_interval_in_seconds
+                    "Operation is processing. Re-polling state in %s seconds",
+                    polling_interval_in_seconds,
                 )
                 time.sleep(polling_interval_in_seconds)
             else:

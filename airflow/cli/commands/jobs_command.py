@@ -35,11 +35,17 @@ if TYPE_CHECKING:
 def check(args, session: Session = NEW_SESSION) -> None:
     """Check if job(s) are still alive."""
     if args.allow_multiple and args.limit <= 1:
-        raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
+        raise SystemExit(
+            "To use option --allow-multiple, you must set the limit to a value greater than 1."
+        )
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    query = select(Job).where(Job.state == JobState.RUNNING).order_by(Job.latest_heartbeat.desc())
+    query = (
+        select(Job)
+        .where(Job.state == JobState.RUNNING)
+        .order_by(Job.latest_heartbeat.desc())
+    )
     if args.job_type:
         query = query.where(Job.job_type == args.job_type)
     if args.hostname:

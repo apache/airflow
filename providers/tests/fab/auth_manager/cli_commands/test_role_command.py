@@ -31,7 +31,9 @@ from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import role_command
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+    from airflow.providers.fab.auth_manager.cli_commands.utils import (
+        get_application_builder,
+    )
 
 from airflow.security import permissions
 
@@ -114,13 +116,19 @@ class TestCliRoles:
         assert "FakeTeamB" in stdout
 
     def test_cli_list_roles_with_args(self):
-        role_command.roles_list(self.parser.parse_args(["roles", "list", "--output", "yaml"]))
-        role_command.roles_list(self.parser.parse_args(["roles", "list", "-p", "--output", "yaml"]))
+        role_command.roles_list(
+            self.parser.parse_args(["roles", "list", "--output", "yaml"])
+        )
+        role_command.roles_list(
+            self.parser.parse_args(["roles", "list", "-p", "--output", "yaml"])
+        )
 
     def test_cli_roles_add_and_del_perms(self):
         assert self.appbuilder.sm.find_role("FakeTeamC") is None
 
-        role_command.roles_create(self.parser.parse_args(["roles", "create", "FakeTeamC"]))
+        role_command.roles_create(
+            self.parser.parse_args(["roles", "create", "FakeTeamC"])
+        )
         assert self.appbuilder.sm.find_role("FakeTeamC") is not None
         role: Role = self.appbuilder.sm.find_role("FakeTeamC")
         assert len(role.permissions) == 0
@@ -181,7 +189,11 @@ class TestCliRoles:
         role_command.roles_export(self.parser.parse_args(["roles", "export", str(fn)]))
         with open(fn) as outfile:
             roles_exported = json.load(outfile)
-        assert {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"} in roles_exported
+        assert {
+            "name": "FakeTeamA",
+            "resource": "Pools",
+            "action": "can_edit,can_read",
+        } in roles_exported
         assert {"name": "FakeTeamB", "resource": "", "action": ""} in roles_exported
 
     def test_cli_import_roles(self, tmp_path):

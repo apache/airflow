@@ -139,7 +139,10 @@ class EksHook(AwsBaseHook):
             name=name, roleArn=roleArn, resourcesVpcConfig=resourcesVpcConfig, **kwargs
         )
 
-        self.log.info("Created Amazon EKS cluster with the name %s.", response.get("cluster").get("name"))
+        self.log.info(
+            "Created Amazon EKS cluster with the name %s.",
+            response.get("cluster").get("name"),
+        )
         return response
 
     def create_nodegroup(
@@ -243,7 +246,10 @@ class EksHook(AwsBaseHook):
 
         response = eks_client.delete_cluster(name=name)
 
-        self.log.info("Deleted Amazon EKS cluster with the name %s.", response.get("cluster").get("name"))
+        self.log.info(
+            "Deleted Amazon EKS cluster with the name %s.",
+            response.get("cluster").get("name"),
+        )
         return response
 
     def delete_nodegroup(self, clusterName: str, nodegroupName: str) -> dict:
@@ -259,7 +265,9 @@ class EksHook(AwsBaseHook):
         """
         eks_client = self.conn
 
-        response = eks_client.delete_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
+        response = eks_client.delete_nodegroup(
+            clusterName=clusterName, nodegroupName=nodegroupName
+        )
 
         self.log.info(
             "Deleted Amazon EKS managed node group named %s from Amazon EKS cluster %s.",
@@ -308,14 +316,20 @@ class EksHook(AwsBaseHook):
         response = eks_client.describe_cluster(name=name)
 
         self.log.info(
-            "Retrieved details for Amazon EKS cluster named %s.", response.get("cluster").get("name")
+            "Retrieved details for Amazon EKS cluster named %s.",
+            response.get("cluster").get("name"),
         )
         if verbose:
             cluster_data = response.get("cluster")
-            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
+            self.log.info(
+                "Amazon EKS cluster details: %s",
+                json.dumps(cluster_data, cls=AirflowJsonEncoder),
+            )
         return response
 
-    def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> dict:
+    def describe_nodegroup(
+        self, clusterName: str, nodegroupName: str, verbose: bool = False
+    ) -> dict:
         """
         Return descriptive information about an Amazon EKS managed node group.
 
@@ -329,7 +343,9 @@ class EksHook(AwsBaseHook):
         """
         eks_client = self.conn
 
-        response = eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
+        response = eks_client.describe_nodegroup(
+            clusterName=clusterName, nodegroupName=nodegroupName
+        )
 
         self.log.info(
             "Retrieved details for Amazon EKS managed node group named %s in Amazon EKS cluster %s.",
@@ -372,7 +388,8 @@ class EksHook(AwsBaseHook):
         if verbose:
             fargate_profile_data = response.get("fargateProfile")
             self.log.info(
-                "AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
+                "AWS Fargate profile details: %s",
+                json.dumps(fargate_profile_data, cls=AirflowJsonEncoder),
             )
         return response
 
@@ -389,13 +406,17 @@ class EksHook(AwsBaseHook):
         eks_client = self.conn
 
         try:
-            return ClusterStates(eks_client.describe_cluster(name=clusterName).get("cluster").get("status"))
+            return ClusterStates(
+                eks_client.describe_cluster(name=clusterName).get("cluster").get("status")
+            )
         except ClientError as ex:
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
             raise
 
-    def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
+    def get_fargate_profile_state(
+        self, clusterName: str, fargateProfileName: str
+    ) -> FargateProfileStates:
         """
         Return the current status of a given AWS Fargate profile.
 
@@ -421,7 +442,9 @@ class EksHook(AwsBaseHook):
                 return FargateProfileStates.NONEXISTENT
             raise
 
-    def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
+    def get_nodegroup_state(
+        self, clusterName: str, nodegroupName: str
+    ) -> NodegroupStates:
         """
         Return the current status of a given Amazon EKS managed node group.
 
@@ -436,7 +459,9 @@ class EksHook(AwsBaseHook):
 
         try:
             return NodegroupStates(
-                eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
+                eks_client.describe_nodegroup(
+                    clusterName=clusterName, nodegroupName=nodegroupName
+                )
                 .get("nodegroup")
                 .get("status")
             )
@@ -461,7 +486,9 @@ class EksHook(AwsBaseHook):
         eks_client = self.conn
         list_cluster_call = partial(eks_client.list_clusters)
 
-        return self._list_all(api_call=list_cluster_call, response_key="clusters", verbose=verbose)
+        return self._list_all(
+            api_call=list_cluster_call, response_key="clusters", verbose=verbose
+        )
 
     def list_nodegroups(
         self,
@@ -479,9 +506,13 @@ class EksHook(AwsBaseHook):
         :return: A List of nodegroup names within the given cluster.
         """
         eks_client = self.conn
-        list_nodegroups_call = partial(eks_client.list_nodegroups, clusterName=clusterName)
+        list_nodegroups_call = partial(
+            eks_client.list_nodegroups, clusterName=clusterName
+        )
 
-        return self._list_all(api_call=list_nodegroups_call, response_key="nodegroups", verbose=verbose)
+        return self._list_all(
+            api_call=list_nodegroups_call, response_key="nodegroups", verbose=verbose
+        )
 
     def list_fargate_profiles(
         self,
@@ -499,10 +530,14 @@ class EksHook(AwsBaseHook):
         :return: A list of Fargate profile names within a given cluster.
         """
         eks_client = self.conn
-        list_fargate_profiles_call = partial(eks_client.list_fargate_profiles, clusterName=clusterName)
+        list_fargate_profiles_call = partial(
+            eks_client.list_fargate_profiles, clusterName=clusterName
+        )
 
         return self._list_all(
-            api_call=list_fargate_profiles_call, response_key="fargateProfileNames", verbose=verbose
+            api_call=list_fargate_profiles_call,
+            response_key="fargateProfileNames",
+            verbose=verbose,
         )
 
     def _list_all(self, api_call: Callable, response_key: str, verbose: bool) -> list:
@@ -564,7 +599,10 @@ class EksHook(AwsBaseHook):
             "kind": "Config",
             "clusters": [
                 {
-                    "cluster": {"server": cluster_ep, "certificate-authority-data": cluster_cert},
+                    "cluster": {
+                        "server": cluster_ep,
+                        "certificate-authority-data": cluster_cert,
+                    },
                     "name": eks_cluster_name,
                 }
             ],
@@ -611,9 +649,7 @@ class EksHook(AwsBaseHook):
     def fetch_access_token_for_cluster(self, eks_cluster_name: str) -> str:
         session = self.get_session()
         service_id = self.conn.meta.service_model.service_id
-        sts_url = (
-            f"https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
-        )
+        sts_url = f"https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
 
         signer = RequestSigner(
             service_id=service_id,

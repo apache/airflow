@@ -52,7 +52,11 @@ class TestComprehendPiiEntitiesDetectionJobCompletedTrigger(TestBaseComprehendTr
         """Assert that arguments and classpath are correctly serialized."""
         trigger = ComprehendPiiEntitiesDetectionJobCompletedTrigger(job_id=self.JOB_ID)
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "ComprehendPiiEntitiesDetectionJobCompletedTrigger"
+        assert (
+            classpath
+            == BASE_TRIGGER_CLASSPATH
+            + "ComprehendPiiEntitiesDetectionJobCompletedTrigger"
+        )
         assert kwargs.get("job_id") == self.JOB_ID
 
     @pytest.mark.asyncio
@@ -73,9 +77,7 @@ class TestComprehendPiiEntitiesDetectionJobCompletedTrigger(TestBaseComprehendTr
 
 class TestComprehendCreateDocumentClassifierCompletedTrigger:
     EXPECTED_WAITER_NAME = "create_document_classifier_complete"
-    DOCUMENT_CLASSIFIER_ARN = (
-        "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
-    )
+    DOCUMENT_CLASSIFIER_ARN = "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
 
     def test_serialization(self):
         """Assert that arguments and classpath are correctly serialized."""
@@ -83,7 +85,11 @@ class TestComprehendCreateDocumentClassifierCompletedTrigger:
             document_classifier_arn=self.DOCUMENT_CLASSIFIER_ARN
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "ComprehendCreateDocumentClassifierCompletedTrigger"
+        assert (
+            classpath
+            == BASE_TRIGGER_CLASSPATH
+            + "ComprehendCreateDocumentClassifierCompletedTrigger"
+        )
         assert kwargs.get("document_classifier_arn") == self.DOCUMENT_CLASSIFIER_ARN
 
     @pytest.mark.asyncio

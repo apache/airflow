@@ -41,9 +41,12 @@ class TestPrestoToMySqlTransfer:
     def test_execute(self, mock_presto_hook, mock_mysql_hook):
         PrestoToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_presto_hook.return_value.get_records.assert_called_once_with(self.kwargs["sql"])
+        mock_presto_hook.return_value.get_records.assert_called_once_with(
+            self.kwargs["sql"]
+        )
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs["mysql_table"], rows=mock_presto_hook.return_value.get_records.return_value
+            table=self.kwargs["mysql_table"],
+            rows=mock_presto_hook.return_value.get_records.return_value,
         )
 
     @patch("airflow.providers.mysql.transfers.presto_to_mysql.MySqlHook")
@@ -53,8 +56,13 @@ class TestPrestoToMySqlTransfer:
 
         PrestoToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_presto_hook.return_value.get_records.assert_called_once_with(self.kwargs["sql"])
-        mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs["mysql_preoperator"])
+        mock_presto_hook.return_value.get_records.assert_called_once_with(
+            self.kwargs["sql"]
+        )
+        mock_mysql_hook.return_value.run.assert_called_once_with(
+            self.kwargs["mysql_preoperator"]
+        )
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs["mysql_table"], rows=mock_presto_hook.return_value.get_records.return_value
+            table=self.kwargs["mysql_table"],
+            rows=mock_presto_hook.return_value.get_records.return_value,
         )

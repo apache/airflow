@@ -99,7 +99,9 @@ with DAG(
     """
     )
 
-    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG; OR
+    dag.doc_md = (
+        __doc__  # providing that you have a docstring at the beginning of the DAG; OR
+    )
     dag.doc_md = """
     This is a documentation placed anywhere
     """  # otherwise, type it like this

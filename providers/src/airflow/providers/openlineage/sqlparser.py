@@ -21,7 +21,11 @@ from typing import TYPE_CHECKING, Callable
 import sqlparse
 from attrs import define
 from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import column_lineage_dataset, extraction_error_run, sql_job
+from openlineage.client.facet_v2 import (
+    column_lineage_dataset,
+    extraction_error_run,
+    sql_job,
+)
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -118,7 +122,9 @@ class SQLParser(LoggingMixin):
     :param default_schema: schema applied to each table with no schema parsed
     """
 
-    def __init__(self, dialect: str | None = None, default_schema: str | None = None) -> None:
+    def __init__(
+        self, dialect: str | None = None, default_schema: str | None = None
+    ) -> None:
         super().__init__()
         self.dialect = dialect
         self.default_schema = default_schema
@@ -180,10 +186,14 @@ class SQLParser(LoggingMixin):
     ) -> tuple[list[Dataset], ...]:
         database = database if database else database_info.database
         return [
-            from_table_meta(dataset, database, namespace, database_info.is_uppercase_names)
+            from_table_meta(
+                dataset, database, namespace, database_info.is_uppercase_names
+            )
             for dataset in inputs
         ], [
-            from_table_meta(dataset, database, namespace, database_info.is_uppercase_names)
+            from_table_meta(
+                dataset, database, namespace, database_info.is_uppercase_names
+            )
             for dataset in outputs
         ]
 
@@ -200,33 +210,36 @@ class SQLParser(LoggingMixin):
             return
         for dataset in datasets:
             dataset.facets = dataset.facets or {}
-            dataset.facets["columnLineage"] = column_lineage_dataset.ColumnLineageDatasetFacet(
-                fields={
-                    column_lineage.descendant.name: column_lineage_dataset.Fields(
-                        inputFields=[
-                            column_lineage_dataset.InputField(
-                                namespace=dataset.namespace,
-                                name=".".join(
-                                    filter(
-                                        None,
-                                        (
-                                            column_meta.origin.database or database,
-                                            column_meta.origin.schema or self.default_schema,
-                                            column_meta.origin.name,
-                                        ),
+            dataset.facets["columnLineage"] = (
+                column_lineage_dataset.ColumnLineageDatasetFacet(
+                    fields={
+                        column_lineage.descendant.name: column_lineage_dataset.Fields(
+                            inputFields=[
+                                column_lineage_dataset.InputField(
+                                    namespace=dataset.namespace,
+                                    name=".".join(
+                                        filter(
+                                            None,
+                                            (
+                                                column_meta.origin.database or database,
+                                                column_meta.origin.schema
+                                                or self.default_schema,
+                                                column_meta.origin.name,
+                                            ),
+                                        )
                                     )
+                                    if column_meta.origin
+                                    else "",
+                                    field=column_meta.name,
                                 )
-                                if column_meta.origin
-                                else "",
-                                field=column_meta.name,
-                            )
-                            for column_meta in column_lineage.lineage
-                        ],
-                        transformationType="",
-                        transformationDescription="",
-                    )
-                    for column_lineage in parse_result.column_lineage
-                }
+                                for column_meta in column_lineage.lineage
+                            ],
+                            transformationType="",
+                            transformationDescription="",
+                        )
+                        for column_lineage in parse_result.column_lineage
+                    }
+                )
             )
 
     def generate_openlineage_metadata_from_sql(
@@ -254,7 +267,9 @@ class SQLParser(LoggingMixin):
         :param database: when passed it takes precedence over parsed database name
         :param sqlalchemy_engine: when passed, engine's dialect is used to compile SQL queries
         """
-        job_facets: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query=self.normalize_sql(sql))}
+        job_facets: dict[str, JobFacet] = {
+            "sql": sql_job.SQLJobFacet(query=self.normalize_sql(sql))
+        }
         parse_result = self.parse(sql=self.split_sql_string(sql))
         if not parse_result:
             return OperatorLineage(job_facets=job_facets)
@@ -295,7 +310,9 @@ class SQLParser(LoggingMixin):
                 database_info=database_info,
             )
 
-        self.attach_column_lineage(outputs, database or database_info.database, parse_result)
+        self.attach_column_lineage(
+            outputs, database or database_info.database, parse_result
+        )
 
         return OperatorLineage(
             inputs=inputs,
@@ -391,6 +408,8 @@ class SQLParser(LoggingMixin):
             else:
                 db = None
             schemas = hierarchy.setdefault(normalize_name(db) if db else db, {})
-            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else None, [])
+            tables = schemas.setdefault(
+                normalize_name(table.schema) if table.schema else None, []
+            )
             tables.append(table.name)
         return hierarchy

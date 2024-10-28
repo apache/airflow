@@ -47,14 +47,34 @@ def upgrade():
         "backfill",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("dag_id", sa.String(length=250), nullable=True),
-        sa.Column("from_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("to_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("dag_run_conf", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True),
+        sa.Column(
+            "from_date",
+            airflow.utils.sqlalchemy.UtcDateTime(timezone=True),
+            nullable=False,
+        ),
+        sa.Column(
+            "to_date", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False
+        ),
+        sa.Column(
+            "dag_run_conf", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True
+        ),
         sa.Column("is_paused", sa.Boolean(), nullable=True),
         sa.Column("max_active_runs", sa.Integer(), nullable=False),
-        sa.Column("created_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("completed_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=True),
-        sa.Column("updated_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at",
+            airflow.utils.sqlalchemy.UtcDateTime(timezone=True),
+            nullable=False,
+        ),
+        sa.Column(
+            "completed_at",
+            airflow.utils.sqlalchemy.UtcDateTime(timezone=True),
+            nullable=True,
+        ),
+        sa.Column(
+            "updated_at",
+            airflow.utils.sqlalchemy.UtcDateTime(timezone=True),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("backfill_pkey")),
     )
     op.create_table(
@@ -64,7 +84,9 @@ def upgrade():
         sa.Column("dag_run_id", sa.Integer(), nullable=True),
         sa.Column("sort_ordinal", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("backfill_dag_run_pkey")),
-        sa.UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),
+        sa.UniqueConstraint(
+            "backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"
+        ),
     )
 
 

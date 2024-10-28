@@ -64,7 +64,9 @@ class TestOSLoginHook:
         return_value=(TEST_CREDENTIALS, None),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
-    def test_import_ssh_public_key(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    def test_import_ssh_public_key(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.import_ssh_public_key(
             user=TEST_USER,
             ssh_public_key=TEST_BODY,
@@ -98,7 +100,9 @@ class TestOSLoginHookWithDefaultProjectIdHook:
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_2),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
-    def test_import_ssh_public_key(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    def test_import_ssh_public_key(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.import_ssh_public_key(
             user=TEST_USER,
             ssh_public_key=TEST_BODY,
@@ -132,7 +136,9 @@ class TestOSLoginHookWithoutDefaultProjectIdHook:
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_2),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
-    def test_import_ssh_public_key(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    def test_import_ssh_public_key(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.import_ssh_public_key(
             user=TEST_USER,
             ssh_public_key=TEST_BODY,
@@ -142,7 +148,9 @@ class TestOSLoginHookWithoutDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            request=dict(parent=TEST_PARENT, ssh_public_key=TEST_BODY, project_id=TEST_PROJECT_ID),
+            request=dict(
+                parent=TEST_PARENT, ssh_public_key=TEST_BODY, project_id=TEST_PROJECT_ID
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -168,7 +176,9 @@ class TestOSLoginHookMissingProjectIdHook:
         return_value=(TEST_CREDENTIALS, None),
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
-    def test_import_ssh_public_key(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    def test_import_ssh_public_key(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.import_ssh_public_key(
                 user=TEST_USER,

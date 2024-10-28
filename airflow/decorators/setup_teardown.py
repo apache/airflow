@@ -68,9 +68,13 @@ class ContextWrapper(list):
             if isinstance(task, BaseOperator):
                 operators.append(task)
                 if not task.is_setup and not task.is_teardown:
-                    raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+                    raise AirflowException(
+                        "Only setup/teardown tasks can be used as context managers."
+                    )
             elif not task.operator.is_setup and not task.operator.is_teardown:
-                raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+                raise AirflowException(
+                    "Only setup/teardown tasks can be used as context managers."
+                )
         if not operators:
             # means we have XComArgs
             operators = [task.operator for task in self.tasks]

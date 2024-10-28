@@ -37,8 +37,12 @@ def check_test_file(file: str) -> int:
         ):
             found += 1
             prefix = f"{file}:{c.lineno}:"
-            print(f"{prefix} The class {c.name!r} inherits from TestCase, please use pytest instead")
-            known_classes.add(c.name)  # Also use to found inherited classes in the same module
+            print(
+                f"{prefix} The class {c.name!r} inherits from TestCase, please use pytest instead"
+            )
+            known_classes.add(
+                c.name
+            )  # Also use to found inherited classes in the same module
     return found
 
 

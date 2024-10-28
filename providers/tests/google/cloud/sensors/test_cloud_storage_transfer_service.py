@@ -21,7 +21,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
+    GcpTransferOperationStatus,
+)
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
 )
@@ -164,7 +166,8 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         assert not result
 
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
-            operations=operations_set[0], expected_statuses={GcpTransferOperationStatus.SUCCESS}
+            operations=operations_set[0],
+            expected_statuses={GcpTransferOperationStatus.SUCCESS},
         )
         mock_tool.operations_contain_expected_statuses.reset_mock()
 
@@ -172,7 +175,8 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         assert result
 
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
-            operations=operations_set[1], expected_statuses={GcpTransferOperationStatus.SUCCESS}
+            operations=operations_set[1],
+            expected_statuses={GcpTransferOperationStatus.SUCCESS},
         )
 
     @pytest.mark.parametrize(
@@ -189,7 +193,9 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
     @mock.patch(
         "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
-    def test_wait_for_status_normalize_status(self, mock_tool, expected_status, received_status):
+    def test_wait_for_status_normalize_status(
+        self, mock_tool, expected_status, received_status
+    ):
         operations = [
             {
                 "name": TEST_NAME,

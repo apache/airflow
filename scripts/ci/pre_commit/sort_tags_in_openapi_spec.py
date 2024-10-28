@@ -62,5 +62,7 @@ def sort_tags(filename: Path):
 
 
 if __name__ == "__main__":
-    openapi_spec_filepath = Path(AIRFLOW_SOURCES) / "airflow" / "api_connexion" / "openapi" / "v1.yaml"
+    openapi_spec_filepath = (
+        Path(AIRFLOW_SOURCES) / "airflow" / "api_connexion" / "openapi" / "v1.yaml"
+    )
     sort_tags(openapi_spec_filepath)

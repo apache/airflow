@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 
 PUBSUB_BASE_LINK = "/cloudpubsub"
 PUBSUB_TOPIC_LINK = PUBSUB_BASE_LINK + "/topic/detail/{topic_id}?project={project_id}"
-PUBSUB_SUBSCRIPTION_LINK = PUBSUB_BASE_LINK + "/subscription/detail/{subscription_id}?project={project_id}"
+PUBSUB_SUBSCRIPTION_LINK = (
+    PUBSUB_BASE_LINK + "/subscription/detail/{subscription_id}?project={project_id}"
+)
 
 
 class PubSubTopicLink(BaseGoogleLink):

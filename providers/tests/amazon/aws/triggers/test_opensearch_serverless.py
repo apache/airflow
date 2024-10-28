@@ -21,7 +21,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
 )
@@ -57,12 +59,17 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
     )
     def test_serialization(self, collection_name, collection_id, expected_pass):
         """Assert that arguments and classpath are correctly serialized."""
-        call_args = prune_dict({"collection_id": collection_id, "collection_name": collection_name})
+        call_args = prune_dict(
+            {"collection_id": collection_id, "collection_name": collection_name}
+        )
 
         if expected_pass:
             trigger = OpenSearchServerlessCollectionActiveTrigger(**call_args)
             classpath, kwargs = trigger.serialize()
-            assert classpath == BASE_TRIGGER_CLASSPATH + "OpenSearchServerlessCollectionActiveTrigger"
+            assert (
+                classpath
+                == BASE_TRIGGER_CLASSPATH + "OpenSearchServerlessCollectionActiveTrigger"
+            )
             if call_args.get("collection_name"):
                 assert kwargs.get("collection_name") == self.COLLECTION_NAME
             if call_args.get("collection_id"):
@@ -70,7 +77,8 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
 
         if not expected_pass:
             with pytest.raises(
-                AttributeError, match="Either collection_ids or collection_names must be provided, not both."
+                AttributeError,
+                match="Either collection_ids or collection_names must be provided, not both.",
             ):
                 OpenSearchServerlessCollectionActiveTrigger(**call_args)
 
@@ -80,10 +88,14 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
-        trigger = OpenSearchServerlessCollectionActiveTrigger(collection_id=self.COLLECTION_ID)
+        trigger = OpenSearchServerlessCollectionActiveTrigger(
+            collection_id=self.COLLECTION_ID
+        )
 
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "collection_id": self.COLLECTION_ID})
+        assert response == TriggerEvent(
+            {"status": "success", "collection_id": self.COLLECTION_ID}
+        )
         assert mock_get_waiter().wait.call_count == 1

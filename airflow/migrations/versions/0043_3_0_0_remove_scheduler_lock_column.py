@@ -46,4 +46,6 @@ def upgrade():
 def downgrade():
     """Unapply remove scheduler_lock column."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("scheduler_lock", sa.BOOLEAN(), autoincrement=False, nullable=True))
+        batch_op.add_column(
+            sa.Column("scheduler_lock", sa.BOOLEAN(), autoincrement=False, nullable=True)
+        )

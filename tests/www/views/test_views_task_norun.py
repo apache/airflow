@@ -38,7 +38,9 @@ def _reset_dagruns():
 
 
 def test_task_view_no_task_instance(admin_client):
-    url = f"/task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    url = (
+        f"/task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    )
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
     html = resp.data.decode("utf-8")

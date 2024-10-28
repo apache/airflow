@@ -76,7 +76,9 @@ class TestLatestOnlyOperator:
 
     def test_run(self, dag_maker):
         with dag_maker(
-            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
         ):
             task = LatestOnlyOperator(task_id="latest")
         dag_maker.create_dagrun()
@@ -84,18 +86,24 @@ class TestLatestOnlyOperator:
 
     def test_skipping_non_latest(self, dag_maker):
         with dag_maker(
-            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
         ):
             latest_task = LatestOnlyOperator(task_id="latest")
             downstream_task = EmptyOperator(task_id="downstream")
             downstream_task2 = EmptyOperator(task_id="downstream_2")
-            downstream_task3 = EmptyOperator(task_id="downstream_3", trigger_rule=TriggerRule.NONE_FAILED)
+            downstream_task3 = EmptyOperator(
+                task_id="downstream_3", trigger_rule=TriggerRule.NONE_FAILED
+            )
 
             downstream_task.set_upstream(latest_task)
             downstream_task2.set_upstream(downstream_task)
             downstream_task3.set_upstream(downstream_task)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -111,7 +119,10 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             execution_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
-            data_interval=(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12) + INTERVAL),
+            data_interval=(
+                timezone.datetime(2016, 1, 1, 12),
+                timezone.datetime(2016, 1, 1, 12) + INTERVAL,
+            ),
             **triggered_by_kwargs,
         )
 
@@ -130,7 +141,9 @@ class TestLatestOnlyOperator:
         downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances("latest")
-        exec_date_to_latest_state = {ti.execution_date: ti.state for ti in latest_instances}
+        exec_date_to_latest_state = {
+            ti.execution_date: ti.state for ti in latest_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
@@ -138,7 +151,9 @@ class TestLatestOnlyOperator:
         } == exec_date_to_latest_state
 
         downstream_instances = get_task_instances("downstream")
-        exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): "skipped",
             timezone.datetime(2016, 1, 1, 12): "skipped",
@@ -146,7 +161,9 @@ class TestLatestOnlyOperator:
         } == exec_date_to_downstream_state
 
         downstream_instances = get_task_instances("downstream_2")
-        exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): None,
             timezone.datetime(2016, 1, 1, 12): None,
@@ -154,7 +171,9 @@ class TestLatestOnlyOperator:
         } == exec_date_to_downstream_state
 
         downstream_instances = get_task_instances("downstream_3")
-        exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
@@ -163,7 +182,9 @@ class TestLatestOnlyOperator:
 
     def test_not_skipping_external(self, dag_maker):
         with dag_maker(
-            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
         ):
             latest_task = LatestOnlyOperator(task_id="latest")
             downstream_task = EmptyOperator(task_id="downstream")
@@ -172,7 +193,9 @@ class TestLatestOnlyOperator:
             downstream_task.set_upstream(latest_task)
             downstream_task2.set_upstream(downstream_task)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -210,7 +233,9 @@ class TestLatestOnlyOperator:
         downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances("latest")
-        exec_date_to_latest_state = {ti.execution_date: ti.state for ti in latest_instances}
+        exec_date_to_latest_state = {
+            ti.execution_date: ti.state for ti in latest_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
@@ -218,7 +243,9 @@ class TestLatestOnlyOperator:
         } == exec_date_to_latest_state
 
         downstream_instances = get_task_instances("downstream")
-        exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
@@ -226,7 +253,9 @@ class TestLatestOnlyOperator:
         } == exec_date_to_downstream_state
 
         downstream_instances = get_task_instances("downstream_2")
-        exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances
+        }
         assert {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",

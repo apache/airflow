@@ -73,7 +73,11 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
+from airflow_breeze.utils.run_utils import (
+    RunCommandResult,
+    check_if_image_exists,
+    run_command,
+)
 
 PARALLEL_PYTEST_ARGS = [
     "--verbosity=0",
@@ -99,7 +103,9 @@ PARALLEL_PYTEST_ARGS = [
 ]
 
 
-@click.group(cls=BreezeGroup, name="k8s", help="Tools that developers use to run Kubernetes tests")
+@click.group(
+    cls=BreezeGroup, name="k8s", help="Tools that developers use to run Kubernetes tests"
+)
 def kubernetes_group():
     pass
 
@@ -203,14 +209,20 @@ option_wait_time_in_seconds_0_default = click.option(
 option_parallelism_cluster = click.option(
     "--parallelism",
     help="Maximum number of processes to use while running the operation in parallel for cluster operations.",
-    type=click.IntRange(1, max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 4),
+    type=click.IntRange(
+        1, max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 4
+    ),
     default=max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 2,
     envvar="PARALLELISM",
     show_default=True,
 )
-option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
+option_all = click.option(
+    "--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL"
+)
 
-K8S_CLUSTER_CREATE_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|.*Connecting to localhost.*"
+K8S_CLUSTER_CREATE_PROGRESS_REGEXP = (
+    r".*airflow-python-[0-9.]+-v[0-9.].*|.*Connecting to localhost.*"
+)
 K8S_UPLOAD_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
 K8S_CONFIGURE_CLUSTER_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
 K8S_DEPLOY_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*"
@@ -227,7 +239,9 @@ COMPLETE_TEST_REGEXP = (
 )
 
 
-@kubernetes_group.command(name="setup-env", help="Setup shared Kubernetes virtual environment and tools.")
+@kubernetes_group.command(
+    name="setup-env", help="Setup shared Kubernetes virtual environment and tools."
+)
 @option_force_venv_setup
 @option_verbose
 @option_dry_run
@@ -236,7 +250,9 @@ def setup_env(force_venv_setup: bool):
     if result.returncode != 0:
         sys.exit(1)
     make_sure_kubernetes_tools_are_installed()
-    get_console().print("\n[warning]NEXT STEP:[/][info] You might now create your cluster by:\n")
+    get_console().print(
+        "\n[warning]NEXT STEP:[/][info] You might now create your cluster by:\n"
+    )
     get_console().print("\nbreeze k8s create-cluster\n")
 
 
@@ -249,13 +265,21 @@ def _create_cluster(
 ) -> tuple[int, str]:
     while True:
         if force_recreate_cluster:
-            _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
-        kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
-        cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+            _delete_cluster(
+                python=python, kubernetes_version=kubernetes_version, output=output
+            )
+        kubeconfig_file = get_kubeconfig_file(
+            python=python, kubernetes_version=kubernetes_version
+        )
+        cluster_name = get_kind_cluster_name(
+            python=python, kubernetes_version=kubernetes_version
+        )
         kubeconfig_file.parent.mkdir(parents=True, exist_ok=True)
         kubeconfig_file.touch(mode=0o700)
         get_console(output=output).print(f"[info]Creating KinD cluster {cluster_name}!")
-        set_random_cluster_ports(python=python, kubernetes_version=kubernetes_version, output=output)
+        set_random_cluster_ports(
+            python=python, kubernetes_version=kubernetes_version, output=output
+        )
         result = run_command_with_k8s_env(
             [
                 "kind",
@@ -264,7 +288,11 @@ def _create_cluster(
                 "--name",
                 cluster_name,
                 "--config",
-                str(get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)),
+                str(
+                    get_kind_cluster_config_path(
+                        python=python, kubernetes_version=kubernetes_version
+                    )
+                ),
                 "--image",
                 f"kindest/node:{kubernetes_version}",
             ],
@@ -275,8 +303,12 @@ def _create_cluster(
             check=False,
         )
         if result.returncode == 0:
-            print_cluster_urls(python=python, kubernetes_version=kubernetes_version, output=output)
-            get_console(output=output).print(f"[success]KinD cluster {cluster_name} created!\n")
+            print_cluster_urls(
+                python=python, kubernetes_version=kubernetes_version, output=output
+            )
+            get_console(output=output).print(
+                f"[success]KinD cluster {cluster_name} created!\n"
+            )
             get_console(output=output).print(
                 "\n[warning]NEXT STEP:[/][info] You might now configure your cluster by:\n"
             )
@@ -290,7 +322,9 @@ def _create_cluster(
                 f"[warning]Failed to create KinD cluster {cluster_name}. "
                 f"Retrying! There are {num_tries} tries left.\n"
             )
-            _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
+            _delete_cluster(
+                python=python, kubernetes_version=kubernetes_version, output=output
+            )
 
 
 @kubernetes_group.command(
@@ -374,7 +408,9 @@ def create_cluster(
 
 
 def _delete_cluster(python: str, kubernetes_version: str, output: Output | None):
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     get_console(output=output).print(f"[info]Deleting KinD cluster {cluster_name}!")
     folder = get_config_folder(python=python, kubernetes_version=kubernetes_version)
     run_command_with_k8s_env(
@@ -406,7 +442,9 @@ def _delete_all_clusters():
         get_console().print("\n[info]Deleting clusters")
         for cluster_name in clusters:
             resolved_path = cluster_name.resolve()
-            python, kubernetes_version = _get_python_kubernetes_version_from_name(resolved_path.name)
+            python, kubernetes_version = _get_python_kubernetes_version_from_name(
+                resolved_path.name
+            )
             if python and kubernetes_version:
                 _delete_cluster(
                     python=python,
@@ -427,7 +465,8 @@ def _delete_all_clusters():
 
 
 @kubernetes_group.command(
-    name="delete-cluster", help="Delete the current KinD Cluster (optionally all clusters)."
+    name="delete-cluster",
+    help="Delete the current KinD Cluster (optionally all clusters).",
 )
 @option_python
 @option_kubernetes_version
@@ -445,7 +484,9 @@ def delete_cluster(python: str, kubernetes_version: str, all: bool):
         _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=None)
 
 
-def _get_python_kubernetes_version_from_name(cluster_name: str) -> tuple[str | None, str | None]:
+def _get_python_kubernetes_version_from_name(
+    cluster_name: str,
+) -> tuple[str | None, str | None]:
     matcher = re.compile(r"airflow-python-(\d+\.\d+)-(v\d+.\d+.\d+)")
     cluster_match = matcher.search(cluster_name)
     if cluster_match:
@@ -460,10 +501,18 @@ LIST_CONSOLE_WIDTH = 120
 
 
 def _status(python: str, kubernetes_version: str, wait_time_in_seconds: int) -> bool:
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    if not get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).exists():
-        get_console().print(f"\n[warning]Cluster: {cluster_name} has not been created yet\n")
+    cluster_name = get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
+    kubectl_cluster_name = get_kubectl_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
+    if not get_kind_cluster_config_path(
+        python=python, kubernetes_version=kubernetes_version
+    ).exists():
+        get_console().print(
+            f"\n[warning]Cluster: {cluster_name} has not been created yet\n"
+        )
         get_console().print(
             "[info]Run: "
             f"`breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}`"
@@ -472,9 +521,13 @@ def _status(python: str, kubernetes_version: str, wait_time_in_seconds: int) -> 
         return False
     get_console().print("[info]" + "=" * LIST_CONSOLE_WIDTH)
     get_console().print(f"[info]Cluster: {cluster_name}\n")
-    kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+    kubeconfig_file = get_kubeconfig_file(
+        python=python, kubernetes_version=kubernetes_version
+    )
     get_console().print(f"    * KUBECONFIG={kubeconfig_file}")
-    kind_config_file = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
+    kind_config_file = get_kind_cluster_config_path(
+        python=python, kubernetes_version=kubernetes_version
+    )
     get_console().print(f"    * KINDCONFIG={kind_config_file}")
     get_console().print(f"\n[info]Cluster info: {cluster_name}\n")
     result = run_command_with_k8s_env(
@@ -496,14 +549,24 @@ def _status(python: str, kubernetes_version: str, wait_time_in_seconds: int) -> 
         return False
     get_console().print(f"\n[info]Running pods for {cluster_name}\n")
     result = run_command_with_k8s_env(
-        ["kubectl", "get", "-n", "kube-system", "pods", "--cluster", kubectl_cluster_name],
+        [
+            "kubectl",
+            "get",
+            "-n",
+            "kube-system",
+            "pods",
+            "--cluster",
+            kubectl_cluster_name,
+        ],
         python=python,
         kubernetes_version=kubernetes_version,
         check=False,
     )
     if result.returncode != 0:
         return False
-    print_cluster_urls(python, kubernetes_version, wait_time_in_seconds=wait_time_in_seconds, output=None)
+    print_cluster_urls(
+        python, kubernetes_version, wait_time_in_seconds=wait_time_in_seconds, output=None
+    )
     get_console().print(f"\n[success]Cluster healthy: {cluster_name}\n")
     return True
 
@@ -530,9 +593,13 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
             get_console().print("[info]\nCluster status:\n")
             for cluster_name in clusters:
                 name = cluster_name.name
-                found_python, found_kubernetes_version = _get_python_kubernetes_version_from_name(name)
+                found_python, found_kubernetes_version = (
+                    _get_python_kubernetes_version_from_name(name)
+                )
                 if not found_python or not found_kubernetes_version:
-                    get_console().print(f"[warning]\nCould not get cluster from {name}. Skipping.\n")
+                    get_console().print(
+                        f"[warning]\nCould not get cluster from {name}. Skipping.\n"
+                    )
                 elif not _status(
                     python=found_python,
                     kubernetes_version=found_kubernetes_version,
@@ -583,7 +650,9 @@ def _rebuild_k8s_image(
                 get_console(output=output).print(
                     "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
                 )
-                get_console(output=output).print(f"breeze prod-image build --python {python}\n")
+                get_console(output=output).print(
+                    f"breeze prod-image build --python {python}\n"
+                )
             else:
                 get_console(output=output).print("[warning]Please pull the image:\n")
                 get_console(output=output).print(
@@ -620,18 +689,31 @@ ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
         output=output,
     )
     if docker_build_result.returncode != 0:
-        get_console(output=output).print("[error]Error when building the kubernetes image.")
+        get_console(output=output).print(
+            "[error]Error when building the kubernetes image."
+        )
     return docker_build_result.returncode, f"K8S image for Python {python}"
 
 
-def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | None) -> tuple[int, str]:
+def _upload_k8s_image(
+    python: str, kubernetes_version: str, output: Output | None
+) -> tuple[int, str]:
     params = BuildProdParams(python=python)
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     get_console(output=output).print(
         f"[info]Uploading Airflow image {params.airflow_image_kubernetes} to cluster {cluster_name}"
     )
     kind_load_result = run_command_with_k8s_env(
-        ["kind", "load", "docker-image", "--name", cluster_name, params.airflow_image_kubernetes],
+        [
+            "kind",
+            "load",
+            "docker-image",
+            "--name",
+            cluster_name,
+            params.airflow_image_kubernetes,
+        ],
         python=python,
         output=output,
         kubernetes_version=kubernetes_version,
@@ -720,7 +802,9 @@ def build_k8s_image(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now upload your k8s image by:\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now upload your k8s image by:\n"
+            )
             get_console().print("\nbreeze k8s upload-k8s-image\n")
         sys.exit(return_code)
 
@@ -795,7 +879,9 @@ def upload_k8s_image(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now deploy airflow by:\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now deploy airflow by:\n"
+            )
             get_console().print("\nbreeze k8s deploy-airflow\n")
         sys.exit(return_code)
 
@@ -810,7 +896,9 @@ def _recreate_namespaces(
     kubernetes_version: str,
     output: Output | None,
 ) -> RunCommandResult:
-    cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kubectl_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     get_console(output=output).print(f"[info]Deleting K8S namespaces for {cluster_name}")
     run_command_with_k8s_env(
         ["kubectl", "delete", "namespace", HELM_AIRFLOW_NAMESPACE],
@@ -844,13 +932,21 @@ def _recreate_namespaces(
         check=False,
     )
     if result.returncode == 0:
-        get_console(output=output).print(f"[success]Created K8S namespaces for cluster {cluster_name}\n")
+        get_console(output=output).print(
+            f"[success]Created K8S namespaces for cluster {cluster_name}\n"
+        )
     return result
 
 
-def _deploy_test_resources(python: str, kubernetes_version: str, output: Output | None) -> RunCommandResult:
-    cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"[info]Deploying test resources for cluster {cluster_name}")
+def _deploy_test_resources(
+    python: str, kubernetes_version: str, output: Output | None
+) -> RunCommandResult:
+    cluster_name = get_kubectl_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
+    get_console(output=output).print(
+        f"[info]Deploying test resources for cluster {cluster_name}"
+    )
     result = run_command_with_k8s_env(
         [
             "kubectl",
@@ -882,13 +978,21 @@ def _deploy_test_resources(python: str, kubernetes_version: str, output: Output 
         check=False,
     )
     if result.returncode == 0:
-        get_console(output=output).print(f"[success]Deployed test resources for cluster {cluster_name}")
+        get_console(output=output).print(
+            f"[success]Deployed test resources for cluster {cluster_name}"
+        )
     return result
 
 
-def _configure_k8s_cluster(python: str, kubernetes_version: str, output: Output | None) -> tuple[int, str]:
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"[info]Configuring {cluster_name} to be ready for Airflow deployment")
+def _configure_k8s_cluster(
+    python: str, kubernetes_version: str, output: Output | None
+) -> tuple[int, str]:
+    cluster_name = get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
+    get_console(output=output).print(
+        f"[info]Configuring {cluster_name} to be ready for Airflow deployment"
+    )
     result = _recreate_namespaces(
         python=python,
         kubernetes_version=kubernetes_version,
@@ -974,7 +1078,9 @@ def configure_cluster(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now build your k8s image by:\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now build your k8s image by:\n"
+            )
             get_console().print("\nbreeze k8s build-k8s-image\n")
         sys.exit(return_code)
 
@@ -989,14 +1095,24 @@ def _deploy_helm_chart(
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
-    cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kubectl_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     action = "Deploying" if not upgrade else "Upgrading"
-    get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
+    get_console(output=output).print(
+        f"[info]{action} {cluster_name} with airflow Helm Chart."
+    )
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:
         tmp_chart_path = Path(tmp_dir).resolve() / "chart"
-        shutil.copytree(CHART_PATH, os.fspath(tmp_chart_path), ignore_dangling_symlinks=True)
-        get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
-        kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+        shutil.copytree(
+            CHART_PATH, os.fspath(tmp_chart_path), ignore_dangling_symlinks=True
+        )
+        get_console(output=output).print(
+            f"[info]Copied chart sources to {tmp_chart_path}"
+        )
+        kubectl_context = get_kubectl_cluster_name(
+            python=python, kubernetes_version=kubernetes_version
+        )
         params = BuildProdParams(python=python)
         airflow_kubernetes_image_name = params.airflow_image_kubernetes
         helm_command = [
@@ -1047,7 +1163,9 @@ def _deploy_helm_chart(
             check=False,
         )
         if result.returncode == 0:
-            get_console(output=output).print(f"[success]Deployed {cluster_name} with airflow Helm Chart.")
+            get_console(output=output).print(
+                f"[success]Deployed {cluster_name} with airflow Helm Chart."
+            )
         return result
 
 
@@ -1063,7 +1181,9 @@ def _deploy_airflow(
     multi_namespace_mode: bool = False,
 ) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     get_console(output=output).print(f"[info]{action} Airflow for cluster {cluster_name}")
     result = _deploy_helm_chart(
         python=python,
@@ -1118,7 +1238,9 @@ def _deploy_airflow(
             f"\n[success]Airflow for Python {python} and "
             f"K8S version {kubernetes_version} has been successfully deployed."
         )
-        kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+        kubectl_cluster_name = get_kubectl_cluster_name(
+            python=python, kubernetes_version=kubernetes_version
+        )
         get_console(output=output).print(
             f"\nThe KinD cluster name: {cluster_name}\nThe kubectl cluster name: {kubectl_cluster_name}.\n"
         )
@@ -1248,7 +1370,9 @@ def deploy_airflow(
 @option_verbose
 @option_dry_run
 @click.argument("k9s_args", nargs=-1, type=click.UNPROCESSED)
-def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[str, ...]):
+def k9s(
+    python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[str, ...]
+):
     result = create_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
@@ -1261,7 +1385,9 @@ def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[
     k9s_editor = env.get("K9S_EDITOR")
     if not k9s_editor:
         env["K9S_EDITOR"] = env["EDITOR"]
-    kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+    kubeconfig_file = get_kubeconfig_file(
+        python=python, kubernetes_version=kubernetes_version
+    )
     found_k9s = shutil.which("k9s")
     if not use_docker and found_k9s:
         get_console().print(
@@ -1319,7 +1445,9 @@ def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[
 
 
 def _logs(python: str, kubernetes_version: str):
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     tmpdir = Path(tempfile.gettempdir()) / f"kind_logs_{cluster_name}"
     get_console().print(f"[info]\nDumping logs for {cluster_name} to {tmpdir}:\n")
     run_command_with_k8s_env(
@@ -1347,9 +1475,13 @@ def logs(python: str, kubernetes_version: str, all: bool):
             get_console().print("[info]\nDumping cluster logs:\n")
             for cluster_name in clusters:
                 name = cluster_name.name
-                found_python, found_kubernetes_version = _get_python_kubernetes_version_from_name(name)
+                found_python, found_kubernetes_version = (
+                    _get_python_kubernetes_version_from_name(name)
+                )
                 if not found_python or not found_kubernetes_version:
-                    get_console().print(f"[warning]\nCould not get cluster from {name}. Skipping.\n")
+                    get_console().print(
+                        f"[warning]\nCould not get cluster from {name}. Skipping.\n"
+                    )
                     continue
                 _logs(python=found_python, kubernetes_version=found_kubernetes_version)
         else:
@@ -1385,7 +1517,9 @@ def shell(
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_kubernetes_tools_are_installed()
-    env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
+    env = get_k8s_env(
+        python=python, kubernetes_version=kubernetes_version, executor=executor
+    )
     get_console().print("\n[info]Entering interactive k8s shell.\n")
     shell_binary = env.get("SHELL", "bash")
     extra_args: list[str] = []
@@ -1394,7 +1528,10 @@ def shell(
     elif shell_binary.endswith("bash"):
         extra_args.extend(["--norc", "--noprofile"])
     result = run_command(
-        [shell_binary, *extra_args, *shell_args], env=env, check=False, cwd="kubernetes_tests"
+        [shell_binary, *extra_args, *shell_args],
+        env=env,
+        check=False,
+        cwd="kubernetes_tests",
     )
     if result.returncode != 0:
         sys.exit(result.returncode)
@@ -1408,7 +1545,8 @@ def _get_parallel_test_args(
     python_version_array: list[str] = python_versions.split(" ")
     kubernetes_version_array: list[str] = kubernetes_versions.split(" ")
     combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
-        kubernetes_version_array=kubernetes_version_array, python_version_array=python_version_array
+        kubernetes_version_array=kubernetes_version_array,
+        python_version_array=python_version_array,
     )
     return combo_titles, combos, pytest_args, short_combo_titles
 
@@ -1420,9 +1558,15 @@ def _run_tests(
     executor: str,
     test_args: tuple[str, ...],
 ) -> tuple[int, str]:
-    env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
-    kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"\n[info]Running tests with {kubectl_cluster_name} cluster.")
+    env = get_k8s_env(
+        python=python, kubernetes_version=kubernetes_version, executor=executor
+    )
+    kubectl_cluster_name = get_kubectl_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
+    get_console(output=output).print(
+        f"\n[info]Running tests with {kubectl_cluster_name} cluster."
+    )
     shell_binary = env.get("SHELL", shutil.which("bash"))
     extra_shell_args: list[str] = []
     if shell_binary.endswith("zsh"):
@@ -1430,7 +1574,9 @@ def _run_tests(
     elif shell_binary.endswith("bash"):
         extra_shell_args.extend(["--norc", "--noprofile"])
     the_tests: list[str] = ["kubernetes_tests/"]
-    command_to_run = " ".join([quote(arg) for arg in ["uv", "run", "pytest", *the_tests, *test_args]])
+    command_to_run = " ".join(
+        [quote(arg) for arg in ["uv", "run", "pytest", *the_tests, *test_args]]
+    )
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(
         [shell_binary, *extra_shell_args, "-c", command_to_run],
@@ -1543,7 +1689,9 @@ def _run_complete_tests(
     test_args: tuple[str, ...],
     output: Output | None,
 ) -> tuple[int, str]:
-    get_console(output=output).print(f"\n[info]Rebuilding k8s image for Python {python}\n")
+    get_console(output=output).print(
+        f"\n[info]Rebuilding k8s image for Python {python}\n"
+    )
     returncode, message = _rebuild_k8s_image(
         python=python,
         output=output,

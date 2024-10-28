@@ -41,22 +41,36 @@ class TestOSSCreateBucketOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSCreateBucketOperator(
-            task_id=MOCK_TASK_ID, region=MOCK_REGION, bucket_name=MOCK_BUCKET, oss_conn_id=MOCK_OSS_CONN_ID
+            task_id=MOCK_TASK_ID,
+            region=MOCK_REGION,
+            bucket_name=MOCK_BUCKET,
+            oss_conn_id=MOCK_OSS_CONN_ID,
         )
         operator.execute(None)
-        mock_hook.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
-        mock_hook.return_value.create_bucket.assert_called_once_with(bucket_name=MOCK_BUCKET)
+        mock_hook.assert_called_once_with(
+            oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION
+        )
+        mock_hook.return_value.create_bucket.assert_called_once_with(
+            bucket_name=MOCK_BUCKET
+        )
 
 
 class TestOSSDeleteBucketOperator:
     @mock.patch("airflow.providers.alibaba.cloud.operators.oss.OSSHook")
     def test_execute(self, mock_hook):
         operator = OSSDeleteBucketOperator(
-            task_id=MOCK_TASK_ID, region=MOCK_REGION, bucket_name=MOCK_BUCKET, oss_conn_id=MOCK_OSS_CONN_ID
+            task_id=MOCK_TASK_ID,
+            region=MOCK_REGION,
+            bucket_name=MOCK_BUCKET,
+            oss_conn_id=MOCK_OSS_CONN_ID,
         )
         operator.execute(None)
-        mock_hook.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
-        mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=MOCK_BUCKET)
+        mock_hook.assert_called_once_with(
+            oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION
+        )
+        mock_hook.return_value.delete_bucket.assert_called_once_with(
+            bucket_name=MOCK_BUCKET
+        )
 
 
 class TestOSSUploadObjectOperator:
@@ -71,7 +85,9 @@ class TestOSSUploadObjectOperator:
             file=MOCK_CONTENT,
         )
         operator.execute(None)
-        mock_hook.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
+        mock_hook.assert_called_once_with(
+            oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION
+        )
         mock_hook.return_value.upload_local_file.assert_called_once_with(
             bucket_name=MOCK_BUCKET, key=MOCK_KEY, file=MOCK_CONTENT
         )
@@ -89,7 +105,9 @@ class TestOSSDownloadObjectOperator:
             file=MOCK_CONTENT,
         )
         operator.execute(None)
-        mock_hook.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
+        mock_hook.assert_called_once_with(
+            oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION
+        )
         mock_hook.return_value.download_file.assert_called_once_with(
             bucket_name=MOCK_BUCKET, key=MOCK_KEY, local_file=MOCK_CONTENT
         )
@@ -106,8 +124,12 @@ class TestOSSDeleteBatchObjectOperator:
             keys=MOCK_KEYS,
         )
         operator.execute(None)
-        mock_hook.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
-        mock_hook.return_value.delete_objects.assert_called_once_with(bucket_name=MOCK_BUCKET, key=MOCK_KEYS)
+        mock_hook.assert_called_once_with(
+            oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION
+        )
+        mock_hook.return_value.delete_objects.assert_called_once_with(
+            bucket_name=MOCK_BUCKET, key=MOCK_KEYS
+        )
 
 
 class TestOSSDeleteObjectOperator:
@@ -121,5 +143,9 @@ class TestOSSDeleteObjectOperator:
             key=MOCK_KEY,
         )
         operator.execute(None)
-        mock_hook.assert_called_once_with(oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION)
-        mock_hook.return_value.delete_object.assert_called_once_with(bucket_name=MOCK_BUCKET, key=MOCK_KEY)
+        mock_hook.assert_called_once_with(
+            oss_conn_id=MOCK_OSS_CONN_ID, region=MOCK_REGION
+        )
+        mock_hook.return_value.delete_object.assert_called_once_with(
+            bucket_name=MOCK_BUCKET, key=MOCK_KEY
+        )

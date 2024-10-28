@@ -40,7 +40,10 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    EMPTY_XCOM_RESULT,
+    PodNotFoundException,
+)
 from airflow.utils import yaml
 from airflow.utils.context import Context
 
@@ -82,7 +85,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         `wait_until_job_complete` must be set True.
     """
 
-    template_fields: Sequence[str] = tuple({"job_template_file"} | set(KubernetesPodOperator.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"job_template_file"} | set(KubernetesPodOperator.template_fields)
+    )
 
     def __init__(
         self,
@@ -99,7 +104,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ttl_seconds_after_finished: int | None = None,
         wait_until_job_complete: bool = False,
         job_poll_interval: float = 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -234,7 +241,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
             pod_namespace = event["pod_namespace"]
             self.pod = self.hook.get_pod(pod_name, pod_namespace)
             if not self.pod:
-                raise PodNotFoundException("Could not find pod after resuming from deferral")
+                raise PodNotFoundException(
+                    "Could not find pod after resuming from deferral"
+                )
             self._write_logs(self.pod)
 
         if self.do_xcom_push:
@@ -273,7 +282,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
             kwargs = {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
-                "job": self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job),
+                "job": self.hook.batch_v1_client.api_client.sanitize_for_serialization(
+                    self.job
+                ),
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
@@ -343,7 +354,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
 
         if not job.metadata.namespace:
             hook_namespace = self.hook.get_namespace()
-            job_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
+            job_namespace = (
+                self.namespace or hook_namespace or self._incluster_namespace or "default"
+            )
             job.metadata.namespace = job_namespace
 
         self.log.info("Building job %s ", job.metadata.name)
@@ -366,8 +379,12 @@ class KubernetesJobOperator(KubernetesPodOperator):
             return base_job
 
         client_job_cp = copy.deepcopy(client_job)
-        client_job_cp.spec = KubernetesJobOperator.reconcile_job_specs(base_job.spec, client_job_cp.spec)
-        client_job_cp.metadata = PodGenerator.reconcile_metadata(base_job.metadata, client_job_cp.metadata)
+        client_job_cp.spec = KubernetesJobOperator.reconcile_job_specs(
+            base_job.spec, client_job_cp.spec
+        )
+        client_job_cp.metadata = PodGenerator.reconcile_metadata(
+            base_job.metadata, client_job_cp.metadata
+        )
         client_job_cp = merge_objects(base_job, client_job_cp)
 
         return client_job_cp
@@ -481,18 +498,29 @@ class KubernetesDeleteJobOperator(BaseOperator):
 
             if self.wait_for_completion:
                 job = self.hook.wait_until_job_complete(
-                    job_name=self.name, namespace=self.namespace, job_poll_interval=self.poll_interval
+                    job_name=self.name,
+                    namespace=self.namespace,
+                    job_poll_interval=self.poll_interval,
                 )
             else:
-                job = self.hook.get_job_status(job_name=self.name, namespace=self.namespace)
+                job = self.hook.get_job_status(
+                    job_name=self.name, namespace=self.namespace
+                )
 
             if (
                 self.delete_on_status is None
-                or (self.delete_on_status == "Complete" and self.hook.is_job_successful(job=job))
-                or (self.delete_on_status == "Failed" and self.hook.is_job_failed(job=job))
+                or (
+                    self.delete_on_status == "Complete"
+                    and self.hook.is_job_successful(job=job)
+                )
+                or (
+                    self.delete_on_status == "Failed" and self.hook.is_job_failed(job=job)
+                )
             ):
                 self.log.info("Deleting kubernetes Job: %s", self.name)
-                self.client.delete_namespaced_job(name=self.name, namespace=self.namespace)
+                self.client.delete_namespaced_job(
+                    name=self.name, namespace=self.namespace
+                )
                 self.log.info("Kubernetes job was deleted.")
             else:
                 self.log.info(

@@ -30,7 +30,9 @@ from tests_common.test_utils.compat import connection_as_json
 
 @pytest.fixture
 def mocked_jira_client():
-    with mock.patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True) as m:
+    with mock.patch(
+        "airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True
+    ) as m:
         m.return_value = mock.Mock(name="jira_client")
         yield m
 
@@ -89,10 +91,14 @@ class TestJiraHook:
         assert jira_hook.client.name == mocked_jira_client.return_value.name
 
     def test_jira_client_connection_with_str(self, mocked_jira_client):
-        warning_message = "Extra parameter `verify` using str is deprecated and will be removed"
+        warning_message = (
+            "Extra parameter `verify` using str is deprecated and will be removed"
+        )
 
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            jira_hook = JiraHook(jira_conn_id=self.conn_id_with_str_verify, proxies=self.proxies)
+            jira_hook = JiraHook(
+                jira_conn_id=self.conn_id_with_str_verify, proxies=self.proxies
+            )
 
         mocked_jira_client.assert_called_once_with(
             url=self.host,

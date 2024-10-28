@@ -47,7 +47,9 @@ def get_dag_stats(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get Dag statistics."""
-    allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+    allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(
+        methods=["GET"], user=g.user
+    )
     if dag_ids:
         dags_list = set(dag_ids.split(","))
         filter_dag_ids = dags_list.intersection(allowed_dag_ids)
@@ -70,7 +72,8 @@ def get_dag_stats(
         {
             "dag_id": dag_id,
             "stats": [
-                {"state": state, "count": dag_state_data.get((dag_id, state), 0)} for state in DagRunState
+                {"state": state, "count": dag_state_data.get((dag_id, state), 0)}
+                for state in DagRunState
             ],
         }
         for dag_id in query_dag_ids

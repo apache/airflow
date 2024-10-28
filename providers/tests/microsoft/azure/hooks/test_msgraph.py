@@ -29,7 +29,11 @@ from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowException,
+    AirflowNotFoundException,
+)
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
@@ -174,10 +178,16 @@ class TestKiotaRequestAdapterHook:
 
     def test_encoded_query_parameters(self):
         actual = KiotaRequestAdapterHook.encoded_query_parameters(
-            query_parameters={"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000},
+            query_parameters={
+                "$expand": "reports,users,datasets,dataflows,dashboards",
+                "$top": 5000,
+            },
         )
 
-        assert actual == {"%24expand": "reports,users,datasets,dataflows,dashboards", "%24top": 5000}
+        assert actual == {
+            "%24expand": "reports,users,datasets,dataflows,dashboards",
+            "%24top": 5000,
+        }
 
     @pytest.mark.asyncio
     async def test_throw_failed_responses_with_text_plain_content_type(self):
@@ -215,7 +225,9 @@ class TestKiotaRequestAdapterHook:
             actual = await hook.get_conn().get_root_parse_node(response, span, span)
 
             assert isinstance(actual, JsonParseNode)
-            error_code = actual.get_child_node("error").get_child_node("code").get_str_value()
+            error_code = (
+                actual.get_child_node("error").get_child_node("code").get_str_value()
+            )
             assert error_code == "TenantThrottleThresholdExceeded"
 
 
@@ -224,7 +236,9 @@ class TestResponseHandler:
         users = load_json("resources", "users.json")
         response = mock_json_response(200, users)
 
-        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+        actual = asyncio.run(
+            DefaultResponseHandler().handle_response_async(response, None)
+        )
 
         assert isinstance(actual, dict)
         assert actual == users
@@ -232,7 +246,9 @@ class TestResponseHandler:
     def test_default_response_handler_when_not_json(self):
         response = mock_json_response(200, JSONDecodeError("", "", 0))
 
-        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+        actual = asyncio.run(
+            DefaultResponseHandler().handle_response_async(response, None)
+        )
 
         assert actual == {}
 
@@ -240,15 +256,21 @@ class TestResponseHandler:
         users = load_file("resources", "users.json").encode()
         response = mock_response(200, users)
 
-        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+        actual = asyncio.run(
+            DefaultResponseHandler().handle_response_async(response, None)
+        )
 
         assert isinstance(actual, bytes)
         assert actual == users
 
     def test_default_response_handler_when_no_content_but_headers(self):
-        response = mock_response(200, headers={"RequestId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"})
+        response = mock_response(
+            200, headers={"RequestId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"}
+        )
 
-        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+        actual = asyncio.run(
+            DefaultResponseHandler().handle_response_async(response, None)
+        )
 
         assert isinstance(actual, dict)
         assert actual["requestid"] == "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"

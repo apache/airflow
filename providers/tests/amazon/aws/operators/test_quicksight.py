@@ -20,7 +20,9 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
-from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
+from airflow.providers.amazon.aws.operators.quicksight import (
+    QuickSightCreateIngestionOperator,
+)
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 

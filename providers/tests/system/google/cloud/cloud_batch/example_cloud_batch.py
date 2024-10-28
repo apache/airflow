@@ -38,7 +38,9 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "cloud_batch"
 REGION = "us-central1"
@@ -146,11 +148,17 @@ with DAG(
 
     # [START howto_operator_batch_list_tasks]
     list_tasks = CloudBatchListTasksOperator(
-        task_id=list_tasks_task_name, project_id=PROJECT_ID, region=REGION, job_name=job1_name, dag=dag
+        task_id=list_tasks_task_name,
+        project_id=PROJECT_ID,
+        region=REGION,
+        job_name=job1_name,
+        dag=dag,
     )
     # [END howto_operator_batch_list_tasks]
 
-    assert_tasks = PythonOperator(task_id="assert-tasks", python_callable=_assert_tasks, dag=dag)
+    assert_tasks = PythonOperator(
+        task_id="assert-tasks", python_callable=_assert_tasks, dag=dag
+    )
 
     # [START howto_operator_batch_list_jobs]
     list_jobs = CloudBatchListJobsOperator(
@@ -163,7 +171,9 @@ with DAG(
     )
     # [END howto_operator_batch_list_jobs]
 
-    get_name = PythonOperator(task_id="assert-jobs", python_callable=_assert_jobs, dag=dag)
+    get_name = PythonOperator(
+        task_id="assert-jobs", python_callable=_assert_jobs, dag=dag
+    )
 
     # [START howto_operator_delete_job]
     delete_job1 = CloudBatchDeleteJobOperator(
@@ -185,7 +195,14 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    ([submit1, submit2] >> list_tasks >> assert_tasks >> list_jobs >> get_name >> [delete_job1, delete_job2])
+    (
+        [submit1, submit2]
+        >> list_tasks
+        >> assert_tasks
+        >> list_jobs
+        >> get_name
+        >> [delete_job1, delete_job2]
+    )
 
     from tests_common.test_utils.watcher import watcher
 

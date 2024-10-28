@@ -31,9 +31,9 @@ __all__ = ["__version__"]
 
 __version__ = "3.11.1"
 
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.8.0"
-):
+if packaging.version.parse(
+    packaging.version.parse(airflow_version).base_version
+) < packaging.version.parse("2.8.0"):
     raise RuntimeError(
         f"The package `apache-airflow-providers-ftp:{__version__}` needs Apache Airflow 2.8.0+"
     )

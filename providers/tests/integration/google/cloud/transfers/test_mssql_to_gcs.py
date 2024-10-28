@@ -78,7 +78,9 @@ class TestMsSqlToGoogleCloudStorageOperator:
         )
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
+        def _assert_upload(
+            bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None
+        ):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
             assert "application/json" == mime_type

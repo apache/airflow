@@ -24,20 +24,26 @@ from time import time
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is importable
 
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH
 
 CHART_DIR = AIRFLOW_SOURCES_ROOT_PATH / "chart"
 
 AIRFLOW_RELEASE_NOTES_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "RELEASE_NOTES.rst"
-AIRFLOW_REPRODUCIBLE_BUILD_FILE = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "reproducible_build.yaml"
+AIRFLOW_REPRODUCIBLE_BUILD_FILE = (
+    AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "reproducible_build.yaml"
+)
 
 CHART_RELEASE_NOTES_FILE_PATH = CHART_DIR / "RELEASE_NOTES.rst"
 CHART_REPRODUCIBLE_BUILD_FILE = CHART_DIR / "reproducible_build.yaml"
 
 
-def write_reproducible_build_file(release_notes_path: Path, reproducible_build_path: Path):
+def write_reproducible_build_file(
+    release_notes_path: Path, reproducible_build_path: Path
+):
     hash_md5 = md5()
     hash_md5.update(release_notes_path.read_bytes())
     release_notes_hash = hash_md5.hexdigest()

@@ -65,7 +65,9 @@ def generate_redirects(app):
             if "../" and "providers" in to_path:
                 to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)))
             else:
-                to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
+                to_path_prefix = f"..{os.path.sep}" * (
+                    len(from_path.split(os.path.sep)) - 1
+                )
 
             to_path = to_path_prefix + to_path
 

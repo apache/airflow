@@ -89,7 +89,9 @@ def test_render_template_from_file(tmp_path, dag_maker):
             params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
         )
 
-    dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[0].render_templates()
+    dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[
+        0
+    ].render_templates()
     assert RENDERED_INDEX == json.loads(operator.json_index_file)
 
 
@@ -155,4 +157,6 @@ def test_execute_calls_druid_hook_with_the_right_parameters(mock_druid_hook):
         max_ingestion_time=max_ingestion_time,
         verify_ssl=verify_ssl,
     )
-    mock_druid_hook_instance.submit_indexing_job.assert_called_once_with(json_index_file, IngestionType.MSQ)
+    mock_druid_hook_instance.submit_indexing_job.assert_called_once_with(
+        json_index_file, IngestionType.MSQ
+    )

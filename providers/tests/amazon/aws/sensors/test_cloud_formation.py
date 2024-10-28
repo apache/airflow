@@ -31,7 +31,9 @@ from airflow.providers.amazon.aws.sensors.cloud_formation import (
 
 @pytest.fixture
 def mocked_hook_client():
-    with patch("airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook.conn") as m:
+    with patch(
+        "airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook.conn"
+    ) as m:
         yield m
 
 
@@ -58,7 +60,9 @@ class TestCloudFormationCreateStackSensor:
         assert sensor.hook._config is not None
         assert sensor.hook._config.read_timeout == 42
 
-        sensor = CloudFormationCreateStackSensor(task_id="cf_create_stack_init", stack_name="fake-stack")
+        sensor = CloudFormationCreateStackSensor(
+            task_id="cf_create_stack_init", stack_name="fake-stack"
+        )
         assert sensor.hook.aws_conn_id == "aws_default"
         assert sensor.hook._region_name is None
         assert sensor.hook._verify is None
@@ -71,12 +75,16 @@ class TestCloudFormationCreateStackSensor:
         assert op.poke({})
 
     def test_poke_false(self, mocked_hook_client):
-        mocked_hook_client.describe_stacks.return_value = {"Stacks": [{"StackStatus": "CREATE_IN_PROGRESS"}]}
+        mocked_hook_client.describe_stacks.return_value = {
+            "Stacks": [{"StackStatus": "CREATE_IN_PROGRESS"}]
+        }
         op = CloudFormationCreateStackSensor(task_id="task", stack_name="foo")
         assert not op.poke({})
 
     def test_poke_stack_in_unsuccessful_state(self, mocked_hook_client):
-        mocked_hook_client.describe_stacks.return_value = {"Stacks": [{"StackStatus": "bar"}]}
+        mocked_hook_client.describe_stacks.return_value = {
+            "Stacks": [{"StackStatus": "bar"}]
+        }
         op = CloudFormationCreateStackSensor(task_id="task", stack_name="foo")
         with pytest.raises(ValueError, match="Stack foo in bad state: bar"):
             op.poke({})
@@ -105,7 +113,9 @@ class TestCloudFormationDeleteStackSensor:
         assert sensor.hook._config is not None
         assert sensor.hook._config.read_timeout == 42
 
-        sensor = CloudFormationDeleteStackSensor(task_id="cf_delete_stack_init", stack_name="fake-stack")
+        sensor = CloudFormationDeleteStackSensor(
+            task_id="cf_delete_stack_init", stack_name="fake-stack"
+        )
         assert sensor.hook.aws_conn_id == "aws_default"
         assert sensor.hook._region_name is None
         assert sensor.hook._verify is None
@@ -120,12 +130,16 @@ class TestCloudFormationDeleteStackSensor:
         assert op.poke({})
 
     def test_poke_false(self, mocked_hook_client):
-        mocked_hook_client.describe_stacks.return_value = {"Stacks": [{"StackStatus": "DELETE_IN_PROGRESS"}]}
+        mocked_hook_client.describe_stacks.return_value = {
+            "Stacks": [{"StackStatus": "DELETE_IN_PROGRESS"}]
+        }
         op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo")
         assert not op.poke({})
 
     def test_poke_stack_in_unsuccessful_state(self, mocked_hook_client):
-        mocked_hook_client.describe_stacks.return_value = {"Stacks": [{"StackStatus": "bar"}]}
+        mocked_hook_client.describe_stacks.return_value = {
+            "Stacks": [{"StackStatus": "bar"}]
+        }
         op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo")
         with pytest.raises(ValueError, match="Stack foo in bad state: bar"):
             op.poke({})

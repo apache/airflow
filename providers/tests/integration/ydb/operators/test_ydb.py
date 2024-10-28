@@ -35,7 +35,11 @@ DEFAULT_DATE = timezone.datetime(2024, 1, 1)
 def ydb_connections():
     """Create YDB connection which use for testing purpose."""
     c = Connection(
-        conn_id="ydb_default", conn_type="ydb", host="grpc://ydb", port=2136, extra={"database": "/local"}
+        conn_id="ydb_default",
+        conn_type="ydb",
+        host="grpc://ydb",
+        port=2136,
+        extra={"database": "/local"},
     )
 
     with pytest.MonkeyPatch.context() as mp:
@@ -54,7 +58,10 @@ class TestYDBExecuteQueryOperator:
 
     def test_execute_hello(self):
         operator = YDBExecuteQueryOperator(
-            task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
+            task_id="simple_sql",
+            sql="select 987",
+            is_ddl=False,
+            handler=fetch_all_handler,
         )
 
         results = operator.execute(self.mock_context)
@@ -75,7 +82,9 @@ class TestYDBExecuteQueryOperator:
 
         create_table_op.execute(self.mock_context)
 
-        age_sum_op = YDBExecuteQueryOperator(task_id="age_sum", sql="SELECT SUM(age) as age_sum FROM team")
+        age_sum_op = YDBExecuteQueryOperator(
+            task_id="age_sum", sql="SELECT SUM(age) as age_sum FROM team"
+        )
 
         hook = age_sum_op.get_db_hook()
         column_types = (

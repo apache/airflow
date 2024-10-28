@@ -40,7 +40,9 @@ log = logging.getLogger(__name__)
 
 
 @provide_session
-def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session = NEW_SESSION) -> int:
+def delete_dag(
+    dag_id: str, keep_records_in_log: bool = True, session: Session = NEW_SESSION
+) -> int:
     """
     Delete a DAG by a dag_id.
 
@@ -72,9 +74,13 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     count = 0
 
     for model in get_sqla_model_classes():
-        if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
+        if hasattr(model, "dag_id") and (
+            not keep_records_in_log or model.__name__ != "Log"
+        ):
             count += session.execute(
-                delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
+                delete(model)
+                .where(model.dag_id == dag_id)
+                .execution_options(synchronize_session="fetch")
             ).rowcount
 
     # Delete entries in Import Errors table for a deleted DAG

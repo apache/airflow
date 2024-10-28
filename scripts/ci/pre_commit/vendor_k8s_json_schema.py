@@ -54,7 +54,9 @@ def get_remote_schema(url: str) -> dict:
 
 
 # Create 'definitions' if it doesn't exist or reset the io.k8s defs
-schema["definitions"] = {k: v for k, v in schema.get("definitions", {}).items() if not k.startswith("io.k8s")}
+schema["definitions"] = {
+    k: v for k, v in schema.get("definitions", {}).items() if not k.startswith("io.k8s")
+}
 
 # Get the k8s defs
 defs = get_remote_schema(K8S_DEFINITIONS)

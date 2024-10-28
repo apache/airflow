@@ -61,7 +61,11 @@ class DataCatalogEntryGroupLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=DataCatalogEntryGroupLink.key,
-            value={"entry_group_id": entry_group_id, "location_id": location_id, "project_id": project_id},
+            value={
+                "entry_group_id": entry_group_id,
+                "location_id": location_id,
+                "project_id": project_id,
+            },
         )
 
 
@@ -111,5 +115,9 @@ class DataCatalogTagTemplateLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=DataCatalogTagTemplateLink.key,
-            value={"tag_template_id": tag_template_id, "location_id": location_id, "project_id": project_id},
+            value={
+                "tag_template_id": tag_template_id,
+                "location_id": location_id,
+                "project_id": project_id,
+            },
         )

@@ -34,10 +34,18 @@ from airflow_breeze.utils.packages import get_long_package_names
             ("apache-airflow", "helm-chart", "docker-stack"),
             id="non-providers-docs",
         ),
-        pytest.param(("apache-airflow-providers",), ("apache-airflow-providers",), id="providers-index"),
+        pytest.param(
+            ("apache-airflow-providers",),
+            ("apache-airflow-providers",),
+            id="providers-index",
+        ),
         pytest.param(
             ("docker", "docker-stack", "apache-airflow-providers"),
-            ("apache-airflow-providers-docker", "docker-stack", "apache-airflow-providers"),
+            (
+                "apache-airflow-providers-docker",
+                "docker-stack",
+                "apache-airflow-providers",
+            ),
             id="mixin",
         ),
     ],

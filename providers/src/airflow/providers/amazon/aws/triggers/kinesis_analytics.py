@@ -46,7 +46,10 @@ class KinesisAnalyticsV2ApplicationOperationCompleteTrigger(AwsBaseWaiterTrigger
         **kwargs,
     ) -> None:
         super().__init__(
-            serialized_fields={"application_name": application_name, "waiter_name": waiter_name},
+            serialized_fields={
+                "application_name": application_name,
+                "waiter_name": waiter_name,
+            },
             waiter_name=waiter_name,
             waiter_args={"ApplicationName": application_name},
             failure_message=f"AWS Managed Service for Apache Flink Application {application_name} failed.",

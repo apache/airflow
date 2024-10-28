@@ -22,7 +22,13 @@ from typing import Any, TypeVar
 
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest
-from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
+from airbyte_api.models import (
+    JobCreateRequest,
+    JobStatusEnum,
+    JobTypeEnum,
+    SchemeClientCredentials,
+    Security,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -87,7 +93,11 @@ class AirbyteHook(BaseHook):
                 "extra",
                 "port",
             ],
-            "relabeling": {"login": "Client ID", "password": "Client Secret", "schema": "Token URL"},
+            "relabeling": {
+                "login": "Client ID",
+                "password": "Client Secret",
+                "schema": "Token URL",
+            },
             "placeholders": {},
         }
 
@@ -117,7 +127,9 @@ class AirbyteHook(BaseHook):
         response = self.get_job_details(job_id=job_id)
         return response.status
 
-    def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
+    def wait_for_job(
+        self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600
+    ) -> None:
         """
         Poll a job to check if it finishes.
 
@@ -131,17 +143,26 @@ class AirbyteHook(BaseHook):
         while True:
             if timeout and start + timeout < time.monotonic():
                 self.cancel_job(job_id=(int(job_id)))
-                raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
+                raise AirflowException(
+                    f"Timeout: Airbyte job {job_id} is not ready after {timeout}s"
+                )
             time.sleep(wait_seconds)
             try:
                 job = self.get_job_details(job_id=(int(job_id)))
                 state = job.status
 
             except AirflowException as err:
-                self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
+                self.log.info(
+                    "Retrying. Airbyte API returned server error when waiting for job: %s",
+                    err,
+                )
                 continue
 
-            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+            if state in (
+                JobStatusEnum.RUNNING,
+                JobStatusEnum.PENDING,
+                JobStatusEnum.INCOMPLETE,
+            ):
                 continue
             if state == JobStatusEnum.SUCCEEDED:
                 break
@@ -150,7 +171,9 @@ class AirbyteHook(BaseHook):
             elif state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
             else:
-                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
+                raise AirflowException(
+                    f"Encountered unexpected state `{state}` for job_id `{job_id}`"
+                )
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         try:

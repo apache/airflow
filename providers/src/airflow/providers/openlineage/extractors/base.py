@@ -35,7 +35,9 @@ from airflow.utils.state import TaskInstanceState
 
 # this is not to break static checks compatibility with v1 OpenLineage facet classes
 DatasetSubclass = TypeVar("DatasetSubclass", bound=OLDataset)
-BaseFacetSubclass = TypeVar("BaseFacetSubclass", bound=Union[BaseFacet_V1, RunFacet, JobFacet])
+BaseFacetSubclass = TypeVar(
+    "BaseFacetSubclass", bound=Union[BaseFacet_V1, RunFacet, JobFacet]
+)
 
 
 @define
@@ -99,9 +101,12 @@ class DefaultExtractor(BaseExtractor):
         # OpenLineage methods are optional - if there's no method, return None
         try:
             self.log.debug(
-                "Trying to execute `get_openlineage_facets_on_start` for %s.", self.operator.task_type
+                "Trying to execute `get_openlineage_facets_on_start` for %s.",
+                self.operator.task_type,
             )
-            return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
+            return self._get_openlineage_facets(
+                self.operator.get_openlineage_facets_on_start
+            )  # type: ignore
         except ImportError:
             self.log.error(
                 "OpenLineage provider method failed to import OpenLineage integration. "
@@ -117,7 +122,9 @@ class DefaultExtractor(BaseExtractor):
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         failed_states = [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]
-        if not IS_AIRFLOW_2_10_OR_HIGHER:  # todo: remove when min airflow version >= 2.10.0
+        if (
+            not IS_AIRFLOW_2_10_OR_HIGHER
+        ):  # todo: remove when min airflow version >= 2.10.0
             # Before fix (#41053) implemented in Airflow 2.10 TaskInstance's state was still RUNNING when
             # being passed to listener's on_failure method. Since `extract_on_complete()` is only called
             # after task completion, RUNNING state means that we are dealing with FAILED task in < 2.10
@@ -127,12 +134,16 @@ class DefaultExtractor(BaseExtractor):
             on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
             if on_failed and callable(on_failed):
                 self.log.debug(
-                    "Executing `get_openlineage_facets_on_failure` for %s.", self.operator.task_type
+                    "Executing `get_openlineage_facets_on_failure` for %s.",
+                    self.operator.task_type,
                 )
                 return self._get_openlineage_facets(on_failed, task_instance)
         on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
         if on_complete and callable(on_complete):
-            self.log.debug("Executing `get_openlineage_facets_on_complete` for %s.", self.operator.task_type)
+            self.log.debug(
+                "Executing `get_openlineage_facets_on_complete` for %s.",
+                self.operator.task_type,
+            )
             return self._get_openlineage_facets(on_complete, task_instance)
         return self.extract()
 
@@ -153,5 +164,7 @@ class DefaultExtractor(BaseExtractor):
                 "This should not happen."
             )
         except Exception:
-            self.log.warning("OpenLineage provider method failed to extract data from provider. ")
+            self.log.warning(
+                "OpenLineage provider method failed to extract data from provider. "
+            )
         return None

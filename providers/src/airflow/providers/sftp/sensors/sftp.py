@@ -62,7 +62,9 @@ class SFTPSensor(BaseSensorOperator):
         python_callable: Callable | None = None,
         op_args: list | None = None,
         op_kwargs: dict[str, Any] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -82,10 +84,13 @@ class SFTPSensor(BaseSensorOperator):
         files_found = []
 
         if self.file_pattern:
-            files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)
+            files_from_pattern = self.hook.get_files_by_pattern(
+                self.path, self.file_pattern
+            )
             if files_from_pattern:
                 actual_files_to_check = [
-                    os.path.join(self.path, file_from_pattern) for file_from_pattern in files_from_pattern
+                    os.path.join(self.path, file_from_pattern)
+                    for file_from_pattern in files_from_pattern
                 ]
             else:
                 return False
@@ -95,7 +100,9 @@ class SFTPSensor(BaseSensorOperator):
         for actual_file_to_check in actual_files_to_check:
             try:
                 mod_time = self.hook.get_mod_time(actual_file_to_check)
-                self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
+                self.log.info(
+                    "Found File %s last modified: %s", actual_file_to_check, mod_time
+                )
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise AirflowException from e
@@ -134,7 +141,10 @@ class SFTPSensor(BaseSensorOperator):
             callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
             return PokeReturnValue(
                 is_done=True,
-                xcom_value={"files_found": files_found, "decorator_return_value": callable_return},
+                xcom_value={
+                    "files_found": files_found,
+                    "decorator_return_value": callable_return,
+                },
             )
         return True
 

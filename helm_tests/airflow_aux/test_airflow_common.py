@@ -77,7 +77,10 @@ class TestAirflowCommon:
                 },
             ),
             (
-                {"mountPath": "/opt/airflow/dags/custom", "persistence": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "persistence": {"enabled": True},
+                },
                 {
                     "mountPath": "/opt/airflow/dags/custom",
                     "name": "dags",
@@ -101,7 +104,9 @@ class TestAirflowCommon:
 
         assert 3 == len(docs)
         for doc in docs:
-            assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+            assert expected_mount in jmespath.search(
+                "spec.template.spec.containers[0].volumeMounts", doc
+            )
 
     def test_webserver_config_configmap_name_volume_mounts(self):
         configmap_name = "my-configmap"
@@ -130,12 +135,15 @@ class TestAirflowCommon:
                 for c in r
             ]
             for container in jmespath.search("spec.template.spec.containers", doc):
-                assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
+                assert "webserver-config" in [
+                    c["name"] for c in jmespath.search("volumeMounts", container)
+                ]
             assert "webserver-config" in [
                 c["name"] for c in jmespath.search("spec.template.spec.volumes", doc)
             ]
             assert configmap_name == jmespath.search(
-                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", doc
+                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]",
+                doc,
             )
 
     def test_annotations(self):
@@ -168,14 +176,18 @@ class TestAirflowCommon:
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
-                annotations = k8s_object["spec"]["jobTemplate"]["spec"]["template"]["metadata"]["annotations"]
+                annotations = k8s_object["spec"]["jobTemplate"]["spec"]["template"][
+                    "metadata"
+                ]["annotations"]
             else:
                 annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
 
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
-    def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
+    def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(
+        self,
+    ):
         """Test affinity, tolerations, etc are correctly applied on all pods created."""
         k8s_objects = render_chart(
             values={
@@ -189,7 +201,11 @@ class TestAirflowCommon:
                             "nodeSelectorTerms": [
                                 {
                                     "matchExpressions": [
-                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "foo",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 }
                             ]
@@ -197,7 +213,12 @@ class TestAirflowCommon:
                     }
                 },
                 "tolerations": [
-                    {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "static-pods",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "topologySpreadConstraints": [
                     {
@@ -229,7 +250,9 @@ class TestAirflowCommon:
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
-                podSpec = jmespath.search("spec.jobTemplate.spec.template.spec", k8s_object)
+                podSpec = jmespath.search(
+                    "spec.jobTemplate.spec.template.spec", k8s_object
+                )
             else:
                 podSpec = jmespath.search("spec.template.spec", k8s_object)
 
@@ -243,7 +266,9 @@ class TestAirflowCommon:
             )
             assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
             assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
-            assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
+            assert "foo" == jmespath.search(
+                "topologySpreadConstraints[0].topologyKey", podSpec
+            )
 
     @pytest.mark.parametrize(
         "expected_image,tag,digest",
@@ -274,7 +299,9 @@ class TestAirflowCommon:
         )
 
         for doc in docs:
-            assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
+            assert expected_image == jmespath.search(
+                "spec.template.spec.initContainers[0].image", doc
+            )
 
     @pytest.mark.parametrize(
         "expected_image,tag,digest",
@@ -302,7 +329,9 @@ class TestAirflowCommon:
         )
 
         for doc in docs:
-            assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
+            assert expected_image == jmespath.search(
+                "spec.template.spec.initContainers[0].image", doc
+            )
 
     def test_should_set_correct_helm_hooks_weight(self):
         docs = render_chart(
@@ -338,7 +367,9 @@ class TestAirflowCommon:
         expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            variables = expected_vars_in_worker if component == "worker" else expected_vars
+            variables = (
+                expected_vars_in_worker if component == "worker" else expected_vars
+            )
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -366,7 +397,9 @@ class TestAirflowCommon:
         expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            variables = expected_vars_in_worker if component == "worker" else expected_vars
+            variables = (
+                expected_vars_in_worker if component == "worker" else expected_vars
+            )
             assert variables == jmespath.search(
                 "spec.template.spec.containers[0].env[*].name", doc
             ), f"Wrong vars in {component}"
@@ -392,21 +425,31 @@ class TestAirflowCommon:
             "mountPath": "/opt/airflow/airflow.cfg",
         }
         for doc in docs:
-            assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
+            assert expected_mount in jmespath.search(
+                "spec.template.spec.initContainers[0].volumeMounts", doc
+            )
 
     def test_priority_class_name(self):
         docs = render_chart(
             values={
                 "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
+                "pgbouncer": {
+                    "enabled": True,
+                    "priorityClassName": "low-priority-pgbouncer",
+                },
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
-                "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
-                "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
+                "cleanup": {
+                    "enabled": True,
+                    "priorityClassName": "low-priority-airflow-cleanup-pods",
+                },
+                "migrateDatabaseJob": {
+                    "priorityClassName": "low-priority-run-airflow-migrations"
+                },
                 "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
             },
             show_only=[
@@ -428,7 +471,9 @@ class TestAirflowCommon:
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             if component == "airflow-cleanup-pods":
-                priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
+                priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"][
+                    "priorityClassName"
+                ]
             else:
                 priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 

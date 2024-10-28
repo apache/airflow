@@ -97,18 +97,32 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.file_encoding = file_encoding
 
     def execute(self, context: Context):
-        self.log.info("Executing download: %s, %s, %s", self.bucket, self.object_name, self.filename)
+        self.log.info(
+            "Executing download: %s, %s, %s", self.bucket, self.object_name, self.filename
+        )
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
 
         if self.store_to_xcom_key:
-            file_size = hook.get_size(bucket_name=self.bucket, object_name=self.object_name)
+            file_size = hook.get_size(
+                bucket_name=self.bucket, object_name=self.object_name
+            )
             if file_size < MAX_XCOM_SIZE:
-                file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object_name)
-                context["ti"].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes, self.file_encoding))
+                file_bytes = hook.download(
+                    bucket_name=self.bucket, object_name=self.object_name
+                )
+                context["ti"].xcom_push(
+                    key=self.store_to_xcom_key, value=str(file_bytes, self.file_encoding)
+                )
             else:
-                raise AirflowException("The size of the downloaded file is too large to push to XCom!")
+                raise AirflowException(
+                    "The size of the downloaded file is too large to push to XCom!"
+                )
         else:
-            hook.download(bucket_name=self.bucket, object_name=self.object_name, filename=self.filename)
+            hook.download(
+                bucket_name=self.bucket,
+                object_name=self.object_name,
+                filename=self.filename,
+            )

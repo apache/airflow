@@ -37,7 +37,9 @@ class TestBaseSqlToSlackOperator:
 
     def test_execute_not_implemented(self):
         """Test that no base implementation for ``BaseSqlToSlackOperator.execute()``."""
-        op = BaseSqlToSlackOperator(task_id="test_base_not_implements", **self.default_op_kwargs)
+        op = BaseSqlToSlackOperator(
+            task_id="test_base_not_implements", **self.default_op_kwargs
+        )
         with pytest.raises(NotImplementedError):
             op.execute(mock.MagicMock())
 
@@ -53,7 +55,9 @@ class TestBaseSqlToSlackOperator:
                 pass
 
         expected_hook = SomeDummyHook()
-        mock_get_conn.return_value = Connection(conn_id=f"test_connection_{conn_type}", conn_type=conn_type)
+        mock_get_conn.return_value = Connection(
+            conn_id=f"test_connection_{conn_type}", conn_type=conn_type
+        )
         mock_get_hook.return_value = expected_hook
         op_kwargs = {
             **self.default_op_kwargs,
@@ -70,14 +74,22 @@ class TestBaseSqlToSlackOperator:
         class SomeDummyHook:
             """Hook which not implemented ``get_pandas_df`` method"""
 
-        mock_get_conn.return_value = Connection(conn_id="test_connection", conn_type="test_connection")
+        mock_get_conn.return_value = Connection(
+            conn_id="test_connection", conn_type="test_connection"
+        )
         mock_get_hook.return_value = SomeDummyHook()
-        op = BaseSqlToSlackOperator(task_id="test_get_not_supported_hook", **self.default_op_kwargs)
-        error_message = r"This hook is not supported. The hook class must have get_pandas_df method\."
+        op = BaseSqlToSlackOperator(
+            task_id="test_get_not_supported_hook", **self.default_op_kwargs
+        )
+        error_message = (
+            r"This hook is not supported. The hook class must have get_pandas_df method\."
+        )
         with pytest.raises(AirflowException, match=error_message):
             op._get_hook()
 
-    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_hook")
+    @mock.patch(
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_hook"
+    )
     @pytest.mark.parametrize("sql", ["SELECT 42", "SELECT 1 FROM DUMMY WHERE col = ?"])
     @pytest.mark.parametrize("parameters", [None, {"col": "spam-egg"}])
     def test_get_query_results(self, mock_op_get_hook, sql, parameters):

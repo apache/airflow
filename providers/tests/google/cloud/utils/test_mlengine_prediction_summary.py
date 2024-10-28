@@ -88,9 +88,15 @@ class TestMakeSummary:
 
     def test_run_should_not_fail_with_valid_fn(self):
         with (
-            mock.patch.object(mlengine_prediction_summary.beam.pipeline, "PipelineOptions") as pipeline_mock,
-            mock.patch.object(mlengine_prediction_summary.beam, "Pipeline") as pipeline_obj_mock,
-            mock.patch.object(mlengine_prediction_summary.beam.io, "ReadFromText") as io_mock,
+            mock.patch.object(
+                mlengine_prediction_summary.beam.pipeline, "PipelineOptions"
+            ) as pipeline_mock,
+            mock.patch.object(
+                mlengine_prediction_summary.beam, "Pipeline"
+            ) as pipeline_obj_mock,
+            mock.patch.object(
+                mlengine_prediction_summary.beam.io, "ReadFromText"
+            ) as io_mock,
         ):
 
             def metric_function():

@@ -73,7 +73,10 @@ class TransferJobPreprocessor:
     """Helper class for preprocess of transfer job body."""
 
     def __init__(
-        self, body: dict, aws_conn_id: str | None = "aws_default", default_schedule: bool = False
+        self,
+        body: dict,
+        aws_conn_id: str | None = "aws_default",
+        default_schedule: bool = False,
     ) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
@@ -115,7 +118,10 @@ class TransferJobPreprocessor:
     def _reformat_schedule(self) -> None:
         if SCHEDULE not in self.body:
             if self.default_schedule:
-                self.body[SCHEDULE] = {SCHEDULE_START_DATE: date.today(), SCHEDULE_END_DATE: date.today()}
+                self.body[SCHEDULE] = {
+                    SCHEDULE_START_DATE: date.today(),
+                    SCHEDULE_END_DATE: date.today(),
+                }
             else:
                 return
         self._reformat_date(SCHEDULE_START_DATE)
@@ -140,7 +146,11 @@ class TransferJobPreprocessor:
     @staticmethod
     def _convert_time_to_dict(time_object: time) -> dict:
         """Convert native python ``datetime.time`` object  to a format supported by the API."""
-        return {HOURS: time_object.hour, MINUTES: time_object.minute, SECONDS: time_object.second}
+        return {
+            HOURS: time_object.hour,
+            MINUTES: time_object.minute,
+            SECONDS: time_object.second,
+        }
 
 
 class TransferJobValidator:
@@ -166,7 +176,10 @@ class TransferJobValidator:
 
     def _restrict_aws_credentials(self) -> None:
         aws_transfer = AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]
-        if aws_transfer and AWS_ACCESS_KEY in self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE]:
+        if (
+            aws_transfer
+            and AWS_ACCESS_KEY in self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE]
+        ):
             raise AirflowException(
                 "AWS credentials detected inside the body parameter (awsAccessKey). This is not allowed, "
                 "please use Airflow connections to store credentials."
@@ -263,7 +276,9 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         TransferJobValidator(body=self.body).validate_body()
 
     def execute(self, context: Context) -> dict:
-        TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
+        TransferJobPreprocessor(
+            body=self.body, aws_conn_id=self.aws_conn_id
+        ).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -354,7 +369,9 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("The required parameter 'job_name' is empty or None")
 
     def execute(self, context: Context) -> dict:
-        TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
+        TransferJobPreprocessor(
+            body=self.body, aws_conn_id=self.aws_conn_id
+        ).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
@@ -570,7 +587,9 @@ class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.operation_name:
-            raise AirflowException("The required parameter 'operation_name' is empty or None")
+            raise AirflowException(
+                "The required parameter 'operation_name' is empty or None"
+            )
 
     def execute(self, context: Context) -> dict:
         hook = CloudDataTransferServiceHook(
@@ -647,14 +666,18 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> list[dict]:
         if not self.request_filter:
-            raise AirflowException("The required parameter 'request_filter' is empty or None")
+            raise AirflowException(
+                "The required parameter 'request_filter' is empty or None"
+            )
 
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        operations_list = hook.list_transfer_operations(request_filter=self.request_filter)
+        operations_list = hook.list_transfer_operations(
+            request_filter=self.request_filter
+        )
         self.log.info(operations_list)
 
         project_id = self.project_id or hook.project_id
@@ -716,7 +739,9 @@ class CloudDataTransferServicePauseOperationOperator(GoogleCloudBaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.operation_name:
-            raise AirflowException("The required parameter 'operation_name' is empty or None")
+            raise AirflowException(
+                "The required parameter 'operation_name' is empty or None"
+            )
 
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -775,7 +800,9 @@ class CloudDataTransferServiceResumeOperationOperator(GoogleCloudBaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.operation_name:
-            raise AirflowException("The required parameter 'operation_name' is empty or None")
+            raise AirflowException(
+                "The required parameter 'operation_name' is empty or None"
+            )
 
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -835,7 +862,9 @@ class CloudDataTransferServiceCancelOperationOperator(GoogleCloudBaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.operation_name:
-            raise AirflowException("The required parameter 'operation_name' is empty or None")
+            raise AirflowException(
+                "The required parameter 'operation_name' is empty or None"
+            )
 
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -964,7 +993,9 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
 
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
-            raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
+            raise AirflowException(
+                "If 'delete_job_after_completion' is True, then 'wait' must also be True."
+            )
 
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -973,7 +1004,9 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         )
         body = self._create_body()
 
-        TransferJobPreprocessor(body=body, aws_conn_id=self.aws_conn_id, default_schedule=True).process_body()
+        TransferJobPreprocessor(
+            body=body, aws_conn_id=self.aws_conn_id, default_schedule=True
+        ).process_body()
 
         job = hook.create_transfer_job(body=body)
 
@@ -1133,7 +1166,9 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
 
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
-            raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
+            raise AirflowException(
+                "If 'delete_job_after_completion' is True, then 'wait' must also be True."
+            )
 
     def execute(self, context: Context) -> None:
         hook = CloudDataTransferServiceHook(

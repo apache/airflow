@@ -90,11 +90,18 @@ class S3KeyTrigger(BaseTrigger):
             async with self.hook.async_conn as client:
                 while True:
                     if await self.hook.check_key_async(
-                        client, self.bucket_name, self.bucket_key, self.wildcard_match, self.use_regex
+                        client,
+                        self.bucket_name,
+                        self.bucket_key,
+                        self.wildcard_match,
+                        self.use_regex,
                     ):
                         if self.should_check_fn:
                             s3_objects = await self.hook.get_files_async(
-                                client, self.bucket_name, self.bucket_key, self.wildcard_match
+                                client,
+                                self.bucket_name,
+                                self.bucket_key,
+                                self.wildcard_match,
                             )
                             await asyncio.sleep(self.poke_interval)
                             yield TriggerEvent({"status": "running", "files": s3_objects})

@@ -31,7 +31,11 @@ from airflow.__main__ import configure_internal_api
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
+from airflow.settings import (
+    _ENABLE_AIP_44,
+    TracebackSession,
+    is_usage_data_collection_enabled,
+)
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
@@ -132,9 +136,12 @@ class TestLocalSettings:
         mock_local_settings = mock.Mock()
 
         mock_local_settings.attach_mock(
-            mock_prepare_syspath_for_config_and_plugins, "prepare_syspath_for_config_and_plugins"
+            mock_prepare_syspath_for_config_and_plugins,
+            "prepare_syspath_for_config_and_plugins",
         )
-        mock_local_settings.attach_mock(mock_import_local_settings, "import_local_settings")
+        mock_local_settings.attach_mock(
+            mock_import_local_settings, "import_local_settings"
+        )
         mock_local_settings.attach_mock(
             mock_prepare_syspath_for_dags_folder, "prepare_syspath_for_dags_folder"
         )
@@ -158,7 +165,9 @@ class TestLocalSettings:
         Tests that if __all__ is specified in airflow_local_settings,
         only module attributes specified within are imported.
         """
-        with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
+        with SettingsContext(
+            SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"
+        ):
             from airflow import settings
 
             settings.import_local_settings()
@@ -171,7 +180,9 @@ class TestLocalSettings:
         Tests that if __all__ is specified in airflow_local_settings,
         only module attributes specified within are imported.
         """
-        with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
+        with SettingsContext(
+            SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"
+        ):
             from airflow import settings
 
             settings.import_local_settings()
@@ -190,7 +201,9 @@ class TestLocalSettings:
         from airflow import settings
 
         settings.import_local_settings()
-        log_mock.assert_called_once_with("No airflow_local_settings to import.", exc_info=True)
+        log_mock.assert_called_once_with(
+            "No airflow_local_settings to import.", exc_info=True
+        )
 
     def test_policy_function(self):
         """
@@ -258,7 +271,9 @@ class TestUpdatedConfigNames:
         assert session_lifetime_config == default_timeout_minutes
 
 
-_local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")
+_local_db_path_error = pytest.raises(
+    AirflowConfigException, match=r"Cannot use relative path:"
+)
 
 
 @pytest.mark.parametrize(
@@ -269,12 +284,16 @@ _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use 
         pytest.param(
             "sqlite:///C:/path/to/db",
             _local_db_path_error,
-            marks=pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows"),
+            marks=pytest.mark.skipif(
+                sys.platform.startswith("win"), reason="Skip on Windows"
+            ),
         ),
         pytest.param(
             r"sqlite:///C:\path\to\db",
             _local_db_path_error,
-            marks=pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows"),
+            marks=pytest.mark.skipif(
+                sys.platform.startswith("win"), reason="Skip on Windows"
+            ),
         ),
         ("sqlite://", contextlib.nullcontext()),
     ],
@@ -377,7 +396,9 @@ def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
         (None, "False", False),  # Default env, conf disables
     ],
 )
-def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear_internal_api):
+def test_usage_data_collection_disabled(
+    env_var, conf_setting, is_enabled, clear_internal_api
+):
     conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
 
     if env_var is not None:

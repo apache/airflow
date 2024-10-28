@@ -66,7 +66,9 @@ class TestMySql:
                 dummy VARCHAR(50)
             );
             """
-            op = SQLExecuteQueryOperator(task_id="basic_mysql", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT)
+            op = SQLExecuteQueryOperator(
+                task_id="basic_mysql", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT
+            )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
@@ -78,7 +80,10 @@ class TestMySql:
                 "INSERT INTO test_airflow VALUES ('X')",
             ]
             op = SQLExecuteQueryOperator(
-                task_id="mysql_operator_test_multi", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT
+                task_id="mysql_operator_test_multi",
+                sql=sql,
+                dag=self.dag,
+                conn_id=MYSQL_DEFAULT,
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -100,7 +105,9 @@ class TestMySql:
             from MySQLdb import OperationalError
 
             with pytest.raises(OperationalError, match="Unknown database 'foobar'"):
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                op.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
 
     def test_mysql_operator_resolve_parameters_template_json_file(self, tmp_path):
         path = tmp_path / "testfile.json"
@@ -129,7 +136,9 @@ class TestMySql:
                 dummy VARCHAR(50)
             );
             """
-            op = SQLExecuteQueryOperator(task_id="basic_mysql", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT)
+            op = SQLExecuteQueryOperator(
+                task_id="basic_mysql", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT
+            )
 
             lineage = op.get_openlineage_facets_on_start()
             assert len(lineage.inputs) == 0
@@ -179,8 +188,12 @@ FORGOT TO COMMENT"""
             facets={
                 "schema": SchemaDatasetFacet(
                     fields=[
-                        SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                        SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                        SchemaDatasetFacetFields(
+                            name="order_day_of_week", type="varchar"
+                        ),
+                        SchemaDatasetFacetFields(
+                            name="order_placed_on", type="timestamp"
+                        ),
                         SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                     ]
                 )

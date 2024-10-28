@@ -83,7 +83,9 @@ class TaskCallbackRequest(CallbackRequest):
         msg: str | None = None,
         task_callback_type: TaskInstanceState | None = None,
     ):
-        super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
+        super().__init__(
+            full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg
+        )
         self.simple_task_instance = simple_task_instance
         self.task_callback_type = task_callback_type
 
@@ -133,7 +135,9 @@ class DagCallbackRequest(CallbackRequest):
         is_failure_callback: bool | None = True,
         msg: str | None = None,
     ):
-        super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
+        super().__init__(
+            full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg
+        )
         self.dag_id = dag_id
         self.run_id = run_id
         self.is_failure_callback = is_failure_callback

@@ -28,7 +28,10 @@ from prestodb.transaction import IsolationLevel
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+from airflow.utils.operator_helpers import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    DEFAULT_FORMAT_PREFIX,
+)
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -102,13 +105,17 @@ class PrestoHook(DbApiHook):
             auth = prestodb.auth.KerberosAuthentication(
                 config=extra.get("kerberos__config", os.environ.get("KRB5_CONFIG")),
                 service_name=extra.get("kerberos__service_name"),
-                mutual_authentication=_boolify(extra.get("kerberos__mutual_authentication", False)),
+                mutual_authentication=_boolify(
+                    extra.get("kerberos__mutual_authentication", False)
+                ),
                 force_preemptive=_boolify(extra.get("kerberos__force_preemptive", False)),
                 hostname_override=extra.get("kerberos__hostname_override"),
                 sanitize_mutual_error_response=_boolify(
                     extra.get("kerberos__sanitize_mutual_error_response", True)
                 ),
-                principal=extra.get("kerberos__principal", conf.get("kerberos", "principal")),
+                principal=extra.get(
+                    "kerberos__principal", conf.get("kerberos", "principal")
+                ),
                 delegate=_boolify(extra.get("kerberos__delegate", False)),
                 ca_bundle=extra.get("kerberos__ca_bundle"),
             )
@@ -153,7 +160,9 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
 
     def get_first(
-        self, sql: str | list[str] = "", parameters: Iterable | Mapping[str, Any] | None = None
+        self,
+        sql: str | list[str] = "",
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
@@ -174,7 +183,10 @@ class PrestoHook(DbApiHook):
         column_descriptions = cursor.description
         if data:
             df = pd.DataFrame(data, **kwargs)
-            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
+            df.rename(
+                columns={n: c[0] for n, c in zip(df.columns, column_descriptions)},
+                inplace=True,
+            )
         else:
             df = pd.DataFrame(**kwargs)
         return df

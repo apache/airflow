@@ -71,7 +71,11 @@ class TestBashOperator:
         "append_env,user_defined_env,expected_airflow_home",
         [
             (False, None, "MY_PATH_TO_AIRFLOW_HOME"),
-            (True, {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"}, "OVERRIDDEN_AIRFLOW_HOME"),
+            (
+                True,
+                {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"},
+                "OVERRIDDEN_AIRFLOW_HOME",
+            ),
         ],
     )
     def test_echo_env_variables(
@@ -111,7 +115,9 @@ class TestBashOperator:
             )
 
         execution_date = utc_now
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
@@ -123,9 +129,15 @@ class TestBashOperator:
         )
 
         with mock.patch.dict(
-            "os.environ", {"AIRFLOW_HOME": "MY_PATH_TO_AIRFLOW_HOME", "PYTHONPATH": "AWESOME_PYTHONPATH"}
+            "os.environ",
+            {
+                "AIRFLOW_HOME": "MY_PATH_TO_AIRFLOW_HOME",
+                "PYTHONPATH": "AWESOME_PYTHONPATH",
+            },
         ):
-            task.run(utc_now, utc_now, ignore_first_depends_on_past=True, ignore_ti_state=True)
+            task.run(
+                utc_now, utc_now, ignore_first_depends_on_past=True, ignore_ti_state=True
+            )
 
         assert expected == tmp_file.read_text()
 
@@ -144,9 +156,12 @@ class TestBashOperator:
         assert line == expected
 
     def test_raise_exception_on_non_zero_exit_code(self, context):
-        bash_operator = BashOperator(bash_command="exit 42", task_id="test_return_value", dag=None)
+        bash_operator = BashOperator(
+            bash_command="exit 42", task_id="test_return_value", dag=None
+        )
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 42\\."
+            AirflowException,
+            match="Bash command failed\\. The command returned a non-zero exit code 42\\.",
         ):
             bash_operator.execute(context)
 
@@ -158,15 +173,20 @@ class TestBashOperator:
         assert bash_operator.retries == 2
 
     def test_default_retries(self):
-        bash_operator = BashOperator(bash_command='echo "stdout"', task_id="test_default_retries", dag=None)
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"', task_id="test_default_retries", dag=None
+        )
 
         assert bash_operator.retries == 0
 
     def test_command_not_found(self, context):
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
+            AirflowException,
+            match="Bash command failed\\. The command returned a non-zero exit code 127\\.",
         ):
-            BashOperator(task_id="abc", bash_command="set -e; something-that-isnt-on-path").execute(context)
+            BashOperator(
+                task_id="abc", bash_command="set -e; something-that-isnt-on-path"
+            ).execute(context)
 
     def test_unset_cwd(self, context):
         val = "xxxx"
@@ -178,8 +198,12 @@ class TestBashOperator:
         test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         test_cwd_folder = os.fspath(tmp_path / "test_command_with_cwd")
         # There should be no exceptions when creating the operator even the `cwd` doesn't exist
-        bash_operator = BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_folder))
-        with pytest.raises(AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"):
+        bash_operator = BashOperator(
+            task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_folder)
+        )
+        with pytest.raises(
+            AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"
+        ):
             bash_operator.execute(context)
 
     def test_cwd_is_file(self, tmp_path):
@@ -187,17 +211,21 @@ class TestBashOperator:
         tmp_file = tmp_path / "testfile.var.env"
         tmp_file.touch()
         # Test if the cwd is a file_path
-        with pytest.raises(AirflowException, match=f"The cwd {tmp_file} must be a directory"):
-            BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(tmp_file)).execute({})
+        with pytest.raises(
+            AirflowException, match=f"The cwd {tmp_file} must be a directory"
+        ):
+            BashOperator(
+                task_id="abc", bash_command=test_cmd, cwd=os.fspath(tmp_file)
+            ).execute({})
 
     def test_valid_cwd(self, context, tmp_path):
         test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         test_cwd_path = tmp_path / "test_command_with_cwd"
         test_cwd_path.mkdir()
         # Test everything went alright
-        result = BashOperator(task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_path)).execute(
-            context
-        )
+        result = BashOperator(
+            task_id="abc", bash_command=test_cmd, cwd=os.fspath(test_cwd_path)
+        ).execute(context)
         assert result == "xxxx"
         assert (test_cwd_path / "outputs.txt").read_text().splitlines()[0] == "xxxx"
 
@@ -224,7 +252,10 @@ class TestBashOperator:
         ],
     )
     def test_skip(self, extra_kwargs, actual_exit_code, expected_exc, context):
-        kwargs = dict(task_id="abc", bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
+        kwargs = dict(
+            task_id="abc",
+            bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};',
+        )
         if extra_kwargs:
             kwargs.update(**extra_kwargs)
         if expected_exc is None:
@@ -269,7 +300,9 @@ class TestBashOperator:
         for proc in psutil.process_iter():
             if proc.cmdline() == ["sleep", sleep_time]:
                 os.kill(proc.pid, signal.SIGTERM)
-                pytest.fail("BashOperator's subprocess still running after stopping on timeout!")
+                pytest.fail(
+                    "BashOperator's subprocess still running after stopping on timeout!"
+                )
 
     @pytest.mark.db_test
     def test_templated_fields(self, create_task_instance_of_operator):
@@ -301,7 +334,9 @@ class TestBashOperator:
         path.write_text('echo "{{ ti.task_id }}"')
 
         with dag_maker(
-            dag_id="test_templated_bash_script", session=session, template_searchpath=os.fspath(path.parent)
+            dag_id="test_templated_bash_script",
+            session=session,
+            template_searchpath=os.fspath(path.parent),
         ):
             BashOperator(task_id="test_templated_fields_task", bash_command=bash_script)
         ti: TaskInstance = dag_maker.create_dagrun().task_instances[0]

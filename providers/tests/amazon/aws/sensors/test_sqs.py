@@ -40,7 +40,8 @@ def mocked_context():
 @pytest.fixture
 def mocked_client():
     with mock.patch(
-        "airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock
+        "airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn",
+        new_callable=mock.PropertyMock,
     ) as m:
         yield m
 
@@ -89,7 +90,10 @@ class TestSqsSensor:
 
         mocked_xcom_push = mocked_context["ti"].xcom_push
         assert mocked_xcom_push.call_count == 1
-        call_args, call_kwargs = mocked_xcom_push.call_args.args, mocked_xcom_push.call_args.kwargs
+        call_args, call_kwargs = (
+            mocked_xcom_push.call_args.args,
+            mocked_xcom_push.call_args.kwargs,
+        )
         assert not call_args
         assert "key" in call_kwargs
         assert call_kwargs["key"] == "messages"
@@ -137,7 +141,9 @@ class TestSqsSensor:
             self.sensor.poke({})
 
     def test_poke_receive_raise_exception(self, mocked_client):
-        mocked_client.return_value.receive_message.side_effect = Exception("test exception")
+        mocked_client.return_value.receive_message.side_effect = Exception(
+            "test exception"
+        )
         with pytest.raises(Exception, match="test exception"):
             self.sensor.poke({})
 
@@ -145,7 +151,9 @@ class TestSqsSensor:
         # Check without visibility_timeout parameter
         self.sensor.poke(mocked_context)
         calls_receive_message = [
-            mock.call().receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=5, WaitTimeSeconds=1)
+            mock.call().receive_message(
+                QueueUrl=QUEUE_URL, MaxNumberOfMessages=5, WaitTimeSeconds=1
+            )
         ]
         mocked_client.assert_has_calls(calls_receive_message)
 
@@ -153,7 +161,10 @@ class TestSqsSensor:
         SqsSensor(**self.default_op_kwargs, visibility_timeout=42).poke(mocked_context)
         calls_receive_message = [
             mock.call().receive_message(
-                QueueUrl=QUEUE_URL, MaxNumberOfMessages=5, WaitTimeSeconds=1, VisibilityTimeout=42
+                QueueUrl=QUEUE_URL,
+                MaxNumberOfMessages=5,
+                WaitTimeSeconds=1,
+                VisibilityTimeout=42,
             )
         ]
         mocked_client.assert_has_calls(calls_receive_message)
@@ -164,7 +175,9 @@ class TestSqsSensor:
         self.sqs_client.send_message(QueueUrl=QUEUE_URL, MessageBody="hello")
 
         sensor = SqsSensor(**self.default_op_kwargs, message_filtering="invalid_option")
-        with pytest.raises(NotImplementedError, match="Override this method to define custom filters"):
+        with pytest.raises(
+            NotImplementedError, match="Override this method to define custom filters"
+        ):
             sensor.poke({})
 
     def test_poke_message_filtering_literal_values(self, mocked_client, mocked_context):
@@ -188,7 +201,9 @@ class TestSqsSensor:
         def mock_delete_message_batch(**kwargs):
             return {"Successful"}
 
-        mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+        mocked_client.return_value.delete_message_batch.side_effect = (
+            mock_delete_message_batch
+        )
 
         # Test that messages are filtered
         sensor = SqsSensor(
@@ -199,7 +214,9 @@ class TestSqsSensor:
         assert sensor.poke(mocked_context) is True
 
         # Test that only filtered messages are deleted
-        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        delete_entries = [
+            {"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching
+        ]
         calls_delete_message_batch = [
             mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
         ]
@@ -233,16 +250,22 @@ class TestSqsSensor:
         def mock_delete_message_batch(**kwargs):
             return {"Successful"}
 
-        mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+        mocked_client.return_value.delete_message_batch.side_effect = (
+            mock_delete_message_batch
+        )
 
         # Test that messages are filtered
         sensor = SqsSensor(
-            **self.default_op_kwargs, message_filtering="jsonpath", message_filtering_config="key.matches[*]"
+            **self.default_op_kwargs,
+            message_filtering="jsonpath",
+            message_filtering_config="key.matches[*]",
         )
         assert sensor.poke(mocked_context)
 
         # Test that only filtered messages are deleted
-        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        delete_entries = [
+            {"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching
+        ]
         calls_delete_message_batch = [
             mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
         ]
@@ -277,7 +300,9 @@ class TestSqsSensor:
         def mock_delete_message_batch(**kwargs):
             return {"Successful"}
 
-        mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+        mocked_client.return_value.delete_message_batch.side_effect = (
+            mock_delete_message_batch
+        )
 
         # Test that messages are filtered
         sensor = SqsSensor(
@@ -289,9 +314,13 @@ class TestSqsSensor:
         assert sensor.poke(mocked_context)
 
         # Test that only filtered messages are deleted
-        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        delete_entries = [
+            {"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching
+        ]
         calls_delete_message_batch = [
-            mock.call().delete_message_batch(QueueUrl="https://test-queue", Entries=delete_entries)
+            mock.call().delete_message_batch(
+                QueueUrl="https://test-queue", Entries=delete_entries
+            )
         ]
         mocked_client.assert_has_calls(calls_delete_message_batch)
 
@@ -321,7 +350,9 @@ class TestSqsSensor:
         def mock_delete_message_batch(**kwargs):
             return {"Successful"}
 
-        mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+        mocked_client.return_value.delete_message_batch.side_effect = (
+            mock_delete_message_batch
+        )
 
         # Test that messages are filtered
         sensor = SqsSensor(
@@ -332,13 +363,17 @@ class TestSqsSensor:
         assert sensor.poke(mocked_context)
 
         # Test that only filtered messages are deleted
-        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        delete_entries = [
+            {"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching
+        ]
         calls_delete_message_batch = [
             mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
         ]
         mocked_client.assert_has_calls(calls_delete_message_batch)
 
-    def test_poke_message_filtering_jsonpath_ext_values(self, mocked_client, mocked_context):
+    def test_poke_message_filtering_jsonpath_ext_values(
+        self, mocked_client, mocked_context
+    ):
         matching = [
             {"id": 11, "key": "a1", "value": "b1"},
         ]
@@ -364,7 +399,9 @@ class TestSqsSensor:
         def mock_delete_message_batch(**kwargs):
             return {"Successful"}
 
-        mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+        mocked_client.return_value.delete_message_batch.side_effect = (
+            mock_delete_message_batch
+        )
 
         # Test that messages are filtered
         sensor = SqsSensor(
@@ -376,9 +413,13 @@ class TestSqsSensor:
         assert sensor.poke(mocked_context)
 
         # Test that only filtered messages are deleted
-        delete_entries = [{"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching]
+        delete_entries = [
+            {"Id": x["id"], "ReceiptHandle": 100 + x["id"]} for x in matching
+        ]
         calls_delete_message_batch = [
-            mock.call().delete_message_batch(QueueUrl="https://test-queue", Entries=delete_entries)
+            mock.call().delete_message_batch(
+                QueueUrl="https://test-queue", Entries=delete_entries
+            )
         ]
         mocked_client.assert_has_calls(calls_delete_message_batch)
 
@@ -402,7 +443,10 @@ class TestSqsSensor:
         # expect all messages are retrieved
         mocked_xcom_push = mocked_context["ti"].xcom_push
         assert mocked_xcom_push.call_count == 1
-        call_args, call_kwargs = mocked_xcom_push.call_args.args, mocked_xcom_push.call_args.kwargs
+        call_args, call_kwargs = (
+            mocked_xcom_push.call_args.args,
+            mocked_xcom_push.call_args.kwargs,
+        )
         assert not call_args
         assert "key" in call_kwargs
         assert call_kwargs["key"] == "messages"

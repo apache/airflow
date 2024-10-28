@@ -29,7 +29,9 @@ def _pretty_format_sql(text: str):
     from pygments.formatters.terminal import TerminalFormatter
     from pygments.lexers.sql import SqlLexer
 
-    text = pygments.highlight(code=text, formatter=TerminalFormatter(), lexer=SqlLexer()).rstrip()
+    text = pygments.highlight(
+        code=text, formatter=TerminalFormatter(), lexer=SqlLexer()
+    ).rstrip()
     return text
 
 
@@ -114,7 +116,9 @@ class TraceQueries:
         ]
         file_name = file_names[-1] if file_names else ""
         stack = [f for f in traceback.extract_stack() if "sqlalchemy" not in f.filename]
-        stack_info = " > ".join([f"{f.filename.rpartition('/')[-1]}:{f.name}:{f.lineno}" for f in stack][-7:])
+        stack_info = " > ".join(
+            [f"{f.filename.rpartition('/')[-1]}:{f.name}:{f.lineno}" for f in stack][-7:]
+        )
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
 
         output_parts = []
@@ -139,14 +143,22 @@ class TraceQueries:
     def __enter__(self):
         import airflow.settings
 
-        event.listen(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
-        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        event.listen(
+            airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute
+        )
+        event.listen(
+            airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute
+        )
 
     def __exit__(self, type_, value, traceback):
         import airflow.settings
 
-        event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
-        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        event.remove(
+            airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute
+        )
+        event.remove(
+            airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute
+        )
 
 
 trace_queries = TraceQueries
@@ -176,13 +188,17 @@ class CountQueries:
     def __enter__(self):
         import airflow.settings
 
-        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        event.listen(
+            airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute
+        )
         return self.result
 
     def __exit__(self, type_, value, traceback):
         import airflow.settings
 
-        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        event.remove(
+            airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute
+        )
         self.print_fn(f"Count SQL queries: {self.result.count}")
 
     def after_cursor_execute(
@@ -230,7 +246,9 @@ if __name__ == "__main__":
         ):
             log = logging.getLogger(__name__)
             processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=log)
-            dag_file = os.path.join(os.path.dirname(__file__), os.path.pardir, "dags", "elastic_dag.py")
+            dag_file = os.path.join(
+                os.path.dirname(__file__), os.path.pardir, "dags", "elastic_dag.py"
+            )
             processor.process_file(file_path=dag_file, callback_requests=[])
 
     with trace_queries(), count_queries():

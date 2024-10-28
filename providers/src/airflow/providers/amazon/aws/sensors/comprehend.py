@@ -62,7 +62,9 @@ class ComprehendBaseSensor(AwsBaseSensor[ComprehendHook]):
 
     def __init__(
         self,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -200,7 +202,9 @@ class ComprehendCreateDocumentClassifierCompletedSensor(AwsBaseSensor[Comprehend
         fail_on_warnings: bool = False,
         max_retries: int = 75,
         poke_interval: int = 120,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         aws_conn_id: str | None = "aws_default",
         **kwargs: Any,
     ) -> None:
@@ -242,10 +246,14 @@ class ComprehendCreateDocumentClassifierCompletedSensor(AwsBaseSensor[Comprehend
 
         if status in self.SUCCESS_STATES:
             self.hook.validate_document_classifier_training_status(
-                document_classifier_arn=self.document_classifier_arn, fail_on_warnings=self.fail_on_warnings
+                document_classifier_arn=self.document_classifier_arn,
+                fail_on_warnings=self.fail_on_warnings,
             )
 
-            self.log.info("Comprehend document classifier `%s` complete.", self.document_classifier_arn)
+            self.log.info(
+                "Comprehend document classifier `%s` complete.",
+                self.document_classifier_arn,
+            )
 
             return True
 

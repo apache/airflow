@@ -74,13 +74,17 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         self.plural = plural
 
     def _log_driver(self, application_state: str, response: dict) -> None:
-        log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
+        log_method = (
+            self.log.error if application_state in self.FAILURE_STATES else self.log.info
+        )
         if not self.attach_log:
             return
         status_info = response["status"]
         if "jobStatus" in status_info:
             job_status = status_info["jobStatus"]
-            job_state = job_status["state"] if "state" in job_status else "StateFetchError"
+            job_state = (
+                job_status["state"] if "state" in job_status else "StateFetchError"
+            )
             self.log.info("Flink Job status is %s", job_state)
         else:
             return
@@ -94,10 +98,14 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         for task_manager in all_pods.items:
             task_manager_pod_name = task_manager.metadata.name
 
-            self.log.info("Starting logging of task manager pod %s ", task_manager_pod_name)
+            self.log.info(
+                "Starting logging of task manager pod %s ", task_manager_pod_name
+            )
             try:
                 log = ""
-                for line in self.hook.get_pod_logs(task_manager_pod_name, namespace=namespace):
+                for line in self.hook.get_pod_logs(
+                    task_manager_pod_name, namespace=namespace
+                ):
                     log += line.decode()
                 log_method(log)
             except client.rest.ApiException as e:
@@ -122,7 +130,10 @@ class FlinkKubernetesSensor(BaseSensorOperator):
             application_state = response["status"]["jobManagerDeploymentStatus"]
         except KeyError:
             return False
-        if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
+        if (
+            self.attach_log
+            and application_state in self.FAILURE_STATES + self.SUCCESS_STATES
+        ):
             self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
             message = f"Flink application failed with state: {application_state}"

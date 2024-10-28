@@ -71,7 +71,8 @@ def make_task(name, type_, setup_=False, teardown_=False):
 
 
 @pytest.mark.parametrize(
-    "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
+    "setup_type, work_type, teardown_type",
+    itertools.product(["classic", "taskflow"], repeat=3),
 )
 def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
     """
@@ -104,7 +105,8 @@ def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
 
 
 @pytest.mark.parametrize(
-    "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
+    "setup_type, work_type, teardown_type",
+    itertools.product(["classic", "taskflow"], repeat=3),
 )
 def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
     """
@@ -125,7 +127,9 @@ def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
         assert get_task_attr(task_, "downstream_list") == []
         assert get_task_attr(task_, "is_setup") is False
         assert get_task_attr(task_, "is_teardown") is False
-        assert cleared_tasks(dag, get_task_attr(task_, "task_id")) == {get_task_attr(task_, "task_id")}
+        assert cleared_tasks(dag, get_task_attr(task_, "task_id")) == {
+            get_task_attr(task_, "task_id")
+        }
 
     # now set the deps in one line
     s1 >> w1 >> t1.as_teardown(setups=s1)
@@ -163,7 +167,8 @@ def test_cannot_be_both_setup_and_teardown(dag_maker, type_):
             s1 = make_task(name="s1", type_=type_)
             getattr(s1, f"as_{first}")()
             with pytest.raises(
-                ValueError, match=f"Cannot mark task 's1' as {second}; task is already a {first}."
+                ValueError,
+                match=f"Cannot mark task 's1' as {second}; task is already a {first}.",
             ):
                 getattr(s1, f"as_{second}")()
 
@@ -208,11 +213,13 @@ def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
         assert m.operator.on_failure_fail_dagrun is True
         # but we can't unset
         with pytest.raises(
-            ValueError, match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown."
+            ValueError,
+            match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown.",
         ):
             m.as_setup()
         with pytest.raises(
-            ValueError, match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown."
+            ValueError,
+            match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown.",
         ):
             m.operator.is_setup = True
 

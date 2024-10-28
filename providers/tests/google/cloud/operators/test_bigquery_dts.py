@@ -20,7 +20,11 @@ from __future__ import annotations
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
+from google.cloud.bigquery_datatransfer_v1 import (
+    StartManualTransferRunsResponse,
+    TransferConfig,
+    TransferRun,
+)
 
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
@@ -48,7 +52,8 @@ TRANSFER_CONFIG_ID = "id1234"
 TRANSFER_CONFIG_NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c"
 RUN_NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c/runs/123"
 transfer_config = TransferConfig(
-    name=TRANSFER_CONFIG_NAME, params={"secret_access_key": "AIRFLOW_KEY", "access_key_id": "AIRFLOW_KEY_ID"}
+    name=TRANSFER_CONFIG_NAME,
+    params={"secret_access_key": "AIRFLOW_KEY", "access_key_id": "AIRFLOW_KEY_ID"},
 )
 
 
@@ -76,14 +81,18 @@ class TestBigQueryCreateDataTransferOperator:
         if AIRFLOW_V_3_0_PLUS:
             ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
         else:
-            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", execution_date=None)
+            ti.xcom_push.assert_called_with(
+                key="transfer_config_id", value="1a2b3c", execution_date=None
+            )
 
         assert "secret_access_key" not in return_value.get("params", {})
         assert "access_key_id" not in return_value.get("params", {})
 
 
 class TestBigQueryDeleteDataTransferConfigOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook"
+    )
     def test_execute(self, mock_hook):
         op = BigQueryDeleteDataTransferConfigOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
@@ -134,7 +143,9 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         if AIRFLOW_V_3_0_PLUS:
             ti.xcom_push.assert_called_with(key="run_id", value="123")
         else:
-            ti.xcom_push.assert_called_with(key="run_id", value="123", execution_date=None)
+            ti.xcom_push.assert_called_with(
+                key="run_id", value="123", execution_date=None
+            )
 
     @mock.patch(
         f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook",
@@ -144,7 +155,9 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
             ),
         },
     )
-    @mock.patch(f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator.defer")
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator.defer"
+    )
     def test_defer_mode(self, _, defer_method):
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID,

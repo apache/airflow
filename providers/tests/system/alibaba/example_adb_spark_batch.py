@@ -20,7 +20,9 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.alibaba.cloud.operators.analyticdb_spark import AnalyticDBSparkBatchOperator
+from airflow.providers.alibaba.cloud.operators.analyticdb_spark import (
+    AnalyticDBSparkBatchOperator,
+)
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="call-arg"
@@ -32,7 +34,11 @@ with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,
-    default_args={"cluster_id": "your cluster", "rg_name": "your resource group", "region": "your region"},
+    default_args={
+        "cluster_id": "your cluster",
+        "rg_name": "your resource group",
+        "region": "your region",
+    },
     max_active_runs=1,
     catchup=False,
 ) as dag:

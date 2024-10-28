@@ -27,7 +27,9 @@ from docs.exts.docs_build.docs_builder import ALL_PROVIDER_YAMLS
 from docs.exts.docs_build.errors import DocBuildError
 
 ROOT_PROJECT_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
+    os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir
+    )
 )
 ROOT_PACKAGE_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
@@ -96,8 +98,12 @@ def check_guide_links_in_operator_descriptions() -> list[DocBuildError]:
 
     for provider in ALL_PROVIDER_YAMLS:
         operator_names = {
-            *find_existing_guide_operator_names(f"{DOCS_DIR}/{provider['package-name']}/operators/**/*.rst"),
-            *find_existing_guide_operator_names(f"{DOCS_DIR}/{provider['package-name']}/operators.rst"),
+            *find_existing_guide_operator_names(
+                f"{DOCS_DIR}/{provider['package-name']}/operators/**/*.rst"
+            ),
+            *find_existing_guide_operator_names(
+                f"{DOCS_DIR}/{provider['package-name']}/operators.rst"
+            ),
         }
 
         # Extract all potential python modules that can contain operators
@@ -116,7 +122,9 @@ def check_guide_links_in_operator_descriptions() -> list[DocBuildError]:
     return build_errors
 
 
-def _check_missing_guide_references(operator_names, python_module_paths) -> list[DocBuildError]:
+def _check_missing_guide_references(
+    operator_names, python_module_paths
+) -> list[DocBuildError]:
     build_errors = []
 
     for py_module_path in python_module_paths:
@@ -145,7 +153,9 @@ def _check_missing_guide_references(operator_names, python_module_paths) -> list
                     continue
 
             build_errors.append(
-                _generate_missing_guide_error(py_module_path, class_def.lineno, existing_operator)
+                _generate_missing_guide_error(
+                    py_module_path, class_def.lineno, existing_operator
+                )
             )
     return build_errors
 
@@ -163,7 +173,9 @@ def assert_file_not_contains(
     return _extract_file_content(file_path, message, pattern, False)
 
 
-def assert_file_contains(*, file_path: str, pattern: str, message: str | None = None) -> DocBuildError | None:
+def assert_file_contains(
+    *, file_path: str, pattern: str, message: str | None = None
+) -> DocBuildError | None:
     """
     Asserts that file does contain the pattern. Return message error if it does not.
 
@@ -174,7 +186,9 @@ def assert_file_contains(*, file_path: str, pattern: str, message: str | None = 
     return _extract_file_content(file_path, message, pattern, True)
 
 
-def _extract_file_content(file_path: str, message: str | None, pattern: str, expected_contain: bool):
+def _extract_file_content(
+    file_path: str, message: str | None, pattern: str, expected_contain: bool
+):
     if not message:
         message = f"Pattern '{pattern}' could not be found in '{file_path}' file."
     with open(file_path, "rb", 0) as doc_file:
@@ -220,11 +234,15 @@ def find_modules(deprecated_only: bool = False) -> set[str]:
     # Exclude __init__.py
     file_paths = [f for f in file_paths if not f.endswith("__init__.py")]
     if deprecated_only:
-        file_paths = filter_file_list_by_pattern(file_paths, r"This module is deprecated.")
+        file_paths = filter_file_list_by_pattern(
+            file_paths, r"This module is deprecated."
+        )
     # Make path relative
     file_paths = [os.path.relpath(f, ROOT_PROJECT_DIR) for f in file_paths]
     # Convert filename to module
-    modules_names = {file_path.rpartition(".")[0].replace("/", ".") for file_path in file_paths}
+    modules_names = {
+        file_path.rpartition(".")[0].replace("/", ".") for file_path in file_paths
+    }
     return modules_names
 
 
@@ -267,7 +285,9 @@ def check_enforce_code_block() -> list[DocBuildError]:
 def find_example_dags(provider_dir):
     system_tests_dir = provider_dir.replace(f"{ROOT_PACKAGE_DIR}/", "")
     yield from glob(f"{provider_dir}/**/*example_dags", recursive=True)
-    yield from glob(f"{ROOT_PROJECT_DIR}/tests/system/{system_tests_dir}/*/", recursive=True)
+    yield from glob(
+        f"{ROOT_PROJECT_DIR}/tests/system/{system_tests_dir}/*/", recursive=True
+    )
 
 
 def check_pypi_repository_in_provider_tocs() -> list[DocBuildError]:
@@ -275,7 +295,9 @@ def check_pypi_repository_in_provider_tocs() -> list[DocBuildError]:
     build_errors = []
     for provider in ALL_PROVIDER_YAMLS:
         doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"
-        expected_text = f"PyPI Repository <https://pypi.org/project/{provider['package-name']}/>"
+        expected_text = (
+            f"PyPI Repository <https://pypi.org/project/{provider['package-name']}/>"
+        )
         build_error = assert_file_contains(
             file_path=doc_file_path,
             pattern=re.escape(expected_text),

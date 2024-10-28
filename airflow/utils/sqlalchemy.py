@@ -235,7 +235,9 @@ class ExecutorConfigType(PickleType):
         def process(value):
             val_copy = copy.copy(value)
             if isinstance(val_copy, dict) and "pod_override" in val_copy:
-                val_copy["pod_override"] = BaseSerialization.serialize(val_copy["pod_override"])
+                val_copy["pod_override"] = BaseSerialization.serialize(
+                    val_copy["pod_override"]
+                )
             return super_process(val_copy)
 
         return process
@@ -302,7 +304,9 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
         return col
 
 
-USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
+USE_ROW_LEVEL_LOCKING: bool = conf.getboolean(
+    "scheduler", "use_row_level_locking", fallback=True
+)
 
 
 def with_row_locks(

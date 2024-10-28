@@ -42,7 +42,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 LOCATION = "europe-west1-b"
 REGION = "europe-west1"
@@ -170,25 +172,29 @@ with DAG(
     # [END howto_operator_gce_insert_igm_no_project_id]
 
     # [START howto_operator_gce_igm_update_template]
-    gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-        task_id="gcp_compute_igm_group_manager_update_template",
-        project_id=PROJECT_ID,
-        resource_id=INSTANCE_GROUP_MANAGER_NAME,
-        zone=LOCATION,
-        source_template=SOURCE_TEMPLATE_URL,
-        destination_template=DESTINATION_TEMPLATE_URL,
-        update_policy=UPDATE_POLICY,
+    gce_instance_group_manager_update_template = (
+        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
+            task_id="gcp_compute_igm_group_manager_update_template",
+            project_id=PROJECT_ID,
+            resource_id=INSTANCE_GROUP_MANAGER_NAME,
+            zone=LOCATION,
+            source_template=SOURCE_TEMPLATE_URL,
+            destination_template=DESTINATION_TEMPLATE_URL,
+            update_policy=UPDATE_POLICY,
+        )
     )
     # [END howto_operator_gce_igm_update_template]
 
     # Added to check for idempotence (and without UPDATE_POLICY)
     # [START howto_operator_gce_igm_update_template_no_project_id]
-    gce_instance_group_manager_update_template2 = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-        task_id="gcp_compute_igm_group_manager_update_template_2",
-        resource_id=INSTANCE_GROUP_MANAGER_NAME,
-        zone=LOCATION,
-        source_template=SOURCE_TEMPLATE_URL,
-        destination_template=DESTINATION_TEMPLATE_URL,
+    gce_instance_group_manager_update_template2 = (
+        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
+            task_id="gcp_compute_igm_group_manager_update_template_2",
+            resource_id=INSTANCE_GROUP_MANAGER_NAME,
+            zone=LOCATION,
+            source_template=SOURCE_TEMPLATE_URL,
+            destination_template=DESTINATION_TEMPLATE_URL,
+        )
     )
     # [END howto_operator_gce_igm_update_template_no_project_id]
 

@@ -21,7 +21,11 @@ from __future__ import annotations
 
 def normalize_directory_path(source_object: str | None) -> str | None:
     """Make sure dir path ends with a slash."""
-    return source_object + "/" if source_object and not source_object.endswith("/") else source_object
+    return (
+        source_object + "/"
+        if source_object and not source_object.endswith("/")
+        else source_object
+    )
 
 
 def resource_path_to_dict(resource_name: str) -> dict[str, str]:

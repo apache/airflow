@@ -83,7 +83,10 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
+from airflow.task.priority_strategy import (
+    PriorityWeightStrategy,
+    validate_and_load_priority_weight_strategy,
+)
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
@@ -134,7 +137,9 @@ def parse_retries(retries: Any) -> int | None:
     try:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
-        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+        raise AirflowException(
+            f"'retries' type must be int, not {type(retries).__name__}"
+        )
     logger.warning("Implicitly converting 'retries' from %r to int", retries)
     return parsed_retries
 
@@ -152,13 +157,17 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
-def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple[dict, ParamsDict]:
+def _get_parent_defaults(
+    dag: DAG | None, task_group: TaskGroup | None
+) -> tuple[dict, ParamsDict]:
     if not dag:
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
     if task_group:
-        if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
+        if task_group.default_args and not isinstance(
+            task_group.default_args, collections.abc.Mapping
+        ):
             raise TypeError("default_args must be a mapping")
         dag_args.update(task_group.default_args)
     return dag_args, dag_params
@@ -194,7 +203,9 @@ class _PartialDescriptor:
     ) -> Callable[..., OperatorPartial]:
         # Call this "partial" so it looks nicer in stack traces.
         def partial(**kwargs):
-            raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
+            raise TypeError(
+                "partial can only be called on Operator classes, not Tasks themselves"
+            )
 
         if obj is not None:
             return partial
@@ -256,11 +267,26 @@ def partial(
     map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
-    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
-    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
-    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
-    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
-    on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_execute_callback: None
+    | TaskStateChangeCallback
+    | list[TaskStateChangeCallback]
+    | ArgNotSet = NOTSET,
+    on_failure_callback: None
+    | TaskStateChangeCallback
+    | list[TaskStateChangeCallback]
+    | ArgNotSet = NOTSET,
+    on_success_callback: None
+    | TaskStateChangeCallback
+    | list[TaskStateChangeCallback]
+    | ArgNotSet = NOTSET,
+    on_retry_callback: None
+    | TaskStateChangeCallback
+    | list[TaskStateChangeCallback]
+    | ArgNotSet = NOTSET,
+    on_skipped_callback: None
+    | TaskStateChangeCallback
+    | list[TaskStateChangeCallback]
+    | ArgNotSet = NOTSET,
     run_as_user: str | None | ArgNotSet = NOTSET,
     executor: str | None | ArgNotSet = NOTSET,
     executor_config: dict | None | ArgNotSet = NOTSET,
@@ -346,10 +372,15 @@ def partial(
     }
 
     # Inject DAG-level default args into args provided to this function.
-    partial_kwargs.update((k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k) is NOTSET)
+    partial_kwargs.update(
+        (k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k) is NOTSET
+    )
 
     # Fill fields not provided by the user with default values.
-    partial_kwargs = {k: _PARTIAL_DEFAULTS.get(k) if v is NOTSET else v for k, v in partial_kwargs.items()}
+    partial_kwargs = {
+        k: _PARTIAL_DEFAULTS.get(k) if v is NOTSET else v
+        for k, v in partial_kwargs.items()
+    }
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -366,7 +397,9 @@ def partial(
             dag_str = f" in dag {dag.dag_id}"
         raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
-    partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
+    partial_kwargs["retry_delay"] = coerce_timedelta(
+        partial_kwargs["retry_delay"], key="retry_delay"
+    )
     if partial_kwargs["max_retry_delay"] is not None:
         partial_kwargs["max_retry_delay"] = coerce_timedelta(
             partial_kwargs["max_retry_delay"],
@@ -407,9 +440,15 @@ class ExecutorSafeguard:
             if sentinel:
                 cls._sentinel.callers[sentinel_key] = sentinel
             else:
-                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
+                sentinel = cls._sentinel.callers.pop(
+                    f"{func.__qualname__.split('.')[0]}__sentinel", None
+                )
 
-            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+            if (
+                not cls.test_mode
+                and not sentinel == _sentinel
+                and not isinstance(self, DecoratedOperator)
+            ):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_nested_operators:
                     raise AirflowException(message)
@@ -440,7 +479,8 @@ class BaseOperatorMeta(abc.ABCMeta):
         non_variadic_params = {
             name: param
             for (name, param) in sig_cache.parameters.items()
-            if param.name != "self" and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+            if param.name != "self"
+            and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
         non_optional_args = {
             name
@@ -456,7 +496,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             from airflow.utils.task_group import TaskGroupContext
 
             if args:
-                raise AirflowException("Use keyword arguments when initializing operators")
+                raise AirflowException(
+                    "Use keyword arguments when initializing operators"
+                )
 
             instantiated_from_mapped = kwargs.pop(
                 "_airflow_from_mapped",
@@ -519,7 +561,9 @@ class BaseOperatorMeta(abc.ABCMeta):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         execute_method = namespace.get("execute")
-        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
+        if callable(execute_method) and not getattr(
+            execute_method, "__isabstractmethod__", False
+        ):
             namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
@@ -743,7 +787,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
 
-            MyOperator(..., executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
+            MyOperator(
+                ..., executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}}
+            )
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
@@ -869,8 +915,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_id: str,
         owner: str = DEFAULT_OWNER,
         email: str | Iterable[str] | None = None,
-        email_on_retry: bool = conf.getboolean("email", "default_email_on_retry", fallback=True),
-        email_on_failure: bool = conf.getboolean("email", "default_email_on_failure", fallback=True),
+        email_on_retry: bool = conf.getboolean(
+            "email", "default_email_on_retry", fallback=True
+        ),
+        email_on_failure: bool = conf.getboolean(
+            "email", "default_email_on_failure", fallback=True
+        ),
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: bool = False,
@@ -891,11 +941,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-        on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_execute_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback] = None,
+        on_failure_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback] = None,
+        on_success_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback] = None,
+        on_retry_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback] = None,
+        on_skipped_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback] = None,
         pre_execute: TaskPreExecuteHook | None = None,
         post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
@@ -979,7 +1039,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.pool_slots = pool_slots
         if self.pool_slots < 1:
             dag_str = f" in dag {dag.dag_id}" if dag else ""
-            raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
+            raise ValueError(
+                f"pool slots for {self.task_id}{dag_str} cannot be less than 1"
+            )
 
         if sla:
             self.log.warning(
@@ -997,7 +1059,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
-        self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
+        self.wait_for_past_depends_before_skipping: bool = (
+            wait_for_past_depends_before_skipping
+        )
         self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
@@ -1033,7 +1097,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.doc = doc
         # Populate the display field only if provided and different from task id
         self._task_display_property_value = (
-            task_display_name if task_display_name and task_display_name != task_id else None
+            task_display_name
+            if task_display_name and task_display_name != task_id
+            else None
         )
 
         self.upstream_task_ids: set[str] = set()
@@ -1089,7 +1155,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
-            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
+            return all(
+                getattr(self, c, None) == getattr(other, c, None) for c in self._comps
+            )
         return False
 
     def __ne__(self, other):
@@ -1281,7 +1349,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
+                send_email = EmailOperator(
+                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
+                )
                 generate_content >> send_email
 
         """
@@ -1383,7 +1453,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
-        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+        self._do_render_template_fields(
+            self, self.template_fields, context, jinja_env, set()
+        )
 
     @provide_session
     def clear(
@@ -1464,7 +1536,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         end_date = pendulum.instance(end_date or self.end_date or timezone.utcnow())
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
-            ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
+            ignore_depends_on_past = (
+                info.logical_date == start_date and ignore_first_depends_on_past
+            )
             try:
                 dag_run = session.scalars(
                     select(DagRun).where(
@@ -1574,7 +1648,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :meta private:
         """
         if self.is_teardown and value:
-            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+            raise ValueError(
+                f"Cannot mark task '{self.task_id}' as setup; task is already a teardown."
+            )
         self._is_setup = value
 
     @property
@@ -1594,7 +1670,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :meta private:
         """
         if self.is_setup and value:
-            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+            raise ValueError(
+                f"Cannot mark task '{self.task_id}' as teardown; task is already a setup."
+            )
         self._is_teardown = value
 
     @staticmethod
@@ -1736,9 +1814,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be None; otherwise, provide the name of the method that should be used when resuming execution in
         the task.
         """
-        raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+        raise TaskDeferred(
+            trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout
+        )
 
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+    def resume_execution(
+        self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context
+    ):
         """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
@@ -1754,7 +1836,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             execute_callable = functools.partial(execute_callable, **next_kwargs)
         return execute_callable(context)
 
-    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
+    def unmap(
+        self, resolve: None | dict[str, Any] | tuple[Context, Session]
+    ) -> BaseOperator:
         """
         Get the "normal" operator from the current operator.
 
@@ -1776,7 +1860,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         return self.start_from_trigger
 
-    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+    def expand_start_trigger_args(
+        self, *, context: Context, session: Session
+    ) -> StartTriggerArgs | None:
         """
         Get the start_trigger_args value of the current abstract operator.
 
@@ -1904,7 +1990,9 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
-            raise TypeError(f"Chain not supported between instances of {type(up_task)} and {type(down_task)}")
+            raise TypeError(
+                f"Chain not supported between instances of {type(up_task)} and {type(down_task)}"
+            )
         up_task_list = up_task
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):

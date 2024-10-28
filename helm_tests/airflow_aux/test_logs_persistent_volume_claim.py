@@ -34,13 +34,17 @@ class TestLogsPersistentVolumeClaim:
 
     def test_should_not_generate_a_document_when_using_an_existing_claim(self):
         docs = render_chart(
-            values={"logs": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
+            values={
+                "logs": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}
+            },
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
 
         assert 0 == len(docs)
 
-    def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(self):
+    def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(
+        self,
+    ):
         docs = render_chart(
             values={"logs": {"persistence": {"enabled": True, "existingClaim": None}}},
             show_only=["templates/logs-persistent-volume-claim.yaml"],
@@ -82,4 +86,6 @@ class TestLogsPersistentVolumeClaim:
             },
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
-        assert "release-name-storage-class" == jmespath.search("spec.storageClassName", docs[0])
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.storageClassName", docs[0]
+        )

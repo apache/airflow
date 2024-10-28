@@ -47,7 +47,9 @@ class FABDBManager(BaseDBManager):
 
         # alembic adds significant import time, so we import it lazily
         if not settings.SQL_ALCHEMY_CONN:
-            raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
+            raise RuntimeError(
+                "The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion."
+            )
         from alembic import command
 
         config = self.get_alembic_config()

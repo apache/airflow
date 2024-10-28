@@ -22,7 +22,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
+from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
+    GenerativeModelHook,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.deprecated import deprecated
 
@@ -530,7 +532,13 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "contents", "pretrained_model")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "contents",
+        "pretrained_model",
+    )
 
     def __init__(
         self,
@@ -614,7 +622,13 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "train_dataset", "validation_dataset")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "train_dataset",
+        "validation_dataset",
+    )
 
     def __init__(
         self,
@@ -666,7 +680,11 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         self.log.info("Tuned Model Endpoint Name: %s", response.tuned_model_endpoint_name)
 
         self.xcom_push(context, key="tuned_model_name", value=response.tuned_model_name)
-        self.xcom_push(context, key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
+        self.xcom_push(
+            context,
+            key="tuned_model_endpoint_name",
+            value=response.tuned_model_endpoint_name,
+        )
 
         result = {
             "tuned_model_name": response.tuned_model_name,
@@ -701,7 +719,13 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "contents", "pretrained_model")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "contents",
+        "pretrained_model",
+    )
 
     def __init__(
         self,
@@ -738,7 +762,11 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         self.log.info("Total billable characters: %s", response.total_billable_characters)
 
         self.xcom_push(context, key="total_tokens", value=response.total_tokens)
-        self.xcom_push(context, key="total_billable_characters", value=response.total_billable_characters)
+        self.xcom_push(
+            context,
+            key="total_billable_characters",
+            value=response.total_billable_characters,
+        )
 
 
 class RunEvaluationOperator(GoogleCloudBaseOperator):

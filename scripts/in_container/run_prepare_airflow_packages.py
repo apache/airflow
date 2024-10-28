@@ -50,7 +50,9 @@ def clean_build_directory():
 
 
 def mark_git_directory_as_safe():
-    console.print(f"[bright_blue]Marking {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n")
+    console.print(
+        f"[bright_blue]Marking {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n"
+    )
     subprocess.run(
         ["git", "config", "--global", "--unset-all", "safe.directory"],
         cwd=AIRFLOW_SOURCES_ROOT,
@@ -65,7 +67,9 @@ def mark_git_directory_as_safe():
         stderr=subprocess.DEVNULL,
         check=False,
     )
-    console.print(f"[green]Marked {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n")
+    console.print(
+        f"[green]Marked {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n"
+    )
 
 
 def get_current_airflow_version() -> str:
@@ -84,7 +88,9 @@ def build_airflow_packages(package_format: str):
     if package_format in ["both", "wheel"]:
         build_command.extend(["-t", "wheel"])
 
-    reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_FILE.read_text())["source-date-epoch"]
+    reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_FILE.read_text())[
+        "source-date-epoch"
+    ]
 
     envcopy = os.environ.copy()
     envcopy["SOURCE_DATE_EPOCH"] = str(reproducible_date)
@@ -101,9 +107,15 @@ def build_airflow_packages(package_format: str):
         sys.exit(build_process.returncode)
     else:
         if package_format in ["both", "sdist"]:
-            console.print("[bright_blue]Checking if sdist packages can be built into wheels")
-            for file in (AIRFLOW_SOURCES_ROOT / "dist").glob("apache_airflow-[0-9]*.tar.gz"):
-                console.print(f"[bright_blue]Validate build wheel from sdist: {file.name}")
+            console.print(
+                "[bright_blue]Checking if sdist packages can be built into wheels"
+            )
+            for file in (AIRFLOW_SOURCES_ROOT / "dist").glob(
+                "apache_airflow-[0-9]*.tar.gz"
+            ):
+                console.print(
+                    f"[bright_blue]Validate build wheel from sdist: {file.name}"
+                )
                 if "-sources.tar.gz" not in file.name:
                     # no need to delete - we are in temporary container
                     tmpdir = mkdtemp()
@@ -126,7 +138,9 @@ def build_airflow_packages(package_format: str):
                     if result.returncode != 0:
                         console.print(f"[red]Error installing {file.name}")
                         sys.exit(result.returncode)
-                    console.print(f"[green]Sdist package {file.name} can be built into wheels")
+                    console.print(
+                        f"[green]Sdist package {file.name} can be built into wheels"
+                    )
                 console.print("[green]Sdist package is installed successfully.")
         console.print("[green]Airflow packages built successfully")
 
@@ -135,7 +149,9 @@ def set_package_version(version: str) -> None:
     console.print(f"\n[yellow]Setting {version} for Airflow package\n")
     # replace __version__ with the version passed as argument in python
     init_content = AIRFLOW_INIT_FILE.read_text()
-    init_content = re.sub(r'__version__ = "[^"]+"', f'__version__ = "{version}"', init_content)
+    init_content = re.sub(
+        r'__version__ = "[^"]+"', f'__version__ = "{version}"', init_content
+    )
     AIRFLOW_INIT_FILE.write_text(init_content)
 
 

@@ -79,7 +79,9 @@ class LevelDBOperator(BaseOperator):
         """
         leveldb_hook = LevelDBHook(leveldb_conn_id=self.leveldb_conn_id)
         leveldb_hook.get_conn(
-            name=self.name, create_if_missing=self.create_if_missing, **self.create_db_extra_options
+            name=self.name,
+            create_if_missing=self.create_if_missing,
+            **self.create_db_extra_options,
         )
         value = leveldb_hook.run(
             command=self.command,

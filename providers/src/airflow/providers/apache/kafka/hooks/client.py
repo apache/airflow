@@ -46,7 +46,9 @@ class KafkaAdminClientHook(KafkaBaseHook):
         """
         admin_client = self.get_conn
 
-        new_topics = [NewTopic(t[0], num_partitions=t[1], replication_factor=t[2]) for t in topics]
+        new_topics = [
+            NewTopic(t[0], num_partitions=t[1], replication_factor=t[2]) for t in topics
+        ]
 
         futures = admin_client.create_topics(new_topics)
 

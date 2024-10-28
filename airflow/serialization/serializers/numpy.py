@@ -75,7 +75,16 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         return bool(np), name, __version__, True
 
     if isinstance(
-        o, (np.float_, np.float16, np.float32, np.float64, np.complex_, np.complex64, np.complex128)
+        o,
+        (
+            np.float_,
+            np.float16,
+            np.float32,
+            np.float64,
+            np.complex_,
+            np.complex64,
+            np.complex128,
+        ),
     ):
         return float(o), name, __version__, True
 

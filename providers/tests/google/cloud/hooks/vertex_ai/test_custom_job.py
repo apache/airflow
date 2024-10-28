@@ -105,7 +105,8 @@ class TestCustomJobWithDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -168,7 +169,9 @@ class TestCustomJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_create_training_pipeline(self, mock_client) -> None:
@@ -187,7 +190,9 @@ class TestCustomJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_delete_pipeline_job(self, mock_client) -> None:
@@ -288,7 +293,9 @@ class TestCustomJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_list_training_pipelines(self, mock_client) -> None:
@@ -309,13 +316,16 @@ class TestCustomJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestCustomJobWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -378,7 +388,9 @@ class TestCustomJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_create_training_pipeline(self, mock_client) -> None:
@@ -397,7 +409,9 @@ class TestCustomJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_delete_pipeline_job(self, mock_client) -> None:
@@ -498,7 +512,9 @@ class TestCustomJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_list_training_pipelines(self, mock_client) -> None:
@@ -519,12 +535,16 @@ class TestCustomJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestCustomJobAsyncHook:
     @pytest.mark.asyncio
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_get_training_pipeline(
         self, mock_pipeline_service_client, test_async_hook, test_training_pipeline_name
     ):
@@ -579,7 +599,9 @@ class TestCustomJobAsyncHook:
         ],
     )
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_wait_for_training_pipeline_returns_pipeline_if_in_complete_state(
         self,
         mock_get_pipeline_service_client,
@@ -646,7 +668,9 @@ class TestCustomJobAsyncHook:
         ],
     )
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_wait_for_training_pipeline_loop_is_still_running_if_in_incomplete_state(
         self,
         mock_get_pipeline_service_client,
@@ -654,7 +678,9 @@ class TestCustomJobAsyncHook:
         pipeline_state_value,
         test_async_hook,
     ):
-        mock_get_training_pipeline.return_value = types.TrainingPipeline(state=pipeline_state_value)
+        mock_get_training_pipeline.return_value = types.TrainingPipeline(
+            state=pipeline_state_value
+        )
         task = asyncio.create_task(
             test_async_hook.wait_for_training_pipeline(
                 project_id=TEST_PROJECT_ID,

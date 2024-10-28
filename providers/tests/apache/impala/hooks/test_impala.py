@@ -50,7 +50,12 @@ def test_get_conn(mock_connect):
     )
     hook.get_conn()
     mock_connect.assert_called_once_with(
-        host="host", port=21050, user="login", password="password", database="test", use_ssl=True
+        host="host",
+        port=21050,
+        user="login",
+        password="password",
+        database="test",
+        use_ssl=True,
     )
 
 
@@ -92,10 +97,14 @@ def test_insert_rows(mock_insert_rows, impala_hook_fixture):
 def test_get_first_record(impala_hook_fixture):
     statement = "SQL"
     result_sets = [("row1",), ("row2",)]
-    impala_hook_fixture.get_conn.return_value.cursor.return_value.fetchone.return_value = result_sets[0]
+    impala_hook_fixture.get_conn.return_value.cursor.return_value.fetchone.return_value = result_sets[
+        0
+    ]
 
     assert result_sets[0] == impala_hook_fixture.get_first(statement)
-    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(statement)
+    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+        statement
+    )
 
 
 def test_get_records(impala_hook_fixture):
@@ -104,14 +113,18 @@ def test_get_records(impala_hook_fixture):
     impala_hook_fixture.get_conn.return_value.cursor.return_value.fetchall.return_value = result_sets
 
     assert result_sets == impala_hook_fixture.get_records(statement)
-    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(statement)
+    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+        statement
+    )
 
 
 def test_get_pandas_df(impala_hook_fixture):
     statement = "SQL"
     column = "col"
     result_sets = [("row1",), ("row2",)]
-    impala_hook_fixture.get_conn.return_value.cursor.return_value.description = [(column,)]
+    impala_hook_fixture.get_conn.return_value.cursor.return_value.description = [
+        (column,)
+    ]
     impala_hook_fixture.get_conn.return_value.cursor.return_value.fetchall.return_value = result_sets
     df = impala_hook_fixture.get_pandas_df(statement)
 
@@ -120,4 +133,6 @@ def test_get_pandas_df(impala_hook_fixture):
     assert result_sets[0][0] == df.values.tolist()[0][0]
     assert result_sets[1][0] == df.values.tolist()[1][0]
 
-    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(statement)
+    impala_hook_fixture.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+        statement
+    )

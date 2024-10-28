@@ -24,7 +24,9 @@ from typing import Sequence
 from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
+from airflow.providers.google.cloud._internal_client.secret_manager_client import (
+    _SecretManagerClient,
+)
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
@@ -113,7 +115,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
                 )
         try:
             if impersonation_chain:
-                target_principal, delegates = _get_target_principal_and_delegates(impersonation_chain)
+                target_principal, delegates = _get_target_principal_and_delegates(
+                    impersonation_chain
+                )
             else:
                 target_principal = None
                 delegates = None

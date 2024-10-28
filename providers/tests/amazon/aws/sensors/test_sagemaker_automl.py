@@ -56,7 +56,9 @@ class TestSageMakerAutoMLSensor:
             self.get_response_with_state("Stopping"),
             self.get_response_with_state("Stopped"),
         ]
-        sensor = SageMakerAutoMLSensor(job_name="job_job", task_id="test_task", poke_interval=0)
+        sensor = SageMakerAutoMLSensor(
+            job_name="job_job", task_id="test_task", poke_interval=0
+        )
 
         sensor.execute(None)
 

@@ -25,7 +25,10 @@ openai = pytest.importorskip("openai")
 from openai.types.batch import Batch
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAITriggerBatchOperator
+from airflow.providers.openai.operators.openai import (
+    OpenAIEmbeddingOperator,
+    OpenAITriggerBatchOperator,
+)
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 from airflow.utils.context import Context
 

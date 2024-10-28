@@ -175,7 +175,9 @@ class S3ToDynamoDBOperator(BaseOperator):
                 **import_table_config,
             )
         except ClientError as e:
-            self.log.error("Error: failed to load from S3 into DynamoDB table. Error: %s", str(e))
+            self.log.error(
+                "Error: failed to load from S3 into DynamoDB table. Error: %s", str(e)
+            )
             raise AirflowException(f"S3 load into DynamoDB table failed with error: {e}")
 
         if response["ImportTableDescription"]["ImportStatus"] == "FAILED":
@@ -191,7 +193,10 @@ class S3ToDynamoDBOperator(BaseOperator):
             try:
                 waiter.wait(
                     ImportArn=response["ImportTableDescription"]["ImportArn"],
-                    WaiterConfig={"Delay": self.check_interval, "MaxAttempts": self.max_attempts},
+                    WaiterConfig={
+                        "Delay": self.check_interval,
+                        "MaxAttempts": self.max_attempts,
+                    },
                 )
             except WaiterError:
                 status, error_code, error_msg = dynamodb_hook.get_import_status(
@@ -211,16 +216,22 @@ class S3ToDynamoDBOperator(BaseOperator):
         :return:The Amazon resource number (ARN)
         """
         if not self.wait_for_completion:
-            raise ValueError("wait_for_completion must be set to True when loading into an existing table")
+            raise ValueError(
+                "wait_for_completion must be set to True when loading into an existing table"
+            )
         table_keys = [key["AttributeName"] for key in self.dynamodb_key_schema]
 
         dynamodb_hook = DynamoDBHook(
-            aws_conn_id=self.aws_conn_id, table_name=self.dynamodb_table_name, table_keys=table_keys
+            aws_conn_id=self.aws_conn_id,
+            table_name=self.dynamodb_table_name,
+            table_keys=table_keys,
         )
         client = dynamodb_hook.client
 
         self.log.info("Loading from S3 into a tmp DynamoDB table %s", self.tmp_table_name)
-        self._load_into_new_table(table_name=self.tmp_table_name, delete_on_error=self.delete_on_error)
+        self._load_into_new_table(
+            table_name=self.tmp_table_name, delete_on_error=self.delete_on_error
+        )
         total_items = 0
         try:
             paginator = client.get_paginator("scan")
@@ -231,7 +242,9 @@ class S3ToDynamoDBOperator(BaseOperator):
                 ConsistentRead=True,
             )
             self.log.info(
-                "Loading data from %s to %s DynamoDB table", self.tmp_table_name, self.dynamodb_table_name
+                "Loading data from %s to %s DynamoDB table",
+                self.tmp_table_name,
+                self.dynamodb_table_name,
             )
             for page in paginate:
                 total_items += page.get("Count", 0)
@@ -250,9 +263,13 @@ class S3ToDynamoDBOperator(BaseOperator):
         :return: The Amazon resource number (ARN)
         """
         if self.use_existing_table:
-            self.log.info("Loading from S3 into new DynamoDB table %s", self.dynamodb_table_name)
+            self.log.info(
+                "Loading from S3 into new DynamoDB table %s", self.dynamodb_table_name
+            )
             return self._load_into_existing_table()
-        self.log.info("Loading from S3 into existing DynamoDB table %s", self.dynamodb_table_name)
+        self.log.info(
+            "Loading from S3 into existing DynamoDB table %s", self.dynamodb_table_name
+        )
         return self._load_into_new_table(
             table_name=self.dynamodb_table_name, delete_on_error=self.delete_on_error
         )

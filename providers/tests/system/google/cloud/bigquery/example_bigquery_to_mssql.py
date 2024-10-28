@@ -55,7 +55,9 @@ from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
 try:
-    from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+    from airflow.providers.google.cloud.transfers.bigquery_to_mssql import (
+        BigQueryToMsSqlOperator,
+    )
 except ImportError:
     pytest.skip("MsSQL not available", allow_module_level=True)
 
@@ -220,7 +222,9 @@ with DAG(
     @task
     def get_public_ip() -> str:
         hook = ComputeEngineHook()
-        address = hook.get_instance_address(resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        address = hook.get_instance_address(
+            resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID
+        )
         return address
 
     get_public_ip_task = get_public_ip()
@@ -245,7 +249,9 @@ with DAG(
         session.commit()
         log.info("Connection %s created", connection_id)
 
-    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
+    create_connection_task = create_connection(
+        connection_id=CONNECTION_ID, ip_address=get_public_ip_task
+    )
 
     create_sql_table = SQLExecuteQueryOperator(
         task_id="create_sql_table",

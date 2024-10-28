@@ -31,7 +31,10 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import (
     clear_db_backfills,
@@ -70,7 +73,10 @@ def configured_app(minimal_app_for_auth_api):
         "TEST_DAG_1",
         access_control={
             "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+                permissions.RESOURCE_DAG: {
+                    permissions.ACTION_CAN_EDIT,
+                    permissions.ACTION_CAN_READ,
+                }
             },
         },
     )
@@ -85,7 +91,9 @@ def configured_app(minimal_app_for_auth_api):
     ) as dag:
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+    with DAG(
+        DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)
+    ) as dag2:  # no doc_md
         EmptyOperator(task_id=TASK_ID)
 
     with DAG(DAG3_ID, schedule=None) as dag3:  # DAG start_date set to None
@@ -122,7 +130,9 @@ class TestBackfillEndpoint:
         self.clean_db()
 
     @provide_session
-    def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+    def _create_dag_models(
+        self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None
+    ):
         dags = []
         for num in range(1, count + 1):
             dag_model = DagModel(

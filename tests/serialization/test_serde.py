@@ -387,7 +387,9 @@ class TestSerDe:
             mod = import_module(name)
             for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):
-                    raise TypeError(f"{s} is not of type str. This is required for lazy loading")
+                    raise TypeError(
+                        f"{s} is not of type str. This is required for lazy loading"
+                    )
                 try:
                     import_string(s)
                 except ImportError:
@@ -421,7 +423,11 @@ class TestSerDe:
             ),
             (
                 W(2),
-                {"__classname__": "tests.serialization.test_serde.W", "__version__": 2, "__data__": {"x": 2}},
+                {
+                    "__classname__": "tests.serialization.test_serde.W",
+                    "__version__": 2,
+                    "__data__": {"x": 2},
+                },
             ),
         ],
     )
@@ -442,7 +448,9 @@ class TestSerDe:
     def test_pydantic(self):
         pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
         with warnings.catch_warnings():
-            warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
+            warnings.simplefilter(
+                "error", category=pydantic.warnings.PydanticDeprecationWarning
+            )
             i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
             e = serialize(i)
             s = deserialize(e)
@@ -451,6 +459,7 @@ class TestSerDe:
     def test_error_when_serializing_callable_without_name(self):
         i = C()
         with pytest.raises(
-            TypeError, match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>"
+            TypeError,
+            match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>",
         ):
             serialize(i)

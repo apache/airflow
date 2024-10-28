@@ -60,7 +60,9 @@ def get_packages() -> list[tuple[str, str]]:
     except FileNotFoundError:
         content = ""
     if not content:
-        raise SystemExit("List of packages to check is empty. Please add packages to `packages.txt`")
+        raise SystemExit(
+            "List of packages to check is empty. Please add packages to `packages.txt`"
+        )
 
     # e.g. https://pypi.org/project/apache-airflow-providers-airbyte/3.1.0rc1/
 
@@ -101,7 +103,9 @@ def check_providers(files: list[str]):
             ]
         )
 
-        missing_list.extend(check_all_files(expected_files=expected_files, actual_files=files))
+        missing_list.extend(
+            check_all_files(expected_files=expected_files, actual_files=files)
+        )
 
     return missing_list
 
@@ -140,7 +144,10 @@ def check_release(files: list[str], version: str):
 
 
 def expand_name_variations(files):
-    return sorted(base + suffix for base, suffix in itertools.product(files, ["", ".asc", ".sha512"]))
+    return sorted(
+        base + suffix
+        for base, suffix in itertools.product(files, ["", ".asc", ".sha512"])
+    )
 
 
 def check_upgrade_check(files: list[str], version: str):
@@ -204,7 +211,9 @@ def providers(ctx, path: str):
     files = os.listdir(os.path.join(path, "providers"))
     pips = [f"{name}=={version}" for name, version in get_packages()]
     missing_files = check_providers(files)
-    create_docker(PROVIDERS_DOCKER.format("\n".join(f"RUN pip install '{p}'" for p in pips)))
+    create_docker(
+        PROVIDERS_DOCKER.format("\n".join(f"RUN pip install '{p}'" for p in pips))
+    )
     if missing_files:
         warn_of_missing_files(missing_files)
 

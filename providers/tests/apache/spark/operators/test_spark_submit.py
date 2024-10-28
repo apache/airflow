@@ -181,7 +181,9 @@ class TestSparkSubmitOperator:
         config["yarn_queue"] = None
         config["deploy_mode"] = None
         config.pop("queue", None)  # using default airflow queue
-        operator2 = SparkSubmitOperator(task_id="spark_submit_job2", dag=self.dag, **config)
+        operator2 = SparkSubmitOperator(
+            task_id="spark_submit_job2", dag=self.dag, **config
+        )
         cmd2 = " ".join(operator2._get_hook()._build_spark_submit_command("test"))
         assert "--queue root.default" in cmd2  # yarn queue
         assert "--deploy-mode client2" not in cmd2
@@ -191,7 +193,9 @@ class TestSparkSubmitOperator:
     @pytest.mark.db_test
     def test_render_template(self, session):
         # Given
-        operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
+        operator = SparkSubmitOperator(
+            task_id="spark_submit_job", dag=self.dag, **self._config
+        )
         ti = TaskInstance(operator, run_id="spark_test")
         ti.dag_run = DagRun(
             dag_id=self.dag.dag_id,

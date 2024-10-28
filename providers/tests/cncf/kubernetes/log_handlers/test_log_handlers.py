@@ -73,8 +73,12 @@ class TestFileTaskLogHandler:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
     )
-    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
-    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
+    )
+    def test__read_for_k8s_executor(
+        self, mock_k8s_get_task_log, create_task_instance, state
+    ):
         """Test for k8s executor, the log is read from get_task_log method"""
         mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
@@ -98,11 +102,19 @@ class TestFileTaskLogHandler:
     @pytest.mark.parametrize(
         "pod_override, namespace_to_call",
         [
-            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")), "namespace-A"),
-            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-B")), "namespace-B"),
+            pytest.param(
+                k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-A")),
+                "namespace-A",
+            ),
+            pytest.param(
+                k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="namespace-B")),
+                "namespace-B",
+            ),
             pytest.param(k8s.V1Pod(), "default"),
             pytest.param(None, "default"),
-            pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name-xxx")), "default"),
+            pytest.param(
+                k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name-xxx")), "default"
+            ),
         ],
     )
     @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
@@ -116,18 +128,24 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        with DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with DAG(
+            "dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE
+        ) as dag:
             task = PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
                 executor_config={"pod_override": pod_override},
             )
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
             **triggered_by_kwargs,
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
@@ -136,7 +154,9 @@ class TestFileTaskLogHandler:
         logger = ti.log
         ti.log.disabled = False
 
-        file_handler = next((h for h in logger.handlers if h.name == FILE_TASK_HANDLER), None)
+        file_handler = next(
+            (h for h in logger.handlers if h.name == FILE_TASK_HANDLER), None
+        )
         set_context(logger, ti)
         ti.run(ignore_ti_state=True)
         ti.state = TaskInstanceState.RUNNING

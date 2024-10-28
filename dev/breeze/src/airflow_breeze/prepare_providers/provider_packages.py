@@ -83,7 +83,9 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     rmtree(target_provider_root_path, ignore_errors=True)
     target_provider_root_path.mkdir(parents=True)
     source_provider_sources_path = get_source_package_path(provider_id)
-    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_PROVIDERS_SRC)
+    relative_provider_path = source_provider_sources_path.relative_to(
+        AIRFLOW_PROVIDERS_SRC
+    )
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
         f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"
@@ -100,7 +102,9 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     return target_provider_root_path
 
 
-def get_provider_package_jinja_context(provider_id: str, version_suffix: str) -> dict[str, Any]:
+def get_provider_package_jinja_context(
+    provider_id: str, version_suffix: str
+) -> dict[str, Any]:
     provider_details = get_provider_details(provider_id)
     jinja_context = get_provider_jinja_context(
         provider_id=provider_id,
@@ -110,7 +114,9 @@ def get_provider_package_jinja_context(provider_id: str, version_suffix: str) ->
     return jinja_context
 
 
-def _prepare_get_provider_info_py_file(context: dict[str, Any], provider_id: str, target_path: Path):
+def _prepare_get_provider_info_py_file(
+    context: dict[str, Any], provider_id: str, target_path: Path
+):
     from airflow_breeze.utils.black_utils import black_format
 
     get_provider_template_name = "get_provider_info"
@@ -121,9 +127,15 @@ def _prepare_get_provider_info_py_file(context: dict[str, Any], provider_id: str
         autoescape=False,
         keep_trailing_newline=True,
     )
-    target_provider_specific_path = (target_path / "airflow" / "providers").joinpath(*provider_id.split("."))
-    (target_provider_specific_path / "get_provider_info.py").write_text(black_format(get_provider_content))
-    get_console().print(f"[info]Generated get_provider_info.py in {target_provider_specific_path}[/]")
+    target_provider_specific_path = (target_path / "airflow" / "providers").joinpath(
+        *provider_id.split(".")
+    )
+    (target_provider_specific_path / "get_provider_info.py").write_text(
+        black_format(get_provider_content)
+    )
+    get_console().print(
+        f"[info]Generated get_provider_info.py in {target_provider_specific_path}[/]"
+    )
 
 
 def _prepare_pyproject_toml_file(context: dict[str, Any], target_path: Path):
@@ -146,10 +158,16 @@ def _prepare_readme_file(context: dict[str, Any], target_path: Path):
     get_console().print(f"[info]Generated README.rst in {target_path}[/]")
 
 
-def generate_build_files(provider_id: str, version_suffix: str, target_provider_root_sources_path: Path):
+def generate_build_files(
+    provider_id: str, version_suffix: str, target_provider_root_sources_path: Path
+):
     get_console().print(f"\n[info]Generate build files for {provider_id}\n")
-    jinja_context = get_provider_package_jinja_context(provider_id=provider_id, version_suffix=version_suffix)
-    _prepare_get_provider_info_py_file(jinja_context, provider_id, target_provider_root_sources_path)
+    jinja_context = get_provider_package_jinja_context(
+        provider_id=provider_id, version_suffix=version_suffix
+    )
+    _prepare_get_provider_info_py_file(
+        jinja_context, provider_id, target_provider_root_sources_path
+    )
     _prepare_pyproject_toml_file(jinja_context, target_provider_root_sources_path)
     _prepare_readme_file(jinja_context, target_provider_root_sources_path)
     get_console().print(f"\n[info]Generated package build files for {provider_id}[/]\n")
@@ -167,39 +185,58 @@ def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool
     if version_suffix == "":
         current_tag = get_latest_provider_tag(provider_id, "")
         if tag_exists_for_provider(provider_id, current_tag):
-            get_console().print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
+            get_console().print(
+                f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]"
+            )
             return True, version_suffix
         return False, version_suffix
     # version_suffix starts with "rc"
     current_version = int(version_suffix[2:])
     release_tag = get_latest_provider_tag(provider_id, "")
     if tag_exists_for_provider(provider_id, release_tag):
-        get_console().print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
+        get_console().print(
+            f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]"
+        )
         return True, ""
     while True:
         current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
         if tag_exists_for_provider(provider_id, current_tag):
             current_version += 1
-            get_console().print(f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]")
+            get_console().print(
+                f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]"
+            )
         else:
             return False, f"rc{current_version}"
 
 
 def cleanup_build_remnants(target_provider_root_sources_path: Path):
-    get_console().print(f"\n[info]Cleaning remnants in {target_provider_root_sources_path}")
+    get_console().print(
+        f"\n[info]Cleaning remnants in {target_provider_root_sources_path}"
+    )
     for file in target_provider_root_sources_path.glob("*.egg-info"):
         shutil.rmtree(file, ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "build", ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "dist", ignore_errors=True)
-    get_console().print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
+    get_console().print(
+        f"[info]Cleaned remnants in {target_provider_root_sources_path}\n"
+    )
 
 
-def build_provider_package(provider_id: str, target_provider_root_sources_path: Path, package_format: str):
+def build_provider_package(
+    provider_id: str, target_provider_root_sources_path: Path, package_format: str
+):
     get_console().print(
         f"\n[info]Building provider package: {provider_id} in format {package_format} in "
         f"{target_provider_root_sources_path}\n"
     )
-    command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--no-use-vcs"]
+    command: list[str] = [
+        sys.executable,
+        "-m",
+        "flit",
+        "build",
+        "--no-setup-py",
+        "--no-use-vcs",
+    ]
     if package_format != "both":
         command.extend(["--format", package_format])
     try:
@@ -208,13 +245,17 @@ def build_provider_package(provider_id: str, target_provider_root_sources_path: 
             check=True,
             cwd=target_provider_root_sources_path,
             env={
-                "SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch),
+                "SOURCE_DATE_EPOCH": str(
+                    get_provider_details(provider_id).source_date_epoch
+                ),
             },
         )
     except subprocess.CalledProcessError as ex:
         get_console().print("[error]The command returned an error %s", ex)
         raise PrepareReleasePackageErrorBuildingPackageException()
-    get_console().print(f"\n[info]Prepared provider package {provider_id} in format {package_format}[/]\n")
+    get_console().print(
+        f"\n[info]Prepared provider package {provider_id} in format {package_format}[/]\n"
+    )
 
 
 def move_built_packages_and_cleanup(
@@ -264,4 +305,6 @@ def get_packages_list_to_act_on(
         ]
     elif provider_packages:
         return list(provider_packages)
-    return get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)
+    return get_available_packages(
+        include_removed=include_removed, include_not_ready=include_not_ready
+    )

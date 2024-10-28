@@ -44,9 +44,13 @@ def upgrade():
 
     with op.batch_alter_table("import_error") as batch_op:
         if conn.dialect.name == "mysql":
-            batch_op.add_column(sa.Column("processor_subdir", sa.Text(length=2000), nullable=True))
+            batch_op.add_column(
+                sa.Column("processor_subdir", sa.Text(length=2000), nullable=True)
+            )
         else:
-            batch_op.add_column(sa.Column("processor_subdir", sa.String(length=2000), nullable=True))
+            batch_op.add_column(
+                sa.Column("processor_subdir", sa.String(length=2000), nullable=True)
+            )
 
 
 def downgrade():

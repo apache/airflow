@@ -34,7 +34,9 @@ if __name__ == "__main__":
         console.print(f"[blue]Checking[/blue]: {file}")
         provider_yaml_content = yaml.safe_load(Path(file).read_text())
         dependencies = provider_yaml_content.get("dependencies")
-        if dependencies and any(dependency.startswith("aiobotocore") for dependency in dependencies):
+        if dependencies and any(
+            dependency.startswith("aiobotocore") for dependency in dependencies
+        ):
             errors.append(
                 f"\n[red]Error: the aibotocore cannot be a required dependency, "
                 f"because it restricts botocore too much[/]\n\n"

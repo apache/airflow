@@ -25,7 +25,10 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 
 API_VERSION = "api_version"
-ADS_CLIENT_SERVICE_ACCOUNT = {"impersonated_email": "value", "json_key_file_path": "value"}
+ADS_CLIENT_SERVICE_ACCOUNT = {
+    "impersonated_email": "value",
+    "json_key_file_path": "value",
+}
 SECRET = "secret"
 EXTRAS_SERVICE_ACCOUNT = {
     "keyfile_dict": SECRET,
@@ -43,7 +46,8 @@ EXTRAS_DEVELOPER_TOKEN = {
 
 
 @pytest.fixture(
-    params=[EXTRAS_DEVELOPER_TOKEN, EXTRAS_SERVICE_ACCOUNT], ids=["developer_token", "service_account"]
+    params=[EXTRAS_DEVELOPER_TOKEN, EXTRAS_SERVICE_ACCOUNT],
+    ids=["developer_token", "service_account"],
 )
 def mock_hook(request):
     with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
@@ -73,19 +77,26 @@ class TestGoogleAdsHook:
         mock_hook._get_customer_service()
         client = mock_client.load_from_dict
         client.assert_called_once_with(mock_hook.google_ads_config)
-        client.return_value.get_service.assert_called_once_with("CustomerService", version=API_VERSION)
+        client.return_value.get_service.assert_called_once_with(
+            "CustomerService", version=API_VERSION
+        )
 
     @mock.patch("airflow.providers.google.ads.hooks.ads.GoogleAdsClient")
     def test_get_service(self, mock_client, mock_hook):
         mock_hook._get_service()
         client = mock_client.load_from_dict
         client.assert_called_once_with(mock_hook.google_ads_config)
-        client.return_value.get_service.assert_called_once_with("GoogleAdsService", version=API_VERSION)
+        client.return_value.get_service.assert_called_once_with(
+            "GoogleAdsService", version=API_VERSION
+        )
 
     @mock.patch("airflow.providers.google.ads.hooks.ads.GoogleAdsClient")
     def test_search(self, mock_client, mock_hook):
         service = mock_client.load_from_dict.return_value.get_service.return_value
-        mock_client.load_from_dict.return_value.get_type.side_effect = [PropertyMock(), PropertyMock()]
+        mock_client.load_from_dict.return_value.get_type.side_effect = [
+            PropertyMock(),
+            PropertyMock(),
+        ]
         client_ids = ["1", "2"]
         rows = ["row1", "row2"]
         service.search.side_effects = rows
@@ -109,7 +120,9 @@ class TestGoogleAdsHook:
     def test_list_accessible_customers(self, mock_client, mock_hook):
         accounts = ["a", "b", "c"]
         service = mock_client.load_from_dict.return_value.get_service.return_value
-        service.list_accessible_customers.return_value = mock.MagicMock(resource_names=accounts)
+        service.list_accessible_customers.return_value = mock.MagicMock(
+            resource_names=accounts
+        )
 
         result = mock_hook.list_accessible_customers()
         service.list_accessible_customers.assert_called_once_with()

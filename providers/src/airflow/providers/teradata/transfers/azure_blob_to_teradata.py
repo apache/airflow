@@ -88,7 +88,9 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info(
-            "transferring data from %s to teradata table %s...", self.blob_source_key, self.teradata_table
+            "transferring data from %s to teradata table %s...",
+            self.blob_source_key,
+            self.teradata_table,
         )
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         credentials_part = "ACCESS_ID= '' ACCESS_KEY= ''"
@@ -103,7 +105,9 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
                 conn = azure_hook.get_connection(self.azure_conn_id)
                 access_id = conn.login
                 access_secret = conn.password
-                credentials_part = f"ACCESS_ID= '{access_id}' ACCESS_KEY= '{access_secret}'"
+                credentials_part = (
+                    f"ACCESS_ID= '{access_id}' ACCESS_KEY= '{access_secret}'"
+                )
         sql = dedent(f"""
                         CREATE MULTISET TABLE {self.teradata_table} AS
                         (

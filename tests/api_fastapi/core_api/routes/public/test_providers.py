@@ -53,7 +53,14 @@ class TestGetProviders:
         "query_params, expected_total_entries, expected_package_name",
         [
             # Filters
-            ({}, 2, ["apache-airflow-providers-amazon", "apache-airflow-providers-apache-cassandra"]),
+            (
+                {},
+                2,
+                [
+                    "apache-airflow-providers-amazon",
+                    "apache-airflow-providers-apache-cassandra",
+                ],
+            ),
             ({"limit": 1}, 2, ["apache-airflow-providers-amazon"]),
             ({"offset": 1}, 2, ["apache-airflow-providers-apache-cassandra"]),
         ],
@@ -64,7 +71,12 @@ class TestGetProviders:
         return_value=MOCK_PROVIDERS,
     )
     def test_get_dags(
-        self, mock_provider, test_client, query_params, expected_total_entries, expected_package_name
+        self,
+        mock_provider,
+        test_client,
+        query_params,
+        expected_total_entries,
+        expected_package_name,
     ):
         response = test_client.get("/public/providers", params=query_params)
 
@@ -72,4 +84,6 @@ class TestGetProviders:
         body = response.json()
 
         assert body["total_entries"] == expected_total_entries
-        assert [provider["package_name"] for provider in body["providers"]] == expected_package_name
+        assert [
+            provider["package_name"] for provider in body["providers"]
+        ] == expected_package_name

@@ -72,7 +72,9 @@ class SalesforceBulkOperator(BaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.object_name:
-            raise ValueError("The required parameter 'object_name' cannot have an empty value.")
+            raise ValueError(
+                "The required parameter 'object_name' cannot have an empty value."
+            )
 
         if self.operation not in self.available_operations:
             raise ValueError(

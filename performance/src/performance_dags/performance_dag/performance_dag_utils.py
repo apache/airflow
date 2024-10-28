@@ -79,7 +79,9 @@ def add_perf_start_date_env_to_conf(performance_dag_conf: dict[str, str]) -> Non
     :param performance_dag_conf: dict with environment variables as keys and their values as values
     """
     if "PERF_START_DATE" not in performance_dag_conf:
-        start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
+        start_ago = get_performance_dag_environment_variable(
+            performance_dag_conf, "PERF_START_AGO"
+        )
 
         perf_start_date = airflow.utils.timezone.utcnow - check_and_parse_time_delta(
             "PERF_START_AGO", start_ago
@@ -105,7 +107,9 @@ def validate_performance_dag_conf(performance_dag_conf: dict[str, str]) -> None:
             f"{MANDATORY_performance_DAG_VARIABLES}."
         )
 
-    missing_variables = MANDATORY_performance_DAG_VARIABLES.difference(set(performance_dag_conf.keys()))
+    missing_variables = MANDATORY_performance_DAG_VARIABLES.difference(
+        set(performance_dag_conf.keys())
+    )
 
     if missing_variables:
         raise KeyError(
@@ -129,14 +133,18 @@ def validate_performance_dag_conf(performance_dag_conf: dict[str, str]) -> None:
         "PERF_OPERATOR_TYPE": get_check_allowed_values_function(ALLOWED_OPERATOR_TYPES),
         "PERF_MAX_RUNS": check_positive_int_convertibility,
         "PERF_START_PAUSED": check_int_convertibility,
-        "PERF_TASKS_TRIGGER_RULE": get_check_allowed_values_function(ALLOWED_TASKS_TRIGGER_RULES),
+        "PERF_TASKS_TRIGGER_RULE": get_check_allowed_values_function(
+            ALLOWED_TASKS_TRIGGER_RULES
+        ),
         "PERF_OPERATOR_EXTRA_KWARGS": check_valid_json,
     }
 
     # we do not need to validate default values of variables
     for env_name in variable_to_validation_fun_map:
         if env_name in performance_dag_conf:
-            variable_to_validation_fun_map[env_name](env_name, performance_dag_conf[env_name])
+            variable_to_validation_fun_map[env_name](
+                env_name, performance_dag_conf[env_name]
+            )
 
     check_max_runs_and_schedule_interval_compatibility(performance_dag_conf)
 
@@ -153,7 +161,9 @@ def check_int_convertibility(env_name: str, env_value: str) -> None:
     try:
         int(env_value)
     except ValueError:
-        raise ValueError(f"{env_name} value must be convertible to int. Received: '{env_value}'.")
+        raise ValueError(
+            f"{env_name} value must be convertible to int. Received: '{env_value}'."
+        )
 
 
 def check_positive_int_convertibility(env_name: str, env_value: str) -> None:
@@ -169,7 +179,9 @@ def check_positive_int_convertibility(env_name: str, env_value: str) -> None:
         converted_value = int(env_value)
         check_positive(converted_value)
     except ValueError:
-        raise ValueError(f"{env_name} value must be convertible to positive int. Received: '{env_value}'.")
+        raise ValueError(
+            f"{env_name} value must be convertible to positive int. Received: '{env_value}'."
+        )
 
 
 def check_positive(value: int | float) -> None:
@@ -208,7 +220,9 @@ def check_dag_prefix(env_name: str, env_value: str) -> None:
     safe_dag_prefix = safe_dag_id(env_value)
 
     matching_dag_ids = [
-        dag_id for dag_id in DAG_IDS_NOT_ALLOWED_TO_MATCH_PREFIX if dag_id.startswith(safe_dag_prefix)
+        dag_id
+        for dag_id in DAG_IDS_NOT_ALLOWED_TO_MATCH_PREFIX
+        if dag_id.startswith(safe_dag_prefix)
     ]
 
     if matching_dag_ids:
@@ -246,7 +260,9 @@ def check_and_parse_time_delta(env_name: str, env_value: str) -> timedelta:
             f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
         )
 
-    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
+    time_params = {
+        name: float(param) for name, param in parts.groupdict().items() if param
+    }
     return timedelta(**time_params)
 
 
@@ -269,7 +285,9 @@ def check_schedule_interval(env_name: str, env_value: str) -> None:
     except ValueError as exception:
         error_message = str(exception)
 
-    check_allowed_values = get_check_allowed_values_function(ALLOWED_NON_REGEXP_SCHEDULE_INTERVALS)
+    check_allowed_values = get_check_allowed_values_function(
+        ALLOWED_NON_REGEXP_SCHEDULE_INTERVALS
+    )
 
     try:
         check_allowed_values(env_name, env_value)
@@ -359,8 +377,12 @@ def check_max_runs_and_schedule_interval_compatibility(
     schedule_interval = get_performance_dag_environment_variable(
         performance_dag_conf, "PERF_SCHEDULE_INTERVAL"
     )
-    max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
-    start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
+    max_runs = get_performance_dag_environment_variable(
+        performance_dag_conf, "PERF_MAX_RUNS"
+    )
+    start_ago = get_performance_dag_environment_variable(
+        performance_dag_conf, "PERF_START_AGO"
+    )
 
     if schedule_interval == "@once":
         if max_runs is not None:
@@ -383,7 +405,8 @@ def check_max_runs_and_schedule_interval_compatibility(
     start_date = current_date - check_and_parse_time_delta("PERF_START_AGO", start_ago)
 
     end_date = start_date + (
-        check_and_parse_time_delta("PERF_SCHEDULE_INTERVAL", schedule_interval) * (max_runs - 1)
+        check_and_parse_time_delta("PERF_SCHEDULE_INTERVAL", schedule_interval)
+        * (max_runs - 1)
     )
 
     if current_date < end_date:
@@ -429,7 +452,9 @@ def generate_copies_of_performance_dag(
     :type: Tuple[str, List[str]]
     """
     dag_files_count = int(
-        get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
+        get_performance_dag_environment_variable(
+            performance_dag_conf, "PERF_DAG_FILES_COUNT"
+        )
     )
 
     safe_dag_prefix = get_dag_prefix(performance_dag_conf)
@@ -458,7 +483,9 @@ def get_dag_prefix(performance_dag_conf: dict[str, str]) -> str:
     :return: final form of prefix after substituting inappropriate characters
     :rtype: str
     """
-    dag_prefix = get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_PREFIX")
+    dag_prefix = get_performance_dag_environment_variable(
+        performance_dag_conf, "PERF_DAG_PREFIX"
+    )
 
     safe_dag_prefix = safe_dag_id(dag_prefix)
 
@@ -475,10 +502,14 @@ def get_dags_count(performance_dag_conf: dict[str, str]) -> int:
     :rtype: int
     """
     dag_files_count = int(
-        get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
+        get_performance_dag_environment_variable(
+            performance_dag_conf, "PERF_DAG_FILES_COUNT"
+        )
     )
 
-    dags_per_dag_file = int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAGS_COUNT"))
+    dags_per_dag_file = int(
+        get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAGS_COUNT")
+    )
 
     return dag_files_count * dags_per_dag_file
 
@@ -492,7 +523,9 @@ def calculate_number_of_dag_runs(performance_dag_conf: dict[str, str]) -> int:
     :return: total number of Dag Runs
     :rtype: int
     """
-    max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
+    max_runs = get_performance_dag_environment_variable(
+        performance_dag_conf, "PERF_MAX_RUNS"
+    )
 
     total_dags_count = get_dags_count(performance_dag_conf)
 
@@ -519,7 +552,9 @@ def prepare_performance_dag_columns(
         in order in which they should appear in the results dataframe
     :rtype: OrderedDict
     """
-    max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
+    max_runs = get_performance_dag_environment_variable(
+        performance_dag_conf, "PERF_MAX_RUNS"
+    )
 
     # TODO: if PERF_MAX_RUNS is missing from configuration, then PERF_SCHEDULE_INTERVAL must
     #  be '@once'; this is an equivalent of PERF_MAX_RUNS being '1', which will be the default value
@@ -544,32 +579,54 @@ def prepare_performance_dag_columns(
         [
             (
                 "PERF_DAG_FILES_COUNT",
-                int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")),
+                int(
+                    get_performance_dag_environment_variable(
+                        performance_dag_conf, "PERF_DAG_FILES_COUNT"
+                    )
+                ),
             ),
             (
                 "PERF_DAGS_COUNT",
-                int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAGS_COUNT")),
+                int(
+                    get_performance_dag_environment_variable(
+                        performance_dag_conf, "PERF_DAGS_COUNT"
+                    )
+                ),
             ),
             (
                 "PERF_TASKS_COUNT",
-                int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_TASKS_COUNT")),
+                int(
+                    get_performance_dag_environment_variable(
+                        performance_dag_conf, "PERF_TASKS_COUNT"
+                    )
+                ),
             ),
             ("PERF_MAX_RUNS", max_runs),
             (
                 "PERF_SCHEDULE_INTERVAL",
-                get_performance_dag_environment_variable(performance_dag_conf, "PERF_SCHEDULE_INTERVAL"),
+                get_performance_dag_environment_variable(
+                    performance_dag_conf, "PERF_SCHEDULE_INTERVAL"
+                ),
             ),
             (
                 "PERF_SHAPE",
-                get_performance_dag_environment_variable(performance_dag_conf, "PERF_SHAPE"),
+                get_performance_dag_environment_variable(
+                    performance_dag_conf, "PERF_SHAPE"
+                ),
             ),
             (
                 "PERF_SLEEP_TIME",
-                float(get_performance_dag_environment_variable(performance_dag_conf, "PERF_SLEEP_TIME")),
+                float(
+                    get_performance_dag_environment_variable(
+                        performance_dag_conf, "PERF_SLEEP_TIME"
+                    )
+                ),
             ),
             (
                 "PERF_OPERATOR_TYPE",
-                get_performance_dag_environment_variable(performance_dag_conf, "PERF_OPERATOR_TYPE"),
+                get_performance_dag_environment_variable(
+                    performance_dag_conf, "PERF_OPERATOR_TYPE"
+                ),
             ),
         ]
     )
@@ -579,7 +636,9 @@ def prepare_performance_dag_columns(
     return performance_dag_columns
 
 
-def get_performance_dag_environment_variable(performance_dag_conf: dict[str, str], env_name: str) -> str:
+def get_performance_dag_environment_variable(
+    performance_dag_conf: dict[str, str], env_name: str
+) -> str:
     """
     Get env variable value.
 
@@ -610,7 +669,9 @@ def get_performance_dag_environment_variable(performance_dag_conf: dict[str, str
             f"configuration variable."
         )
 
-    return performance_dag_conf.get(env_name, performance_DAG_VARIABLES_DEFAULT_VALUES[env_name])
+    return performance_dag_conf.get(
+        env_name, performance_DAG_VARIABLES_DEFAULT_VALUES[env_name]
+    )
 
 
 def add_performance_dag_configuration_type(
@@ -633,7 +694,9 @@ def add_performance_dag_configuration_type(
         ]
     )
 
-    performance_dag_columns.update({"performance_dag_configuration_type": performance_dag_configuration_type})
+    performance_dag_columns.update(
+        {"performance_dag_configuration_type": performance_dag_configuration_type}
+    )
 
     # move the type key to the beginning of dict
     performance_dag_columns.move_to_end("performance_dag_configuration_type", last=False)
@@ -655,7 +718,9 @@ def parse_time_delta(time_str):
             "Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
         )
 
-    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
+    time_params = {
+        name: float(param) for name, param in parts.groupdict().items() if param
+    }
     return timedelta(**time_params)  # type: ignore
 
 

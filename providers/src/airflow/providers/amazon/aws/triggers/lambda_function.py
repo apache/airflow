@@ -47,7 +47,10 @@ class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
         **kwargs,
     ) -> None:
         super().__init__(
-            serialized_fields={"function_name": function_name, "function_arn": function_arn},
+            serialized_fields={
+                "function_name": function_name,
+                "function_arn": function_arn,
+            },
             waiter_name="function_active_v2",
             waiter_args={"FunctionName": function_name},
             failure_message="Lambda function creation failed",

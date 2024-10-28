@@ -27,7 +27,10 @@ from mergedeep import merge
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
+from airflow.providers.databricks.hooks.databricks import (
+    DatabricksHook,
+    RunLifeCycleState,
+)
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairAllFailedLink,
     WorkflowJobRunLink,
@@ -188,8 +191,13 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
             RunLifeCycleState.RUNNING.value,
             RunLifeCycleState.BLOCKED.value,
         ):
-            raise AirflowException(f"Could not start the workflow job. State: {life_cycle_state}")
-        while life_cycle_state in (RunLifeCycleState.PENDING.value, RunLifeCycleState.BLOCKED.value):
+            raise AirflowException(
+                f"Could not start the workflow job. State: {life_cycle_state}"
+            )
+        while life_cycle_state in (
+            RunLifeCycleState.PENDING.value,
+            RunLifeCycleState.BLOCKED.value,
+        ):
             self.log.info("Waiting for the Databricks job to start running")
             time.sleep(5)
             life_cycle_state = self._hook.get_run_state(run_id).life_cycle_state
@@ -305,7 +313,10 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         super().__init__(**kwargs)
 
     def __exit__(
-        self, _type: type[BaseException] | None, _value: BaseException | None, _tb: TracebackType | None
+        self,
+        _type: type[BaseException] | None,
+        _value: BaseException | None,
+        _tb: TracebackType | None,
     ) -> None:
         """Exit the context manager and add tasks to a single ``_CreateDatabricksWorkflowOperator``."""
         roots = list(self.get_roots())

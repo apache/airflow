@@ -86,7 +86,10 @@ def test_clean_unused(session, create_task_instance):
     assert session.query(Trigger).count() == 3
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
     task_instance = create_task_instance(
-        session=session, task_id="fake", state=State.DEFERRED, execution_date=timezone.utcnow()
+        session=session,
+        task_id="fake",
+        state=State.DEFERRED,
+        execution_date=timezone.utcnow(),
     )
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
@@ -165,7 +168,9 @@ def test_submit_failure(session, create_task_instance):
     ],
 )
 @patch("airflow.utils.timezone.utcnow")
-def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event_cls, expected):
+def test_submit_event_task_end(
+    mock_utcnow, session, create_task_instance, event_cls, expected
+):
     """
     Tests that events inheriting BaseTaskEndEvent *don't* re-wake their dependent
     but mark them in the appropriate terminal state and send xcom
@@ -186,7 +191,9 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     session.commit()
 
     def get_xcoms(ti):
-        return XCom.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
+        return XCom.get_many(
+            dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id
+        ).all()
 
     # now for the real test
     # first check initial state
@@ -198,7 +205,9 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}), session=session
+        trigger.id,
+        event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}),
+        session=session,
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
@@ -243,7 +252,9 @@ def test_assign_unassigned(session, create_task_instance):
     # Triggerer is not healtht, its last heartbeat was too long ago
     assert not unhealthy_triggerer.is_alive()
     session.commit()
-    trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_healthy_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}
+    )
     trigger_on_healthy_triggerer.id = 1
     trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
     session.add(trigger_on_healthy_triggerer)
@@ -254,7 +265,9 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
     session.add(ti_trigger_on_healthy_triggerer)
-    trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_unhealthy_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}
+    )
     trigger_on_unhealthy_triggerer.id = 2
     trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
     session.add(trigger_on_unhealthy_triggerer)
@@ -265,7 +278,9 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
     session.add(ti_trigger_on_unhealthy_triggerer)
-    trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_killed_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}
+    )
     trigger_on_killed_triggerer.id = 3
     trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
     session.add(trigger_on_killed_triggerer)
@@ -276,7 +291,9 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
     session.add(ti_trigger_on_killed_triggerer)
-    trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_unassigned_to_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}
+    )
     trigger_unassigned_to_triggerer.id = 4
     session.add(trigger_unassigned_to_triggerer)
     ti_trigger_unassigned_to_triggerer = create_task_instance(
@@ -293,21 +310,33 @@ def test_assign_unassigned(session, create_task_instance):
     session.expire_all()
     # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_killed_triggerer.id).one().triggerer_id
+        session.query(Trigger)
+        .filter(Trigger.id == trigger_on_killed_triggerer.id)
+        .one()
+        .triggerer_id
         == new_triggerer.id
     )
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_unassigned_to_triggerer.id).one().triggerer_id
+        session.query(Trigger)
+        .filter(Trigger.id == trigger_unassigned_to_triggerer.id)
+        .one()
+        .triggerer_id
         == new_triggerer.id
     )
     # Check that trigger on healthy triggerer still assigned to existing triggerer
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_healthy_triggerer.id).one().triggerer_id
+        session.query(Trigger)
+        .filter(Trigger.id == trigger_on_healthy_triggerer.id)
+        .one()
+        .triggerer_id
         == healthy_triggerer.id
     )
     # Check that trigger on unhealthy triggerer is assigned to new triggerer
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_unhealthy_triggerer.id).one().triggerer_id
+        session.query(Trigger)
+        .filter(Trigger.id == trigger_on_unhealthy_triggerer.id)
+        .one()
+        .triggerer_id
         == new_triggerer.id
     )
 
@@ -358,7 +387,9 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     session.commit()
     assert session.query(Trigger).count() == 2
 
-    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+    trigger_ids_query = Trigger.get_sorted_triggers(
+        capacity=100, alive_triggerer_ids=[], session=session
+    )
 
     assert trigger_ids_query == [(1,), (2,)]
 
@@ -409,7 +440,9 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     session.commit()
     assert session.query(Trigger).count() == 2
 
-    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+    trigger_ids_query = Trigger.get_sorted_triggers(
+        capacity=100, alive_triggerer_ids=[], session=session
+    )
 
     assert trigger_ids_query == [(2,), (1,)]
 

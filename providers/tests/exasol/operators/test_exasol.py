@@ -24,7 +24,9 @@ from airflow.providers.exasol.operators.exasol import ExasolOperator
 
 
 class TestExasol:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_overwrite_autocommit(self, mock_get_db_hook):
         operator = ExasolOperator(task_id="TEST", sql="SELECT 1", autocommit=True)
         operator.execute({})
@@ -36,9 +38,13 @@ class TestExasol:
             return_last=True,
         )
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_pass_parameters(self, mock_get_db_hook):
-        operator = ExasolOperator(task_id="TEST", sql="SELECT {value!s}", parameters={"value": 1})
+        operator = ExasolOperator(
+            task_id="TEST", sql="SELECT {value!s}", parameters={"value": 1}
+        )
         operator.execute({})
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql="SELECT {value!s}",

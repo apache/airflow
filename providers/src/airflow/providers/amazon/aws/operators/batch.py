@@ -45,7 +45,10 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils import (
+    trim_none_values,
+    validate_execute_complete_event,
+)
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 if TYPE_CHECKING:
@@ -141,9 +144,9 @@ class BatchOperator(BaseOperator):
             wait_for_completion = self.partial_kwargs.get(
                 "wait_for_completion"
             ) or self.expand_input.value.get("wait_for_completion")
-            array_properties = self.partial_kwargs.get("array_properties") or self.expand_input.value.get(
+            array_properties = self.partial_kwargs.get(
                 "array_properties"
-            )
+            ) or self.expand_input.value.get("array_properties")
         else:
             wait_for_completion = self.wait_for_completion
             array_properties = self.array_properties
@@ -179,7 +182,9 @@ class BatchOperator(BaseOperator):
         region_name: str | None = None,
         tags: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 30,
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
@@ -241,7 +246,9 @@ class BatchOperator(BaseOperator):
                 self.log.info("Job completed.")
                 return self.job_id
             elif job_status == self.hook.FAILURE_STATE:
-                raise AirflowException(f"Error while running job: {self.job_id} is in {job_status} state")
+                raise AirflowException(
+                    f"Error while running job: {self.job_id} is in {job_status} state"
+                )
             elif job_status in self.hook.INTERMEDIATE_STATES:
                 self.defer(
                     timeout=self.execution_timeout,
@@ -262,7 +269,9 @@ class BatchOperator(BaseOperator):
 
         return self.job_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -272,7 +281,9 @@ class BatchOperator(BaseOperator):
         return event["job_id"]
 
     def on_kill(self):
-        response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
+        response = self.hook.client.terminate_job(
+            jobId=self.job_id, reason="Task killed by the user"
+        )
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
     def submit_job(self, context: Context):
@@ -288,13 +299,19 @@ class BatchOperator(BaseOperator):
         )
 
         if self.container_overrides:
-            self.log.info("AWS Batch job - container overrides: %s", self.container_overrides)
+            self.log.info(
+                "AWS Batch job - container overrides: %s", self.container_overrides
+            )
         if self.array_properties:
             self.log.info("AWS Batch job - array properties: %s", self.array_properties)
         if self.ecs_properties_override:
-            self.log.info("AWS Batch job - ECS properties: %s", self.ecs_properties_override)
+            self.log.info(
+                "AWS Batch job - ECS properties: %s", self.ecs_properties_override
+            )
         if self.eks_properties_override:
-            self.log.info("AWS Batch job - EKS properties: %s", self.eks_properties_override)
+            self.log.info(
+                "AWS Batch job - EKS properties: %s", self.eks_properties_override
+            )
         if self.node_overrides:
             self.log.info("AWS Batch job - node properties: %s", self.node_overrides)
 
@@ -355,7 +372,10 @@ class BatchOperator(BaseOperator):
                 job_queue_arn,
             )
         except KeyError:
-            self.log.warning("AWS Batch job (%s) can't get Job Definition ARN and Job Queue ARN", self.job_id)
+            self.log.warning(
+                "AWS Batch job (%s) can't get Job Definition ARN and Job Queue ARN",
+                self.job_id,
+            )
         else:
             BatchJobDefinitionLink.persist(
                 context=context,
@@ -374,9 +394,13 @@ class BatchOperator(BaseOperator):
 
         if self.awslogs_enabled:
             if self.waiters:
-                self.waiters.wait_for_job(self.job_id, get_batch_log_fetcher=self._get_batch_log_fetcher)
+                self.waiters.wait_for_job(
+                    self.job_id, get_batch_log_fetcher=self._get_batch_log_fetcher
+                )
             else:
-                self.hook.wait_for_job(self.job_id, get_batch_log_fetcher=self._get_batch_log_fetcher)
+                self.hook.wait_for_job(
+                    self.job_id, get_batch_log_fetcher=self._get_batch_log_fetcher
+                )
         else:
             if self.waiters:
                 self.waiters.wait_for_job(self.job_id)
@@ -387,10 +411,15 @@ class BatchOperator(BaseOperator):
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         except AirflowException as ae:
-            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
+            self.log.warning(
+                "Cannot determine where to find the AWS logs for this Batch job: %s", ae
+            )
 
         if awslogs:
-            self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
+            self.log.info(
+                "AWS Batch job (%s) CloudWatch Events details found. Links to logs:",
+                self.job_id,
+            )
             link_builder = CloudWatchEventsLink()
             for log in awslogs:
                 self.log.info(link_builder.format_link(**log))
@@ -481,7 +510,9 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         max_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -524,7 +555,11 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         if self.deferrable:
             self.defer(
                 trigger=BatchCreateComputeEnvironmentTrigger(
-                    arn, self.poll_interval, self.max_retries, self.aws_conn_id, self.region_name
+                    arn,
+                    self.poll_interval,
+                    self.max_retries,
+                    self.aws_conn_id,
+                    self.region_name,
                 ),
                 method_name="execute_complete",
             )
@@ -532,9 +567,13 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.log.info("AWS Batch compute environment created successfully")
         return arn
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
+            raise AirflowException(
+                f"Error while waiting for the compute environment to be ready: {event}"
+            )
         return event["value"]

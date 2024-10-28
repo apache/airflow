@@ -19,7 +19,16 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    SupportsAbs,
+    cast,
+)
 
 from deprecated import deprecated
 
@@ -116,7 +125,9 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+    def _process_output(
+        self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
+    ) -> list[Any]:
         validated_descriptions: list[Sequence[Sequence]] = []
         for idx, description in enumerate(descriptions):
             if not description:
@@ -193,7 +204,9 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = tuple(set(SQLCheckOperator.template_fields) | {"snowflake_conn_id"})
+    template_fields: Sequence[str] = tuple(
+        set(SQLCheckOperator.template_fields) | {"snowflake_conn_id"}
+    )
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
     conn_id_field = "snowflake_conn_id"
@@ -226,7 +239,9 @@ class SnowflakeCheckOperator(SQLCheckOperator):
                 "session_parameters": session_parameters,
                 **hook_params,
             }
-        super().__init__(sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs)
+        super().__init__(
+            sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs
+        )
         self.query_ids: list[str] = []
 
 
@@ -262,7 +277,9 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = tuple(set(SQLValueCheckOperator.template_fields) | {"snowflake_conn_id"})
+    template_fields: Sequence[str] = tuple(
+        set(SQLValueCheckOperator.template_fields) | {"snowflake_conn_id"}
+    )
 
     conn_id_field = "snowflake_conn_id"
 
@@ -297,7 +314,11 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
                 **hook_params,
             }
         super().__init__(
-            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
+            sql=sql,
+            pass_value=pass_value,
+            tolerance=tolerance,
+            conn_id=snowflake_conn_id,
+            **kwargs,
         )
         self.query_ids: list[str] = []
 
@@ -469,7 +490,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id
@@ -480,7 +503,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.bindings = bindings
         self.execute_async = False
         self.deferrable = deferrable
-        if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
+        if any(
+            [warehouse, database, role, schema, authenticator, session_parameters]
+        ):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
             kwargs["hook_params"] = {
                 "warehouse": warehouse,
@@ -526,7 +551,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             elif statement_status.get("status") == "success":
                 succeeded_query_ids.append(query_id)
             else:
-                raise AirflowException(f"{statement_status.get('status')}: {statement_status.get('message')}")
+                raise AirflowException(
+                    f"{statement_status.get('status')}: {statement_status.get('message')}"
+                )
 
         if len(self.query_ids) == len(succeeded_query_ids):
             self.log.info("%s completed successfully.", self.task_id)
@@ -572,7 +599,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             time.sleep(self.poll_interval)
         return {"success": statement_success_status, "error": statement_error_status}
 
-    def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, str | list[str]] | None = None
+    ) -> None:
         """
         Execute callback when the trigger fires; returns immediately.
 

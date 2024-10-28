@@ -103,7 +103,9 @@ def on_post_execution(**kwargs):
             logger.exception("Failed on post-execution callback using %s", callback)
 
 
-def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_name, full_command, **_):
+def default_action_log(
+    sub_command, user, task_id, dag_id, execution_date, host_name, full_command, **_
+):
     """
     Behave similar to ``action_logging``; default action logger callback.
 
@@ -157,7 +159,9 @@ def _default_action_log_internal(
                     "event": f"cli_{sub_command}",
                     "task_instance": None,
                     "owner": user,
-                    "extra": json.dumps({"host_name": host_name, "full_command": full_command}),
+                    "extra": json.dumps(
+                        {"host_name": host_name, "full_command": full_command}
+                    ),
                     "task_id": task_id,
                     "dag_id": dag_id,
                     "execution_date": execution_date,

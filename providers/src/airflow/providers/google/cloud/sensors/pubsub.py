@@ -120,7 +120,9 @@ class PubSubPullSensor(BaseSensorOperator):
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         poke_interval: float = 10.0,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -182,7 +184,9 @@ class PubSubPullSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, str | list[str]]) -> Any:
+    def execute_complete(
+        self, context: Context, event: dict[str, str | list[str]]
+    ) -> Any:
         """If messages_callback is provided, execute it; otherwise, return immediately with trigger event message."""
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])

@@ -187,7 +187,12 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze k8s status": [
         {
             "name": "K8S cluster status flags",
-            "options": ["--python", "--kubernetes-version", "--wait-time-in-seconds", "--all"],
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--wait-time-in-seconds",
+                "--all",
+            ],
         },
     ],
     "breeze k8s logs": [
@@ -199,7 +204,12 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze k8s tests": [
         {
             "name": "K8S tests flags",
-            "options": ["--python", "--kubernetes-version", "--executor", "--force-venv-setup"],
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--executor",
+                "--force-venv-setup",
+            ],
         },
         {
             "name": "Parallel options",
@@ -240,7 +250,12 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
         {
             "name": "K8S tests flags",
-            "options": ["--python", "--kubernetes-version", "--executor", "--force-venv-setup"],
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--executor",
+                "--force-venv-setup",
+            ],
         },
         {
             "name": "Parallel options",
@@ -268,7 +283,12 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze k8s shell": [
         {
             "name": "K8S shell flags",
-            "options": ["--python", "--kubernetes-version", "--executor", "--force-venv-setup"],
+            "options": [
+                "--python",
+                "--kubernetes-version",
+                "--executor",
+                "--force-venv-setup",
+            ],
         }
     ],
 }

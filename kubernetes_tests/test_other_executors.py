@@ -29,7 +29,9 @@ from kubernetes_tests.test_base import (
 # These tests are here because only KubernetesExecutor can run the tests in
 # test_kubernetes_executor.py
 # Also, the skipping is necessary as there's no gain in running these tests in KubernetesExecutor
-@pytest.mark.skipif(EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor")
+@pytest.mark.skipif(
+    EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor"
+)
 class TestCeleryAndLocalExecutor(BaseK8STest):
     def test_integration_run_dag(self):
         dag_id = "example_bash_operator"
@@ -90,4 +92,6 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
             timeout=60,
         )
 
-        assert self._num_pods_in_namespace("test-namespace") == 0, "failed to delete pods in other namespace"
+        assert (
+            self._num_pods_in_namespace("test-namespace") == 0
+        ), "failed to delete pods in other namespace"

@@ -54,13 +54,18 @@ class TestEmrClusterLink(BaseAwsLinksTestCase):
     "cluster_info, expected_uri",
     [
         pytest.param({"Cluster": {}}, None, id="no-log-uri"),
-        pytest.param({"Cluster": {"LogUri": "s3://myLogUri/"}}, "myLogUri/", id="has-log-uri"),
+        pytest.param(
+            {"Cluster": {"LogUri": "s3://myLogUri/"}}, "myLogUri/", id="has-log-uri"
+        ),
     ],
 )
 def test_get_log_uri(cluster_info, expected_uri):
     emr_client = MagicMock()
     emr_client.describe_cluster.return_value = cluster_info
-    assert get_log_uri(cluster=None, emr_client=emr_client, job_flow_id="test_job_flow_id") == expected_uri
+    assert (
+        get_log_uri(cluster=None, emr_client=emr_client, job_flow_id="test_job_flow_id")
+        == expected_uri
+    )
 
 
 class TestEmrLogsLink(BaseAwsLinksTestCase):
@@ -100,7 +105,9 @@ class TestEmrServerlessLogsLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mocked_emr_serverless_hook):
         mocked_client = mocked_emr_serverless_hook.return_value.conn
-        mocked_client.get_dashboard_for_job_run.return_value = {"url": "https://example.com/?authToken=1234"}
+        mocked_client.get_dashboard_for_job_run.return_value = {
+            "url": "https://example.com/?authToken=1234"
+        }
 
         self.assert_extra_link_url(
             expected_url="https://example.com/logs/SPARK_DRIVER/stdout.gz?authToken=1234",
@@ -123,7 +130,9 @@ class TestEmrServerlessDashboardLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mocked_emr_serverless_hook):
         mocked_client = mocked_emr_serverless_hook.return_value.conn
-        mocked_client.get_dashboard_for_job_run.return_value = {"url": "https://example.com/?authToken=1234"}
+        mocked_client.get_dashboard_for_job_run.return_value = {
+            "url": "https://example.com/?authToken=1234"
+        }
 
         self.assert_extra_link_url(
             expected_url="https://example.com/?authToken=1234",
@@ -156,12 +165,16 @@ class TestEmrServerlessDashboardLink(BaseAwsLinksTestCase):
         ),
     ],
 )
-def test_get_serverless_dashboard_url_with_client(mocked_emr_serverless_hook, dashboard_info, expected_uri):
+def test_get_serverless_dashboard_url_with_client(
+    mocked_emr_serverless_hook, dashboard_info, expected_uri
+):
     mocked_client = mocked_emr_serverless_hook.return_value.conn
     mocked_client.get_dashboard_for_job_run.return_value = dashboard_info
 
     url = get_serverless_dashboard_url(
-        emr_serverless_client=mocked_client, application_id="anything", job_run_id="anything"
+        emr_serverless_client=mocked_client,
+        application_id="anything",
+        job_run_id="anything",
     )
     assert url
     assert url.geturl() == expected_uri
@@ -194,15 +207,20 @@ def test_get_serverless_dashboard_url_with_conn_id(mocked_emr_serverless_hook):
 
 def test_get_serverless_dashboard_url_parameters():
     with pytest.raises(
-        AirflowException, match="Requires either an AWS connection ID or an EMR Serverless Client"
+        AirflowException,
+        match="Requires either an AWS connection ID or an EMR Serverless Client",
     ):
         get_serverless_dashboard_url(application_id="anything", job_run_id="anything")
 
     with pytest.raises(
-        AirflowException, match="Requires either an AWS connection ID or an EMR Serverless Client"
+        AirflowException,
+        match="Requires either an AWS connection ID or an EMR Serverless Client",
     ):
         get_serverless_dashboard_url(
-            aws_conn_id="a", emr_serverless_client="b", application_id="anything", job_run_id="anything"
+            aws_conn_id="a",
+            emr_serverless_client="b",
+            application_id="anything",
+            job_run_id="anything",
         )
 
 

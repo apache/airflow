@@ -165,7 +165,9 @@ class TestEksCreateClusterOperator:
     )
     @mock.patch.object(EksHook, "create_cluster")
     @mock.patch.object(EksHook, "create_nodegroup")
-    def test_execute_create_cluster(self, mock_create_nodegroup, mock_create_cluster, create_cluster_kwargs):
+    def test_execute_create_cluster(
+        self, mock_create_nodegroup, mock_create_cluster, create_cluster_kwargs
+    ):
         op_kwargs = {**self.create_cluster_params, "compute": None}
         if create_cluster_kwargs:
             op_kwargs["create_cluster_kwargs"] = create_cluster_kwargs
@@ -190,7 +192,11 @@ class TestEksCreateClusterOperator:
     @mock.patch.object(EksHook, "create_cluster")
     @mock.patch.object(EksHook, "create_nodegroup")
     def test_execute_create_cluster_with_wait(
-        self, mock_create_nodegroup, mock_create_cluster, mock_waiter, create_cluster_kwargs
+        self,
+        mock_create_nodegroup,
+        mock_create_cluster,
+        mock_waiter,
+        create_cluster_kwargs,
     ):
         op_kwargs = {**self.create_cluster_params, "compute": None}
         if create_cluster_kwargs:
@@ -200,7 +206,9 @@ class TestEksCreateClusterOperator:
             assert "create_cluster_kwargs" not in op_kwargs
             parameters = self.create_cluster_params
 
-        operator = EksCreateClusterOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator = EksCreateClusterOperator(
+            task_id=TASK_ID, **op_kwargs, wait_for_completion=True
+        )
         operator.execute({})
         mock_create_cluster.assert_called_with(**convert_keys(parameters))
         mock_create_nodegroup.assert_not_called()
@@ -222,8 +230,12 @@ class TestEksCreateClusterOperator:
 
         self.create_cluster_operator_with_nodegroup.execute({})
 
-        mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
-        mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
+        mock_create_cluster.assert_called_once_with(
+            **convert_keys(self.create_cluster_params)
+        )
+        mock_create_nodegroup.assert_called_once_with(
+            **convert_keys(self.create_nodegroup_params)
+        )
         mock_waiter.assert_called_once_with(
             mock.ANY,
             name=CLUSTER_NAME,
@@ -243,8 +255,12 @@ class TestEksCreateClusterOperator:
 
         self.create_cluster_operator_with_nodegroup.execute({})
 
-        mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
-        mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
+        mock_create_cluster.assert_called_once_with(
+            **convert_keys(self.create_cluster_params)
+        )
+        mock_create_nodegroup.assert_called_once_with(
+            **convert_keys(self.create_nodegroup_params)
+        )
         # Calls waiter once for the cluster and once for the nodegroup.
         assert mock_waiter.call_count == 2
         mock_waiter.assert_called_with(
@@ -260,13 +276,19 @@ class TestEksCreateClusterOperator:
     @mock.patch.object(EksHook, "create_cluster")
     @mock.patch.object(EksHook, "create_fargate_profile")
     def test_execute_when_called_with_fargate_creates_both(
-        self, mock_create_fargate_profile, mock_create_cluster, mock_cluster_state, mock_waiter
+        self,
+        mock_create_fargate_profile,
+        mock_create_cluster,
+        mock_cluster_state,
+        mock_waiter,
     ):
         mock_cluster_state.return_value = ClusterStates.ACTIVE
 
         self.create_cluster_operator_with_fargate_profile.execute({})
 
-        mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
+        mock_create_cluster.assert_called_once_with(
+            **convert_keys(self.create_cluster_params)
+        )
         mock_create_fargate_profile.assert_called_once_with(
             **convert_keys(self.create_fargate_profile_params)
         )
@@ -282,14 +304,20 @@ class TestEksCreateClusterOperator:
     @mock.patch.object(EksHook, "create_cluster")
     @mock.patch.object(EksHook, "create_fargate_profile")
     def test_execute_with_wait_when_called_with_fargate_creates_both(
-        self, mock_create_fargate_profile, mock_create_cluster, mock_cluster_state, mock_waiter
+        self,
+        mock_create_fargate_profile,
+        mock_create_cluster,
+        mock_cluster_state,
+        mock_waiter,
     ):
         mock_cluster_state.return_value = ClusterStates.ACTIVE
         self.create_cluster_operator_with_fargate_profile.wait_for_completion = True
 
         self.create_cluster_operator_with_fargate_profile.execute({})
 
-        mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
+        mock_create_cluster.assert_called_once_with(
+            **convert_keys(self.create_cluster_params)
+        )
         mock_create_fargate_profile.assert_called_once_with(
             **convert_keys(self.create_fargate_profile_params)
         )
@@ -365,7 +393,10 @@ class TestEksCreateClusterOperator:
         )
         with pytest.raises(TaskDeferred):
             eks_create_cluster_operator.execute({})
-        assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
+        assert (
+            "Waiting for EKS Cluster to provision. This will take some time."
+            in caplog.messages
+        )
 
     def test_template_fields(self):
         op = EksCreateClusterOperator(
@@ -401,7 +432,10 @@ class TestEksCreateFargateProfileOperator:
         op_kwargs = {**self.create_fargate_profile_params}
         if create_fargate_profile_kwargs:
             op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
-            parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
+            parameters = {
+                **self.create_fargate_profile_params,
+                **create_fargate_profile_kwargs,
+            }
         else:
             assert "create_fargate_profile_kwargs" not in op_kwargs
             parameters = self.create_fargate_profile_params
@@ -426,12 +460,17 @@ class TestEksCreateFargateProfileOperator:
         op_kwargs = {**self.create_fargate_profile_params}
         if create_fargate_profile_kwargs:
             op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
-            parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
+            parameters = {
+                **self.create_fargate_profile_params,
+                **create_fargate_profile_kwargs,
+            }
         else:
             assert "create_fargate_profile_kwargs" not in op_kwargs
             parameters = self.create_fargate_profile_params
 
-        operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator = EksCreateFargateProfileOperator(
+            task_id=TASK_ID, **op_kwargs, wait_for_completion=True
+        )
         operator.execute({})
         mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
         mock_waiter.assert_called_with(
@@ -457,7 +496,9 @@ class TestEksCreateFargateProfileOperator:
         ), "Trigger is not a EksCreateFargateProfileTrigger"
 
     def test_template_fields(self):
-        op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
+        op = EksCreateFargateProfileOperator(
+            task_id=TASK_ID, **self.create_fargate_profile_params
+        )
 
         validate_template_fields(op)
 
@@ -516,10 +557,14 @@ class TestEksCreateNodegroupOperator:
                 assert "create_nodegroup_params" not in op_kwargs
                 parameters = self.create_nodegroup_params
 
-            operator = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+            operator = EksCreateNodegroupOperator(
+                task_id=TASK_ID, **op_kwargs, wait_for_completion=True
+            )
             operator.execute({})
             mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
-            mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+            mock_waiter.assert_called_with(
+                mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME
+            )
             assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
     @mock.patch.object(EksHook, "create_nodegroup")
@@ -570,7 +615,9 @@ class TestEksDeleteClusterOperator:
     @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "list_nodegroups")
     @mock.patch.object(EksHook, "delete_cluster")
-    def test_existing_cluster_not_in_use(self, mock_delete_cluster, mock_list_nodegroups, mock_waiter):
+    def test_existing_cluster_not_in_use(
+        self, mock_delete_cluster, mock_list_nodegroups, mock_waiter
+    ):
         mock_list_nodegroups.return_value = []
         self.delete_cluster_operator.execute({})
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
@@ -607,7 +654,9 @@ class TestEksDeleteNodegroupOperator:
         self.nodegroup_name: str = NODEGROUP_NAME
 
         self.delete_nodegroup_operator = EksDeleteNodegroupOperator(
-            task_id=TASK_ID, cluster_name=self.cluster_name, nodegroup_name=self.nodegroup_name
+            task_id=TASK_ID,
+            cluster_name=self.cluster_name,
+            nodegroup_name=self.nodegroup_name,
         )
 
     @mock.patch.object(Waiter, "wait")
@@ -630,7 +679,9 @@ class TestEksDeleteNodegroupOperator:
         mock_delete_nodegroup.assert_called_once_with(
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
-        mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+        mock_waiter.assert_called_with(
+            mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME
+        )
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
 
     def test_template_fields(self):
@@ -643,7 +694,9 @@ class TestEksDeleteFargateProfileOperator:
         self.fargate_profile_name: str = FARGATE_PROFILE_NAME
 
         self.delete_fargate_profile_operator = EksDeleteFargateProfileOperator(
-            task_id=TASK_ID, cluster_name=self.cluster_name, fargate_profile_name=self.fargate_profile_name
+            task_id=TASK_ID,
+            cluster_name=self.cluster_name,
+            fargate_profile_name=self.fargate_profile_name,
         )
 
     @mock.patch.object(Waiter, "wait")
@@ -658,7 +711,9 @@ class TestEksDeleteFargateProfileOperator:
 
     @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "delete_fargate_profile")
-    def test_existing_fargate_profile_with_wait(self, mock_delete_fargate_profile, mock_waiter):
+    def test_existing_fargate_profile_with_wait(
+        self, mock_delete_fargate_profile, mock_waiter
+    ):
         self.delete_fargate_profile_operator.wait_for_completion = True
 
         self.delete_fargate_profile_operator.execute({})
@@ -689,9 +744,13 @@ class TestEksDeleteFargateProfileOperator:
 
 
 class TestEksPodOperator:
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute"
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
-    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None
+    )
     def test_existing_nodegroup(
         self, mock_eks_hook, mock_generate_config_file, mock_k8s_pod_operator_execute
     ):
@@ -715,7 +774,10 @@ class TestEksPodOperator:
             eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
         )
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
-        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+        assert (
+            mock_generate_config_file.return_value.__enter__.return_value
+            == op.config_file
+        )
 
     @pytest.mark.parametrize(
         "compatible_kpo, kwargs, expected_attributes",
@@ -740,7 +802,9 @@ class TestEksPodOperator:
         ],
     )
     def test_on_finish_action_handler(self, compatible_kpo, kwargs, expected_attributes):
-        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+        kpo_init_args_mock = mock.MagicMock(
+            **{"parameters": ["on_finish_action"] if compatible_kpo else []}
+        )
 
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
             op = EksPodOperator(
@@ -754,7 +818,10 @@ class TestEksPodOperator:
                 **kwargs,
             )
             for expected_attr in expected_attributes:
-                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+                assert (
+                    op.__getattribute__(expected_attr)
+                    == expected_attributes[expected_attr]
+                )
 
     def test_template_fields(self):
         op = EksPodOperator(

@@ -92,7 +92,9 @@ COMMIT_CONTENT_RST = """
 
 def find_all_providers():
     for provider_file in AIRFLOW_PROVIDERS_DIR.rglob("provider.yaml"):
-        provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(os.sep, ".")
+        provider_name = str(
+            provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)
+        ).replace(os.sep, ".")
         provider_info = yaml.safe_load(provider_file.read_text())
         if provider_info["state"] != "suspended":
             ALL_PROVIDERS[provider_name] = provider_info
@@ -133,7 +135,9 @@ def check_provider_doc_exists_and_in_index(
         if check_content and not generated_content:
             if file_path.read_text() != content_to_write:
                 console.print()
-                console.print(f"[yellow]Content of the file will be regenerated: [/]{file_path}")
+                console.print(
+                    f"[yellow]Content of the file will be regenerated: [/]{file_path}"
+                )
                 console.print()
                 regenerate_file = True
     else:
@@ -143,7 +147,9 @@ def check_provider_doc_exists_and_in_index(
         if not generated_content:
             console.print()
             console.print(f"[yellow]Missing file: [/]{file_path}")
-            console.print("[bright_blue]Please create the file looking at other providers as example [/]")
+            console.print(
+                "[bright_blue]Please create the file looking at other providers as example [/]"
+            )
             console.print()
         else:
             regenerate_file = True
@@ -216,7 +222,8 @@ for provider_id, provider_info in ALL_PROVIDERS.items():
         provider_id=provider_id,
         index_link="Installing from sources <installing-providers-from-sources>",
         file_name="installing-providers-from-sources.rst",
-        generated_content=LICENCE_CONTENT_RST + INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST,
+        generated_content=LICENCE_CONTENT_RST
+        + INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST,
     )
 
     check_provider_doc_exists_and_in_index(
@@ -228,13 +235,17 @@ for provider_id, provider_info in ALL_PROVIDERS.items():
     )
 
     if has_executor_package_defined(provider_id) and not provider_info.get("executors"):
-        provider_yaml = AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
+        provider_yaml = (
+            AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
+        )
         console.print()
         console.print(
             f"[red]ERROR! The {provider_id} provider has executor package but "
             f"does not have `executors` defined in {provider_yaml}."
         )
-        console.print(f"\nPlease add executor class to `executors` array in {provider_yaml}")
+        console.print(
+            f"\nPlease add executor class to `executors` array in {provider_yaml}"
+        )
         fail_pre_commit = True
 
     if provider_info.get("executors"):

@@ -96,7 +96,9 @@ class TestSecretsMasker:
 
     def test_extra(self, logger, caplog):
         with patch.object(
-            logger.handlers[0], "formatter", ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
+            logger.handlers[0],
+            "formatter",
+            ShortExcFormatter("%(levelname)s %(message)s %(conn)s"),
         ):
             logger.info("Cannot connect", extra={"conn": "user:password"})
 
@@ -226,7 +228,11 @@ class TestSecretsMasker:
             (None, "secret", {"secret"}),
             ("apikey", "secret", {"secret"}),
             # the value for "apikey", and "password" should end up masked
-            (None, {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}}, {"secret", "foo"}),
+            (
+                None,
+                {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}},
+                {"secret", "foo"},
+            ),
             (None, ["secret", "other"], {"secret", "other"}),
             # When the "sensitive value" is a dict, don't mask anything
             # (Or should this be mask _everything_ under it ?
@@ -253,9 +259,19 @@ class TestSecretsMasker:
             ),
             ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
             # We don't mask dict _keys_.
-            ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            (
+                {"secret", "other"},
+                None,
+                {"data": {"secret": "secret"}},
+                {"data": {"secret": "***"}},
+            ),
             # Non string dict keys
-            ({"secret", "other"}, None, {1: {"secret": "secret"}}, {1: {"secret": "***"}}),
+            (
+                {"secret", "other"},
+                None,
+                {1: {"secret": "secret"}},
+                {1: {"secret": "***"}},
+            ),
             (
                 # Since this is a sensitive name, all the values should be redacted!
                 {"secret"},
@@ -302,7 +318,10 @@ class TestSecretsMasker:
     def test_redact_max_depth(self, val, expected, max_depth):
         secrets_masker = SecretsMasker()
         secrets_masker.add_mask("abc")
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch(
+            "airflow.utils.log.secrets_masker._secrets_masker",
+            return_value=secrets_masker,
+        ):
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
@@ -331,8 +350,14 @@ class TestSecretsMasker:
             (TaskInstanceState.FAILED, "failed"),
             (JobState.RUNNING, "running"),
             ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
-            ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
-            (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
+            (
+                [TaskInstanceState.FAILED, TaskInstanceState.SUCCESS],
+                ["failed", "success"],
+            ),
+            (
+                State.failed_states,
+                frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]),
+            ),
             (MyEnum.testname, "testvalue"),
         ],
     )
@@ -342,8 +367,13 @@ class TestSecretsMasker:
         assert "TypeError" not in caplog.text
 
     def test_masking_quoted_strings_in_connection(self, logger, caplog):
-        secrets_masker = next(fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker))
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
+        secrets_masker = next(
+            fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker)
+        )
+        with patch(
+            "airflow.utils.log.secrets_masker._secrets_masker",
+            return_value=secrets_masker,
+        ):
             test_conn_attributes = dict(
                 conn_type="scheme",
                 host="host/location",
@@ -390,7 +420,9 @@ class TestShouldHideValueForKey:
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
         from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
 
-        with conf_vars({("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}):
+        with conf_vars(
+            {("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}
+        ):
             get_sensitive_variables_fields.cache_clear()
             try:
                 assert expected_result == should_hide_value_for_key(key)
@@ -415,7 +447,10 @@ class TestRedactedIO:
     @pytest.fixture(scope="class", autouse=True)
     def reset_secrets_masker(self):
         self.secrets_masker = SecretsMasker()
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+        with patch(
+            "airflow.utils.log.secrets_masker._secrets_masker",
+            return_value=self.secrets_masker,
+        ):
             mask_secret(p)
             yield
 
@@ -452,7 +487,10 @@ class TestMaskSecretAdapter:
     @pytest.fixture(autouse=True)
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+        with patch(
+            "airflow.utils.log.secrets_masker._secrets_masker",
+            return_value=self.secrets_masker,
+        ):
             with patch("airflow.utils.log.secrets_masker.re2.escape", lambda x: x):
                 yield
 
@@ -464,7 +502,9 @@ class TestMaskSecretAdapter:
 
     def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
         with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
-            mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
+            mask_secret(
+                "https://airflow.apache.org/docs/apache-airflow/stable", "password"
+            )
 
         assert self.secrets_masker.patterns == {
             "https",

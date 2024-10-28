@@ -121,7 +121,9 @@ class HttpOperator(BaseOperator):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -173,10 +175,16 @@ class HttpOperator(BaseOperator):
         self.log.info("Calling HTTP method")
         if self.retry_args:
             response = self.hook.run_with_advanced_retry(
-                self.retry_args, self.endpoint, self.data, self.headers, self.extra_options
+                self.retry_args,
+                self.endpoint,
+                self.data,
+                self.headers,
+                self.extra_options,
             )
         else:
-            response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+            response = self.hook.run(
+                self.endpoint, self.data, self.headers, self.extra_options
+            )
         response = self.paginate_sync(response=response)
         return self.process_response(context=context, response=response)
 
@@ -194,7 +202,9 @@ class HttpOperator(BaseOperator):
                     self.retry_args, **self._merge_next_page_parameters(next_page_params)
                 )
             else:
-                response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
+                response = self.hook.run(
+                    **self._merge_next_page_parameters(next_page_params)
+                )
             all_responses.append(response)
         return all_responses
 
@@ -212,7 +222,9 @@ class HttpOperator(BaseOperator):
             method_name="execute_complete",
         )
 
-    def process_response(self, context: Context, response: Response | list[Response]) -> Any:
+    def process_response(
+        self, context: Context, response: Response | list[Response]
+    ) -> Any:
         """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
 
@@ -245,7 +257,10 @@ class HttpOperator(BaseOperator):
         return lambda: [entry.text for entry in response_list]
 
     def execute_complete(
-        self, context: Context, event: dict, paginated_responses: None | list[Response] = None
+        self,
+        context: Context,
+        event: dict,
+        paginated_responses: None | list[Response] = None,
     ):
         """
         Execute callback when the trigger fires; returns immediately.
@@ -255,13 +270,20 @@ class HttpOperator(BaseOperator):
         if event["status"] == "success":
             response = pickle.loads(base64.standard_b64decode(event["response"]))
 
-            self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
+            self.paginate_async(
+                context=context, response=response, previous_responses=paginated_responses
+            )
             return self.process_response(context=context, response=response)
         else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+            raise AirflowException(
+                f"Unexpected error in the operation: {event['message']}"
+            )
 
     def paginate_async(
-        self, context: Context, response: Response, previous_responses: None | list[Response] = None
+        self,
+        context: Context,
+        response: Response,
+        previous_responses: None | list[Response] = None,
     ):
         if self.pagination_function:
             all_responses = previous_responses or []
@@ -303,7 +325,9 @@ class HttpOperator(BaseOperator):
             endpoint=next_page_params.get("endpoint") or self.endpoint,
             data=data,
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
-            extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
+            extra_options=merge_dicts(
+                self.extra_options, next_page_params.get("extra_options", {})
+            ),
         )
 
 

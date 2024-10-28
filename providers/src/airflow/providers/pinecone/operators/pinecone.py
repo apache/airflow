@@ -83,7 +83,9 @@ class PineconeIngestOperator(BaseOperator):
             **self.upsert_kwargs,
         )
 
-        self.log.info("Successfully ingested data into Pinecone index %s.", self.index_name)
+        self.log.info(
+            "Successfully ingested data into Pinecone index %s.", self.index_name
+        )
 
 
 class CreatePodIndexOperator(BaseOperator):
@@ -205,7 +207,9 @@ class CreateServerlessIndexOperator(BaseOperator):
         return PineconeHook(conn_id=self.conn_id, region=self.region)
 
     def execute(self, context: Context) -> None:
-        serverless_spec_obj = self.hook.get_serverless_spec_obj(cloud=self.cloud, region=self.region)
+        serverless_spec_obj = self.hook.get_serverless_spec_obj(
+            cloud=self.cloud, region=self.region
+        )
         self.hook.create_index(
             index_name=self.index_name,
             dimension=self.dimension,

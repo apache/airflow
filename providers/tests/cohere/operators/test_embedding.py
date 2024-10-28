@@ -38,15 +38,23 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     api_url = "http://some_host.com"
     timeout = 150
     max_retries = 5
-    texts = ["On Kernel-Target Alignment. We describe a family of global optimization procedures"]
+    texts = [
+        "On Kernel-Target Alignment. We describe a family of global optimization procedures"
+    ]
 
-    get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=api_url)
+    get_connection.return_value = Connection(
+        conn_type="cohere", password=api_key, host=api_url
+    )
     client_obj = MagicMock()
     cohere_client.return_value = client_obj
     client_obj.embed.return_value = resp
 
     op = CohereEmbeddingOperator(
-        task_id="embed", conn_id="some_conn", input_text=texts, timeout=timeout, max_retries=max_retries
+        task_id="embed",
+        conn_id="some_conn",
+        input_text=texts,
+        timeout=timeout,
+        max_retries=max_retries,
     )
 
     val = op.execute(context={})

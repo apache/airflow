@@ -162,7 +162,9 @@ def create_post_side_effect(status_code=429):
     response = mock.MagicMock()
     response.status_code = status_code
     response.reason = "test"
-    response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
+    response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+        response=response
+    )
     return response
 
 
@@ -171,7 +173,12 @@ class TestSnowflakeSqlApiHook:
         "sql,statement_count,expected_response, expected_query_ids",
         [
             (SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"]),
-            (SQL_MULTIPLE_STMTS, 4, {"statementHandles": ["uuid", "uuid1"]}, ["uuid", "uuid1"]),
+            (
+                SQL_MULTIPLE_STMTS,
+                4,
+                {"statementHandles": ["uuid", "uuid1"]},
+                ["uuid", "uuid1"],
+            ),
         ],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
@@ -179,7 +186,9 @@ class TestSnowflakeSqlApiHook:
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers"
+    )
     def test_execute_query(
         self,
         mock_get_header,
@@ -211,7 +220,9 @@ class TestSnowflakeSqlApiHook:
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers"
+    )
     def test_execute_query_exception_without_statement_handle(
         self,
         mock_get_header,
@@ -245,7 +256,9 @@ class TestSnowflakeSqlApiHook:
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers"
+    )
     def test_execute_query_bindings_warning(
         self,
         mock_get_headers,
@@ -280,7 +293,9 @@ class TestSnowflakeSqlApiHook:
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook."
         "get_request_url_header_params"
     )
-    def test_check_query_output(self, mock_geturl_header_params, mock_requests, query_ids):
+    def test_check_query_output(
+        self, mock_geturl_header_params, mock_requests, query_ids
+    ):
         """Test check_query_output by passing query ids as params and mock get_request_url_header_params"""
         req_id = uuid.uuid4()
         params = {"requestId": str(req_id), "page": 2, "pageSize": 10}
@@ -306,15 +321,21 @@ class TestSnowflakeSqlApiHook:
         mock_geturl_header_params.return_value = HEADERS, params, "https://test/airflow/"
         hook = SnowflakeSqlApiHook("mock_conn_id")
         with mock.patch.object(hook.log, "error"), RequestsMock() as requests_mock:
-            requests_mock.get(url="https://test/airflow/", json={"foo": "bar"}, status=500)
-            with pytest.raises(AirflowException, match='Response: {"foo": "bar"}, Status Code: 500'):
+            requests_mock.get(
+                url="https://test/airflow/", json={"foo": "bar"}, status=500
+            )
+            with pytest.raises(
+                AirflowException, match='Response: {"foo": "bar"}, Status Code: 500'
+            ):
                 hook.check_query_output(query_ids)
 
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers"
+    )
     def test_get_request_url_header_params(self, mock_get_header, mock_conn_param):
         """Test get_request_url_header_params by mocking _get_conn_params and get_headers"""
         mock_conn_param.return_value = CONN_PARAMS
@@ -322,15 +343,24 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook("mock_conn_id")
         header, params, url = hook.get_request_url_header_params("uuid")
         assert header == HEADERS
-        assert url == "https://airflow.af_region.snowflakecomputing.com/api/v2/statements/uuid"
+        assert (
+            url
+            == "https://airflow.af_region.snowflakecomputing.com/api/v2/statements/uuid"
+        )
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_private_key")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_private_key"
+    )
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
     )
-    @mock.patch("airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token")
-    def test_get_headers_should_support_private_key(self, mock_get_token, mock_conn_param, mock_private_key):
+    @mock.patch(
+        "airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token"
+    )
+    def test_get_headers_should_support_private_key(
+        self, mock_get_token, mock_conn_param, mock_private_key
+    ):
         """Test get_headers method by mocking get_private_key and _get_conn_params method"""
         mock_get_token.return_value = "newT0k3n"
         mock_conn_param.return_value = CONN_PARAMS
@@ -338,7 +368,9 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result == HEADERS
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_oauth_token")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_oauth_token"
+    )
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
@@ -379,9 +411,13 @@ class TestSnowflakeSqlApiHook:
     @pytest.fixture
     def non_encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
         """Encrypt the pem file from the path"""
-        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        key = rsa.generate_private_key(
+            backend=default_backend(), public_exponent=65537, key_size=2048
+        )
         private_key = key.private_bytes(
-            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
         )
         test_key_file = tmp_path / "test_key.pem"
         test_key_file.write_bytes(private_key)
@@ -390,11 +426,15 @@ class TestSnowflakeSqlApiHook:
     @pytest.fixture
     def encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
         """Encrypt private key from the temp path"""
-        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        key = rsa.generate_private_key(
+            backend=default_backend(), public_exponent=65537, key_size=2048
+        )
         private_key = key.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.BestAvailableEncryption(_PASSWORD.encode()),
+            encryption_algorithm=serialization.BestAvailableEncryption(
+                _PASSWORD.encode()
+            ),
         )
         test_key_file: Path = tmp_path / "test_key.p8"
         test_key_file.write_bytes(private_key)
@@ -444,7 +484,8 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         with (
             unittest.mock.patch.dict(
-                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+                "os.environ",
+                AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri(),
             ),
             pytest.raises(
                 AirflowException,
@@ -509,9 +550,12 @@ class TestSnowflakeSqlApiHook:
         connection_kwargs["password"] = _PASSWORD
         with (
             unittest.mock.patch.dict(
-                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+                "os.environ",
+                AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri(),
             ),
-            pytest.raises(TypeError, match="Password was given but private key is not encrypted."),
+            pytest.raises(
+                TypeError, match="Password was given but private key is not encrypted."
+            ),
         ):
             SnowflakeSqlApiHook(snowflake_conn_id="test_conn").get_private_key()
 
@@ -544,9 +588,21 @@ class TestSnowflakeSqlApiHook:
                     "statement_handles": ["uuid", "uuid1"],
                 },
             ),
-            (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
-            (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (
+                202,
+                {},
+                {"status": "running", "message": "Query statements are still running"},
+            ),
+            (
+                422,
+                {"status": "error", "message": "test"},
+                {"status": "error", "message": "test"},
+            ),
+            (
+                404,
+                {"status": "error", "message": "test"},
+                {"status": "error", "message": "test"},
+            ),
         ],
     )
     @mock.patch(
@@ -555,7 +611,12 @@ class TestSnowflakeSqlApiHook:
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
     def test_get_sql_api_query_status(
-        self, mock_requests, mock_geturl_header_params, status_code, response, expected_response
+        self,
+        mock_requests,
+        mock_geturl_header_params,
+        status_code,
+        response,
+        expected_response,
     ):
         """Test get_sql_api_query_status function by mocking the status, response and expected
         response"""
@@ -605,18 +666,37 @@ class TestSnowflakeSqlApiHook:
                     "statement_handles": ["uuid", "uuid1"],
                 },
             ),
-            (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
-            (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (
+                202,
+                {},
+                {"status": "running", "message": "Query statements are still running"},
+            ),
+            (
+                422,
+                {"status": "error", "message": "test"},
+                {"status": "error", "message": "test"},
+            ),
+            (
+                404,
+                {"status": "error", "message": "test"},
+                {"status": "error", "message": "test"},
+            ),
         ],
     )
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook."
         "get_request_url_header_params"
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.aiohttp.ClientSession.get"
+    )
     async def test_get_sql_api_query_status_async(
-        self, mock_get, mock_geturl_header_params, status_code, response, expected_response
+        self,
+        mock_get,
+        mock_geturl_header_params,
+        status_code,
+        response,
+        expected_response,
     ):
         """Test Async get_sql_api_query_status_async function by mocking the status,
         response and expected response"""
@@ -624,7 +704,9 @@ class TestSnowflakeSqlApiHook:
         params = {"requestId": str(req_id), "page": 2, "pageSize": 10}
         mock_geturl_header_params.return_value = HEADERS, params, "/test/airflow/"
         mock_get.return_value.__aenter__.return_value.status = status_code
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=response)
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=response
+        )
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         response = await hook.get_sql_api_query_status_async("uuid")
         assert response == expected_response
@@ -727,7 +809,9 @@ class TestSnowflakeSqlApiHook:
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
         new_callable=PropertyMock,
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers"
+    )
     def test_proper_parametrization_of_execute_query_api_request(
         self,
         mock_get_headers,
@@ -760,4 +844,6 @@ class TestSnowflakeSqlApiHook:
 
         hook.execute_query(sql, statement_count)
 
-        mock_requests.post.assert_called_once_with(url, headers=HEADERS, json=expected_payload, params=params)
+        mock_requests.post.assert_called_once_with(
+            url, headers=HEADERS, json=expected_payload, params=params
+        )

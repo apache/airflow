@@ -49,7 +49,9 @@ class ComprehendHook(AwsBaseHook):
         EvaluationMetrics
 
         """
-        response = self.conn.describe_document_classifier(DocumentClassifierArn=document_classifier_arn)
+        response = self.conn.describe_document_classifier(
+            DocumentClassifierArn=document_classifier_arn
+        )
 
         status = response["DocumentClassifierProperties"]["Status"]
 
@@ -62,7 +64,9 @@ class ComprehendHook(AwsBaseHook):
             )
 
             if fail_on_warnings:
-                raise AirflowException("Warnings in AWS Comprehend document classifier training.")
+                raise AirflowException(
+                    "Warnings in AWS Comprehend document classifier training."
+                )
 
         self.log.info(
             "AWS Comprehend document classifier metadata: %s",

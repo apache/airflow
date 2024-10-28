@@ -40,7 +40,9 @@ class TestTaskInstanceSchema:
     def set_attrs(self, session, dag_maker):
         self.default_time = datetime(2020, 1, 1)
         with dag_maker(dag_id="TEST_DAG_ID", session=session):
-            self.task = EmptyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
+            self.task = EmptyOperator(
+                task_id="TEST_TASK_ID", start_date=self.default_time
+            )
 
         self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
         session.flush()
@@ -178,7 +180,9 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "execution_date": dt.datetime(
+                2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")
+            ),
             "include_downstream": True,
             "include_future": True,
             "include_past": True,
@@ -194,7 +198,9 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "execution_date": dt.datetime(
+                2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")
+            ),
             "include_downstream": True,
             "include_future": True,
             "include_past": True,

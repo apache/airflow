@@ -40,7 +40,11 @@ class TestKafkaAdminClientHook:
                 conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "localhost:9092",
+                        "group.id": "test_group",
+                    }
                 ),
             )
         )
@@ -64,7 +68,9 @@ class TestKafkaAdminClientHook:
         mock_f = MagicMock()
         admin_client.return_value.create_topics.return_value = {"topic_name": mock_f}
         self.hook.create_topic(topics=[("topic_name", 0, 1)])
-        admin_client.return_value.create_topics.assert_called_with([NewTopic("topic_name", 0, 1)])
+        admin_client.return_value.create_topics.assert_called_with(
+            [NewTopic("topic_name", 0, 1)]
+        )
         mock_f.result.assert_called_once()
 
     @patch(
@@ -93,7 +99,8 @@ class TestKafkaAdminClientHook:
         mock_f.result.side_effect = [kafka_exception]
         admin_client.return_value.create_topics.return_value = {"topic_name": mock_f}
         with caplog.at_level(
-            logging.WARNING, logger="airflow.providers.apache.kafka.hooks.client.KafkaAdminClientHook"
+            logging.WARNING,
+            logger="airflow.providers.apache.kafka.hooks.client.KafkaAdminClientHook",
         ):
             self.hook.create_topic(topics=[("topic_name", 0, 1)])
             assert "The topic topic_name already exists" in caplog.text

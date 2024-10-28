@@ -36,7 +36,11 @@ if TYPE_CHECKING:
         VectorStoreDeleted,
     )
     from openai.types.beta.threads import Message, Run
-    from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+    from openai.types.beta.vector_stores import (
+        VectorStoreFile,
+        VectorStoreFileBatch,
+        VectorStoreFileDeleted,
+    )
     from openai.types.chat import (
         ChatCompletionAssistantMessageParam,
         ChatCompletionFunctionMessageParam,
@@ -46,7 +50,10 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
 from airflow.hooks.base import BaseHook
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+)
 
 
 class BatchStatus(str, Enum):
@@ -84,7 +91,9 @@ class OpenAIHook(BaseHook):
     conn_type = "openai"
     hook_name = "OpenAI"
 
-    def __init__(self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
 
@@ -140,7 +149,9 @@ class OpenAIHook(BaseHook):
         :param messages: A list of messages comprising the conversation so far
         :param model: ID of the model to use
         """
-        response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
+        response = self.conn.chat.completions.create(
+            model=model, messages=messages, **kwargs
+        )
         return response.choices
 
     def create_assistant(self, model: str = "gpt-3.5-turbo", **kwargs: Any) -> Assistant:
@@ -209,7 +220,11 @@ class OpenAIHook(BaseHook):
         return response
 
     def create_message(
-        self, thread_id: str, role: Literal["user", "assistant"], content: str, **kwargs: Any
+        self,
+        thread_id: str,
+        role: Literal["user", "assistant"],
+        content: str,
+        **kwargs: Any,
     ) -> Message:
         """
         Create a message for a given Thread.
@@ -251,10 +266,14 @@ class OpenAIHook(BaseHook):
         :param thread_id: The ID of the thread to run.
         :param assistant_id: The ID of the assistant to use to execute this run.
         """
-        run = self.conn.beta.threads.runs.create(thread_id=thread_id, assistant_id=assistant_id, **kwargs)
+        run = self.conn.beta.threads.runs.create(
+            thread_id=thread_id, assistant_id=assistant_id, **kwargs
+        )
         return run
 
-    def create_run_and_poll(self, thread_id: str, assistant_id: str, **kwargs: Any) -> Run:
+    def create_run_and_poll(
+        self, thread_id: str, assistant_id: str, **kwargs: Any
+    ) -> Run:
         """
         Create a run for a given thread and assistant and then polls until completion.
 
@@ -293,7 +312,9 @@ class OpenAIHook(BaseHook):
         :param thread_id: The ID of the thread that was run.
         :param run_id: The ID of the run to modify.
         """
-        run = self.conn.beta.threads.runs.update(thread_id=thread_id, run_id=run_id, **kwargs)
+        run = self.conn.beta.threads.runs.update(
+            thread_id=thread_id, run_id=run_id, **kwargs
+        )
         return run
 
     def create_embeddings(
@@ -312,7 +333,9 @@ class OpenAIHook(BaseHook):
         embeddings: list[float] = response.data[0].embedding
         return embeddings
 
-    def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]) -> FileObject:
+    def upload_file(
+        self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]
+    ) -> FileObject:
         """
         Upload a file that can be used across various endpoints. The size of all the files uploaded by one organization can be up to 100 GB.
 
@@ -363,7 +386,9 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to retrieve.
         """
-        vector_store = self.conn.beta.vector_stores.retrieve(vector_store_id=vector_store_id)
+        vector_store = self.conn.beta.vector_stores.retrieve(
+            vector_store_id=vector_store_id
+        )
         return vector_store
 
     def modify_vector_store(self, vector_store_id: str, **kwargs: Any) -> VectorStore:
@@ -372,7 +397,9 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to modify.
         """
-        vector_store = self.conn.beta.vector_stores.update(vector_store_id=vector_store_id, **kwargs)
+        vector_store = self.conn.beta.vector_stores.update(
+            vector_store_id=vector_store_id, **kwargs
+        )
         return vector_store
 
     def delete_vector_store(self, vector_store_id: str) -> VectorStoreDeleted:
@@ -405,17 +432,23 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id:
         """
-        vector_store_files = self.conn.beta.vector_stores.files.list(vector_store_id=vector_store_id)
+        vector_store_files = self.conn.beta.vector_stores.files.list(
+            vector_store_id=vector_store_id
+        )
         return vector_store_files.data
 
-    def delete_vector_store_file(self, vector_store_id: str, file_id: str) -> VectorStoreFileDeleted:
+    def delete_vector_store_file(
+        self, vector_store_id: str, file_id: str
+    ) -> VectorStoreFileDeleted:
         """
         Delete a vector store file. This will remove the file from the vector store but the file itself will not be deleted. To delete the file, use delete_file.
 
         :param vector_store_id: The ID of the vector store that the file belongs to.
         :param file_id: The ID of the file to delete.
         """
-        response = self.conn.beta.vector_stores.files.delete(vector_store_id=vector_store_id, file_id=file_id)
+        response = self.conn.beta.vector_stores.files.delete(
+            vector_store_id=vector_store_id, file_id=file_id
+        )
         return response
 
     def create_batch(
@@ -435,7 +468,10 @@ class OpenAIHook(BaseHook):
         :param completion_window: The time window for the batch to complete. Default is 24 hours.
         """
         batch = self.conn.batches.create(
-            input_file_id=file_id, endpoint=endpoint, metadata=metadata, completion_window=completion_window
+            input_file_id=file_id,
+            endpoint=endpoint,
+            metadata=metadata,
+            completion_window=completion_window,
         )
         return batch
 
@@ -448,7 +484,9 @@ class OpenAIHook(BaseHook):
         batch = self.conn.batches.retrieve(batch_id=batch_id)
         return batch
 
-    def wait_for_batch(self, batch_id: str, wait_seconds: float = 3, timeout: float = 3600) -> None:
+    def wait_for_batch(
+        self, batch_id: str, wait_seconds: float = 3, timeout: float = 3600
+    ) -> None:
         """
         Poll a batch to check if it finishes.
 
@@ -461,7 +499,9 @@ class OpenAIHook(BaseHook):
         while True:
             if start + timeout < time.monotonic():
                 self.cancel_batch(batch_id=batch_id)
-                raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
+                raise OpenAIBatchTimeout(
+                    f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s"
+                )
             batch = self.get_batch(batch_id=batch_id)
 
             if BatchStatus.is_in_progress(batch.status):
@@ -472,7 +512,9 @@ class OpenAIHook(BaseHook):
             if batch.status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
             elif batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
-                raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
+                raise OpenAIBatchJobException(
+                    f"Batch failed - batch was cancelled:\n{batch_id}"
+                )
             elif batch.status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
                     f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"

@@ -63,7 +63,9 @@ with DAG(
     gcs_object_name = f"{env_id}-object"
 
     # [START howto_operator_glacier_create_job]
-    create_glacier_job = GlacierCreateJobOperator(task_id="create_glacier_job", vault_name=vault_name)
+    create_glacier_job = GlacierCreateJobOperator(
+        task_id="create_glacier_job", vault_name=vault_name
+    )
     JOB_ID = '{{ task_instance.xcom_pull("create_glacier_job")["jobId"] }}'
     # [END howto_operator_glacier_create_job]
 

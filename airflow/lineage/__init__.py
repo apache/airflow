@@ -74,7 +74,9 @@ def apply_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-        self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
+        self.log.debug(
+            "Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets
+        )
 
         ret_val = func(self, context, *args, **kwargs)
 
@@ -88,7 +90,9 @@ def apply_lineage(func: T) -> T:
             self.xcom_push(context, key=PIPELINE_INLETS, value=inlets)
 
         if _backend:
-            _backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)
+            _backend.send_lineage(
+                operator=self, inlets=self.inlets, outlets=self.outlets, context=context
+            )
 
         return ret_val
 
@@ -125,7 +129,9 @@ def prepare_lineage(func: T) -> T:
 
             # pick up unique direct upstream task_ids if AUTO is specified
             if AUTO.upper() in self.inlets or AUTO.lower() in self.inlets:
-                task_ids = task_ids.union(task_ids.symmetric_difference(self.upstream_task_ids))
+                task_ids = task_ids.union(
+                    task_ids.symmetric_difference(self.upstream_task_ids)
+                )
 
             # Remove auto and task_ids
             self.inlets = [i for i in self.inlets if not isinstance(i, str)]
@@ -136,12 +142,18 @@ def prepare_lineage(func: T) -> T:
             # After we are done iterating, we can safely close this session.
             with create_session() as session:
                 _inlets = self.xcom_pull(
-                    context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session
+                    context,
+                    task_ids=task_ids,
+                    dag_id=self.dag_id,
+                    key=PIPELINE_OUTLETS,
+                    session=session,
                 )
                 self.inlets.extend(i for it in _inlets for i in it)
 
         elif self.inlets:
-            raise AttributeError("inlets is not a list, operator, string or attr annotated object")
+            raise AttributeError(
+                "inlets is not a list, operator, string or attr annotated object"
+            )
 
         if not isinstance(self.outlets, list):
             self.outlets = [self.outlets]

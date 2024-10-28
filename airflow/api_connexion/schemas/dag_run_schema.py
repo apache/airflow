@@ -20,7 +20,14 @@ from __future__ import annotations
 import json
 from typing import NamedTuple
 
-from marshmallow import ValidationError, fields, post_dump, pre_load, validate, validates_schema
+from marshmallow import (
+    ValidationError,
+    fields,
+    post_dump,
+    pre_load,
+    validate,
+    validates_schema,
+)
 from marshmallow.schema import Schema
 from marshmallow.validate import Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -139,7 +146,11 @@ class SetDagRunStateFormSchema(Schema):
 
     state = DagStateField(
         validate=validate.OneOf(
-            [DagRunState.SUCCESS.value, DagRunState.FAILED.value, DagRunState.QUEUED.value]
+            [
+                DagRunState.SUCCESS.value,
+                DagRunState.FAILED.value,
+                DagRunState.QUEUED.value,
+            ]
         )
     )
 

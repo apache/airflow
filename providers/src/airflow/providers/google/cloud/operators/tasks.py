@@ -26,7 +26,10 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
-from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
+from airflow.providers.google.cloud.links.cloud_tasks import (
+    CloudTasksLink,
+    CloudTasksQueueLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 

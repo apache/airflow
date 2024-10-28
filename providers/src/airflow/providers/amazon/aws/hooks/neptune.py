@@ -45,7 +45,9 @@ class NeptuneHook(AwsBaseHook):
         kwargs["client_type"] = "neptune"
         super().__init__(*args, **kwargs)
 
-    def wait_for_cluster_availability(self, cluster_id: str, delay: int = 30, max_attempts: int = 60) -> str:
+    def wait_for_cluster_availability(
+        self, cluster_id: str, delay: int = 30, max_attempts: int = 60
+    ) -> str:
         """
         Wait for Neptune cluster to start.
 
@@ -55,15 +57,20 @@ class NeptuneHook(AwsBaseHook):
         :return: The status of the cluster.
         """
         self.get_waiter("cluster_available").wait(
-            DBClusterIdentifier=cluster_id, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts}
+            DBClusterIdentifier=cluster_id,
+            WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts},
         )
 
         status = self.get_cluster_status(cluster_id)
-        self.log.info("Finished waiting for cluster %s. Status is now %s", cluster_id, status)
+        self.log.info(
+            "Finished waiting for cluster %s. Status is now %s", cluster_id, status
+        )
 
         return status
 
-    def wait_for_cluster_stopped(self, cluster_id: str, delay: int = 30, max_attempts: int = 60) -> str:
+    def wait_for_cluster_stopped(
+        self, cluster_id: str, delay: int = 30, max_attempts: int = 60
+    ) -> str:
         """
         Wait for Neptune cluster to stop.
 
@@ -73,11 +80,14 @@ class NeptuneHook(AwsBaseHook):
         :return: The status of the cluster.
         """
         self.get_waiter("cluster_stopped").wait(
-            DBClusterIdentifier=cluster_id, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts}
+            DBClusterIdentifier=cluster_id,
+            WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts},
         )
 
         status = self.get_cluster_status(cluster_id)
-        self.log.info("Finished waiting for cluster %s. Status is now %s", cluster_id, status)
+        self.log.info(
+            "Finished waiting for cluster %s. Status is now %s", cluster_id, status
+        )
 
         return status
 
@@ -88,7 +98,9 @@ class NeptuneHook(AwsBaseHook):
         :param cluster_id: The ID of the cluster to get the status of.
         :return: The status of the cluster.
         """
-        return self.conn.describe_db_clusters(DBClusterIdentifier=cluster_id)["DBClusters"][0]["Status"]
+        return self.conn.describe_db_clusters(DBClusterIdentifier=cluster_id)[
+            "DBClusters"
+        ][0]["Status"]
 
     def get_db_instance_status(self, instance_id: str) -> str:
         """
@@ -97,9 +109,9 @@ class NeptuneHook(AwsBaseHook):
         :param instance_id: The ID of the instance to get the status of.
         :return: The status of the instance.
         """
-        return self.conn.describe_db_instances(DBInstanceIdentifier=instance_id)["DBInstances"][0][
-            "DBInstanceStatus"
-        ]
+        return self.conn.describe_db_instances(DBInstanceIdentifier=instance_id)[
+            "DBInstances"
+        ][0]["DBInstanceStatus"]
 
     def wait_for_cluster_instance_availability(
         self, cluster_id: str, delay: int = 30, max_attempts: int = 60

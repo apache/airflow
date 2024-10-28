@@ -146,7 +146,9 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
             + "')"
         )
         if self.compute_group_name:
-            sql += " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
+            sql += (
+                " AND UPPER(ComputeGroupName) = UPPER('" + self.compute_group_name + "')"
+            )
         hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         result_set = hook.run(sql, handler=fetch_one_handler)
         status = ""

@@ -97,7 +97,9 @@ class TestSendEmailSendGrid:
             mock_post.assert_called_once_with(expected_mail_data, "sendgrid_default")
 
     # Test the right email is constructed.
-    @mock.patch.dict("os.environ", SENDGRID_MAIL_FROM="foo@bar.com", SENDGRID_MAIL_SENDER="Foo")
+    @mock.patch.dict(
+        "os.environ", SENDGRID_MAIL_FROM="foo@bar.com", SENDGRID_MAIL_SENDER="Foo"
+    )
     @mock.patch("airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail")
     def test_send_email_sendgrid_correct_email_extras(self, mock_post):
         send_email(
@@ -109,7 +111,9 @@ class TestSendEmailSendGrid:
             personalization_custom_args=self.personalization_custom_args,
             categories=self.categories,
         )
-        mock_post.assert_called_once_with(self.expected_mail_data_extras, "sendgrid_default")
+        mock_post.assert_called_once_with(
+            self.expected_mail_data_extras, "sendgrid_default"
+        )
 
     @mock.patch.dict("os.environ", clear=True)
     @mock.patch("airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail")
@@ -123,4 +127,6 @@ class TestSendEmailSendGrid:
             from_email="foo@foo.bar",
             from_name="Foo Bar",
         )
-        mock_post.assert_called_once_with(self.expected_mail_data_sender, "sendgrid_default")
+        mock_post.assert_called_once_with(
+            self.expected_mail_data_sender, "sendgrid_default"
+        )

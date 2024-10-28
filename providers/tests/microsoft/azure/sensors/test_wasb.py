@@ -29,8 +29,14 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
-from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
+from airflow.providers.microsoft.azure.sensors.wasb import (
+    WasbBlobSensor,
+    WasbPrefixSensor,
+)
+from airflow.providers.microsoft.azure.triggers.wasb import (
+    WasbBlobSensorTrigger,
+    WasbPrefixSensorTrigger,
+)
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -63,7 +69,10 @@ class TestWasbBlobSensor:
         assert sensor.timeout == self._config["timeout"]
 
         sensor = WasbBlobSensor(
-            task_id="wasb_sensor_2", dag=self.dag, check_options={"timeout": 2}, **self._config
+            task_id="wasb_sensor_2",
+            dag=self.dag,
+            check_options={"timeout": 2},
+            **self._config,
         )
         assert sensor.check_options == {"timeout": 2}
 
@@ -71,16 +80,26 @@ class TestWasbBlobSensor:
     def test_poke(self, mock_hook):
         mock_instance = mock_hook.return_value
         sensor = WasbBlobSensor(
-            task_id="wasb_sensor", dag=self.dag, check_options={"timeout": 2}, **self._config
+            task_id="wasb_sensor",
+            dag=self.dag,
+            check_options={"timeout": 2},
+            **self._config,
         )
         sensor.poke(None)
-        mock_instance.check_for_blob.assert_called_once_with("container", "blob", timeout=2)
+        mock_instance.check_for_blob.assert_called_once_with(
+            "container", "blob", timeout=2
+        )
 
 
 class TestWasbBlobAsyncSensor:
-    def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
+    def get_dag_run(
+        self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id"
+    ) -> DagRun:
         dag_run = DagRun(
-            dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            dag_id=dag_id,
+            run_type="manual",
+            execution_date=timezone.datetime(2022, 1, 1),
+            run_id=run_id,
         )
         return dag_run
 
@@ -141,7 +160,9 @@ class TestWasbBlobAsyncSensor:
         mock_hook.return_value.check_for_blob.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
-        assert isinstance(exc.value.trigger, WasbBlobSensorTrigger), "Trigger is not a WasbBlobSensorTrigger"
+        assert isinstance(
+            exc.value.trigger, WasbBlobSensorTrigger
+        ), "Trigger is not a WasbBlobSensorTrigger"
         assert exc.value.timeout == datetime.timedelta(seconds=5)
 
     @pytest.mark.parametrize(
@@ -154,7 +175,10 @@ class TestWasbBlobAsyncSensor:
         if not event:
             with pytest.raises(AirflowException) as exception_info:
                 self.SENSOR.execute_complete(context=None, event=None)
-            assert exception_info.value.args[0] == "Did not receive valid event from the triggerer"
+            assert (
+                exception_info.value.args[0]
+                == "Did not receive valid event from the triggerer"
+            )
         else:
             with mock.patch.object(self.SENSOR.log, "info") as mock_log_info:
                 self.SENSOR.execute_complete(context={}, event=event)
@@ -164,7 +188,9 @@ class TestWasbBlobAsyncSensor:
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
         with pytest.raises(AirflowException):
-            self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
+            self.SENSOR.execute_complete(
+                context={}, event={"status": "error", "message": ""}
+            )
 
 
 class TestWasbPrefixSensor:
@@ -188,7 +214,10 @@ class TestWasbPrefixSensor:
         assert sensor.timeout == self._config["timeout"]
 
         sensor = WasbPrefixSensor(
-            task_id="wasb_sensor_2", dag=self.dag, check_options={"timeout": 2}, **self._config
+            task_id="wasb_sensor_2",
+            dag=self.dag,
+            check_options={"timeout": 2},
+            **self._config,
         )
         assert sensor.check_options == {"timeout": 2}
 
@@ -196,16 +225,26 @@ class TestWasbPrefixSensor:
     def test_poke(self, mock_hook):
         mock_instance = mock_hook.return_value
         sensor = WasbPrefixSensor(
-            task_id="wasb_sensor", dag=self.dag, check_options={"timeout": 2}, **self._config
+            task_id="wasb_sensor",
+            dag=self.dag,
+            check_options={"timeout": 2},
+            **self._config,
         )
         sensor.poke(None)
-        mock_instance.check_for_prefix.assert_called_once_with("container", "prefix", timeout=2)
+        mock_instance.check_for_prefix.assert_called_once_with(
+            "container", "prefix", timeout=2
+        )
 
 
 class TestWasbPrefixAsyncSensor:
-    def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
+    def get_dag_run(
+        self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id"
+    ) -> DagRun:
         dag_run = DagRun(
-            dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            dag_id=dag_id,
+            run_type="manual",
+            execution_date=timezone.datetime(2022, 1, 1),
+            run_id=run_id,
         )
         return dag_run
 
@@ -279,7 +318,10 @@ class TestWasbPrefixAsyncSensor:
         if not event:
             with pytest.raises(AirflowException) as exception_info:
                 self.SENSOR.execute_complete(context=None, event=None)
-            assert exception_info.value.args[0] == "Did not receive valid event from the triggerer"
+            assert (
+                exception_info.value.args[0]
+                == "Did not receive valid event from the triggerer"
+            )
         else:
             with mock.patch.object(self.SENSOR.log, "info") as mock_log_info:
                 self.SENSOR.execute_complete(context={}, event=event)
@@ -289,4 +331,6 @@ class TestWasbPrefixAsyncSensor:
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
         with pytest.raises(AirflowException):
-            self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
+            self.SENSOR.execute_complete(
+                context={}, event={"status": "error", "message": ""}
+            )

@@ -117,7 +117,9 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 stacklevel=2,
             )
             self.on_finish_action = (
-                OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
+                OnFinishAction.DELETE_POD
+                if should_delete_pod
+                else OnFinishAction.KEEP_POD
             )
             self.should_delete_pod = should_delete_pod
         else:
@@ -305,9 +307,13 @@ class GKEJobTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current job status and yield a TriggerEvent."""
         if self.get_logs or self.do_xcom_push:
-            pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
+            pod = await self.hook.get_pod(
+                name=self.pod_name, namespace=self.pod_namespace
+            )
         if self.do_xcom_push:
-            kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
+            kubernetes_provider = ProvidersManager().providers[
+                "apache-airflow-providers-cncf-kubernetes"
+            ]
             kubernetes_provider_name = kubernetes_provider.data["package-name"]
             kubernetes_provider_version = kubernetes_provider.version
             min_version = "8.4.1"
@@ -332,14 +338,22 @@ class GKEJobTrigger(BaseTrigger):
             )
             self.log.info("Extracting result from xcom sidecar container.")
             loop = asyncio.get_running_loop()
-            xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
+            xcom_result = await loop.run_in_executor(
+                None, self.pod_manager.extract_xcom, pod
+            )
         job: V1Job = await self.hook.wait_until_job_complete(
-            name=self.job_name, namespace=self.job_namespace, poll_interval=self.poll_interval
+            name=self.job_name,
+            namespace=self.job_namespace,
+            poll_interval=self.poll_interval,
         )
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
         status = "error" if error_message else "success"
-        message = f"Job failed with error: {error_message}" if error_message else "Job completed successfully"
+        message = (
+            f"Job failed with error: {error_message}"
+            if error_message
+            else "Job completed successfully"
+        )
         yield TriggerEvent(
             {
                 "name": job.metadata.name,

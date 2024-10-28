@@ -53,7 +53,9 @@ ACCOUNT_1_SAME_PROJECT = "account_1@project_id.iam.gserviceaccount.com"
 ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
 ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
 ANOTHER_PROJECT_ID = "another_project_id"
-CRED_PROVIDER_LOGGER_NAME = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+CRED_PROVIDER_LOGGER_NAME = (
+    "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+)
 IDP_LINK = "http://example.com/idp"
 CLIENT_ID = "your-client-id"
 CLIENT_SECRET = "your-client-secret"
@@ -145,14 +147,18 @@ class TestProvideGcpCredentials:
 
 class TestProvideGcpConnection:
     @mock.patch.dict(os.environ, {AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: ENV_VALUE})
-    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn"
+    )
     def test_provide_gcp_connection(self, mock_builder):
         mock_builder.return_value = TEMP_VARIABLE
         path = "path/to/file.json"
         scopes = ["scopes"]
         project_id = "project_id"
         with provide_gcp_connection(path, scopes, project_id):
-            mock_builder.assert_called_once_with(key_file_path=path, scopes=scopes, project_id=project_id)
+            mock_builder.assert_called_once_with(
+                key_file_path=path, scopes=scopes, project_id=project_id
+            )
             assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == TEMP_VARIABLE
         assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == ENV_VALUE
 
@@ -162,14 +168,18 @@ class TestProvideGcpConnAndCredentials:
         os.environ,
         {AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: ENV_VALUE, CREDENTIALS: ENV_VALUE},
     )
-    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn"
+    )
     def test_provide_gcp_conn_and_credentials(self, mock_builder):
         mock_builder.return_value = TEMP_VARIABLE
         path = "path/to/file.json"
         scopes = ["scopes"]
         project_id = "project_id"
         with provide_gcp_conn_and_credentials(path, scopes, project_id):
-            mock_builder.assert_called_once_with(key_file_path=path, scopes=scopes, project_id=project_id)
+            mock_builder.assert_called_once_with(
+                key_file_path=path, scopes=scopes, project_id=project_id
+            )
             assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == TEMP_VARIABLE
             assert os.environ[CREDENTIALS] == path
         assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == ENV_VALUE
@@ -183,7 +193,9 @@ class TestGetGcpCredentialsAndProjectId:
     test_project_id = "project_id"
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default, caplog):
+    def test_get_credentials_and_project_id_with_default_auth(
+        self, mock_auth_default, caplog
+    ):
         with caplog.at_level(level=logging.INFO, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id()
@@ -194,18 +206,25 @@ class TestGetGcpCredentialsAndProjectId:
         ) in caplog.messages
 
     @mock.patch("google.auth.default")
-    def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
+    def test_get_credentials_and_project_id_with_default_auth_and_delegate(
+        self, mock_auth_default
+    ):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
         result = get_credentials_and_project_id(delegate_to="USER")
         mock_auth_default.assert_called_once_with(scopes=None)
         mock_credentials.with_subject.assert_called_once_with("USER")
-        assert (mock_credentials.with_subject.return_value, self.test_project_id) == result
+        assert (
+            mock_credentials.with_subject.return_value,
+            self.test_project_id,
+        ) == result
 
     @pytest.mark.parametrize("scopes", [["scope1"], ["scope1", "scope2"]])
     @mock.patch("google.auth.default")
-    def test_get_credentials_and_project_id_with_default_auth_and_scopes(self, mock_auth_default, scopes):
+    def test_get_credentials_and_project_id_with_default_auth_and_scopes(
+        self, mock_auth_default, scopes
+    ):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
@@ -256,7 +275,10 @@ class TestGetGcpCredentialsAndProjectId:
             delegates=None,
             target_scopes=["scope1", "scope2"],
         )
-        assert (mock_impersonated_credentials.return_value, self.test_project_id) == result
+        assert (
+            mock_impersonated_credentials.return_value,
+            self.test_project_id,
+        ) == result
 
     @mock.patch(
         "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
@@ -291,14 +313,25 @@ class TestGetGcpCredentialsAndProjectId:
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id(key_path=self.test_key_file)
-        mock_from_service_account_file.assert_called_once_with(self.test_key_file, scopes=None)
-        assert (mock_from_service_account_file.return_value, self.test_project_id) == result
+        mock_from_service_account_file.assert_called_once_with(
+            self.test_key_file, scopes=None
+        )
+        assert (
+            mock_from_service_account_file.return_value,
+            self.test_project_id,
+        ) == result
         assert "Getting connection using JSON key file KEY_PATH.json" in caplog.messages
 
     @pytest.mark.parametrize(
-        "file", [pytest.param("path/to/file.p12", id="p12"), pytest.param("incorrect_file.ext", id="unknown")]
+        "file",
+        [
+            pytest.param("path/to/file.p12", id="p12"),
+            pytest.param("incorrect_file.ext", id="unknown"),
+        ],
     )
-    def test_get_credentials_and_project_id_with_service_account_file_and_non_valid_key(self, file):
+    def test_get_credentials_and_project_id_with_service_account_file_and_non_valid_key(
+        self, file
+    ):
         with pytest.raises(AirflowException):
             get_credentials_and_project_id(key_path=file)
 
@@ -313,41 +346,72 @@ class TestGetGcpCredentialsAndProjectId:
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id(keyfile_dict=service_account)
-        mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
-        assert (mock_from_service_account_info.return_value, self.test_project_id) == result
+        mock_from_service_account_info.assert_called_once_with(
+            service_account, scopes=None
+        )
+        assert (
+            mock_from_service_account_info.return_value,
+            self.test_project_id,
+        ) == result
         assert "Getting connection using JSON Dict" in caplog.messages
 
-    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_using_credential_config_file(self, mock_load_credentials_from_file, caplog):
+    @mock.patch(
+        "google.auth.load_credentials_from_file",
+        return_value=("CREDENTIALS", "PROJECT_ID"),
+    )
+    def test_get_credentials_using_credential_config_file(
+        self, mock_load_credentials_from_file, caplog
+    ):
         with (
             caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME),
             NamedTemporaryFile() as temp_file,
         ):
             caplog.clear()
             result = get_credentials_and_project_id(credential_config_file=temp_file.name)
-        mock_load_credentials_from_file.assert_called_once_with(temp_file.name, scopes=None)
+        mock_load_credentials_from_file.assert_called_once_with(
+            temp_file.name, scopes=None
+        )
         assert mock_load_credentials_from_file.return_value == result
         assert (
-            f"Getting connection using credential configuration file: `{temp_file.name}`" in caplog.messages
+            f"Getting connection using credential configuration file: `{temp_file.name}`"
+            in caplog.messages
         )
 
-    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_using_credential_config_dict(self, mock_load_credentials_from_file, caplog):
+    @mock.patch(
+        "google.auth.load_credentials_from_file",
+        return_value=("CREDENTIALS", "PROJECT_ID"),
+    )
+    def test_get_credentials_using_credential_config_dict(
+        self, mock_load_credentials_from_file, caplog
+    ):
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
-            result = get_credentials_and_project_id(credential_config_file={"type": "external_account"})
+            result = get_credentials_and_project_id(
+                credential_config_file={"type": "external_account"}
+            )
         mock_load_credentials_from_file.assert_called_once()
         assert mock_load_credentials_from_file.return_value == result
-        assert "Getting connection using credential configuration dict." in caplog.messages
+        assert (
+            "Getting connection using credential configuration dict." in caplog.messages
+        )
 
-    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_using_credential_config_string(self, mock_load_credentials_from_file, caplog):
+    @mock.patch(
+        "google.auth.load_credentials_from_file",
+        return_value=("CREDENTIALS", "PROJECT_ID"),
+    )
+    def test_get_credentials_using_credential_config_string(
+        self, mock_load_credentials_from_file, caplog
+    ):
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
-            result = get_credentials_and_project_id(credential_config_file='{"type": "external_account"}')
+            result = get_credentials_and_project_id(
+                credential_config_file='{"type": "external_account"}'
+            )
         mock_load_credentials_from_file.assert_called_once()
         assert mock_load_credentials_from_file.return_value == result
-        assert "Getting connection using credential configuration string." in caplog.messages
+        assert (
+            "Getting connection using credential configuration string." in caplog.messages
+        )
 
     def test_get_credentials_using_credential_config_invalid_string(self, caplog):
         caplog.clear()
@@ -356,11 +420,15 @@ class TestGetGcpCredentialsAndProjectId:
             caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME),
         ):
             get_credentials_and_project_id(credential_config_file="invalid json}}}}")
-        assert "Getting connection using credential configuration string." in caplog.messages
+        assert (
+            "Getting connection using credential configuration string." in caplog.messages
+        )
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch("google.oauth2.service_account.Credentials.from_service_account_info")
-    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient"
+    )
     def test_get_credentials_and_project_id_with_key_secret_name(
         self, mock_secret_manager_client, mock_from_service_account_info, mock_default
     ):
@@ -383,7 +451,9 @@ class TestGetGcpCredentialsAndProjectId:
         )
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
-    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient"
+    )
     def test_get_credentials_and_project_id_with_key_secret_name_when_key_is_invalid(
         self, mock_secret_manager_client, mock_default
     ):
@@ -398,10 +468,16 @@ class TestGetGcpCredentialsAndProjectId:
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         with pytest.raises(AirflowException, match="mutually exclusive."):
-            get_credentials_and_project_id(key_path="KEY.json", keyfile_dict={"private_key": "PRIVATE_KEY"})
+            get_credentials_and_project_id(
+                key_path="KEY.json", keyfile_dict={"private_key": "PRIVATE_KEY"}
+            )
 
-    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.AnonymousCredentials")
-    def test_get_credentials_using_anonymous_credentials(self, mock_anonymous_credentials):
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.AnonymousCredentials"
+    )
+    def test_get_credentials_using_anonymous_credentials(
+        self, mock_anonymous_credentials
+    ):
         result = get_credentials_and_project_id(is_anonymous=True)
         assert result == (mock_anonymous_credentials.return_value, "")
 
@@ -433,8 +509,13 @@ class TestGetGcpCredentialsAndProjectId:
                 disable_logging=True,
             )
 
-    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_using_identity_provider(self, mock_load_credentials_from_file, caplog):
+    @mock.patch(
+        "google.auth.load_credentials_from_dict",
+        return_value=("CREDENTIALS", "PROJECT_ID"),
+    )
+    def test_get_credentials_using_identity_provider(
+        self, mock_load_credentials_from_file, caplog
+    ):
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id(
@@ -458,8 +539,13 @@ class TestGetGcpCredentialsAndProjectId:
                 in caplog.messages
             )
 
-    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
-    def test_get_credentials_using_idp_dict_config_file(self, mock_load_credentials_from_file, caplog):
+    @mock.patch(
+        "google.auth.load_credentials_from_dict",
+        return_value=("CREDENTIALS", "PROJECT_ID"),
+    )
+    def test_get_credentials_using_idp_dict_config_file(
+        self, mock_load_credentials_from_file, caplog
+    ):
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id(
@@ -543,12 +629,25 @@ class TestGetTargetPrincipalAndDelegates:
     @pytest.mark.parametrize(
         "impersonation_chain, target_principal_and_delegates",
         [
-            pytest.param(ACCOUNT_1_SAME_PROJECT, (ACCOUNT_1_SAME_PROJECT, None), id="string"),
-            pytest.param([], (None, None), id="empty-list"),
-            pytest.param([ACCOUNT_1_SAME_PROJECT], (ACCOUNT_1_SAME_PROJECT, []), id="single-element-list"),
             pytest.param(
-                [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT, ACCOUNT_3_ANOTHER_PROJECT],
-                (ACCOUNT_3_ANOTHER_PROJECT, [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT]),
+                ACCOUNT_1_SAME_PROJECT, (ACCOUNT_1_SAME_PROJECT, None), id="string"
+            ),
+            pytest.param([], (None, None), id="empty-list"),
+            pytest.param(
+                [ACCOUNT_1_SAME_PROJECT],
+                (ACCOUNT_1_SAME_PROJECT, []),
+                id="single-element-list",
+            ),
+            pytest.param(
+                [
+                    ACCOUNT_1_SAME_PROJECT,
+                    ACCOUNT_2_SAME_PROJECT,
+                    ACCOUNT_3_ANOTHER_PROJECT,
+                ],
+                (
+                    ACCOUNT_3_ANOTHER_PROJECT,
+                    [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT],
+                ),
                 id="multiple-elements-list",
             ),
         ],
@@ -556,12 +655,18 @@ class TestGetTargetPrincipalAndDelegates:
     def test_get_target_principal_and_delegates_with_input(
         self, impersonation_chain, target_principal_and_delegates
     ):
-        assert _get_target_principal_and_delegates(impersonation_chain) == target_principal_and_delegates
+        assert (
+            _get_target_principal_and_delegates(impersonation_chain)
+            == target_principal_and_delegates
+        )
 
 
 class TestGetProjectIdFromServiceAccountEmail:
     def test_get_project_id_from_service_account_email(self):
-        assert _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT) == ANOTHER_PROJECT_ID
+        assert (
+            _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT)
+            == ANOTHER_PROJECT_ID
+        )
 
     def test_get_project_id_from_service_account_email_wrong_input(self):
         with pytest.raises(AirflowException):

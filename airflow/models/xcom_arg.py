@@ -20,7 +20,17 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+    Union,
+    overload,
+)
 
 from sqlalchemy import func, or_, select
 
@@ -89,7 +99,9 @@ class XComArg(ResolveMixin, DependencyMixin):
     """
 
     @overload
-    def __new__(cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY) -> XComArg:
+    def __new__(
+        cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY
+    ) -> XComArg:
         """Execute when the user writes ``XComArg(...)`` directly."""
 
     @overload
@@ -208,7 +220,13 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self,
+        context: Context,
+        session: Session = NEW_SESSION,
+        *,
+        include_xcom: bool = True,
+    ) -> Any:
         """
         Pull XCom value.
 
@@ -224,7 +242,9 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
-            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+            raise AirflowException(
+                "Only setup/teardown tasks can be used as context managers."
+            )
         SetupTeardownContext.push_setup_teardown_task(self.operator)
         return SetupTeardownContext
 
@@ -256,7 +276,9 @@ def _get_task_map_length(
             # "NULl = NULL", which is a big no-no in SQL.
             or_(
                 TaskInstance.state.is_(None),
-                TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                TaskInstance.state.in_(
+                    s.value for s in State.unfinished if s is not None
+                ),
             ),
             session=session,
         )
@@ -310,7 +332,9 @@ class PlainXComArg(XComArg):
     def __getitem__(self, item: str) -> XComArg:
         """Implement xcomresult['some_result_key']."""
         if not isinstance(item, str):
-            raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
+            raise ValueError(
+                f"XComArg only supports str lookup, received {type(item).__name__}"
+            )
         return PlainXComArg(operator=self.operator, key=item)
 
     def __iter__(self):
@@ -437,7 +461,13 @@ class PlainXComArg(XComArg):
         )
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self,
+        context: Context,
+        session: Session = NEW_SESSION,
+        *,
+        include_xcom: bool = True,
+    ) -> Any:
         ti = context["ti"]
         if TYPE_CHECKING:
             assert isinstance(ti, TaskInstance)
@@ -520,7 +550,9 @@ class MapXComArg(XComArg):
     def __init__(self, arg: XComArg, callables: MapCallables) -> None:
         for c in callables:
             if getattr(c, "_airflow_is_task_decorator", False):
-                raise ValueError("map() argument must be a plain function, not a @task operator")
+                raise ValueError(
+                    "map() argument must be a plain function, not a @task operator"
+                )
         self.arg = arg
         self.callables = callables
 
@@ -531,7 +563,9 @@ class MapXComArg(XComArg):
     def _serialize(self) -> dict[str, Any]:
         return {
             "arg": serialize_xcom_arg(self.arg),
-            "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
+            "callables": [
+                inspect.getsource(c) if callable(c) else c for c in self.callables
+            ],
         }
 
     @classmethod
@@ -551,15 +585,25 @@ class MapXComArg(XComArg):
         return self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+    def resolve(
+        self,
+        context: Context,
+        session: Session = NEW_SESSION,
+        *,
+        include_xcom: bool = True,
+    ) -> Any:
         value = self.arg.resolve(context, session=session, include_xcom=include_xcom)
         if not isinstance(value, (Sequence, dict)):
-            raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
+            raise ValueError(
+                f"XCom map expects sequence or dict, not {type(value).__name__}"
+            )
         return _MapResult(value, self.callables)
 
 
 class _ZipResult(Sequence):
-    def __init__(self, values: Sequence[Sequence | dict], *, fillvalue: Any = NOTSET) -> None:
+    def __init__(
+        self, values: Sequence[Sequence | dict], *, fillvalue: Any = NOTSET
+    ) -> None:
         self.values = values
         self.fillvalue = fillvalue
 
@@ -573,7 +617,9 @@ class _ZipResult(Sequence):
     def __getitem__(self, index: Any) -> Any:
         if index >= len(self):
             raise IndexError(index)
-        return tuple(self._get_or_fill(value, index, self.fillvalue) for value in self.values)
+        return tuple(
+            self._get_or_fill(value, index, self.fillvalue) for value in self.values
+        )
 
     def __len__(self) -> int:
         lengths = (len(v) for v in self.values)
@@ -623,7 +669,9 @@ class ZipXComArg(XComArg):
             yield from arg.iter_references()
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
+        all_lengths = (
+            arg.get_task_map_length(run_id, session=session) for arg in self.args
+        )
         ready_lengths = [length for length in all_lengths if length is not None]
         if len(ready_lengths) != len(self.args):
             return None  # If any of the referenced XComs is not ready, we are not ready either.
@@ -632,11 +680,22 @@ class ZipXComArg(XComArg):
         return max(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
-        values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
+    def resolve(
+        self,
+        context: Context,
+        session: Session = NEW_SESSION,
+        *,
+        include_xcom: bool = True,
+    ) -> Any:
+        values = [
+            arg.resolve(context, session=session, include_xcom=include_xcom)
+            for arg in self.args
+        ]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
-                raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
+                raise ValueError(
+                    f"XCom zip expects sequence or dict, not {type(value).__name__}"
+                )
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
@@ -700,18 +759,31 @@ class ConcatXComArg(XComArg):
         return ConcatXComArg([*self.args, *others])
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
+        all_lengths = (
+            arg.get_task_map_length(run_id, session=session) for arg in self.args
+        )
         ready_lengths = [length for length in all_lengths if length is not None]
         if len(ready_lengths) != len(self.args):
             return None  # If any of the referenced XComs is not ready, we are not ready either.
         return sum(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
-        values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
+    def resolve(
+        self,
+        context: Context,
+        session: Session = NEW_SESSION,
+        *,
+        include_xcom: bool = True,
+    ) -> Any:
+        values = [
+            arg.resolve(context, session=session, include_xcom=include_xcom)
+            for arg in self.args
+        ]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
-                raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
+                raise ValueError(
+                    f"XCom concat expects sequence or dict, not {type(value).__name__}"
+                )
         return _ConcatResult(values)
 
 

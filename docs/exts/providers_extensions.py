@@ -96,12 +96,13 @@ def find_class_methods_with_specific_calls(
             if isinstance(called_function.value, ast.Call) and isinstance(
                 called_function.value.func, ast.Name
             ):
-                full_method_call = (
-                    f"{import_mappings.get(called_function.value.func.id)}.{called_function.attr}"
-                )
+                full_method_call = f"{import_mappings.get(called_function.value.func.id)}.{called_function.attr}"
                 if full_method_call in target_calls:
                     methods_with_calls.add(node.name)
-            elif isinstance(called_function.value, ast.Name) and called_function.value.id == "self":
+            elif (
+                isinstance(called_function.value, ast.Name)
+                and called_function.value.id == "self"
+            ):
                 method_call_map[node.name].add(called_function.attr)
 
     # Second pass: Identify all methods that call the ones in `methods_with_calls`
@@ -140,7 +141,9 @@ def get_import_mappings(tree) -> dict[str, str]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             for alias in node.names:
-                module_prefix = f"{node.module}." if hasattr(node, "module") and node.module else ""
+                module_prefix = (
+                    f"{node.module}." if hasattr(node, "module") and node.module else ""
+                )
                 imports[alias.asname or alias.name] = f"{module_prefix}{alias.name}"
     return imports
 
@@ -183,7 +186,9 @@ def _get_module_class_registry(
 
 
 def _has_method(
-    class_path: str, method_names: Iterable[str], class_registry: dict[str, dict[str, Any]]
+    class_path: str,
+    method_names: Iterable[str],
+    class_registry: dict[str, dict[str, Any]],
 ) -> bool:
     """Determines if a class or its bases in the registry have any of the specified methods.
 
@@ -195,7 +200,10 @@ def _has_method(
 
     Example:
     >>> example_class_registry = {
-    ...     "some.module.MyClass": {"methods": {"foo", "bar"}, "base_classes": ["BaseClass"]},
+    ...     "some.module.MyClass": {
+    ...         "methods": {"foo", "bar"},
+    ...         "base_classes": ["BaseClass"],
+    ...     },
     ...     "another.module.BaseClass": {"methods": {"base_foo"}, "base_classes": []},
     ... }
     >>> _has_method("some.module.MyClass", ["foo"], example_class_registry)
@@ -206,7 +214,9 @@ def _has_method(
     False
     """
     if class_path in class_registry:
-        if any(method in class_registry[class_path]["methods"] for method in method_names):
+        if any(
+            method in class_registry[class_path]["methods"] for method in method_names
+        ):
             return True
         for base_name in class_registry[class_path]["base_classes"]:
             if _has_method(base_name, method_names, class_registry):
@@ -247,7 +257,9 @@ def _get_providers_class_registry(
                         .replace("/", ".")
                     ),
                     class_extras={
-                        "provider_name": lambda **kwargs: provider_yaml_content["package-name"],
+                        "provider_name": lambda **kwargs: provider_yaml_content[
+                            "package-name"
+                        ],
                         **(class_extras or {}),
                     },
                 )
@@ -257,12 +269,17 @@ def _get_providers_class_registry(
 
 
 def _render_openlineage_supported_classes_content():
-    openlineage_operator_methods = ("get_openlineage_facets_on_complete", "get_openlineage_facets_on_start")
+    openlineage_operator_methods = (
+        "get_openlineage_facets_on_complete",
+        "get_openlineage_facets_on_start",
+    )
     openlineage_db_hook_methods = (
         "get_openlineage_database_info",
         "get_openlineage_database_specific_lineage",
     )
-    hook_lineage_collector_path = "airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector"
+    hook_lineage_collector_path = (
+        "airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector"
+    )
     hook_level_lineage_collector_calls = {
         f"{hook_lineage_collector_path}.add_input_asset",  # Airflow 3
         f"{hook_lineage_collector_path}.add_output_asset",  # Airflow 3
@@ -273,14 +290,17 @@ def _render_openlineage_supported_classes_content():
     class_registry = _get_providers_class_registry(
         class_extras={
             "methods_with_hook_level_lineage": partial(
-                find_class_methods_with_specific_calls, target_calls=hook_level_lineage_collector_calls
+                find_class_methods_with_specific_calls,
+                target_calls=hook_level_lineage_collector_calls,
             )
         }
     )
 
     # These excluded classes will be included in docs directly
     class_registry.pop("airflow.providers.common.sql.hooks.sql.DbApiHook")
-    class_registry.pop("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator")
+    class_registry.pop(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator"
+    )
 
     providers: dict[str, dict[str, Any]] = {}
     db_hooks: list[tuple[str, str]] = []
@@ -288,7 +308,9 @@ def _render_openlineage_supported_classes_content():
         class_name = class_path.split(".")[-1]
         if class_name.startswith("_"):
             continue
-        provider_entry = providers.setdefault(info["provider_name"], {"operators": {}, "hooks": {}})
+        provider_entry = providers.setdefault(
+            info["provider_name"], {"operators": {}, "hooks": {}}
+        )
 
         if class_name.lower().endswith("operator"):
             if _has_method(
@@ -326,13 +348,19 @@ def _render_openlineage_supported_classes_content():
             },
             "hooks": {
                 hook: sorted(methods)
-                for hook, methods in sorted(details["hooks"].items(), key=lambda x: x[0].split(".")[-1])
+                for hook, methods in sorted(
+                    details["hooks"].items(), key=lambda x: x[0].split(".")[-1]
+                )
             },
         }
         for provider, details in sorted(providers.items())
-        if any(details.values())  # This filters out providers with empty 'operators' and 'hooks'
+        if any(
+            details.values()
+        )  # This filters out providers with empty 'operators' and 'hooks'
     }
-    db_hooks = sorted({db_type: hook for db_type, hook in db_hooks}.items(), key=lambda x: x[0])
+    db_hooks = sorted(
+        {db_type: hook for db_type, hook in db_hooks}.items(), key=lambda x: x[0]
+    )
 
     return _render_template(
         "openlineage.rst.jinja2",
@@ -344,12 +372,17 @@ def _render_openlineage_supported_classes_content():
 class OpenLineageSupportedClassesDirective(BaseJinjaReferenceDirective):
     """Generate list of classes supporting OpenLineage"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ):
         return _render_openlineage_supported_classes_content()
 
 
 def setup(app):
     """Setup plugin"""
-    app.add_directive("airflow-providers-openlineage-supported-classes", OpenLineageSupportedClassesDirective)
+    app.add_directive(
+        "airflow-providers-openlineage-supported-classes",
+        OpenLineageSupportedClassesDirective,
+    )
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}

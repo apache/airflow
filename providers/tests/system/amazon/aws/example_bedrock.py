@@ -108,10 +108,18 @@ def customize_model_workflow():
         return end_workflow.task_id if SKIP_LONG_TASKS else customize_model.task_id
 
     run_or_skip = run_or_skip()
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    end_workflow = EmptyOperator(
+        task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
 
     chain(run_or_skip, Label("Long-running tasks skipped"), end_workflow)
-    chain(run_or_skip, customize_model, await_custom_model_job, delete_custom_model(), end_workflow)
+    chain(
+        run_or_skip,
+        customize_model,
+        await_custom_model_job,
+        delete_custom_model(),
+        end_workflow,
+    )
 
 
 @task_group
@@ -134,14 +142,22 @@ def provision_throughput_workflow():
 
     @task
     def delete_provision_throughput(provisioned_model_id: str):
-        BedrockHook().conn.delete_provisioned_model_throughput(provisionedModelId=provisioned_model_id)
+        BedrockHook().conn.delete_provisioned_model_throughput(
+            provisionedModelId=provisioned_model_id
+        )
 
     @task.branch
     def run_or_skip():
-        return end_workflow.task_id if SKIP_PROVISION_THROUGHPUT else provision_throughput.task_id
+        return (
+            end_workflow.task_id
+            if SKIP_PROVISION_THROUGHPUT
+            else provision_throughput.task_id
+        )
 
     run_or_skip = run_or_skip()
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    end_workflow = EmptyOperator(
+        task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
 
     chain(run_or_skip, Label("Quota-restricted tasks skipped"), end_workflow)
     chain(
@@ -168,7 +184,9 @@ with DAG(
     custom_model_name = f"CustomModel{env_id}"
     custom_model_job_name = f"CustomizeModelJob{env_id}"
     provisioned_model_name = f"ProvisionedModel{env_id}"
-    model_arn_prefix = f"arn:aws:bedrock:{boto3.session.Session().region_name}::foundation-model/"
+    model_arn_prefix = (
+        f"arn:aws:bedrock:{boto3.session.Session().region_name}::foundation-model/"
+    )
 
     create_bucket = S3CreateBucketOperator(
         task_id="create_bucket",

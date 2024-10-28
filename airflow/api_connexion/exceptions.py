@@ -68,7 +68,9 @@ def common_error_handler(exception: BaseException) -> flask.Response:
         if not isinstance(exception, werkzeug.exceptions.HTTPException):
             exception = werkzeug.exceptions.InternalServerError()
 
-        response = problem(title=exception.name, detail=exception.description, status=exception.code)
+        response = problem(
+            title=exception.name, detail=exception.description, status=exception.code
+        )
 
     return FlaskApi.get_response(response)
 

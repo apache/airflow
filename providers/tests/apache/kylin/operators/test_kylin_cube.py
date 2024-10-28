@@ -94,7 +94,9 @@ class TestKylinCubeOperator:
         assert self._config["end_time"] == operator.end_time
         operator.execute(None)
         mock_hook.assert_called_once_with(
-            kylin_conn_id=self._config["kylin_conn_id"], project=self._config["project"], dsn=None
+            kylin_conn_id=self._config["kylin_conn_id"],
+            project=self._config["project"],
+            dsn=None,
         )
 
         mock_hook.return_value.cube_run.assert_called_once_with(
@@ -110,7 +112,12 @@ class TestKylinCubeOperator:
     @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute_build(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True, timeout=5, interval=1, task_id="kylin_task", dag=self.dag, **self._config
+            is_track_job=True,
+            timeout=5,
+            interval=1,
+            task_id="kylin_task",
+            dag=self.dag,
+            **self._config,
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -123,7 +130,12 @@ class TestKylinCubeOperator:
     @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute_build_status_error(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True, timeout=5, interval=1, task_id="kylin_task", dag=self.dag, **self._config
+            is_track_job=True,
+            timeout=5,
+            interval=1,
+            task_id="kylin_task",
+            dag=self.dag,
+            **self._config,
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command
@@ -137,7 +149,12 @@ class TestKylinCubeOperator:
     @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute_build_time_out_error(self, mock_hook):
         operator = KylinCubeOperator(
-            is_track_job=True, timeout=5, interval=1, task_id="kylin_task", dag=self.dag, **self._config
+            is_track_job=True,
+            timeout=5,
+            interval=1,
+            task_id="kylin_task",
+            dag=self.dag,
+            **self._config,
         )
         hook = MagicMock()
         hook.invoke_command = self.cube_command

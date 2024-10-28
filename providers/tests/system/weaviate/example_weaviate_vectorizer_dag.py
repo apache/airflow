@@ -76,9 +76,14 @@ def example_weaviate_vectorizer_dag():
         weaviate_hook = WeaviateHook()
         properties = ["question", "answer", "category"]
         response = weaviate_hook.query_with_text(
-            "biology", "Weaviate_with_vectorizer_example_collection", properties=properties
+            "biology",
+            "Weaviate_with_vectorizer_example_collection",
+            properties=properties,
         )
-        assert "In 1953 Watson & Crick built a model" in response.objects[0].properties["question"]
+        assert (
+            "In 1953 Watson & Crick built a model"
+            in response.objects[0].properties["question"]
+        )
 
     @teardown
     @task
@@ -93,7 +98,12 @@ def example_weaviate_vectorizer_dag():
 
         weaviate_hook.delete_collections([COLLECTION_NAME])
 
-    create_weaviate_collection() >> perform_ingestion >> query_weaviate() >> delete_weaviate_collection()
+    (
+        create_weaviate_collection()
+        >> perform_ingestion
+        >> query_weaviate()
+        >> delete_weaviate_collection()
+    )
 
 
 example_weaviate_vectorizer_dag()

@@ -44,7 +44,9 @@ class TestBatchClient:
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type"
+    )
     def setup_method(self, method, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch_client = BatchClientHook(
@@ -75,7 +77,9 @@ class TestBatchClient:
         self.get_client_type_mock.assert_called_once_with(region_name=AWS_REGION)
 
     def test_wait_for_job_with_success(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
+        }
 
         with mock.patch.object(
             self.batch_client,
@@ -96,7 +100,9 @@ class TestBatchClient:
         assert self.client_mock.describe_jobs.call_count == 4
 
     def test_wait_for_job_with_failure(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "FAILED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "FAILED"}]
+        }
 
         with mock.patch.object(
             self.batch_client,
@@ -117,7 +123,9 @@ class TestBatchClient:
         assert self.client_mock.describe_jobs.call_count == 4
 
     def test_wait_for_job_with_logs(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
+        }
 
         batch_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
         mock_get_batch_log_fetcher = mock.Mock(return_value=batch_log_fetcher)
@@ -127,28 +135,42 @@ class TestBatchClient:
         thread_join = mock.Mock(side_effect=lambda: time.sleep(2))
 
         with (
-            mock.patch.object(batch_log_fetcher, "start", thread_start) as mock_fetcher_start,
-            mock.patch.object(batch_log_fetcher, "stop", thread_stop) as mock_fetcher_stop,
-            mock.patch.object(batch_log_fetcher, "join", thread_join) as mock_fetcher_join,
+            mock.patch.object(
+                batch_log_fetcher, "start", thread_start
+            ) as mock_fetcher_start,
+            mock.patch.object(
+                batch_log_fetcher, "stop", thread_stop
+            ) as mock_fetcher_stop,
+            mock.patch.object(
+                batch_log_fetcher, "join", thread_join
+            ) as mock_fetcher_join,
         ):
-            self.batch_client.wait_for_job(JOB_ID, get_batch_log_fetcher=mock_get_batch_log_fetcher)
+            self.batch_client.wait_for_job(
+                JOB_ID, get_batch_log_fetcher=mock_get_batch_log_fetcher
+            )
             mock_get_batch_log_fetcher.assert_called_with(JOB_ID)
             mock_fetcher_start.assert_called_once()
             mock_fetcher_stop.assert_called_once()
             mock_fetcher_join.assert_called_once()
 
     def test_poll_job_running_for_status_running(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]
+        }
         self.batch_client.poll_for_job_running(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
     def test_poll_job_complete_for_status_success(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
+        }
         self.batch_client.poll_for_job_complete(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
     def test_poll_job_complete_raises_for_max_retries(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]
+        }
         with pytest.raises(AirflowException) as ctx:
             self.batch_client.poll_for_job_complete(JOB_ID)
         msg = f"AWS Batch job ({JOB_ID}) status checks exceed max_retries"
@@ -186,7 +208,9 @@ class TestBatchClient:
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
     def test_check_job_success(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]
+        }
         status = self.batch_client.check_job_success(JOB_ID)
         assert status
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -226,7 +250,9 @@ class TestBatchClient:
         assert msg in str(ctx.value)
 
     def test_check_job_success_raises_incomplete(self):
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNABLE"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": "RUNNABLE"}]
+        }
         with pytest.raises(AirflowException) as ctx:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -235,7 +261,9 @@ class TestBatchClient:
 
     def test_check_job_success_raises_unknown_status(self):
         status = "STRANGE"
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": status}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [{"jobId": JOB_ID, "status": status}]
+        }
         with pytest.raises(AirflowException) as ctx:
             self.batch_client.check_job_success(JOB_ID)
         self.client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
@@ -248,7 +276,9 @@ class TestBatchClient:
         with caplog.at_level(level=logging.WARNING):
             with pytest.raises(AirflowException):
                 self.batch_client.check_job_success(JOB_ID)
-            self.client_mock.describe_jobs.assert_has_calls([mock.call(jobs=[JOB_ID])] * 3)
+            self.client_mock.describe_jobs.assert_has_calls(
+                [mock.call(jobs=[JOB_ID])] * 3
+            )
             msg = f"AWS Batch job ({JOB_ID}) description error"
             assert msg in caplog.messages[0]
 
@@ -256,7 +286,9 @@ class TestBatchClient:
         self.client_mock.terminate_job.return_value = {}
         reason = "Task killed by the user"
         response = self.batch_client.terminate_job(JOB_ID, reason)
-        self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason=reason)
+        self.client_mock.terminate_job.assert_called_once_with(
+            jobId=JOB_ID, reason=reason
+        )
         assert response == {}
 
     def test_job_awslogs_default(self):
@@ -339,7 +371,10 @@ class TestBatchClient:
         with caplog.at_level(level=logging.WARNING):
             assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
             assert len(caplog.records) == 1
-            assert "uses non-aws log drivers. AWS CloudWatch logging disabled." in caplog.messages[0]
+            assert (
+                "uses non-aws log drivers. AWS CloudWatch logging disabled."
+                in caplog.messages[0]
+            )
 
     def test_job_awslogs_multinode_job(self):
         self.client_mock.describe_jobs.return_value = {
@@ -347,8 +382,18 @@ class TestBatchClient:
                 {
                     "jobId": JOB_ID,
                     "attempts": [
-                        {"container": {"exitCode": 0, "logStreamName": "test/stream/attempt0"}},
-                        {"container": {"exitCode": 0, "logStreamName": "test/stream/attempt1"}},
+                        {
+                            "container": {
+                                "exitCode": 0,
+                                "logStreamName": "test/stream/attempt0",
+                            }
+                        },
+                        {
+                            "container": {
+                                "exitCode": 0,
+                                "logStreamName": "test/stream/attempt1",
+                            }
+                        },
                     ],
                     "nodeProperties": {
                         "mainNode": 0,
@@ -394,7 +439,9 @@ class TestBatchClient:
         }
         for log_info in awslogs:
             # mark combinations that we see
-            combinations[(log_info["awslogs_stream_name"], log_info["awslogs_group"])] = True
+            combinations[(log_info["awslogs_stream_name"], log_info["awslogs_group"])] = (
+                True
+            )
 
         assert len(combinations) == 4
         # all combinations listed above should have been seen
@@ -406,7 +453,9 @@ class TestBatchClientDelays:
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setup_method(self, method):
-        self.batch_client = BatchClientHook(aws_conn_id="airflow_test", region_name=AWS_REGION)
+        self.batch_client = BatchClientHook(
+            aws_conn_id="airflow_test", region_name=AWS_REGION
+        )
         # We're mocking all actual AWS calls and don't need a connection. This
         # avoids an Airflow warning about connection cannot be found.
         self.batch_client.get_connection = lambda _: None

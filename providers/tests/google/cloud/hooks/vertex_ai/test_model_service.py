@@ -53,7 +53,8 @@ class TestModelServiceWithDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = ModelServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -121,11 +122,15 @@ class TestModelServiceWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_upload_model(self, mock_client) -> None:
-        self.hook.upload_model(project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL)
+        self.hook.upload_model(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL
+        )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.upload_model.assert_called_once_with(
             request=dict(
@@ -136,12 +141,17 @@ class TestModelServiceWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_upload_model_with_parent_model(self, mock_client) -> None:
         self.hook.upload_model(
-            project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL, parent_model=TEST_PARENT_MODEL
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            model=TEST_MODEL,
+            parent_model=TEST_PARENT_MODEL,
         )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.upload_model.assert_called_once_with(
@@ -154,7 +164,9 @@ class TestModelServiceWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_list_model_versions(self, mock_client) -> None:
@@ -188,7 +200,9 @@ class TestModelServiceWithDefaultProjectIdHook:
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_get_model(self, mock_client) -> None:
-        self.hook.get_model(project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME)
+        self.hook.get_model(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.get_model.assert_called_once_with(
             request=dict(
@@ -257,7 +271,8 @@ class TestModelServiceWithDefaultProjectIdHook:
 class TestModelServiceWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = ModelServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -325,11 +340,15 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_upload_model(self, mock_client) -> None:
-        self.hook.upload_model(project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL)
+        self.hook.upload_model(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL
+        )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.upload_model.assert_called_once_with(
             request=dict(
@@ -340,12 +359,17 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_upload_model_with_parent_model(self, mock_client) -> None:
         self.hook.upload_model(
-            project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL, parent_model=TEST_PARENT_MODEL
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            model=TEST_MODEL,
+            parent_model=TEST_PARENT_MODEL,
         )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.upload_model.assert_called_once_with(
@@ -358,7 +382,9 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_list_model_versions(self, mock_client) -> None:
@@ -392,7 +418,9 @@ class TestModelServiceWithoutDefaultProjectIdHook:
 
     @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
     def test_get_model(self, mock_client) -> None:
-        self.hook.get_model(project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME)
+        self.hook.get_model(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.get_model.assert_called_once_with(
             request=dict(

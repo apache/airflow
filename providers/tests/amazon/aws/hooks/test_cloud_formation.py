@@ -57,7 +57,9 @@ class TestCloudFormationHook:
             cloudformation_parameters={
                 "TimeoutInMinutes": timeout,
                 "TemplateBody": template_body,
-                "Parameters": [{"ParameterKey": "VPCCidr", "ParameterValue": "10.0.0.0/16"}],
+                "Parameters": [
+                    {"ParameterKey": "VPCCidr", "ParameterValue": "10.0.0.0/16"}
+                ],
             },
         )
 
@@ -85,7 +87,9 @@ class TestCloudFormationHook:
         assert len(matching_stacks) == 1, f"stack with name {stack_name} should exist"
 
         stack = matching_stacks[0]
-        assert stack["StackStatus"] == "CREATE_COMPLETE", "Stack should be in status CREATE_COMPLETE"
+        assert (
+            stack["StackStatus"] == "CREATE_COMPLETE"
+        ), "Stack should be in status CREATE_COMPLETE"
 
     def test_delete_stack(self):
         stack_name = "my_test_delete_stack_stack"

@@ -157,10 +157,14 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     def client(self):
         """Create a Secrets Manager client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
-        from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+        from airflow.providers.amazon.aws.utils.connection_wrapper import (
+            AwsConnectionWrapper,
+        )
 
         conn_id = f"{self.__class__.__name__}__connection"
-        conn_config = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=self.kwargs)
+        conn_config = AwsConnectionWrapper.from_connection_metadata(
+            conn_id=conn_id, extra=self.kwargs
+        )
         client_kwargs = trim_none_values(
             {
                 "region_name": conn_config.region_name,
@@ -194,7 +198,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
-            conn_d[conn_field] = next((v for k, v in secret.items() if k in possible_words), None)
+            conn_d[conn_field] = next(
+                (v for k, v in secret.items() if k in possible_words), None
+            )
 
         return conn_d
 
@@ -207,7 +213,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        secret = self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
+        secret = self._get_secret(
+            self.connections_prefix, conn_id, self.connections_lookup_pattern
+        )
 
         if secret is not None and secret.strip().startswith("{"):
             # Before Airflow 2.3, the AWS SecretsManagerBackend added support for JSON secrets.
@@ -251,7 +259,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
-    def _get_secret(self, path_prefix, secret_id: str, lookup_pattern: str | None) -> str | None:
+    def _get_secret(
+        self, path_prefix, secret_id: str, lookup_pattern: str | None
+    ) -> str | None:
         """
         Get secret value from Secrets Manager.
 

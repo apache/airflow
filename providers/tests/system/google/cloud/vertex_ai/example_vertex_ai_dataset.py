@@ -61,7 +61,9 @@ TIME_SERIES_DATASET = {
         {
             "input_config": {
                 "gcs_source": {
-                    "uri": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/forecast-dataset.csv"]
+                    "uri": [
+                        f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/forecast-dataset.csv"
+                    ]
                 }
             }
         },
@@ -79,7 +81,11 @@ TABULAR_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/tabular-dataset.csv"]}
+                "gcs_source": {
+                    "uri": [
+                        f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/tabular-dataset.csv"
+                    ]
+                }
             }
         },
         Value(),
@@ -95,14 +101,22 @@ VIDEO_DATASET = {
     "metadata_schema_uri": schema.dataset.metadata.video,
     "metadata": Value(string_value="video-dataset"),
 }
-TEST_EXPORT_CONFIG = {"gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/exports"}}
+TEST_EXPORT_CONFIG = {
+    "gcs_destination": {
+        "output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/exports"
+    }
+}
 TEST_IMPORT_CONFIG = [
     {
         "data_item_labels": {
             "test-labels-name": "test-labels-value",
         },
         "import_schema_uri": schema.dataset.ioformat.image.single_label_classification,
-        "gcs_source": {"uris": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/image-dataset-flowers.csv"]},
+        "gcs_source": {
+            "uris": [
+                f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/image-dataset-flowers.csv"
+            ]
+        },
     },
 ]
 DATASET_TO_UPDATE = {"display_name": "test-name"}
@@ -259,7 +273,10 @@ with DAG(
             create_time_series_dataset_job >> delete_time_series_dataset_job,
             create_text_dataset_job >> delete_dataset_job,
             create_tabular_dataset_job >> get_dataset >> delete_tabular_dataset_job,
-            create_image_dataset_job >> import_data_job >> export_data_job >> delete_image_dataset_job,
+            create_image_dataset_job
+            >> import_data_job
+            >> export_data_job
+            >> delete_image_dataset_job,
             create_video_dataset_job >> update_dataset_job >> delete_video_dataset_job,
             list_dataset_job,
         ]

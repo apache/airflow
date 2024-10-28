@@ -42,7 +42,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
+    from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
+        ListTrainingPipelinesPager,
+    )
     from google.cloud.aiplatform_v1.types import TrainingPipeline
 
 
@@ -78,12 +80,16 @@ class AutoMLHook(GoogleBaseHook):
     ) -> PipelineServiceClient:
         """Return PipelineServiceClient."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return PipelineServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=self.client_info,
+            client_options=client_options,
         )
 
     def get_job_service_client(
@@ -92,12 +98,16 @@ class AutoMLHook(GoogleBaseHook):
     ) -> JobServiceClient:
         """Return JobServiceClient."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=self.client_info,
+            client_options=client_options,
         )
 
     def get_auto_ml_tabular_training_job(

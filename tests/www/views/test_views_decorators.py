@@ -37,7 +37,9 @@ if AIRFLOW_V_3_0_PLUS:
 
 pytestmark = pytest.mark.db_test
 
-EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(
+    hour=0, minute=0, second=0, microsecond=0
+)
 
 
 @pytest.fixture(scope="module")
@@ -58,7 +60,9 @@ def xcom_dag(dagbag):
 
 @pytest.fixture(autouse=True)
 def dagruns(bash_dag, xcom_dag):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
@@ -150,4 +154,6 @@ def test_action_logging_variables_masked_secrets(session, admin_client):
     form = dict(key="x_secret", val="randomval")
     admin_client.post("/variable/add", data=form)
     session.commit()
-    _check_last_log_masked_variable(session, dag_id=None, event="variable.create", execution_date=None)
+    _check_last_log_masked_variable(
+        session, dag_id=None, event="variable.create", execution_date=None
+    )

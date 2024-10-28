@@ -34,7 +34,9 @@ from tests_common.test_utils.config import conf_vars
 class TestYandexHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
-    def test_client_created_without_exceptions(self, mock_get_credentials, mock_get_connection):
+    def test_client_created_without_exceptions(
+        self, mock_get_credentials, mock_get_connection
+    ):
         """tests `init` method to validate client creation when all parameters are passed"""
 
         default_folder_id = "test_id"
@@ -58,7 +60,9 @@ class TestYandexHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_provider_user_agent(self, mock_get_credentials, mock_get_connection):
-        mock_get_connection.return_value = mock.Mock(yandex_conn_id="yandexcloud_default", extra_dejson="{}")
+        mock_get_connection.return_value = mock.Mock(
+            yandex_conn_id="yandexcloud_default", extra_dejson="{}"
+        )
         mock_get_credentials.return_value = {"token": 122323}
         sdk_prefix = "MyAirflow"
 
@@ -75,7 +79,9 @@ class TestYandexHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials")
     def test_sdk_user_agent(self, mock_get_credentials, mock_get_connection):
-        mock_get_connection.return_value = mock.Mock(yandex_conn_id="yandexcloud_default", extra_dejson="{}")
+        mock_get_connection.return_value = mock.Mock(
+            yandex_conn_id="yandexcloud_default", extra_dejson="{}"
+        )
         mock_get_credentials.return_value = {"token": 122323}
         sdk_prefix = "MyAirflow"
 
@@ -87,12 +93,15 @@ class TestYandexHook:
         "uri",
         [
             pytest.param(
-                "a://?extra__yandexcloud__folder_id=abc&extra__yandexcloud__public_ssh_key=abc", id="prefix"
+                "a://?extra__yandexcloud__folder_id=abc&extra__yandexcloud__public_ssh_key=abc",
+                id="prefix",
             ),
             pytest.param("a://?folder_id=abc&public_ssh_key=abc", id="no-prefix"),
         ],
     )
-    @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials", new=MagicMock())
+    @mock.patch(
+        "airflow.providers.yandex.utils.credentials.get_credentials", new=MagicMock()
+    )
     def test_backcompat_prefix_works(self, uri):
         with (
             mock.patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}),

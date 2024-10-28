@@ -69,7 +69,9 @@ def _render_template(template_name, **kwargs):
 
 def _docs_path(filepath: str):
     if not filepath.startswith("/docs/"):
-        raise RuntimeError(f"The path must starts with '/docs/'. Current value: {filepath}")
+        raise RuntimeError(
+            f"The path must starts with '/docs/'. Current value: {filepath}"
+        )
 
     if not filepath.endswith(".rst"):
         raise RuntimeError(f"The path must ends with '.rst'. Current value: {filepath}")
@@ -88,7 +90,10 @@ def _docs_path(filepath: str):
 
 def _prepare_resource_index(package_data, resource_type):
     return {
-        integration["integration-name"]: {**integration, "package-name": provider["package-name"]}
+        integration["integration-name"]: {
+            **integration,
+            "package-name": provider["package-name"],
+        }
         for provider in package_data
         for integration in provider.get(resource_type, [])
     }
@@ -101,7 +106,9 @@ def _prepare_operators_data(tags: set[str] | None):
         to_display_integration = all_integrations.values()
     else:
         to_display_integration = [
-            integration for integration in all_integrations.values() if tags.intersection(integration["tags"])
+            integration
+            for integration in all_integrations.values()
+            if tags.intersection(integration["tags"])
         ]
 
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
@@ -118,7 +125,9 @@ def _prepare_operators_data(tags: set[str] | None):
         hooks = all_hooks_by_integration.get(integration["integration-name"])
 
         if "how-to-guide" in item["integration"]:
-            item["integration"]["how-to-guide"] = [_docs_path(d) for d in item["integration"]["how-to-guide"]]
+            item["integration"]["how-to-guide"] = [
+                _docs_path(d) for d in item["integration"]["how-to-guide"]
+            ]
         if operators:
             item["operators"] = operators
         if sensors:
@@ -134,7 +143,9 @@ def _prepare_operators_data(tags: set[str] | None):
 def _render_operator_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_operators_data(tags)
     return _render_template(
-        "operators_and_hooks_ref.rst.jinja2", items=tabular_data, header_separator=header_separator
+        "operators_and_hooks_ref.rst.jinja2",
+        items=tabular_data,
+        header_separator=header_separator,
     )
 
 
@@ -148,8 +159,12 @@ def _prepare_transfer_data(tags: set[str] | None):
         {
             **transfer,
             "package-name": provider["package-name"],
-            "source-integration": all_operators_by_integration[transfer["source-integration-name"]],
-            "target-integration": all_operators_by_integration[transfer["target-integration-name"]],
+            "source-integration": all_operators_by_integration[
+                transfer["source-integration-name"]
+            ],
+            "target-integration": all_operators_by_integration[
+                transfer["target-integration-name"]
+            ],
         }
         for provider in package_data
         for transfer in provider.get("transfers", [])
@@ -173,13 +188,17 @@ def _prepare_transfer_data(tags: set[str] | None):
 def _render_transfer_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_transfer_data(tags)
     return _render_template(
-        "operators_and_hooks_ref-transfers.rst.jinja2", items=tabular_data, header_separator=header_separator
+        "operators_and_hooks_ref-transfers.rst.jinja2",
+        items=tabular_data,
+        header_separator=header_separator,
     )
 
 
 def iter_deferrable_operators(module_filename: str) -> Iterator[tuple[str, str]]:
     ast_obj = ast.parse(open(module_filename).read())
-    cls_nodes = (node for node in ast.iter_child_nodes(ast_obj) if isinstance(node, ast.ClassDef))
+    cls_nodes = (
+        node for node in ast.iter_child_nodes(ast_obj) if isinstance(node, ast.ClassDef)
+    )
     init_method_nodes = (
         (cls_node, node)
         for cls_node in cls_nodes
@@ -205,7 +224,9 @@ def _render_deferrable_operator_content(*, header_separator: str):
                 for file_name in file_names:
                     if file_name.endswith(".py") and file_name != "__init__.py":
                         provider_info["operators"].extend(
-                            iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
+                            iter_deferrable_operators(
+                                f"{os.path.relpath(root)}/{file_name}"
+                            )
                         )
 
         if provider_info["operators"]:
@@ -239,7 +260,11 @@ def _get_decorator_details(decorator):
     if isinstance(decorator, ast.Call):
         name = get_full_name(decorator.func)
         args = [eval_node(arg) for arg in decorator.args]
-        kwargs = {kw.arg: eval_node(kw.value) for kw in decorator.keywords if kw.arg != "category"}
+        kwargs = {
+            kw.arg: eval_node(kw.value)
+            for kw in decorator.keywords
+            if kw.arg != "category"
+        }
         return name, args, kwargs
     elif isinstance(decorator, ast.Name):
         return decorator.id, [], {}
@@ -249,7 +274,9 @@ def _get_decorator_details(decorator):
         return decorator, [], {}
 
 
-def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[dict[str, Any]]:
+def _iter_module_for_deprecations(
+    ast_node, file_path, class_name=None
+) -> list[dict[str, Any]]:
     deprecations = []
     decorators_of_deprecation = {"deprecated"}
 
@@ -257,10 +284,18 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
         for decorator in node.decorator_list:
             if str(_class_name).startswith("_") or str(node.name).startswith("_"):
                 continue
-            decorator_name, decorator_args, decorator_kwargs = _get_decorator_details(decorator)
+            decorator_name, decorator_args, decorator_kwargs = _get_decorator_details(
+                decorator
+            )
 
-            instructions = decorator_kwargs.get("reason", "No instructions were provided.")
-            if len(decorator_args) == 1 and isinstance(decorator_args[0], str) and not instructions:
+            instructions = decorator_kwargs.get(
+                "reason", "No instructions were provided."
+            )
+            if (
+                len(decorator_args) == 1
+                and isinstance(decorator_args[0], str)
+                and not instructions
+            ):
                 instructions = decorator_args[0]
 
             if decorator_name in (
@@ -274,7 +309,9 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
 
             if decorator_name in decorators_of_deprecation:
                 object_name = f"{_class_name}.{node.name}" if _class_name else node.name
-                object_path = os.path.join(_file_path, object_name).replace("/", ".").lstrip(".")
+                object_path = (
+                    os.path.join(_file_path, object_name).replace("/", ".").lstrip(".")
+                )
                 deprecations.append(
                     {
                         "object_path": object_path,
@@ -287,13 +324,20 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
     for child in ast.iter_child_nodes(ast_node):
         if isinstance(child, ast.ClassDef):
             analyze_decorators(child, file_path, object_type="class")
-            deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=child.name))
+            deprecations.extend(
+                _iter_module_for_deprecations(child, file_path, class_name=child.name)
+            )
         elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
             analyze_decorators(
-                child, file_path, _class_name=class_name, object_type="method" if class_name else "function"
+                child,
+                file_path,
+                _class_name=class_name,
+                object_type="method" if class_name else "function",
             )
         else:
-            deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=class_name))
+            deprecations.extend(
+                _iter_module_for_deprecations(child, file_path, class_name=class_name)
+            )
 
     return deprecations
 
@@ -304,12 +348,16 @@ def _render_deprecations_content(*, header_separator: str):
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "deprecations": []}
         for root, _, file_names in os.walk(provider_parent_path):
-            file_names = [f for f in file_names if f.endswith(".py") and f != "__init__.py"]
+            file_names = [
+                f for f in file_names if f.endswith(".py") and f != "__init__.py"
+            ]
             for file_name in file_names:
                 file_path = f"{os.path.relpath(root)}/{file_name}"
                 with open(file_path) as file:
                     ast_obj = ast.parse(file.read())
-                provider_info["deprecations"].extend(_iter_module_for_deprecations(ast_obj, file_path[:-3]))
+                provider_info["deprecations"].extend(
+                    _iter_module_for_deprecations(ast_obj, file_path[:-3])
+                )
 
         if provider_info["deprecations"]:
             provider_info["deprecations"] = sorted(
@@ -330,7 +378,10 @@ class BaseJinjaReferenceDirective(Directive):
     """The base directive for OperatorsHooksReferenceDirective and TransfersReferenceDirective"""
 
     optional_arguments = 1
-    option_spec = {"tags": directives.unchanged, "header-separator": directives.unchanged_required}
+    option_spec = {
+        "tags": directives.unchanged,
+        "header-separator": directives.unchanged_required,
+    }
 
     def run(self):
         tags_arg = self.options.get("tags")
@@ -353,12 +404,16 @@ class BaseJinjaReferenceDirective(Directive):
 
         return node.children
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ):
         """Return content in RST format"""
         raise NotImplementedError("You need to override render_content method.")
 
 
-def _common_render_list_content(*, header_separator: str, resource_type: str, template: str):
+def _common_render_list_content(
+    *, header_separator: str, resource_type: str, template: str
+):
     tabular_data = {
         provider["package-name"]: {
             "name": provider["name"],
@@ -367,7 +422,9 @@ def _common_render_list_content(*, header_separator: str, resource_type: str, te
         for provider in load_package_data()
         if provider.get(resource_type) is not None
     }
-    return _render_template(template, items=tabular_data, header_separator=header_separator)
+    return _render_template(
+        template, items=tabular_data, header_separator=header_separator
+    )
 
 
 class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
@@ -401,7 +458,9 @@ class LoggingDirective(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         return _common_render_list_content(
-            header_separator=header_separator, resource_type="logging", template="logging.rst.jinja2"
+            header_separator=header_separator,
+            resource_type="logging",
+            template="logging.rst.jinja2",
         )
 
 
@@ -430,7 +489,9 @@ class AuthConfigurations(BaseJinjaReferenceDirective):
             if provider.get("config") is not None
         ]
         return _render_template(
-            "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator
+            "configuration.rst.jinja2",
+            items=tabular_data,
+            header_separator=header_separator,
         )
 
 
@@ -467,7 +528,9 @@ class ExtraLinksDirective(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         return _common_render_list_content(
-            header_separator=header_separator, resource_type="extra-links", template="extra_links.rst.jinja2"
+            header_separator=header_separator,
+            resource_type="extra-links",
+            template="extra_links.rst.jinja2",
         )
 
 
@@ -491,14 +554,18 @@ class ExecutorsDirective(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         return _common_render_list_content(
-            header_separator=header_separator, resource_type="executors", template="executors.rst.jinja2"
+            header_separator=header_separator,
+            resource_type="executors",
+            template="executors.rst.jinja2",
         )
 
 
 class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
     """Generate list of deferrable operators"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ):
         return _render_deferrable_operator_content(
             header_separator=header_separator,
         )
@@ -507,7 +574,9 @@ class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
 class DeprecationsDirective(BaseJinjaReferenceDirective):
     """Generate list of deprecated entities"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ):
         return _render_deprecations_content(
             header_separator=header_separator,
         )
@@ -516,7 +585,9 @@ class DeprecationsDirective(BaseJinjaReferenceDirective):
 class AssetSchemeDirective(BaseJinjaReferenceDirective):
     """Generate list of Asset URI schemes"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ):
         return _common_render_list_content(
             header_separator=header_separator,
             resource_type="asset-uris",
@@ -554,7 +625,9 @@ option_header_separator = click.option(
 )
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
+@click.group(
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500}
+)
 def cli():
     """Render tables with integrations"""
 
@@ -564,7 +637,11 @@ def cli():
 @option_header_separator
 def operators_and_hooks(tag: Iterable[str], header_separator: str):
     """Renders Operators ahd Hooks content"""
-    print(_render_operator_content(tags=set(tag) if tag else None, header_separator=header_separator))
+    print(
+        _render_operator_content(
+            tags=set(tag) if tag else None, header_separator=header_separator
+        )
+    )
 
 
 @cli.command()
@@ -572,7 +649,11 @@ def operators_and_hooks(tag: Iterable[str], header_separator: str):
 @option_header_separator
 def transfers(tag: Iterable[str], header_separator: str):
     """Renders Transfers content"""
-    print(_render_transfer_content(tags=set(tag) if tag else None, header_separator=header_separator))
+    print(
+        _render_transfer_content(
+            tags=set(tag) if tag else None, header_separator=header_separator
+        )
+    )
 
 
 @cli.command()
@@ -581,7 +662,9 @@ def logging(header_separator: str):
     """Renders Logger content"""
     print(
         _common_render_list_content(
-            header_separator=header_separator, resource_type="logging", template="logging.rst.jinja2"
+            header_separator=header_separator,
+            resource_type="logging",
+            template="logging.rst.jinja2",
         )
     )
 
@@ -631,7 +714,9 @@ def extra_links(header_separator: str):
     """Renders Extra  links content"""
     print(
         _common_render_list_content(
-            header_separator=header_separator, resource_type="extra-links", template="extra_links.rst.jinja2"
+            header_separator=header_separator,
+            resource_type="extra-links",
+            template="extra_links.rst.jinja2",
         )
     )
 

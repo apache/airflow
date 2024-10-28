@@ -53,7 +53,9 @@ class AirbyteJobSensor(BaseSensorOperator):
         self,
         *,
         airbyte_job_id: int,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
         **kwargs,
@@ -82,7 +84,9 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.api_version = api_version
 
     def poke(self, context: Context) -> bool:
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        hook = AirbyteHook(
+            airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version
+        )
         job = hook.get_job_details(job_id=self.airbyte_job_id)
         status = job.status
 
@@ -104,14 +108,20 @@ class AirbyteJobSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+            hook = AirbyteHook(
+                airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version
+            )
             job = hook.get_job_details(job_id=(int(self.airbyte_job_id)))
             state = job.status
             end_time = time.time() + self.timeout
 
             self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
 
-            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+            if state in (
+                JobStatusEnum.RUNNING,
+                JobStatusEnum.PENDING,
+                JobStatusEnum.INCOMPLETE,
+            ):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(

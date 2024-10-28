@@ -40,9 +40,15 @@ from msrestazure.azure_exceptions import CloudError
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
-from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
-from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+from airflow.providers.microsoft.azure.hooks.container_instance import (
+    AzureContainerInstanceHook,
+)
+from airflow.providers.microsoft.azure.hooks.container_registry import (
+    AzureContainerRegistryHook,
+)
+from airflow.providers.microsoft.azure.hooks.container_volume import (
+    AzureContainerVolumeHook,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -119,7 +125,13 @@ class AzureContainerInstancesOperator(BaseOperator):
             },
             secured_variables=["POSTGRES_PASSWORD"],
             volumes=[
-                ("azure_container_instance_conn_id", "my_storage_container", "my_fileshare", "/input-data", True),
+                (
+                    "azure_container_instance_conn_id",
+                    "my_storage_container",
+                    "my_fileshare",
+                    "/input-data",
+                    True,
+                ),
             ],
             memory_in_gb=14.0,
             cpu=4.0,
@@ -142,7 +154,13 @@ class AzureContainerInstancesOperator(BaseOperator):
         )
     """
 
-    template_fields: Sequence[str] = ("name", "image", "command", "environment_variables", "volumes")
+    template_fields: Sequence[str] = (
+        "name",
+        "image",
+        "command",
+        "environment_variables",
+        "volumes",
+    )
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     def __init__(
@@ -183,7 +201,9 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.image = image
         self.region = region
         self.registry_conn_id = registry_conn_id
-        self.environment_variables = environment_variables or DEFAULT_ENVIRONMENT_VARIABLES
+        self.environment_variables = (
+            environment_variables or DEFAULT_ENVIRONMENT_VARIABLES
+        )
         self.secured_variables = secured_variables or DEFAULT_SECURED_VARIABLES
         self.volumes = volumes or DEFAULT_VOLUMES
         self.memory_in_gb = memory_in_gb or DEFAULT_MEMORY_IN_GB
@@ -255,17 +275,29 @@ class AzureContainerInstancesOperator(BaseOperator):
             hook = AzureContainerVolumeHook(conn_id)
 
             mount_name = f"mount-{len(volumes)}"
-            volumes.append(hook.get_file_volume(mount_name, share_name, account_name, read_only))
-            volume_mounts.append(VolumeMount(name=mount_name, mount_path=mount_path, read_only=read_only))
+            volumes.append(
+                hook.get_file_volume(mount_name, share_name, account_name, read_only)
+            )
+            volume_mounts.append(
+                VolumeMount(name=mount_name, mount_path=mount_path, read_only=read_only)
+            )
 
         exit_code = 1
         try:
-            self.log.info("Starting container group with %.1f cpu %.1f mem", self.cpu, self.memory_in_gb)
+            self.log.info(
+                "Starting container group with %.1f cpu %.1f mem",
+                self.cpu,
+                self.memory_in_gb,
+            )
             if self.gpu:
-                self.log.info("GPU count: %.1f, GPU SKU: %s", self.gpu.count, self.gpu.sku)
+                self.log.info(
+                    "GPU count: %.1f, GPU SKU: %s", self.gpu.count, self.gpu.sku
+                )
 
             resources = ResourceRequirements(
-                requests=ResourceRequests(memory_in_gb=self.memory_in_gb, cpu=self.cpu, gpu=self.gpu)
+                requests=ResourceRequests(
+                    memory_in_gb=self.memory_in_gb, cpu=self.cpu, gpu=self.gpu
+                )
             )
 
             if self.ip_address and not self.ports:
@@ -299,7 +331,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                 priority=self.priority,
             )
 
-            self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
+            self._ci_hook.create_or_update(
+                self.resource_group, self.name, container_group
+            )
 
             self.log.info("Container group started %s/%s", self.resource_group, self.name)
 
@@ -423,7 +457,9 @@ class AzureContainerInstancesOperator(BaseOperator):
     def _check_name(name: str) -> str:
         regex_check = re.match("[a-z0-9]([-a-z0-9]*[a-z0-9])?", name)
         if regex_check is None or regex_check.group() != name:
-            raise AirflowException('ACI name must match regex [a-z0-9]([-a-z0-9]*[a-z0-9])? (like "my-name")')
+            raise AirflowException(
+                'ACI name must match regex [a-z0-9]([-a-z0-9]*[a-z0-9])? (like "my-name")'
+            )
         if len(name) > 63:
             raise AirflowException("ACI name cannot be longer than 63 characters")
         return name

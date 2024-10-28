@@ -36,7 +36,9 @@ console = Console(width=400, color_system="standard")
 
 
 def read_airflow_version() -> str:
-    ast_obj = ast.parse((AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "__init__.py").read_text())
+    ast_obj = ast.parse(
+        (AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "__init__.py").read_text()
+    )
     for node in ast_obj.body:
         if isinstance(node, ast.Assign):
             if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
@@ -74,7 +76,11 @@ def pre_process_files(files: list[str]) -> list[str]:
 
 
 def insert_documentation(
-    file_path: Path, content: list[str], header: str, footer: str, add_comment: bool = False
+    file_path: Path,
+    content: list[str],
+    header: str,
+    footer: str,
+    add_comment: bool = False,
 ) -> bool:
     found = False
     old_content = file_path.read_text()
@@ -87,7 +93,9 @@ def insert_documentation(
             found = True
             result.append(line)
             if add_comment:
-                result.extend(["# " + line if line != "\n" else "#\n" for line in content])
+                result.extend(
+                    ["# " + line if line != "\n" else "#\n" for line in content]
+                )
             else:
                 result.extend(content)
         if line.strip().startswith(footer.strip()):
@@ -113,7 +121,9 @@ def initialize_breeze_precommit(name: str, file: str):
         )
 
     if os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
-        console.print("[yellow]Skipping breeze pre-commit as SKIP_BREEZE_PRE_COMMIT is set")
+        console.print(
+            "[yellow]Skipping breeze pre-commit as SKIP_BREEZE_PRE_COMMIT is set"
+        )
         sys.exit(0)
     if shutil.which("breeze") is None:
         console.print(
@@ -183,7 +193,9 @@ def run_command_via_breeze_shell(
     if project_name:
         down_command.extend(["--project-name", project_name])
     down_command.extend(["down", "--remove-orphans"])
-    subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
     return result
 
 
@@ -207,7 +219,9 @@ def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> b
         console.print()
         return True
     console.print(f"{message} [red]NOK[/]")
-    console.print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
+    console.print(
+        textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4)
+    )
     console.print()
     errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
     return False
@@ -220,7 +234,9 @@ def validate_cmd_result(cmd_result, include_ci_env_check=False):
                 "\n[yellow]If you see strange stacktraces above, especially about missing imports "
                 "run this command:[/]\n"
             )
-            console.print("[magenta]breeze ci-image build --python 3.9 --upgrade-to-newer-dependencies[/]\n")
+            console.print(
+                "[magenta]breeze ci-image build --python 3.9 --upgrade-to-newer-dependencies[/]\n"
+            )
 
     elif cmd_result.returncode != 0:
         console.print(

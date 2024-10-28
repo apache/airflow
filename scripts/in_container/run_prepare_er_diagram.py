@@ -40,7 +40,11 @@ if __name__ == "__main__":
 
     console.print("[bright_blue]Preparing diagram for Airflow ERD")
     sha256hash = dirhash(
-        MIGRATIONS_DIR, "sha256", excluded_extensions=["pyc"], ignore_hidden=True, include_paths=True
+        MIGRATIONS_DIR,
+        "sha256",
+        excluded_extensions=["pyc"],
+        ignore_hidden=True,
+        include_paths=True,
     )
     old_hash = HASH_FILE.read_text() if HASH_FILE.exists() else ""
     if sha256hash != old_hash:
@@ -63,11 +67,17 @@ if __name__ == "__main__":
                 os.chown(path=HASH_FILE, uid=host_uid, gid=host_gid)
                 os.chown(path=SVG_FILE, uid=host_uid, gid=host_gid)
             except Exception as e:
-                console.print("[yellow]Exception while fixing ownership. Skipping fixing it:", e)
+                console.print(
+                    "[yellow]Exception while fixing ownership. Skipping fixing it:", e
+                )
         console.print(f"[bright_blue]Hash file saved in {HASH_FILE}")
-        console.print(f"[green]The diagram has been generated in {SVG_FILE}. Please commit the changes!")
+        console.print(
+            f"[green]The diagram has been generated in {SVG_FILE}. Please commit the changes!"
+        )
     else:
-        console.print("[green]Skip file generation as no files changes since last generation")
+        console.print(
+            "[green]Skip file generation as no files changes since last generation"
+        )
         console.print(
             f"[bright_blue]You can delete [magenta]{HASH_FILE.relative_to(AIRFLOW_SOURCES_ROOT)}[/] "
             f"[bright_blue]to regenerate the diagrams.[/]"

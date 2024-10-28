@@ -35,7 +35,9 @@ class TestConnectionExtra:
 
     def test_missing_extra_field(self):
         """Test missing field in extra."""
-        extra_config = ConnectionExtraConfig(conn_type="slack", conn_id="test-conn-id", extra={})
+        extra_config = ConnectionExtraConfig(
+            conn_type="slack", conn_id="test-conn-id", extra={}
+        )
         error_message = (
             r"Couldn't find 'extra__slack__arg_missing' or 'arg_missing' "
             r"in Connection \('test-conn-id'\) Extra and no default value specified\."
@@ -43,7 +45,9 @@ class TestConnectionExtra:
         with pytest.raises(KeyError, match=error_message):
             extra_config.get("arg_missing")
 
-    @pytest.mark.parametrize("value", [0, False, "", None], ids=lambda x: f"bool_false_{type(x).__name__}")
+    @pytest.mark.parametrize(
+        "value", [0, False, "", None], ids=lambda x: f"bool_false_{type(x).__name__}"
+    )
     def test_default_extra_field(self, value):
         """Test default value for missing field in extra."""
         extra_config = ConnectionExtraConfig(conn_type="slack", extra={})
@@ -72,9 +76,7 @@ class TestConnectionExtra:
                 f"extra__{conn_type}__arg_extra": empty_value,
             },
         )
-        error_message = (
-            r"Couldn't find '.*' or '.*' in Connection \('.*'\) Extra and no default value specified\."
-        )
+        error_message = r"Couldn't find '.*' or '.*' in Connection \('.*'\) Extra and no default value specified\."
         with pytest.raises(KeyError, match=error_message):
             # No fallback should raise an error
             extra_config.get("arg_missing")
@@ -132,15 +134,24 @@ class TestParseFilename:
 
     @pytest.mark.parametrize("filename", ["example.so.tar.gz", "w.i.e.r.d"])
     def test_error_parse_second_level(self, filename):
-        with pytest.raises(ValueError, match="Unsupported file format.*with compression extension."):
+        with pytest.raises(
+            ValueError, match="Unsupported file format.*with compression extension."
+        ):
             assert parse_filename(filename, self.SUPPORTED_FORMAT)
 
-    @pytest.mark.parametrize("filename", ["Untitled File", "New File.txt", "example.so.tar.gz"])
+    @pytest.mark.parametrize(
+        "filename", ["Untitled File", "New File.txt", "example.so.tar.gz"]
+    )
     @pytest.mark.parametrize("fallback", SUPPORTED_FORMAT)
     def test_fallback(self, filename, fallback):
-        assert parse_filename(filename, self.SUPPORTED_FORMAT, fallback) == (fallback, None)
+        assert parse_filename(filename, self.SUPPORTED_FORMAT, fallback) == (
+            fallback,
+            None,
+        )
 
-    @pytest.mark.parametrize("filename", ["Untitled File", "New File.txt", "example.so.tar.gz"])
+    @pytest.mark.parametrize(
+        "filename", ["Untitled File", "New File.txt", "example.so.tar.gz"]
+    )
     def test_wrong_fallback(self, filename):
         with pytest.raises(ValueError, match="Invalid fallback value"):
             assert parse_filename(filename, self.SUPPORTED_FORMAT, "mp4")

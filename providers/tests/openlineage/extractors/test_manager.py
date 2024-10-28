@@ -192,13 +192,17 @@ def test_convert_to_ol_dataset_from_table_with_columns_and_owners():
         ),
         "ownership": ownership_dataset.OwnershipDatasetFacet(
             owners=[
-                ownership_dataset.Owner(name="user:Mike Smith <mike@company.com>", type=""),
+                ownership_dataset.Owner(
+                    name="user:Mike Smith <mike@company.com>", type=""
+                ),
                 ownership_dataset.Owner(name="user:Theo <theo@company.com>", type=""),
                 ownership_dataset.Owner(name="user:Smith <smith@company.com>", type=""),
                 ownership_dataset.Owner(name="user:<jane@company.com>", type=""),
             ]
         ),
-        "documentation": documentation_dataset.DocumentationDatasetFacet(description="test description"),
+        "documentation": documentation_dataset.DocumentationDatasetFacet(
+            description="test description"
+        ),
     }
     result = ExtractorManager.convert_to_ol_dataset_from_table(table)
     assert result.namespace == "c1"
@@ -239,7 +243,9 @@ def test_convert_to_ol_dataset_table():
         ),
         "ownership": ownership_dataset.OwnershipDatasetFacet(
             owners=[
-                ownership_dataset.Owner(name="user:Mike Smith <mike@company.com>", type=""),
+                ownership_dataset.Owner(
+                    name="user:Mike Smith <mike@company.com>", type=""
+                ),
                 ownership_dataset.Owner(name="user:Theo <theo@company.com>", type=""),
                 ownership_dataset.Owner(name="user:Smith <smith@company.com>", type=""),
                 ownership_dataset.Owner(name="user:<jane@company.com>", type=""),
@@ -253,7 +259,9 @@ def test_convert_to_ol_dataset_table():
     assert result.facets == expected_facets
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+@pytest.mark.skipif(
+    not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0"
+)
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()
     task = MagicMock()
@@ -264,13 +272,21 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
     hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, complete=True, task_instance=ti
+    )
 
-    assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="input_key")]
-    assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
+    assert metadata.inputs == [
+        OpenLineageDataset(namespace="s3://bucket", name="input_key")
+    ]
+    assert metadata.outputs == [
+        OpenLineageDataset(namespace="s3://bucket", name="output_key")
+    ]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+@pytest.mark.skipif(
+    not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0"
+)
 def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector,
 ):
@@ -280,7 +296,9 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
 
         def get_openlineage_facets_on_start(self):
             return OperatorLineage(
-                inputs=[OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
+                inputs=[
+                    OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")
+                ]
             )
 
     dagrun = MagicMock()
@@ -289,16 +307,24 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, complete=True, task_instance=ti
+    )
 
     # s3://bucket/input_key not here - use data from operator
-    assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
+    assert metadata.inputs == [
+        OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")
+    ]
     assert metadata.outputs == []
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
-def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hook_lineage_collector):
+@pytest.mark.skipif(
+    not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0"
+)
+def test_extractor_manager_gets_data_from_pythonoperator(
+    session, dag_maker, hook_lineage_collector
+):
     path = None
     with tempfile.NamedTemporaryFile() as f:
         path = f.name
@@ -309,7 +335,9 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
                 with storage_path.open("w") as out:
                     out.write("test")
 
-            task = PythonOperator(task_id="test_task_extractor_pythonoperator", python_callable=use_read)
+            task = PythonOperator(
+                task_id="test_task_extractor_pythonoperator", python_callable=use_read
+            )
 
     dr = dag_maker.create_dagrun()
     ti = TaskInstance(task=task, run_id=dr.run_id)

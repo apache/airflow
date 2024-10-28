@@ -67,7 +67,9 @@ class TestElasticsearchSQLHookConn:
     def test_get_conn(self, mock_connect):
         self.db_hook.test_conn_id = "non_default"
         self.db_hook.get_conn()
-        mock_connect.assert_called_with(host="localhost", port=9200, scheme="http", user=None, password=None)
+        mock_connect.assert_called_with(
+            host="localhost", port=9200, scheme="http", user=None, password=None
+        )
 
 
 class TestElasticsearchSQLHook:
@@ -131,7 +133,9 @@ class TestElasticsearchSQLHook:
 
         es_connection = ESConnection(host="localhost", port=9200)
         response = es_connection.execute_sql("SELECT * FROM index1")
-        mock_es_sql_client.query.assert_called_once_with(body={"query": "SELECT * FROM index1"})
+        mock_es_sql_client.query.assert_called_once_with(
+            body={"query": "SELECT * FROM index1"}
+        )
 
         assert response["rows"] == [[1, "John"], [2, "Jane"]]
         assert response["columns"] == [{"name": "id"}, {"name": "first_name"}]

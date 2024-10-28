@@ -26,7 +26,16 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
+from typing import (
+    Any,
+    Collection,
+    Container,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+    overload,
+)
 
 from pendulum import DateTime
 from sqlalchemy.orm import Session
@@ -144,9 +153,13 @@ class Context(TypedDict, total=False):
 class AirflowContextDeprecationWarning(DeprecationWarning): ...
 
 @overload
-def context_merge(context: Context, additions: Mapping[str, Any], **kwargs: Any) -> None: ...
+def context_merge(
+    context: Context, additions: Mapping[str, Any], **kwargs: Any
+) -> None: ...
 @overload
-def context_merge(context: Context, additions: Iterable[tuple[str, Any]], **kwargs: Any) -> None: ...
+def context_merge(
+    context: Context, additions: Iterable[tuple[str, Any]], **kwargs: Any
+) -> None: ...
 @overload
 def context_merge(context: Context, **kwargs: Any) -> None: ...
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...

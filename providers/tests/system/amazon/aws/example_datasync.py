@@ -24,7 +24,10 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -138,7 +141,9 @@ with DAG(
     )
 
     source_location = create_source_location(s3_bucket_source, test_context[ROLE_ARN_KEY])
-    destination_location = create_destination_location(s3_bucket_destination, test_context[ROLE_ARN_KEY])
+    destination_location = create_destination_location(
+        s3_bucket_destination, test_context[ROLE_ARN_KEY]
+    )
 
     created_task_arn = create_task()
 

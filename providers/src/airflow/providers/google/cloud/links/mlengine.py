@@ -28,9 +28,12 @@ if TYPE_CHECKING:
 
 
 MLENGINE_BASE_LINK = "https://console.cloud.google.com/ai-platform"
-MLENGINE_MODEL_DETAILS_LINK = MLENGINE_BASE_LINK + "/models/{model_id}/versions?project={project_id}"
+MLENGINE_MODEL_DETAILS_LINK = (
+    MLENGINE_BASE_LINK + "/models/{model_id}/versions?project={project_id}"
+)
 MLENGINE_MODEL_VERSION_DETAILS_LINK = (
-    MLENGINE_BASE_LINK + "/models/{model_id}/versions/{version_id}/performance?project={project_id}"
+    MLENGINE_BASE_LINK
+    + "/models/{model_id}/versions/{version_id}/performance?project={project_id}"
 )
 MLENGINE_MODELS_LIST_LINK = MLENGINE_BASE_LINK + "/models/?project={project_id}"
 MLENGINE_JOB_DETAILS_LINK = MLENGINE_BASE_LINK + "/jobs/{job_id}?project={project_id}"
@@ -117,7 +120,11 @@ class MLEngineModelVersionDetailsLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=MLEngineModelVersionDetailsLink.key,
-            value={"model_id": model_id, "project_id": project_id, "version_id": version_id},
+            value={
+                "model_id": model_id,
+                "project_id": project_id,
+                "version_id": version_id,
+            },
         )
 
 

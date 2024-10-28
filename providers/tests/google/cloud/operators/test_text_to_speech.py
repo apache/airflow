@@ -23,7 +23,9 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
+from airflow.providers.google.cloud.operators.text_to_speech import (
+    CloudTextToSpeechSynthesizeOperator,
+)
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -37,13 +39,17 @@ TARGET_FILENAME = "target_filename"
 
 class TestGcpTextToSpeech:
     @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
-    @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
+    @patch(
+        "airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook"
+    )
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
         mocked_response = Mock()
         type(mocked_response).audio_content = PropertyMock(return_value=b"audio")
         mocked_context = MagicMock()
 
-        mock_text_to_speech_hook.return_value.synthesize_speech.return_value = mocked_response
+        mock_text_to_speech_hook.return_value.synthesize_speech.return_value = (
+            mocked_response
+        )
         mock_gcp_hook.return_value.upload.return_value = True
 
         CloudTextToSpeechSynthesizeOperator(
@@ -67,7 +73,11 @@ class TestGcpTextToSpeech:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_text_to_speech_hook.return_value.synthesize_speech.assert_called_once_with(
-            input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=DEFAULT, timeout=None
+            input_data=INPUT,
+            voice=VOICE,
+            audio_config=AUDIO_CONFIG,
+            retry=DEFAULT,
+            timeout=None,
         )
         mock_gcp_hook.return_value.upload.assert_called_once_with(
             bucket_name=TARGET_BUCKET_NAME, object_name=TARGET_FILENAME, filename=ANY
@@ -84,7 +94,9 @@ class TestGcpTextToSpeech:
         ],
     )
     @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
-    @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
+    @patch(
+        "airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook"
+    )
     def test_missing_arguments(
         self,
         mock_text_to_speech_hook,

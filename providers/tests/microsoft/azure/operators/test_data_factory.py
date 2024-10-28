@@ -32,8 +32,12 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
-from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
+from airflow.providers.microsoft.azure.operators.data_factory import (
+    AzureDataFactoryRunPipelineOperator,
+)
+from airflow.providers.microsoft.azure.triggers.data_factory import (
+    AzureDataFactoryTrigger,
+)
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -95,7 +99,11 @@ class TestAzureDataFactoryRunPipelineOperator:
 
         return run
 
-    @patch.object(AzureDataFactoryHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
+    @patch.object(
+        AzureDataFactoryHook,
+        "run_pipeline",
+        return_value=MagicMock(**PIPELINE_RUN_RESPONSE),
+    )
     @pytest.mark.parametrize(
         "pipeline_run_status,expected_output",
         [
@@ -107,10 +115,15 @@ class TestAzureDataFactoryRunPipelineOperator:
             (AzureDataFactoryPipelineRunStatus.CANCELING, "timeout"),
         ],
     )
-    def test_execute_wait_for_termination(self, mock_run_pipeline, pipeline_run_status, expected_output):
+    def test_execute_wait_for_termination(
+        self, mock_run_pipeline, pipeline_run_status, expected_output
+    ):
         operator = AzureDataFactoryRunPipelineOperator(**self.config)
 
-        assert operator.azure_data_factory_conn_id == self.config["azure_data_factory_conn_id"]
+        assert (
+            operator.azure_data_factory_conn_id
+            == self.config["azure_data_factory_conn_id"]
+        )
         assert operator.pipeline_name == self.config["pipeline_name"]
         assert operator.resource_group_name == self.config["resource_group_name"]
         assert operator.factory_name == self.config["factory_name"]
@@ -118,9 +131,13 @@ class TestAzureDataFactoryRunPipelineOperator:
         assert operator.timeout == self.config["timeout"]
         assert operator.wait_for_termination
 
-        with patch.object(AzureDataFactoryHook, "get_pipeline_run") as mock_get_pipeline_run:
-            mock_get_pipeline_run.return_value = TestAzureDataFactoryRunPipelineOperator.create_pipeline_run(
-                pipeline_run_status
+        with patch.object(
+            AzureDataFactoryHook, "get_pipeline_run"
+        ) as mock_get_pipeline_run:
+            mock_get_pipeline_run.return_value = (
+                TestAzureDataFactoryRunPipelineOperator.create_pipeline_run(
+                    pipeline_run_status
+                )
             )
 
             if not expected_output:
@@ -182,18 +199,29 @@ class TestAzureDataFactoryRunPipelineOperator:
                     self.config["factory_name"],
                 )
 
-    @patch.object(AzureDataFactoryHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
+    @patch.object(
+        AzureDataFactoryHook,
+        "run_pipeline",
+        return_value=MagicMock(**PIPELINE_RUN_RESPONSE),
+    )
     def test_execute_no_wait_for_termination(self, mock_run_pipeline):
-        operator = AzureDataFactoryRunPipelineOperator(wait_for_termination=False, **self.config)
+        operator = AzureDataFactoryRunPipelineOperator(
+            wait_for_termination=False, **self.config
+        )
 
-        assert operator.azure_data_factory_conn_id == self.config["azure_data_factory_conn_id"]
+        assert (
+            operator.azure_data_factory_conn_id
+            == self.config["azure_data_factory_conn_id"]
+        )
         assert operator.pipeline_name == self.config["pipeline_name"]
         assert operator.resource_group_name == self.config["resource_group_name"]
         assert operator.factory_name == self.config["factory_name"]
         assert operator.check_interval == self.config["check_interval"]
         assert not operator.wait_for_termination
 
-        with patch.object(AzureDataFactoryHook, "get_pipeline_run", autospec=True) as mock_get_pipeline_run:
+        with patch.object(
+            AzureDataFactoryHook, "get_pipeline_run", autospec=True
+        ) as mock_get_pipeline_run:
             operator.execute(context=self.mock_context)
 
             # Check the ``run_id`` attr is assigned after executing the pipeline.
@@ -232,7 +260,9 @@ class TestAzureDataFactoryRunPipelineOperator:
             (None, None),
         ],
     )
-    def test_run_pipeline_operator_link(self, resource_group, factory, create_task_instance_of_operator):
+    def test_run_pipeline_operator_link(
+        self, resource_group, factory, create_task_instance_of_operator
+    ):
         ti = create_task_instance_of_operator(
             AzureDataFactoryRunPipelineOperator,
             dag_id="test_adf_run_pipeline_op_link",
@@ -277,9 +307,14 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         deferrable=True,
     )
 
-    def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
+    def get_dag_run(
+        self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id"
+    ) -> DagRun:
         dag_run = DagRun(
-            dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            dag_id=dag_id,
+            run_type="manual",
+            execution_date=timezone.datetime(2022, 1, 1),
+            run_id=run_id,
         )
         return dag_run
 
@@ -329,7 +364,9 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
         return_value=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline"
+    )
     def test_azure_data_factory_run_pipeline_operator_async_succeeded_before_deferred(
         self, mock_run_pipeline, mock_get_status, mock_defer
     ):
@@ -342,7 +379,9 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
         assert not mock_defer.called
 
-    @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES))
+    @pytest.mark.parametrize(
+        "status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES)
+    )
     @mock.patch(
         "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
         ".defer"
@@ -350,7 +389,9 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline"
+    )
     def test_azure_data_factory_run_pipeline_operator_async_error_before_deferred(
         self, mock_run_pipeline, mock_get_status, mock_defer, status
     ):
@@ -366,12 +407,18 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
         assert not mock_defer.called
 
-    @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES))
+    @pytest.mark.parametrize(
+        "status", sorted(AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES)
+    )
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
-    def test_azure_data_factory_run_pipeline_operator_async(self, mock_run_pipeline, mock_get_status, status):
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline"
+    )
+    def test_azure_data_factory_run_pipeline_operator_async(
+        self, mock_run_pipeline, mock_get_status, status
+    ):
         """Assert that AzureDataFactoryRunPipelineOperator(..., deferrable=True) deferred"""
 
         class CreateRunResponse:
@@ -387,13 +434,19 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             exc.value.trigger, AzureDataFactoryTrigger
         ), "Trigger is not a AzureDataFactoryTrigger"
 
-    def test_azure_data_factory_run_pipeline_operator_async_execute_complete_success(self):
+    def test_azure_data_factory_run_pipeline_operator_async_execute_complete_success(
+        self,
+    ):
         """Assert that execute_complete log success message"""
 
         with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
             self.OPERATOR.execute_complete(
                 context={},
-                event={"status": "success", "message": "success", "run_id": AZ_PIPELINE_RUN_ID},
+                event={
+                    "status": "success",
+                    "message": "success",
+                    "run_id": AZ_PIPELINE_RUN_ID,
+                },
             )
         mock_log_info.assert_called_with("success")
 
@@ -403,5 +456,9 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         with pytest.raises(AirflowException):
             self.OPERATOR.execute_complete(
                 context={},
-                event={"status": "error", "message": "error", "run_id": AZ_PIPELINE_RUN_ID},
+                event={
+                    "status": "error",
+                    "message": "error",
+                    "run_id": AZ_PIPELINE_RUN_ID,
+                },
             )

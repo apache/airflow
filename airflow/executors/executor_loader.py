@@ -93,7 +93,9 @@ class ExecutorLoader:
                 # Check if this is an alias for a core airflow executor, module
                 # paths won't be provided by the user in that case.
                 if core_executor_module := cls.executors.get(name):
-                    executor_names.append(ExecutorName(alias=name, module_path=core_executor_module))
+                    executor_names.append(
+                        ExecutorName(alias=name, module_path=core_executor_module)
+                    )
                 # Only a module path or plugin name was provided
                 else:
                     executor_names.append(ExecutorName(alias=None, module_path=name))
@@ -106,15 +108,23 @@ class ExecutorLoader:
                 # AIP.
                 # The module component should always be a module or plugin path.
                 module_path = split_name[1]
-                if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
+                if (
+                    not module_path
+                    or module_path in CORE_EXECUTOR_NAMES
+                    or "." not in module_path
+                ):
                     raise AirflowConfigException(
                         "Incorrectly formatted executor configuration. Second portion of an executor "
                         f"configuration must be a module path or plugin but received: {module_path}"
                     )
                 else:
-                    executor_names.append(ExecutorName(alias=split_name[0], module_path=split_name[1]))
+                    executor_names.append(
+                        ExecutorName(alias=split_name[0], module_path=split_name[1])
+                    )
             else:
-                raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
+                raise AirflowConfigException(
+                    f"Incorrectly formatted executor configuration: {name}"
+                )
 
         # As of now, we do not allow duplicate executors.
         # Add all module paths/plugin names to a set, since the actual code is what is unique
@@ -133,7 +143,9 @@ class ExecutorLoader:
                 _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
-            _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
+            _classname_to_executors[executor_name.module_path.split(".")[-1]] = (
+                executor_name
+            )
             # Cache the executor names, so the logic of this method only runs once
             _executor_names.append(executor_name)
 
@@ -191,7 +203,9 @@ class ExecutorLoader:
             if executor_name.alias:
                 cls.executors[executor_name.alias] = executor_name.module_path
             else:
-                cls.executors[loaded_executor.__class__.__name__] = executor_name.module_path
+                cls.executors[loaded_executor.__class__.__name__] = (
+                    executor_name.module_path
+                )
 
             loaded_executors.append(loaded_executor)
 
@@ -207,7 +221,9 @@ class ExecutorLoader:
         elif executor_name := _classname_to_executors.get(executor_name_str):
             return executor_name
         else:
-            raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
+            raise UnknownExecutorException(
+                f"Unknown executor being loaded: {executor_name_str}"
+            )
 
     @classmethod
     def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:
@@ -241,7 +257,9 @@ class ExecutorLoader:
                 executor = cls.__load_local_kubernetes_executor()
             else:
                 executor_cls, import_source = cls.import_executor_cls(_executor_name)
-                log.debug("Loading executor %s from %s", _executor_name, import_source.value)
+                log.debug(
+                    "Loading executor %s from %s", _executor_name, import_source.value
+                )
                 executor = executor_cls()
 
         except ImportError as e:
@@ -283,10 +301,14 @@ class ExecutorLoader:
                 cls.validate_database_executor_compatibility(executor)
             return executor
 
-        return _import_and_validate(executor_name.module_path), executor_name.connector_source
+        return _import_and_validate(
+            executor_name.module_path
+        ), executor_name.connector_source
 
     @classmethod
-    def import_default_executor_cls(cls, validate: bool = True) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_default_executor_cls(
+        cls, validate: bool = True
+    ) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Import the default executor class.
 
@@ -300,7 +322,9 @@ class ExecutorLoader:
 
     @classmethod
     @functools.lru_cache(maxsize=None)
-    def validate_database_executor_compatibility(cls, executor: type[BaseExecutor]) -> None:
+    def validate_database_executor_compatibility(
+        cls, executor: type[BaseExecutor]
+    ) -> None:
         """
         Validate database and executor compatibility.
 
@@ -326,14 +350,18 @@ class ExecutorLoader:
 
         # SQLite only works with single threaded executors
         if engine.dialect.name == "sqlite":
-            raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
+            raise AirflowConfigException(
+                f"error: cannot use SQLite with the {executor.__name__}"
+            )
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
         celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
-        celery_kubernetes_executor_cls = import_string(cls.executors[CELERY_KUBERNETES_EXECUTOR])
+        celery_kubernetes_executor_cls = import_string(
+            cls.executors[CELERY_KUBERNETES_EXECUTOR]
+        )
         return celery_kubernetes_executor_cls(celery_executor, kubernetes_executor)
 
     @classmethod
@@ -341,5 +369,7 @@ class ExecutorLoader:
         local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
-        local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
+        local_kubernetes_executor_cls = import_string(
+            cls.executors[LOCAL_KUBERNETES_EXECUTOR]
+        )
         return local_kubernetes_executor_cls(local_executor, kubernetes_executor)

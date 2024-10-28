@@ -62,7 +62,9 @@ def requires_authentication(function: T):
             return Response("Forbidden", 403)
 
         log.debug("Found user: %s", user_dict)
-        session["user"] = SimpleAuthManagerUser(username=user_dict["username"], role=user_dict["role"])
+        session["user"] = SimpleAuthManagerUser(
+            username=user_dict["username"], role=user_dict["role"]
+        )
 
         return function(*args, **kwargs)
 

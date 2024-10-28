@@ -22,7 +22,9 @@ from unittest.mock import MagicMock, PropertyMock, call, patch
 import pytest
 
 from airflow.models.connection import Connection
-from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook as OriginalRedshiftSQLHook
+from airflow.providers.amazon.aws.hooks.redshift_sql import (
+    RedshiftSQLHook as OriginalRedshiftSQLHook,
+)
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     Dataset,
@@ -38,7 +40,9 @@ MOCK_REGION_NAME = "eu-north-1"
 
 
 class TestRedshiftSQLOpenLineage:
-    @patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
+    @patch.dict(
+        "os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}"
+    )
     @pytest.mark.parametrize(
         "connection_host, connection_extra, expected_identity, is_over_210, expected_schemaname",
         [
@@ -82,7 +86,10 @@ class TestRedshiftSQLOpenLineage:
         "airflow.providers.amazon.aws.hooks.redshift_sql._IS_AIRFLOW_2_10_OR_HIGHER",
         new_callable=PropertyMock,
     )
-    @patch("airflow.providers.openlineage.utils.utils.IS_AIRFLOW_2_10_OR_HIGHER", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.openlineage.utils.utils.IS_AIRFLOW_2_10_OR_HIGHER",
+        new_callable=PropertyMock,
+    )
     @patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     def test_execute_openlineage_events(
         self,
@@ -157,14 +164,49 @@ class TestRedshiftSQLOpenLineage:
                     "int4",
                     ANOTHER_DB_NAME,
                 ),
-                (DB_SCHEMA_NAME, "little_table", "order_day_of_week", 1, "varchar", DB_NAME),
-                (DB_SCHEMA_NAME, "little_table", "additional_constant", 2, "varchar", DB_NAME),
+                (
+                    DB_SCHEMA_NAME,
+                    "little_table",
+                    "order_day_of_week",
+                    1,
+                    "varchar",
+                    DB_NAME,
+                ),
+                (
+                    DB_SCHEMA_NAME,
+                    "little_table",
+                    "additional_constant",
+                    2,
+                    "varchar",
+                    DB_NAME,
+                ),
             ],
             [
-                (DB_SCHEMA_NAME, "test_table", "order_day_of_week", 1, "varchar", DB_NAME),
-                (DB_SCHEMA_NAME, "test_table", "order_placed_on", 2, "timestamp", DB_NAME),
+                (
+                    DB_SCHEMA_NAME,
+                    "test_table",
+                    "order_day_of_week",
+                    1,
+                    "varchar",
+                    DB_NAME,
+                ),
+                (
+                    DB_SCHEMA_NAME,
+                    "test_table",
+                    "order_placed_on",
+                    2,
+                    "timestamp",
+                    DB_NAME,
+                ),
                 (DB_SCHEMA_NAME, "test_table", "orders_placed", 3, "int4", DB_NAME),
-                (DB_SCHEMA_NAME, "test_table", "additional_constant", 4, "varchar", DB_NAME),
+                (
+                    DB_SCHEMA_NAME,
+                    "test_table",
+                    "additional_constant",
+                    4,
+                    "varchar",
+                    DB_NAME,
+                ),
             ],
         ]
         dbapi_hook.get_connection.return_value = Connection(
@@ -177,35 +219,41 @@ class TestRedshiftSQLOpenLineage:
 
         lineage = op.get_openlineage_facets_on_start()
         if is_over_210:
-            assert dbapi_hook.get_conn.return_value.cursor.return_value.execute.mock_calls == [
-                call(
-                    "SELECT SVV_REDSHIFT_COLUMNS.schema_name, "
-                    "SVV_REDSHIFT_COLUMNS.table_name, "
-                    "SVV_REDSHIFT_COLUMNS.column_name, "
-                    "SVV_REDSHIFT_COLUMNS.ordinal_position, "
-                    "SVV_REDSHIFT_COLUMNS.data_type, "
-                    "SVV_REDSHIFT_COLUMNS.database_name \n"
-                    "FROM SVV_REDSHIFT_COLUMNS \n"
-                    f"WHERE SVV_REDSHIFT_COLUMNS.schema_name = '{expected_schemaname}' "
-                    "AND SVV_REDSHIFT_COLUMNS.table_name IN ('little_table') "
-                    "OR SVV_REDSHIFT_COLUMNS.database_name = 'another_db' "
-                    "AND SVV_REDSHIFT_COLUMNS.schema_name = 'another_schema' AND "
-                    "SVV_REDSHIFT_COLUMNS.table_name IN ('popular_orders_day_of_week')"
-                ),
-                call(
-                    "SELECT SVV_REDSHIFT_COLUMNS.schema_name, "
-                    "SVV_REDSHIFT_COLUMNS.table_name, "
-                    "SVV_REDSHIFT_COLUMNS.column_name, "
-                    "SVV_REDSHIFT_COLUMNS.ordinal_position, "
-                    "SVV_REDSHIFT_COLUMNS.data_type, "
-                    "SVV_REDSHIFT_COLUMNS.database_name \n"
-                    "FROM SVV_REDSHIFT_COLUMNS \n"
-                    f"WHERE SVV_REDSHIFT_COLUMNS.schema_name = '{expected_schemaname}' "
-                    "AND SVV_REDSHIFT_COLUMNS.table_name IN ('Test_table')"
-                ),
-            ]
+            assert (
+                dbapi_hook.get_conn.return_value.cursor.return_value.execute.mock_calls
+                == [
+                    call(
+                        "SELECT SVV_REDSHIFT_COLUMNS.schema_name, "
+                        "SVV_REDSHIFT_COLUMNS.table_name, "
+                        "SVV_REDSHIFT_COLUMNS.column_name, "
+                        "SVV_REDSHIFT_COLUMNS.ordinal_position, "
+                        "SVV_REDSHIFT_COLUMNS.data_type, "
+                        "SVV_REDSHIFT_COLUMNS.database_name \n"
+                        "FROM SVV_REDSHIFT_COLUMNS \n"
+                        f"WHERE SVV_REDSHIFT_COLUMNS.schema_name = '{expected_schemaname}' "
+                        "AND SVV_REDSHIFT_COLUMNS.table_name IN ('little_table') "
+                        "OR SVV_REDSHIFT_COLUMNS.database_name = 'another_db' "
+                        "AND SVV_REDSHIFT_COLUMNS.schema_name = 'another_schema' AND "
+                        "SVV_REDSHIFT_COLUMNS.table_name IN ('popular_orders_day_of_week')"
+                    ),
+                    call(
+                        "SELECT SVV_REDSHIFT_COLUMNS.schema_name, "
+                        "SVV_REDSHIFT_COLUMNS.table_name, "
+                        "SVV_REDSHIFT_COLUMNS.column_name, "
+                        "SVV_REDSHIFT_COLUMNS.ordinal_position, "
+                        "SVV_REDSHIFT_COLUMNS.data_type, "
+                        "SVV_REDSHIFT_COLUMNS.database_name \n"
+                        "FROM SVV_REDSHIFT_COLUMNS \n"
+                        f"WHERE SVV_REDSHIFT_COLUMNS.schema_name = '{expected_schemaname}' "
+                        "AND SVV_REDSHIFT_COLUMNS.table_name IN ('Test_table')"
+                    ),
+                ]
+            )
         else:
-            assert dbapi_hook.get_conn.return_value.cursor.return_value.execute.mock_calls == []
+            assert (
+                dbapi_hook.get_conn.return_value.cursor.return_value.execute.mock_calls
+                == []
+            )
         expected_namespace = f"redshift://{expected_identity}:5439"
 
         if is_over_210:
@@ -216,9 +264,15 @@ class TestRedshiftSQLOpenLineage:
                     facets={
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                                SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                                SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                                SchemaDatasetFacetFields(
+                                    name="order_day_of_week", type="varchar"
+                                ),
+                                SchemaDatasetFacetFields(
+                                    name="order_placed_on", type="timestamp"
+                                ),
+                                SchemaDatasetFacetFields(
+                                    name="orders_placed", type="int4"
+                                ),
                             ]
                         )
                     },
@@ -229,8 +283,12 @@ class TestRedshiftSQLOpenLineage:
                     facets={
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                                SchemaDatasetFacetFields(name="additional_constant", type="varchar"),
+                                SchemaDatasetFacetFields(
+                                    name="order_day_of_week", type="varchar"
+                                ),
+                                SchemaDatasetFacetFields(
+                                    name="additional_constant", type="varchar"
+                                ),
                             ]
                         )
                     },
@@ -243,10 +301,18 @@ class TestRedshiftSQLOpenLineage:
                     facets={
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                                SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                                SchemaDatasetFacetFields(name="orders_placed", type="int4"),
-                                SchemaDatasetFacetFields(name="additional_constant", type="varchar"),
+                                SchemaDatasetFacetFields(
+                                    name="order_day_of_week", type="varchar"
+                                ),
+                                SchemaDatasetFacetFields(
+                                    name="order_placed_on", type="timestamp"
+                                ),
+                                SchemaDatasetFacetFields(
+                                    name="orders_placed", type="int4"
+                                ),
+                                SchemaDatasetFacetFields(
+                                    name="additional_constant", type="varchar"
+                                ),
                             ]
                         ),
                         "columnLineage": ColumnLineageDatasetFacet(

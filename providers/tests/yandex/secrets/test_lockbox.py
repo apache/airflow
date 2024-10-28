@@ -32,7 +32,9 @@ from airflow.providers.yandex.utils.defaults import default_conn_name
 
 
 class TestLockboxSecretBackend:
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
     def test_yandex_lockbox_secret_backend_get_connection(self, mock_get_value):
         conn_id = "fake_conn"
         conn_type = "scheme"
@@ -55,7 +57,9 @@ class TestLockboxSecretBackend:
         assert conn.port == port
         assert conn.get_uri() == uri
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
     def test_yandex_lockbox_secret_backend_get_connection_from_json(self, mock_get_value):
         conn_id = "airflow_to_yandexcloud"
         conn_type = "yandex_cloud"
@@ -74,7 +78,9 @@ class TestLockboxSecretBackend:
         assert conn.conn_id == conn_id
         assert conn.conn_type == conn_type
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
     def test_yandex_lockbox_secret_backend_get_variable(self, mock_get_value):
         k = "this-is-key"
         v = "this-is-value"
@@ -85,7 +91,9 @@ class TestLockboxSecretBackend:
 
         assert value == v
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
     def test_yandex_lockbox_secret_backend_get_config(self, mock_get_value):
         k = "this-is-key"
         v = "this-is-value"
@@ -96,8 +104,12 @@ class TestLockboxSecretBackend:
 
         assert value == v
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
-    def test_yandex_lockbox_secret_backend_get_connection_prefix_is_none(self, mock_get_value):
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
+    def test_yandex_lockbox_secret_backend_get_connection_prefix_is_none(
+        self, mock_get_value
+    ):
         uri = "scheme://user:pass@host:100"
 
         mock_get_value.return_value = uri
@@ -108,8 +120,12 @@ class TestLockboxSecretBackend:
 
         assert conn is None
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
-    def test_yandex_lockbox_secret_backend_get_connection_with_oauth_token_auth(self, mock_get_value):
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
+    def test_yandex_lockbox_secret_backend_get_connection_with_oauth_token_auth(
+        self, mock_get_value
+    ):
         conn_id = "yandex_cloud"
         uri = "scheme://user:pass@host:100"
 
@@ -122,8 +138,12 @@ class TestLockboxSecretBackend:
         assert conn.conn_id == conn_id
         assert conn.get_uri() == uri
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
-    def test_yandex_lockbox_secret_backend_get_connection_conn_id_for_backend(self, mock_get_value):
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
+    def test_yandex_lockbox_secret_backend_get_connection_conn_id_for_backend(
+        self, mock_get_value
+    ):
         conn_id = "yandex_cloud"
         uri = "scheme://user:pass@host:100"
 
@@ -135,8 +155,12 @@ class TestLockboxSecretBackend:
 
         assert conn is None
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
-    def test_yandex_lockbox_secret_backend_get_connection_default_conn_id(self, mock_get_value):
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
+    def test_yandex_lockbox_secret_backend_get_connection_default_conn_id(
+        self, mock_get_value
+    ):
         conn_id = default_conn_name
         uri = "scheme://user:pass@host:100"
 
@@ -146,8 +170,12 @@ class TestLockboxSecretBackend:
 
         assert conn is None
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
-    def test_yandex_lockbox_secret_backend_get_variable_prefix_is_none(self, mock_get_value):
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
+    def test_yandex_lockbox_secret_backend_get_variable_prefix_is_none(
+        self, mock_get_value
+    ):
         k = "this-is-key"
         v = "this-is-value"
 
@@ -159,8 +187,12 @@ class TestLockboxSecretBackend:
 
         assert value is None
 
-    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
-    def test_yandex_lockbox_secret_backend_get_config_prefix_is_none(self, mock_get_value):
+    @patch(
+        "airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value"
+    )
+    def test_yandex_lockbox_secret_backend_get_config_prefix_is_none(
+        self, mock_get_value
+    ):
         k = "this-is-key"
         v = "this-is-value"
 
@@ -182,7 +214,9 @@ class TestLockboxSecretBackend:
         assert sm._client is not None
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_field")
-    def test_yandex_lockbox_secret_backend__client_credentials_received_from_connection(self, mock_get_field):
+    def test_yandex_lockbox_secret_backend__client_credentials_received_from_connection(
+        self, mock_get_field
+    ):
         yc_oauth_token = "y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc"
         yc_sa_key_json = "sa_key_json"
         yc_sa_key_json_path = "sa_key_json_path"
@@ -263,7 +297,9 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
-    def test_yandex_lockbox_secret_backend__get_secret_value(self, mock_get_payload, mock_get_secrets):
+    def test_yandex_lockbox_secret_backend__get_secret_value(
+        self, mock_get_payload, mock_get_secrets
+    ):
         target_name = "target_name"
         target_text = "target_text"
 
@@ -353,7 +389,9 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._client")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._list_secrets")
-    def test_yandex_lockbox_secret_backend__get_secrets(self, mock_list_secrets, mock_client):
+    def test_yandex_lockbox_secret_backend__get_secrets(
+        self, mock_list_secrets, mock_client
+    ):
         secrets = secret_service_pb.ListSecretsResponse(
             secrets=[
                 secret_pb.Secret(
@@ -376,7 +414,9 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._client")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._list_secrets")
-    def test_yandex_lockbox_secret_backend__get_secrets_page_token(self, mock_list_secrets, mock_client):
+    def test_yandex_lockbox_secret_backend__get_secrets_page_token(
+        self, mock_list_secrets, mock_client
+    ):
         first_secrets = secret_service_pb.ListSecretsResponse(
             secrets=[
                 secret_pb.Secret(
@@ -453,7 +493,9 @@ class TestLockboxSecretBackend:
         assert res == folder_id
 
     @patch("airflow.models.connection.Connection.get_connection_from_secrets")
-    def test_yandex_lockbox_secret_backend_folder_id_from_connection(self, mock_get_connection):
+    def test_yandex_lockbox_secret_backend_folder_id_from_connection(
+        self, mock_get_connection
+    ):
         folder_id = "id1"
 
         mock_get_connection.return_value = Mock(

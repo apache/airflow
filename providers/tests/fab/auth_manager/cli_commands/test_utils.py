@@ -21,7 +21,9 @@ import pytest
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+    from airflow.providers.fab.auth_manager.cli_commands.utils import (
+        get_application_builder,
+    )
 
 from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 

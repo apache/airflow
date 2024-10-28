@@ -29,8 +29,15 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
     ("dsn", "expected", "extra"),
     [
         pytest.param("postgresql://host/the_database", {}, {}, id="postgres"),
-        pytest.param("mysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql"),
-        pytest.param("mysql+pymsql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql+pymsql"),
+        pytest.param(
+            "mysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql"
+        ),
+        pytest.param(
+            "mysql+pymsql://host/the_database",
+            {"collation": "utf8mb3_bin"},
+            {},
+            id="mysql+pymsql",
+        ),
         pytest.param(
             "mysql://host/the_database",
             {"collation": "ascii"},

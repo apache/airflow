@@ -27,7 +27,12 @@ from sqlalchemy.orm import joinedload, subqueryload
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    apply_sorting,
+    check_limit,
+    format_datetime,
+    format_parameters,
+)
 from airflow.api_connexion.schemas.asset_schema import (
     AssetCollection,
     AssetEventCollection,
@@ -67,7 +72,9 @@ def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.uri == uri)
-        .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
+        .options(
+            joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks)
+        )
     )
     if not asset:
         raise NotFound(
@@ -98,18 +105,31 @@ def get_assets(
     if dag_ids:
         dags_list = dag_ids.split(",")
         query = query.filter(
-            (AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
-            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dags_list)))
+            (
+                AssetModel.consuming_dags.any(
+                    DagScheduleAssetReference.dag_id.in_(dags_list)
+                )
+            )
+            | (
+                AssetModel.producing_tasks.any(
+                    TaskOutletAssetReference.dag_id.in_(dags_list)
+                )
+            )
         )
     if uri_pattern:
         query = query.where(AssetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     assets = session.scalars(
-        query.options(subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks))
+        query.options(
+            subqueryload(AssetModel.consuming_dags),
+            subqueryload(AssetModel.producing_tasks),
+        )
         .offset(offset)
         .limit(limit)
     ).all()
-    return asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=total_entries))
+    return asset_collection_schema.dump(
+        AssetCollection(assets=assets, total_entries=total_entries)
+    )
 
 
 @security.requires_access_asset("GET")
@@ -128,7 +148,13 @@ def get_asset_events(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get asset events."""
-    allowed_attrs = ["source_dag_id", "source_task_id", "source_run_id", "source_map_index", "timestamp"]
+    allowed_attrs = [
+        "source_dag_id",
+        "source_task_id",
+        "source_run_id",
+        "source_map_index",
+        "timestamp",
+    ]
 
     query = select(AssetEvent)
 
@@ -184,7 +210,9 @@ def get_dag_asset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get a queued asset event for a DAG."""
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
+    where_clause = _generate_queued_event_where_clause(
+        dag_id=dag_id, uri=uri, before=before
+    )
     adrq = session.scalar(
         select(AssetDagRunQueue)
         .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
@@ -207,8 +235,14 @@ def delete_dag_asset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete a queued asset event for a DAG."""
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
-    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    where_clause = _generate_queued_event_where_clause(
+        dag_id=dag_id, uri=uri, before=before
+    )
+    delete_stmt = (
+        delete(AssetDagRunQueue)
+        .where(*where_clause)
+        .execution_options(synchronize_session="fetch")
+    )
     result = session.execute(delete_stmt)
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
@@ -239,7 +273,8 @@ def get_dag_asset_queued_events(
             detail=f"Queue event with dag_id: `{dag_id}` was not found",
         )
     queued_events = [
-        QueuedEvent(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri) for adrq, uri in result
+        QueuedEvent(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
+        for adrq, uri in result
     ]
     return queued_event_collection_schema.dump(
         QueuedEventCollection(queued_events=queued_events, total_entries=total_entries)
@@ -289,7 +324,9 @@ def get_asset_queued_events(
             for adrq, uri in result
         ]
         return queued_event_collection_schema.dump(
-            QueuedEventCollection(queued_events=queued_events, total_entries=total_entries)
+            QueuedEventCollection(
+                queued_events=queued_events, total_entries=total_entries
+            )
         )
     raise NotFound(
         "Queue event not found",
@@ -308,7 +345,11 @@ def delete_asset_queued_events(
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )
-    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    delete_stmt = (
+        delete(AssetDagRunQueue)
+        .where(*where_clause)
+        .execution_options(synchronize_session="fetch")
+    )
 
     result = session.execute(delete_stmt)
     if result.rowcount > 0:
@@ -333,7 +374,9 @@ def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
     uri = json_body["asset_uri"]
     asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri).limit(1))
     if not asset:
-        raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
+        raise NotFound(
+            title="Asset not found", detail=f"Asset with uri: '{uri}' not found"
+        )
     timestamp = timezone.utcnow()
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
@@ -344,7 +387,9 @@ def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
         session=session,
     )
     if not asset_event:
-        raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
+        raise NotFound(
+            title="Asset not found", detail=f"Asset with uri: '{uri}' not found"
+        )
     session.flush()  # So we can dump the timestamp.
     event = asset_event_schema.dump(asset_event)
     return event

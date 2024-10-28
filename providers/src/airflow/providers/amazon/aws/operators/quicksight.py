@@ -81,7 +81,10 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
         self.check_interval = check_interval
 
     def execute(self, context: Context):
-        self.log.info("Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s", self.data_set_id)
+        self.log.info(
+            "Running the Amazon QuickSight SPICE Ingestion on Dataset ID: %s",
+            self.data_set_id,
+        )
         return self.hook.create_ingestion(
             data_set_id=self.data_set_id,
             ingestion_id=self.ingestion_id,

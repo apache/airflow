@@ -23,7 +23,11 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceAsyncClient, DataScanServiceClient
+from google.cloud.dataplex_v1 import (
+    DataplexServiceClient,
+    DataScanServiceAsyncClient,
+    DataScanServiceClient,
+)
 from google.cloud.dataplex_v1.types import (
     Asset,
     DataScan,
@@ -102,7 +106,9 @@ class DataplexHook(GoogleBaseHook):
         client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataplexServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_dataplex_data_scan_client(self) -> DataScanServiceClient:
@@ -110,7 +116,9 @@ class DataplexHook(GoogleBaseHook):
         client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataScanServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def wait_for_operation(self, timeout: float | None, operation: Operation):
@@ -618,7 +626,9 @@ class DataplexHook(GoogleBaseHook):
         """
         client = self.get_dataplex_data_scan_client()
 
-        name = PATH_DATA_SCAN.format(project_id=project_id, region=region, data_scan_id=data_scan_id)
+        name = PATH_DATA_SCAN.format(
+            project_id=project_id, region=region, data_scan_id=data_scan_id
+        )
         result = client.run_data_scan(
             request={
                 "name": name,
@@ -706,7 +716,9 @@ class DataplexHook(GoogleBaseHook):
                 )
                 state = job.state
             except Exception as err:
-                self.log.info("Retrying. Dataplex API returned error when waiting for job: %s", err)
+                self.log.info(
+                    "Retrying. Dataplex API returned error when waiting for job: %s", err
+                )
         return job
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -733,7 +745,9 @@ class DataplexHook(GoogleBaseHook):
         """
         client = self.get_dataplex_data_scan_client()
 
-        name = PATH_DATA_SCAN.format(project_id=project_id, region=region, data_scan_id=data_scan_id)
+        name = PATH_DATA_SCAN.format(
+            project_id=project_id, region=region, data_scan_id=data_scan_id
+        )
         result = client.get_data_scan(
             request={"name": name, "view": "FULL"},
             retry=retry,
@@ -770,7 +784,9 @@ class DataplexHook(GoogleBaseHook):
         """
         client = self.get_dataplex_data_scan_client()
 
-        full_scan_name = f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+        full_scan_name = (
+            f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+        )
 
         if body:
             if isinstance(body, DataScan):
@@ -782,7 +798,13 @@ class DataplexHook(GoogleBaseHook):
 
         if not update_mask:
             update_mask = FieldMask(
-                paths=["data_quality_spec", "labels", "description", "display_name", "execution_spec"]
+                paths=[
+                    "data_quality_spec",
+                    "labels",
+                    "description",
+                    "display_name",
+                    "execution_spec",
+                ]
             )
 
         result = client.update_data_scan(
@@ -820,7 +842,9 @@ class DataplexHook(GoogleBaseHook):
         """
         client = self.get_dataplex_data_scan_client()
 
-        name = PATH_DATA_SCAN.format(project_id=project_id, region=region, data_scan_id=data_scan_id)
+        name = PATH_DATA_SCAN.format(
+            project_id=project_id, region=region, data_scan_id=data_scan_id
+        )
         result = client.delete_data_scan(
             request={
                 "name": name,
@@ -855,7 +879,9 @@ class DataplexHook(GoogleBaseHook):
         """
         client = self.get_dataplex_data_scan_client()
 
-        name = PATH_DATA_SCAN.format(project_id=project_id, region=region, data_scan_id=data_scan_id)
+        name = PATH_DATA_SCAN.format(
+            project_id=project_id, region=region, data_scan_id=data_scan_id
+        )
         result = client.list_data_scan_jobs(
             request={
                 "parent": name,

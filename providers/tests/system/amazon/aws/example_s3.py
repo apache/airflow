@@ -229,7 +229,10 @@ with DAG(
     # [START howto_sensor_s3_key_regex]
     # Check if a file exists and match a certain regular expression pattern
     sensor_key_with_regex = S3KeySensor(
-        task_id="sensor_key_with_regex", bucket_name=bucket_name, bucket_key=key_regex_pattern, use_regex=True
+        task_id="sensor_key_with_regex",
+        bucket_name=bucket_name,
+        bucket_key=key_regex_pattern,
+        use_regex=True,
     )
     # [END howto_sensor_s3_key_regex]
 
@@ -307,7 +310,12 @@ with DAG(
         create_object_2,
         list_prefixes,
         list_keys,
-        [sensor_one_key, sensor_two_keys, sensor_key_with_function, sensor_key_with_regex],
+        [
+            sensor_one_key,
+            sensor_two_keys,
+            sensor_key_with_function,
+            sensor_key_with_regex,
+        ],
         [
             sensor_one_key_deferrable,
             sensor_two_keys_deferrable,

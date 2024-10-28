@@ -53,7 +53,9 @@ def get_python_source(x: Any) -> str | None:
     return source_code
 
 
-def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
+def prepare_code_snippet(
+    file_path: str, line_no: int, context_lines_count: int = 5
+) -> str:
     """
     Prepare code snippet with line numbers and  a specific line marked.
 

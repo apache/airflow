@@ -85,14 +85,20 @@ def create_s3_to_s3_flow(flow_name: str, bucket_name: str, source_folder: str):
                 "connectorOperator": {"S3": "NO_OP"},
                 "destinationField": "col1",
                 "taskType": "Map",
-                "taskProperties": {"DESTINATION_DATA_TYPE": "string", "SOURCE_DATA_TYPE": "string"},
+                "taskProperties": {
+                    "DESTINATION_DATA_TYPE": "string",
+                    "SOURCE_DATA_TYPE": "string",
+                },
             },
             {
                 "sourceFields": ["col2"],
                 "connectorOperator": {"S3": "NO_OP"},
                 "destinationField": "col2",
                 "taskType": "Map",
-                "taskProperties": {"DESTINATION_DATA_TYPE": "string", "SOURCE_DATA_TYPE": "string"},
+                "taskProperties": {
+                    "DESTINATION_DATA_TYPE": "string",
+                    "SOURCE_DATA_TYPE": "string",
+                },
             },
         ],
     )
@@ -112,7 +118,10 @@ def setup_bucket_permissions(bucket_name):
                         "Effect": "Allow",
                         "Principal": {"Service": "appflow.amazonaws.com"},
                         "Action": ["s3:ListBucket", "s3:GetObject"],
-                        "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
+                        "Resource": [
+                            f"arn:aws:s3:::{bucket_name}",
+                            f"arn:aws:s3:::{bucket_name}/*",
+                        ],
                     },
                     {
                         "Sid": "AllowAppFlowDestinationActions",
@@ -126,7 +135,10 @@ def setup_bucket_permissions(bucket_name):
                             "s3:GetBucketAcl",
                             "s3:PutObjectAcl",
                         ],
-                        "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
+                        "Resource": [
+                            f"arn:aws:s3:::{bucket_name}",
+                            f"arn:aws:s3:::{bucket_name}/*",
+                        ],
                     },
                 ],
             }
@@ -154,7 +166,9 @@ with DAG(
     bucket_name = f"{env_id}-for-appflow"
     source_folder = "source"
 
-    create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
+    create_bucket = S3CreateBucketOperator(
+        task_id="create_bucket", bucket_name=bucket_name
+    )
 
     upload_csv = S3CreateObjectOperator(
         task_id="upload_csv",

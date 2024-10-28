@@ -41,7 +41,10 @@ from google.longrunning import operations_pb2  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -79,11 +82,15 @@ class CloudRunHook(GoogleBaseHook):
         :return: Cloud Run Jobs client object.
         """
         if self._client is None:
-            self._client = JobsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = JobsClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+    def delete_job(
+        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Job:
         delete_request = DeleteJobRequest()
         delete_request.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
 
@@ -92,7 +99,11 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_job(
-        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        job: Job | dict,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         if isinstance(job, dict):
             job = Job(job)
@@ -107,7 +118,11 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_job(
-        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        job: Job | dict,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         if isinstance(job, dict):
             job = Job(job)
@@ -127,14 +142,17 @@ class CloudRunHook(GoogleBaseHook):
         overrides: dict[str, Any] | None = None,
     ) -> operation.Operation:
         run_job_request = RunJobRequest(
-            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}",
+            overrides=overrides,
         )
         operation = self.get_conn().run_job(request=run_job_request)
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
-        get_job_request = GetJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        get_job_request = GetJobRequest(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+        )
         return self.get_conn().get_job(get_job_request)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -146,7 +164,9 @@ class CloudRunHook(GoogleBaseHook):
         limit: int | None = None,
     ) -> Iterable[Job]:
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero"
+            )
 
         list_jobs_request: ListJobsRequest = ListJobsRequest(
             parent=f"projects/{project_id}/locations/{region}", show_deleted=show_deleted
@@ -182,7 +202,9 @@ class CloudRunAsyncHook(GoogleBaseHook):
 
     def get_conn(self):
         if self._client is None:
-            self._client = JobsAsyncClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = JobsAsyncClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
 
         return self._client
 
@@ -217,12 +239,16 @@ class CloudRunServiceHook(GoogleBaseHook):
 
     def get_conn(self):
         if self._client is None:
-            self._client = ServicesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ServicesClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
 
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
+    def get_service(
+        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ):
         get_service_request = GetServiceRequest(
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
@@ -230,7 +256,11 @@ class CloudRunServiceHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_service(
-        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        service_name: str,
+        service: Service | dict,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Service:
         if isinstance(service, dict):
             service = Service(service)
@@ -245,7 +275,9 @@ class CloudRunServiceHook(GoogleBaseHook):
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Service:
+    def delete_service(
+        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Service:
         delete_request = DeleteServiceRequest(
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
@@ -279,13 +311,19 @@ class CloudRunServiceAsyncHook(GoogleBaseHook):
 
     def get_conn(self):
         if self._client is None:
-            self._client = ServicesAsyncClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ServicesAsyncClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
 
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def create_service(
-        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        service_name: str,
+        service: Service | dict,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> AsyncOperation:
         if isinstance(service, dict):
             service = Service(service)

@@ -65,7 +65,9 @@ class TestBaseWaiter:
 
         # WaiterModel objects don't implement an eq() so equivalence checking manually.
         for attr in expected_model.__dict__:
-            assert waiter.model.__getattribute__(attr) == expected_model.__getattribute__(attr)
+            assert waiter.model.__getattribute__(attr) == expected_model.__getattribute__(
+                attr
+            )
         assert waiter.client == client_name
 
     @pytest.mark.parametrize("boto_type", ["client", "resource"])

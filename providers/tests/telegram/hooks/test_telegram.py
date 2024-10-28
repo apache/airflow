@@ -73,7 +73,9 @@ class TestTelegramHook:
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
 
-        assert "The conn_id `telegram-webhook-non-existent` isn't defined" == str(ctx.value)
+        assert "The conn_id `telegram-webhook-non-existent` isn't defined" == str(
+            ctx.value
+        )
 
     def test_should_raise_exception_if_conn_id_doesnt_contain_token(self):
         with pytest.raises(airflow.exceptions.AirflowException) as ctx:
@@ -82,7 +84,9 @@ class TestTelegramHook:
         assert "Missing token(password) in Telegram connection" == str(ctx.value)
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
-    def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
+    def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(
+        self, mock_get_conn
+    ):
         hook = TelegramHook(telegram_conn_id="telegram_default")
         error_message = "'chat_id' must be provided for telegram message"
         with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
@@ -96,7 +100,9 @@ class TestTelegramHook:
             hook.send_message({"chat_id": "-420913222"})
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
-    def test_should_send_message_if_all_parameters_are_correctly_provided(self, mock_get_conn):
+    def test_should_send_message_if_all_parameters_are_correctly_provided(
+        self, mock_get_conn
+    ):
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram_default")
@@ -115,7 +121,9 @@ class TestTelegramHook:
         )
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
-    def test_should_send_message_if_chat_id_is_provided_through_constructor(self, mock_get_conn):
+    def test_should_send_message_if_chat_id_is_provided_through_constructor(
+        self, mock_get_conn
+    ):
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram_default", chat_id="-420913222")
@@ -134,7 +142,9 @@ class TestTelegramHook:
         )
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
-    def test_should_send_message_if_chat_id_is_provided_in_connection(self, mock_get_conn):
+    def test_should_send_message_if_chat_id_is_provided_in_connection(
+        self, mock_get_conn
+    ):
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")

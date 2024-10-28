@@ -40,25 +40,38 @@ try:
             self.providers_dir: str = airflow.providers.__path__[0]
 
         def test_version_table_name_set(self, session):
-            assert FABDBManager(session=session).version_table_name == "alembic_version_fab"
+            assert (
+                FABDBManager(session=session).version_table_name == "alembic_version_fab"
+            )
 
         def test_migration_dir_set(self, session):
-            assert FABDBManager(session=session).migration_dir == f"{self.providers_dir}/fab/migrations"
+            assert (
+                FABDBManager(session=session).migration_dir
+                == f"{self.providers_dir}/fab/migrations"
+            )
 
         def test_alembic_file_set(self, session):
-            assert FABDBManager(session=session).alembic_file == f"{self.providers_dir}/fab/alembic.ini"
+            assert (
+                FABDBManager(session=session).alembic_file
+                == f"{self.providers_dir}/fab/alembic.ini"
+            )
 
         def test_supports_table_dropping_set(self, session):
             assert FABDBManager(session=session).supports_table_dropping is True
 
         def test_database_schema_and_sqlalchemy_model_are_in_sync(self, session):
             def include_object(_, name, type_, *args):
-                if type_ == "table" and name not in FABDBManager(session=session).metadata.tables:
+                if (
+                    type_ == "table"
+                    and name not in FABDBManager(session=session).metadata.tables
+                ):
                     return False
                 return True
 
             all_meta_data = MetaData()
-            for table_name, table in FABDBManager(session=session).metadata.tables.items():
+            for table_name, table in FABDBManager(
+                session=session
+            ).metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
             # create diff between database schema and SQLAlchemy model
             mctx = MigrationContext.configure(
@@ -71,11 +84,15 @@ try:
             )
             diff = compare_metadata(mctx, all_meta_data)
 
-            assert not diff, "Database schema and SQLAlchemy model are not in sync: " + str(diff)
+            assert not diff, (
+                "Database schema and SQLAlchemy model are not in sync: " + str(diff)
+            )
 
         @mock.patch("airflow.providers.fab.auth_manager.models.db._offline_migration")
         def test_downgrade_sql_no_from(self, mock_om, session, caplog):
-            FABDBManager(session=session).downgrade(to_revision="abc", show_sql_only=True, from_revision=None)
+            FABDBManager(session=session).downgrade(
+                to_revision="abc", show_sql_only=True, from_revision=None
+            )
             actual = mock_om.call_args.kwargs["revision"]
             assert re.match(r"[a-z0-9]+:abc", actual) is not None
 
@@ -91,7 +108,9 @@ try:
         def test_downgrade_invalid_combo(self, mock_om, session):
             """can't combine `sql=False` and `from_revision`"""
             with pytest.raises(ValueError, match="can't be combined"):
-                FABDBManager(session=session).downgrade(to_revision="abc", from_revision="123")
+                FABDBManager(session=session).downgrade(
+                    to_revision="abc", from_revision="123"
+                )
 
         @mock.patch("alembic.command.downgrade")
         def test_downgrade_with_from(self, mock_om, session):
@@ -105,8 +124,12 @@ try:
                 "airflow.providers.fab.auth_manager.models.db.settings.engine.dialect"
             ) as dialect:
                 dialect.name = "sqlite"
-                with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
-                    FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+                with pytest.raises(
+                    SystemExit, match="Offline migration not supported for SQLite"
+                ):
+                    FABDBManager(session).upgradedb(
+                        from_revision=None, to_revision=None, show_sql_only=True
+                    )
 
         @mock.patch("airflow.utils.db_manager.inspect")
         @mock.patch.object(FABDBManager, "metadata")

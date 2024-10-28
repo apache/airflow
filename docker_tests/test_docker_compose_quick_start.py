@@ -40,7 +40,9 @@ DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> dict:
+def api_request(
+    method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs
+) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
@@ -65,13 +67,20 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
             break
 
 
-def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory, monkeypatch):
+def test_trigger_dag_and_wait_for_result(
+    default_docker_image, tmp_path_factory, monkeypatch
+):
     """Simple test which reproduce setup docker-compose environment and trigger example dag."""
     tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
 
     compose_file_path = (
-        SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
+        SOURCE_ROOT
+        / "docs"
+        / "apache-airflow"
+        / "howto"
+        / "docker-compose"
+        / "docker-compose.yaml"
     )
     copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 
@@ -88,19 +97,25 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     try:
         compose_version = docker.compose.version()
     except DockerException:
-        pytest.fail("`docker compose` not available. Make sure compose plugin is installed")
+        pytest.fail(
+            "`docker compose` not available. Make sure compose plugin is installed"
+        )
     try:
         docker_version = docker.version()
     except NotImplementedError:
         docker_version = run_command(["docker", "version"], return_output=True)
 
-    compose = DockerClient(compose_project_name="quick-start", compose_project_directory=tmp_dir).compose
+    compose = DockerClient(
+        compose_project_name="quick-start", compose_project_directory=tmp_dir
+    ).compose
     compose.down(remove_orphans=True, volumes=True, quiet=True)
     try:
         compose.up(detach=True, wait=True, color=not os.environ.get("NO_COLOR"))
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
-        api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
+        api_request(
+            "POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID}
+        )
 
         wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
         dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
@@ -135,6 +150,8 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         else:
             print("Skipping docker-compose deletion")
             print()
-            print("You can run inspect your docker-compose by running commands starting with:")
+            print(
+                "You can run inspect your docker-compose by running commands starting with:"
+            )
             quoted_command = map(shlex.quote, map(str, compose.docker_compose_cmd))
             print(" ".join(quoted_command))

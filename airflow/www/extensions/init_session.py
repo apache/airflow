@@ -20,7 +20,10 @@ from flask import session as builtin_flask_session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.www.session import AirflowDatabaseSessionInterface, AirflowSecureCookieSessionInterface
+from airflow.www.session import (
+    AirflowDatabaseSessionInterface,
+    AirflowSecureCookieSessionInterface,
+)
 
 
 def init_airflow_session_interface(app):

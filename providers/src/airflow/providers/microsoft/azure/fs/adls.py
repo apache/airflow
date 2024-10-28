@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 schemes = ["abfs", "abfss", "adl"]
 
 
-def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
+def get_fs(
+    conn_id: str | None, storage_options: dict[str, Any] | None = None
+) -> AbstractFileSystem:
     from adlfs import AzureBlobFileSystem
 
     if conn_id is None:
@@ -41,7 +43,10 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
 
     # connection string always overrides everything else
     connection_string = get_field(
-        conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="connection_string"
+        conn_id=conn_id,
+        conn_type=conn_type,
+        extras=extras,
+        field_name="connection_string",
     )
 
     if connection_string:
@@ -52,13 +57,18 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     }
 
     # mirror handling of custom field "client_secret_auth_config" from extras. Ignore if missing as AzureBlobFileSystem can handle.
-    tenant_id = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="tenant_id")
+    tenant_id = get_field(
+        conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="tenant_id"
+    )
     login = conn.login or ""
     password = conn.password or ""
     # assumption (from WasbHook) that if tenant_id is set, we want service principal connection
     if tenant_id:
         client_secret_auth_config = get_field(
-            conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="client_secret_auth_config"
+            conn_id=conn_id,
+            conn_type=conn_type,
+            extras=extras,
+            field_name="client_secret_auth_config",
         )
         if login:
             options["client_id"] = login
@@ -66,7 +76,10 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
             options["client_secret"] = password
         if client_secret_auth_config and login and password:
             options["credential"] = ClientSecretCredential(
-                tenant_id=tenant_id, client_id=login, client_secret=password, **client_secret_auth_config
+                tenant_id=tenant_id,
+                client_id=login,
+                client_secret=password,
+                **client_secret_auth_config,
             )
 
     # if not service principal, then password is taken to be account admin key
@@ -86,7 +99,9 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         "anon",
     ]
     for field in fields:
-        value = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name=field)
+        value = get_field(
+            conn_id=conn_id, conn_type=conn_type, extras=extras, field_name=field
+        )
         if value is not None:
             if value == "":
                 options.pop(field, "")

@@ -118,7 +118,9 @@ class PubSubHook(GoogleBaseHook):
 
         :return: Google Cloud Pub/Sub client object.
         """
-        return SubscriberClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return SubscriberClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def publish(
@@ -147,13 +149,17 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path, data=message.get("data", b""), **message.get("attributes", {})
+                    topic=topic_path,
+                    data=message.get("data", b""),
+                    **message.get("attributes", {}),
                 )
                 future.result()
         except GoogleAPICallError as e:
             raise PubSubException(f"Error publishing to topic {topic_path}", e)
 
-        self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
+        self.log.info(
+            "Published %d messages to topic (path) %s", len(messages), topic_path
+        )
 
     @staticmethod
     def _validate_messages(messages) -> None:
@@ -175,10 +181,18 @@ class PubSubHook(GoogleBaseHook):
             if not isinstance(message, dict):
                 raise PubSubException("Wrong message type. Must be a dictionary.")
             if "data" not in message and "attributes" not in message:
-                raise PubSubException("Wrong message. Dictionary must contain 'data' or 'attributes'.")
+                raise PubSubException(
+                    "Wrong message. Dictionary must contain 'data' or 'attributes'."
+                )
             if "data" in message and not isinstance(message["data"], bytes):
-                raise PubSubException("Wrong message. 'data' must be send as a bytestring")
-            if ("data" not in message and "attributes" in message and not message["attributes"]) or (
+                raise PubSubException(
+                    "Wrong message. 'data' must be send as a bytestring"
+                )
+            if (
+                "data" not in message
+                and "attributes" in message
+                and not message["attributes"]
+            ) or (
                 "attributes" in message and not isinstance(message["attributes"], dict)
             ):
                 raise PubSubException(
@@ -295,7 +309,10 @@ class PubSubHook(GoogleBaseHook):
         self.log.info("Deleting topic (path) %s", topic_path)
         try:
             publisher.delete_topic(
-                request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
+                request={"topic": topic_path},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata or (),
             )
         except NotFound:
             self.log.warning("Topic does not exist: %s", topic_path)
@@ -400,10 +417,16 @@ class PubSubHook(GoogleBaseHook):
         labels = labels or {}
         labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
-        subscription_path = f"projects/{subscription_project_id}/subscriptions/{subscription}"
+        subscription_path = (
+            f"projects/{subscription_project_id}/subscriptions/{subscription}"
+        )
         topic_path = f"projects/{project_id}/topics/{topic}"
 
-        self.log.info("Creating subscription (path) %s for topic (path) %a", subscription_path, topic_path)
+        self.log.info(
+            "Creating subscription (path) %s for topic (path) %a",
+            subscription_path,
+            topic_path,
+        )
         try:
             subscriber.create_subscription(
                 request={
@@ -431,7 +454,11 @@ class PubSubHook(GoogleBaseHook):
         except GoogleAPICallError as e:
             raise PubSubException(f"Error creating subscription {subscription_path}", e)
 
-        self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
+        self.log.info(
+            "Created subscription (path) %s for topic (path) %s",
+            subscription_path,
+            topic_path,
+        )
         return subscription
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -519,7 +546,11 @@ class PubSubHook(GoogleBaseHook):
         # E501
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
-        self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
+        self.log.info(
+            "Pulling max %d messages from subscription (path) %s",
+            max_messages,
+            subscription_path,
+        )
         try:
             response = subscriber.pull(
                 request={
@@ -532,10 +563,16 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
             result = getattr(response, "received_messages", [])
-            self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
+            self.log.info(
+                "Pulled %d messages from subscription (path) %s",
+                len(result),
+                subscription_path,
+            )
             return result
         except (HttpError, GoogleAPICallError) as e:
-            raise PubSubException(f"Error pulling messages from subscription {subscription_path}", e)
+            raise PubSubException(
+                f"Error pulling messages from subscription {subscription_path}", e
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(
@@ -569,15 +606,23 @@ class PubSubHook(GoogleBaseHook):
         if ack_ids is not None and messages is None:
             pass  # use ack_ids as is
         elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
+            ack_ids = [
+                message.ack_id for message in messages
+            ]  # extract ack_ids from messages
         else:
-            raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
+            raise ValueError(
+                "One and only one of 'ack_ids' and 'messages' arguments have to be provided"
+            )
 
         subscriber = self.subscriber_client
         # E501
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
-        self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
+        self.log.info(
+            "Acknowledging %d ack_ids from subscription (path) %s",
+            len(ack_ids),
+            subscription_path,
+        )
         try:
             subscriber.acknowledge(
                 request={"subscription": subscription_path, "ack_ids": ack_ids},
@@ -591,7 +636,9 @@ class PubSubHook(GoogleBaseHook):
                 e,
             )
 
-        self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)
+        self.log.info(
+            "Acknowledged ack_ids from subscription (path) %s", subscription_path
+        )
 
 
 class PubSubAsyncHook(GoogleBaseAsyncHook):
@@ -612,7 +659,9 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         """
         if not self._client:
             credentials = (await self.get_sync_hook()).get_credentials()
-            self._client = SubscriberAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
+            self._client = SubscriberAsyncClient(
+                credentials=credentials, client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -648,12 +697,20 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         if ack_ids is not None and messages is None:
             pass  # use ack_ids as is
         elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
+            ack_ids = [
+                message.ack_id for message in messages
+            ]  # extract ack_ids from messages
         else:
-            raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
+            raise ValueError(
+                "One and only one of 'ack_ids' and 'messages' arguments have to be provided"
+            )
 
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
-        self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
+        self.log.info(
+            "Acknowledging %d ack_ids from subscription (path) %s",
+            len(ack_ids),
+            subscription_path,
+        )
 
         try:
             await subscriber.acknowledge(
@@ -667,7 +724,9 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
                 f"Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}",
                 e,
             )
-        self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)
+        self.log.info(
+            "Acknowledged ack_ids from subscription (path) %s", subscription_path
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def pull(
@@ -705,7 +764,11 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         """
         subscriber = await self._get_subscriber_client()
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
-        self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
+        self.log.info(
+            "Pulling max %d messages from subscription (path) %s",
+            max_messages,
+            subscription_path,
+        )
 
         try:
             response = await subscriber.pull(
@@ -719,7 +782,13 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
                 metadata=metadata,
             )
             result = getattr(response, "received_messages", [])
-            self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
+            self.log.info(
+                "Pulled %d messages from subscription (path) %s",
+                len(result),
+                subscription_path,
+            )
             return result
         except (HttpError, GoogleAPICallError) as e:
-            raise PubSubException(f"Error pulling messages from subscription {subscription_path}", e)
+            raise PubSubException(
+                f"Error pulling messages from subscription {subscription_path}", e
+            )

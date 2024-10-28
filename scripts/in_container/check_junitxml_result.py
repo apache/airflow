@@ -34,7 +34,9 @@ if __name__ == "__main__":
             num_failures = testsuite.get("failures")
             num_errors = testsuite.get("errors")
             if num_failures == "0" and num_errors == "0":
-                print(f"\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n")
+                print(
+                    f"\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n"
+                )
                 sys.exit(0)
             else:
                 print(

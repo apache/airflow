@@ -24,8 +24,12 @@ from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.parameters import DateTimeQuery
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dashboard import HistoricalMetricDataResponse
+from airflow.api_fastapi.core_api.openapi.exceptions import (
+    create_openapi_http_exception_doc,
+)
+from airflow.api_fastapi.core_api.serializers.dashboard import (
+    HistoricalMetricDataResponse,
+)
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -93,8 +97,13 @@ async def historical_metrics(
         "task_instance_states": {
             "no_status": 0,
             **{ti_state.value: 0 for ti_state in TaskInstanceState},
-            **{ti_state or "no_status": sum_value for ti_state, sum_value in task_instance_states},
+            **{
+                ti_state or "no_status": sum_value
+                for ti_state, sum_value in task_instance_states
+            },
         },
     }
 
-    return HistoricalMetricDataResponse.model_validate(historical_metrics_response, from_attributes=True)
+    return HistoricalMetricDataResponse.model_validate(
+        historical_metrics_response, from_attributes=True
+    )

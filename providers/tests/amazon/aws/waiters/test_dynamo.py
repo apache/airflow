@@ -95,7 +95,9 @@ class TestCustomDynamoDBServiceWaiters:
                 self.describe_export(self.EXPORT_STATUS_IN_PROGRESS),
                 self.describe_export(self.EXPORT_STATUS_FAILED),
             ]
-            waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
+            waiter = DynamoDBHook(aws_conn_id=None).get_waiter(
+                "export_table", client=self.client
+            )
             with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
                 waiter.wait(
                     ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
@@ -128,4 +130,6 @@ class TestCustomDynamoDBServiceWaiters:
             self.describe_import(status),
         ]
         with pytest.raises(WaiterError, match=f'we matched expected path: "{status}"'):
-            waiter.wait(ImportArn=TEST_IMPORT_ARN, WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+            waiter.wait(
+                ImportArn=TEST_IMPORT_ARN, WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+            )

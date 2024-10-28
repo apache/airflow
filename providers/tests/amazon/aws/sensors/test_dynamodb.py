@@ -76,7 +76,9 @@ class TestDynamoDBValueSensor:
 
     @mock_aws
     def test_sensor_with_pk_and_sk(self):
-        hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name, self.sk_name])
+        hook = DynamoDBHook(
+            table_name=self.table_name, table_keys=[self.pk_name, self.sk_name]
+        )
 
         hook.conn.create_table(
             TableName=self.table_name,
@@ -203,14 +205,18 @@ class TestDynamoDBMultipleValuesSensor:
 
         assert not self.sensor_pk.poke(None)
 
-        items = [{self.pk_name: self.pk_value, self.attribute_name: self.attribute_value[1]}]
+        items = [
+            {self.pk_name: self.pk_value, self.attribute_name: self.attribute_value[1]}
+        ]
         hook.write_batch_data(items)
 
         assert self.sensor_pk.poke(None)
 
     @mock_aws
     def test_sensor_with_pk_and_sk(self):
-        hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name, self.sk_name])
+        hook = DynamoDBHook(
+            table_name=self.table_name, table_keys=[self.pk_name, self.sk_name]
+        )
 
         hook.conn.create_table(
             TableName=self.table_name,

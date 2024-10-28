@@ -24,7 +24,10 @@ import ydb
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.ydb.hooks.ydb import YDBHook
-from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator, YDBScanQueryOperator
+from airflow.providers.ydb.operators.ydb import (
+    YDBExecuteQueryOperator,
+    YDBScanQueryOperator,
+)
 
 # [START ydb_operator_howto_guide]
 
@@ -49,8 +52,20 @@ def populate_pet_table_via_bulk_upsert():
     )
 
     rows = [
-        {"pet_id": 3, "name": "Lester", "pet_type": "Hamster", "birth_date": "2020-06-23", "owner": "Lily"},
-        {"pet_id": 4, "name": "Quincy", "pet_type": "Parrot", "birth_date": "2013-08-11", "owner": "Anne"},
+        {
+            "pet_id": 3,
+            "name": "Lester",
+            "pet_type": "Hamster",
+            "birth_date": "2020-06-23",
+            "owner": "Lily",
+        },
+        {
+            "pet_id": 4,
+            "name": "Quincy",
+            "pet_type": "Parrot",
+            "birth_date": "2013-08-11",
+            "owner": "Anne",
+        },
     ]
     hook.bulk_upsert("pet", rows=rows, column_types=column_types)
 
@@ -91,7 +106,9 @@ with DAG(
     )
     # [END ydb_operator_howto_guide_populate_pet_table]
     # [START ydb_operator_howto_guide_get_all_pets]
-    get_all_pets = YDBExecuteQueryOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
+    get_all_pets = YDBExecuteQueryOperator(
+        task_id="get_all_pets", sql="SELECT * FROM pet;"
+    )
     # [END ydb_operator_howto_guide_get_all_pets]
     # [START ydb_operator_howto_guide_get_birth_date]
     get_birth_date = YDBExecuteQueryOperator(

@@ -90,7 +90,14 @@ class HttpToS3Operator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ("http_conn_id", "endpoint", "data", "headers", "s3_bucket", "s3_key")
+    template_fields: Sequence[str] = (
+        "http_conn_id",
+        "endpoint",
+        "data",
+        "headers",
+        "s3_bucket",
+        "s3_key",
+    )
     template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext: Sequence[str] = ()
     ui_color = "#f4a460"
@@ -163,7 +170,9 @@ class HttpToS3Operator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info("Calling HTTP method")
-        response = self.http_hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+        response = self.http_hook.run(
+            self.endpoint, self.data, self.headers, self.extra_options
+        )
 
         self.s3_hook.load_bytes(
             response.content,

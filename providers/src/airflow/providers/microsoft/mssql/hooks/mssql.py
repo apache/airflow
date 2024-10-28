@@ -59,8 +59,14 @@ class MsSqlHook(DbApiHook):
     def sqlalchemy_scheme(self) -> str:
         """Sqlalchemy scheme either from constructor, connection extras or default."""
         extra_scheme = self.connection_extra_lower.get("sqlalchemy_scheme")
-        if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
-            raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
+        if (
+            not self._sqlalchemy_scheme
+            and extra_scheme
+            and (":" in extra_scheme or "/" in extra_scheme)
+        ):
+            raise RuntimeError(
+                "sqlalchemy_scheme in connection extra should not contain : or / characters"
+            )
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
     def get_uri(self) -> str:
@@ -101,7 +107,9 @@ class MsSqlHook(DbApiHook):
         )
         return [pk[0] for pk in primary_keys]  # type: ignore
 
-    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+    def _generate_insert_sql(
+        self, table, values, target_fields, replace, **kwargs
+    ) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -114,7 +122,9 @@ class MsSqlHook(DbApiHook):
         :return: The generated INSERT or MERGE INTO SQL statement
         """
         if not replace:
-            return super()._generate_insert_sql(table, values, target_fields, replace, **kwargs)  # type: ignore
+            return super()._generate_insert_sql(
+                table, values, target_fields, replace, **kwargs
+            )  # type: ignore
 
         primary_keys = self.get_primary_keys(table)
         columns = [

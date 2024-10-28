@@ -292,7 +292,9 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         self.default_message_time_to_live = default_message_time_to_live
         self.max_size_in_megabytes = max_size_in_megabytes
         self.requires_duplicate_detection = requires_duplicate_detection
-        self.duplicate_detection_history_time_window = duplicate_detection_history_time_window
+        self.duplicate_detection_history_time_window = (
+            duplicate_detection_history_time_window
+        )
         self.enable_batched_operations = enable_batched_operations
         self.size_in_bytes = size_in_bytes
         self.filtering_messages_before_publishing = filtering_messages_before_publishing
@@ -410,7 +412,9 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         self.requires_session = requires_session
         self.default_message_time_to_live = default_message_time_to_live
         self.dl_on_message_expiration = dead_lettering_on_message_expiration
-        self.dl_on_filter_evaluation_exceptions = dead_lettering_on_filter_evaluation_exceptions
+        self.dl_on_filter_evaluation_exceptions = (
+            dead_lettering_on_filter_evaluation_exceptions
+        )
         self.max_delivery_count = max_delivery_count
         self.enable_batched_operations = enable_batched_operations
         self.forward_to = forward_to
@@ -495,16 +499,24 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         with hook.get_conn() as service_mgmt_conn:
-            subscription_prop = service_mgmt_conn.get_subscription(self.topic_name, self.subscription_name)
+            subscription_prop = service_mgmt_conn.get_subscription(
+                self.topic_name, self.subscription_name
+            )
             if self.max_delivery_count:
                 subscription_prop.max_delivery_count = self.max_delivery_count
             if self.dl_on_message_expiration is not None:
-                subscription_prop.dead_lettering_on_message_expiration = self.dl_on_message_expiration
+                subscription_prop.dead_lettering_on_message_expiration = (
+                    self.dl_on_message_expiration
+                )
             if self.enable_batched_operations is not None:
-                subscription_prop.enable_batched_operations = self.enable_batched_operations
+                subscription_prop.enable_batched_operations = (
+                    self.enable_batched_operations
+                )
             # update by updating the properties in the model
             service_mgmt_conn.update_subscription(self.topic_name, subscription_prop)
-            updated_subscription = service_mgmt_conn.get_subscription(self.topic_name, self.subscription_name)
+            updated_subscription = service_mgmt_conn.get_subscription(
+                self.topic_name, self.subscription_name
+            )
             self.log.info("Subscription Updated successfully %s", updated_subscription)
 
 

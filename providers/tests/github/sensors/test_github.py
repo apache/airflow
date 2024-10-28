@@ -70,7 +70,9 @@ class TestGithubSensor:
             dag=self.dag,
         )
 
-        github_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        github_tag_sensor.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
         assert github_mock.return_value.get_repo.called
         assert github_mock.return_value.get_repo.return_value.get_tags.called

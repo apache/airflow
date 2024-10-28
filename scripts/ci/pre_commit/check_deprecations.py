@@ -62,9 +62,13 @@ def is_file_under_eol_deprecation(file_path: str, warning_class: str) -> bool:
     return False
 
 
-def validate_end_of_life_deprecation_warnings(file_path: str, decorator: Any, warning_class: str) -> int:
+def validate_end_of_life_deprecation_warnings(
+    file_path: str, decorator: Any, warning_class: str
+) -> int:
     _errors = 0
-    if not is_file_under_eol_deprecation(file_path=file_path, warning_class=warning_class):
+    if not is_file_under_eol_deprecation(
+        file_path=file_path, warning_class=warning_class
+    ):
         return 0
 
     if not get_decorator_argument(decorator, "planned_removal_date"):
@@ -145,7 +149,11 @@ def found_compatible_decorators(mod: ast.Module) -> tuple[str, ...]:
     for node in mod.body:
         if not isinstance(node, (ast.ImportFrom, ast.Import)):
             continue
-        result.extend(built_import_from(node) if isinstance(node, ast.ImportFrom) else built_import(node))
+        result.extend(
+            built_import_from(node)
+            if isinstance(node, ast.ImportFrom)
+            else built_import(node)
+        )
     return tuple(sorted(set(result)))
 
 
@@ -224,7 +232,9 @@ def check_file(file: str) -> int:
     if not file_path.as_posix().startswith("airflow"):
         # Not expected file, exit early
         return 0
-    file_group = "providers" if file_path.as_posix().startswith("airflow/providers") else "airflow"
+    file_group = (
+        "providers" if file_path.as_posix().startswith("airflow/providers") else "airflow"
+    )
     ast_module = ast.parse(file_path.read_text("utf-8"), file)
     errors = 0
     errors += check_decorators(ast_module, file, file_group)

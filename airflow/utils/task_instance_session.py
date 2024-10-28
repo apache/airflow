@@ -40,8 +40,12 @@ def get_current_task_instance_session() -> Session:
         if InternalApiConfig.get_use_internal_api():
             __current_task_instance_session = TracebackSession()
             return __current_task_instance_session
-        log.warning("No task session set for this task. Continuing but this likely causes a resource leak.")
-        log.warning("Please report this and stacktrace below to https://github.com/apache/airflow/issues")
+        log.warning(
+            "No task session set for this task. Continuing but this likely causes a resource leak."
+        )
+        log.warning(
+            "Please report this and stacktrace below to https://github.com/apache/airflow/issues"
+        )
         for filename, line_number, name, line in traceback.extract_stack():
             log.warning('File: "%s", %s , in %s', filename, line_number, name)
             if line:

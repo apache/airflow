@@ -23,11 +23,16 @@ from unittest.mock import MagicMock, Mock
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.operators.teradata import TeradataOperator, TeradataStoredProcedureOperator
+from airflow.providers.teradata.operators.teradata import (
+    TeradataOperator,
+    TeradataStoredProcedureOperator,
+)
 
 
 class TestTeradataOperator:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_get_hook_from_conn(self, mock_get_db_hook):
         """
         :class:`~.TeradataOperator` should use the hook returned by :meth:`airflow.models.Connection.get_hook`
@@ -56,7 +61,9 @@ class TestTeradataOperator:
         op = TeradataOperator(task_id="test", sql="")
         assert op.get_db_hook().__class__.__name__ == "TeradataHook"
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_execute(self, mock_get_db_hook):
         sql = "SELECT * FROM test_table"
         teradata_conn_id = "teradata_default"
@@ -66,7 +73,10 @@ class TestTeradataOperator:
         task_id = "test_task_id"
 
         operator = TeradataOperator(
-            sql=sql, teradata_conn_id=teradata_conn_id, parameters=parameters, task_id=task_id
+            sql=sql,
+            teradata_conn_id=teradata_conn_id,
+            parameters=parameters,
+            task_id=task_id,
         )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -77,7 +87,9 @@ class TestTeradataOperator:
             return_last=True,
         )
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_teradata_operator_test_multi(self, mock_get_db_hook):
         sql = [
             "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
@@ -91,7 +103,10 @@ class TestTeradataOperator:
         task_id = "test_task_id"
 
         operator = TeradataOperator(
-            sql=sql, teradata_conn_id=teradata_conn_id, parameters=parameters, task_id=task_id
+            sql=sql,
+            teradata_conn_id=teradata_conn_id,
+            parameters=parameters,
+            task_id=task_id,
         )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(

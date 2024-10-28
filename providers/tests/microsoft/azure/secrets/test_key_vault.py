@@ -47,11 +47,17 @@ class TestAzureKeyVaultBackend:
             value="postgresql://airflow:airflow@host:5432/airflow"
         )
 
-        backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Method `.*get_conn_uri` is deprecated"):
+        backend = AzureKeyVaultBackend(
+            vault_url="https://example-akv-resource-name.vault.azure.net/"
+        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `.*get_conn_uri` is deprecated",
+        ):
             returned_uri = backend.get_conn_uri(conn_id="hi")
         mock_secret_client.assert_called_once_with(
-            credential=mock_cred, vault_url="https://example-akv-resource-name.vault.azure.net/"
+            credential=mock_cred,
+            vault_url="https://example-akv-resource-name.vault.azure.net/",
         )
         assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
@@ -63,9 +69,14 @@ class TestAzureKeyVaultBackend:
         """
         conn_id = "test_mysql"
         mock_client.get_secret.side_effect = ResourceNotFoundError
-        backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
+        backend = AzureKeyVaultBackend(
+            vault_url="https://example-akv-resource-name.vault.azure.net/"
+        )
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Method `.*get_conn_uri` is deprecated"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `.*get_conn_uri` is deprecated",
+        ):
             assert backend.get_conn_uri(conn_id=conn_id) is None
         assert backend.get_connection(conn_id=conn_id) is None
 
@@ -95,7 +106,10 @@ class TestAzureKeyVaultBackend:
         mock_client.get_secret.side_effect = ResourceNotFoundError
         backend = AzureKeyVaultBackend()
         assert (
-            backend._get_secret(path_prefix=backend.connections_prefix, secret_id="test_non_existent") is None
+            backend._get_secret(
+                path_prefix=backend.connections_prefix, secret_id="test_non_existent"
+            )
+            is None
         )
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
@@ -123,7 +137,10 @@ class TestAzureKeyVaultBackend:
         mock_get_secret.assert_not_called()
 
         mock_get_secret.reset_mock()
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Method `.*get_conn_uri` is deprecated"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `.*get_conn_uri` is deprecated",
+        ):
             assert backend.get_conn_uri("test_mysql") is None
             mock_get_secret.assert_not_called()
 
@@ -164,7 +181,9 @@ class TestAzureKeyVaultBackend:
         tenant_id, client_id and client_secret are not provided
 
         """
-        backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
+        backend = AzureKeyVaultBackend(
+            vault_url="https://example-akv-resource-name.vault.azure.net/"
+        )
         backend.client
         assert not mock_client_secret_credential.called
         mock_defaul_azure_credential.assert_called_once()

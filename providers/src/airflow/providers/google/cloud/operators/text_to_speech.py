@@ -33,7 +33,11 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
+    from google.cloud.texttospeech_v1.types import (
+        AudioConfig,
+        SynthesisInput,
+        VoiceSelectionParams,
+    )
 
     from airflow.utils.context import Context
 
@@ -145,7 +149,9 @@ class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
             cloud_storage_hook.upload(
-                bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name
+                bucket_name=self.target_bucket_name,
+                object_name=self.target_filename,
+                filename=temp_file.name,
             )
             FileDetailsLink.persist(
                 context=context,

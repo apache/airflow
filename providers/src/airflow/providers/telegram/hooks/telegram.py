@@ -114,7 +114,9 @@ class TelegramHook(BaseHook):
 
         raise AirflowException("Cannot get token: No valid Telegram connection supplied.")
 
-    def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
+    def __get_chat_id(
+        self, chat_id: str | None, telegram_conn_id: str | None
+    ) -> str | None:
         """
         Return the telegram chat ID for a chat/channel/group.
 

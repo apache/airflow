@@ -24,7 +24,9 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
+from airflow.providers.jenkins.operators.jenkins_job_trigger import (
+    JenkinsJobTriggerOperator,
+)
 
 TEST_PARAMETERS = (
     pytest.param({"a_param": "blip", "another_param": "42"}, id="dict params"),
@@ -41,7 +43,9 @@ class TestJenkinsOperator:
             "result": "SUCCESS",
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.build_job_url.return_value = (
+            "http://www.jenkins.url/somewhere/in/the/universe"
+        )
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -74,7 +78,9 @@ class TestJenkinsOperator:
             operator.execute(None)
 
             assert jenkins_mock.get_build_info.call_count == 1
-            jenkins_mock.get_build_info.assert_called_once_with(name="a_job_on_jenkins", number="1")
+            jenkins_mock.get_build_info.assert_called_once_with(
+                name="a_job_on_jenkins", number="1"
+            )
 
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
     def test_execute_job_polling_loop(self, parameters, mocker):
@@ -82,9 +88,14 @@ class TestJenkinsOperator:
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.side_effect = [
             {"result": None},
-            {"result": "SUCCESS", "url": "http://aaa.fake-url.com/congratulation/its-a-job"},
+            {
+                "result": "SUCCESS",
+                "url": "http://aaa.fake-url.com/congratulation/its-a-job",
+            },
         ]
-        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.build_job_url.return_value = (
+            "http://www.jenkins.url/somewhere/in/the/universe"
+        )
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -125,7 +136,9 @@ class TestJenkinsOperator:
             "result": "FAILURE",
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.build_job_url.return_value = (
+            "http://www.jenkins.url/somewhere/in/the/universe"
+        )
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -186,7 +199,9 @@ class TestJenkinsOperator:
             "result": state,
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.build_job_url.return_value = (
+            "http://www.jenkins.url/somewhere/in/the/universe"
+        )
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
@@ -219,7 +234,9 @@ class TestJenkinsOperator:
             try:
                 operator.execute(None)
             except AirflowException:
-                pytest.fail(f"Job failed with state={state} while allowed states={allowed_jenkins_states}")
+                pytest.fail(
+                    f"Job failed with state={state} while allowed states={allowed_jenkins_states}"
+                )
 
     @pytest.mark.parametrize(
         "state, allowed_jenkins_states",
@@ -253,7 +270,9 @@ class TestJenkinsOperator:
             "result": state,
             "url": "http://aaa.fake-url.com/congratulation/its-a-job",
         }
-        jenkins_mock.build_job_url.return_value = "http://www.jenkins.url/somewhere/in/the/universe"
+        jenkins_mock.build_job_url.return_value = (
+            "http://www.jenkins.url/somewhere/in/the/universe"
+        )
 
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock

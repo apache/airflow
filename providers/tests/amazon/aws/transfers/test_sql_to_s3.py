@@ -148,8 +148,13 @@ class TestSqlToS3Operator:
     @pytest.mark.parametrize(
         "params",
         [
-            pytest.param({"file_format": "csv", "null_string_result": None}, id="with-csv"),
-            pytest.param({"file_format": "parquet", "null_string_result": "None"}, id="with-parquet"),
+            pytest.param(
+                {"file_format": "csv", "null_string_result": None}, id="with-csv"
+            ),
+            pytest.param(
+                {"file_format": "parquet", "null_string_result": "None"},
+                id="with-parquet",
+            ),
         ],
     )
     def test_fix_dtypes(self, params):
@@ -325,7 +330,9 @@ class TestSqlToS3Operator:
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_hook_params(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id="postgres_test", conn_type="postgres")
+        mock_get_conn.return_value = Connection(
+            conn_id="postgres_test", conn_type="postgres"
+        )
         op = SqlToS3Operator(
             query="query",
             s3_bucket="bucket",

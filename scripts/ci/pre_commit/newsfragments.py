@@ -38,13 +38,17 @@ for filename in files:
 
     name_parts = Path(filename).name.split(".")
     if len(name_parts) != 3:
-        print(f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst.")
+        print(
+            f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst."
+        )
         failed = True
         continue
 
     change_type = name_parts[1]
     if change_type not in VALID_CHANGE_TYPES:
-        print(f"Newsfragment {filename} has an unexpected type. Should be one of {VALID_CHANGE_TYPES}.")
+        print(
+            f"Newsfragment {filename} has an unexpected type. Should be one of {VALID_CHANGE_TYPES}."
+        )
         failed = True
         continue
 

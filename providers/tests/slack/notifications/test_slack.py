@@ -22,11 +22,19 @@ from unittest import mock
 import pytest
 
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
+from airflow.providers.slack.notifications.slack import (
+    SlackNotifier,
+    send_slack_notification,
+)
 
 pytestmark = pytest.mark.db_test
 
-DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
+DEFAULT_HOOKS_PARAMETERS = {
+    "base_url": None,
+    "timeout": None,
+    "proxy": None,
+    "retry_handlers": None,
+}
 
 
 class TestSlackNotifier:
@@ -52,11 +60,15 @@ class TestSlackNotifier:
             ),
         ],
     )
-    def test_slack_notifier(self, mock_slack_hook, dag_maker, extra_kwargs, hook_extra_kwargs):
+    def test_slack_notifier(
+        self, mock_slack_hook, dag_maker, extra_kwargs, hook_extra_kwargs
+    ):
         with dag_maker("test_slack_notifier") as dag:
             EmptyOperator(task_id="task1")
 
-        notifier = send_slack_notification(slack_conn_id="test_conn_id", text="test", **extra_kwargs)
+        notifier = send_slack_notification(
+            slack_conn_id="test_conn_id", text="test", **extra_kwargs
+        )
         notifier({"dag": dag})
         mock_slack_hook.return_value.call.assert_called_once_with(
             "chat.postMessage",
@@ -72,7 +84,9 @@ class TestSlackNotifier:
                 "unfurl_media": True,
             },
         )
-        mock_slack_hook.assert_called_once_with(slack_conn_id="test_conn_id", **hook_extra_kwargs)
+        mock_slack_hook.assert_called_once_with(
+            slack_conn_id="test_conn_id", **hook_extra_kwargs
+        )
 
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
     def test_slack_notifier_with_notifier_class(self, mock_slack_hook, dag_maker):

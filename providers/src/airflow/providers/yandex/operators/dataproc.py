@@ -202,7 +202,8 @@ class DataprocCreateClusterOperator(BaseOperator):
             services=self.services,
             s3_bucket=self.s3_bucket,
             zone=self.zone,
-            service_account_id=self.service_account_id or self.hook.default_service_account_id,
+            service_account_id=self.service_account_id
+            or self.hook.default_service_account_id,
             masternode_resource_preset=self.masternode_resource_preset,
             masternode_disk_size=self.masternode_disk_size,
             masternode_disk_type=self.masternode_disk_type,
@@ -242,7 +243,9 @@ class DataprocCreateClusterOperator(BaseOperator):
 
         context["task_instance"].xcom_push(key="cluster_id", value=cluster_id)
         # Deprecated
-        context["task_instance"].xcom_push(key="yandexcloud_connection_id", value=self.yandex_conn_id)
+        context["task_instance"].xcom_push(
+            key="yandexcloud_connection_id", value=self.yandex_conn_id
+        )
         return cluster_id
 
     @property
@@ -260,7 +263,13 @@ class DataprocBaseOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("cluster_id",)
 
-    def __init__(self, *, yandex_conn_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        yandex_conn_id: str | None = None,
+        cluster_id: str | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.cluster_id = cluster_id
         self.yandex_conn_id = yandex_conn_id
@@ -269,7 +278,9 @@ class DataprocBaseOperator(BaseOperator):
         if self.cluster_id is None:
             self.cluster_id = context["task_instance"].xcom_pull(key="cluster_id")
         if self.yandex_conn_id is None:
-            xcom_yandex_conn_id = context["task_instance"].xcom_pull(key="yandexcloud_connection_id")
+            xcom_yandex_conn_id = context["task_instance"].xcom_pull(
+                key="yandexcloud_connection_id"
+            )
             if xcom_yandex_conn_id:
                 warnings.warn(
                     "Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly",
@@ -292,7 +303,9 @@ class DataprocDeleteClusterOperator(DataprocBaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    def __init__(self, *, connection_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self, *, connection_id: str | None = None, cluster_id: str | None = None, **kwargs
+    ) -> None:
         super().__init__(yandex_conn_id=connection_id, cluster_id=cluster_id, **kwargs)
 
     def execute(self, context: Context) -> None:

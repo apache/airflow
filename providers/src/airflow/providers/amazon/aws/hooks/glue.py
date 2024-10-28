@@ -104,9 +104,13 @@ class GlueJobHook(AwsBaseHook):
             if num_of_dpus is not None:
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
         elif not worker_type_exists and num_workers_exists:
-            raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
+            raise ValueError(
+                "Need to specify custom WorkerType when specifying NumberOfWorkers"
+            )
         elif worker_type_exists and not num_workers_exists:
-            raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
+            raise ValueError(
+                "Need to specify NumberOfWorkers when specifying custom WorkerType"
+            )
         elif num_of_dpus is None:
             self.num_of_dpus: int | float = 10
         else:
@@ -157,7 +161,10 @@ class GlueJobHook(AwsBaseHook):
     def get_iam_execution_role(self) -> dict:
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
-                "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+                "iam",
+                endpoint_url=self.conn_config.endpoint_url,
+                config=self.config,
+                verify=self.verify,
             )
             glue_execution_role = iam_client.get_role(RoleName=self.role_name)
             self.log.info("Iam Role Name: %s", self.role_name)
@@ -186,7 +193,9 @@ class GlueJobHook(AwsBaseHook):
             else:
                 job_name = self.get_or_create_glue_job()
 
-            return self.conn.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+            return self.conn.start_job_run(
+                JobName=job_name, Arguments=script_arguments, **run_kwargs
+            )
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -202,7 +211,9 @@ class GlueJobHook(AwsBaseHook):
         :param run_id: The job-run ID of the predecessor job run
         :return: State of the Glue job
         """
-        job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
+        job_run = self.conn.get_job_run(
+            JobName=job_name, RunId=run_id, PredecessorsIncluded=True
+        )
         return job_run["JobRun"]["JobRunState"]
 
     async def async_get_job_state(self, job_name: str, run_id: str) -> str:
@@ -219,7 +230,10 @@ class GlueJobHook(AwsBaseHook):
     def logs_hook(self):
         """Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook."""
         return AwsLogsHook(
-            aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.config,
         )
 
     def print_job_logs(
@@ -237,7 +251,9 @@ class GlueJobHook(AwsBaseHook):
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
 
-        def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
+        def display_logs_from(
+            log_group: str, continuation_token: str | None
+        ) -> str | None:
             """Mutualize iteration over the 2 different log streams glue jobs write to."""
             fetched_logs = []
             next_token = continuation_token
@@ -247,7 +263,9 @@ class GlueJobHook(AwsBaseHook):
                     logStreamNames=[run_id],
                     PaginationConfig={"StartingToken": continuation_token},
                 ):
-                    fetched_logs.extend([event["message"] for event in response["events"]])
+                    fetched_logs.extend(
+                        [event["message"] for event in response["events"]]
+                    )
                     # if the response is empty there is no nextToken in it
                     next_token = response.get("nextToken") or next_token
             except ClientError as e:
@@ -270,7 +288,9 @@ class GlueJobHook(AwsBaseHook):
                 self.log.info("No new log from the Glue Job in %s", log_group)
             return next_token
 
-        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
+        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)[
+            "JobRun"
+        ]["LogGroupName"]
         log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
         log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
         # one would think that the error log group would contain only errors, but it actually contains
@@ -282,7 +302,9 @@ class GlueJobHook(AwsBaseHook):
             log_group_error, continuation_tokens.error_stream_continuation
         )
 
-    def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
+    def job_completion(
+        self, job_name: str, run_id: str, verbose: bool = False
+    ) -> dict[str, str]:
         """
         Wait until Glue job with job_name finishes; return final state if finished or raises AirflowException.
 
@@ -294,13 +316,17 @@ class GlueJobHook(AwsBaseHook):
         next_log_tokens = self.LogContinuationTokens()
         while True:
             job_run_state = self.get_job_state(job_name, run_id)
-            ret = self._handle_state(job_run_state, job_name, run_id, verbose, next_log_tokens)
+            ret = self._handle_state(
+                job_run_state, job_name, run_id, verbose, next_log_tokens
+            )
             if ret:
                 return ret
             else:
                 time.sleep(self.job_poll_interval)
 
-    async def async_job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
+    async def async_job_completion(
+        self, job_name: str, run_id: str, verbose: bool = False
+    ) -> dict[str, str]:
         """
         Wait until Glue job with job_name finishes; return final state if finished or raises AirflowException.
 
@@ -312,7 +338,9 @@ class GlueJobHook(AwsBaseHook):
         next_log_tokens = self.LogContinuationTokens()
         while True:
             job_run_state = await self.async_get_job_state(job_name, run_id)
-            ret = self._handle_state(job_run_state, job_name, run_id, verbose, next_log_tokens)
+            ret = self._handle_state(
+                job_run_state, job_name, run_id, verbose, next_log_tokens
+            )
             if ret:
                 return ret
             else:
@@ -384,7 +412,9 @@ class GlueJobHook(AwsBaseHook):
         current_job = self.conn.get_job(JobName=job_name)["Job"]
 
         update_config = {
-            key: value for key, value in job_kwargs.items() if current_job.get(key) != job_kwargs[key]
+            key: value
+            for key, value in job_kwargs.items()
+            if current_job.get(key) != job_kwargs[key]
         }
         if update_config != {}:
             self.log.info("Updating job: %s", job_name)
@@ -495,7 +525,10 @@ class GlueDataQualityHook(AwsBaseHook):
         return self.conn.batch_get_data_quality_result(ResultIds=response["ResultIds"])
 
     def validate_evaluation_run_results(
-        self, evaluation_run_id: str, show_results: bool = True, verify_result_status: bool = True
+        self,
+        evaluation_run_id: str,
+        show_results: bool = True,
+        verify_result_status: bool = True,
     ) -> None:
         results = self.get_evaluation_run_results(evaluation_run_id)
         total_failed_rules = 0
@@ -512,7 +545,8 @@ class GlueDataQualityHook(AwsBaseHook):
             total_failed_rules += len(
                 list(
                     filter(
-                        lambda result: result.get("Result") == "FAIL" or result.get("Result") == "ERROR",
+                        lambda result: result.get("Result") == "FAIL"
+                        or result.get("Result") == "ERROR",
                         rule_results,
                     )
                 )
@@ -552,4 +586,7 @@ class GlueDataQualityHook(AwsBaseHook):
             )
             self.log.info(result["RecommendedRuleset"])
         else:
-            self.log.info("AWS Glue data quality, no recommended rules available for RunId: %s", run_id)
+            self.log.info(
+                "AWS Glue data quality, no recommended rules available for RunId: %s",
+                run_id,
+            )

@@ -23,15 +23,21 @@ from pathlib import Path
 
 from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 
 from common_precommit_utils import AIRFLOW_BREEZE_SOURCES_PATH
 
 
 @lru_cache(maxsize=None)
 def black_mode(is_pyi: bool = Mode.is_pyi) -> Mode:
-    config = parse_pyproject_toml(os.fspath(AIRFLOW_BREEZE_SOURCES_PATH / "pyproject.toml"))
-    target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
+    config = parse_pyproject_toml(
+        os.fspath(AIRFLOW_BREEZE_SOURCES_PATH / "pyproject.toml")
+    )
+    target_versions = {
+        TargetVersion[val.upper()] for val in config.get("target_version", ())
+    }
 
     return Mode(
         target_versions=target_versions,

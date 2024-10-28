@@ -54,7 +54,11 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+from providers.tests.system.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    prune_logs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +127,9 @@ def _create_ecr_repository(repo_name):
 
     client = boto3.client("ecr")
     repo = client.create_repository(repositoryName=repo_name)["repository"]
-    client.set_repository_policy(repositoryName=repo["repositoryName"], policyText=json.dumps(access_policy))
+    client.set_repository_policy(
+        repositoryName=repo["repositoryName"], policyText=json.dumps(access_policy)
+    )
 
     return repo["repositoryUri"]
 
@@ -134,7 +140,9 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
       - Has numpy, pandas, requests, and boto3 installed
       - Has our data preprocessing script mounted and set as the entry point
     """
-    with NamedTemporaryFile(mode="w+t") as preprocessing_script, NamedTemporaryFile(mode="w+t") as dockerfile:
+    with NamedTemporaryFile(mode="w+t") as preprocessing_script, NamedTemporaryFile(
+        mode="w+t"
+    ) as dockerfile:
         preprocessing_script.write(preprocess_script)
         preprocessing_script.flush()
 
@@ -290,16 +298,16 @@ def set_up(env_id, role_arn):
                 **training_data_source,
             }
         ],
-        "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
+        "OutputDataConfig": {
+            "S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"
+        },
         "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
         "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         "TrainingJobName": training_job_name,
     }
-    model_trained_weights = (
-        f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz"
-    )
+    model_trained_weights = f"s3://{bucket_name}/{training_output_s3_key}/{training_job_name}/output/model.tar.gz"
     model_config = {
         "ExecutionRoleArn": role_arn,
         "ModelName": model_name,
@@ -343,7 +351,10 @@ def set_up(env_id, role_arn):
                 "predictor_type": "classifier",
                 "feature_dim": "2",
             },
-            "AlgorithmSpecification": {"TrainingImage": knn_image_uri, "TrainingInputMode": "File"},
+            "AlgorithmSpecification": {
+                "TrainingImage": knn_image_uri,
+                "TrainingInputMode": "File",
+            },
             "InputDataConfig": [
                 {
                     "ChannelName": "train",
@@ -354,7 +365,9 @@ def set_up(env_id, role_arn):
                     **training_data_source,
                 },
             ],
-            "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
+            "OutputDataConfig": {
+                "S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"
+            },
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
             "StoppingCondition": {"MaxRuntimeInSeconds": 600},
@@ -372,7 +385,9 @@ def set_up(env_id, role_arn):
             "SplitType": "Line",
             "ContentType": "text/csv",
         },
-        "TransformOutput": {"S3OutputPath": f"s3://{bucket_name}/{prediction_output_s3_key}"},
+        "TransformOutput": {
+            "S3OutputPath": f"s3://{bucket_name}/{prediction_output_s3_key}"
+        },
         "TransformResources": {
             "InstanceCount": 1,
             "InstanceType": "ml.m5.large",
@@ -393,7 +408,9 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="processing_config", value=processing_config)
     ti.xcom_push(key="processing_job_name", value=processing_job_name)
     ti.xcom_push(key="input_data_uri", value=input_data_uri)
-    ti.xcom_push(key="output_data_uri", value=f"s3://{bucket_name}/{training_output_s3_key}")
+    ti.xcom_push(
+        key="output_data_uri", value=f"s3://{bucket_name}/{training_output_s3_key}"
+    )
     ti.xcom_push(key="training_config", value=training_config)
     ti.xcom_push(key="training_job_name", value=training_job_name)
     ti.xcom_push(key="model_package_group_name", value=model_package_group_name)
@@ -438,9 +455,13 @@ def delete_experiments(experiment_names):
         trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
         for trial in trials_names:
             components = sgmk_client.list_trial_components(TrialName=trial)
-            components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
+            components_names = [
+                s["TrialComponentName"] for s in components["TrialComponentSummaries"]
+            ]
             for component in components_names:
-                sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
+                sgmk_client.disassociate_trial_component(
+                    TrialComponentName=component, TrialName=trial
+                )
                 sgmk_client.delete_trial_component(TrialComponentName=component)
             sgmk_client.delete_trial(TrialName=trial)
         sgmk_client.delete_experiment(ExperimentName=experiment)
@@ -505,7 +526,9 @@ with DAG(
     automl.wait_for_completion = False  # just to be able to test the sensor next
 
     # [START howto_sensor_sagemaker_auto_ml]
-    await_automl = SageMakerAutoMLSensor(job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML")
+    await_automl = SageMakerAutoMLSensor(
+        job_name=test_setup["auto_ml_job_name"], task_id="await_auto_ML"
+    )
     # [END howto_sensor_sagemaker_auto_ml]
     await_automl.poke_interval = 10
 

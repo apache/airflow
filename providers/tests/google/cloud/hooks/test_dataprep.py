@@ -79,15 +79,24 @@ class TestGoogleDataprepHook:
         self._expected_create_wrangled_dataset_hook_data = json.dumps(
             self._create_wrangled_dataset_body_request
         )
-        self._expected_create_output_object_hook_data = json.dumps(self._create_output_object_body_request)
-        self._expected_create_write_settings_hook_data = json.dumps(self._create_write_settings_body_request)
+        self._expected_create_output_object_hook_data = json.dumps(
+            self._create_output_object_body_request
+        )
+        self._expected_create_write_settings_hook_data = json.dumps(
+            self._create_write_settings_body_request
+        )
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.get")
-    def test_get_jobs_for_job_group_should_be_called_once_with_params(self, mock_get_request):
+    def test_get_jobs_for_job_group_should_be_called_once_with_params(
+        self, mock_get_request
+    ):
         self.hook.get_jobs_for_job_group(JOB_ID)
         mock_get_request.assert_called_once_with(
             f"{URL_JOB_GROUPS}/{JOB_ID}/jobs",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {TOKEN}",
+            },
         )
 
     @patch(
@@ -102,16 +111,26 @@ class TestGoogleDataprepHook:
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
         side_effect=[mock.MagicMock(), HTTPError()],
     )
-    def test_get_jobs_for_job_group_should_not_retry_after_success(self, mock_get_request):
+    def test_get_jobs_for_job_group_should_not_retry_after_success(
+        self, mock_get_request
+    ):
         self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         self.hook.get_jobs_for_job_group(JOB_ID)
         assert mock_get_request.call_count == 1
 
     @patch(
         "airflow.providers.google.cloud.hooks.dataprep.requests.get",
-        side_effect=[HTTPError(), HTTPError(), HTTPError(), HTTPError(), mock.MagicMock()],
+        side_effect=[
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            HTTPError(),
+            mock.MagicMock(),
+        ],
     )
-    def test_get_jobs_for_job_group_should_retry_after_four_errors(self, mock_get_request):
+    def test_get_jobs_for_job_group_should_retry_after_four_errors(
+        self, mock_get_request
+    ):
         self.hook.get_jobs_for_job_group.retry.sleep = mock.Mock()
         self.hook.get_jobs_for_job_group(JOB_ID)
         assert mock_get_request.call_count == 5
@@ -238,7 +257,9 @@ class TestGoogleDataprepHook:
         assert mock_get_request.call_count == 5
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.get")
-    def test_get_job_group_status_should_be_called_once_with_params(self, mock_get_request):
+    def test_get_job_group_status_should_be_called_once_with_params(
+        self, mock_get_request
+    ):
         self.hook.get_job_group_status(job_group_id=JOB_ID)
         mock_get_request.assert_called_once_with(
             f"{URL_JOB_GROUPS}/{JOB_ID}/status",
@@ -294,7 +315,10 @@ class TestGoogleDataprepHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            pytest.param("a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc", id="prefix"),
+            pytest.param(
+                "a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc",
+                id="prefix",
+            ),
             pytest.param("a://?token=abc&base_url=abc", id="no-prefix"),
         ],
     )
@@ -305,8 +329,12 @@ class TestGoogleDataprepHook:
             assert hook._base_url == "abc"
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.post")
-    def test_create_imported_dataset_should_be_called_once_with_params(self, mock_post_request):
-        self.hook.create_imported_dataset(body_request=self._create_imported_dataset_body_request)
+    def test_create_imported_dataset_should_be_called_once_with_params(
+        self, mock_post_request
+    ):
+        self.hook.create_imported_dataset(
+            body_request=self._create_imported_dataset_body_request
+        )
         mock_post_request.assert_called_once_with(
             URL_IMPORTED_DATASETS,
             headers={
@@ -321,7 +349,9 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), mock.MagicMock()],
     )
     def test_create_imported_dataset_should_pass_after_retry(self, mock_post_request):
-        self.hook.create_imported_dataset(body_request=self._create_imported_dataset_body_request)
+        self.hook.create_imported_dataset(
+            body_request=self._create_imported_dataset_body_request
+        )
         assert mock_post_request.call_count == 2
 
     @patch(
@@ -330,7 +360,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_imported_dataset_retry_after_success(self, mock_post_request):
         self.hook.create_imported_dataset.retry.sleep = mock.Mock()
-        self.hook.create_imported_dataset(body_request=self._create_imported_dataset_body_request)
+        self.hook.create_imported_dataset(
+            body_request=self._create_imported_dataset_body_request
+        )
         assert mock_post_request.call_count == 1
 
     @patch(
@@ -345,7 +377,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_imported_dataset_four_errors(self, mock_post_request):
         self.hook.create_imported_dataset.retry.sleep = mock.Mock()
-        self.hook.create_imported_dataset(body_request=self._create_imported_dataset_body_request)
+        self.hook.create_imported_dataset(
+            body_request=self._create_imported_dataset_body_request
+        )
         assert mock_post_request.call_count == 5
 
     @patch(
@@ -355,13 +389,19 @@ class TestGoogleDataprepHook:
     def test_create_imported_dataset_five_calls(self, mock_post_request):
         self.hook.create_imported_dataset.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_imported_dataset(body_request=self._create_imported_dataset_body_request)
+            self.hook.create_imported_dataset(
+                body_request=self._create_imported_dataset_body_request
+            )
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.post")
-    def test_create_wrangled_dataset_should_be_called_once_with_params(self, mock_post_request):
-        self.hook.create_wrangled_dataset(body_request=self._create_wrangled_dataset_body_request)
+    def test_create_wrangled_dataset_should_be_called_once_with_params(
+        self, mock_post_request
+    ):
+        self.hook.create_wrangled_dataset(
+            body_request=self._create_wrangled_dataset_body_request
+        )
         mock_post_request.assert_called_once_with(
             URL_WRANGLED_DATASETS,
             headers={
@@ -376,7 +416,9 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), mock.MagicMock()],
     )
     def test_create_wrangled_dataset_should_pass_after_retry(self, mock_post_request):
-        self.hook.create_wrangled_dataset(body_request=self._create_wrangled_dataset_body_request)
+        self.hook.create_wrangled_dataset(
+            body_request=self._create_wrangled_dataset_body_request
+        )
         assert mock_post_request.call_count == 2
 
     @patch(
@@ -385,7 +427,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_wrangled_dataset_retry_after_success(self, mock_post_request):
         self.hook.create_wrangled_dataset.retry.sleep = mock.Mock()
-        self.hook.create_wrangled_dataset(body_request=self._create_wrangled_dataset_body_request)
+        self.hook.create_wrangled_dataset(
+            body_request=self._create_wrangled_dataset_body_request
+        )
         assert mock_post_request.call_count == 1
 
     @patch(
@@ -400,7 +444,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_wrangled_dataset_four_errors(self, mock_post_request):
         self.hook.create_wrangled_dataset.retry.sleep = mock.Mock()
-        self.hook.create_wrangled_dataset(body_request=self._create_wrangled_dataset_body_request)
+        self.hook.create_wrangled_dataset(
+            body_request=self._create_wrangled_dataset_body_request
+        )
         assert mock_post_request.call_count == 5
 
     @patch(
@@ -410,13 +456,19 @@ class TestGoogleDataprepHook:
     def test_create_wrangled_dataset_five_calls(self, mock_post_request):
         self.hook.create_wrangled_dataset.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_wrangled_dataset(body_request=self._create_wrangled_dataset_body_request)
+            self.hook.create_wrangled_dataset(
+                body_request=self._create_wrangled_dataset_body_request
+            )
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.post")
-    def test_create_output_object_should_be_called_once_with_params(self, mock_post_request):
-        self.hook.create_output_object(body_request=self._create_output_object_body_request)
+    def test_create_output_object_should_be_called_once_with_params(
+        self, mock_post_request
+    ):
+        self.hook.create_output_object(
+            body_request=self._create_output_object_body_request
+        )
         mock_post_request.assert_called_once_with(
             URL_OUTPUT_OBJECTS,
             headers={
@@ -431,7 +483,9 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), mock.MagicMock()],
     )
     def test_create_output_objects_should_pass_after_retry(self, mock_post_request):
-        self.hook.create_output_object(body_request=self._create_output_object_body_request)
+        self.hook.create_output_object(
+            body_request=self._create_output_object_body_request
+        )
         assert mock_post_request.call_count == 2
 
     @patch(
@@ -440,7 +494,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_output_objects_retry_after_success(self, mock_post_request):
         self.hook.create_output_object.retry.sleep = mock.Mock()
-        self.hook.create_output_object(body_request=self._create_output_object_body_request)
+        self.hook.create_output_object(
+            body_request=self._create_output_object_body_request
+        )
         assert mock_post_request.call_count == 1
 
     @patch(
@@ -455,7 +511,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_output_objects_four_errors(self, mock_post_request):
         self.hook.create_output_object.retry.sleep = mock.Mock()
-        self.hook.create_output_object(body_request=self._create_output_object_body_request)
+        self.hook.create_output_object(
+            body_request=self._create_output_object_body_request
+        )
         assert mock_post_request.call_count == 5
 
     @patch(
@@ -465,13 +523,19 @@ class TestGoogleDataprepHook:
     def test_create_output_objects_five_calls(self, mock_post_request):
         self.hook.create_output_object.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_output_object(body_request=self._create_output_object_body_request)
+            self.hook.create_output_object(
+                body_request=self._create_output_object_body_request
+            )
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.post")
-    def test_create_write_settings_should_be_called_once_with_params(self, mock_post_request):
-        self.hook.create_write_settings(body_request=self._create_write_settings_body_request)
+    def test_create_write_settings_should_be_called_once_with_params(
+        self, mock_post_request
+    ):
+        self.hook.create_write_settings(
+            body_request=self._create_write_settings_body_request
+        )
         mock_post_request.assert_called_once_with(
             URL_WRITE_SETTINGS,
             headers={
@@ -486,7 +550,9 @@ class TestGoogleDataprepHook:
         side_effect=[HTTPError(), mock.MagicMock()],
     )
     def test_create_write_settings_should_pass_after_retry(self, mock_post_request):
-        self.hook.create_write_settings(body_request=self._create_write_settings_body_request)
+        self.hook.create_write_settings(
+            body_request=self._create_write_settings_body_request
+        )
         assert mock_post_request.call_count == 2
 
     @patch(
@@ -495,7 +561,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_write_settings_retry_after_success(self, mock_post_request):
         self.hook.create_write_settings.retry.sleep = mock.Mock()
-        self.hook.create_write_settings(body_request=self._create_write_settings_body_request)
+        self.hook.create_write_settings(
+            body_request=self._create_write_settings_body_request
+        )
         assert mock_post_request.call_count == 1
 
     @patch(
@@ -510,7 +578,9 @@ class TestGoogleDataprepHook:
     )
     def test_create_write_settings_four_errors(self, mock_post_request):
         self.hook.create_write_settings.retry.sleep = mock.Mock()
-        self.hook.create_write_settings(body_request=self._create_write_settings_body_request)
+        self.hook.create_write_settings(
+            body_request=self._create_write_settings_body_request
+        )
         assert mock_post_request.call_count == 5
 
     @patch(
@@ -520,12 +590,16 @@ class TestGoogleDataprepHook:
     def test_create_write_settings_five_calls(self, mock_post_request):
         self.hook.create_write_settings.retry.sleep = mock.Mock()
         with pytest.raises(RetryError) as ctx:
-            self.hook.create_write_settings(body_request=self._create_write_settings_body_request)
+            self.hook.create_write_settings(
+                body_request=self._create_write_settings_body_request
+            )
         assert "HTTPError" in str(ctx.value)
         assert mock_post_request.call_count == 5
 
     @patch("airflow.providers.google.cloud.hooks.dataprep.requests.delete")
-    def test_delete_imported_dataset_should_be_called_once_with_params(self, mock_delete_request):
+    def test_delete_imported_dataset_should_be_called_once_with_params(
+        self, mock_delete_request
+    ):
         self.hook.delete_imported_dataset(dataset_id=self._imported_dataset_id)
         mock_delete_request.assert_called_once_with(
             f"{URL_IMPORTED_DATASETS}/{self._imported_dataset_id}",

@@ -25,7 +25,9 @@ from tests.charts.helm_template_generator import render_chart
 class TestGitSyncWebserver:
     """Test git sync webserver."""
 
-    def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(self):
+    def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(
+        self,
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": "1.10.14",
@@ -36,7 +38,9 @@ class TestGitSyncWebserver:
 
         assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
 
-    def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(self):
+    def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(
+        self,
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": "1.10.14",
@@ -47,7 +51,9 @@ class TestGitSyncWebserver:
 
         assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
 
-    def test_should_add_git_sync_container_to_webserver_if_persistence_is_not_enabled_but_git_sync_is(self):
+    def test_should_add_git_sync_container_to_webserver_if_persistence_is_not_enabled_but_git_sync_is(
+        self,
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": "1.10.14",
@@ -59,11 +65,15 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "git-sync" == jmespath.search("spec.template.spec.containers[1].name", docs[0])
+        assert "git-sync" == jmespath.search(
+            "spec.template.spec.containers[1].name", docs[0]
+        )
 
     def test_should_have_service_account_defined(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            values={
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -81,7 +91,9 @@ class TestGitSyncWebserver:
             ("2.1.0", True),
         ],
     )
-    def test_git_sync_with_different_airflow_versions(self, airflow_version, exclude_webserver):
+    def test_git_sync_with_different_airflow_versions(
+        self, airflow_version, exclude_webserver
+    ):
         """If Airflow >= 2.0.0 - git sync related containers, volume mounts & volumes are not created."""
         docs = render_chart(
             values={
@@ -97,14 +109,21 @@ class TestGitSyncWebserver:
         )
 
         containers_names = [
-            container["name"] for container in jmespath.search("spec.template.spec.containers", docs[0])
+            container["name"]
+            for container in jmespath.search("spec.template.spec.containers", docs[0])
         ]
 
         volume_mount_names = [
-            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            vm["name"]
+            for vm in jmespath.search(
+                "spec.template.spec.containers[0].volumeMounts", docs[0]
+            )
         ]
 
-        volume_names = [volume["name"] for volume in jmespath.search("spec.template.spec.volumes", docs[0])]
+        volume_names = [
+            volume["name"]
+            for volume in jmespath.search("spec.template.spec.volumes", docs[0])
+        ]
 
         if exclude_webserver:
             assert "git-sync" not in containers_names
@@ -149,11 +168,15 @@ class TestGitSyncWebserver:
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[1].resources.limits.memory", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[1].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[1].resources.requests.cpu", docs[0]
+        )
 
     def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
         docs = render_chart(
@@ -171,7 +194,9 @@ class TestGitSyncWebserver:
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+        assert "git-sync-ssh-key" not in jmespath.search(
+            "spec.template.spec.volumes[].name", docs[0]
+        )
 
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(

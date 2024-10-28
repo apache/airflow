@@ -63,15 +63,22 @@ class TestLifeSciencesHookWithPassedProjectId:
 
     def test_location_path(self):
         path = "projects/life-science-project-id/locations/test-location"
-        path2 = self.hook._location_path(project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
+        path2 = self.hook._location_path(
+            project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
         assert path == path2
 
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.build")
     def test_life_science_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "lifesciences", "v2beta", http=mock_authorize.return_value, cache_discovery=False
+            "lifesciences",
+            "v2beta",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         assert mock_build.return_value == result
         assert self.hook._conn == result
@@ -81,7 +88,9 @@ class TestLifeSciencesHookWithPassedProjectId:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     def test_run_pipeline_immediately_complete(self, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
         # fmt: off
@@ -113,7 +122,9 @@ class TestLifeSciencesHookWithPassedProjectId:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
@@ -134,7 +145,9 @@ class TestLifeSciencesHookWithPassedProjectId:
             .execute = execute_mock
 
         # fmt: on
-        result = self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
+        result = self.hook.run_pipeline(
+            body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
+        )
         assert result == TEST_OPERATION
 
     @mock.patch(
@@ -142,7 +155,9 @@ class TestLifeSciencesHookWithPassedProjectId:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.time.sleep")
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
@@ -161,7 +176,9 @@ class TestLifeSciencesHookWithPassedProjectId:
             .execute = execute_mock
         # fmt: on
         with pytest.raises(AirflowException, match="error"):
-            self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
+            self.hook.run_pipeline(
+                body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
+            )
 
 
 class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
@@ -172,12 +189,17 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
         ):
             self.hook = LifeSciencesHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.build")
     def test_life_science_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "lifesciences", "v2beta", http=mock_authorize.return_value, cache_discovery=False
+            "lifesciences",
+            "v2beta",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         assert mock_build.return_value == result
         assert self.hook._conn == result
@@ -187,7 +209,9 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     def test_run_pipeline_immediately_complete(self, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
@@ -218,7 +242,9 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
@@ -246,7 +272,9 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.time.sleep")
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
@@ -278,12 +306,17 @@ class TestLifeSciencesHookWithoutProjectId:
         ):
             self.hook = LifeSciencesHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.build")
     def test_life_science_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "lifesciences", "v2beta", http=mock_authorize.return_value, cache_discovery=False
+            "lifesciences",
+            "v2beta",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         assert mock_build.return_value == result
         assert self.hook._conn == result
@@ -293,7 +326,9 @@ class TestLifeSciencesHookWithoutProjectId:
         new_callable=PropertyMock,
         return_value=None,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn"
+    )
     def test_run_pipeline(self, get_conn_mock, mock_project_id):
         with pytest.raises(AirflowException) as ctx:
             self.hook.run_pipeline(body={}, location=TEST_LOCATION)

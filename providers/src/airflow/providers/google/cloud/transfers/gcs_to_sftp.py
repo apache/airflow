@@ -146,23 +146,37 @@ class GCSToSFTPOperator(BaseOperator):
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
             prefix_dirname = os.path.dirname(prefix)
-            objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            objects = gcs_hook.list(
+                self.source_bucket, prefix=prefix, delimiter=delimiter
+            )
             # TODO: After deprecating delimiter and wildcards in source objects,
             #       remove the previous line and uncomment the following:
             # match_glob = f"**/*{delimiter}" if delimiter else None
             # objects = gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             for source_object in objects:
-                destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)
-                self._copy_single_object(gcs_hook, sftp_hook, source_object, destination_path)
+                destination_path = self._resolve_destination_path(
+                    source_object, prefix=prefix_dirname
+                )
+                self._copy_single_object(
+                    gcs_hook, sftp_hook, source_object, destination_path
+                )
 
-            self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
+            self.log.info(
+                "Done. Uploaded '%d' files to %s", len(objects), self.destination_path
+            )
         else:
             destination_path = self._resolve_destination_path(self.source_object)
-            self._copy_single_object(gcs_hook, sftp_hook, self.source_object, destination_path)
-            self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
+            self._copy_single_object(
+                gcs_hook, sftp_hook, self.source_object, destination_path
+            )
+            self.log.info(
+                "Done. Uploaded '%s' file to %s", self.source_object, destination_path
+            )
 
-    def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
+    def _resolve_destination_path(
+        self, source_object: str, prefix: str | None = None
+    ) -> str:
         if not self.keep_directory_structure:
             if prefix:
                 source_object = os.path.relpath(source_object, start=prefix)
@@ -197,5 +211,7 @@ class GCSToSFTPOperator(BaseOperator):
             sftp_hook.store_file(destination_path, tmp.name)
 
         if self.move_object:
-            self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
+            self.log.info(
+                "Executing delete of gs://%s/%s", self.source_bucket, source_object
+            )
             gcs_hook.delete(self.source_bucket, source_object)

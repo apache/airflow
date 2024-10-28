@@ -60,7 +60,9 @@ class Secret(K8SModel):
             self.deploy_target = deploy_target.upper()
 
         if key is not None and deploy_target is None:
-            raise AirflowConfigException("If `key` is set, `deploy_target` should not be None")
+            raise AirflowConfigException(
+                "If `key` is set, `deploy_target` should not be None"
+            )
 
         self.secret = secret
         self.key = key
@@ -81,10 +83,15 @@ class Secret(K8SModel):
     def to_volume_secret(self) -> tuple[k8s.V1Volume, k8s.V1VolumeMount]:
         """Convert to volume secret."""
         vol_id = f"secretvol{uuid.uuid4()}"
-        volume = k8s.V1Volume(name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret))
+        volume = k8s.V1Volume(
+            name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret)
+        )
         if self.items:
             volume.secret.items = self.items
-        return (volume, k8s.V1VolumeMount(mount_path=self.deploy_target, name=vol_id, read_only=True))
+        return (
+            volume,
+            k8s.V1VolumeMount(mount_path=self.deploy_target, name=vol_id, read_only=True),
+        )
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         """Attach to pod."""
@@ -122,4 +129,6 @@ class Secret(K8SModel):
         )
 
     def __repr__(self):
-        return f"Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})"
+        return (
+            f"Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})"
+        )

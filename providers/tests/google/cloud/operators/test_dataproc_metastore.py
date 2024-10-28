@@ -74,7 +74,9 @@ TEST_DESTINATION_GCS_FOLDER: str = "gs://bucket_name/path_inside_bucket"
 
 
 class TestDataprocMetastoreCreateBackupOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.Backup")
     def test_assert_valid_hook_call(self, mock_backup, mock_hook) -> None:
         task = DataprocMetastoreCreateBackupOperator(
@@ -93,7 +95,9 @@ class TestDataprocMetastoreCreateBackupOperator:
         mock_hook.return_value.wait_for_operation.return_value = None
         mock_backup.return_value.to_dict.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_backup.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             region=GCP_LOCATION,
@@ -108,8 +112,12 @@ class TestDataprocMetastoreCreateBackupOperator:
 
 
 class TestDataprocMetastoreCreateMetadataImportOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.MetadataImport")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.MetadataImport"
+    )
     def test_assert_valid_hook_call(self, mock_metadata_import, mock_hook) -> None:
         task = DataprocMetastoreCreateMetadataImportOperator(
             task_id=TASK_ID,
@@ -127,7 +135,9 @@ class TestDataprocMetastoreCreateMetadataImportOperator:
         mock_hook.return_value.wait_for_operation.return_value = None
         mock_metadata_import.return_value.to_dict.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_metadata_import.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             region=GCP_LOCATION,
@@ -142,7 +152,9 @@ class TestDataprocMetastoreCreateMetadataImportOperator:
 
 
 class TestDataprocMetastoreCreateServiceOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.Service")
     def test_execute(self, mock_service, mock_hook) -> None:
         task = DataprocMetastoreCreateServiceOperator(
@@ -161,7 +173,9 @@ class TestDataprocMetastoreCreateServiceOperator:
         mock_hook.return_value.wait_for_operation.return_value = None
         mock_service.return_value.to_dict.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_service.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
@@ -175,7 +189,9 @@ class TestDataprocMetastoreCreateServiceOperator:
 
 
 class TestDataprocMetastoreDeleteBackupOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = DataprocMetastoreDeleteBackupOperator(
             task_id=TASK_ID,
@@ -191,7 +207,9 @@ class TestDataprocMetastoreDeleteBackupOperator:
         )
         mock_hook.return_value.wait_for_operation.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.delete_backup.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             region=GCP_LOCATION,
@@ -205,7 +223,9 @@ class TestDataprocMetastoreDeleteBackupOperator:
 
 
 class TestDataprocMetastoreDeleteServiceOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     def test_execute(self, mock_hook) -> None:
         task = DataprocMetastoreDeleteServiceOperator(
             task_id=TASK_ID,
@@ -220,7 +240,9 @@ class TestDataprocMetastoreDeleteServiceOperator:
         )
         mock_hook.return_value.wait_for_operation.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.delete_service.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
@@ -232,13 +254,19 @@ class TestDataprocMetastoreDeleteServiceOperator:
 
 
 class TestDataprocMetastoreExportMetadataOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.MetadataExport")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.MetadataExport"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.operators.dataproc_metastore"
         ".DataprocMetastoreExportMetadataOperator._wait_for_export_metadata"
     )
-    def test_assert_valid_hook_call(self, mock_wait, mock_export_metadata, mock_hook) -> None:
+    def test_assert_valid_hook_call(
+        self, mock_wait, mock_export_metadata, mock_hook
+    ) -> None:
         task = DataprocMetastoreExportMetadataOperator(
             task_id=TASK_ID,
             service_id=TEST_SERVICE_ID,
@@ -254,7 +282,9 @@ class TestDataprocMetastoreExportMetadataOperator:
         mock_wait.return_value = None
         mock_export_metadata.return_value.to_dict.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.export_metadata.assert_called_once_with(
             database_dump_type=None,
             destination_gcs_folder=TEST_DESTINATION_GCS_FOLDER,
@@ -269,7 +299,9 @@ class TestDataprocMetastoreExportMetadataOperator:
 
 
 class TestDataprocMetastoreGetServiceOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.Service")
     def test_execute(self, mock_service, mock_hook) -> None:
         task = DataprocMetastoreGetServiceOperator(
@@ -286,7 +318,9 @@ class TestDataprocMetastoreGetServiceOperator:
         mock_hook.return_value.wait_for_operation.return_value = None
         mock_service.return_value.to_dict.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.get_service.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
@@ -298,7 +332,9 @@ class TestDataprocMetastoreGetServiceOperator:
 
 
 class TestDataprocMetastoreListBackupsOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.Backup")
     def test_assert_valid_hook_call(self, mock_backup, mock_hook) -> None:
         task = DataprocMetastoreListBackupsOperator(
@@ -315,7 +351,9 @@ class TestDataprocMetastoreListBackupsOperator:
         mock_hook.return_value.wait_for_operation.return_value = None
         mock_backup.return_value.to_dict.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.list_backups.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             region=GCP_LOCATION,
@@ -331,7 +369,9 @@ class TestDataprocMetastoreListBackupsOperator:
 
 
 class TestDataprocMetastoreRestoreServiceOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.operators.dataproc_metastore"
         ".DataprocMetastoreRestoreServiceOperator._wait_for_restore_service"
@@ -354,7 +394,9 @@ class TestDataprocMetastoreRestoreServiceOperator:
         )
         mock_wait.return_value = None
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.restore_service.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
@@ -372,7 +414,9 @@ class TestDataprocMetastoreRestoreServiceOperator:
 
 
 class TestDataprocMetastoreUpdateServiceOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreHook"
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = DataprocMetastoreUpdateServiceOperator(
             task_id=TASK_ID,
@@ -388,7 +432,9 @@ class TestDataprocMetastoreUpdateServiceOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.update_service.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,

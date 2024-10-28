@@ -30,17 +30,32 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform import CustomJob, HyperparameterTuningJob, gapic, hyperparameter_tuning
-from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
+from google.cloud.aiplatform import (
+    CustomJob,
+    HyperparameterTuningJob,
+    gapic,
+    hyperparameter_tuning,
+)
+from google.cloud.aiplatform_v1 import (
+    JobServiceAsyncClient,
+    JobServiceClient,
+    JobState,
+    types,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import AsyncRetry, Retry
-    from google.cloud.aiplatform_v1.services.job_service.pagers import ListHyperparameterTuningJobsPager
+    from google.cloud.aiplatform_v1.services.job_service.pagers import (
+        ListHyperparameterTuningJobsPager,
+    )
 
 
 class HyperparameterTuningJobHook(GoogleBaseHook):
@@ -66,12 +81,16 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Return JobServiceClient."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=self.client_info,
+            client_options=client_options,
         )
 
     def get_hyperparameter_tuning_job_object(
@@ -331,7 +350,9 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         :param metadata: Strings which should be sent along with the request as metadata.
         """
         client = self.get_job_service_client(region)
-        name = client.hyperparameter_tuning_job_path(project_id, region, hyperparameter_tuning_job)
+        name = client.hyperparameter_tuning_job_path(
+            project_id, region, hyperparameter_tuning_job
+        )
 
         result = client.get_hyperparameter_tuning_job(
             request={
@@ -417,7 +438,9 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         :param metadata: Strings which should be sent along with the request as metadata.
         """
         client = self.get_job_service_client(region)
-        name = client.hyperparameter_tuning_job_path(project_id, region, hyperparameter_tuning_job)
+        name = client.hyperparameter_tuning_job_path(
+            project_id, region, hyperparameter_tuning_job
+        )
 
         result = client.delete_hyperparameter_tuning_job(
             request={
@@ -447,13 +470,19 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseAsyncHook):
             **kwargs,
         )
 
-    async def get_job_service_client(self, region: str | None = None) -> JobServiceAsyncClient:
+    async def get_job_service_client(
+        self, region: str | None = None
+    ) -> JobServiceAsyncClient:
         """
         Retrieve Vertex AI async client.
 
         :return: Google Cloud Vertex AI client object.
         """
-        endpoint = f"{region}-aiplatform.googleapis.com:443" if region and region != "global" else None
+        endpoint = (
+            f"{region}-aiplatform.googleapis.com:443"
+            if region and region != "global"
+            else None
+        )
         return JobServiceAsyncClient(
             credentials=(await self.get_sync_hook()).get_credentials(),
             client_info=CLIENT_INFO,
@@ -512,19 +541,25 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseAsyncHook):
         while True:
             try:
                 self.log.info("Requesting hyperparameter tuning job with id %s", job_id)
-                job: types.HyperparameterTuningJob = await self.get_hyperparameter_tuning_job(
-                    project_id=project_id,
-                    location=location,
-                    job_id=job_id,
-                    retry=retry,
-                    timeout=timeout,
-                    metadata=metadata,
+                job: types.HyperparameterTuningJob = (
+                    await self.get_hyperparameter_tuning_job(
+                        project_id=project_id,
+                        location=location,
+                        job_id=job_id,
+                        retry=retry,
+                        timeout=timeout,
+                        metadata=metadata,
+                    )
                 )
             except Exception as ex:
                 self.log.exception("Exception occurred while requesting job %s", job_id)
                 raise AirflowException(ex)
 
-            self.log.info("Status of the hyperparameter tuning job %s is %s", job.name, job.state.name)
+            self.log.info(
+                "Status of the hyperparameter tuning job %s is %s",
+                job.name,
+                job.state.name,
+            )
             if job.state in statuses_complete:
                 return job
 

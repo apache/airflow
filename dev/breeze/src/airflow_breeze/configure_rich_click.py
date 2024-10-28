@@ -35,7 +35,10 @@ else:
         CI_IMAGE_TOOLS_COMMANDS,
         CI_IMAGE_TOOLS_PARAMETERS,
     )
-    from airflow_breeze.commands.developer_commands_config import DEVELOPER_COMMANDS, DEVELOPER_PARAMETERS
+    from airflow_breeze.commands.developer_commands_config import (
+        DEVELOPER_COMMANDS,
+        DEVELOPER_PARAMETERS,
+    )
     from airflow_breeze.commands.kubernetes_commands_config import (
         KUBERNETES_CLUSTER_COMMANDS,
         KUBERNETES_INSPECTION_COMMANDS,
@@ -53,15 +56,23 @@ else:
         RELEASE_OTHER_COMMANDS,
         RELEASE_PROVIDERS_COMMANDS,
     )
-    from airflow_breeze.commands.setup_commands_config import SETUP_COMMANDS, SETUP_PARAMETERS
-    from airflow_breeze.commands.testing_commands_config import TESTING_COMMANDS, TESTING_PARAMETERS
+    from airflow_breeze.commands.setup_commands_config import (
+        SETUP_COMMANDS,
+        SETUP_PARAMETERS,
+    )
+    from airflow_breeze.commands.testing_commands_config import (
+        TESTING_COMMANDS,
+        TESTING_PARAMETERS,
+    )
 
     click.rich_click.SHOW_METAVARS_COLUMN = False
     click.rich_click.SHOW_ARGUMENTS = False
     click.rich_click.APPEND_METAVARS_HELP = True
     click.rich_click.OPTIONS_PANEL_TITLE = "Common options"
     click.rich_click.STYLE_ERRORS_SUGGESTION = "bright_blue italic"
-    click.rich_click.ERRORS_SUGGESTION = "\nTry running the '--help' flag for more information.\n"
+    click.rich_click.ERRORS_SUGGESTION = (
+        "\nTry running the '--help' flag for more information.\n"
+    )
     click.rich_click.ERRORS_EPILOGUE = (
         "\nTo find out more, visit [info]https://github.com/apache/airflow/"
         "blob/main/dev/breeze/doc/01_installation.rst[/]\n"

@@ -42,7 +42,10 @@ def test_sql_templating(create_task_instance_of_operator):
     )
     ti.render_templates()
     task: YDBExecuteQueryOperator = ti.task
-    assert task.sql == "SELECT * FROM pet WHERE birth_date BETWEEN '2020-01-01' AND '2020-12-31'"
+    assert (
+        task.sql
+        == "SELECT * FROM pet WHERE birth_date BETWEEN '2020-01-01' AND '2020-12-31'"
+    )
 
 
 class FakeDriver:
@@ -115,7 +118,12 @@ class TestYDBExecuteQueryOperator:
         new_callable=PropertyMock,
     )
     def test_execute_query(
-        self, cursor_class, table_client_class, mock_session_pool, mock_driver, mock_get_connection
+        self,
+        cursor_class,
+        table_client_class,
+        mock_session_pool,
+        mock_driver,
+        mock_get_connection,
     ):
         mock_get_connection.return_value = Connection(
             conn_type="ydb", host="localhost", extra={"database": "/my_db"}
@@ -131,14 +139,20 @@ class TestYDBExecuteQueryOperator:
         mock_session_pool.return_value = session_pool
         context = {"ti": MagicMock()}
         operator = YDBExecuteQueryOperator(
-            task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_one_handler
+            task_id="simple_sql",
+            sql="select 987",
+            is_ddl=False,
+            handler=fetch_one_handler,
         )
 
         results = operator.execute(context)
         assert results == "fetchone: result"
 
         operator = YDBExecuteQueryOperator(
-            task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
+            task_id="simple_sql",
+            sql="select 987",
+            is_ddl=False,
+            handler=fetch_all_handler,
         )
 
         results = operator.execute(context)

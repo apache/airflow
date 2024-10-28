@@ -97,7 +97,11 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES: Iterable[str] = ("instance_id", "main_cluster_id", "main_cluster_zone")
+    REQUIRED_ATTRIBUTES: Iterable[str] = (
+        "instance_id",
+        "main_cluster_id",
+        "main_cluster_zone",
+    )
     template_fields: Sequence[str] = (
         "project_id",
         "instance_id",
@@ -146,7 +150,9 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        instance = hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        )
         if instance:
             # Based on Instance.__eq__ instance with the same ID and client is
             # considered as equal.
@@ -244,9 +250,13 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        instance = hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        )
         if not instance:
-            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
+            raise AirflowException(
+                f"Dependency: instance '{self.instance_id}' does not exist."
+            )
 
         try:
             hook.update_instance(
@@ -393,9 +403,13 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
         super().__init__(**kwargs)
 
     def _compare_column_families(self, hook, instance) -> bool:
-        table_column_families = hook.get_column_families_for_table(instance, self.table_id)
+        table_column_families = hook.get_column_families_for_table(
+            instance, self.table_id
+        )
         if set(table_column_families.keys()) != set(self.column_families.keys()):
-            self.log.error("Table '%s' has different set of Column Families", self.table_id)
+            self.log.error(
+                "Table '%s' has different set of Column Families", self.table_id
+            )
             self.log.error("Expected: %s", self.column_families.keys())
             self.log.error("Actual: %s", table_column_families.keys())
             return False
@@ -409,7 +423,9 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
             # For more information about ColumnFamily please refer to the documentation:
             # https://googleapis.github.io/google-cloud-python/latest/bigtable/column-family.html#google.cloud.bigtable.column_family.ColumnFamily
             if table_column_families[key].gc_rule != self.column_families[key]:
-                self.log.error("Column Family '%s' differs for table '%s'.", key, self.table_id)
+                self.log.error(
+                    "Column Family '%s' differs for table '%s'.", key, self.table_id
+                )
                 return False
         return True
 
@@ -418,7 +434,9 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        instance = hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        )
         if not instance:
             raise AirflowException(
                 f"Dependency: instance '{self.instance_id}' does not exist in project '{self.project_id}'."
@@ -436,7 +454,9 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
                 raise AirflowException(
                     f"Table '{self.table_id}' already exists with different Column Families."
                 )
-            self.log.info("The table '%s' already exists. Consider it as created", self.table_id)
+            self.log.info(
+                "The table '%s' already exists. Consider it as created", self.table_id
+            )
 
 
 class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
@@ -499,9 +519,13 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        instance = hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        )
         if not instance:
-            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
+            raise AirflowException(
+                f"Dependency: instance '{self.instance_id}' does not exist."
+            )
 
         try:
             hook.delete_table(
@@ -511,7 +535,9 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
             )
         except google.api_core.exceptions.NotFound:
             # It's OK if table doesn't exists.
-            self.log.info("The table '%s' no longer exists. Consider it as deleted", self.table_id)
+            self.log.info(
+                "The table '%s' no longer exists. Consider it as deleted", self.table_id
+            )
         except google.api_core.exceptions.GoogleAPICallError as e:
             self.log.error("An error occurred. Exiting.")
             raise e
@@ -579,12 +605,18 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
+        instance = hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        )
         if not instance:
-            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
+            raise AirflowException(
+                f"Dependency: instance '{self.instance_id}' does not exist."
+            )
 
         try:
-            hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
+            hook.update_cluster(
+                instance=instance, cluster_id=self.cluster_id, nodes=self.nodes
+            )
             BigtableClusterLink.persist(context=context, task_instance=self)
         except google.api_core.exceptions.NotFound:
             raise AirflowException(

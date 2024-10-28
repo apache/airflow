@@ -52,7 +52,9 @@ class RedshiftClusterSensor(BaseSensorOperator):
         cluster_identifier: str,
         target_status: str = "available",
         aws_conn_id: str | None = "aws_default",
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -86,7 +88,9 @@ class RedshiftClusterSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         status = event["status"]
@@ -94,7 +98,11 @@ class RedshiftClusterSensor(BaseSensorOperator):
             raise AirflowException(f"{event['status']}: {event['message']}")
         elif status == "success":
             self.log.info("%s completed successfully.", self.task_id)
-            self.log.info("Cluster Identifier %s is in %s state", self.cluster_identifier, self.target_status)
+            self.log.info(
+                "Cluster Identifier %s is in %s state",
+                self.cluster_identifier,
+                self.target_status,
+            )
 
     @cached_property
     def hook(self) -> RedshiftHook:

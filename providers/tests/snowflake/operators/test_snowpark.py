@@ -36,7 +36,9 @@ CONN_ID = "snowflake_default"
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet"
+)
 class TestSnowparkOperator:
     @mock.patch("airflow.providers.snowflake.operators.snowpark.SnowflakeHook")
     def test_snowpark_operator_no_param(self, mock_snowflake_hook, dag_maker):
@@ -45,7 +47,10 @@ class TestSnowparkOperator:
         with dag_maker(dag_id=TEST_DAG_ID) as dag:
 
             def func1(session: Session):
-                assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                assert (
+                    session
+                    == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                )
                 return number
 
             def func2():
@@ -81,11 +86,17 @@ class TestSnowparkOperator:
         with dag_maker(dag_id=TEST_DAG_ID) as dag:
 
             def func1(session: Session, number: int):
-                assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                assert (
+                    session
+                    == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                )
                 return number
 
             def func2(number: int, session: Session):
-                assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                assert (
+                    session
+                    == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                )
                 return number
 
             def func3(number: int):
@@ -120,7 +131,10 @@ class TestSnowparkOperator:
         with dag_maker(dag_id=TEST_DAG_ID) as dag:
 
             def func(session: Session):
-                assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                assert (
+                    session
+                    == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+                )
 
             operator = SnowparkOperator(
                 task_id=TASK_ID,

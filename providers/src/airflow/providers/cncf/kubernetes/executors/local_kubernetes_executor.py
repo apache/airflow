@@ -21,7 +21,9 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+    KubernetesExecutor,
+)
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
@@ -32,7 +34,11 @@ if TYPE_CHECKING:
         QueuedTaskInstanceType,
     )
     from airflow.executors.local_executor import LocalExecutor
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import (
+        SimpleTaskInstance,
+        TaskInstance,
+        TaskInstanceKey,
+    )
 
 
 class LocalKubernetesExecutor(BaseExecutor):
@@ -59,7 +65,9 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
 
-    def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
+    def __init__(
+        self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor
+    ):
         super().__init__()
         self._job_id: int | str | None = None
         self.local_executor = local_executor
@@ -139,7 +147,9 @@ class LocalKubernetesExecutor(BaseExecutor):
     ) -> None:
         """Queues command via local or kubernetes executor."""
         executor = self._router(task_instance)
-        self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
+        self.log.debug(
+            "Using executor: %s for %s", executor.__class__.__name__, task_instance.key
+        )
         executor.queue_command(task_instance, command, priority, queue)
 
     def queue_task_instance(
@@ -160,7 +170,9 @@ class LocalKubernetesExecutor(BaseExecutor):
 
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
-            "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
+            "Using executor: %s to queue_task_instance for %s",
+            executor.__class__.__name__,
+            task_instance.key,
         )
         executor.queue_task_instance(
             task_instance=task_instance,
@@ -175,7 +187,9 @@ class LocalKubernetesExecutor(BaseExecutor):
             cfg_path=cfg_path,
         )
 
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+    def get_task_log(
+        self, ti: TaskInstance, try_number: int
+    ) -> tuple[list[str], list[str]]:
         """Fetch task log from kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
@@ -188,7 +202,9 @@ class LocalKubernetesExecutor(BaseExecutor):
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
-        return self.local_executor.has_task(task_instance) or self.kubernetes_executor.has_task(task_instance)
+        return self.local_executor.has_task(
+            task_instance
+        ) or self.kubernetes_executor.has_task(task_instance)
 
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs in local and kubernetes executor."""
@@ -205,11 +221,15 @@ class LocalKubernetesExecutor(BaseExecutor):
         :return: a dict of events
         """
         cleared_events_from_local = self.local_executor.get_event_buffer(dag_ids)
-        cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
+        cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(
+            dag_ids
+        )
 
         return {**cleared_events_from_local, **cleared_events_from_kubernetes}
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -241,7 +261,9 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.local_executor.terminate()
         self.kubernetes_executor.terminate()
 
-    def _router(self, simple_task_instance: SimpleTaskInstance) -> LocalExecutor | KubernetesExecutor:
+    def _router(
+        self, simple_task_instance: SimpleTaskInstance
+    ) -> LocalExecutor | KubernetesExecutor:
         """
         Return either local_executor or kubernetes_executor.
 

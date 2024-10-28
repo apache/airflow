@@ -51,7 +51,9 @@ def test_sanitize_uri_no_path():
 
 
 def test_create_asset():
-    assert create_asset(bucket="test-bucket", key="test-path") == Asset(uri="s3://test-bucket/test-path")
+    assert create_asset(bucket="test-bucket", key="test-path") == Asset(
+        uri="s3://test-bucket/test-path"
+    )
     assert create_asset(bucket="test-bucket", key="test-dir/test-path") == Asset(
         uri="s3://test-bucket/test-dir/test-path"
     )
@@ -67,13 +69,17 @@ def test_sanitize_uri_trailing_slash():
 
 def test_convert_asset_to_openlineage_valid():
     uri = "s3://bucket/dir/file.txt"
-    ol_dataset = convert_asset_to_openlineage(asset=Asset(uri=uri), lineage_context=S3Hook())
+    ol_dataset = convert_asset_to_openlineage(
+        asset=Asset(uri=uri), lineage_context=S3Hook()
+    )
     assert ol_dataset.namespace == "s3://bucket"
     assert ol_dataset.name == "dir/file.txt"
 
 
 @pytest.mark.parametrize("uri", ("s3://bucket", "s3://bucket/"))
 def test_convert_asset_to_openlineage_no_path(uri):
-    ol_dataset = convert_asset_to_openlineage(asset=Asset(uri=uri), lineage_context=S3Hook())
+    ol_dataset = convert_asset_to_openlineage(
+        asset=Asset(uri=uri), lineage_context=S3Hook()
+    )
     assert ol_dataset.namespace == "s3://bucket"
     assert ol_dataset.name == "/"

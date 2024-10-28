@@ -83,11 +83,13 @@ class TestDagRunOperator:
     def teardown_method(self):
         """Cleanup state after testing in DB."""
         with create_session() as session:
-            session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
+            session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(
+                synchronize_session=False
+            )
             for dbmodel in [DagModel, DagRun, TaskInstance, SerializedDagModel]:
-                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
-                    synchronize_session=False
-                )
+                session.query(dbmodel).filter(
+                    dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])
+                ).delete(synchronize_session=False)
 
         # pathlib.Path(self._tmpfile).unlink()
 
@@ -108,7 +110,9 @@ class TestDagRunOperator:
             )
             .one()
         )
-        with mock.patch("airflow.operators.trigger_dagrun.build_airflow_url_with_query") as mock_build_url:
+        with mock.patch(
+            "airflow.operators.trigger_dagrun.build_airflow_url_with_query"
+        ) as mock_build_url:
             triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
         assert mock_build_url.called
         args, _ = mock_build_url.call_args
@@ -121,21 +125,33 @@ class TestDagRunOperator:
     def test_trigger_dagrun(self, dag_maker):
         """Test TriggerDagRunOperator."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
-            task = TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID)
+            task = TriggerDagRunOperator(
+                task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID
+            )
         self.re_sync_triggered_dag_to_db(dag, dag_maker)
         dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+        dagrun = (
+            dag_maker.session.query(DagRun)
+            .filter(DagRun.dag_id == TRIGGERED_DAG_ID)
+            .one()
+        )
         assert dagrun.external_trigger
-        assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
+        assert dagrun.run_id == DagRun.generate_run_id(
+            DagRunType.MANUAL, dagrun.logical_date
+        )
         self.assert_extra_link(dagrun, task, dag_maker.session)
 
     def test_trigger_dagrun_custom_run_id(self, dag_maker):
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -147,7 +163,9 @@ class TestDagRunOperator:
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
             assert dagruns[0].run_id == "custom_run_id"
 
@@ -155,7 +173,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with custom logical_date."""
         custom_logical_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_logical_date",
@@ -170,7 +190,9 @@ class TestDagRunOperator:
             dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
             assert dagrun.external_trigger
             assert dagrun.logical_date == custom_logical_date
-            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_logical_date)
+            assert dagrun.run_id == DagRun.generate_run_id(
+                DagRunType.MANUAL, custom_logical_date
+            )
             self.assert_extra_link(dagrun, task, session)
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
@@ -179,7 +201,9 @@ class TestDagRunOperator:
         utc_now = timezone.utcnow()
         run_id = f"manual__{utc_now.isoformat()}"
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_logical_date",
@@ -203,7 +227,11 @@ class TestDagRunOperator:
         dag_maker.session.commit()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        dagruns = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+        dagruns = (
+            dag_maker.session.query(DagRun)
+            .filter(DagRun.dag_id == TRIGGERED_DAG_ID)
+            .all()
+        )
         assert len(dagruns) == 1
         triggered_dag_run = dagruns[0]
         assert triggered_dag_run.external_trigger
@@ -215,7 +243,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with custom logical_date and scheduled dag_run."""
         utc_now = timezone.utcnow()
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_logical_date",
@@ -239,7 +269,11 @@ class TestDagRunOperator:
         dag_maker.session.commit()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        dagruns = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+        dagruns = (
+            dag_maker.session.query(DagRun)
+            .filter(DagRun.dag_id == TRIGGERED_DAG_ID)
+            .all()
+        )
         assert len(dagruns) == 1
         triggered_dag_run = dagruns[0]
         assert triggered_dag_run.external_trigger
@@ -249,7 +283,9 @@ class TestDagRunOperator:
     def test_trigger_dagrun_with_templated_logical_date(self, dag_maker):
         """Test TriggerDagRunOperator with templated logical_date."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_str_logical_date",
@@ -261,7 +297,9 @@ class TestDagRunOperator:
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
             triggered_dag_run = dagruns[0]
             assert triggered_dag_run.external_trigger
@@ -271,7 +309,9 @@ class TestDagRunOperator:
     def test_trigger_dagrun_operator_conf(self, dag_maker):
         """Test passing conf to the triggered DagRun."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_str_logical_date",
@@ -283,14 +323,18 @@ class TestDagRunOperator:
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
             assert dagruns[0].conf == {"foo": "bar"}
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_invalid_conf",
@@ -299,13 +343,17 @@ class TestDagRunOperator:
             )
         self.re_sync_triggered_dag_to_db(dag, dag_maker)
         dag_maker.create_dagrun()
-        with pytest.raises(AirflowException, match="^conf parameter should be JSON Serializable$"):
+        with pytest.raises(
+            AirflowException, match="^conf parameter should be JSON Serializable$"
+        ):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_trigger_dagrun_operator_templated_conf(self, dag_maker):
         """Test passing a templated conf to the triggered DagRun."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_str_logical_date",
@@ -317,7 +365,9 @@ class TestDagRunOperator:
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
             assert dagruns[0].conf == {"foo": TEST_DAG_ID}
 
@@ -325,7 +375,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator without reset_dag_run."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -340,7 +392,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 2
 
     @pytest.mark.parametrize(
@@ -357,7 +411,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator without reset_dag_run but triggered dag fails."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -377,7 +433,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with skip_when_already_exists."""
         execution_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -409,7 +467,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with reset_dag_run."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -424,7 +484,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
 
         with create_session() as session:
-            dag_runs = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dag_runs = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dag_runs) == expected_dagruns_count
             assert dag_runs[0].external_trigger
 
@@ -433,7 +495,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with wait_for_completion."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -448,7 +512,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
@@ -456,7 +522,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with wait_for_completion but triggered dag fails."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -475,7 +543,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator that triggers itself"""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -500,7 +570,9 @@ class TestDagRunOperator:
         fails with DagRunAlreadyExists"""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -517,7 +589,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with wait_for_completion."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -533,7 +607,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
@@ -541,7 +617,9 @@ class TestDagRunOperator:
         """Test TriggerDagRunOperator with wait_for_completion."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -558,7 +636,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
         trigger = DagStateTrigger(
             dag_id="down_stream",
@@ -570,11 +650,15 @@ class TestDagRunOperator:
         task.execute_complete(context={}, event=trigger.serialize())
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
-    def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure(self, dag_maker):
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure(
+        self, dag_maker
+    ):
         """Test TriggerDagRunOperator wait_for_completion dag run in non defined state."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -591,7 +675,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
 
         trigger = DagStateTrigger(
@@ -607,11 +693,15 @@ class TestDagRunOperator:
             )
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
-    def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2(self, dag_maker):
+    def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2(
+        self, dag_maker
+    ):
         """Test TriggerDagRunOperator  wait_for_completion dag run in failed state."""
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -629,7 +719,9 @@ class TestDagRunOperator:
         task.run(start_date=logical_date, end_date=logical_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
 
         trigger = DagStateTrigger(
@@ -653,7 +745,9 @@ class TestDagRunOperator:
     def test_dagstatetrigger_execution_dates(self, trigger_logical_date, dag_maker):
         """Ensure that the DagStateTrigger is called with the triggered DAG's logical date."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -668,11 +762,15 @@ class TestDagRunOperator:
         dag_maker.create_dagrun()
 
         mock_task_defer = mock.MagicMock(side_effect=task.defer)
-        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(TaskDeferred):
+        with mock.patch.object(
+            TriggerDagRunOperator, "defer", mock_task_defer
+        ), pytest.raises(TaskDeferred):
             task.execute({"task_instance": mock.MagicMock()})
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
 
         assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
@@ -683,7 +781,9 @@ class TestDagRunOperator:
     def test_dagstatetrigger_execution_dates_with_clear_and_reset(self, dag_maker):
         """Check DagStateTrigger is called with the triggered DAG's logical date on subsequent defers."""
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -699,11 +799,15 @@ class TestDagRunOperator:
         dag_maker.create_dagrun()
 
         mock_task_defer = mock.MagicMock(side_effect=task.defer)
-        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(TaskDeferred):
+        with mock.patch.object(
+            TriggerDagRunOperator, "defer", mock_task_defer
+        ), pytest.raises(TaskDeferred):
             task.execute({"task_instance": mock.MagicMock()})
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             triggered_logical_date = dagruns[0].logical_date
             assert len(dagruns) == 1
 
@@ -713,15 +817,17 @@ class TestDagRunOperator:
 
         # Simulate the TriggerDagRunOperator task being cleared (aka executed again). A DagRunAlreadyExists
         # exception should be raised because of the previous DAG run.
-        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(
-            (DagRunAlreadyExists, TaskDeferred)
-        ):
+        with mock.patch.object(
+            TriggerDagRunOperator, "defer", mock_task_defer
+        ), pytest.raises((DagRunAlreadyExists, TaskDeferred)):
             task.execute({"task_instance": mock.MagicMock()})
 
         # Still only one DAG run should exist for the triggered DAG since the DAG will be cleared since the
         # TriggerDagRunOperator task is configured with `reset_dag_run=True`.
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            dagruns = (
+                session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            )
             assert len(dagruns) == 1
 
         # The second DagStateTrigger call should still use the original `logical_date` value.
@@ -732,7 +838,9 @@ class TestDagRunOperator:
     def test_trigger_dagrun_with_no_failed_state(self, dag_maker):
         logical_date = DEFAULT_DATE
         with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            TEST_DAG_ID,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            serialized=True,
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_task",

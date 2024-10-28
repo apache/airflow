@@ -47,7 +47,12 @@ class FTPSensor(BaseSensorOperator):
     error_code_pattern = re.compile(r"\d+")
 
     def __init__(
-        self, *, path: str, ftp_conn_id: str = "ftp_default", fail_on_transient_errors: bool = True, **kwargs
+        self,
+        *,
+        path: str,
+        ftp_conn_id: str = "ftp_default",
+        fail_on_transient_errors: bool = True,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
@@ -80,7 +85,8 @@ class FTPSensor(BaseSensorOperator):
                 self.log.error("Ftp error encountered: %s", e)
                 error_code = self._get_error_code(e)
                 if (error_code != 550) and (
-                    self.fail_on_transient_errors or (error_code not in self.transient_errors)
+                    self.fail_on_transient_errors
+                    or (error_code not in self.transient_errors)
                 ):
                     raise e
 

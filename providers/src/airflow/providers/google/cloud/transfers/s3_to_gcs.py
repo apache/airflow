@@ -45,7 +45,11 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
-from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
+from airflow.providers.google.cloud.hooks.gcs import (
+    GCSHook,
+    _parse_gcs_url,
+    gcs_object_is_directory,
+)
 from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
     CloudStorageTransferServiceCreateJobsTrigger,
 )
@@ -156,7 +160,13 @@ class S3ToGCSOperator(S3ListOperator):
         poll_interval: int = 10,
         **kwargs,
     ):
-        super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(
+            bucket=bucket,
+            prefix=prefix,
+            delimiter=delimiter,
+            aws_conn_id=aws_conn_id,
+            **kwargs,
+        )
         self.apply_gcs_prefix = apply_gcs_prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
@@ -166,7 +176,9 @@ class S3ToGCSOperator(S3ListOperator):
         self.google_impersonation_chain = google_impersonation_chain
         self.deferrable = deferrable
         if poll_interval <= 0:
-            raise ValueError("Invalid value for poll_interval. Expected value greater than 0")
+            raise ValueError(
+                "Invalid value for poll_interval. Expected value greater than 0"
+            )
         self.poll_interval = poll_interval
 
     def _check_inputs(self) -> None:
@@ -190,11 +202,15 @@ class S3ToGCSOperator(S3ListOperator):
             impersonation_chain=self.google_impersonation_chain,
         )
         if not self.replace:
-            s3_objects = self.exclude_existing_objects(s3_objects=s3_objects, gcs_hook=gcs_hook)
+            s3_objects = self.exclude_existing_objects(
+                s3_objects=s3_objects, gcs_hook=gcs_hook
+            )
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         if not s3_objects:
-            self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
+            self.log.info(
+                "In sync, no files needed to be uploaded to Google Cloud Storage"
+            )
         elif self.deferrable:
             self.transfer_files_async(s3_objects, gcs_hook, s3_hook)
         else:
@@ -202,17 +218,26 @@ class S3ToGCSOperator(S3ListOperator):
 
         return s3_objects
 
-    def exclude_existing_objects(self, s3_objects: list[str], gcs_hook: GCSHook) -> list[str]:
+    def exclude_existing_objects(
+        self, s3_objects: list[str], gcs_hook: GCSHook
+    ) -> list[str]:
         """Excludes from the list objects that already exist in GCS bucket."""
         bucket_name, object_prefix = _parse_gcs_url(self.dest_gcs)
 
         existing_gcs_objects = set(gcs_hook.list(bucket_name, prefix=object_prefix))
 
-        s3_paths = set(self.gcs_to_s3_object(gcs_object=gcs_object) for gcs_object in existing_gcs_objects)
+        s3_paths = set(
+            self.gcs_to_s3_object(gcs_object=gcs_object)
+            for gcs_object in existing_gcs_objects
+        )
         s3_objects_reduced = list(set(s3_objects) - s3_paths)
 
         if s3_objects_reduced:
-            self.log.info("%s files are going to be synced: %s.", len(s3_objects_reduced), s3_objects_reduced)
+            self.log.info(
+                "%s files are going to be synced: %s.",
+                len(s3_objects_reduced),
+                s3_objects_reduced,
+            )
         else:
             self.log.info("There are no new files to sync. Have a nice day!")
         return s3_objects_reduced
@@ -245,7 +270,9 @@ class S3ToGCSOperator(S3ListOperator):
             return self.prefix + s3_object
         return s3_object
 
-    def transfer_files(self, s3_objects: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> None:
+    def transfer_files(
+        self, s3_objects: list[str], gcs_hook: GCSHook, s3_hook: S3Hook
+    ) -> None:
         if s3_objects:
             dest_gcs_bucket, dest_gcs_object_prefix = _parse_gcs_url(self.dest_gcs)
             for obj in s3_objects:
@@ -258,13 +285,19 @@ class S3ToGCSOperator(S3ListOperator):
                     gcs_file = self.s3_to_gcs_object(s3_object=obj)
                     gcs_hook.upload(dest_gcs_bucket, gcs_file, file.name, gzip=self.gzip)
 
-            self.log.info("All done, uploaded %d files to Google Cloud Storage", len(s3_objects))
+            self.log.info(
+                "All done, uploaded %d files to Google Cloud Storage", len(s3_objects)
+            )
 
-    def transfer_files_async(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> None:
+    def transfer_files_async(
+        self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook
+    ) -> None:
         """Submit Google Cloud Storage Transfer Service job to copy files from AWS S3 to GCS."""
         if not len(files):
             raise ValueError("List of transferring files cannot be empty")
-        job_names = self.submit_transfer_jobs(files=files, gcs_hook=gcs_hook, s3_hook=s3_hook)
+        job_names = self.submit_transfer_jobs(
+            files=files, gcs_hook=gcs_hook, s3_hook=s3_hook
+        )
 
         self.defer(
             trigger=CloudStorageTransferServiceCreateJobsTrigger(
@@ -276,7 +309,9 @@ class S3ToGCSOperator(S3ListOperator):
             method_name="execute_complete",
         )
 
-    def submit_transfer_jobs(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> list[str]:
+    def submit_transfer_jobs(
+        self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook
+    ) -> list[str]:
         now = datetime.now(tz=timezone.utc)
         one_time_schedule = {"day": now.day, "month": now.month, "year": now.year}
 
@@ -320,11 +355,17 @@ class S3ToGCSOperator(S3ListOperator):
             body[TRANSFER_SPEC][OBJECT_CONDITIONS][INCLUDE_PREFIXES] = files_chunk
             job = transfer_hook.create_transfer_job(body=body)
 
-            self.log.info("Submitted job %s to transfer %s file(s).", job["name"], len(files_chunk))
+            self.log.info(
+                "Submitted job %s to transfer %s file(s).", job["name"], len(files_chunk)
+            )
             job_names.append(job["name"])
 
         if len(files) > chunk_size:
-            self.log.info("Overall submitted %s job(s) to transfer %s file(s).", len(job_names), len(files))
+            self.log.info(
+                "Overall submitted %s job(s) to transfer %s file(s).",
+                len(job_names),
+                len(files),
+            )
 
         return job_names
 

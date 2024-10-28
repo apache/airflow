@@ -43,7 +43,10 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.sql.operators import sql
-from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
+from airflow.task.priority_strategy import (
+    _DownstreamPriorityWeightStrategy,
+    _UpstreamPriorityWeightStrategy,
+)
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.template import literal
@@ -79,7 +82,9 @@ class ClassWithCustomAttributes:
 
 # Objects with circular references (for testing purpose)
 object1 = ClassWithCustomAttributes(attr="{{ foo }}_1", template_fields=["ref"])
-object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fields=["ref"])
+object2 = ClassWithCustomAttributes(
+    attr="{{ foo }}_2", ref=object1, template_fields=["ref"]
+)
 setattr(object1, "ref", object2)
 
 
@@ -112,7 +117,9 @@ class TestBaseOperator:
         dummy = DummyClass(test_param=True)
         assert dummy.test_param
 
-        with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
+        with pytest.raises(
+            AirflowException, match="missing keyword argument 'test_param'"
+        ):
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
@@ -130,17 +137,21 @@ class TestBaseOperator:
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
 
-        with pytest.raises(AirflowException, match="missing keyword argument 'test_sub_param'"):
+        with pytest.raises(
+            AirflowException, match="missing keyword argument 'test_sub_param'"
+        ):
             DummySubClass(default_args=default_args)
 
     def test_execution_timeout_type(self):
         with pytest.raises(
-            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'str'>"
+            ValueError,
+            match="execution_timeout must be timedelta object but passed as type: <class 'str'>",
         ):
             BaseOperator(task_id="test", execution_timeout="1")
 
         with pytest.raises(
-            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'int'>"
+            ValueError,
+            match="execution_timeout must be timedelta object but passed as type: <class 'int'>",
         ):
             BaseOperator(task_id="test", execution_timeout=1)
 
@@ -150,7 +161,9 @@ class TestBaseOperator:
         assert dummy_class.test_param
 
         default_args = {"random_params": True}
-        with pytest.raises(AirflowException, match="missing keyword argument 'test_param'"):
+        with pytest.raises(
+            AirflowException, match="missing keyword argument 'test_param'"
+        ):
             DummyClass(default_args=default_args)
 
     def test_incorrect_priority_weight(self):
@@ -187,15 +200,23 @@ class TestBaseOperator:
         )
 
         # An operator with default trigger rule and a fail-stop dag should be allowed
-        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
+        BaseOperator(
+            task_id="test_valid_trigger_rule",
+            dag=fail_stop_dag,
+            trigger_rule=DEFAULT_TRIGGER_RULE,
+        )
         # An operator with non default trigger rule and a non fail-stop dag should be allowed
         BaseOperator(
-            task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
+            task_id="test_valid_trigger_rule",
+            dag=non_fail_stop_dag,
+            trigger_rule=TriggerRule.ALWAYS,
         )
         # An operator with non default trigger rule and a fail stop dag should not be allowed
         with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(
-                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
+                task_id="test_invalid_trigger_rule",
+                dag=fail_stop_dag,
+                trigger_rule=TriggerRule.ALWAYS,
             )
 
     @pytest.mark.db_test
@@ -216,17 +237,29 @@ class TestBaseOperator:
                 {"key_{{ foo }}_1": 1, "key_2": "bar_2"},
             ),
             (date(2018, 12, 6), {"foo": "bar"}, date(2018, 12, 6)),
-            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
-            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
+            (
+                datetime(2018, 12, 6, 10, 55),
+                {"foo": "bar"},
+                datetime(2018, 12, 6, 10, 55),
+            ),
+            (
+                MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"),
+                {"foo": "bar"},
+                MockNamedTuple("bar_1", "bar_2"),
+            ),
             ({"{{ foo }}_1", "{{ foo }}_2"}, {"foo": "bar"}, {"bar_1", "bar_2"}),
             (None, {}, None),
             ([], {}, []),
             ({}, {}, {}),
             (
                 # check nested fields can be templated
-                ClassWithCustomAttributes(att1="{{ foo }}_1", att2="{{ foo }}_2", template_fields=["att1"]),
+                ClassWithCustomAttributes(
+                    att1="{{ foo }}_1", att2="{{ foo }}_2", template_fields=["att1"]
+                ),
                 {"foo": "bar"},
-                ClassWithCustomAttributes(att1="bar_1", att2="{{ foo }}_2", template_fields=["att1"]),
+                ClassWithCustomAttributes(
+                    att1="bar_1", att2="{{ foo }}_2", template_fields=["att1"]
+                ),
             ),
             (
                 # check deep nested fields can be templated
@@ -265,8 +298,16 @@ class TestBaseOperator:
             # By default, Jinja2 drops one (single) trailing newline
             ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
             (literal("{{ foo }}"), {"foo": "bar"}, "{{ foo }}"),
-            (literal(["{{ foo }}_1", "{{ foo }}_2"]), {"foo": "bar"}, ["{{ foo }}_1", "{{ foo }}_2"]),
-            (literal(("{{ foo }}_1", "{{ foo }}_2")), {"foo": "bar"}, ("{{ foo }}_1", "{{ foo }}_2")),
+            (
+                literal(["{{ foo }}_1", "{{ foo }}_2"]),
+                {"foo": "bar"},
+                ["{{ foo }}_1", "{{ foo }}_2"],
+            ),
+            (
+                literal(("{{ foo }}_1", "{{ foo }}_2")),
+                {"foo": "bar"},
+                ("{{ foo }}_1", "{{ foo }}_2"),
+            ),
         ],
     )
     def test_render_template(self, content, context, expected_output):
@@ -281,12 +322,28 @@ class TestBaseOperator:
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
             ("{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"]),
-            (["{{ foo }}", "{{ foo | length}}"], {"foo": ["bar1", "bar2"]}, [["bar1", "bar2"], 2]),
+            (
+                ["{{ foo }}", "{{ foo | length}}"],
+                {"foo": ["bar1", "bar2"]},
+                [["bar1", "bar2"], 2],
+            ),
             (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
             ("{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6)),
-            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
-            ("{{ ds }}", {"ds": datetime(2018, 12, 6, 10, 55)}, datetime(2018, 12, 6, 10, 55)),
-            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
+            (
+                datetime(2018, 12, 6, 10, 55),
+                {"foo": "bar"},
+                datetime(2018, 12, 6, 10, 55),
+            ),
+            (
+                "{{ ds }}",
+                {"ds": datetime(2018, 12, 6, 10, 55)},
+                datetime(2018, 12, 6, 10, 55),
+            ),
+            (
+                MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"),
+                {"foo": "bar"},
+                MockNamedTuple("bar_1", "bar_2"),
+            ),
             (
                 ("{{ foo }}", "{{ foo.isoformat() }}"),
                 {"foo": datetime(2018, 12, 6, 10, 55)},
@@ -299,7 +356,12 @@ class TestBaseOperator:
     )
     def test_render_template_with_native_envs(self, content, context, expected_output):
         """Test render_template given various input types with Native Python types"""
-        with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, render_template_as_native_obj=True):
+        with DAG(
+            "test-dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            render_template_as_native_obj=True,
+        ):
             task = BaseOperator(task_id="op1")
 
         result = task.render_template(content, context)
@@ -315,7 +377,9 @@ class TestBaseOperator:
         assert task.arg2 == "{{ bar }}"
 
         # Trigger templating and verify if attributes are templated correctly
-        task.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
+        task.render_template_fields(
+            context={"foo": "footemplated", "bar": "bartemplated"}
+        )
         assert task.arg1 == "footemplated"
         assert task.arg2 == "bartemplated"
 
@@ -365,7 +429,8 @@ class TestBaseOperator:
         with pytest.raises(AttributeError, match=error_message):
             task.render_template(
                 ClassWithCustomAttributes(
-                    template_fields=["missing_field"], task_type="ClassWithCustomAttributes"
+                    template_fields=["missing_field"],
+                    task_type="ClassWithCustomAttributes",
                 ),
                 {},
             )
@@ -408,7 +473,9 @@ class TestBaseOperator:
         assert task.resources is None
 
     def test_custom_resources(self):
-        task = BaseOperator(task_id="custom-resources", resources={"cpus": 1, "ram": 1024})
+        task = BaseOperator(
+            task_id="custom-resources", resources={"cpus": 1, "ram": 1024}
+        )
         assert task.resources.cpus.qty == 1
         assert task.resources.ram.qty == 1024
 
@@ -419,7 +486,9 @@ class TestBaseOperator:
 
     def test_email_on_actions(self):
         test_task = BaseOperator(
-            task_id="test_default_email_on_actions", email_on_retry=False, email_on_failure=True
+            task_id="test_default_email_on_actions",
+            email_on_retry=False,
+            email_on_failure=True,
         )
         assert test_task.email_on_retry is False
         assert test_task.email_on_failure is True
@@ -436,11 +505,15 @@ class TestBaseOperator:
 
         # Begin test for `XComArgs`
         xstart_tasks = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            task_decorator(
+                task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag
+            )()
             for i in range(1, 4)
         ]
         xend_tasks = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            task_decorator(
+                task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag
+            )()
             for i in range(4, 7)
         ]
         cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
@@ -455,7 +528,9 @@ class TestBaseOperator:
 
         # Begin test for classic operators with `EdgeModifiers`
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
-        [op1, op2, op3, op4, op5, op6] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 7)]
+        [op1, op2, op3, op4, op5, op6] = [
+            BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 7)
+        ]
         chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
 
         assert {op2, op3} == set(op1.get_direct_relatives(upstream=False))
@@ -473,31 +548,41 @@ class TestBaseOperator:
         # Begin test for `XComArgs` with `EdgeModifiers`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
         [xop1, xop2, xop3, xop4, xop5, xop6] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            task_decorator(
+                task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag
+            )()
             for i in range(1, 7)
         ]
         chain(xop1, [xlabel1, xlabel2], [xop2, xop3], [xop4, xop5], xop6)
 
-        assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
+        assert {xop2.operator, xop3.operator} == set(
+            xop1.operator.get_direct_relatives(upstream=False)
+        )
         assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
-        assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
+        assert {xop4.operator, xop5.operator} == set(
+            xop6.operator.get_direct_relatives(upstream=True)
+        )
 
         assert {"label": "xcomarg_label1"} == dag.get_edge_info(
-            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
+            upstream_task_id=xop1.operator.task_id,
+            downstream_task_id=xop2.operator.task_id,
         )
         assert {"label": "xcomarg_label2"} == dag.get_edge_info(
-            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
+            upstream_task_id=xop1.operator.task_id,
+            downstream_task_id=xop3.operator.task_id,
         )
 
         # Begin test for `TaskGroups`
         [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
         [op1, op2] = [BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3)]
         [tgop1, tgop2] = [
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag)
+            for i in range(1, 3)
         ]
         [tgop3, tgop4] = [
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag)
+            for i in range(1, 3)
         ]
         chain(op1, tg1, tg2, op2)
 
@@ -510,7 +595,9 @@ class TestBaseOperator:
     def test_chain_linear(self):
         dag = DAG(dag_id="test_chain_linear", schedule=None, start_date=datetime.now())
 
-        t1, t2, t3, t4, t5, t6, t7 = (BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8))
+        t1, t2, t3, t4, t5, t6, t7 = (
+            BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8)
+        )
         chain_linear(t1, [t2, t3, t4], [t5, t6], t7)
 
         assert set(t1.get_direct_relatives(upstream=False)) == {t2, t3, t4}
@@ -519,24 +606,40 @@ class TestBaseOperator:
         assert set(t7.get_direct_relatives(upstream=True)) == {t5, t6}
 
         t1, t2, t3, t4, t5, t6 = (
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            task_decorator(
+                task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag
+            )()
             for i in range(1, 7)
         )
         chain_linear(t1, [t2, t3], [t4, t5], t6)
 
-        assert set(t1.operator.get_direct_relatives(upstream=False)) == {t2.operator, t3.operator}
-        assert set(t2.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
-        assert set(t3.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
-        assert set(t6.operator.get_direct_relatives(upstream=True)) == {t4.operator, t5.operator}
+        assert set(t1.operator.get_direct_relatives(upstream=False)) == {
+            t2.operator,
+            t3.operator,
+        }
+        assert set(t2.operator.get_direct_relatives(upstream=False)) == {
+            t4.operator,
+            t5.operator,
+        }
+        assert set(t3.operator.get_direct_relatives(upstream=False)) == {
+            t4.operator,
+            t5.operator,
+        }
+        assert set(t6.operator.get_direct_relatives(upstream=True)) == {
+            t4.operator,
+            t5.operator,
+        }
 
         # Begin test for `TaskGroups`
         tg1, tg2 = (TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3))
         op1, op2 = (BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3))
         tgop1, tgop2 = (
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag)
+            for i in range(1, 3)
         )
         tgop3, tgop4 = (
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag)
+            for i in range(1, 3)
         )
         chain_linear(op1, tg1, tg2, op2)
 
@@ -564,7 +667,9 @@ class TestBaseOperator:
 
         # Begin test for `XComArgs`
         [xop1, xop2] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            task_decorator(
+                task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag
+            )()
             for i in range(1, 3)
         ]
 
@@ -584,7 +689,9 @@ class TestBaseOperator:
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
-        [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)]
+        [op1, op2, op3, op4, op5] = [
+            BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)
+        ]
 
         with pytest.raises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
@@ -595,7 +702,9 @@ class TestBaseOperator:
         # Begin test for `XComArgs` with `EdgeModifiers`
         [label3, label4] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
         [xop1, xop2, xop3, xop4, xop5] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            task_decorator(
+                task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag
+            )()
             for i in range(1, 6)
         ]
 
@@ -606,7 +715,9 @@ class TestBaseOperator:
             chain([xop1, xop2, xop3], [label1, label2])
 
         # Begin test for `TaskGroups`
-        [tg1, tg2, tg3, tg4, tg5] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 6)]
+        [tg1, tg2, tg3, tg4, tg5] = [
+            TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 6)
+        ]
 
         with pytest.raises(AirflowException):
             chain([tg1, tg2], [tg3, tg4, tg5])
@@ -688,7 +799,9 @@ class TestBaseOperator:
         naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
 
         op_no_dag = BaseOperator(
-            task_id="test_task_naive_datetime", start_date=naive_datetime, end_date=naive_datetime
+            task_id="test_task_naive_datetime",
+            start_date=naive_datetime,
+            end_date=naive_datetime,
         )
 
         assert op_no_dag.start_date.tzinfo
@@ -698,12 +811,16 @@ class TestBaseOperator:
         op = MockOperator(task_id="test_task")
         op_copy = op.prepare_for_execution()
 
-        with mock.patch("airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies") as method_mock:
+        with mock.patch(
+            "airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies"
+        ) as method_mock:
             op_copy.execute({})
         assert method_mock.call_count == 0
 
     def test_upstream_is_set_when_template_field_is_xcomarg(self):
-        with DAG("xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}):
+        with DAG(
+            "xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}
+        ):
             op1 = BaseOperator(task_id="op1")
             op2 = MockOperator(task_id="op2", arg1=op1.output)
 
@@ -711,7 +828,9 @@ class TestBaseOperator:
         assert op2 in op1.downstream_list
 
     def test_set_xcomargs_dependencies_works_recursively(self):
-        with DAG("xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}):
+        with DAG(
+            "xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}
+        ):
             op1 = BaseOperator(task_id="op1")
             op2 = BaseOperator(task_id="op2")
             op3 = MockOperator(task_id="op3", arg1=[op1.output, op2.output])
@@ -723,7 +842,11 @@ class TestBaseOperator:
         assert op2 in op4.upstream_list
 
     def test_set_xcomargs_dependencies_works_when_set_after_init(self):
-        with DAG(dag_id="xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}):
+        with DAG(
+            dag_id="xcomargs_test",
+            schedule=None,
+            default_args={"start_date": datetime.today()},
+        ):
             op1 = BaseOperator(task_id="op1")
             op2 = MockOperator(task_id="op2")
             op2.arg1 = op1.output  # value is set after init
@@ -766,7 +889,9 @@ class TestBaseOperator:
     def test_invalid_type_for_default_arg(self):
         error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
         with pytest.raises(TypeError, match=error_msg):
-            BaseOperator(task_id="test", default_args={"max_active_tis_per_dag": "not_an_int"})
+            BaseOperator(
+                task_id="test", default_args={"max_active_tis_per_dag": "not_an_int"}
+            )
 
     def test_invalid_type_for_operator_arg(self):
         error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
@@ -777,7 +902,9 @@ class TestBaseOperator:
     def test_baseoperator_init_validates_arg_types(self, mock_validate_instance_args):
         operator = BaseOperator(task_id="test")
 
-        mock_validate_instance_args.assert_called_once_with(operator, BASEOPERATOR_ARGS_EXPECTED_TYPES)
+        mock_validate_instance_args.assert_called_once_with(
+            operator, BASEOPERATOR_ARGS_EXPECTED_TYPES
+        )
 
 
 def test_init_subclass_args():
@@ -811,7 +938,9 @@ def test_init_subclass_args():
     ("retries", "expected"),
     [
         pytest.param("foo", "'retries' type must be int, not str", id="string"),
-        pytest.param(CustomInt(10), "'retries' type must be int, not CustomInt", id="custom int"),
+        pytest.param(
+            CustomInt(10), "'retries' type must be int, not CustomInt", id="custom int"
+        ),
     ],
 )
 def test_operator_retries_invalid(dag_maker, retries, expected):
@@ -860,7 +989,10 @@ def test_default_retry_delay(dag_maker):
 
 @pytest.mark.db_test
 def test_dag_level_retry_delay(dag_maker):
-    with dag_maker(dag_id="test_dag_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}):
+    with dag_maker(
+        dag_id="test_dag_level_retry_delay",
+        default_args={"retry_delay": timedelta(seconds=100)},
+    ):
         task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
 
         assert task1.retry_delay == timedelta(seconds=100)
@@ -869,9 +1001,12 @@ def test_dag_level_retry_delay(dag_maker):
 @pytest.mark.db_test
 def test_task_level_retry_delay(dag_maker):
     with dag_maker(
-        dag_id="test_task_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}
+        dag_id="test_task_level_retry_delay",
+        default_args={"retry_delay": timedelta(seconds=100)},
     ):
-        task1 = BaseOperator(task_id="test_no_explicit_retry_delay", retry_delay=timedelta(seconds=200))
+        task1 = BaseOperator(
+            task_id="test_no_explicit_retry_delay", retry_delay=timedelta(seconds=200)
+        )
 
         assert task1.retry_delay == timedelta(seconds=200)
 
@@ -890,7 +1025,14 @@ def test_deepcopy():
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    ("task", "context", "expected_exception", "expected_rendering", "expected_log", "not_expected_log"),
+    (
+        "task",
+        "context",
+        "expected_exception",
+        "expected_rendering",
+        "expected_log",
+        "not_expected_log",
+    ),
     [
         # Simple success case.
         (
@@ -922,7 +1064,14 @@ def test_deepcopy():
     ],
 )
 def test_render_template_fields_logging(
-    caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
+    caplog,
+    monkeypatch,
+    task,
+    context,
+    expected_exception,
+    expected_rendering,
+    expected_log,
+    not_expected_log,
 ):
     """Verify if operator attributes are correctly templated."""
 
@@ -1049,11 +1198,17 @@ def test_get_task_instances(session):
         "dag_id": test_dag.dag_id,
         "run_type": DagRunType.MANUAL,
     }
-    dr1 = DagRun(execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs)
+    dr1 = DagRun(
+        execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs
+    )
     ti_1 = TaskInstance(run_id=dr1.run_id, task=task)
-    dr2 = DagRun(execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs)
+    dr2 = DagRun(
+        execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs
+    )
     ti_2 = TaskInstance(run_id=dr2.run_id, task=task)
-    dr3 = DagRun(execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs)
+    dr3 = DagRun(
+        execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs
+    )
     ti_3 = TaskInstance(run_id=dr3.run_id, task=task)
     session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
     session.commit()
@@ -1061,9 +1216,15 @@ def test_get_task_instances(session):
     # get all task instances
     assert task.get_task_instances(session=session) == [ti_1, ti_2, ti_3]
     # get task instances with start_date
-    assert task.get_task_instances(session=session, start_date=second_execution_date) == [ti_2, ti_3]
+    assert task.get_task_instances(session=session, start_date=second_execution_date) == [
+        ti_2,
+        ti_3,
+    ]
     # get task instances with end_date
-    assert task.get_task_instances(session=session, end_date=second_execution_date) == [ti_1, ti_2]
+    assert task.get_task_instances(session=session, end_date=second_execution_date) == [
+        ti_1,
+        ti_2,
+    ]
     # get task instances with start_date and end_date
     assert task.get_task_instances(
         session=session, start_date=second_execution_date, end_date=second_execution_date

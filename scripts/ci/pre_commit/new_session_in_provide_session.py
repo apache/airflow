@@ -77,7 +77,10 @@ def _is_decorated_correctly(nodes: list[ast.expr]) -> bool:
     * ``@abstractmethod``: This will be overridden in a subclass anyway.
     """
     # This only accepts those decorators literally. Should be enough?
-    return any(isinstance(node, ast.Name) and node.id in _ALLOWED_DECORATOR_NAMES for node in nodes)
+    return any(
+        isinstance(node, ast.Name) and node.id in _ALLOWED_DECORATOR_NAMES
+        for node in nodes
+    )
 
 
 def _annotation_has_none(value: ast.expr | None) -> bool:
@@ -90,7 +93,9 @@ def _annotation_has_none(value: ast.expr | None) -> bool:
     return False
 
 
-def _iter_incorrect_new_session_usages(path: pathlib.Path) -> typing.Iterator[ast.FunctionDef]:
+def _iter_incorrect_new_session_usages(
+    path: pathlib.Path,
+) -> typing.Iterator[ast.FunctionDef]:
     """Check NEW_SESSION usages outside functions decorated with provide_session."""
     for node in ast.walk(ast.parse(path.read_text("utf-8"), str(path))):
         if not isinstance(node, ast.FunctionDef):
@@ -103,20 +108,28 @@ def _iter_incorrect_new_session_usages(path: pathlib.Path) -> typing.Iterator[as
         default_kind = _is_new_session_or_none(session.default)
         if default_kind is None:
             continue  # Default value is not NEW_SESSION or None.
-        if default_kind == _SessionDefault.none and _annotation_has_none(session.argument.annotation):
+        if default_kind == _SessionDefault.none and _annotation_has_none(
+            session.argument.annotation
+        ):
             continue  # None is OK if the argument is explicitly typed as None.
         yield node
 
 
 def main(argv: list[str]) -> int:
     paths = (pathlib.Path(filename) for filename in argv[1:])
-    errors = [(path, error) for path in paths for error in _iter_incorrect_new_session_usages(path)]
+    errors = [
+        (path, error)
+        for path in paths
+        for error in _iter_incorrect_new_session_usages(path)
+    ]
     if errors:
         print("Incorrect @provide_session and NEW_SESSION usages:", end="\n\n")
         for path, error in errors:
             print(f"{path}:{error.lineno}")
             print(f"\tdef {error.name}(...", end="\n\n")
-        print("Only function decorated with @provide_session should use 'session: Session = NEW_SESSION'.")
+        print(
+            "Only function decorated with @provide_session should use 'session: Session = NEW_SESSION'."
+        )
         print(
             "See: https://github.com/apache/airflow/blob/main/"
             "contributing-docs/creating_issues_and_pull_requests#database-session-handling"

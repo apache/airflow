@@ -31,7 +31,9 @@ DATAFLOW_BASE_LINK = "/dataflow/jobs"
 DATAFLOW_JOB_LINK = DATAFLOW_BASE_LINK + "/{region}/{job_id}?project={project_id}"
 
 DATAFLOW_PIPELINE_BASE_LINK = "/dataflow/pipelines"
-DATAFLOW_PIPELINE_LINK = DATAFLOW_PIPELINE_BASE_LINK + "/{location}/{pipeline_name}?project={project_id}"
+DATAFLOW_PIPELINE_LINK = (
+    DATAFLOW_PIPELINE_BASE_LINK + "/{location}/{pipeline_name}?project={project_id}"
+)
 
 
 class DataflowJobLink(BaseGoogleLink):
@@ -74,5 +76,9 @@ class DataflowPipelineLink(BaseGoogleLink):
         operator_instance.xcom_push(
             context,
             key=DataflowPipelineLink.key,
-            value={"project_id": project_id, "location": location, "pipeline_name": pipeline_name},
+            value={
+                "project_id": project_id,
+                "location": location,
+                "pipeline_name": pipeline_name,
+            },
         )

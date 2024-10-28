@@ -101,8 +101,12 @@ class TestCliTasks:
 
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
         cls.dagbag.sync_to_db()
-        data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
+        data_interval = cls.dag.timetable.infer_manual_data_interval(
+            run_after=DEFAULT_DATE
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
+        )
         cls.dag_run = cls.dag.create_dagrun(
             state=State.NONE,
             run_id=cls.run_id,
@@ -122,27 +126,41 @@ class TestCliTasks:
             args = self.parser.parse_args(["tasks", "list", dag_id])
             task_command.task_list(args)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     def test_test(self):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
-            ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"]
+            [
+                "tasks",
+                "test",
+                "example_python_operator",
+                "print_the_context",
+                "2018-01-01",
+            ]
         )
 
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
-        assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+        assert (
+            "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+        )
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_test_no_execution_date(self, mock_utcnow):
         """Test the `airflow test` command"""
         now = pendulum.now("UTC")
         mock_utcnow.return_value = now
         ds = now.strftime("%Y%m%d")
-        args = self.parser.parse_args(["tasks", "test", "example_python_operator", "print_the_context"])
+        args = self.parser.parse_args(
+            ["tasks", "test", "example_python_operator", "print_the_context"]
+        )
 
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
@@ -150,11 +168,15 @@ class TestCliTasks:
         # Check that prints, and log messages, are shown
         assert f"'example_python_operator__print_the_context__{ds}'" in stdout.getvalue()
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     def test_test_with_existing_dag_run(self, caplog):
         """Test the `airflow test` command"""
         task_id = "print_the_context"
-        args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
+        args = self.parser.parse_args(
+            ["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()]
+        )
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
         assert (
@@ -163,7 +185,9 @@ class TestCliTasks:
         )
 
     @pytest.mark.enable_redact
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore::airflow.utils.context.AirflowContextDeprecationWarning"
+    )
     def test_test_filters_secrets(self, capsys):
         """Test ``airflow test`` does not print secrets to stdout.
 
@@ -172,15 +196,27 @@ class TestCliTasks:
         password = "somepassword1234!"
         logging.getLogger("airflow.task").filters[0].add_mask(password)
         args = self.parser.parse_args(
-            ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
+            [
+                "tasks",
+                "test",
+                "example_python_operator",
+                "print_the_context",
+                "2018-01-01",
+            ],
         )
 
-        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(password)):
+        with mock.patch(
+            "airflow.models.TaskInstance.run",
+            side_effect=lambda *_, **__: print(password),
+        ):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith("***\n")
 
         not_password = "!4321drowssapemos"
-        with mock.patch("airflow.models.TaskInstance.run", side_effect=lambda *_, **__: print(not_password)):
+        with mock.patch(
+            "airflow.models.TaskInstance.run",
+            side_effect=lambda *_, **__: print(not_password),
+        ):
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
@@ -201,7 +237,9 @@ class TestCliTasks:
 
         execution_date = pendulum.now("UTC")
         data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             state=State.NONE,
             run_id="abc123",
@@ -229,12 +267,17 @@ class TestCliTasks:
             )
             # confirm that the serialized dag location has not been updated
             assert ser_dag.fileloc == orig_file_path.as_posix()
-            assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
+            assert (
+                ser_dag.data["dag"]["_processor_dags_folder"]
+                == orig_dags_folder.as_posix()
+            )
             assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
             assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
             from airflow.settings import DAGS_FOLDER
 
-            assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
+            assert (
+                DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
+            )
             task_command.task_run(
                 self.parser.parse_args(
                     [
@@ -417,7 +460,10 @@ class TestCliTasks:
                 )
             )
             output = caplog.text
-        assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
+        assert (
+            "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found"
+            in output
+        )
 
     @pytest.mark.parametrize(
         "option",
@@ -447,7 +493,9 @@ class TestCliTasks:
             )
 
     def test_cli_run_mutually_exclusive(self):
-        with pytest.raises(AirflowException, match="Option --raw and --local are mutually exclusive."):
+        with pytest.raises(
+            AirflowException, match="Option --raw and --local are mutually exclusive."
+        ):
             task_command.task_run(
                 self.parser.parse_args(
                     [
@@ -523,7 +571,9 @@ class TestCliTasks:
         """
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
-                self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
+                self.parser.parse_args(
+                    ["tasks", "render", "tutorial", "templated", "2016-01-01"]
+                )
             )
 
         output = stdout.getvalue()
@@ -595,14 +645,18 @@ class TestCliTasks:
     @mock.patch("airflow.cli.commands.task_command.select")
     @mock.patch("sqlalchemy.orm.session.Session.scalars")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
-    def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
+    def test_task_render_with_custom_timetable(
+        self, mock_dagrun, mock_scalars, mock_select
+    ):
         """
         when calling `tasks render` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
         mock_scalars.side_effect = sqlalchemy.exc.NoResultFound
         task_command.task_render(
-            self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])
+            self.parser.parse_args(
+                ["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"]
+            )
         )
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
@@ -614,7 +668,9 @@ class TestCliTasks:
 
         with pytest.raises(
             AirflowException,
-            match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
+            match=re.escape(
+                "You cannot use the --pickle option when using DAG.cli() method."
+            ),
         ):
             task_command.task_run(
                 self.parser.parse_args(
@@ -634,7 +690,13 @@ class TestCliTasks:
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
-                ["tasks", "state", self.dag_id, "print_the_context", DEFAULT_DATE.isoformat()]
+                [
+                    "tasks",
+                    "state",
+                    self.dag_id,
+                    "print_the_context",
+                    DEFAULT_DATE.isoformat(),
+                ]
             )
         )
 
@@ -644,7 +706,9 @@ class TestCliTasks:
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun = dag2.create_dagrun(
             state=State.RUNNING,
             execution_date=default_date2,
@@ -717,15 +781,26 @@ class TestLogsfromTaskRunCommand:
         reset(self.dag_id)
         self.execution_date = timezone.datetime(2017, 1, 1)
         self.execution_date_str = self.execution_date.isoformat()
-        self.task_args = ["tasks", "run", self.dag_id, self.task_id, "--local", self.execution_date_str]
+        self.task_args = [
+            "tasks",
+            "run",
+            self.dag_id,
+            self.task_id,
+            "--local",
+            self.execution_date_str,
+        ]
         self.log_dir = conf.get_mandatory_value("logging", "base_log_folder")
         self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
 
         dag = DagBag().get_dag(self.dag_id)
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=self.execution_date)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        data_interval = dag.timetable.infer_manual_data_interval(
+            run_after=self.execution_date
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         self.dr = dag.create_dagrun(
             run_id=self.run_id,
             execution_date=self.execution_date,
@@ -817,9 +892,12 @@ class TestLogsfromTaskRunCommand:
             )
 
     @pytest.mark.parametrize(
-        "is_k8s, is_container_exec", [("true", "true"), ("true", ""), ("", "true"), ("", "")]
+        "is_k8s, is_container_exec",
+        [("true", "true"), ("true", ""), ("", "true"), ("", "")],
     )
-    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec, session):
+    def test_logging_with_run_task_stdout_k8s_executor_pod(
+        self, is_k8s, is_container_exec, session
+    ):
         """
         When running task --local as k8s executor pod, all logging should make it to stdout.
         Otherwise, all logging after "running TI" is redirected to logs (and the actual log
@@ -842,7 +920,14 @@ class TestLogsfromTaskRunCommand:
             PYTHONPATH=os.fspath(ROOT_FOLDER),
         ):
             with subprocess.Popen(
-                args=[sys.executable, "-m", "airflow", *self.task_args, "-S", self.dag_path],
+                args=[
+                    sys.executable,
+                    "-m",
+                    "airflow",
+                    *self.task_args,
+                    "-S",
+                    self.dag_path,
+                ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             ) as process:
@@ -865,7 +950,9 @@ class TestLogsfromTaskRunCommand:
             self.assert_log_line("Exporting env vars", lines)
             self.assert_log_line("Log from DAG Logger", lines)
             self.assert_log_line("Log from TI Logger", lines)
-            self.assert_log_line("Log from Print statement", lines, expect_from_logging_mixin=True)
+            self.assert_log_line(
+                "Log from Print statement", lines, expect_from_logging_mixin=True
+            )
             self.assert_log_line("Task exited with return code 0", lines)
         else:
             # when not k8s executor pod, most output is redirected to logs
@@ -894,11 +981,14 @@ class TestLogsfromTaskRunCommand:
 
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
-        self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
+        self.assert_log_line(
+            "Log from Print statement", logs_list, expect_from_logging_mixin=True
+        )
 
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000"
+            in logs
         )
 
     @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
@@ -912,8 +1002,12 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
-            task_command.task_run(self.parser.parse_args([*self.task_args, "--pool", pool_name]))
-            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
+            task_command.task_run(
+                self.parser.parse_args([*self.task_args, "--pool", pool_name])
+            )
+            assert (
+                session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
+            )
 
             session.delete(pool)
             session.commit()
@@ -936,12 +1030,18 @@ class TestLogsfromTaskRunCommand:
         assert "base_task_runner.py" in logs
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
-        self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
+        self.assert_log_line(
+            "Log from Print statement", logs_list, expect_from_logging_mixin=True
+        )
 
-        assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
+        assert (
+            f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}',"
+            in logs
+        )
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000"
+            in logs
         )
 
     def test_log_file_template_with_run_task(self, session):
@@ -953,7 +1053,9 @@ class TestLogsfromTaskRunCommand:
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
                 ti.try_number = 2
 
-            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
+            log_file_path = os.path.join(
+                os.path.dirname(self.ti_log_file_path), "attempt=2.log"
+            )
 
             try:
                 task_command.task_run(self.parser.parse_args(self.task_args))
@@ -990,7 +1092,9 @@ class TestLogsfromTaskRunCommand:
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
     @pytest.mark.parametrize("do_not_modify_handler", [True, False])
-    def test_disable_handler_modifying(self, run_task_mock, caplog, do_not_modify_handler):
+    def test_disable_handler_modifying(
+        self, run_task_mock, caplog, do_not_modify_handler
+    ):
         """If [core] donot_modify_handlers is set to True, the root logger is untouched"""
         from airflow import settings
 
@@ -1032,7 +1136,9 @@ def test_context_with_run():
 
     dag = DagBag().get_dag(dag_id)
     data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dag.create_dagrun(
         run_id=run_id,
         execution_date=execution_date,

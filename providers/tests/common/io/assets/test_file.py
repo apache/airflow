@@ -20,7 +20,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 
-from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset as OpenLineageDataset,
+)
 from airflow.providers.common.io.assets.file import (
     Asset,
     convert_asset_to_openlineage,
@@ -54,12 +56,18 @@ def test_file_asset():
 @pytest.mark.parametrize(
     ("uri", "ol_dataset"),
     (
-        ("file:///valid/path", OpenLineageDataset(namespace="file://", name="/valid/path")),
+        (
+            "file:///valid/path",
+            OpenLineageDataset(namespace="file://", name="/valid/path"),
+        ),
         (
             "file://127.0.0.1:8080/dir/file.csv",
             OpenLineageDataset(namespace="file://127.0.0.1:8080", name="/dir/file.csv"),
         ),
-        ("file:///C://dir/file", OpenLineageDataset(namespace="file://", name="/C://dir/file")),
+        (
+            "file:///C://dir/file",
+            OpenLineageDataset(namespace="file://", name="/C://dir/file"),
+        ),
     ),
 )
 def test_convert_asset_to_openlineage(uri, ol_dataset):

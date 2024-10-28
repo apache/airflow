@@ -89,7 +89,11 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
         "ui_fgcolor": "#000",
         "ui_color": "#ffefeb",
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
-        "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
+        "template_fields_renderers": {
+            "templates_dict": "json",
+            "op_args": "py",
+            "op_kwargs": "py",
+        },
         "template_ext": [],
         "task_id": "target",
     }
@@ -222,7 +226,9 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
 # This test should not be run in DB isolation mode as it accesses the database directly - deliberately
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-def test_serializing_pydantic_asset_event(session, create_task_instance, create_dummy_dag):
+def test_serializing_pydantic_asset_event(
+    session, create_task_instance, create_dummy_dag
+):
     ds1 = AssetModel(id=1, uri="one", extra={"foo": "bar"})
     ds2 = AssetModel(id=2, uri="two")
 
@@ -241,7 +247,9 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
     execution_date = timezone.utcnow()
     TracebackSessionForTests.set_allow_db_access(session, True)
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.ASSET_TRIGGERED,

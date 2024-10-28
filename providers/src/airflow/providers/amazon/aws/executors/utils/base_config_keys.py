@@ -22,4 +22,10 @@ class BaseConfigKeys:
 
     def __iter__(self):
         """Return an iterator of values of non dunder attributes of Config Keys."""
-        return iter({value for (key, value) in self.__class__.__dict__.items() if not key.startswith("__")})
+        return iter(
+            {
+                value
+                for (key, value) in self.__class__.__dict__.items()
+                if not key.startswith("__")
+            }
+        )

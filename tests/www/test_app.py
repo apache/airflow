@@ -90,7 +90,9 @@ class TestApp:
 
     @dont_initialize_flask_app_submodules
     def test_should_respect_base_url_ignore_proxy_headers(self):
-        with conf_vars({("webserver", "base_url"): "http://localhost:8080/internal-client"}):
+        with conf_vars(
+            {("webserver", "base_url"): "http://localhost:8080/internal-client"}
+        ):
             app = application.cached_app(testing=True)
             app.url_map.add(Rule("/debug", endpoint="debug"))
 
@@ -126,9 +128,12 @@ class TestApp:
 
     @dont_initialize_flask_app_submodules
     def test_base_url_contains_trailing_slash(self):
-        with conf_vars({("webserver", "base_url"): "http://localhost:8080/internal-client/"}):
+        with conf_vars(
+            {("webserver", "base_url"): "http://localhost:8080/internal-client/"}
+        ):
             with pytest.raises(
-                AirflowConfigException, match="webserver.base_url conf cannot have a trailing slash"
+                AirflowConfigException,
+                match="webserver.base_url conf cannot have a trailing slash",
             ):
                 application.cached_app(testing=True)
 
@@ -143,8 +148,12 @@ class TestApp:
         }
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
-        with conf_vars({("webserver", "base_url"): "http://localhost:8080/internal-client"}):
+    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(
+        self,
+    ):
+        with conf_vars(
+            {("webserver", "base_url"): "http://localhost:8080/internal-client"}
+        ):
             app = application.cached_app(testing=True)
             app.url_map.add(Rule("/debug", endpoint="debug"))
 
@@ -184,7 +193,9 @@ class TestApp:
         }
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
+    def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(
+        self,
+    ):
         app = application.cached_app(testing=True)
         app.url_map.add(Rule("/debug", endpoint="debug"))
 
@@ -263,9 +274,9 @@ class TestApp:
 class TestFlaskCli:
     @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
     def test_flask_cli_should_display_routes(self, capsys):
-        with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:cached_app"), mock.patch.object(
-            sys, "argv", ["flask", "routes"]
-        ):
+        with mock.patch.dict(
+            "os.environ", FLASK_APP="airflow.www.app:cached_app"
+        ), mock.patch.object(sys, "argv", ["flask", "routes"]):
             # Import from flask.__main__ with a combination of mocking With mocking sys.argv
             # will invoke ``flask routes`` command.
             with pytest.raises(SystemExit) as ex_ctx:

@@ -61,16 +61,25 @@ class TestEdgeWorker:
 
         with pytest.raises(EdgeWorkerVersionException):
             EdgeWorker.assert_version(
-                {"airflow_version": "1.2.3", "edge_provider_version": edge_provider_version}
+                {
+                    "airflow_version": "1.2.3",
+                    "edge_provider_version": edge_provider_version,
+                }
             )
 
         with pytest.raises(EdgeWorkerVersionException):
             EdgeWorker.assert_version(
-                {"airflow_version": airflow_version, "edge_provider_version": "2023.10.07"}
+                {
+                    "airflow_version": airflow_version,
+                    "edge_provider_version": "2023.10.07",
+                }
             )
 
         EdgeWorker.assert_version(
-            {"airflow_version": airflow_version, "edge_provider_version": edge_provider_version}
+            {
+                "airflow_version": airflow_version,
+                "edge_provider_version": edge_provider_version,
+            }
         )
 
     @pytest.mark.parametrize(
@@ -84,7 +93,10 @@ class TestEdgeWorker:
         self, session: Session, input_queues: list[str] | None, cli_worker: _EdgeWorkerCli
     ):
         EdgeWorker.register_worker(
-            "test_worker", EdgeWorkerState.STARTING, queues=input_queues, sysinfo=cli_worker._get_sysinfo()
+            "test_worker",
+            EdgeWorkerState.STARTING,
+            queues=input_queues,
+            sysinfo=cli_worker._get_sysinfo(),
         )
 
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
@@ -122,7 +134,10 @@ class TestEdgeWorker:
         [
             pytest.param(None, None, ["init"], id="no-changes"),
             pytest.param(
-                ["queue1", "queue2"], ["queue1", "queue_not_existing"], ["init", "queue2"], id="add-remove"
+                ["queue1", "queue2"],
+                ["queue1", "queue_not_existing"],
+                ["init", "queue2"],
+                id="add-remove",
             ),
             pytest.param(["init"], None, ["init"], id="check-duplicated"),
         ],
@@ -143,7 +158,9 @@ class TestEdgeWorker:
         )
         session.add(rwm)
         session.commit()
-        EdgeWorker.add_and_remove_queues("test2_worker", add_queues, remove_queues, session)
+        EdgeWorker.add_and_remove_queues(
+            "test2_worker", add_queues, remove_queues, session
+        )
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"

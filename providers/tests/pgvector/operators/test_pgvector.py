@@ -34,7 +34,9 @@ def pg_vector_ingest_operator():
 
 @patch("airflow.providers.pgvector.operators.pgvector.register_vector")
 @patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
-def test_register_vector(mock_get_db_hook, mock_register_vector, pg_vector_ingest_operator):
+def test_register_vector(
+    mock_get_db_hook, mock_register_vector, pg_vector_ingest_operator
+):
     # Create a mock database connection
     mock_db_hook = Mock()
     mock_get_db_hook.return_value = mock_db_hook
@@ -47,7 +49,10 @@ def test_register_vector(mock_get_db_hook, mock_register_vector, pg_vector_inges
 @patch("airflow.providers.pgvector.operators.pgvector.SQLExecuteQueryOperator.execute")
 @patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
 def test_execute(
-    mock_get_db_hook, mock_execute_query_operator_execute, mock_register_vector, pg_vector_ingest_operator
+    mock_get_db_hook,
+    mock_execute_query_operator_execute,
+    mock_register_vector,
+    pg_vector_ingest_operator,
 ):
     mock_db_hook = Mock()
     mock_get_db_hook.return_value = mock_db_hook

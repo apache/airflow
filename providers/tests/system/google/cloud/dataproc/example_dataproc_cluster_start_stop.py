@@ -40,7 +40,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "dataproc_cluster_start_stop"
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
@@ -62,7 +64,11 @@ CLUSTER_CONFIG = {
 }
 
 with DAG(
-    DAG_ID, schedule="@once", start_date=datetime(2024, 1, 1), catchup=False, tags=["dataproc", "example"]
+    DAG_ID,
+    schedule="@once",
+    start_date=datetime(2024, 1, 1),
+    catchup=False,
+    tags=["dataproc", "example"],
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",

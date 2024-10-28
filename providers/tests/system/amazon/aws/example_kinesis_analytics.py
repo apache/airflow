@@ -134,9 +134,12 @@ def kinesis_analytics_v2_workflow():
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_application(app_name: str):
         kinesis_analytics_v2_hook = KinesisAnalyticsV2Hook()
-        response = kinesis_analytics_v2_hook.conn.describe_application(ApplicationName=app_name)
+        response = kinesis_analytics_v2_hook.conn.describe_application(
+            ApplicationName=app_name
+        )
         kinesis_analytics_v2_hook.conn.delete_application(
-            ApplicationName=app_name, CreateTimestamp=response["ApplicationDetail"]["CreateTimestamp"]
+            ApplicationName=app_name,
+            CreateTimestamp=response["ApplicationDetail"]["CreateTimestamp"],
         )
 
     chain(
@@ -172,7 +175,9 @@ def copy_jar_to_s3(bucket: str):
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_connection(conn_id: str):
         session = settings.Session()
-        conn_to_details = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        conn_to_details = (
+            session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        )
         session.delete(conn_to_details)
         session.commit()
 
@@ -196,7 +201,9 @@ def create_kinesis_stream(stream: str, region: str):
     :param region: Region name
     """
     client = boto3.client("kinesis", region_name=region)
-    client.create_stream(StreamName=stream, ShardCount=1, StreamModeDetails={"StreamMode": "PROVISIONED"})
+    client.create_stream(
+        StreamName=stream, ShardCount=1, StreamModeDetails={"StreamMode": "PROVISIONED"}
+    )
     account_id = boto3.client("sts").get_caller_identity()["Account"]
     waiter = client.get_waiter("stream_exists")
     waiter.wait(StreamName=stream, WaiterConfig={"Delay": 60, "MaxAttempts": 4})

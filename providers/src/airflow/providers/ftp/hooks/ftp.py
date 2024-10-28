@@ -194,7 +194,10 @@ class FTPHook(BaseHook):
             output_handle.close()
 
     def store_file(
-        self, remote_full_path: str, local_full_path_or_buffer: Any, block_size: int = 8192
+        self,
+        remote_full_path: str,
+        local_full_path_or_buffer: Any,
+        block_size: int = 8192,
     ) -> None:
         """
         Transfers a local file to the remote location.
@@ -292,7 +295,9 @@ class FTPSHook(FTPHook):
 
             # Construct FTP_TLS instance with SSL context to allow certificates to be validated by default
             context = ssl.create_default_context()
-            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
+            self.conn = ftplib.FTP_TLS(
+                params.host, params.login, params.password, context=context
+            )  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn

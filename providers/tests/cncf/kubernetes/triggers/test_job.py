@@ -84,7 +84,9 @@ class TestKubernetesJobTrigger:
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
-        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
+        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(
+            return_value=mock_job
+        )
 
         mock_pod = mock.MagicMock()
         mock_pod.metadata.name = POD_NAME
@@ -98,7 +100,9 @@ class TestKubernetesJobTrigger:
 
         event_actual = await trigger.run().asend(None)
 
-        mock_hook.wait_until_job_complete.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
+        mock_hook.wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE
+        )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
         assert event_actual == TriggerEvent(
@@ -120,7 +124,9 @@ class TestKubernetesJobTrigger:
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
-        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
+        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(
+            return_value=mock_job
+        )
 
         mock_pod = mock.MagicMock()
         mock_pod.metadata.name = POD_NAME
@@ -134,7 +140,9 @@ class TestKubernetesJobTrigger:
 
         event_actual = await trigger.run().asend(None)
 
-        mock_hook.wait_until_job_complete.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
+        mock_hook.wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE
+        )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
         assert event_actual == TriggerEvent(

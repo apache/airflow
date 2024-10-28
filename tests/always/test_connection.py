@@ -35,7 +35,9 @@ from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 from tests_common.test_utils.config import conf_vars
 
-ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+ConnectionParts = namedtuple(
+    "ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"]
+)
 
 
 @pytest.fixture
@@ -136,7 +138,10 @@ class TestConnection:
             test_connection = Connection(extra='{"apache": "airflow"}')
             assert test_connection.is_extra_encrypted
             assert test_connection.extra == '{"apache": "airflow"}'
-            assert Fernet(key1).decrypt(test_connection._extra.encode()) == b'{"apache": "airflow"}'
+            assert (
+                Fernet(key1).decrypt(test_connection._extra.encode())
+                == b'{"apache": "airflow"}'
+            )
 
         # Test decrypt of old value with new key
         with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
@@ -147,7 +152,10 @@ class TestConnection:
             test_connection.rotate_fernet_key()
             assert test_connection.is_extra_encrypted
             assert test_connection.extra == '{"apache": "airflow"}'
-            assert Fernet(key2).decrypt(test_connection._extra.encode()) == b'{"apache": "airflow"}'
+            assert (
+                Fernet(key2).decrypt(test_connection._extra.encode())
+                == b'{"apache": "airflow"}'
+            )
 
     test_from_uri_params = [
         UriTestCaseConfig(
@@ -187,7 +195,10 @@ class TestConnection:
                 login="user",
                 password="password",
                 port=1234,
-                extra_dejson={"my_val": ["list", "of", "values"], "extra": {"nested": {"json": "val"}}},
+                extra_dejson={
+                    "my_val": ["list", "of", "values"],
+                    "extra": {"nested": {"json": "val"}},
+                },
             ),
             description="with nested json",
         ),
@@ -357,10 +368,14 @@ class TestConnection:
         expected_calls = []
         if test_config.test_conn_attributes.get("password"):
             expected_calls.append(mock.call(test_config.test_conn_attributes["password"]))
-            expected_calls.append(mock.call(quote(test_config.test_conn_attributes["password"])))
+            expected_calls.append(
+                mock.call(quote(test_config.test_conn_attributes["password"]))
+            )
 
         if test_config.test_conn_attributes.get("extra_dejson"):
-            expected_calls.append(mock.call(test_config.test_conn_attributes["extra_dejson"]))
+            expected_calls.append(
+                mock.call(test_config.test_conn_attributes["extra_dejson"])
+            )
 
         self.mask_secret.assert_has_calls(expected_calls)
 
@@ -419,31 +434,56 @@ class TestConnection:
             (
                 "http://:password@host:80/database",
                 ConnectionParts(
-                    conn_type="http", login="", password="password", host="host", port=80, schema="database"
+                    conn_type="http",
+                    login="",
+                    password="password",
+                    host="host",
+                    port=80,
+                    schema="database",
                 ),
             ),
             (
                 "http://user:@host:80/database",
                 ConnectionParts(
-                    conn_type="http", login="user", password=None, host="host", port=80, schema="database"
+                    conn_type="http",
+                    login="user",
+                    password=None,
+                    host="host",
+                    port=80,
+                    schema="database",
                 ),
             ),
             (
                 "http://user:password@/database",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema="database"
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="",
+                    port=None,
+                    schema="database",
                 ),
             ),
             (
                 "http://user:password@host:80/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="host", port=80, schema=""
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="host",
+                    port=80,
+                    schema="",
                 ),
             ),
             (
                 "http://user:password@/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema=""
+                    conn_type="http",
+                    login="user",
+                    password="password",
+                    host="",
+                    port=None,
+                    schema="",
                 ),
             ),
             (
@@ -598,7 +638,9 @@ class TestConnection:
         assert "password!" == conn.password
         assert 5432 == conn.port
 
-        self.mask_secret.assert_has_calls([mock.call("password!"), mock.call(quote("password!"))])
+        self.mask_secret.assert_has_calls(
+            [mock.call("password!"), mock.call(quote("password!"))]
+        )
 
     @mock.patch.dict(
         "os.environ",
@@ -657,7 +699,10 @@ class TestConnection:
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id="test_uri")
         hook = conn.get_hook()
-        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == hook.get_uri()
+        assert (
+            "postgresql://username:password@ec2.compute.com:5432/the_database"
+            == hook.get_uri()
+        )
         conn2 = BaseHook.get_connection(conn_id="test_uri_no_creds")
         hook2 = conn2.get_hook()
         assert "postgresql://ec2.compute.com/the_database" == hook2.get_uri()
@@ -674,7 +719,9 @@ class TestConnection:
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
-        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == str(engine.url)
+        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == str(
+            engine.url
+        )
 
     @mock.patch.dict(
         "os.environ",
@@ -769,7 +816,9 @@ class TestConnection:
         conn = Connection(conn_id="test_uri_hook_method_missing", conn_type="grpc")
         res = conn.test_connection()
         assert res[0] is False
-        assert res[1] == "Hook GrpcHook doesn't implement or inherit test_connection method"
+        assert (
+            res[1] == "Hook GrpcHook doesn't implement or inherit test_connection method"
+        )
 
     def test_extra_warnings_non_json(self):
         with pytest.raises(ValueError, match="non-JSON"):

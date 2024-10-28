@@ -27,7 +27,9 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceAsyncHook,
 )
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 TEST_PROJECT_ID = "project-id"
 TRANSFER_HOOK_PATH = "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
@@ -65,7 +67,9 @@ class TestCloudDataTransferServiceAsyncHook:
     @mock.patch(f"{TRANSFER_HOOK_PATH}.ListTransferJobsRequest")
     async def test_get_jobs(self, mock_list_jobs_request, mock_get_conn):
         expected_jobs = AsyncMock()
-        mock_get_conn.return_value.list_transfer_jobs.side_effect = AsyncMock(return_value=expected_jobs)
+        mock_get_conn.return_value.list_transfer_jobs.side_effect = AsyncMock(
+            return_value=expected_jobs
+        )
 
         expected_request = mock.MagicMock()
         mock_list_jobs_request.return_value = expected_request
@@ -78,7 +82,9 @@ class TestCloudDataTransferServiceAsyncHook:
         mock_list_jobs_request.assert_called_once_with(
             filter=json.dumps(dict(project_id=TEST_PROJECT_ID, job_names=job_names))
         )
-        mock_get_conn.return_value.list_transfer_jobs.assert_called_once_with(request=expected_request)
+        mock_get_conn.return_value.list_transfer_jobs.assert_called_once_with(
+            request=expected_request
+        )
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRANSFER_HOOK_PATH}.CloudDataTransferServiceAsyncHook.get_conn")
@@ -88,7 +94,9 @@ class TestCloudDataTransferServiceAsyncHook:
         operation_metadata_value = "Mock metadata value"
 
         get_operation = AsyncMock()
-        get_operation.return_value = mock.MagicMock(metadata=mock.MagicMock(value=operation_metadata_value))
+        get_operation.return_value = mock.MagicMock(
+            metadata=mock.MagicMock(value=operation_metadata_value)
+        )
         mock_conn.return_value.transport.operations_client.get_operation = get_operation
 
         expected_operation = mock.MagicMock()

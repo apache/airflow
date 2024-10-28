@@ -40,12 +40,19 @@ def ci_group(group_name: str, github_actions: bool):
             console.print("::endgroup::")
 
 
-def run_command(cmd: list[str], github_actions: bool, **kwargs) -> subprocess.CompletedProcess:
+def run_command(
+    cmd: list[str], github_actions: bool, **kwargs
+) -> subprocess.CompletedProcess:
     with ci_group(
-        f"Running command: {' '.join([shlex.quote(arg) for arg in cmd])}", github_actions=github_actions
+        f"Running command: {' '.join([shlex.quote(arg) for arg in cmd])}",
+        github_actions=github_actions,
     ):
         result = subprocess.run(cmd, **kwargs)
     if result.returncode != 0 and github_actions and kwargs.get("check", False):
-        console.print(f"[red]Command failed: {' '.join([shlex.quote(entry) for entry in cmd])}[/]")
-        console.print("[red]Please unfold the above group and to investigate the issue[/]")
+        console.print(
+            f"[red]Command failed: {' '.join([shlex.quote(entry) for entry in cmd])}[/]"
+        )
+        console.print(
+            "[red]Please unfold the above group and to investigate the issue[/]"
+        )
     return result

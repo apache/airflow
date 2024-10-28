@@ -47,7 +47,9 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
     ComputeEngineInsertInstanceOperator,
 )
-from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_postgres import (
+    BigQueryToPostgresOperator,
+)
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
@@ -92,7 +94,9 @@ sudo docker run -d -p {DB_PORT}:{DB_PORT} --name {DB_NAME} \
     postgres
 """
 SQL_TABLE = "test_table"
-SQL_CREATE_TABLE = f"CREATE TABLE IF NOT EXISTS {SQL_TABLE} (emp_name VARCHAR(64), salary FLOAT)"
+SQL_CREATE_TABLE = (
+    f"CREATE TABLE IF NOT EXISTS {SQL_TABLE} (emp_name VARCHAR(64), salary FLOAT)"
+)
 
 GCE_MACHINE_TYPE = "n1-standard-1"
 GCE_INSTANCE_NAME = f"instance-{DAG_ID}-{ENV_ID}".replace("_", "-")
@@ -219,7 +223,9 @@ with DAG(
     @task
     def get_public_ip() -> str:
         hook = ComputeEngineHook()
-        address = hook.get_instance_address(resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        address = hook.get_instance_address(
+            resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID
+        )
         return address
 
     get_public_ip_task = get_public_ip()
@@ -245,7 +251,9 @@ with DAG(
         session.commit()
         log.info("Connection %s created", connection_id)
 
-    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
+    create_connection_task = create_connection(
+        connection_id=CONNECTION_ID, ip_address=get_public_ip_task
+    )
 
     create_pg_table = SQLExecuteQueryOperator(
         task_id="create_pg_table",

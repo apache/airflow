@@ -63,7 +63,9 @@ RESOURCE_EVENT_PREFIX = "connection"
         permission=permissions.ACTION_CAN_DELETE,
     ),
 )
-def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def delete_connection(
+    *, connection_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Delete a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
     if connection is None:
@@ -80,7 +82,9 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a connection entry."""
-    connection = session.scalar(select(Connection).where(Connection.conn_id == connection_id))
+    connection = session.scalar(
+        select(Connection).where(Connection.conn_id == connection_id)
+    )
     if connection is None:
         raise NotFound(
             "Connection not found",
@@ -102,7 +106,14 @@ def get_connections(
 ) -> APIResponse:
     """Get all connection entries."""
     to_replace = {"connection_id": "conn_id"}
-    allowed_sort_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
+    allowed_sort_attrs = [
+        "connection_id",
+        "conn_type",
+        "description",
+        "host",
+        "port",
+        "id",
+    ]
 
     total_entries = session.execute(select(func.count(Connection.id))).scalar_one()
     query = select(Connection)
@@ -134,7 +145,9 @@ def patch_connection(
         # If validation get to here, it is extra field validation.
         raise BadRequest(detail=str(err.messages))
     non_update_fields = ["connection_id", "conn_id"]
-    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    connection = session.scalar(
+        select(Connection).filter_by(conn_id=connection_id).limit(1)
+    )
     if connection is None:
         raise NotFound(
             "Connection not found",
@@ -189,7 +202,10 @@ def test_connection() -> APIResponse:
     env var, as some hook classes tries to find out the conn from their __init__ method & errors out
     if not found. It also deletes the conn id env variable after the test.
     """
-    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+    if (
+        conf.get("core", "test_connection", fallback="Disabled").lower().strip()
+        != "enabled"
+    ):
         return Response(
             "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
             "enable it.",

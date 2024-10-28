@@ -86,7 +86,9 @@ class TestAzureFileshareHook:
 
     def test_azure_default_share_directory_client(self):
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_default", share_name="share", directory_path="directory"
+            azure_fileshare_conn_id="azure_default",
+            share_name="share",
+            directory_path="directory",
         )
         assert hook._conn_id == "azure_default"
         share_client = hook.share_directory_client
@@ -111,7 +113,9 @@ class TestAzureFileshareHook:
         mock_instance = mock_service.return_value
         mock_instance.exists.return_value = True
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", directory_path="directory"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            directory_path="directory",
         )
         assert hook.check_for_directory()
         mock_instance.exists.assert_called_once_with()
@@ -120,7 +124,9 @@ class TestAzureFileshareHook:
     def test_load_data(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", file_path="file"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            file_path="file",
         )
         hook.load_data("big string")
         mock_instance.upload_file.assert_called_once_with("big string")
@@ -129,7 +135,9 @@ class TestAzureFileshareHook:
     def test_list_directories_and_files(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", directory_path="directory"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            directory_path="directory",
         )
         hook.list_directories_and_files()
         mock_instance.list_directories_and_files.assert_called_once_with()
@@ -144,7 +152,9 @@ class TestAzureFileshareHook:
             DirectoryProperties(name="dir2"),
         ]
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", directory_path="directory"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            directory_path="directory",
         )
         files = hook.list_files()
         assert files == ["file1", "file2"]
@@ -154,7 +164,9 @@ class TestAzureFileshareHook:
     def test_create_directory(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", directory_path="directory"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            directory_path="directory",
         )
         hook.create_directory()
         mock_instance.create_directory.assert_called_once_with()
@@ -163,7 +175,9 @@ class TestAzureFileshareHook:
     def test_get_file(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", file_path="file"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            file_path="file",
         )
         hook.get_file("path")
         mock_instance.download_file.assert_called_once_with()
@@ -172,7 +186,9 @@ class TestAzureFileshareHook:
     def test_get_file_to_stream(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", file_path="file"
+            azure_fileshare_conn_id="azure_fileshare_extras",
+            share_name="share",
+            file_path="file",
         )
         data = StringIO("stream")
         hook.get_file_to_stream(stream=data)

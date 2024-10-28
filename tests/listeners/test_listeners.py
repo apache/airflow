@@ -134,12 +134,18 @@ def test_listener_throws_exceptions(create_task_instance, session=None):
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
-def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session=None):
+def test_listener_captures_failed_taskinstances(
+    create_task_instance_of_operator, session=None
+):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
 
     ti = create_task_instance_of_operator(
-        BashOperator, dag_id=DAG_ID, execution_date=EXECUTION_DATE, task_id=TASK_ID, bash_command="exit 1"
+        BashOperator,
+        dag_id=DAG_ID,
+        execution_date=EXECUTION_DATE,
+        task_id=TASK_ID,
+        bash_command="exit 1",
     )
     with pytest.raises(AirflowException):
         ti._run_raw_task()
@@ -149,12 +155,18 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
 
 
 @provide_session
-def test_listener_captures_longrunning_taskinstances(create_task_instance_of_operator, session=None):
+def test_listener_captures_longrunning_taskinstances(
+    create_task_instance_of_operator, session=None
+):
     lm = get_listener_manager()
     lm.add_listener(full_listener)
 
     ti = create_task_instance_of_operator(
-        BashOperator, dag_id=DAG_ID, execution_date=EXECUTION_DATE, task_id=TASK_ID, bash_command="sleep 5"
+        BashOperator,
+        dag_id=DAG_ID,
+        execution_date=EXECUTION_DATE,
+        task_id=TASK_ID,
+        bash_command="sleep 5",
     )
     ti._run_raw_task()
 
@@ -187,9 +199,13 @@ def test_listener_logs_call(caplog, create_task_instance, session):
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     ti._run_raw_task()
 
-    listener_logs = [r for r in caplog.record_tuples if r[0] == "airflow.listeners.listener"]
+    listener_logs = [
+        r for r in caplog.record_tuples if r[0] == "airflow.listeners.listener"
+    ]
     assert len(listener_logs) == 6
-    assert all(r[:-1] == ("airflow.listeners.listener", logging.DEBUG) for r in listener_logs)
+    assert all(
+        r[:-1] == ("airflow.listeners.listener", logging.DEBUG) for r in listener_logs
+    )
     assert listener_logs[0][-1].startswith("Calling 'on_task_instance_running' with {'")
     assert listener_logs[1][-1].startswith("Hook impls: [<HookImpl plugin")
     assert listener_logs[2][-1] == "Result from 'on_task_instance_running': []"

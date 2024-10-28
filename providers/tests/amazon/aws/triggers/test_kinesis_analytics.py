@@ -38,33 +38,45 @@ class TestKinesisAnalyticsV2ApplicationOperationCompleteTrigger:
     def test_serialization(self):
         """Assert that arguments and classpath are correctly serialized."""
         trigger = KinesisAnalyticsV2ApplicationOperationCompleteTrigger(
-            application_name=self.APPLICATION_NAME, waiter_name="application_start_complete"
+            application_name=self.APPLICATION_NAME,
+            waiter_name="application_start_complete",
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "KinesisAnalyticsV2ApplicationOperationCompleteTrigger"
+        assert (
+            classpath
+            == BASE_TRIGGER_CLASSPATH
+            + "KinesisAnalyticsV2ApplicationOperationCompleteTrigger"
+        )
         assert kwargs.get("application_name") == self.APPLICATION_NAME
 
     @pytest.mark.asyncio
     @mock.patch.object(KinesisAnalyticsV2Hook, "get_waiter")
     @mock.patch.object(KinesisAnalyticsV2Hook, "async_conn")
-    async def test_run_success_with_application_start_complete_waiter(self, mock_async_conn, mock_get_waiter):
+    async def test_run_success_with_application_start_complete_waiter(
+        self, mock_async_conn, mock_get_waiter
+    ):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
         trigger = KinesisAnalyticsV2ApplicationOperationCompleteTrigger(
-            application_name=self.APPLICATION_NAME, waiter_name="application_start_complete"
+            application_name=self.APPLICATION_NAME,
+            waiter_name="application_start_complete",
         )
 
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "application_name": self.APPLICATION_NAME})
+        assert response == TriggerEvent(
+            {"status": "success", "application_name": self.APPLICATION_NAME}
+        )
         assert_expected_waiter_type(mock_get_waiter, "application_start_complete")
         mock_get_waiter().wait.assert_called_once()
 
     @pytest.mark.asyncio
     @mock.patch.object(KinesisAnalyticsV2Hook, "get_waiter")
     @mock.patch.object(KinesisAnalyticsV2Hook, "async_conn")
-    async def test_run_success_with_application_stop_complete_waiter(self, mock_async_conn, mock_get_waiter):
+    async def test_run_success_with_application_stop_complete_waiter(
+        self, mock_async_conn, mock_get_waiter
+    ):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
         trigger = KinesisAnalyticsV2ApplicationOperationCompleteTrigger(
@@ -74,6 +86,8 @@ class TestKinesisAnalyticsV2ApplicationOperationCompleteTrigger:
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "application_name": self.APPLICATION_NAME})
+        assert response == TriggerEvent(
+            {"status": "success", "application_name": self.APPLICATION_NAME}
+        )
         assert_expected_waiter_type(mock_get_waiter, "application_stop_waiter")
         mock_get_waiter().wait.assert_called_once()

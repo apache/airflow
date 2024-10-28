@@ -56,10 +56,14 @@ class _CommonCLIGunicornTestClass:
             console.print("[blue]Some processes are still running")
             for pid in gunicorn_pids + airflow_internal_api_pids:
                 with suppress(NoSuchProcess):
-                    console.print(psutil.Process(pid).as_dict(attrs=["pid", "name", "cmdline"]))
+                    console.print(
+                        psutil.Process(pid).as_dict(attrs=["pid", "name", "cmdline"])
+                    )
             console.print("[blue]Here list of processes ends")
             if airflow_internal_api_pids:
-                console.print(f"[yellow]Forcefully killing {self.main_process_regexp} processes")
+                console.print(
+                    f"[yellow]Forcefully killing {self.main_process_regexp} processes"
+                )
                 for pid in airflow_internal_api_pids:
                     with suppress(NoSuchProcess):
                         psutil.Process(pid).kill()
@@ -125,7 +129,9 @@ class _CommonCLIGunicornTestClass:
                 return proc.pid
         return None
 
-    def _find_all_processes(self, regexp_match: str, print_found_process=False) -> list[int]:
+    def _find_all_processes(
+        self, regexp_match: str, print_found_process=False
+    ) -> list[int]:
         """
         Find all running process matching their command line with a regexp and return the list of pids
         of the processes. found

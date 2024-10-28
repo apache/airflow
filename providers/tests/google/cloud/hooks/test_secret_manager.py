@@ -37,7 +37,9 @@ from providers.tests.google.cloud.utils.base_gcp_mock import (
 
 BASE_PACKAGE = "airflow.providers.google.common.hooks.base_google."
 SECRETS_HOOK_PACKAGE = "airflow.providers.google.cloud.hooks.secret_manager."
-INTERNAL_CLIENT_PACKAGE = "airflow.providers.google.cloud._internal_client.secret_manager_client"
+INTERNAL_CLIENT_PACKAGE = (
+    "airflow.providers.google.cloud._internal_client.secret_manager_client"
+)
 SECRET_ID = "test-secret-id"
 
 
@@ -47,12 +49,17 @@ class TestSecretsManagerHook:
             with pytest.warns(AirflowProviderDeprecationWarning):
                 SecretsManagerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
 
-    @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
+    @patch(
+        INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock()
+    )
     @patch(
         SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",
         return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
     )
-    @patch(BASE_PACKAGE + "GoogleBaseHook.__init__", new=mock_base_gcp_hook_default_project_id)
+    @patch(
+        BASE_PACKAGE + "GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
     def test_get_missing_key(self, mock_get_credentials, mock_client):
         mock_client.secret_version_path.return_value = "full-path"
         mock_client.access_secret_version.side_effect = NotFound("test-msg")
@@ -60,16 +67,25 @@ class TestSecretsManagerHook:
             secrets_manager_hook = SecretsManagerHook(gcp_conn_id="test")
         mock_get_credentials.assert_called_once_with()
         secret = secrets_manager_hook.get_secret(secret_id="secret")
-        mock_client.secret_version_path.assert_called_once_with("example-project", "secret", "latest")
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.secret_version_path.assert_called_once_with(
+            "example-project", "secret", "latest"
+        )
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}
+        )
         assert secret is None
 
-    @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
+    @patch(
+        INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock()
+    )
     @patch(
         SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",
         return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
     )
-    @patch(BASE_PACKAGE + "GoogleBaseHook.__init__", new=mock_base_gcp_hook_default_project_id)
+    @patch(
+        BASE_PACKAGE + "GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
     def test_get_existing_key(self, mock_get_credentials, mock_client):
         mock_client.secret_version_path.return_value = "full-path"
         test_response = AccessSecretVersionResponse()
@@ -79,14 +95,20 @@ class TestSecretsManagerHook:
             secrets_manager_hook = SecretsManagerHook(gcp_conn_id="test")
         mock_get_credentials.assert_called_once_with()
         secret = secrets_manager_hook.get_secret(secret_id="secret")
-        mock_client.secret_version_path.assert_called_once_with("example-project", "secret", "latest")
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.secret_version_path.assert_called_once_with(
+            "example-project", "secret", "latest"
+        )
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}
+        )
         assert "result" == secret
 
 
 class TestGoogleCloudSecretManagerHook:
     def setup_method(self, method):
-        with patch(f"{BASE_PACKAGE}GoogleBaseHook.get_connection", return_value=MagicMock()):
+        with patch(
+            f"{BASE_PACKAGE}GoogleBaseHook.get_connection", return_value=MagicMock()
+        ):
             self.hook = GoogleCloudSecretManagerHook()
 
     @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.get_credentials")
@@ -100,10 +122,15 @@ class TestGoogleCloudSecretManagerHook:
 
         assert client_1 == mock_client_result
         assert client_1 == client_2
-        mock_client.assert_called_once_with(credentials=mock_credentials, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_credentials, client_info=CLIENT_INFO
+        )
         mock_get_credentials.assert_called_once()
 
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     def test_get_conn(self, mock_client):
         mock_client_result = mock_client.return_value
 
@@ -119,7 +146,10 @@ class TestGoogleCloudSecretManagerHook:
             (mock_secret := MagicMock(), mock_secret),  # type: ignore[name-defined]
         ],
     )
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     def test_create_secret(self, mock_client, input_secret, expected_secret):
         expected_parent = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}"
         expected_response = mock_client.return_value.create_secret.return_value
@@ -147,11 +177,16 @@ class TestGoogleCloudSecretManagerHook:
             metadata=mock_metadata,
         )
 
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     def test_add_secret_version(self, mock_client):
         expected_parent = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/secrets/{SECRET_ID}"
         expected_response = mock_client.return_value.add_secret_version.return_value
-        mock_payload, mock_retry, mock_timeout, mock_metadata = (MagicMock() for _ in range(4))
+        mock_payload, mock_retry, mock_timeout, mock_metadata = (
+            MagicMock() for _ in range(4)
+        )
 
         actual_response = self.hook.add_secret_version(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
@@ -174,11 +209,16 @@ class TestGoogleCloudSecretManagerHook:
             metadata=mock_metadata,
         )
 
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     def test_list_secrets(self, mock_client):
         expected_parent = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}"
         expected_response = mock_client.return_value.list_secrets.return_value
-        mock_filter, mock_retry, mock_timeout, mock_metadata = (MagicMock() for _ in range(4))
+        mock_filter, mock_retry, mock_timeout, mock_metadata = (
+            MagicMock() for _ in range(4)
+        )
         page_size, page_token = 20, "test-page-token"
 
         actual_response = self.hook.list_secrets(
@@ -217,10 +257,18 @@ class TestGoogleCloudSecretManagerHook:
             (["name1", SECRET_ID], SECRET_ID, True),
         ],
     )
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.list_secrets")
     def test_secret_exists(
-        self, mock_list_secrets, mock_client, secret_names, secret_id, secret_exists_expected
+        self,
+        mock_list_secrets,
+        mock_client,
+        secret_names,
+        secret_id,
+        secret_exists_expected,
     ):
         list_secrets = []
         for secret_name in secret_names:
@@ -235,12 +283,19 @@ class TestGoogleCloudSecretManagerHook:
         )
 
         assert secret_exists_actual == secret_exists_expected
-        mock_client.return_value.secret_path.assert_called_once_with(GCP_PROJECT_ID_HOOK_UNIT_TEST, secret_id)
+        mock_client.return_value.secret_path.assert_called_once_with(
+            GCP_PROJECT_ID_HOOK_UNIT_TEST, secret_id
+        )
         mock_list_secrets.assert_called_once_with(
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, page_size=100, secret_filter=secret_filter
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            page_size=100,
+            secret_filter=secret_filter,
         )
 
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     def test_access_secret(self, mock_client):
         expected_response = mock_client.return_value.access_secret_version.return_value
         mock_retry, mock_timeout, mock_metadata = (MagicMock() for _ in range(3))
@@ -268,7 +323,10 @@ class TestGoogleCloudSecretManagerHook:
             metadata=mock_metadata,
         )
 
-    @patch(f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client", new_callable=PropertyMock)
+    @patch(
+        f"{SECRETS_HOOK_PACKAGE}GoogleCloudSecretManagerHook.client",
+        new_callable=PropertyMock,
+    )
     def test_delete_secret(self, mock_client):
         mock_retry, mock_timeout, mock_metadata = (MagicMock() for _ in range(3))
         mock_name = mock_client.return_value.secret_path.return_value
@@ -283,7 +341,9 @@ class TestGoogleCloudSecretManagerHook:
 
         assert actual_response is None
         assert mock_client.call_count == 2
-        mock_client.return_value.secret_path.assert_called_once_with(GCP_PROJECT_ID_HOOK_UNIT_TEST, SECRET_ID)
+        mock_client.return_value.secret_path.assert_called_once_with(
+            GCP_PROJECT_ID_HOOK_UNIT_TEST, SECRET_ID
+        )
         mock_client.return_value.delete_secret.assert_called_once_with(
             request={"name": mock_name},
             retry=mock_retry,

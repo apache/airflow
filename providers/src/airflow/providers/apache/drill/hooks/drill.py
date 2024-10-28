@@ -61,7 +61,10 @@ class DrillHook(DbApiHook):
         engine = create_engine(database_url)
 
         self.log.info(
-            "Connected to the Drillbit at %s:%s as user %s", conn_md.host, conn_md.port, conn_md.login
+            "Connected to the Drillbit at %s:%s as user %s",
+            conn_md.host,
+            conn_md.port,
+            conn_md.login,
         )
         return engine.raw_connection()
 

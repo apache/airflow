@@ -29,7 +29,9 @@ def representative_combos(list_1: list[str], list_2: list[str]) -> list[tuple[st
     """
     all_selected_combinations: list[tuple[str, str]] = []
     for i in range(max(len(list_1), len(list_2))):
-        all_selected_combinations.append((list_1[i % len(list_1)], list_2[i % len(list_2)]))
+        all_selected_combinations.append(
+            (list_1[i % len(list_1)], list_2[i % len(list_2)])
+        )
     return all_selected_combinations
 
 
@@ -43,4 +45,8 @@ def excluded_combos(list_1: list[str], list_2: list[str]) -> list[tuple[str, str
     :return: list of exclusions = list 1 x list 2 - representative_combos
     """
     all_combos: list[tuple[str, str]] = list(itertools.product(list_1, list_2))
-    return [item for item in all_combos if item not in set(representative_combos(list_1, list_2))]
+    return [
+        item
+        for item in all_combos
+        if item not in set(representative_combos(list_1, list_2))
+    ]

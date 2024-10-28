@@ -49,12 +49,17 @@ class TestGlacierToGCSOperator:
 
         op.execute(context=None)
         hook_aws_mock.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
-        hook_aws_mock.return_value.retrieve_inventory.assert_called_once_with(vault_name=VAULT_NAME)
+        hook_aws_mock.return_value.retrieve_inventory.assert_called_once_with(
+            vault_name=VAULT_NAME
+        )
         hook_aws_mock.return_value.retrieve_inventory_results.assert_called_once_with(
-            vault_name=VAULT_NAME, job_id=hook_aws_mock.return_value.retrieve_inventory.return_value[JOB_ID]
+            vault_name=VAULT_NAME,
+            job_id=hook_aws_mock.return_value.retrieve_inventory.return_value[JOB_ID],
         )
 
-        hook_gcs_mock.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        hook_gcs_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         hook_gcs_mock.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET_NAME,
             object_name=OBJECT_NAME,

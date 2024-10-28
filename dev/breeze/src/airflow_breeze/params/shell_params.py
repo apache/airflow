@@ -23,7 +23,10 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import (
+    AIRFLOW_BRANCH,
+    DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+)
 from airflow_breeze.global_constants import (
     ALL_INTEGRATIONS,
     ALLOWED_BACKENDS,
@@ -62,7 +65,11 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
-from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.host_info_utils import (
+    get_host_group_id,
+    get_host_os,
+    get_host_user_id,
+)
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
@@ -97,7 +104,12 @@ services:
 """
 
 
-def _set_var(env: dict[str, str], variable: str, attribute: str | bool | None, default: str | None = None):
+def _set_var(
+    env: dict[str, str],
+    variable: str,
+    attribute: str | bool | None,
+    default: str | None = None,
+):
     """Set variable in env dict.
 
     Priorities:
@@ -251,7 +263,9 @@ class ShellParams:
     @cached_property
     def airflow_image_name(self) -> str:
         """Construct CI image link"""
-        image = f"{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}"
+        image = (
+            f"{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}"
+        )
         return image
 
     @cached_property
@@ -274,7 +288,9 @@ class ShellParams:
 
     @cached_property
     def md5sum_cache_dir(self) -> Path:
-        cache_dir = Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, self.image_type)
+        cache_dir = Path(
+            BUILD_CACHE_DIR, self.airflow_branch, self.python, self.image_type
+        )
         return cache_dir
 
     @cached_property
@@ -294,18 +310,26 @@ class ShellParams:
         if get_verbose():
             get_console().print(f"[info]Use {self.image_type} image[/]")
             get_console().print(f"[info]Branch Name: {self.airflow_branch}[/]")
-            get_console().print(f"[info]Docker Image: {self.airflow_image_name_with_tag}[/]")
+            get_console().print(
+                f"[info]Docker Image: {self.airflow_image_name_with_tag}[/]"
+            )
             get_console().print(f"[info]Airflow source version:{self.airflow_version}[/]")
             get_console().print(f"[info]Python Version: {self.python}[/]")
-            get_console().print(f"[info]Backend: {self.backend} {self.backend_version}[/]")
-            get_console().print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
+            get_console().print(
+                f"[info]Backend: {self.backend} {self.backend_version}[/]"
+            )
+            get_console().print(
+                f"[info]Airflow used at runtime: {self.use_airflow_version}[/]"
+            )
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
         if backend == "sqlite" and self.project_name != "breeze":
             # When running scripts, we do not want to mount the volume to make sure that the
             # sqlite database is not persisted between runs of the script and that the
             # breeze database is not cleaned accidentally
-            backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}-no-volume.yml"
+            backend_docker_compose_file = (
+                DOCKER_COMPOSE_DIR / f"backend-{backend}-no-volume.yml"
+            )
         else:
             backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
@@ -314,7 +338,10 @@ class ShellParams:
             # do not forward ports for pre-commit runs - to not clash with running containers from
             # breeze
             return [backend_docker_compose_file]
-        return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
+        return [
+            backend_docker_compose_file,
+            DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml",
+        ]
 
     @cached_property
     def compose_file(self) -> str:
@@ -335,7 +362,9 @@ class ShellParams:
                         "[warning]Adding `celery` extras as it is implicitly needed by celery executor"
                     )
                     self.airflow_extras = (
-                        ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
+                        ",".join(current_extras.split(",") + ["celery"])
+                        if current_extras
+                        else "celery"
                     )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
@@ -343,7 +372,10 @@ class ShellParams:
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
+        if (
+            self.use_airflow_version is not None
+            and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES
+        ):
             get_console().print(
                 "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
                 f"from sources but from {self.use_airflow_version} since you attempt"
@@ -351,7 +383,10 @@ class ShellParams:
                 f"{USE_AIRFLOW_MOUNT_SOURCES} in such case[/]\n"
             )
             self.mount_sources = MOUNT_REMOVE
-        if self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES and self.use_airflow_version is None:
+        if (
+            self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES
+            and self.use_airflow_version is None
+        ):
             get_console().print(
                 "[error]You need to specify --use-airflow-version when using one of the"
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
@@ -366,7 +401,9 @@ class ShellParams:
         elif self.mount_sources == MOUNT_TESTS:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources.yml")
         elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "providers-and-tests-sources.yml")
+            compose_file_list.append(
+                DOCKER_COMPOSE_DIR / "providers-and-tests-sources.yml"
+            )
         elif self.mount_sources == MOUNT_REMOVE:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.forward_credentials:
@@ -380,7 +417,9 @@ class ShellParams:
         else:
             integrations = self.integration
         for integration in integrations:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
+            compose_file_list.append(
+                DOCKER_COMPOSE_DIR / f"integration-{integration}.yml"
+            )
         if "trino" in integrations and "kerberos" not in integrations:
             get_console().print(
                 "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
@@ -421,7 +460,8 @@ class ShellParams:
                 socket_path = Path(self.docker_host[len(unix_prefix) :])
                 if (
                     get_host_os() == "darwin"
-                    and socket_path.resolve() == (Path.home() / ".docker" / "run" / "docker.sock").resolve()
+                    and socket_path.resolve()
+                    == (Path.home() / ".docker" / "run" / "docker.sock").resolve()
                 ):
                     # We are running on MacOS and the socket is the default "user" bound one
                     # We need to pretend that we are running on Linux and use the default socket
@@ -429,7 +469,9 @@ class ShellParams:
                     compose_file_list.append(DOCKER_COMPOSE_DIR / "docker-socket.yml")
                     return
                 if socket_path.is_socket():
-                    generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
+                    generated_compose_file.write_text(
+                        generated_socket_compose_file(socket_path.as_posix())
+                    )
                     compose_file_list.append(generated_compose_file)
                 else:
                     get_console().print(
@@ -443,10 +485,14 @@ class ShellParams:
                 generated_compose_file.write_text(generated_docker_host_environment())
                 compose_file_list.append(generated_compose_file)
         elif self.rootless_docker:
-            xdg_runtime_dir = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{get_host_user_id()}"))
+            xdg_runtime_dir = Path(
+                os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{get_host_user_id()}")
+            )
             socket_path = xdg_runtime_dir / "docker.sock"
             if socket_path.is_socket():
-                generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
+                generated_compose_file.write_text(
+                    generated_socket_compose_file(socket_path.as_posix())
+                )
                 compose_file_list.append(generated_compose_file)
             else:
                 get_console().print(
@@ -485,7 +531,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_CI_IMAGE_WITH_TAG", self.airflow_image_name_with_tag)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
-        _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
+        _set_var(
+            _env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference
+        )
         _set_var(_env, "AIRFLOW_ENABLE_AIP_44", None, "true")
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
@@ -496,7 +544,11 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         if self.executor == EDGE_EXECUTOR:
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
-            _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
+            _set_var(
+                _env,
+                "AIRFLOW__EDGE__API_URL",
+                "http://localhost:8080/edge_worker/v1/rpcapi",
+            )
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
@@ -536,7 +588,11 @@ class ShellParams:
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
         _set_var(_env, "INIT_SCRIPT_FILE", None, "init.sh")
-        _set_var(_env, "INSTALL_AIRFLOW_WITH_CONSTRAINTS", self.install_airflow_with_constraints)
+        _set_var(
+            _env,
+            "INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+            self.install_airflow_with_constraints,
+        )
         _set_var(_env, "INSTALL_AIRFLOW_VERSION", self.install_airflow_version)
         _set_var(_env, "INSTALL_SELECTED_PROVIDERS", self.install_selected_providers)
         _set_var(_env, "ISSUE_ID", self.issue_id)
@@ -551,9 +607,13 @@ class ShellParams:
         _set_var(_env, "PACKAGE_FORMAT", self.package_format)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
-        _set_var(_env, "PROVIDERS_CONSTRAINTS_LOCATION", self.providers_constraints_location)
+        _set_var(
+            _env, "PROVIDERS_CONSTRAINTS_LOCATION", self.providers_constraints_location
+        )
         _set_var(_env, "PROVIDERS_CONSTRAINTS_MODE", self.providers_constraints_mode)
-        _set_var(_env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference)
+        _set_var(
+            _env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference
+        )
         _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
         _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
         _set_var(_env, "PYTHONWARNINGS", None, None)
@@ -564,7 +624,9 @@ class ShellParams:
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_SYSTEM_TESTS", self.run_system_tests)
         _set_var(_env, "RUN_TESTS", self.run_tests)
-        _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
+        _set_var(
+            _env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization
+        )
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
@@ -650,7 +712,9 @@ class ShellParams:
                             f"{GENERATED_DOCKER_ENV_FILE} and {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
                         )
             if get_verbose():
-                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_FILE}")
+                get_console().print(
+                    f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_FILE}"
+                )
             GENERATED_DOCKER_ENV_FILE.write_text("\n".join(sorted(env.keys())))
             if get_verbose():
                 get_console().print(

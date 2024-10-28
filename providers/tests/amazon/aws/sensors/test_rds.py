@@ -110,7 +110,9 @@ class TestBaseRdsSensor:
             schedule=None,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
         )
-        cls.base_sensor = RdsBaseSensor(task_id="test_task", aws_conn_id="aws_default", dag=cls.dag)
+        cls.base_sensor = RdsBaseSensor(
+            task_id="test_task", aws_conn_id="aws_default", dag=cls.dag
+        )
 
     @classmethod
     def teardown_class(cls):

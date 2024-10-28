@@ -23,7 +23,17 @@ import re
 import signal
 from datetime import datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    TypeVar,
+    cast,
+)
 
 from lazy_object_proxy import Proxy
 
@@ -50,7 +60,9 @@ def validate_key(k: str, max_length: int = 250):
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
-        raise AirflowException(f"The key: {k} has to be less than {max_length} characters")
+        raise AirflowException(
+            f"The key: {k} has to be less than {max_length} characters"
+        )
     if not KEY_REGEX.match(k):
         raise AirflowException(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
@@ -62,7 +74,9 @@ def validate_instance_args(instance: object, expected_arg_types: dict[str, Any])
     """Validate that the instance has the expected types for the arguments."""
     for arg_name, expected_arg_type in expected_arg_types.items():
         instance_arg_value = getattr(instance, arg_name, None)
-        if instance_arg_value is not None and not isinstance(instance_arg_value, expected_arg_type):
+        if instance_arg_value is not None and not isinstance(
+            instance_arg_value, expected_arg_type
+        ):
             raise TypeError(
                 f"'{arg_name}' has an invalid type {type(instance_arg_value)} with value "
                 f"{instance_arg_value}, expected type is {expected_arg_type}"
@@ -151,7 +165,9 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
         yield items[i : i + chunk_size]
 
 
-def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
+def reduce_in_chunks(
+    fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0
+):
     """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
     if not iterable:
         return initializer
@@ -170,7 +186,9 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Template | None]:
+def parse_template_string(
+    template_string: str,
+) -> tuple[str | None, jinja2.Template | None]:
     """Parse Jinja template string."""
     import jinja2
 
@@ -223,7 +241,9 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
     return merged
 
 
-def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
+def partition(
+    pred: Callable[[T], bool], iterable: Iterable[T]
+) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries."""
     iter_1, iter_2 = itertools.tee(iterable)
     return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
@@ -244,7 +264,9 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
-def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
+def render_template(
+    template: Any, context: MutableMapping[str, Any], *, native: bool
+) -> Any:
     """
     Render a Jinja2 template with given Airflow context.
 
@@ -264,7 +286,9 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     if template.globals:
         context.update((k, v) for k, v in template.globals.items() if k not in context)
     try:
-        nodes = template.root_render_func(env.context_class(env, context, template.name, template.blocks))
+        nodes = template.root_render_func(
+            env.context_class(env, context, template.name, template.blocks)
+        )
     except Exception:
         env.handle_exception()  # Rewrite traceback to point to the template.
     if native:
@@ -276,7 +300,9 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
 
 def render_template_to_string(template: jinja2.Template, context: Context) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, cast(MutableMapping[str, Any], context), native=False)
+    return render_template(
+        template, cast(MutableMapping[str, Any], context), native=False
+    )
 
 
 def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
@@ -359,7 +385,9 @@ def prune_dict(val: Any, mode="strict"):
         return val
 
 
-def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
+def prevent_duplicates(
+    kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str
+) -> None:
     """
     Ensure *kwargs1* and *kwargs2* do not contain common keys.
 

@@ -39,15 +39,21 @@ class _Stats(type):
             try:
                 cls.instance = cls.factory()
             except (socket.gaierror, ImportError) as e:
-                log.error("Could not configure StatsClient: %s, using NoStatsLogger instead.", e)
+                log.error(
+                    "Could not configure StatsClient: %s, using NoStatsLogger instead.", e
+                )
                 cls.instance = NoStatsLogger()
         return getattr(cls.instance, name)
 
     def __init__(cls, *args, **kwargs) -> None:
         super().__init__(cls)
         if not hasattr(cls.__class__, "factory"):
-            is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
-            if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
+            is_datadog_enabled_defined = conf.has_option(
+                "metrics", "statsd_datadog_enabled"
+            )
+            if is_datadog_enabled_defined and conf.getboolean(
+                "metrics", "statsd_datadog_enabled"
+            ):
                 from airflow.metrics import datadog_logger
 
                 cls.__class__.factory = datadog_logger.get_dogstatsd_logger

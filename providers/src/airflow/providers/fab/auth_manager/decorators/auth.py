@@ -26,7 +26,9 @@ from flask import current_app, render_template, request
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.api_connexion.security import check_authentication
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+)
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.net import get_hostname
 from airflow.www.auth import _has_access
@@ -37,7 +39,9 @@ T = TypeVar("T", bound=Callable)
 log = logging.getLogger(__name__)
 
 
-def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
+def _requires_access_fab(
+    permissions: Sequence[tuple[str, str]] | None = None,
+) -> Callable[[T], T]:
     """
     Check current user's permissions against required permissions.
 
@@ -48,7 +52,9 @@ def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -
     :meta private:
     """
     appbuilder = cast(AirflowApp, current_app).appbuilder
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
     if appbuilder.update_perms:
         security_manager.sync_resource_permissions(permissions)
 
@@ -65,7 +71,9 @@ def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -
     return requires_access_decorator
 
 
-def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
+def _has_access_fab(
+    permissions: Sequence[tuple[str, str]] | None = None,
+) -> Callable[[T], T]:
     """
     Check current user's permissions against required permissions.
 
@@ -93,7 +101,8 @@ def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
 
             if len(unique_dag_ids) > 1:
                 log.warning(
-                    "There are different dag_ids passed in the request: %s. Returning 403.", unique_dag_ids
+                    "There are different dag_ids passed in the request: %s. Returning 403.",
+                    unique_dag_ids,
                 )
                 log.warning(
                     "kwargs: %s, args: %s, form: %s, json: %s",

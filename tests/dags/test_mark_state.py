@@ -113,7 +113,11 @@ def test_mark_skipped_externally(ti):
     raise RuntimeError(msg)
 
 
-PythonOperator(task_id="test_mark_skipped_externally", python_callable=test_mark_skipped_externally, dag=dag)
+PythonOperator(
+    task_id="test_mark_skipped_externally",
+    python_callable=test_mark_skipped_externally,
+    dag=dag,
+)
 
 PythonOperator(task_id="dummy", python_callable=lambda: True, dag=dag)
 

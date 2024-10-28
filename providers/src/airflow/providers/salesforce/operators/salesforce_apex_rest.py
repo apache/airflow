@@ -64,7 +64,9 @@ class SalesforceApexRestOperator(BaseOperator):
         result: dict = {}
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
-        execution_result = conn.apexecute(action=self.endpoint, method=self.method, data=self.payload)
+        execution_result = conn.apexecute(
+            action=self.endpoint, method=self.method, data=self.payload
+        )
         if self.do_xcom_push:
             result = execution_result
 

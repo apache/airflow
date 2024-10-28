@@ -82,9 +82,13 @@ class TestS3ToAzureBlobStorageOperator:
         assert operator.s3_key is None
         assert operator.blob_prefix == PREFIX
         assert operator.blob_name is None
-        assert not operator.create_container  # Should be false (match default value in constructor)
+        assert (
+            not operator.create_container
+        )  # Should be false (match default value in constructor)
         assert operator.replace
-        assert not operator.s3_verify  # Should be false (match default value in constructor)
+        assert (
+            not operator.s3_verify
+        )  # Should be false (match default value in constructor)
         assert operator.s3_extra_args == {}
         assert operator.wasb_extra_args == {}
 
@@ -100,7 +104,9 @@ class TestS3ToAzureBlobStorageOperator:
         s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
 
-        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(b"test file contents")
+        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(
+            b"test file contents"
+        )
         tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
 
         operator = S3ToAzureBlobStorageOperator(
@@ -128,8 +134,22 @@ class TestS3ToAzureBlobStorageOperator:
         [
             # s3_existing files, wasb_existing_files, returned_files, s3_prefix, wasb_prefix, replace
             (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from above
-            (MOCK_FILES, MOCK_FILES[1:], [MOCK_FILES[0]], PREFIX, PREFIX, False),  # Task 2 from above
-            (MOCK_FILES, MOCK_FILES[1:], MOCK_FILES, PREFIX, PREFIX, True),  # Task 3 from above
+            (
+                MOCK_FILES,
+                MOCK_FILES[1:],
+                [MOCK_FILES[0]],
+                PREFIX,
+                PREFIX,
+                False,
+            ),  # Task 2 from above
+            (
+                MOCK_FILES,
+                MOCK_FILES[1:],
+                MOCK_FILES,
+                PREFIX,
+                PREFIX,
+                True,
+            ),  # Task 3 from above
         ],
     )
     def test_get_files_to_move__both_prefix(
@@ -145,7 +165,9 @@ class TestS3ToAzureBlobStorageOperator:
     ):
         # Set the list files that the S3Hook should return
         s3_mock_hook.return_value.list_keys.return_value = s3_existing_files
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = wasb_existing_files
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = (
+            wasb_existing_files
+        )
 
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
@@ -169,7 +191,9 @@ class TestS3ToAzureBlobStorageOperator:
             (True, ["TEST1.csv"], True),  # Task 6 from above
         ],
     )
-    def test_get_file_to_move__both_key(self, wasb_mock_hook, azure_file_exists, returned_files, replace):
+    def test_get_file_to_move__both_key(
+        self, wasb_mock_hook, azure_file_exists, returned_files, replace
+    ):
         # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
         # single key is being passed, rather than a prefix). Testing when a single S3 key is being moved to
         # a deterministic Blob name in the operator
@@ -196,10 +220,14 @@ class TestS3ToAzureBlobStorageOperator:
             (["TEST1.csv"], []),  # Task 9 from above
         ],
     )
-    def test_get_files_to_move__s3_key_wasb_prefix(self, wasb_mock_hook, wasb_existing_files, returned_files):
+    def test_get_files_to_move__s3_key_wasb_prefix(
+        self, wasb_mock_hook, wasb_existing_files, returned_files
+    ):
         # A single S3 key is being used to move to a file to a container using a prefix. The files being
         # returned should take the same name as the file key that was passed to s3_key
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = wasb_existing_files
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = (
+            wasb_existing_files
+        )
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
@@ -238,7 +266,9 @@ class TestS3ToAzureBlobStorageOperator:
         # Only a single S3 key is provided, and there are no blobs in the container. This means that this file
         # should be moved, and the move_file method will be executed
         wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
-        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(b"test file contents")
+        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(
+            b"test file contents"
+        )
 
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
@@ -266,7 +296,13 @@ class TestS3ToAzureBlobStorageOperator:
         # 1. Test will a full path
         # 2. Test with a prefix and a file name
         # 3. Test with no full path, and a missing file name
-        assert S3ToAzureBlobStorageOperator._create_key("TEST/TEST1.csv", None, None) == "TEST/TEST1.csv"
-        assert S3ToAzureBlobStorageOperator._create_key(None, "TEST", "TEST1.csv") == "TEST/TEST1.csv"
+        assert (
+            S3ToAzureBlobStorageOperator._create_key("TEST/TEST1.csv", None, None)
+            == "TEST/TEST1.csv"
+        )
+        assert (
+            S3ToAzureBlobStorageOperator._create_key(None, "TEST", "TEST1.csv")
+            == "TEST/TEST1.csv"
+        )
         with pytest.raises(InvalidKeyComponents):
             S3ToAzureBlobStorageOperator._create_key(None, "TEST", None)

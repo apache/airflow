@@ -65,7 +65,9 @@ PI_MOCK_TESTDATA = {
     params=list(PI_MOCK_TESTDATA.values()),
     ids=list(PI_MOCK_TESTDATA.keys()),
 )
-def mock_get_connection(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> str | None:
+def mock_get_connection(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> str | None:
     """Pytest Fixture."""
     testdata: dict[str, str | None] = request.param
     host: str | None = testdata.get("host", None)
@@ -92,7 +94,9 @@ def test_get_connection_url(mock_get_connection: str | None):
 
 
 @pytest.mark.parametrize("success", [0, 1])
-def test_test_connection(monkeypatch: pytest.MonkeyPatch, mock_get_connection: str | None, success: int):
+def test_test_connection(
+    monkeypatch: pytest.MonkeyPatch, mock_get_connection: str | None, success: int
+):
     """Test if connection test responds correctly to return code."""
 
     def mock_run(*_, **__):
@@ -104,7 +108,9 @@ def test_test_connection(monkeypatch: pytest.MonkeyPatch, mock_get_connection: s
 
         return MockProc()
 
-    monkeypatch.setattr("airflow.providers.standard.hooks.package_index.subprocess.run", mock_run)
+    monkeypatch.setattr(
+        "airflow.providers.standard.hooks.package_index.subprocess.run", mock_run
+    )
 
     hook_instance = PackageIndexHook()
     if mock_get_connection:

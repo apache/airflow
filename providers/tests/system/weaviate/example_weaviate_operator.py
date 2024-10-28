@@ -150,9 +150,15 @@ def example_weaviate_using_operator():
             "QuestionWithOpenAIVectorizerUsingOperator",
             description="Information from a Jeopardy! question",
             properties=[
-                Property(name="question", description="The question", data_type=DataType.TEXT),
-                Property(name="answer", description="The answer", data_type=DataType.TEXT),
-                Property(name="category", description="The category", data_type=DataType.TEXT),
+                Property(
+                    name="question", description="The question", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="answer", description="The answer", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="category", description="The category", data_type=DataType.TEXT
+                ),
             ],
             vectorizer_config=Configure.Vectorizer.text2vec_openai(),
         )
@@ -169,10 +175,20 @@ def example_weaviate_using_operator():
             "QuestionWithOpenAIVectorizerUsingOperatorDocs",
             description="Information from a Jeopardy! question",
             properties=[
-                Property(name="question", description="The question", data_type=DataType.TEXT),
-                Property(name="answer", description="The answer", data_type=DataType.TEXT),
-                Property(name="category", description="The category", data_type=DataType.TEXT),
-                Property(name="docLink", description="URL for source document", data_type=DataType.TEXT),
+                Property(
+                    name="question", description="The question", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="answer", description="The answer", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="category", description="The category", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="docLink",
+                    description="URL for source document",
+                    data_type=DataType.TEXT,
+                ),
             ],
             vectorizer_config=Configure.Vectorizer.text2vec_openai(),
         )
@@ -272,7 +288,9 @@ def example_weaviate_using_operator():
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_collections(["QuestionWithOpenAIVectorizerUsingOperatorDocs"])
+        weaviate_hook.delete_collections(
+            ["QuestionWithOpenAIVectorizerUsingOperatorDocs"]
+        )
 
     (
         create_collection_without_vectorizer()

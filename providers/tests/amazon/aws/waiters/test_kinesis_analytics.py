@@ -42,7 +42,9 @@ class TestKinesisAnalyticsV2CustomWaitersBase:
         monkeypatch.setattr(KinesisAnalyticsV2Hook, "conn", self.client)
 
 
-class TestKinesisAnalyticsV2ApplicationStartWaiter(TestKinesisAnalyticsV2CustomWaitersBase):
+class TestKinesisAnalyticsV2ApplicationStartWaiter(
+    TestKinesisAnalyticsV2CustomWaitersBase
+):
     APPLICATION_NAME = "demo"
     WAITER_NAME = "application_start_complete"
 
@@ -51,17 +53,29 @@ class TestKinesisAnalyticsV2ApplicationStartWaiter(TestKinesisAnalyticsV2CustomW
         with mock.patch.object(self.client, "describe_application") as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", KinesisAnalyticsV2StartApplicationCompletedSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", KinesisAnalyticsV2StartApplicationCompletedSensor.SUCCESS_STATES
+    )
     def test_start_application_complete(self, state, mock_describe_application):
-        mock_describe_application.return_value = {"ApplicationDetail": {"ApplicationStatus": state}}
+        mock_describe_application.return_value = {
+            "ApplicationDetail": {"ApplicationStatus": state}
+        }
 
-        KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(ApplicationName=self.APPLICATION_NAME)
+        KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(
+            ApplicationName=self.APPLICATION_NAME
+        )
 
-    @pytest.mark.parametrize("state", KinesisAnalyticsV2StartApplicationCompletedSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", KinesisAnalyticsV2StartApplicationCompletedSensor.FAILURE_STATES
+    )
     def test_start_application_complete_failed(self, state, mock_describe_application):
-        mock_describe_application.return_value = {"ApplicationDetail": {"ApplicationStatus": state}}
+        mock_describe_application.return_value = {
+            "ApplicationDetail": {"ApplicationStatus": state}
+        }
         with pytest.raises(botocore.exceptions.WaiterError):
-            KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(ApplicationName=self.APPLICATION_NAME)
+            KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(
+                ApplicationName=self.APPLICATION_NAME
+            )
 
     def test_start_application_complete_wait(self, mock_describe_application):
         wait = {"ApplicationDetail": {"ApplicationStatus": "STARTING"}}
@@ -70,11 +84,14 @@ class TestKinesisAnalyticsV2ApplicationStartWaiter(TestKinesisAnalyticsV2CustomW
         mock_describe_application.side_effect = [wait, wait, success]
 
         KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(
-            ApplicationName=self.APPLICATION_NAME, WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+            ApplicationName=self.APPLICATION_NAME,
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
         )
 
 
-class TestKinesisAnalyticsV2ApplicationStopWaiter(TestKinesisAnalyticsV2CustomWaitersBase):
+class TestKinesisAnalyticsV2ApplicationStopWaiter(
+    TestKinesisAnalyticsV2CustomWaitersBase
+):
     APPLICATION_NAME = "demo"
     WAITER_NAME = "application_stop_complete"
 
@@ -83,17 +100,29 @@ class TestKinesisAnalyticsV2ApplicationStopWaiter(TestKinesisAnalyticsV2CustomWa
         with mock.patch.object(self.client, "describe_application") as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", KinesisAnalyticsV2StopApplicationCompletedSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", KinesisAnalyticsV2StopApplicationCompletedSensor.SUCCESS_STATES
+    )
     def test_stop_application_complete(self, state, mock_describe_application):
-        mock_describe_application.return_value = {"ApplicationDetail": {"ApplicationStatus": state}}
+        mock_describe_application.return_value = {
+            "ApplicationDetail": {"ApplicationStatus": state}
+        }
 
-        KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(ApplicationName=self.APPLICATION_NAME)
+        KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(
+            ApplicationName=self.APPLICATION_NAME
+        )
 
-    @pytest.mark.parametrize("state", KinesisAnalyticsV2StopApplicationCompletedSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", KinesisAnalyticsV2StopApplicationCompletedSensor.FAILURE_STATES
+    )
     def test_stop_application_complete_failed(self, state, mock_describe_application):
-        mock_describe_application.return_value = {"ApplicationDetail": {"ApplicationStatus": state}}
+        mock_describe_application.return_value = {
+            "ApplicationDetail": {"ApplicationStatus": state}
+        }
         with pytest.raises(botocore.exceptions.WaiterError):
-            KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(ApplicationName=self.APPLICATION_NAME)
+            KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(
+                ApplicationName=self.APPLICATION_NAME
+            )
 
     def test_stop_application_complete_wait(self, mock_describe_application):
         wait = {"ApplicationDetail": {"ApplicationStatus": "STOPPING"}}
@@ -102,5 +131,6 @@ class TestKinesisAnalyticsV2ApplicationStopWaiter(TestKinesisAnalyticsV2CustomWa
         mock_describe_application.side_effect = [wait, wait, success]
 
         KinesisAnalyticsV2Hook().get_waiter(self.WAITER_NAME).wait(
-            ApplicationName=self.APPLICATION_NAME, WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+            ApplicationName=self.APPLICATION_NAME,
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
         )

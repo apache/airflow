@@ -23,7 +23,10 @@ import pytest
 
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
-from airflow.providers.atlassian.jira.notifications.jira import JiraNotifier, send_jira_notification
+from airflow.providers.atlassian.jira.notifications.jira import (
+    JiraNotifier,
+    send_jira_notification,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -51,7 +54,9 @@ class TestJiraNotifier:
             labels=["airflow-dag-failure"],
         )
         notifier({"dag": dag})
-        mock_jira_hook.return_value.create_issue.assert_called_once_with(jira_create_issue_payload)
+        mock_jira_hook.return_value.create_issue.assert_called_once_with(
+            jira_create_issue_payload
+        )
 
     @mock.patch.object(JiraHook, "get_conn")
     def test_jira_notifier_with_notifier_class(self, mock_jira_hook, dag_maker):
@@ -67,7 +72,9 @@ class TestJiraNotifier:
             labels=["airflow-dag-failure"],
         )
         notifier({"dag": dag})
-        mock_jira_hook.return_value.create_issue.assert_called_once_with(jira_create_issue_payload)
+        mock_jira_hook.return_value.create_issue.assert_called_once_with(
+            jira_create_issue_payload
+        )
 
     @mock.patch.object(JiraHook, "get_conn")
     def test_jira_notifier_templated(self, mock_jira_hook, dag_maker):

@@ -75,17 +75,23 @@ class TestSqlAlchemyUtils:
         iso_date = start_date.isoformat()
         execution_date = start_date + datetime.timedelta(hours=1, days=1)
 
-        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
+        dag = DAG(
+            dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date
+        )
         dag.clear()
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         run = dag.create_dagrun(
             run_id=iso_date,
             state=State.NONE,
             execution_date=execution_date,
             start_date=start_date,
             session=self.session,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=execution_date
+            ),
             **triggered_by_kwargs,
         )
 
@@ -108,9 +114,13 @@ class TestSqlAlchemyUtils:
 
         # naive
         start_date = datetime.datetime.now()
-        dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
+        dag = DAG(
+            dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1)
+        )
         dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
@@ -119,7 +129,9 @@ class TestSqlAlchemyUtils:
                 execution_date=start_date,
                 start_date=start_date,
                 session=self.session,
-                data_interval=dag.timetable.infer_manual_data_interval(run_after=start_date),
+                data_interval=dag.timetable.infer_manual_data_interval(
+                    run_after=start_date
+                ),
                 **triggered_by_kwargs,
             )
         dag.clear()
@@ -137,13 +149,19 @@ class TestSqlAlchemyUtils:
         ],
     )
     def test_with_row_locks(
-        self, dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock
+        self,
+        dialect,
+        supports_for_update_of,
+        use_row_level_lock_conf,
+        expected_use_row_level_lock,
     ):
         query = mock.Mock()
         session = mock.Mock()
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
-        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", use_row_level_lock_conf):
+        with mock.patch(
+            "airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", use_row_level_lock_conf
+        ):
             returned_value = with_row_locks(query=query, session=session, nowait=True)
 
         if expected_use_row_level_lock:
@@ -253,10 +271,16 @@ class TestExecutorConfigType:
         result = process(input)
         expected = pickle.loads(input)
         pod_override = isinstance(expected, dict) and expected.get("pod_override")
-        if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+        if (
+            pod_override
+            and isinstance(pod_override, dict)
+            and pod_override.get(Encoding.TYPE)
+        ):
             # We should only deserialize a pod_override with BaseSerialization if
             # it was serialized with BaseSerialization (which is the behavior added in #24356
-            expected["pod_override"] = BaseSerialization.deserialize(expected["pod_override"])
+            expected["pod_override"] = BaseSerialization.deserialize(
+                expected["pod_override"]
+            )
         assert result == expected
 
     def test_compare_values(self):

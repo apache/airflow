@@ -51,12 +51,16 @@ class EmrHook(AwsBaseHook):
     conn_type = "emr"
     hook_name = "Amazon Elastic MapReduce"
 
-    def __init__(self, emr_conn_id: str | None = default_conn_name, *args, **kwargs) -> None:
+    def __init__(
+        self, emr_conn_id: str | None = default_conn_name, *args, **kwargs
+    ) -> None:
         self.emr_conn_id = emr_conn_id
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: list[str]) -> str | None:
+    def get_cluster_id_by_name(
+        self, emr_cluster_name: str, cluster_states: list[str]
+    ) -> str | None:
         """
         Fetch id of EMR cluster with given name and (optional) states; returns only if single id is found.
 
@@ -68,7 +72,9 @@ class EmrHook(AwsBaseHook):
         :return: id of the EMR cluster
         """
         response_iterator = (
-            self.get_conn().get_paginator("list_clusters").paginate(ClusterStates=cluster_states)
+            self.get_conn()
+            .get_paginator("list_clusters")
+            .paginate(ClusterStates=cluster_states)
         )
         matching_clusters = [
             cluster
@@ -82,7 +88,9 @@ class EmrHook(AwsBaseHook):
             self.log.info("Found cluster name = %s id = %s", emr_cluster_name, cluster_id)
             return cluster_id
         elif len(matching_clusters) > 1:
-            raise AirflowException(f"More than one cluster found for name {emr_cluster_name}")
+            raise AirflowException(
+                f"More than one cluster found for name {emr_cluster_name}"
+            )
         else:
             self.log.info("No cluster found for name %s", emr_cluster_name)
             return None
@@ -163,7 +171,9 @@ class EmrHook(AwsBaseHook):
 
         if execution_role_arn:
             config["ExecutionRoleArn"] = execution_role_arn
-        response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
+        response = self.get_conn().add_job_flow_steps(
+            JobFlowId=job_flow_id, Steps=steps, **config
+        )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Adding steps failed: {response}")
@@ -180,12 +190,19 @@ class EmrHook(AwsBaseHook):
                         args={"ClusterId": job_flow_id, "StepId": step_id},
                         failure_message=f"EMR Steps failed: {step_id}",
                         status_message="EMR Step status is",
-                        status_args=["Step.Status.State", "Step.Status.StateChangeReason"],
+                        status_args=[
+                            "Step.Status.State",
+                            "Step.Status.StateChangeReason",
+                        ],
                     )
                 except AirflowException as ex:
                     if "EMR Steps failed" in str(ex):
-                        resp = self.get_conn().describe_step(ClusterId=job_flow_id, StepId=step_id)
-                        failure_details = resp["Step"]["Status"].get("FailureDetails", None)
+                        resp = self.get_conn().describe_step(
+                            ClusterId=job_flow_id, StepId=step_id
+                        )
+                        failure_details = resp["Step"]["Status"].get(
+                            "FailureDetails", None
+                        )
                         if failure_details:
                             self.log.error("EMR Steps failed: %s", failure_details)
                     raise
@@ -267,7 +284,10 @@ class EmrServerlessHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def cancel_running_jobs(
-        self, application_id: str, waiter_config: dict | None = None, wait_for_completion: bool = True
+        self,
+        application_id: str,
+        waiter_config: dict | None = None,
+        wait_for_completion: bool = True,
     ) -> int:
         """
         Cancel jobs in an intermediate state, and return the number of cancelled jobs.
@@ -298,10 +318,14 @@ class EmrServerlessHook(AwsBaseHook):
                     application_id,
                 )
                 for job_id in job_ids:
-                    self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+                    self.conn.cancel_job_run(
+                        applicationId=application_id, jobRunId=job_id
+                    )
         if wait_for_completion:
             if count > 0:
-                self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
+                self.log.info(
+                    "now waiting for the %s cancelled job(s) to terminate", count
+                )
                 self.get_waiter("no_job_running").wait(
                     applicationId=application_id,
                     states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
@@ -344,7 +368,9 @@ class EmrContainerHook(AwsBaseHook):
         "CANCEL_PENDING",
     )
 
-    def __init__(self, *args: Any, virtual_cluster_id: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, virtual_cluster_id: str | None = None, **kwargs: Any
+    ) -> None:
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 
@@ -475,7 +501,9 @@ class EmrContainerHook(AwsBaseHook):
             return response["jobRun"]["state"]
         except self.conn.exceptions.ResourceNotFoundException:
             # If the job is not found, we raise an exception as something fatal has happened.
-            raise AirflowException(f"Job ID {job_id} not found on Virtual Cluster {self.virtual_cluster_id}")
+            raise AirflowException(
+                f"Job ID {job_id} not found on Virtual Cluster {self.virtual_cluster_id}"
+            )
         except ClientError as ex:
             # If we receive a generic ClientError, we swallow the exception so that the
             self.log.error("AWS request failed, check logs for more info: %s", ex)
@@ -499,13 +527,19 @@ class EmrContainerHook(AwsBaseHook):
             query_state = self.check_query_status(job_id)
             if query_state in self.TERMINAL_STATES:
                 self.log.info(
-                    "Try %s: Query execution completed. Final state is %s", poll_attempt, query_state
+                    "Try %s: Query execution completed. Final state is %s",
+                    poll_attempt,
+                    query_state,
                 )
                 return query_state
             if query_state is None:
                 self.log.info("Try %s: Invalid query state. Retrying again", poll_attempt)
             else:
-                self.log.info("Try %s: Query is still in non-terminal state - %s", poll_attempt, query_state)
+                self.log.info(
+                    "Try %s: Query is still in non-terminal state - %s",
+                    poll_attempt,
+                    query_state,
+                )
             if (
                 max_polling_attempts and poll_attempt >= max_polling_attempts
             ):  # Break loop if max_polling_attempts reached

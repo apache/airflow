@@ -52,7 +52,9 @@ class TestVerticaToHiveTransfer:
         "airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaHook.get_conn",
         side_effect=mock_get_conn,
     )
-    @mock.patch("airflow.providers.apache.hive.transfers.vertica_to_hive.HiveCliHook.load_file")
+    @mock.patch(
+        "airflow.providers.apache.hive.transfers.vertica_to_hive.HiveCliHook.load_file"
+    )
     def test_select_insert_transfer(self, *args):
         """
         Test check selection from vertica into memory and

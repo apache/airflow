@@ -27,7 +27,9 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.providers.microsoft.azure.triggers.data_factory import ADFPipelineRunStatusSensorTrigger
+from airflow.providers.microsoft.azure.triggers.data_factory import (
+    ADFPipelineRunStatusSensorTrigger,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -61,7 +63,9 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
         resource_group_name: str,
         factory_name: str,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -75,7 +79,9 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     @cached_property
     def hook(self):
         """Create and return an AzureDataFactoryHook (cached)."""
-        return AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+        return AzureDataFactoryHook(
+            azure_data_factory_conn_id=self.azure_data_factory_conn_id
+        )
 
     def poke(self, context: Context) -> bool:
         pipeline_run_status = self.hook.get_pipeline_run_status(

@@ -191,7 +191,9 @@ class OutletEventAccessor:
             return
 
         event = AssetAliasEvent(
-            source_alias_name=asset_alias_name, dest_asset_uri=asset_uri, extra=extra or {}
+            source_alias_name=asset_alias_name,
+            dest_asset_uri=asset_uri,
+            extra=extra or {},
         )
         self.asset_alias_events.append(event)
 
@@ -269,7 +271,9 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
+    def __getitem__(
+        self, key: int | str | Asset | AssetAlias
+    ) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias)):
@@ -299,7 +303,9 @@ class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInAirflow3Warning:
+def _create_deprecation_warning(
+    key: str, replacements: list[str]
+) -> RemovedInAirflow3Warning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
     if not replacements:
         return AirflowContextDeprecationWarning(message)
@@ -334,7 +340,9 @@ class Context(MutableMapping[str, Any]):
         "yesterday_ds_nodash": [],
     }
 
-    def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self, context: MutableMapping[str, Any] | None = None, **kwargs: Any
+    ) -> None:
         self._context: MutableMapping[str, Any] = context or {}
         if kwargs:
             self._context.update(kwargs)
@@ -437,7 +445,9 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     from airflow.models.param import process_params
 
     context["task"] = context["ti"].task = task
-    context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
+    context["params"] = process_params(
+        context["dag"], task, context["dag_run"], suppress_exception=False
+    )
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:

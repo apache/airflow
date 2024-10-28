@@ -33,7 +33,9 @@ class YQHook(YandexCloudBaseHook):
         super().__init__(*args, **kwargs)
 
         config = YQHttpClientConfig(
-            token=self._get_iam_token(), project=self.default_folder_id, user_agent=provider_user_agent()
+            token=self._get_iam_token(),
+            project=self.default_folder_id,
+            user_agent=provider_user_agent(),
         )
 
         self.client: YQHttpClient = YQHttpClient(config=config)
@@ -54,7 +56,9 @@ class YQHook(YandexCloudBaseHook):
             query_text=query_text,
         )
 
-    def wait_results(self, query_id: str, execution_timeout: timedelta = timedelta(minutes=30)) -> Any:
+    def wait_results(
+        self, query_id: str, execution_timeout: timedelta = timedelta(minutes=30)
+    ) -> Any:
         """
         Wait for query complete and get results.
 
@@ -65,7 +69,9 @@ class YQHook(YandexCloudBaseHook):
             query_id, execution_timeout=execution_timeout, stop_on_timeout=True
         )
 
-        return self.client.get_query_all_result_sets(query_id=query_id, result_set_count=result_set_count)
+        return self.client.get_query_all_result_sets(
+            query_id=query_id, result_set_count=result_set_count
+        )
 
     def stop_query(self, query_id: str) -> None:
         """
@@ -103,4 +109,6 @@ class YQHook(YandexCloudBaseHook):
         if "token" in self.credentials:
             return self.credentials["token"]
 
-        return yc_auth.get_auth_token(service_account_key=self.credentials.get("service_account_key"))
+        return yc_auth.get_auth_token(
+            service_account_key=self.credentials.get("service_account_key")
+        )

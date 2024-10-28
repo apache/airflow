@@ -43,7 +43,11 @@ from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactor
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowException,
+    AirflowNotFoundException,
+)
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -69,7 +73,9 @@ class DefaultResponseHandler(ResponseHandler):
         return content
 
     async def handle_response_async(
-        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
+        self,
+        response: NativeResponseType,
+        error_map: dict[str, ParsableFactory | None] | None = None,
     ) -> Any:
         """
         Invoke this callback method when a response is received.
@@ -184,9 +190,13 @@ class KiotaRequestAdapterHook(BaseHook):
 
     def get_conn(self) -> RequestAdapter:
         if not self.conn_id:
-            raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
+            raise AirflowException(
+                "Failed to create the KiotaRequestAdapterHook. No conn_id provided!"
+            )
 
-        api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
+        api_version, request_adapter = self.cached_request_adapters.get(
+            self.conn_id, (None, None)
+        )
 
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
@@ -253,8 +263,12 @@ class KiotaRequestAdapterHook(BaseHook):
                 allowed_hosts=allowed_hosts,
             )
             parse_node_factory = ParseNodeFactoryRegistry()
-            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
-            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
+            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = (
+                TextParseNodeFactory()
+            )
+            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = (
+                JsonParseNodeFactory()
+            )
             request_adapter = HttpxRequestAdapter(
                 authentication_provider=auth_provider,
                 parse_node_factory=parse_node_factory,
@@ -316,26 +330,33 @@ class KiotaRequestAdapterHook(BaseHook):
         request_information = RequestInformation()
         request_information.path_parameters = path_parameters or {}
         request_information.http_method = Method(method.strip().upper())
-        request_information.query_parameters = self.encoded_query_parameters(query_parameters)
+        request_information.query_parameters = self.encoded_query_parameters(
+            query_parameters
+        )
         if url.startswith("http"):
             request_information.url = url
         elif request_information.query_parameters.keys():
             query = ",".join(request_information.query_parameters.keys())
-            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}{{?{query}}}"
+            request_information.url_template = (
+                f"{{+baseurl}}/{self.normalize_url(url)}{{?{query}}}"
+            )
         else:
             request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}"
         if not response_type:
-            request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
-                response_handler=DefaultResponseHandler()
+            request_information.request_options[ResponseHandlerOption.get_key()] = (
+                ResponseHandlerOption(response_handler=DefaultResponseHandler())
             )
         headers = {**self.DEFAULT_HEADERS, **headers} if headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():
-            request_information.headers.try_add(header_name=header_name, header_value=header_value)
+            request_information.headers.try_add(
+                header_name=header_name, header_value=header_value
+            )
         if isinstance(data, BytesIO) or isinstance(data, bytes) or isinstance(data, str):
             request_information.content = data
         elif data:
             request_information.headers.try_add(
-                header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
+                header_name=RequestInformation.CONTENT_TYPE_HEADER,
+                header_value="application/json",
             )
             request_information.content = json.dumps(data).encode("utf-8")
         return request_information

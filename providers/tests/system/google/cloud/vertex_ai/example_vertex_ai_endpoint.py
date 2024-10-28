@@ -65,7 +65,11 @@ IMAGE_DATASET = {
 IMAGE_DATA_CONFIG = [
     {
         "import_schema_uri": schema.dataset.ioformat.image.single_label_classification,
-        "gcs_source": {"uris": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/flowers-dataset.csv"]},
+        "gcs_source": {
+            "uris": [
+                f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/flowers-dataset.csv"
+            ]
+        },
     },
 ]
 

@@ -18,7 +18,16 @@
 from __future__ import annotations
 
 from contextlib import closing
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
 import pyexasol
 from pyexasol import ExaConnection, ExaStatement
@@ -100,10 +109,14 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with closing(self.get_conn()) as conn, closing(
+            conn.execute(sql, parameters)
+        ) as cur:
             return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
+    def get_first(
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any:
         """
         Execute the SQL and return the first resulting row.
 
@@ -111,7 +124,9 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with closing(self.get_conn()) as conn, closing(
+            conn.execute(sql, parameters)
+        ) as cur:
             return cur.fetchone()
 
     def export_to_file(
@@ -225,7 +240,9 @@ class ExasolHook(DbApiHook):
             sql_list = sql
 
         if sql_list:
-            self.log.debug("Executing following statements against Exasol DB: %s", list(sql_list))
+            self.log.debug(
+                "Executing following statements against Exasol DB: %s", list(sql_list)
+            )
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
@@ -234,12 +251,16 @@ class ExasolHook(DbApiHook):
             results = []
             for sql_statement in sql_list:
                 with closing(conn.execute(sql_statement, parameters)) as exa_statement:
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+                    self.log.info(
+                        "Running statement: %s, parameters: %s", sql_statement, parameters
+                    )
                     if handler is not None:
                         result = self._make_common_data_structure(  # type: ignore[attr-defined]
                             handler(exa_statement)
                         )
-                        if return_single_query_results(sql, return_last, split_statements):
+                        if return_single_query_results(
+                            sql, return_last, split_statements
+                        ):
                             _last_result = result
                             _last_columns = self.get_description(exa_statement)
                         else:

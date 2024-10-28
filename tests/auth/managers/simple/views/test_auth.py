@@ -69,9 +69,13 @@ class TestSimpleAuthManagerAuthenticationViews:
     )
     def test_login_submit(self, simple_app, username, password, is_successful):
         with simple_app.test_client() as client:
-            response = client.post("/login_submit", data={"username": username, "password": password})
+            response = client.post(
+                "/login_submit", data={"username": username, "password": password}
+            )
             assert response.status_code == 302
             if is_successful:
                 assert response.location == url_for("Airflow.index")
             else:
-                assert response.location == url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"])
+                assert response.location == url_for(
+                    "SimpleAuthManagerAuthenticationViews.login", error=["1"]
+                )

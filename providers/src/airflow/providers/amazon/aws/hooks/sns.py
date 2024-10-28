@@ -90,7 +90,8 @@ class SnsHook(AwsBaseHook):
             publish_kwargs["Subject"] = subject
         if message_attributes:
             publish_kwargs["MessageAttributes"] = {
-                key: _get_message_attribute(val) for key, val in message_attributes.items()
+                key: _get_message_attribute(val)
+                for key, val in message_attributes.items()
             }
 
         return self.get_conn().publish(**publish_kwargs)

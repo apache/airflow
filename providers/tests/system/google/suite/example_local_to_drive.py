@@ -34,7 +34,9 @@ from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
+from airflow.providers.google.suite.transfers.local_to_drive import (
+    LocalFilesystemToGoogleDriveOperator,
+)
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -48,7 +50,10 @@ CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 LOCAL_PATH = str(Path(__file__).parent / "resources")
 
 SINGLE_FILE_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1)]
-MULTIPLE_FILES_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1), str(Path(LOCAL_PATH) / FILE_NAME_2)]
+MULTIPLE_FILES_LOCAL_PATHS = [
+    str(Path(LOCAL_PATH) / FILE_NAME_1),
+    str(Path(LOCAL_PATH) / FILE_NAME_2),
+]
 
 DRIVE_FOLDER = f"test_folder_{DAG_ID}_{ENV_ID}"
 
@@ -107,7 +112,9 @@ with DAG(
         service = GoogleDriveHook(gcp_conn_id=CONNECTION_ID).get_conn()
         root_path = (
             service.files()
-            .list(q=f"name = '{DRIVE_FOLDER}' and mimeType = 'application/vnd.google-apps.folder'")
+            .list(
+                q=f"name = '{DRIVE_FOLDER}' and mimeType = 'application/vnd.google-apps.folder'"
+            )
             .execute()
         )
         if files := root_path["files"]:

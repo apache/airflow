@@ -135,7 +135,9 @@ class TriggerDagRunOperator(BaseOperator):
         allowed_states: list[str | DagRunState] | None = None,
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -156,7 +158,9 @@ class TriggerDagRunOperator(BaseOperator):
         self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
 
-        if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
+        if logical_date is not None and not isinstance(
+            logical_date, (str, datetime.datetime)
+        ):
             type_name = type(logical_date).__name__
             raise TypeError(
                 f"Expected str or datetime.datetime type for parameter 'logical_date'. Got {type_name}"
@@ -167,7 +171,9 @@ class TriggerDagRunOperator(BaseOperator):
     def execute(self, context: Context):
         if InternalApiConfig.get_use_internal_api():
             if self.reset_dag_run:
-                raise AirflowException("Parameter reset_dag_run=True is broken with Database Isolation Mode.")
+                raise AirflowException(
+                    "Parameter reset_dag_run=True is broken with Database Isolation Mode."
+                )
             if self.wait_for_completion:
                 raise AirflowException(
                     "Parameter wait_for_completion=True is broken with Database Isolation Mode."
@@ -203,12 +209,16 @@ class TriggerDagRunOperator(BaseOperator):
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
                 dag_run = e.dag_run
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.logical_date)
+                self.log.info(
+                    "Clearing %s on %s", self.trigger_dag_id, dag_run.logical_date
+                )
 
                 # Get target dag object and call clear()
                 dag_model = DagModel.get_current(self.trigger_dag_id)
                 if dag_model is None:
-                    raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
+                    raise DagNotFound(
+                        f"Dag id {self.trigger_dag_id} not found in DagModel"
+                    )
 
                 # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
@@ -253,20 +263,27 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_run.refresh_from_db()
                 state = dag_run.state
                 if state in self.failed_states:
-                    raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
+                    raise AirflowException(
+                        f"{self.trigger_dag_id} failed with failed states {state}"
+                    )
                 if state in self.allowed_states:
-                    self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+                    self.log.info(
+                        "%s finished with allowed state %s", self.trigger_dag_id, state
+                    )
                     return
 
     @provide_session
-    def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
+    def execute_complete(
+        self, context: Context, session: Session, event: tuple[str, dict[str, Any]]
+    ):
         # This logical_date is parsed from the return trigger event
         provided_logical_date = event[1]["execution_dates"][0]
         try:
             # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
             dag_run = session.execute(
                 select(DagRun).where(
-                    DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date
+                    DagRun.dag_id == self.trigger_dag_id,
+                    DagRun.execution_date == provided_logical_date,
                 )
             ).scalar_one()
         except NoResultFound:
@@ -277,7 +294,9 @@ class TriggerDagRunOperator(BaseOperator):
         state = dag_run.state
 
         if state in self.failed_states:
-            raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
+            raise AirflowException(
+                f"{self.trigger_dag_id} failed with failed state {state}"
+            )
         if state in self.allowed_states:
             self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
             return

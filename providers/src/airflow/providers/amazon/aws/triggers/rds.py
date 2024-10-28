@@ -31,7 +31,10 @@ _waiter_arg = {
     RdsDbType.CLUSTER.value: "DBClusterIdentifier",
 }
 _status_paths = {
-    RdsDbType.INSTANCE.value: ["DBInstances[].DBInstanceStatus", "DBInstances[].StatusInfos"],
+    RdsDbType.INSTANCE.value: [
+        "DBInstances[].DBInstanceStatus",
+        "DBInstances[].StatusInfos",
+    ],
     RdsDbType.CLUSTER.value: ["DBClusters[].Status"],
 }
 

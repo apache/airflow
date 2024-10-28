@@ -43,7 +43,12 @@ def app_with_rate_limit_one(examples_dag_bag):
         ]
     )
     def factory():
-        with conf_vars({("fab", "auth_rate_limited"): "True", ("fab", "auth_rate_limit"): "1 per 20 second"}):
+        with conf_vars(
+            {
+                ("fab", "auth_rate_limited"): "True",
+                ("fab", "auth_rate_limit"): "1 per 20 second",
+            }
+        ):
             return create_app(testing=True)
 
     app = factory()
@@ -53,17 +58,32 @@ def app_with_rate_limit_one(examples_dag_bag):
 
 def test_rate_limit_one(app_with_rate_limit_one):
     client_with_login(
-        app_with_rate_limit_one, expected_response_code=302, username="test_admin", password="test_admin"
+        app_with_rate_limit_one,
+        expected_response_code=302,
+        username="test_admin",
+        password="test_admin",
     )
     client_with_login(
-        app_with_rate_limit_one, expected_response_code=429, username="test_admin", password="test_admin"
+        app_with_rate_limit_one,
+        expected_response_code=429,
+        username="test_admin",
+        password="test_admin",
     )
     client_with_login(
-        app_with_rate_limit_one, expected_response_code=429, username="test_admin", password="test_admin"
+        app_with_rate_limit_one,
+        expected_response_code=429,
+        username="test_admin",
+        password="test_admin",
     )
 
 
 def test_rate_limit_disabled(app):
-    client_with_login(app, expected_response_code=302, username="test_admin", password="test_admin")
-    client_with_login(app, expected_response_code=302, username="test_admin", password="test_admin")
-    client_with_login(app, expected_response_code=302, username="test_admin", password="test_admin")
+    client_with_login(
+        app, expected_response_code=302, username="test_admin", password="test_admin"
+    )
+    client_with_login(
+        app, expected_response_code=302, username="test_admin", password="test_admin"
+    )
+    client_with_login(
+        app, expected_response_code=302, username="test_admin", password="test_admin"
+    )

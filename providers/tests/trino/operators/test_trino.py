@@ -35,7 +35,9 @@ TRINO_DEFAULT = "trino_default"
 
 
 class TestTrinoOperator:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_execute(self, mock_get_db_hook):
         """Asserts that the run method is called when a TrinoOperator task is executed"""
 

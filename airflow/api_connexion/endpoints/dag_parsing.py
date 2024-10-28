@@ -50,7 +50,9 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
 
     requests: Sequence[IsAuthorizedDagRequest] = [
         {"method": "PUT", "details": DagDetails(id=dag_id)}
-        for dag_id in session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == path))
+        for dag_id in session.scalars(
+            select(DagModel.dag_id).where(DagModel.fileloc == path)
+        )
     ]
     if not requests:
         raise NotFound("File not found")

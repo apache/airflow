@@ -26,7 +26,9 @@ import tempfile
 from pathlib import Path
 
 COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
-sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, COMMON_PRECOMMIT_PATH.as_posix()
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import console
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
@@ -53,9 +55,15 @@ if __name__ == "__main__":
     try:
         subprocess.check_call([python38_bin, "-m", "venv", temp_dir.as_posix()])
         venv_python = temp_dir / "bin" / "python"
-        subprocess.check_call([venv_python, "-m", "pip", "install", "gitpython", "hatchling"])
-        frozen_deps = subprocess.check_output([venv_python, "-m", "pip", "freeze"], text=True)
-        deps = [dep for dep in sorted(frozen_deps.splitlines()) if not dep.startswith("pip==")]
+        subprocess.check_call(
+            [venv_python, "-m", "pip", "install", "gitpython", "hatchling"]
+        )
+        frozen_deps = subprocess.check_output(
+            [venv_python, "-m", "pip", "freeze"], text=True
+        )
+        deps = [
+            dep for dep in sorted(frozen_deps.splitlines()) if not dep.startswith("pip==")
+        ]
         pyproject_toml_content = PYPROJECT_TOML_FILE.read_text()
         result = []
         skipping = False
@@ -82,7 +90,9 @@ if __name__ == "__main__":
                     set(pyproject_toml_content.splitlines())
                 )
                 if len(diff) == 1 and "trove-classifiers" in next(iter(diff)):
-                    console.print("\n[yellow]Trove classifiers were changed. Please update them manually.\n")
+                    console.print(
+                        "\n[yellow]Trove classifiers were changed. Please update them manually.\n"
+                    )
                     console.print(
                         "\n[blue]Please run:[/blue]\n\n"
                         "pre-commit run --hook-stage manual update-build-dependencies --all-files\n"
@@ -93,7 +103,9 @@ if __name__ == "__main__":
             PYPROJECT_TOML_FILE.write_text(new_pyproject_toml_file_content)
         for file_to_replace_hatchling in FILES_TO_REPLACE_HATCHLING_IN:
             old_file_content = file_to_replace_hatchling.read_text()
-            new_file_content = HATCHLING_MATCH.sub(hatchling_spec, old_file_content, re.MULTILINE)
+            new_file_content = HATCHLING_MATCH.sub(
+                hatchling_spec, old_file_content, re.MULTILINE
+            )
             if new_file_content != old_file_content:
                 files_changed = True
                 file_to_replace_hatchling.write_text(new_file_content)
@@ -101,7 +113,9 @@ if __name__ == "__main__":
         shutil.rmtree(temp_dir)
 
     if files_changed:
-        console.print("\n[red]Build dependencies have changed. Please update them manually.\n")
+        console.print(
+            "\n[red]Build dependencies have changed. Please update them manually.\n"
+        )
         console.print(
             "\n[blue]Please run:[/blue]\n\n"
             "pre-commit run --hook-stage manual update-build-dependencies --all-files\n"

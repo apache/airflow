@@ -59,7 +59,11 @@ class TestWaiter:
             ([generate_response("Created")], False, None, 1),
             ([generate_response("Failed")], True, AirflowException, 1),
             (
-                [generate_response("Pending"), generate_response("Pending"), generate_response("Created")],
+                [
+                    generate_response("Pending"),
+                    generate_response("Pending"),
+                    generate_response("Created"),
+                ],
                 False,
                 None,
                 3,
@@ -71,7 +75,11 @@ class TestWaiter:
                 2,
             ),
             (
-                [generate_response("Pending"), generate_response("Pending"), generate_response("Failed")],
+                [
+                    generate_response("Pending"),
+                    generate_response("Pending"),
+                    generate_response("Failed"),
+                ],
                 True,
                 AirflowException,
                 3,
@@ -80,7 +88,9 @@ class TestWaiter:
         ],
     )
     @mock.patch("time.sleep", return_value=None)
-    def test_waiter(self, _, get_state_responses, fails, expected_exception, expected_num_calls):
+    def test_waiter(
+        self, _, get_state_responses, fails, expected_exception, expected_num_calls
+    ):
         mock_get_state = MagicMock()
         mock_get_state.side_effect = get_state_responses
         get_state_args = {}

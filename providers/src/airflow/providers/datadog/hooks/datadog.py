@@ -58,7 +58,9 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.host = conn.host
 
         if self.api_key is None:
-            raise AirflowException("api_key must be specified in the Datadog connection details")
+            raise AirflowException(
+                "api_key must be specified in the Datadog connection details"
+            )
 
         self.log.info("Setting up api keys for Datadog")
         initialize(api_key=self.api_key, app_key=self.app_key, api_host=self.api_host)
@@ -87,13 +89,20 @@ class DatadogHook(BaseHook, LoggingMixin):
         :param interval: If the type of the metric is rate or count, define the corresponding interval
         """
         response = api.Metric.send(
-            metric=metric_name, points=datapoint, host=self.host, tags=tags, type=type_, interval=interval
+            metric=metric_name,
+            points=datapoint,
+            host=self.host,
+            tags=tags,
+            type=type_,
+            interval=interval,
         )
 
         self.validate_response(response)
         return response
 
-    def query_metric(self, query: str, from_seconds_ago: int, to_seconds_ago: int) -> dict[str, Any]:
+    def query_metric(
+        self, query: str, from_seconds_ago: int, to_seconds_ago: int
+    ) -> dict[str, Any]:
         """
         Query datadog for a metric, potentially with some function applied to it and return the result.
 
@@ -103,7 +112,9 @@ class DatadogHook(BaseHook, LoggingMixin):
         """
         now = int(time.time())
 
-        response = api.Metric.query(start=now - from_seconds_ago, end=now - to_seconds_ago, query=query)
+        response = api.Metric.query(
+            start=now - from_seconds_ago, end=now - to_seconds_ago, query=query
+        )
 
         self.validate_response(response)
         return response
@@ -166,10 +177,16 @@ class DatadogHook(BaseHook, LoggingMixin):
         from wtforms import StringField
 
         return {
-            "api_host": StringField(lazy_gettext("API endpoint"), widget=BS3TextFieldWidget()),
+            "api_host": StringField(
+                lazy_gettext("API endpoint"), widget=BS3TextFieldWidget()
+            ),
             "api_key": StringField(lazy_gettext("API key"), widget=BS3TextFieldWidget()),
-            "app_key": StringField(lazy_gettext("Application key"), widget=BS3TextFieldWidget()),
-            "source_type_name": StringField(lazy_gettext("Source type name"), widget=BS3TextFieldWidget()),
+            "app_key": StringField(
+                lazy_gettext("Application key"), widget=BS3TextFieldWidget()
+            ),
+            "source_type_name": StringField(
+                lazy_gettext("Source type name"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod

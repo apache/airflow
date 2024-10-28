@@ -68,7 +68,9 @@ def parse_line(line: str) -> tuple[str | None, int | None]:
     return desc.strip(), int(pr_number)
 
 
-def get_entry(section: str, description: str, pr_number: int | None) -> dict[str, str | list]:
+def get_entry(
+    section: str, description: str, pr_number: int | None
+) -> dict[str, str | list]:
     for unwanted_prefix in PREFIXES_TO_STRIP:
         if description.lower().startswith(unwanted_prefix.lower()):
             description = description[len(unwanted_prefix) :].strip()
@@ -79,7 +81,10 @@ def get_entry(section: str, description: str, pr_number: int | None) -> dict[str
     entry: dict[str, str | list] = {"kind": kind, "description": description}
     if pr_number:
         entry["links"] = [
-            {"name": f"#{pr_number}", "url": f"https://github.com/apache/airflow/pull/{pr_number}"}
+            {
+                "name": f"#{pr_number}",
+                "url": f"https://github.com/apache/airflow/pull/{pr_number}",
+            }
         ]
     return entry
 

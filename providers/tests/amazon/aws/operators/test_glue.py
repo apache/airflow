@@ -104,7 +104,10 @@ class TestGlueJobOperator:
             s3_bucket="some_bucket",
             iam_role_name="my_test_role",
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
         mock_get_job_state.return_value = "SUCCEEDED"
 
         glue.execute(mock.MagicMock())
@@ -126,7 +129,10 @@ class TestGlueJobOperator:
             iam_role_arn="test_role",
             deferrable=True,
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
 
         with pytest.raises(TaskDeferred) as defer:
             glue.execute(mock.MagicMock())
@@ -147,7 +153,10 @@ class TestGlueJobOperator:
             iam_role_name="my_test_role",
             deferrable=True,
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
 
         with pytest.raises(TaskDeferred) as defer:
             glue.execute(mock.MagicMock())
@@ -161,7 +170,12 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(S3Hook, "load_file")
     def test_execute_with_verbose_logging(
-        self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_print_job_logs
+        self,
+        mock_load_file,
+        mock_get_conn,
+        mock_initialize_job,
+        mock_get_job_state,
+        mock_print_job_logs,
     ):
         glue = GlueJobOperator(
             task_id=TASK_ID,
@@ -171,7 +185,10 @@ class TestGlueJobOperator:
             iam_role_name="role_arn",
             verbose=True,
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
         mock_get_job_state.return_value = "SUCCEEDED"
 
         glue.execute(mock.MagicMock())
@@ -188,7 +205,12 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(S3Hook, "load_file")
     def test_execute_without_waiting_for_completion(
-        self, mock_load_file, mock_get_conn, mock_initialize_job, mock_job_completion, mock_print_job_logs
+        self,
+        mock_load_file,
+        mock_get_conn,
+        mock_initialize_job,
+        mock_job_completion,
+        mock_print_job_logs,
     ):
         glue = GlueJobOperator(
             task_id=TASK_ID,
@@ -200,7 +222,10 @@ class TestGlueJobOperator:
             iam_role_name="my_test_role",
             wait_for_completion=False,
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
 
         job_run_id = glue.execute(mock.MagicMock())
 
@@ -216,7 +241,12 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(S3Hook, "load_file")
     def test_log_correct_url(
-        self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_print_job_logs
+        self,
+        mock_load_file,
+        mock_get_conn,
+        mock_initialize_job,
+        mock_get_job_state,
+        mock_print_job_logs,
     ):
         region = "us-west-2"
         glue = GlueJobOperator(
@@ -228,7 +258,10 @@ class TestGlueJobOperator:
             s3_bucket="some_bucket",
             iam_role_name="my_test_role",
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
         mock_get_job_state.return_value = "SUCCEEDED"
 
         aws_domain = GlueJobRunDetailsLink.get_aws_domain("aws")
@@ -241,7 +274,9 @@ class TestGlueJobOperator:
             job_run_id = glue.execute(mock.MagicMock())
             assert job_run_id == JOB_RUN_ID
 
-        mock_log_info.assert_any_call("You can monitor this Glue Job run at: %s", glue_job_run_url)
+        mock_log_info.assert_any_call(
+            "You can monitor this Glue Job run at: %s", glue_job_run_url
+        )
 
     @mock.patch.object(GlueJobHook, "conn")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -292,7 +327,12 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "conn")
     @mock.patch.object(S3Hook, "load_file")
     def test_replace_script_file(
-        self, mock_load_file, mock_conn, mock_get_connection, mock_initialize_job, mock_get_job_state
+        self,
+        mock_load_file,
+        mock_conn,
+        mock_get_connection,
+        mock_initialize_job,
+        mock_get_job_state,
     ):
         glue = GlueJobOperator(
             task_id=TASK_ID,
@@ -302,11 +342,17 @@ class TestGlueJobOperator:
             iam_role_name="role_arn",
             replace_script_file=True,
         )
-        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_initialize_job.return_value = {
+            "JobRunState": "RUNNING",
+            "JobRunId": JOB_RUN_ID,
+        }
         mock_get_job_state.return_value = "SUCCEEDED"
         glue.execute(mock.MagicMock())
         mock_load_file.assert_called_once_with(
-            "folder/file", "artifacts/glue-scripts/file", bucket_name="bucket_name", replace=True
+            "folder/file",
+            "artifacts/glue-scripts/file",
+            bucket_name="bucket_name",
+            replace=True,
         )
 
     def test_template_fields(self):
@@ -334,7 +380,9 @@ class TestGlueDataQualityOperator:
 
     def test_init(self):
         self.operator = GlueDataQualityOperator(
-            task_id="create_data_quality_ruleset", name=self.RULE_SET_NAME, ruleset=self.RULE_SET
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
         )
         self.operator.defer = mock.MagicMock()
 
@@ -359,7 +407,9 @@ class TestGlueDataQualityOperator:
         )
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_execute_create_rule_should_fail_if_rule_already_exists(self, glue_data_quality_mock_conn):
+    def test_execute_create_rule_should_fail_if_rule_already_exists(
+        self, glue_data_quality_mock_conn
+    ):
         self.operator = GlueDataQualityOperator(
             task_id="create_data_quality_ruleset",
             name=self.RULE_SET_NAME,
@@ -367,9 +417,13 @@ class TestGlueDataQualityOperator:
             description="create ruleset",
         )
         self.operator.defer = mock.MagicMock()
-        error_message = f"Another ruleset with the same name already exists: {self.RULE_SET_NAME}"
+        error_message = (
+            f"Another ruleset with the same name already exists: {self.RULE_SET_NAME}"
+        )
 
-        err_response = {"Error": {"Code": "AlreadyExistsException", "Message": error_message}}
+        err_response = {
+            "Error": {"Code": "AlreadyExistsException", "Message": error_message}
+        }
 
         exception = client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
@@ -403,7 +457,9 @@ class TestGlueDataQualityOperator:
         )
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_execute_update_rule_should_fail_if_rule_not_exists(self, glue_data_quality_mock_conn):
+    def test_execute_update_rule_should_fail_if_rule_not_exists(
+        self, glue_data_quality_mock_conn
+    ):
         self.operator = GlueDataQualityOperator(
             task_id="update_data_quality_ruleset",
             name=self.RULE_SET_NAME,
@@ -414,12 +470,16 @@ class TestGlueDataQualityOperator:
         self.operator.defer = mock.MagicMock()
         error_message = f"Cannot find Data Quality Ruleset in account 1234567 with name {self.RULE_SET_NAME}"
 
-        err_response = {"Error": {"Code": "EntityNotFoundException", "Message": error_message}}
+        err_response = {
+            "Error": {"Code": "EntityNotFoundException", "Message": error_message}
+        }
 
         exception = client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
-        glue_data_quality_mock_conn.exceptions.EntityNotFoundException = returned_exception
+        glue_data_quality_mock_conn.exceptions.EntityNotFoundException = (
+            returned_exception
+        )
         glue_data_quality_mock_conn.update_data_quality_ruleset.side_effect = exception
 
         with pytest.raises(AirflowException, match=error_message):
@@ -445,12 +505,16 @@ class TestGlueDataQualityOperator:
             ruleset='[ColumnLength "review_id" = 15]',
         )
 
-        with pytest.raises(AttributeError, match="RuleSet must starts with Rules = \\[ and ends with \\]"):
+        with pytest.raises(
+            AttributeError, match="RuleSet must starts with Rules = \\[ and ends with \\]"
+        ):
             self.operator.validate_inputs()
 
     def test_template_fields(self):
         operator = GlueDataQualityOperator(
-            task_id="create_data_quality_ruleset", name=self.RULE_SET_NAME, ruleset=self.RULE_SET
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
         )
         validate_template_fields(operator)
 
@@ -464,7 +528,9 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(GlueDataQualityHook, "conn") as _conn:
-            _conn.start_data_quality_ruleset_evaluation_run.return_value = {"RunId": self.RUN_ID}
+            _conn.start_data_quality_ruleset_evaluation_run.return_value = {
+                "RunId": self.RUN_ID
+            }
             yield _conn
 
     @pytest.fixture
@@ -490,7 +556,9 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
 
     @mock.patch.object(GlueDataQualityHook, "conn")
     def test_start_data_quality_ruleset_evaluation_run(self, glue_data_quality_mock_conn):
-        glue_data_quality_mock_conn.get_data_quality_ruleset.return_value = {"Name": "TestRuleSet"}
+        glue_data_quality_mock_conn.get_data_quality_ruleset.return_value = {
+            "Name": "TestRuleSet"
+        }
 
         self.op = GlueDataQualityRuleSetEvaluationRunOperator(
             task_id="stat_evaluation_run",
@@ -499,7 +567,9 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
             number_of_workers=10,
             timeout=1000,
             rule_set_names=self.RULE_SET_NAMES,
-            rule_set_evaluation_run_kwargs={"AdditionalRunOptions": {"CloudWatchMetricsEnabled": True}},
+            rule_set_evaluation_run_kwargs={
+                "AdditionalRunOptions": {"CloudWatchMetricsEnabled": True}
+            },
         )
 
         self.op.wait_for_completion = False
@@ -532,7 +602,9 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
             rule_set_names=["dummy"],
         )
 
-        with pytest.raises(AirflowException, match="Following RulesetNames are not found \\['dummy'\\]"):
+        with pytest.raises(
+            AirflowException, match="Following RulesetNames are not found \\['dummy'\\]"
+        ):
             self.operator.validate_inputs()
 
     @pytest.mark.parametrize(
@@ -569,7 +641,9 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(GlueDataQualityHook, "conn") as _conn:
-            _conn.start_data_quality_rule_recommendation_run.return_value = {"RunId": self.RUN_ID}
+            _conn.start_data_quality_rule_recommendation_run.return_value = {
+                "RunId": self.RUN_ID
+            }
             yield _conn
 
     @pytest.fixture
@@ -592,10 +666,14 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         assert self.operator.datasource == self.DATA_SOURCE
         assert self.operator.role == self.ROLE
         assert self.operator.show_results is False
-        assert self.operator.recommendation_run_kwargs == {"CreatedRulesetName": "test-ruleset"}
+        assert self.operator.recommendation_run_kwargs == {
+            "CreatedRulesetName": "test-ruleset"
+        }
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_start_data_quality_rule_recommendation_run(self, glue_data_quality_mock_conn):
+    def test_start_data_quality_rule_recommendation_run(
+        self, glue_data_quality_mock_conn
+    ):
         self.op = GlueDataQualityRuleRecommendationRunOperator(
             task_id="start_recommendation_run",
             datasource=self.DATA_SOURCE,
@@ -617,11 +695,15 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         )
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_start_data_quality_rule_recommendation_run_failed(self, glue_data_quality_mock_conn):
+    def test_start_data_quality_rule_recommendation_run_failed(
+        self, glue_data_quality_mock_conn
+    ):
         created_ruleset_name = "test-ruleset"
         error_message = f"Ruleset {created_ruleset_name} already exists"
 
-        err_response = {"Error": {"Code": "InvalidInputException", "Message": error_message}}
+        err_response = {
+            "Error": {"Code": "InvalidInputException", "Message": error_message}
+        }
 
         exception = boto3.client("glue").exceptions.ClientError(
             err_response, "StartDataQualityRuleRecommendationRun"

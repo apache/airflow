@@ -25,7 +25,10 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
+from airflow.providers.amazon.aws.operators.batch import (
+    BatchCreateComputeEnvironmentOperator,
+    BatchOperator,
+)
 
 # Use dummy AWS credentials
 from airflow.providers.amazon.aws.triggers.batch import (
@@ -53,7 +56,9 @@ class TestBatchOperator:
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type"
+    )
     def setup_method(self, _, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch = BatchOperator(
@@ -210,7 +215,9 @@ class TestBatchOperator:
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
     @mock.patch.object(BatchClientHook, "check_job_success")
-    def test_execute_with_ecs_overrides(self, check_mock, wait_mock, job_description_mock):
+    def test_execute_with_ecs_overrides(
+        self, check_mock, wait_mock, job_description_mock
+    ):
         self.batch.container_overrides = None
         self.batch.ecs_properties_override = {
             "taskProperties": [
@@ -266,7 +273,9 @@ class TestBatchOperator:
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
     @mock.patch.object(BatchClientHook, "check_job_success")
-    def test_execute_with_eks_overrides(self, check_mock, wait_mock, job_description_mock):
+    def test_execute_with_eks_overrides(
+        self, check_mock, wait_mock, job_description_mock
+    ):
         self.batch.container_overrides = None
         self.batch.eks_properties_override = {
             "podProperties": [
@@ -283,7 +292,12 @@ class TestBatchOperator:
                             "env": [
                                 {"name": "string", "value": "string"},
                             ],
-                            "resources": [{"limits": {"string": "string"}, "requests": {"string": "string"}}],
+                            "resources": [
+                                {
+                                    "limits": {"string": "string"},
+                                    "requests": {"string": "string"},
+                                }
+                            ],
                         },
                     ],
                     "initContainers": [
@@ -298,7 +312,12 @@ class TestBatchOperator:
                             "env": [
                                 {"name": "string", "value": "string"},
                             ],
-                            "resources": [{"limits": {"string": "string"}, "requests": {"string": "string"}}],
+                            "resources": [
+                                {
+                                    "limits": {"string": "string"},
+                                    "requests": {"string": "string"},
+                                }
+                            ],
                         },
                     ],
                     "metadata": {
@@ -329,7 +348,10 @@ class TestBatchOperator:
                                     {"name": "string", "value": "string"},
                                 ],
                                 "resources": [
-                                    {"limits": {"string": "string"}, "requests": {"string": "string"}}
+                                    {
+                                        "limits": {"string": "string"},
+                                        "requests": {"string": "string"},
+                                    }
                                 ],
                             },
                         ],
@@ -346,7 +368,10 @@ class TestBatchOperator:
                                     {"name": "string", "value": "string"},
                                 ],
                                 "resources": [
-                                    {"limits": {"string": "string"}, "requests": {"string": "string"}}
+                                    {
+                                        "limits": {"string": "string"},
+                                        "requests": {"string": "string"},
+                                    }
                                 ],
                             },
                         ],
@@ -393,10 +418,13 @@ class TestBatchOperator:
     def test_kill_job(self):
         self.client_mock.terminate_job.return_value = {}
         self.batch.on_kill()
-        self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
+        self.client_mock.terminate_job.assert_called_once_with(
+            jobId=JOB_ID, reason="Task killed by the user"
+        )
 
     @pytest.mark.parametrize(
-        "override", ["node_overrides", "ecs_properties_override", "eks_properties_override"]
+        "override",
+        ["node_overrides", "ecs_properties_override", "eks_properties_override"],
     )
     @patch(
         "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
@@ -453,7 +481,9 @@ class TestBatchOperator:
             )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type"
+    )
     def test_defer_if_deferrable_param_set(self, mock_client, mock_get_job_description):
         mock_get_job_description.return_value = {"status": "SUBMITTED"}
 
@@ -470,7 +500,9 @@ class TestBatchOperator:
             batch.execute(self.mock_context)
         assert isinstance(exc.value.trigger, BatchJobTrigger)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type"
+    )
     def test_defer_but_failed_due_to_job_id_not_found(self, mock_client):
         """Test that an AirflowException is raised if job_id is not set before deferral."""
         mock_client.return_value.submit_job.return_value = {
@@ -491,8 +523,12 @@ class TestBatchOperator:
         assert "AWS Batch job - job_id was not found" in str(exc.value)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def test_defer_but_success_before_deferred(self, mock_client, mock_get_job_description):
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type"
+    )
+    def test_defer_but_success_before_deferred(
+        self, mock_client, mock_get_job_description
+    ):
         """Test that an AirflowException is raised if job_id is not set before deferral."""
         mock_client.return_value.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
         mock_get_job_description.return_value = {"status": "SUCCEEDED"}
@@ -508,7 +544,9 @@ class TestBatchOperator:
         assert batch.execute(self.mock_context) == JOB_ID
 
     @mock.patch.object(BatchClientHook, "get_job_description")
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type"
+    )
     def test_defer_but_fail_before_deferred(self, mock_client, mock_get_job_description):
         """Test that an AirflowException is raised if job_id is not set before deferral."""
         mock_client.return_value.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
@@ -532,7 +570,12 @@ class TestBatchOperator:
     @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobQueueLink.persist")
     @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink.persist")
     def test_monitor_job_with_logs(
-        self, job_definition_persist_mock, job_queue_persist_mock, check_mock, wait_mock, job_description_mock
+        self,
+        job_definition_persist_mock,
+        job_queue_persist_mock,
+        check_mock,
+        wait_mock,
+        job_description_mock,
     ):
         batch = BatchOperator(
             task_id="task",
@@ -582,7 +625,9 @@ class TestBatchCreateComputeEnvironmentOperator:
 
     @mock.patch.object(BatchClientHook, "client")
     def test_defer(self, client_mock):
-        client_mock.create_compute_environment.return_value = {"computeEnvironmentArn": "my_arn"}
+        client_mock.create_compute_environment.return_value = {
+            "computeEnvironmentArn": "my_arn"
+        }
 
         operator = BatchCreateComputeEnvironmentOperator(
             task_id="task",

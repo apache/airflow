@@ -393,7 +393,9 @@ class TestBigtableClusterUpdate:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
-    def test_empty_attribute(self, mock_hook, missing_attribute, project_id, instance_id, cluster_id, nodes):
+    def test_empty_attribute(
+        self, mock_hook, missing_attribute, project_id, instance_id, cluster_id, nodes
+    ):
         with pytest.raises(AirflowException) as ctx:
             BigtableUpdateClusterOperator(
                 project_id=project_id,
@@ -431,7 +433,9 @@ class TestBigtableClusterUpdate:
         mock_hook.return_value.update_cluster.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
-    def test_updating_cluster_but_instance_does_not_exists_empty_project_id(self, mock_hook):
+    def test_updating_cluster_but_instance_does_not_exists_empty_project_id(
+        self, mock_hook
+    ):
         mock_hook.return_value.get_instance.return_value = None
         op = BigtableUpdateClusterOperator(
             instance_id=INSTANCE_ID,
@@ -471,7 +475,10 @@ class TestBigtableClusterUpdate:
             op.execute(None)
 
         err = ctx.value
-        assert str(err) == f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
+        assert (
+            str(err)
+            == f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -498,7 +505,10 @@ class TestBigtableClusterUpdate:
             op.execute(None)
 
         err = ctx.value
-        assert str(err) == f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
+        assert (
+            str(err)
+            == f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -578,7 +588,9 @@ class TestBigtableInstanceDelete:
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
     def test_empty_attribute(self, mock_hook, missing_attribute, project_id, instance_id):
         with pytest.raises(AirflowException) as ctx:
-            BigtableDeleteInstanceOperator(project_id=project_id, instance_id=instance_id, task_id="id")
+            BigtableDeleteInstanceOperator(
+                project_id=project_id, instance_id=instance_id, task_id="id"
+            )
         err = ctx.value
         assert str(err) == f"Empty parameter: {missing_attribute}"
         mock_hook.assert_not_called()
@@ -677,7 +689,9 @@ class TestBigtableTableDelete:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
-    def test_empty_attribute(self, mock_hook, missing_attribute, project_id, instance_id, table_id):
+    def test_empty_attribute(
+        self, mock_hook, missing_attribute, project_id, instance_id, table_id
+    ):
         with pytest.raises(AirflowException) as ctx:
             BigtableDeleteTableOperator(
                 project_id=project_id,
@@ -817,7 +831,9 @@ class TestBigtableTableCreate:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
-    def test_empty_attribute(self, mock_hook, missing_attribute, project_id, instance_id, table_id):
+    def test_empty_attribute(
+        self, mock_hook, missing_attribute, project_id, instance_id, table_id
+    ):
         with pytest.raises(AirflowException) as ctx:
             BigtableCreateTableOperator(
                 project_id=project_id,
@@ -846,7 +862,10 @@ class TestBigtableTableCreate:
         with pytest.raises(AirflowException) as ctx:
             op.execute(None)
         err = ctx.value
-        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist in project '{PROJECT_ID}'."
+        assert (
+            str(err)
+            == f"Dependency: instance '{INSTANCE_ID}' does not exist in project '{PROJECT_ID}'."
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -865,7 +884,9 @@ class TestBigtableTableCreate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.get_column_families_for_table.return_value = EMPTY_COLUMN_FAMILIES
+        mock_hook.return_value.get_column_families_for_table.return_value = (
+            EMPTY_COLUMN_FAMILIES
+        )
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.create_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists.")
@@ -895,7 +916,9 @@ class TestBigtableTableCreate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.get_column_families_for_table.return_value = EMPTY_COLUMN_FAMILIES
+        mock_hook.return_value.get_column_families_for_table.return_value = (
+            EMPTY_COLUMN_FAMILIES
+        )
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.create_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists.")
@@ -914,7 +937,9 @@ class TestBigtableTableCreate:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
-    def test_creating_table_that_exists_with_different_column_families_ids_in_the_table(self, mock_hook):
+    def test_creating_table_that_exists_with_different_column_families_ids_in_the_table(
+        self, mock_hook
+    ):
         op = BigtableCreateTableOperator(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -926,7 +951,9 @@ class TestBigtableTableCreate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.get_column_families_for_table.return_value = {"existing_family": None}
+        mock_hook.return_value.get_column_families_for_table.return_value = {
+            "existing_family": None
+        }
         mock_hook.return_value.create_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists.")
         )
@@ -934,14 +961,19 @@ class TestBigtableTableCreate:
         with pytest.raises(AirflowException) as ctx:
             op.execute(None)
         err = ctx.value
-        assert str(err) == f"Table '{TABLE_ID}' already exists with different Column Families."
+        assert (
+            str(err)
+            == f"Table '{TABLE_ID}' already exists with different Column Families."
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
-    def test_creating_table_that_exists_with_different_column_families_gc_rule_in__table(self, mock_hook):
+    def test_creating_table_that_exists_with_different_column_families_gc_rule_in__table(
+        self, mock_hook
+    ):
         op = BigtableCreateTableOperator(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -956,7 +988,9 @@ class TestBigtableTableCreate:
         cf_mock = mock.Mock()
         cf_mock.gc_rule = mock.Mock(return_value=MaxVersionsGCRule(2))
 
-        mock_hook.return_value.get_column_families_for_table.return_value = {"cf-id": cf_mock}
+        mock_hook.return_value.get_column_families_for_table.return_value = {
+            "cf-id": cf_mock
+        }
         mock_hook.return_value.create_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists.")
         )
@@ -964,7 +998,10 @@ class TestBigtableTableCreate:
         with pytest.raises(AirflowException) as ctx:
             op.execute(None)
         err = ctx.value
-        assert str(err) == f"Table '{TABLE_ID}' already exists with different Column Families."
+        assert (
+            str(err)
+            == f"Table '{TABLE_ID}' already exists with different Column Families."
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

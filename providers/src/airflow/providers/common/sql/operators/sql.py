@@ -20,12 +20,25 @@ from __future__ import annotations
 import ast
 import re
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    NoReturn,
+    Sequence,
+    SupportsAbs,
+)
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
+from airflow.providers.common.sql.hooks.sql import (
+    DbApiHook,
+    fetch_all_handler,
+    return_single_query_results,
+)
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -222,7 +235,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ("sql", "parameters", *BaseSQLOperator.template_fields)
+    template_fields: Sequence[str] = (
+        "sql",
+        "parameters",
+        *BaseSQLOperator.template_fields,
+    )
     template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
@@ -250,7 +267,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+    def _process_output(
+        self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
+    ) -> list[Any]:
         """
         Process output before it is returned by the operator.
 
@@ -312,7 +331,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         hook = self.get_db_hook()
 
         try:
-            from airflow.providers.openlineage.utils.utils import should_use_external_connection
+            from airflow.providers.openlineage.utils.utils import (
+                should_use_external_connection,
+            )
 
             use_external_connection = should_use_external_connection(hook)
         except ImportError:
@@ -359,7 +380,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
         hook = self.get_db_hook()
         try:
-            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
+            database_specific_lineage = hook.get_openlineage_database_specific_lineage(
+                task_instance
+            )
         except AttributeError:
             database_specific_lineage = None
 
@@ -369,8 +392,12 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         return OperatorLineage(
             inputs=operator_lineage.inputs + database_specific_lineage.inputs,
             outputs=operator_lineage.outputs + database_specific_lineage.outputs,
-            run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
-            job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
+            run_facets=merge_dicts(
+                operator_lineage.run_facets, database_specific_lineage.run_facets
+            ),
+            job_facets=merge_dicts(
+                operator_lineage.job_facets, database_specific_lineage.job_facets
+            ),
         )
 
 
@@ -427,7 +454,12 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
+    template_fields: Sequence[str] = (
+        "table",
+        "partition_clause",
+        "sql",
+        *BaseSQLOperator.template_fields,
+    )
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
@@ -542,12 +574,16 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 match_boolean = record > check_values["greater_than"]
         if "leq_to" in check_values:
             if tolerance is not None:
-                match_boolean = record <= check_values["leq_to"] * (1 + tolerance) and match_boolean
+                match_boolean = (
+                    record <= check_values["leq_to"] * (1 + tolerance) and match_boolean
+                )
             else:
                 match_boolean = record <= check_values["leq_to"] and match_boolean
         elif "less_than" in check_values:
             if tolerance is not None:
-                match_boolean = record < check_values["less_than"] * (1 + tolerance) and match_boolean
+                match_boolean = (
+                    record < check_values["less_than"] * (1 + tolerance) and match_boolean
+                )
             else:
                 match_boolean = record < check_values["less_than"] and match_boolean
         if "equal_to" in check_values:
@@ -636,7 +672,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
             {
                 "row_count_check": {"check_statement": "COUNT(*) = 1000"},
                 "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
-                "third_check": {"check_statement": "MIN(col) = 1", "partition_clause": "col IS NOT NULL"},
+                "third_check": {
+                    "check_statement": "MIN(col) = 1",
+                    "partition_clause": "col IS NOT NULL",
+                },
             }
 
 
@@ -655,7 +694,12 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
+    template_fields: Sequence[str] = (
+        "table",
+        "partition_clause",
+        "sql",
+        *BaseSQLOperator.template_fields,
+    )
 
     template_fields_renderers = {"sql": "sql"}
 
@@ -713,9 +757,15 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.debug("Partition clause: %s", self.partition_clause)
 
         def _generate_partition_clause(check_name):
-            if self.partition_clause and "partition_clause" not in self.checks[check_name]:
+            if (
+                self.partition_clause
+                and "partition_clause" not in self.checks[check_name]
+            ):
                 return f"WHERE {self.partition_clause}"
-            elif not self.partition_clause and "partition_clause" in self.checks[check_name]:
+            elif (
+                not self.partition_clause
+                and "partition_clause" in self.checks[check_name]
+            ):
                 return f"WHERE {self.checks[check_name]['partition_clause']}"
             elif self.partition_clause and "partition_clause" in self.checks[check_name]:
                 return f"WHERE {self.partition_clause} AND {self.checks[check_name]['partition_clause']}"
@@ -800,9 +850,13 @@ class SQLCheckOperator(BaseSQLOperator):
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
         elif isinstance(records, dict) and not all(records.values()):
-            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            self._raise_exception(
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
+            )
         elif not all(records):
-            self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
+            self._raise_exception(
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
+            )
 
         self.log.info("Success.")
 
@@ -817,7 +871,11 @@ class SQLValueCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
-    template_fields: Sequence[str] = ("sql", "pass_value", *BaseSQLOperator.template_fields)
+    template_fields: Sequence[str] = (
+        "sql",
+        "pass_value",
+        *BaseSQLOperator.template_fields,
+    )
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -863,7 +921,9 @@ class SQLValueCheckOperator(BaseSQLOperator):
             try:
                 numeric_records = self._to_float(records)
             except (ValueError, TypeError):
-                raise AirflowException(f"Converting a result to float failed.\n{error_msg}")
+                raise AirflowException(
+                    f"Converting a result to float failed.\n{error_msg}"
+                )
             tests = self._get_numeric_matches(numeric_records, pass_value_conv)
         else:
             tests = []
@@ -885,7 +945,9 @@ class SQLValueCheckOperator(BaseSQLOperator):
     def _get_numeric_matches(self, numeric_records, numeric_pass_value_conv):
         if self.has_tolerance:
             return [
-                numeric_pass_value_conv * (1 - self.tol) <= record <= numeric_pass_value_conv * (1 + self.tol)
+                numeric_pass_value_conv * (1 - self.tol)
+                <= record
+                <= numeric_pass_value_conv * (1 + self.tol)
                 for record in numeric_records
             ]
 
@@ -945,7 +1007,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
             msg_template = "Invalid diff_method: {diff_method}. Supported diff methods are: {diff_methods}"
 
             raise AirflowFailException(
-                msg_template.format(diff_method=ratio_formula, diff_methods=self.ratio_formulas)
+                msg_template.format(
+                    diff_method=ratio_formula, diff_methods=self.ratio_formulas
+                )
             )
         self.ratio_formula = ratio_formula
         self.ignore_zero = ignore_zero
@@ -987,7 +1051,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                 ratios[metric] = None
                 test_results[metric] = self.ignore_zero
             else:
-                ratio_metric = self.ratio_formulas[self.ratio_formula](current[metric], reference[metric])
+                ratio_metric = self.ratio_formulas[self.ratio_formula](
+                    current[metric], reference[metric]
+                )
                 ratios[metric] = ratio_metric
                 if ratio_metric is not None:
                     test_results[metric] = ratio_metric < threshold
@@ -1024,7 +1090,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                     ratios[k],
                     self.metrics_thresholds[k],
                 )
-            self._raise_exception(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
+            self._raise_exception(
+                f"The following tests have failed:\n {', '.join(sorted(failed_tests))}"
+            )
 
         self.log.info("All tests have passed")
 

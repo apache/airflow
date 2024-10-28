@@ -48,7 +48,10 @@ from airflow_breeze.utils.publish_docs_helpers import (
     get_provider_yaml_paths,
 )
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
+from airflow_breeze.utils.versions import (
+    get_version_tag,
+    strip_leading_zeros_from_version,
+)
 
 MIN_AIRFLOW_VERSION = "2.8.0"
 HTTPS_REMOTE = "apache-https-for-providers"
@@ -114,7 +117,9 @@ class PipRequirements(NamedTuple):
             # which might not looking good, e.g. '>=5.3.0,<6,!=5.3.3,!=5.3.2' transform into the
             # '!=5.3.3,!=5.3.2,<6,>=5.3.0'. Instead of that we sort by version and resulting string would be
             # '>=5.3.0,!=5.3.2,!=5.3.3,<6'
-            version_required = ",".join(map(str, sorted(req.specifier, key=lambda spec: spec.version)))
+            version_required = ",".join(
+                map(str, sorted(req.specifier, key=lambda spec: spec.version))
+            )
         if req.marker:
             version_required += f"; {req.marker}"
 
@@ -227,7 +232,10 @@ def get_excluded_provider_ids(python_version: str) -> list[str]:
 
 @lru_cache
 def get_excluded_provider_folders(python_version: str) -> list[str]:
-    return [provider_id.replace(".", "/") for provider_id in get_excluded_provider_ids(python_version)]
+    return [
+        provider_id.replace(".", "/")
+        for provider_id in get_excluded_provider_ids(python_version)
+    ]
 
 
 @lru_cache
@@ -296,9 +304,13 @@ def expand_all_provider_packages(
 ) -> tuple[str, ...]:
     """In case there are "all-providers" in the list, expand the list with all providers."""
     if "all-providers" in short_doc_packages:
-        packages = [package for package in short_doc_packages if package != "all-providers"]
+        packages = [
+            package for package in short_doc_packages if package != "all-providers"
+        ]
         packages.extend(
-            get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)
+            get_available_packages(
+                include_removed=include_removed, include_not_ready=include_not_ready
+            )
         )
         short_doc_packages = tuple(set(packages))
     return short_doc_packages
@@ -316,7 +328,9 @@ def get_long_package_name(short_form_provider: str) -> str:
     if short_form_provider in REGULAR_DOC_PACKAGES:
         long_package_name = short_form_provider
     else:
-        long_package_name = LONG_PROVIDERS_PREFIX + "-".join(short_form_provider.split("."))
+        long_package_name = LONG_PROVIDERS_PREFIX + "-".join(
+            short_form_provider.split(".")
+        )
     return long_package_name
 
 
@@ -351,7 +365,9 @@ def find_matching_long_package_names(
     :param filters: package filters specified
     """
     available_doc_packages = list(
-        get_long_package_names(get_available_packages(include_non_provider_doc_packages=True))
+        get_long_package_names(
+            get_available_packages(include_non_provider_doc_packages=True)
+        )
     )
     if not filters and not short_packages:
         available_doc_packages.extend(filters or ())
@@ -361,7 +377,8 @@ def find_matching_long_package_names(
     processed_package_filters.extend(get_long_package_names(short_packages))
 
     removed_packages: list[str] = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.','-')}"
+        for provider in get_removed_provider_ids()
     ]
     all_packages_including_removed: list[str] = available_doc_packages + removed_packages
     invalid_filters = [
@@ -420,7 +437,11 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
 
 
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
-    if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix:
+    if (
+        install_clause.startswith("apache-airflow")
+        and ">=" in install_clause
+        and version_suffix
+    ):
         # Applies version suffix to the apache-airflow and provider package dependencies to make
         # sure that pre-release versions have correct limits - this address the issue with how
         # pip handles pre-release versions when packages are pre-release and refer to each other - we
@@ -458,7 +479,8 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
     install_requires = [
-        apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
+        apply_version_suffix(clause, version_suffix).replace('"', '\\"')
+        for clause in dependencies
     ]
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
@@ -478,7 +500,9 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
         for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
     }
     provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
-    additional_extras = provider_yaml_dict.get("additional-extras") if provider_yaml_dict else None
+    additional_extras = (
+        provider_yaml_dict.get("additional-extras") if provider_yaml_dict else None
+    )
     if additional_extras:
         for entry in additional_extras:
             name = entry["name"]
@@ -496,7 +520,9 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
             else:
                 extras_dict[name] = dependencies
     for extra, dependencies in extras_dict.items():
-        extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
+        extras_dict[extra] = [
+            apply_version_suffix(clause, version_suffix) for clause in dependencies
+        ]
     return extras_dict
 
 
@@ -544,7 +570,9 @@ def get_min_airflow_version(provider_id: str) -> str:
             # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
             if "," in current_min_airflow_version:
                 current_min_airflow_version = current_min_airflow_version.split(",")[0]
-            if PackagingVersion(current_min_airflow_version) > PackagingVersion(MIN_AIRFLOW_VERSION):
+            if PackagingVersion(current_min_airflow_version) > PackagingVersion(
+                MIN_AIRFLOW_VERSION
+            ):
                 min_airflow_version = current_min_airflow_version
     return min_airflow_version
 
@@ -596,12 +624,18 @@ def get_provider_jinja_context(
     version_suffix: str,
 ):
     provider_details = get_provider_details(provider_id=provider_id)
-    release_version_no_leading_zeros = strip_leading_zeros_from_version(current_release_version)
+    release_version_no_leading_zeros = strip_leading_zeros_from_version(
+        current_release_version
+    )
     changelog = provider_details.changelog_path.read_text()
     supported_python_versions = [
-        p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
+        p
+        for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS
+        if p not in provider_details.excluded_python_versions
     ]
-    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_package_id=provider_id)
+    cross_providers_dependencies = get_cross_provider_dependent_packages(
+        provider_package_id=provider_id
+    )
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
@@ -628,7 +662,9 @@ def get_provider_jinja_context(
         "MIN_AIRFLOW_VERSION": get_min_airflow_version(provider_id),
         "PROVIDER_REMOVED": provider_details.removed,
         "PROVIDER_INFO": get_provider_info_dict(provider_id),
-        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(
+            provider_id
+        ),
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": convert_cross_package_dependencies_to_table(
             cross_providers_dependencies, markdown=False
         ),
@@ -686,7 +722,9 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
 
     """
     try:
-        run_command(["git", "remote", "get-url", HTTPS_REMOTE], text=True, capture_output=True)
+        run_command(
+            ["git", "remote", "get-url", HTTPS_REMOTE], text=True, capture_output=True
+        )
     except subprocess.CalledProcessError as ex:
         if ex.returncode == 128 or ex.returncode == 2:
             run_command(
@@ -728,7 +766,9 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
         sys.exit(1)
 
 
-def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool = True) -> str:
+def convert_pip_requirements_to_table(
+    requirements: Iterable[str], markdown: bool = True
+) -> str:
     """
     Converts PIP requirement list to a Markdown table.
     :param requirements: requirements list
@@ -744,7 +784,9 @@ def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: boo
         formatted_package = f"`{req.package}`" if markdown else f"``{req.package}``"
         formatted_version = ""
         if req.version_required:
-            formatted_version = f"`{req.version_required}`" if markdown else f"``{req.version_required}``"
+            formatted_version = (
+                f"`{req.version_required}`" if markdown else f"``{req.version_required}``"
+            )
         table_data.append((formatted_package, formatted_version))
     return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
 

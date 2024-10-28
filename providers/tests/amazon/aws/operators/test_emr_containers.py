@@ -23,7 +23,10 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
-from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
+from airflow.providers.amazon.aws.operators.emr import (
+    EmrContainerOperator,
+    EmrEksCreateClusterOperator,
+)
 from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -34,7 +37,10 @@ SUBMIT_JOB_SUCCESS_RETURN = {
     "virtualClusterId": "vc1234",
 }
 
-CREATE_EMR_ON_EKS_CLUSTER_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "id": "vc1234"}
+CREATE_EMR_ON_EKS_CLUSTER_RETURN = {
+    "ResponseMetadata": {"HTTPStatusCode": 200},
+    "id": "vc1234",
+}
 
 GENERATED_UUID = "800647a9-adda-4237-94e6-f542c85fa55b"
 
@@ -73,7 +79,14 @@ class TestEmrContainerOperator:
         self.emr_container.execute(None)
 
         mock_submit_job.assert_called_once_with(
-            "test_emr_job", "arn:aws:somerole", "6.3.0-latest", {}, {}, GENERATED_UUID, {}, None
+            "test_emr_job",
+            "arn:aws:somerole",
+            "6.3.0-latest",
+            {},
+            {},
+            GENERATED_UUID,
+            {},
+            None,
         )
         mock_check_query_status.assert_called_once_with("jobid_123456")
         assert self.emr_container.release_label == "6.3.0-latest"
@@ -103,14 +116,19 @@ class TestEmrContainerOperator:
         with pytest.raises(AirflowException) as ctx:
             self.emr_container.execute(None)
         assert "EMR Containers job failed" in str(ctx.value)
-        assert "Error: CLUSTER_UNAVAILABLE - Cluster EKS eks123456 does not exist." in str(ctx.value)
+        assert (
+            "Error: CLUSTER_UNAVAILABLE - Cluster EKS eks123456 does not exist."
+            in str(ctx.value)
+        )
 
     @mock.patch.object(
         EmrContainerHook,
         "check_query_status",
         side_effect=["PENDING", "PENDING", "SUBMITTED", "RUNNING", "COMPLETED"],
     )
-    def test_execute_with_polling_timeout(self, mock_check_query_status, mocked_hook_client):
+    def test_execute_with_polling_timeout(
+        self, mock_check_query_status, mocked_hook_client
+    ):
         # Mock out the emr_client creator
         mocked_hook_client.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
 
@@ -134,7 +152,9 @@ class TestEmrContainerOperator:
 
     @mock.patch.object(EmrContainerHook, "submit_job")
     @mock.patch.object(
-        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+        EmrContainerHook,
+        "check_query_status",
+        return_value=EmrContainerHook.INTERMEDIATE_STATES[0],
     )
     def test_operator_defer(self, mock_submit_job, mock_check_query_status):
         """Test the execute method raise TaskDeferred if running operator in deferrable mode"""
@@ -148,7 +168,9 @@ class TestEmrContainerOperator:
 
     @mock.patch.object(EmrContainerHook, "submit_job")
     @mock.patch.object(
-        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+        EmrContainerHook,
+        "check_query_status",
+        return_value=EmrContainerHook.INTERMEDIATE_STATES[0],
     )
     def test_operator_defer_with_timeout(self, mock_submit_job, mock_check_query_status):
         self.emr_container.deferrable = True
@@ -158,7 +180,9 @@ class TestEmrContainerOperator:
             self.emr_container.execute(context=None)
 
         trigger = e.value.trigger
-        assert isinstance(trigger, EmrContainerTrigger), f"{trigger} is not a EmrContainerTrigger"
+        assert isinstance(
+            trigger, EmrContainerTrigger
+        ), f"{trigger} is not a EmrContainerTrigger"
         assert trigger.waiter_delay == self.emr_container.poll_interval
         assert trigger.attempts == self.emr_container.max_polling_attempts
 
@@ -192,7 +216,9 @@ class TestEmrEksCreateClusterOperator:
             "operation:"
             "A virtual cluster already exists in the given namespace"
         )
-        mock_create_emr_on_eks_cluster.side_effect = AirflowException(expected_exception_msg)
+        mock_create_emr_on_eks_cluster.side_effect = AirflowException(
+            expected_exception_msg
+        )
         with pytest.raises(AirflowException) as ctx:
             self.emr_container.execute(None)
         assert expected_exception_msg in str(ctx.value)

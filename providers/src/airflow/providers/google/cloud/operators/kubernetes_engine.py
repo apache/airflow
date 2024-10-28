@@ -62,7 +62,9 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
 
 try:
-    from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
+    from airflow.providers.cncf.kubernetes.operators.job import (
+        KubernetesDeleteJobOperator,
+    )
 except ImportError:
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
@@ -114,7 +116,9 @@ class GKEClusterAuthDetails:
         if not self.use_internal_ip:
             self._cluster_url = f"https://{cluster.endpoint}"
         else:
-            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
+            self._cluster_url = (
+                f"https://{cluster.private_cluster_config.private_endpoint}"
+            )
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 
@@ -178,7 +182,9 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -323,7 +329,9 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -361,13 +369,17 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
                 )
 
         if self._body_field("node_pools"):
-            if any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+            if any(
+                [self._body_field("node_config"), self._body_field("initial_node_count")]
+            ):
                 error_messages.append(
                     "The field body['node_pools'] should not be set if "
                     "body['node_config'] or body['initial_code_count'] are specified."
                 )
 
-        if not any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+        if not any(
+            [self._body_field("node_config"), self._body_field("initial_node_count")]
+        ):
             if not self._body_field("node_pools"):
                 error_messages.append(
                     "Field body['node_pools'] is required if none of fields "
@@ -413,7 +425,9 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
                 wait_to_complete=wait_to_complete,
             )
 
-            KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=self.body)
+            KubernetesEngineClusterLink.persist(
+                context=context, task_instance=self, cluster=self.body
+            )
 
             if self.deferrable:
                 self.defer(
@@ -517,9 +531,7 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.use_internal_ip = use_internal_ip
-        self._kueue_yaml_url = (
-            f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
-        )
+        self._kueue_yaml_url = f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
 
     @cached_property
     def cluster_hook(self) -> GKEHook:
@@ -580,9 +592,13 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
             name=self.cluster_name,
             project_id=self.project_id,
         )
-        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=cluster)
+        KubernetesEngineClusterLink.persist(
+            context=context, task_instance=self, cluster=cluster
+        )
 
-        yaml_objects = self._get_yaml_content_from_file(kueue_yaml_url=self._kueue_yaml_url)
+        yaml_objects = self._get_yaml_content_from_file(
+            kueue_yaml_url=self._kueue_yaml_url
+        )
 
         if self.cluster_hook.check_cluster_autoscaling_ability(cluster=cluster):
             try:
@@ -650,7 +666,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"project_id", "location", "cluster_name"} | set(KubernetesPodOperator.template_fields)
+        {"project_id", "location", "cluster_name"}
+        | set(KubernetesPodOperator.template_fields)
     )
     operator_extra_links = (KubernetesEnginePodLink(),)
 
@@ -675,7 +692,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
             kwargs["on_finish_action"] = (
-                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
+                OnFinishAction.DELETE_POD
+                if is_delete_operator_pod
+                else OnFinishAction.KEEP_POD
             )
         else:
             if on_finish_action is not None:
@@ -721,7 +740,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
-            raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+            raise AirflowException(
+                "config_file is not an allowed parameter for the GKEStartPodOperator."
+            )
 
     @staticmethod
     @deprecated(
@@ -771,7 +792,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if not self.use_internal_ip:
             self._cluster_url = f"https://{cluster.endpoint}"
         else:
-            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
+            self._cluster_url = (
+                f"https://{cluster.private_cluster_config.private_endpoint}"
+            )
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 
@@ -850,7 +873,8 @@ class GKEStartJobOperator(KubernetesJobOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"project_id", "location", "cluster_name"} | set(KubernetesJobOperator.template_fields)
+        {"project_id", "location", "cluster_name"}
+        | set(KubernetesJobOperator.template_fields)
     )
     operator_extra_links = (KubernetesEngineJobLink(),)
 
@@ -863,7 +887,9 @@ class GKEStartJobOperator(KubernetesJobOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         job_poll_interval: float = 10.0,
         **kwargs,
     ) -> None:
@@ -890,7 +916,9 @@ class GKEStartJobOperator(KubernetesJobOperator):
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartJobOperator.
         if self.config_file:
-            raise AirflowException("config_file is not an allowed parameter for the GKEStartJobOperator.")
+            raise AirflowException(
+                "config_file is not an allowed parameter for the GKEStartJobOperator."
+            )
 
     @cached_property
     def cluster_hook(self) -> GKEHook:
@@ -917,7 +945,9 @@ class GKEStartJobOperator(KubernetesJobOperator):
     def execute(self, context: Context):
         """Execute process of creating Job."""
         if self.deferrable:
-            kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
+            kubernetes_provider = ProvidersManager().providers[
+                "apache-airflow-providers-cncf-kubernetes"
+            ]
             kubernetes_provider_name = kubernetes_provider.data["package-name"]
             kubernetes_provider_version = kubernetes_provider.version
             min_version = "8.0.1"
@@ -1201,7 +1231,8 @@ class GKECreateCustomResourceOperator(KubernetesCreateResourceOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"project_id", "location", "cluster_name"} | set(KubernetesCreateResourceOperator.template_fields)
+        {"project_id", "location", "cluster_name"}
+        | set(KubernetesCreateResourceOperator.template_fields)
     )
 
     def __init__(
@@ -1235,7 +1266,9 @@ class GKECreateCustomResourceOperator(KubernetesCreateResourceOperator):
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
-            raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+            raise AirflowException(
+                "config_file is not an allowed parameter for the GKEStartPodOperator."
+            )
 
     @cached_property
     def cluster_hook(self) -> GKEHook:
@@ -1303,7 +1336,8 @@ class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"project_id", "location", "cluster_name"} | set(KubernetesDeleteResourceOperator.template_fields)
+        {"project_id", "location", "cluster_name"}
+        | set(KubernetesDeleteResourceOperator.template_fields)
     )
 
     def __init__(
@@ -1337,7 +1371,9 @@ class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
-            raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+            raise AirflowException(
+                "config_file is not an allowed parameter for the GKEStartPodOperator."
+            )
 
     @cached_property
     def cluster_hook(self) -> GKEHook:
@@ -1442,7 +1478,8 @@ class GKEDeleteJobOperator(KubernetesDeleteJobOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"project_id", "location", "cluster_name"} | set(KubernetesDeleteJobOperator.template_fields)
+        {"project_id", "location", "cluster_name"}
+        | set(KubernetesDeleteJobOperator.template_fields)
     )
 
     def __init__(
@@ -1476,7 +1513,9 @@ class GKEDeleteJobOperator(KubernetesDeleteJobOperator):
         # There is no need to manage the kube_config file, as it will be generated automatically.
         # All Kubernetes parameters (except config_file) are also valid for the GKEDeleteJobOperator.
         if self.config_file:
-            raise AirflowException("config_file is not an allowed parameter for the GKEDeleteJobOperator.")
+            raise AirflowException(
+                "config_file is not an allowed parameter for the GKEDeleteJobOperator."
+            )
 
     @cached_property
     def cluster_hook(self) -> GKEHook:

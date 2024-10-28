@@ -17,7 +17,10 @@
 from __future__ import annotations
 
 from airflow import settings
-from airflow.cli.commands.db_command import run_db_downgrade_command, run_db_migrate_command
+from airflow.cli.commands.db_command import (
+    run_db_downgrade_command,
+    run_db_migrate_command,
+)
 from airflow.providers.fab.auth_manager.models.db import _REVISION_HEADS_MAP, FABDBManager
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -27,7 +30,11 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 def resetdb(args):
     """Reset the metadata database."""
     print(f"DB: {settings.engine.url!r}")
-    if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
+    if not (
+        args.yes
+        or input("This will drop existing tables if they exist. Proceed? (y/n)").upper()
+        == "Y"
+    ):
         raise SystemExit("Cancelled")
     FABDBManager(settings.Session()).resetdb(skip_init=args.skip_init)
 
@@ -39,7 +46,10 @@ def migratedb(args):
     session = settings.Session()
     upgrade_command = FABDBManager(session).upgradedb
     run_db_migrate_command(
-        args, upgrade_command, revision_heads_map=_REVISION_HEADS_MAP, reserialize_dags=False
+        args,
+        upgrade_command,
+        revision_heads_map=_REVISION_HEADS_MAP,
+        reserialize_dags=False,
     )
 
 
@@ -49,4 +59,6 @@ def downgrade(args):
     """Downgrades the metadata database."""
     session = settings.Session()
     dwongrade_command = FABDBManager(session).downgrade
-    run_db_downgrade_command(args, dwongrade_command, revision_heads_map=_REVISION_HEADS_MAP)
+    run_db_downgrade_command(
+        args, dwongrade_command, revision_heads_map=_REVISION_HEADS_MAP
+    )

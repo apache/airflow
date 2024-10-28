@@ -23,7 +23,11 @@ import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group
-from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
+from airflow.models.expandinput import (
+    DictOfListsExpandInput,
+    ListOfDictsExpandInput,
+    MappedArgument,
+)
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import MappedTaskGroup
 
@@ -109,7 +113,9 @@ def test_partial_evolves_factory():
 
     d = pipeline()
 
-    assert d.task_group_dict == {}  # Calling partial() without expanding does not create a task group.
+    assert (
+        d.task_group_dict == {}
+    )  # Calling partial() without expanding does not create a task group.
 
     assert type(tgp) is type(tg)
     assert tgp.partial_kwargs == {"a": 1}  # Partial kwargs are saved.
@@ -166,7 +172,10 @@ def test_expand_kwargs_no_wildcard():
     with pytest.raises(TypeError) as ctx:
         pipeline()
 
-    assert str(ctx.value) == "calling expand_kwargs() on task group function with * or ** is not supported"
+    assert (
+        str(ctx.value)
+        == "calling expand_kwargs() on task group function with * or ** is not supported"
+    )
 
 
 def test_expand_kwargs_create_mapped():

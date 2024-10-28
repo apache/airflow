@@ -102,7 +102,9 @@ class ObjectStore:
                 f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
             )
 
-        return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
+        return attach(
+            protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"]
+        )
 
     def __eq__(self, other):
         self_fs = None
@@ -111,7 +113,11 @@ class ObjectStore:
             self_fs = self.fs
         with suppress(ValueError):
             other_fs = other.fs
-        return isinstance(other, type(self)) and other.conn_id == self.conn_id and self_fs == other_fs
+        return (
+            isinstance(other, type(self))
+            and other.conn_id == self.conn_id
+            and self_fs == other_fs
+        )
 
 
 _STORE_CACHE: dict[str, ObjectStore] = {}
@@ -148,6 +154,8 @@ def attach(
         if store := _STORE_CACHE.get(alias):
             return store
 
-    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs, **kwargs)
+    _STORE_CACHE[alias] = store = ObjectStore(
+        protocol=protocol, conn_id=conn_id, fs=fs, **kwargs
+    )
 
     return store

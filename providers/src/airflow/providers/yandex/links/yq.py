@@ -34,7 +34,10 @@ class YQLink(BaseOperatorLink):
     name = "Yandex Query"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-        return XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key) or "https://yq.cloud.yandex.ru"
+        return (
+            XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key)
+            or "https://yq.cloud.yandex.ru"
+        )
 
     @staticmethod
     def persist(context: Context, task_instance: BaseOperator, web_link: str) -> None:

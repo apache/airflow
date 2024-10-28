@@ -34,7 +34,9 @@ AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.9")
-GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_SOURCE_DIR / "generated" / "provider_dependencies.json"
+GENERATED_PROVIDER_DEPENDENCIES_FILE = (
+    AIRFLOW_SOURCE_DIR / "generated" / "provider_dependencies.json"
+)
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
 
@@ -119,11 +121,17 @@ class ConfigParams:
 
     @cached_property
     def latest_constraints_file(self) -> Path:
-        return self.constraints_dir / f"original-{self.airflow_constraints_mode}-{self.python}.txt"
+        return (
+            self.constraints_dir
+            / f"original-{self.airflow_constraints_mode}-{self.python}.txt"
+        )
 
     @cached_property
     def constraints_diff_file(self) -> Path:
-        return self.constraints_dir / f"diff-{self.airflow_constraints_mode}-{self.python}.md"
+        return (
+            self.constraints_dir
+            / f"diff-{self.airflow_constraints_mode}-{self.python}.md"
+        )
 
     @cached_property
     def current_constraints_file(self) -> Path:
@@ -206,7 +214,9 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
     )
     count_lines = 0
     for line in sorted(result.stdout.split("\n")):
-        if line.startswith(("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")):
+        if line.startswith(
+            ("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")
+        ):
             continue
         if "@" in line:
             continue
@@ -218,7 +228,9 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
         file.write(line)
         file.write("\n")
     file.flush()
-    console.print(f"[green]Constraints generated to file: {file.name}. Wrote {count_lines} lines")
+    console.print(
+        f"[green]Constraints generated to file: {file.name}. Wrote {count_lines} lines"
+    )
 
 
 def download_latest_constraint_file(config_params: ConfigParams):
@@ -234,7 +246,9 @@ def download_latest_constraint_file(config_params: ConfigParams):
     r.raise_for_status()
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)
-    console.print(f"[green]Downloaded constraints file from {constraints_url} to {constraints_file.name}")
+    console.print(
+        f"[green]Downloaded constraints file from {constraints_url} to {constraints_file.name}"
+    )
 
 
 def diff_constraints(config_params: ConfigParams) -> None:
@@ -297,7 +311,9 @@ def uninstall_all_packages(config_params: ConfigParams):
     all_installed_packages = [
         dep.split("==")[0]
         for dep in result.stdout.strip().split("\n")
-        if not dep.startswith(("apache-airflow", "apache-airflow==", "/opt/airflow", "#", "-e", installer))
+        if not dep.startswith(
+            ("apache-airflow", "apache-airflow==", "/opt/airflow", "#", "-e", installer)
+        )
     ]
     run_command(
         cmd=[*config_params.get_uninstall_command, *all_installed_packages],
@@ -315,7 +331,8 @@ def get_all_active_provider_packages(python_version: str | None = None) -> list[
         if ALL_PROVIDER_DEPENDENCIES[provider]["state"] == "ready"
         and (
             python_version is None
-            or python_version not in ALL_PROVIDER_DEPENDENCIES[provider]["excluded-python-versions"]
+            or python_version
+            not in ALL_PROVIDER_DEPENDENCIES[provider]["excluded-python-versions"]
         )
     ]
 
@@ -342,19 +359,27 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     :return:
     """
     dist_dir = Path("/dist")
-    all_provider_packages = get_all_active_provider_packages(python_version=config_params.python)
+    all_provider_packages = get_all_active_provider_packages(
+        python_version=config_params.python
+    )
     chicken_egg_prefixes = []
     packages_to_install = []
-    console.print("[bright_blue]Installing Airflow with PyPI providers with eager upgrade")
+    console.print(
+        "[bright_blue]Installing Airflow with PyPI providers with eager upgrade"
+    )
     if config_params.chicken_egg_providers:
         for chicken_egg_provider in config_params.chicken_egg_providers.split(" "):
-            chicken_egg_prefixes.append(f"apache-airflow-providers-{chicken_egg_provider.replace('.','-')}")
+            chicken_egg_prefixes.append(
+                f"apache-airflow-providers-{chicken_egg_provider.replace('.','-')}"
+            )
         console.print(
             f"[bright_blue]Checking if {chicken_egg_prefixes} are available in local dist folder "
             f"as chicken egg providers)"
         )
     for provider_package in all_provider_packages:
-        if config_params.chicken_egg_providers and provider_package.startswith(tuple(chicken_egg_prefixes)):
+        if config_params.chicken_egg_providers and provider_package.startswith(
+            tuple(chicken_egg_prefixes)
+        ):
             glob_pattern = f"{provider_package.replace('-','_')}-*.whl"
             console.print(
                 f"[bright_blue]Checking if {provider_package} is available in local dist folder "
@@ -366,7 +391,9 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
                     f"[yellow]Installing {file.name} from local dist folder as it is "
                     f"a chicken egg provider"
                 )
-                packages_to_install.append(f"{provider_package} @ file://{file.as_posix()}")
+                packages_to_install.append(
+                    f"{provider_package} @ file://{file.as_posix()}"
+                )
                 break
             else:
                 console.print(
@@ -374,7 +401,10 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
                 )
             # Skip checking if chicken egg provider is available in PyPI - it does not have to be there
             continue
-        console.print(f"[bright_blue]Checking if {provider_package} is available in PyPI: ... ", end="")
+        console.print(
+            f"[bright_blue]Checking if {provider_package} is available in PyPI: ... ",
+            end="",
+        )
         r = requests.head(f"https://pypi.org/pypi/{provider_package}/json", timeout=60)
         if r.status_code == 200:
             console.print("[green]OK")
@@ -411,7 +441,9 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
         "installable mode."
     )
     install_local_airflow_with_eager_upgrade(config_params)
-    console.print("[success]Installed airflow with [all-core] extras only with eager upgrade.")
+    console.print(
+        "[success]Installed airflow with [all-core] extras only with eager upgrade."
+    )
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
         freeze_packages_to_file(config_params, constraints_file)
@@ -419,7 +451,11 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     diff_constraints(config_params)
 
 
-ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "constraints-no-providers"]
+ALLOWED_CONSTRAINTS_MODES = [
+    "constraints",
+    "constraints-source-providers",
+    "constraints-no-providers",
+]
 
 
 @click.command()

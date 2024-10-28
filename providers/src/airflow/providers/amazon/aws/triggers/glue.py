@@ -69,9 +69,13 @@ class GlueJobCompleteTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        hook = GlueJobHook(aws_conn_id=self.aws_conn_id, job_poll_interval=self.job_poll_interval)
+        hook = GlueJobHook(
+            aws_conn_id=self.aws_conn_id, job_poll_interval=self.job_poll_interval
+        )
         await hook.async_job_completion(self.job_name, self.run_id, self.verbose)
-        yield TriggerEvent({"status": "success", "message": "Job done", "value": self.run_id})
+        yield TriggerEvent(
+            {"status": "success", "message": "Job done", "value": self.run_id}
+        )
 
 
 class GlueCatalogPartitionTrigger(BaseTrigger):
@@ -144,7 +148,10 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         if "." in self.table_name:
             self.database_name, self.table_name = self.table_name.split(".")
         self.log.info(
-            "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
+            "Poking for table %s. %s, expression %s",
+            self.database_name,
+            self.table_name,
+            self.expression,
         )
         partitions = await self.hook.async_get_partitions(
             client=client,

@@ -28,7 +28,11 @@ from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
-from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
+from airflow.api_connexion.schemas.pool_schema import (
+    PoolCollection,
+    pool_collection_schema,
+    pool_schema,
+)
 from airflow.models.pool import Pool
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -84,7 +88,9 @@ def get_pools(
     query = select(Pool)
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     pools = session.scalars(query.offset(offset).limit(limit)).all()
-    return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
+    return pool_collection_schema.dump(
+        PoolCollection(pools=pools, total_entries=total_entries)
+    )
 
 
 @mark_fastapi_migration_done
@@ -100,8 +106,13 @@ def patch_pool(
     """Update a pool."""
     request_dict = get_json_request_dict()
     # Only slots and include_deferred can be modified in 'default_pool'
-    if pool_name == Pool.DEFAULT_POOL_NAME and request_dict.get("name", None) != Pool.DEFAULT_POOL_NAME:
-        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+    if (
+        pool_name == Pool.DEFAULT_POOL_NAME
+        and request_dict.get("name", None) != Pool.DEFAULT_POOL_NAME
+    ):
+        if update_mask and all(
+            mask.strip() in {"slots", "include_deferred"} for mask in update_mask
+        ):
             pass
         else:
             raise BadRequest(detail="Default Pool's name can't be modified")
@@ -139,7 +150,9 @@ def patch_pool(
         required_fields = {"name", "slots"}
         fields_diff = required_fields.difference(get_json_request_dict())
         if fields_diff:
-            raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
+            raise BadRequest(
+                detail=f"Missing required property(ies): {sorted(fields_diff)}"
+            )
 
     for key, value in patch_body.items():
         setattr(pool, key, value)
@@ -153,7 +166,10 @@ def patch_pool(
 @provide_session
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool."""
-    required_fields = {"name", "slots"}  # Pool would require both fields in the post request
+    required_fields = {
+        "name",
+        "slots",
+    }  # Pool would require both fields in the post request
     fields_diff = required_fields.difference(get_json_request_dict())
     if fields_diff:
         raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")

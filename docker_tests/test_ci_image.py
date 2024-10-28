@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from python_on_whales import DockerException
 
-from docker_tests.docker_utils import display_dependency_conflict_message, run_bash_in_docker
+from docker_tests.docker_utils import (
+    display_dependency_conflict_message,
+    run_bash_in_docker,
+)
 
 
 def test_pip_dependencies_conflict(default_docker_image):

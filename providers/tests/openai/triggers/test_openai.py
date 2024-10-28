@@ -82,9 +82,21 @@ class TestOpenAIBatchTrigger:
     @pytest.mark.parametrize(
         "mock_batch_status, mock_status, mock_message",
         [
-            (str(BatchStatus.COMPLETED), "success", "Batch batch_id has completed successfully."),
-            (str(BatchStatus.CANCELLING), "cancelled", "Batch batch_id has been cancelled."),
-            (str(BatchStatus.CANCELLED), "cancelled", "Batch batch_id has been cancelled."),
+            (
+                str(BatchStatus.COMPLETED),
+                "success",
+                "Batch batch_id has completed successfully.",
+            ),
+            (
+                str(BatchStatus.CANCELLING),
+                "cancelled",
+                "Batch batch_id has been cancelled.",
+            ),
+            (
+                str(BatchStatus.CANCELLED),
+                "cancelled",
+                "Batch batch_id has been cancelled.",
+            ),
             (str(BatchStatus.FAILED), "error", "Batch failed:\nbatch_id"),
             (
                 str(BatchStatus.EXPIRED),
@@ -126,7 +138,9 @@ class TestOpenAIBatchTrigger:
     )
     @mock.patch("airflow.providers.openai.hooks.openai.OpenAIHook.get_batch")
     @mock.patch("time.time")
-    async def test_openai_batch_for_timeout(self, mock_check_time, mock_batch, mock_batch_status):
+    async def test_openai_batch_for_timeout(
+        self, mock_check_time, mock_batch, mock_batch_status
+    ):
         """Assert that run trigger messages in case of batch is still running after timeout"""
         MOCK_TIME = 1724068066.6468632
         mock_batch.return_value = self.mock_get_batch(mock_batch_status)

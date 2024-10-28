@@ -35,23 +35,33 @@ LOG_LEVEL: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
 FAB_LOG_LEVEL: str = conf.get_mandatory_value("logging", "FAB_LOGGING_LEVEL").upper()
 
 LOG_FORMAT: str = conf.get_mandatory_value("logging", "LOG_FORMAT")
-DAG_PROCESSOR_LOG_FORMAT: str = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_FORMAT")
+DAG_PROCESSOR_LOG_FORMAT: str = conf.get_mandatory_value(
+    "logging", "DAG_PROCESSOR_LOG_FORMAT"
+)
 
 LOG_FORMATTER_CLASS: str = conf.get_mandatory_value(
-    "logging", "LOG_FORMATTER_CLASS", fallback="airflow.utils.log.timezone_aware.TimezoneAware"
+    "logging",
+    "LOG_FORMATTER_CLASS",
+    fallback="airflow.utils.log.timezone_aware.TimezoneAware",
 )
 
 COLORED_LOG_FORMAT: str = conf.get_mandatory_value("logging", "COLORED_LOG_FORMAT")
 
 COLORED_LOG: bool = conf.getboolean("logging", "COLORED_CONSOLE_LOG")
 
-COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value("logging", "COLORED_FORMATTER_CLASS")
+COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value(
+    "logging", "COLORED_FORMATTER_CLASS"
+)
 
-DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_TARGET")
+DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value(
+    "logging", "DAG_PROCESSOR_LOG_TARGET"
+)
 
 BASE_LOG_FOLDER: str = conf.get_mandatory_value("logging", "BASE_LOG_FOLDER")
 
-PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value("scheduler", "CHILD_PROCESS_LOG_DIRECTORY")
+PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value(
+    "scheduler", "CHILD_PROCESS_LOG_DIRECTORY"
+)
 
 DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
     "logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION"
@@ -62,7 +72,9 @@ DAG_PROCESSOR_MANAGER_LOG_STDOUT: str = conf.get_mandatory_value(
 )
 
 
-PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value("logging", "LOG_PROCESSOR_FILENAME_TEMPLATE")
+PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value(
+    "logging", "LOG_PROCESSOR_FILENAME_TEMPLATE"
+)
 
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
@@ -115,7 +127,11 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     },
     "loggers": {
         "airflow.processor": {
-            "handlers": ["processor_to_stdout" if DAG_PROCESSOR_LOG_TARGET == "stdout" else "processor"],
+            "handlers": [
+                "processor_to_stdout"
+                if DAG_PROCESSOR_LOG_TARGET == "stdout"
+                else "processor"
+            ],
             "level": LOG_LEVEL,
             # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
             "propagate": True,
@@ -183,20 +199,26 @@ if DAG_PROCESSOR_MANAGER_LOG_STDOUT == "True":
             }
         }
     )
-    DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]["airflow.processor_manager"]["handlers"].append("console")
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]["airflow.processor_manager"][
+        "handlers"
+    ].append("console")
 
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
 # in multiple processes.
 if os.environ.get("CONFIG_PROCESSOR_MANAGER_LOGGER") == "True":
-    DEFAULT_LOGGING_CONFIG["handlers"].update(DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"])
-    DEFAULT_LOGGING_CONFIG["loggers"].update(DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"])
+    DEFAULT_LOGGING_CONFIG["handlers"].update(
+        DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"]
+    )
+    DEFAULT_LOGGING_CONFIG["loggers"].update(
+        DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]
+    )
 
     # Manually create log directory for processor_manager handler as RotatingFileHandler
     # will only create file but not the directory.
-    processor_manager_handler_config: dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"][
-        "processor_manager"
-    ]
+    processor_manager_handler_config: dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG[
+        "handlers"
+    ]["processor_manager"]
     directory: str = os.path.dirname(processor_manager_handler_config["filename"])
     Path(directory).mkdir(parents=True, exist_ok=True, mode=0o755)
 
@@ -216,8 +238,12 @@ if REMOTE_LOGGING:
     # WASB buckets should start with "wasb"
     # HDFS path should start with "hdfs://"
     # just to help Airflow select correct handler
-    REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value("logging", "REMOTE_BASE_LOG_FOLDER")
-    REMOTE_TASK_HANDLER_KWARGS = conf.getjson("logging", "REMOTE_TASK_HANDLER_KWARGS", fallback={})
+    REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value(
+        "logging", "REMOTE_BASE_LOG_FOLDER"
+    )
+    REMOTE_TASK_HANDLER_KWARGS = conf.getjson(
+        "logging", "REMOTE_TASK_HANDLER_KWARGS", fallback={}
+    )
 
     if REMOTE_BASE_LOG_FOLDER.startswith("s3://"):
         S3_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
@@ -305,13 +331,25 @@ if REMOTE_LOGGING:
         }
         DEFAULT_LOGGING_CONFIG["handlers"].update(HDFS_REMOTE_HANDLERS)
     elif ELASTICSEARCH_HOST:
-        ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
-        ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")
-        ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
+        ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value(
+            "elasticsearch", "END_OF_LOG_MARK"
+        )
+        ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value(
+            "elasticsearch", "frontend"
+        )
+        ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean(
+            "elasticsearch", "WRITE_STDOUT"
+        )
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean("elasticsearch", "JSON_FORMAT")
-        ELASTICSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("elasticsearch", "JSON_FIELDS")
-        ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value("elasticsearch", "HOST_FIELD")
-        ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("elasticsearch", "OFFSET_FIELD")
+        ELASTICSEARCH_JSON_FIELDS: str = conf.get_mandatory_value(
+            "elasticsearch", "JSON_FIELDS"
+        )
+        ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value(
+            "elasticsearch", "HOST_FIELD"
+        )
+        ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value(
+            "elasticsearch", "OFFSET_FIELD"
+        )
 
         ELASTIC_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             "task": {
@@ -331,15 +369,21 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTIC_REMOTE_HANDLERS)
     elif OPENSEARCH_HOST:
-        OPENSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("opensearch", "END_OF_LOG_MARK")
+        OPENSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value(
+            "opensearch", "END_OF_LOG_MARK"
+        )
         OPENSEARCH_PORT: str = conf.get_mandatory_value("opensearch", "PORT")
         OPENSEARCH_USERNAME: str = conf.get_mandatory_value("opensearch", "USERNAME")
         OPENSEARCH_PASSWORD: str = conf.get_mandatory_value("opensearch", "PASSWORD")
         OPENSEARCH_WRITE_STDOUT: bool = conf.getboolean("opensearch", "WRITE_STDOUT")
         OPENSEARCH_JSON_FORMAT: bool = conf.getboolean("opensearch", "JSON_FORMAT")
-        OPENSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("opensearch", "JSON_FIELDS")
+        OPENSEARCH_JSON_FIELDS: str = conf.get_mandatory_value(
+            "opensearch", "JSON_FIELDS"
+        )
         OPENSEARCH_HOST_FIELD: str = conf.get_mandatory_value("opensearch", "HOST_FIELD")
-        OPENSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("opensearch", "OFFSET_FIELD")
+        OPENSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value(
+            "opensearch", "OFFSET_FIELD"
+        )
 
         OPENSEARCH_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             "task": {

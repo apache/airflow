@@ -75,8 +75,16 @@ class TestHPA:
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
-        assert jmespath.search("spec.minReplicas", docs[0]) == 0 if min_replicas is None else min_replicas
-        assert jmespath.search("spec.maxReplicas", docs[0]) == 5 if max_replicas is None else max_replicas
+        assert (
+            jmespath.search("spec.minReplicas", docs[0]) == 0
+            if min_replicas is None
+            else min_replicas
+        )
+        assert (
+            jmespath.search("spec.maxReplicas", docs[0]) == 5
+            if max_replicas is None
+            else max_replicas
+        )
 
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     def test_hpa_behavior(self, executor):
@@ -113,7 +121,10 @@ class TestHPA:
         is_enabled = enabled == "enabled"
         docs = render_chart(
             values={
-                "workers": {"hpa": {"enabled": True}, "persistence": {"enabled": is_enabled}},
+                "workers": {
+                    "hpa": {"enabled": True},
+                    "persistence": {"enabled": is_enabled},
+                },
                 "executor": "CeleryExecutor",
             },
             show_only=["templates/workers/worker-hpa.yaml"],

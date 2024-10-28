@@ -27,7 +27,9 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 @cache
 def _black_mode() -> Mode:
     config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT, "pyproject.toml"))
-    target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
+    target_versions = {
+        TargetVersion[val.upper()] for val in config.get("target_version", ())
+    }
     return Mode(
         target_versions=target_versions,
         line_length=config.get("line_length", Mode.line_length),

@@ -35,14 +35,20 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
-from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
+from airflow.providers.apache.beam.triggers.beam import (
+    BeamJavaPipelineTrigger,
+    BeamPythonPipelineTrigger,
+)
 from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
-from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
+from airflow.providers.google.cloud.operators.dataflow import (
+    CheckJobRunning,
+    DataflowConfiguration,
+)
 from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
 
@@ -70,14 +76,21 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         job_name_variable_key: str | None = None,
     ) -> tuple[str, dict, Callable[[str], None], Callable[[], bool | None]]:
         self.dataflow_hook = self.__set_dataflow_hook()
-        self.dataflow_config.project_id = self.dataflow_config.project_id or self.dataflow_hook.project_id
+        self.dataflow_config.project_id = (
+            self.dataflow_config.project_id or self.dataflow_hook.project_id
+        )
         dataflow_job_name = self.__get_dataflow_job_name()
         pipeline_options = self.__get_dataflow_pipeline_options(
             pipeline_options, dataflow_job_name, job_name_variable_key
         )
         process_line_callback = self.__get_dataflow_process_callback()
         check_job_status_callback = self.__check_dataflow_job_status_callback()
-        return dataflow_job_name, pipeline_options, process_line_callback, check_job_status_callback
+        return (
+            dataflow_job_name,
+            pipeline_options,
+            process_line_callback,
+            check_job_status_callback,
+        )
 
     def __set_dataflow_hook(self) -> DataflowHook:
         self.dataflow_hook = DataflowHook(
@@ -104,13 +117,18 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             pipeline_options[job_name_key] = job_name
         if self.dataflow_config.service_account:
             pipeline_options["serviceAccount"] = self.dataflow_config.service_account
-        if self.dataflow_support_impersonation and self.dataflow_config.impersonation_chain:
+        if (
+            self.dataflow_support_impersonation
+            and self.dataflow_config.impersonation_chain
+        ):
             if isinstance(self.dataflow_config.impersonation_chain, list):
                 pipeline_options["impersonateServiceAccount"] = ",".join(
                     self.dataflow_config.impersonation_chain
                 )
             else:
-                pipeline_options["impersonateServiceAccount"] = self.dataflow_config.impersonation_chain
+                pipeline_options["impersonateServiceAccount"] = (
+                    self.dataflow_config.impersonation_chain
+                )
         pipeline_options["project"] = self.dataflow_config.project_id
         pipeline_options["region"] = self.dataflow_config.location
         pipeline_options.setdefault("labels", {}).update(
@@ -199,7 +217,9 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         if all([new_value, not self._dataflow_job_id, self._execute_context]):
             # push job_id as soon as it's ready, to let Sensors work before the job finished
             # and job_id pushed as returned value item.
-            self.xcom_push(context=self._execute_context, key="dataflow_job_id", value=new_value)
+            self.xcom_push(
+                context=self._execute_context, key="dataflow_job_id", value=new_value
+            )
         self._dataflow_job_id = new_value
 
     def _cast_dataflow_config(self):
@@ -211,16 +231,26 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         if not self.dataflow_config.job_name:
             self.dataflow_config.job_name = self.task_id
 
-        if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
+        if (
+            self.dataflow_config
+            and self.runner.lower() != BeamRunnerType.DataflowRunner.lower()
+        ):
             self.log.warning(
-                "dataflow_config is defined but runner is different than DataflowRunner (%s)", self.runner
+                "dataflow_config is defined but runner is different than DataflowRunner (%s)",
+                self.runner,
             )
 
     def _init_pipeline_options(
         self,
         format_pipeline_options: bool = False,
         job_name_variable_key: str | None = None,
-    ) -> tuple[bool, str | None, dict, Callable[[str], None] | None, Callable[[], bool | None] | None]:
+    ) -> tuple[
+        bool,
+        str | None,
+        dict,
+        Callable[[str], None] | None,
+        Callable[[], bool | None] | None,
+    ]:
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Callable[[str], None] | None = None
@@ -243,7 +273,8 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
 
         if format_pipeline_options:
             snake_case_pipeline_options = {
-                convert_camel_to_snake(key): pipeline_options[key] for key in pipeline_options
+                convert_camel_to_snake(key): pipeline_options[key]
+                for key in pipeline_options
             }
             return (
                 is_dataflow,
@@ -338,7 +369,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         py_system_site_packages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         dataflow_config: DataflowConfiguration | dict | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(
@@ -370,7 +403,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             self.snake_case_pipeline_options,
             self.process_line_callback,
             self.check_job_status_callback,
-        ) = self._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
+        ) = self._init_pipeline_options(
+            format_pipeline_options=True, job_name_variable_key="job_name"
+        )
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
         # Check deferrable parameter passed to the operator
@@ -384,12 +419,18 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         with ExitStack() as exit_stack:
             if self.py_file.lower().startswith("gs://"):
                 gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
-                tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
+                tmp_gcs_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.py_file)
+                )
                 self.py_file = tmp_gcs_file.name
-            if self.snake_case_pipeline_options.get("requirements_file", "").startswith("gs://"):
+            if self.snake_case_pipeline_options.get("requirements_file", "").startswith(
+                "gs://"
+            ):
                 gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_req_file = exit_stack.enter_context(
-                    gcs_hook.provide_file(object_url=self.snake_case_pipeline_options["requirements_file"])
+                    gcs_hook.provide_file(
+                        object_url=self.snake_case_pipeline_options["requirements_file"]
+                    )
                 )
                 self.snake_case_pipeline_options["requirements_file"] = tmp_req_file.name
 
@@ -478,7 +519,10 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
-            self.log.info("Dataflow job with id: `%s` was requested to be cancelled.", self.dataflow_job_id)
+            self.log.info(
+                "Dataflow job with id: `%s` was requested to be cancelled.",
+                self.dataflow_job_id,
+            )
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,
@@ -537,7 +581,9 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         pipeline_options: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         dataflow_config: DataflowConfiguration | dict | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(
@@ -575,12 +621,20 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         with ExitStack() as exit_stack:
             if self.jar.lower().startswith("gs://"):
                 gcs_hook = GCSHook(self.gcp_conn_id)
-                tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
+                tmp_gcs_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.jar)
+                )
                 self.jar = tmp_gcs_file.name
 
             if self.is_dataflow and self.dataflow_hook:
-                is_running = self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun
-                while is_running and self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun:
+                is_running = (
+                    self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun
+                )
+                while (
+                    is_running
+                    and self.dataflow_config.check_if_running
+                    == CheckJobRunning.WaitForRun
+                ):
                     # The reason for disable=no-value-for-parameter is that project_id parameter is
                     # required but here is not passed, moreover it cannot be passed here.
                     # This method is wrapped by @_fallback_to_project_id_from_variables decorator which
@@ -643,7 +697,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                         jar=self.jar,
                         job_class=self.job_class,
                         runner=self.runner,
-                        check_if_running=self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun,
+                        check_if_running=self.dataflow_config.check_if_running
+                        == CheckJobRunning.WaitForRun,
                         project_id=self.dataflow_config.project_id,
                         location=self.dataflow_config.location,
                         job_name=self.dataflow_job_name,
@@ -661,7 +716,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     jar=self.jar,
                     job_class=self.job_class,
                     runner=self.runner,
-                    check_if_running=self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun,
+                    check_if_running=self.dataflow_config.check_if_running
+                    == CheckJobRunning.WaitForRun,
                     gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",
@@ -669,7 +725,10 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
-            self.log.info("Dataflow job with id: `%s` was requested to be cancelled.", self.dataflow_job_id)
+            self.log.info(
+                "Dataflow job with id: `%s` was requested to be cancelled.",
+                self.dataflow_job_id,
+            )
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,
@@ -771,7 +830,9 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             snake_case_pipeline_options,
             process_line_callback,
             _,
-        ) = self._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
+        ) = self._init_pipeline_options(
+            format_pipeline_options=True, job_name_variable_key="job_name"
+        )
 
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
@@ -785,7 +846,9 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         with ExitStack() as exit_stack:
             if go_artifact.is_located_on_gcs():
                 gcs_hook = GCSHook(self.gcp_conn_id)
-                tmp_dir = exit_stack.enter_context(tempfile.TemporaryDirectory(prefix="apache-beam-go"))
+                tmp_dir = exit_stack.enter_context(
+                    tempfile.TemporaryDirectory(prefix="apache-beam-go")
+                )
                 go_artifact.download_from_gcs(gcs_hook=gcs_hook, tmp_dir=tmp_dir)
 
             if is_dataflow and self.dataflow_hook:
@@ -821,7 +884,10 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
-            self.log.info("Dataflow job with id: `%s` was requested to be cancelled.", self.dataflow_job_id)
+            self.log.info(
+                "Dataflow job with id: `%s` was requested to be cancelled.",
+                self.dataflow_job_id,
+            )
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,
@@ -854,7 +920,9 @@ class _GoFile(_GoArtifact):
         return _object_is_located_on_gcs(self.file)
 
     def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
-        self.file = _download_object_from_gcs(gcs_hook=gcs_hook, uri=self.file, tmp_dir=tmp_dir)
+        self.file = _download_object_from_gcs(
+            gcs_hook=gcs_hook, uri=self.file, tmp_dir=tmp_dir
+        )
         self.should_init_go_module = True
 
     def start_pipeline(
@@ -877,7 +945,9 @@ class _GoBinary(_GoArtifact):
         self.worker = worker
 
     def is_located_on_gcs(self) -> bool:
-        return any(_object_is_located_on_gcs(path) for path in (self.launcher, self.worker))
+        return any(
+            _object_is_located_on_gcs(path) for path in (self.launcher, self.worker)
+        )
 
     def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
         binaries_are_equal = self.launcher == self.worker
@@ -890,11 +960,15 @@ class _GoBinary(_GoArtifact):
         if not binaries_are_equal and _object_is_located_on_gcs(self.worker):
             binaries_to_download.append("worker")
 
-        download_fn = partial(_download_object_from_gcs, gcs_hook=gcs_hook, tmp_dir=tmp_dir)
+        download_fn = partial(
+            _download_object_from_gcs, gcs_hook=gcs_hook, tmp_dir=tmp_dir
+        )
 
         with ThreadPoolExecutor(max_workers=len(binaries_to_download)) as executor:
             futures = {
-                executor.submit(download_fn, uri=getattr(self, binary), tmp_prefix=f"{binary}-"): binary
+                executor.submit(
+                    download_fn, uri=getattr(self, binary), tmp_prefix=f"{binary}-"
+                ): binary
                 for binary in binaries_to_download
             }
 
@@ -925,7 +999,9 @@ def _object_is_located_on_gcs(path: str) -> bool:
     return path.lower().startswith("gs://")
 
 
-def _download_object_from_gcs(gcs_hook: GCSHook, uri: str, tmp_dir: str, tmp_prefix: str = "") -> str:
+def _download_object_from_gcs(
+    gcs_hook: GCSHook, uri: str, tmp_dir: str, tmp_prefix: str = ""
+) -> str:
     tmp_name = f"{tmp_prefix}{os.path.basename(uri)}"
     tmp_path = os.path.join(tmp_dir, tmp_name)
 

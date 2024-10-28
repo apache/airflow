@@ -49,7 +49,9 @@ def bigquery_get_data(
         )
 
         if isinstance(rows, RowIterator):
-            raise TypeError("BigQueryHook.list_rows() returns iterator when return_iterator=False (default)")
+            raise TypeError(
+                "BigQueryHook.list_rows() returns iterator when return_iterator=False (default)"
+            )
 
         if len(rows) == 0:
             logger.info("Job Finished")

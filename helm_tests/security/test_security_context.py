@@ -46,8 +46,12 @@ class TestSCBackwardsCompatibility:
         )
 
         for doc in docs:
-            assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
-            assert 30 == jmespath.search("spec.template.spec.securityContext.fsGroup", doc)
+            assert 3000 == jmespath.search(
+                "spec.template.spec.securityContext.runAsUser", doc
+            )
+            assert 30 == jmespath.search(
+                "spec.template.spec.securityContext.fsGroup", doc
+            )
 
     def test_check_statsd_uid(self):
         docs = render_chart(
@@ -55,7 +59,9 @@ class TestSCBackwardsCompatibility:
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        assert 3000 == jmespath.search(
+            "spec.template.spec.securityContext.runAsUser", docs[0]
+        )
 
     def test_check_pgbouncer_uid(self):
         docs = render_chart(
@@ -63,7 +69,9 @@ class TestSCBackwardsCompatibility:
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        assert 3000 == jmespath.search(
+            "spec.template.spec.securityContext.runAsUser", docs[0]
+        )
 
     def test_check_cleanup_job(self):
         docs = render_chart(
@@ -74,7 +82,9 @@ class TestSCBackwardsCompatibility:
         assert 3000 == jmespath.search(
             "spec.jobTemplate.spec.template.spec.securityContext.runAsUser", docs[0]
         )
-        assert 30 == jmespath.search("spec.jobTemplate.spec.template.spec.securityContext.fsGroup", docs[0])
+        assert 30 == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.securityContext.fsGroup", docs[0]
+        )
 
     def test_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
@@ -90,9 +100,12 @@ class TestSCBackwardsCompatibility:
         )
 
         for doc in docs:
-            assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", doc)]
+            assert "git-sync" in [
+                c["name"] for c in jmespath.search("spec.template.spec.containers", doc)
+            ]
             assert "git-sync-init" in [
-                c["name"] for c in jmespath.search("spec.template.spec.initContainers", doc)
+                c["name"]
+                for c in jmespath.search("spec.template.spec.initContainers", doc)
             ]
             assert 3000 == jmespath.search(
                 "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
@@ -130,8 +143,12 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert 6000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
-            assert 60 == jmespath.search("spec.template.spec.securityContext.fsGroup", doc)
+            assert 6000 == jmespath.search(
+                "spec.template.spec.securityContext.runAsUser", doc
+            )
+            assert 60 == jmespath.search(
+                "spec.template.spec.securityContext.fsGroup", doc
+            )
 
     # Test priority:
     # <local>.securityContext > securityContext > uid + gid
@@ -168,8 +185,12 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert 9000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
-            assert 90 == jmespath.search("spec.template.spec.securityContext.fsGroup", doc)
+            assert 9000 == jmespath.search(
+                "spec.template.spec.securityContext.runAsUser", doc
+            )
+            assert 90 == jmespath.search(
+                "spec.template.spec.securityContext.fsGroup", doc
+            )
 
     # Test containerSecurity priority over uid under components using localSecurityContext
     def test_check_local_uid(self):
@@ -186,13 +207,21 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert 7000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
+            assert 7000 == jmespath.search(
+                "spec.template.spec.securityContext.runAsUser", doc
+            )
 
     # Test containerSecurity priority over uid under dags.gitSync
     def test_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
             values={
-                "dags": {"gitSync": {"enabled": True, "uid": 9000, "securityContext": {"runAsUser": 8000}}},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "uid": 9000,
+                        "securityContext": {"runAsUser": 8000},
+                    }
+                },
                 "airflowVersion": "1.10.15",
             },
             show_only=[
@@ -203,9 +232,12 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", doc)]
+            assert "git-sync" in [
+                c["name"] for c in jmespath.search("spec.template.spec.containers", doc)
+            ]
             assert "git-sync-init" in [
-                c["name"] for c in jmespath.search("spec.template.spec.initContainers", doc)
+                c["name"]
+                for c in jmespath.search("spec.template.spec.initContainers", doc)
             ]
             assert 8000 == jmespath.search(
                 "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
@@ -222,7 +254,10 @@ class TestSecurityContext:
         ctx_value_container = {"allowPrivilegeEscalation": False}
         docs = render_chart(
             values={
-                "securityContexts": {"containers": ctx_value_container, "pod": ctx_value_pod},
+                "securityContexts": {
+                    "containers": ctx_value_container,
+                    "pod": ctx_value_pod,
+                },
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
@@ -253,10 +288,15 @@ class TestSecurityContext:
             assert ctx_value_container == jmespath.search(
                 "spec.template.spec.containers[0].securityContext", doc
             )
-            assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", doc)
+            assert ctx_value_pod == jmespath.search(
+                "spec.template.spec.securityContext", doc
+            )
 
         # Global security context is not propagated to pgbouncer, redis and statsd, so we test default value
-        default_ctx_value_container = {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}
+        default_ctx_value_container = {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {"drop": ["ALL"]},
+        }
         default_ctx_value_pod_pgbouncer = {"runAsUser": 65534}
         default_ctx_value_pod_statsd = {"runAsUser": 65534}
         default_ctx_value_pod_redis = {"runAsUser": 0}
@@ -271,8 +311,12 @@ class TestSecurityContext:
         assert default_ctx_value_pod_pgbouncer == jmespath.search(
             "spec.template.spec.securityContext", docs[-3]
         )
-        assert default_ctx_value_pod_statsd == jmespath.search("spec.template.spec.securityContext", docs[-2])
-        assert default_ctx_value_pod_redis == jmespath.search("spec.template.spec.securityContext", docs[-1])
+        assert default_ctx_value_pod_statsd == jmespath.search(
+            "spec.template.spec.securityContext", docs[-2]
+        )
+        assert default_ctx_value_pod_redis == jmespath.search(
+            "spec.template.spec.securityContext", docs[-1]
+        )
 
     # Test securityContexts for main containers
     def test_main_container_setting(self):
@@ -312,7 +356,9 @@ class TestSecurityContext:
         )
 
         for doc in docs[1:]:
-            assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", doc)
+            assert ctx_value == jmespath.search(
+                "spec.template.spec.containers[0].securityContext", doc
+            )
 
     # Test securityContexts for log-groomer-sidecar main container
     def test_log_groomer_sidecar_container_setting(self):
@@ -332,7 +378,9 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", doc)
+            assert ctx_value == jmespath.search(
+                "spec.template.spec.containers[1].securityContext", doc
+            )
 
     # Test securityContexts for metrics-explorer main container
     def test_metrics_explorer_container_setting(self):
@@ -341,13 +389,17 @@ class TestSecurityContext:
             values={
                 "pgbouncer": {
                     "enabled": True,
-                    "metricsExporterSidecar": {"securityContexts": {"container": ctx_value}},
+                    "metricsExporterSidecar": {
+                        "securityContexts": {"container": ctx_value}
+                    },
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", docs[0])
+        assert ctx_value == jmespath.search(
+            "spec.template.spec.containers[1].securityContext", docs[0]
+        )
 
     # Test securityContexts for worker-kerberos main container
     def test_worker_kerberos_container_setting(self):
@@ -355,13 +407,18 @@ class TestSecurityContext:
         docs = render_chart(
             values={
                 "workers": {
-                    "kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}
+                    "kerberosSidecar": {
+                        "enabled": True,
+                        "securityContexts": {"container": ctx_value},
+                    }
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.containers[2].securityContext", docs[0])
+        assert ctx_value == jmespath.search(
+            "spec.template.spec.containers[2].securityContext", docs[0]
+        )
 
     # Test securityContexts for the wait-for-migrations init containers
     def test_wait_for_migrations_init_container_setting(self):
@@ -377,7 +434,9 @@ class TestSecurityContext:
                 "scheduler": {**spec},
                 "webserver": {**spec},
                 "triggerer": {**spec},
-                "workers": {"waitForMigrations": {"securityContexts": {"container": ctx_value}}},
+                "workers": {
+                    "waitForMigrations": {"securityContexts": {"container": ctx_value}}
+                },
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -388,7 +447,9 @@ class TestSecurityContext:
         )
 
         for doc in docs:
-            assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", doc)
+            assert ctx_value == jmespath.search(
+                "spec.template.spec.initContainers[0].securityContext", doc
+            )
 
     # Test securityContexts for volume-permissions init container
     def test_volume_permissions_init_container_setting(self):
@@ -406,7 +467,9 @@ class TestSecurityContext:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0])
+        assert ctx_value == jmespath.search(
+            "spec.template.spec.initContainers[0].securityContext", docs[0]
+        )
 
     # Test securityContexts for main pods
     def test_main_pod_setting(self):
@@ -441,7 +504,9 @@ class TestSecurityContext:
             ],
         )
 
-        assert ctx_value == jmespath.search("spec.jobTemplate.spec.template.spec.securityContext", docs[0])
+        assert ctx_value == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.securityContext", docs[0]
+        )
 
         for doc in docs[1:]:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
@@ -477,7 +542,9 @@ class TestSecurityContext:
             ],
         )
 
-        assert ctx_value == jmespath.search("spec.jobTemplate.spec.template.spec.securityContext", docs[0])
+        assert ctx_value == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.securityContext", docs[0]
+        )
 
         for doc in docs[1:]:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)

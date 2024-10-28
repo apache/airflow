@@ -30,10 +30,14 @@ from tabulate import tabulate
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
-EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "docs" / "apache-airflow" / "extra-packages-ref.rst"
+EXTRA_PACKAGES_REF_FILE = (
+    AIRFLOW_ROOT_PATH / "docs" / "apache-airflow" / "extra-packages-ref.rst"
+)
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
-sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, COMMON_PRECOMMIT_PATH.as_posix()
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import console
 
 sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
@@ -50,9 +54,13 @@ suggestions_providers: list[tuple] = []
 
 for dependency in ALL_DYNAMIC_EXTRAS:
     console.print(f"[bright_blue]Checking if {dependency} is mentioned in refs[/]")
-    find_matching = re.search(rf"^\| {dependency} *\|", doc_ref_content, flags=re.MULTILINE)
+    find_matching = re.search(
+        rf"^\| {dependency} *\|", doc_ref_content, flags=re.MULTILINE
+    )
     if not find_matching:
-        errors.append(f"[red]ERROR: {dependency} is not listed in {EXTRA_PACKAGES_REF_FILE}[/]")
+        errors.append(
+            f"[red]ERROR: {dependency} is not listed in {EXTRA_PACKAGES_REF_FILE}[/]"
+        )
         is_devel_dep = dependency.startswith("devel") or dependency in ["doc", "doc-gen"]
         short_dep = dependency.replace("devel-", "")
         if is_devel_dep:
@@ -79,13 +87,22 @@ if errors:
     console.print("[bright_blue]Suggested tables to add to references::[/]")
     if suggestions:
         console.print("[bright_blue]Regular dependencies[/]")
-        console.print(tabulate(suggestions, headers=HEADERS, tablefmt="grid"), markup=False)
+        console.print(
+            tabulate(suggestions, headers=HEADERS, tablefmt="grid"), markup=False
+        )
     if suggestions_devel:
         console.print("[bright_blue]Devel dependencies[/]")
-        console.print(tabulate(suggestions_devel, headers=HEADERS, tablefmt="grid"), markup=False)
+        console.print(
+            tabulate(suggestions_devel, headers=HEADERS, tablefmt="grid"), markup=False
+        )
     if suggestions_providers:
         console.print("[bright_blue]Devel dependencies[/]")
-        console.print(tabulate(suggestions_providers, headers=HEADERS, tablefmt="grid"), markup=False)
+        console.print(
+            tabulate(suggestions_providers, headers=HEADERS, tablefmt="grid"),
+            markup=False,
+        )
     sys.exit(1)
 else:
-    console.print(f"[green]Checked: {len(ALL_DYNAMIC_EXTRAS)} dependencies are mentioned[/]")
+    console.print(
+        f"[green]Checked: {len(ALL_DYNAMIC_EXTRAS)} dependencies are mentioned[/]"
+    )

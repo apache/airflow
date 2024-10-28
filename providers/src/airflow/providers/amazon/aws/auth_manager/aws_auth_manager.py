@@ -36,7 +36,9 @@ from airflow.providers.amazon.aws.auth_manager.cli.definition import (
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
-from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
+from airflow.providers.amazon.aws.auth_manager.views.auth import (
+    AwsAuthManagerAuthenticationViews,
+)
 
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -63,7 +65,10 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
+    from airflow.auth.managers.models.resource_details import (
+        AssetDetails,
+        ConfigurationDetails,
+    )
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
@@ -159,15 +164,26 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_asset(
-        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         asset_uri = details.uri if details else None
         return self.avp_facade.is_authorized(
-            method=method, entity_type=AvpEntities.ASSET, user=user or self.get_user(), entity_id=asset_uri
+            method=method,
+            entity_type=AvpEntities.ASSET,
+            user=user or self.get_user(),
+            entity_id=asset_uri,
         )
 
     def is_authorized_pool(
-        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         pool_name = details.name if details else None
         return self.avp_facade.is_authorized(
@@ -178,7 +194,11 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: VariableDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         variable_key = details.key if details else None
         return self.avp_facade.is_authorized(
@@ -202,7 +222,11 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user: BaseUser | None = None,
     ):
         return self.avp_facade.is_authorized(
             method=method,
@@ -230,7 +254,9 @@ class AwsAuthManager(BaseAuthManager):
             }
             for request in requests
         ]
-        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+        return self.avp_facade.batch_is_authorized(
+            requests=facade_requests, user=self.get_user()
+        )
 
     def batch_is_authorized_dag(
         self,
@@ -245,7 +271,9 @@ class AwsAuthManager(BaseAuthManager):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.DAG,
-                "entity_id": cast(DagDetails, request["details"]).id if request.get("details") else None,
+                "entity_id": cast(DagDetails, request["details"]).id
+                if request.get("details")
+                else None,
                 "context": {
                     "dag_entity": {
                         "string": cast(DagAccessEntity, request["access_entity"]).value,
@@ -256,7 +284,9 @@ class AwsAuthManager(BaseAuthManager):
             }
             for request in requests
         ]
-        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+        return self.avp_facade.batch_is_authorized(
+            requests=facade_requests, user=self.get_user()
+        )
 
     def batch_is_authorized_pool(
         self,
@@ -271,11 +301,15 @@ class AwsAuthManager(BaseAuthManager):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.POOL,
-                "entity_id": cast(PoolDetails, request["details"]).name if request.get("details") else None,
+                "entity_id": cast(PoolDetails, request["details"]).name
+                if request.get("details")
+                else None,
             }
             for request in requests
         ]
-        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+        return self.avp_facade.batch_is_authorized(
+            requests=facade_requests, user=self.get_user()
+        )
 
     def batch_is_authorized_variable(
         self,
@@ -296,7 +330,9 @@ class AwsAuthManager(BaseAuthManager):
             }
             for request in requests
         ]
-        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+        return self.avp_facade.batch_is_authorized(
+            requests=facade_requests, user=self.get_user()
+        )
 
     def filter_permitted_dag_ids(
         self,
@@ -337,7 +373,9 @@ class AwsAuthManager(BaseAuthManager):
 
         def _has_access_to_dag(request: IsAuthorizedRequest):
             result = self.avp_facade.get_batch_is_authorized_single_result(
-                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+                batch_is_authorized_results=batch_is_authorized_results,
+                request=request,
+                user=user,
             )
             return result["decision"] == "ALLOW"
 
@@ -376,7 +414,9 @@ class AwsAuthManager(BaseAuthManager):
 
         def _has_access_to_menu_item(request: IsAuthorizedRequest):
             result = self.avp_facade.get_batch_is_authorized_single_result(
-                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+                batch_is_authorized_results=batch_is_authorized_results,
+                request=request,
+                user=user,
             )
             return result["decision"] == "ALLOW"
 

@@ -25,7 +25,9 @@ from flask import Response, current_app, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_login import login_user
 
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+)
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
@@ -46,7 +48,9 @@ def auth_current_user() -> User | None:
     if auth is None or not auth.username or not auth.password:
         return None
 
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
     user = None
     if security_manager.auth_type == AUTH_LDAP:
         user = security_manager.auth_user_ldap(auth.username, auth.password)
@@ -62,7 +66,9 @@ def requires_authentication(function: T):
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        if auth_current_user() is not None or current_app.config.get("AUTH_ROLE_PUBLIC", None):
+        if auth_current_user() is not None or current_app.config.get(
+            "AUTH_ROLE_PUBLIC", None
+        ):
             return function(*args, **kwargs)
         else:
             return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})

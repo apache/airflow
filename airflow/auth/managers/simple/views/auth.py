@@ -48,7 +48,9 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         """Start login process."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        standalone_dag_processor = conf.getboolean(
+            "scheduler", "standalone_dag_processor"
+        )
         return self.render_template(
             "airflow/login.html",
             disable_nav_bar=True,
@@ -74,11 +76,14 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         found_users = [
             user
             for user in self.users
-            if user["username"] == username and self.passwords[user["username"]] == password
+            if user["username"] == username
+            and self.passwords[user["username"]] == password
         ]
 
         if not username or not password or len(found_users) == 0:
-            return redirect(url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"]))
+            return redirect(
+                url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"])
+            )
 
         session["user"] = SimpleAuthManagerUser(
             username=username,

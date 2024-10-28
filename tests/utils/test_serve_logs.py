@@ -118,7 +118,9 @@ class TestServeLogs:
         response = client.get(
             "/log/sample.log",
             headers={
-                "Authorization": signer.generate_signed_token({"filename": "different.log"}),
+                "Authorization": signer.generate_signed_token(
+                    {"filename": "different.log"}
+                ),
             },
         )
         assert response.status_code == 403
@@ -206,7 +208,9 @@ class TestServeLogs:
             client.get(
                 "/log/sample.log",
                 headers={
-                    "Authorization": different_audience.generate_signed_token({"filename": "sample.log"}),
+                    "Authorization": different_audience.generate_signed_token(
+                        {"filename": "sample.log"}
+                    ),
                 },
             ).status_code
             == 403

@@ -57,14 +57,18 @@ class TestPluginsCommand:
     @mock_plugin_manager(plugins=[])
     def test_should_display_no_plugins(self):
         with redirect_stdout(StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
+            plugins_command.dump_plugins(
+                self.parser.parse_args(["plugins", "--output=json"])
+            )
             stdout = temp_stdout.getvalue()
         assert "No plugins loaded" in stdout
 
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
     def test_should_display_one_plugin(self):
         with redirect_stdout(StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
+            plugins_command.dump_plugins(
+                self.parser.parse_args(["plugins", "--output=json"])
+            )
             stdout = temp_stdout.getvalue()
         print(stdout)
         info = json.loads(stdout)
@@ -96,7 +100,9 @@ class TestPluginsCommand:
                     "<tests_common.test_utils.mock_operators.AirflowLink object>",
                     "<tests_common.test_utils.mock_operators.GithubLink object>",
                 ],
-                "timetables": ["tests.plugins.test_plugin.CustomCronDataIntervalTimetable"],
+                "timetables": [
+                    "tests.plugins.test_plugin.CustomCronDataIntervalTimetable"
+                ],
                 "operator_extra_links": [
                     "<tests_common.test_utils.mock_operators.GoogleLink object>",
                     "<tests_common.test_utils.mock_operators.AirflowLink2 object>",
@@ -109,7 +115,11 @@ class TestPluginsCommand:
                 ],
                 "source": None,
                 "appbuilder_menu_items": [
-                    {"name": "Google", "href": "https://www.google.com", "category": "Search"},
+                    {
+                        "name": "Google",
+                        "href": "https://www.google.com",
+                        "category": "Search",
+                    },
                     {
                         "name": "apache",
                         "href": "https://www.apache.org/",
@@ -117,7 +127,9 @@ class TestPluginsCommand:
                     },
                 ],
                 "ti_deps": ["<TIDep(CustomTestTriggerRule)>"],
-                "priority_weight_strategies": ["tests.plugins.test_plugin.CustomPriorityWeightStrategy"],
+                "priority_weight_strategies": [
+                    "tests.plugins.test_plugin.CustomPriorityWeightStrategy"
+                ],
             }
         ]
         get_listener_manager().clear()
@@ -125,7 +137,9 @@ class TestPluginsCommand:
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins_as_table(self):
         with redirect_stdout(StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=table"]))
+            plugins_command.dump_plugins(
+                self.parser.parse_args(["plugins", "--output=table"])
+            )
             stdout = temp_stdout.getvalue()
 
         # Remove leading spaces

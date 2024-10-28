@@ -58,7 +58,9 @@ class TestDmsTaskCompletedSensor:
         assert sensor.hook._config is not None
         assert sensor.hook._config.read_timeout == 42
 
-        sensor = DmsTaskCompletedSensor(task_id="create_task", replication_task_arn="task_arn")
+        sensor = DmsTaskCompletedSensor(
+            task_id="create_task", replication_task_arn="task_arn"
+        )
         assert sensor.hook.aws_conn_id == "aws_default"
         assert sensor.hook._region_name is None
         assert sensor.hook._verify is None

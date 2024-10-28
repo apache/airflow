@@ -24,7 +24,11 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    TaskDeferred,
+)
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -42,7 +46,9 @@ from airflow.providers.google.cloud.operators.mlengine import (  # AIPlatformCon
     MLEngineStartTrainingJobOperator,
     MLEngineTrainingCancelJobOperator,
 )
-from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
+from airflow.providers.google.cloud.triggers.mlengine import (
+    MLEngineStartTrainingJobTrigger,
+)
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -152,7 +158,9 @@ class TestMLEngineStartBatchPredictionJobOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_with_version(self, mock_hook):
         input_with_version = self.INPUT_MISSING_ORIGIN.copy()
-        input_with_version["versionName"] = "projects/test-project/models/test_model/versions/test_version"
+        input_with_version["versionName"] = (
+            "projects/test-project/models/test_model/versions/test_version"
+        )
         success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
         success_message["predictionInput"] = input_with_version
 
@@ -230,23 +238,35 @@ class TestMLEngineStartBatchPredictionJobOperator:
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["uri"] = "gs://fake-uri/saved_model"
         task_args["model_name"] = "fake_model"
-        with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
+        assert (
+            "Ambiguous model origin: Both uri and model/version name are provided."
+            == str(ctx.value)
+        )
 
         # Test that both uri and model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["uri"] = "gs://fake-uri/saved_model"
         task_args["model_name"] = "fake_model"
         task_args["version_name"] = "fake_version"
-        with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
+        assert (
+            "Ambiguous model origin: Both uri and model/version name are provided."
+            == str(ctx.value)
+        )
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["version_name"] = "bare_version"
-        with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
             "Missing model: Batch prediction expects a model "
@@ -255,11 +275,14 @@ class TestMLEngineStartBatchPredictionJobOperator:
 
         # Test that none of uri, model, model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
             "Missing model origin: Batch prediction expects a "
-            "model, a model & version combination, or a URI to a savedModel." == str(ctx.value)
+            "model, a model & version combination, or a URI to a savedModel."
+            == str(ctx.value)
         )
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -294,11 +317,16 @@ class TestMLEngineStartBatchPredictionJobOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_failed_job_error(self, mock_hook):
         hook_instance = mock_hook.return_value
-        hook_instance.create_job.return_value = {"state": "FAILED", "errorMessage": "A failure message"}
+        hook_instance.create_job.return_value = {
+            "state": "FAILED",
+            "errorMessage": "A failure message",
+        }
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["uri"] = "a uri"
 
-        with pytest.raises(RuntimeError) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(RuntimeError) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
 
         assert "A failure message" == str(ctx.value)
@@ -353,7 +381,9 @@ class TestMLEngineTrainingCancelJobOperator:
         hook_instance.cancel_job.return_value = success_response
 
         with pytest.warns(AirflowProviderDeprecationWarning):
-            cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
+            cancel_training_op = MLEngineTrainingCancelJobOperator(
+                **self.TRAINING_DEFAULT_ARGS
+            )
         cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -363,7 +393,8 @@ class TestMLEngineTrainingCancelJobOperator:
         # Make sure only 'cancel_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
-            project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
+            project_id=self.TRAINING_DEFAULT_ARGS["project_id"],
+            job_id=self.TRAINING_DEFAULT_ARGS["job_id"],
         )
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -374,7 +405,9 @@ class TestMLEngineTrainingCancelJobOperator:
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
         with pytest.warns(AirflowProviderDeprecationWarning):
-            cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
+            cancel_training_op = MLEngineTrainingCancelJobOperator(
+                **self.TRAINING_DEFAULT_ARGS
+            )
         with pytest.raises(HttpError) as ctx:
             cancel_training_op.execute(context=MagicMock())
 
@@ -385,7 +418,8 @@ class TestMLEngineTrainingCancelJobOperator:
         # Make sure only 'cancel_job' is invoked on hook instance
         assert len(hook_instance.mock_calls) == 1
         hook_instance.cancel_job.assert_called_once_with(
-            project_id=self.TRAINING_DEFAULT_ARGS["project_id"], job_id=self.TRAINING_DEFAULT_ARGS["job_id"]
+            project_id=self.TRAINING_DEFAULT_ARGS["project_id"],
+            job_id=self.TRAINING_DEFAULT_ARGS["job_id"],
         )
         assert http_error_code == ctx.value.resp.status
 
@@ -644,7 +678,9 @@ class TestMLEngineVersionOperator:
         hook_instance = mock_hook.return_value
         hook_instance.create_version.return_value = success_response
         with pytest.warns(AirflowProviderDeprecationWarning):
-            training_op = MLEngineManageVersionOperator(version=TEST_VERSION, **self.VERSION_DEFAULT_ARGS)
+            training_op = MLEngineManageVersionOperator(
+                version=TEST_VERSION, **self.VERSION_DEFAULT_ARGS
+            )
         training_op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -704,7 +740,9 @@ class TestMLEngineCreateVersion:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.create_version.assert_called_once_with(
-            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME, version_spec=TEST_VERSION
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_spec=TEST_VERSION,
         )
 
     def test_missing_model_name(self):
@@ -776,7 +814,9 @@ class TestMLEngineSetDefaultVersion:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.set_default_version.assert_called_once_with(
-            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME, version_name=TEST_VERSION_NAME
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=TEST_VERSION_NAME,
         )
 
     def test_missing_model_name(self):
@@ -905,7 +945,9 @@ class TestMLEngineDeleteVersion:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.delete_version.assert_called_once_with(
-            project_id=TEST_PROJECT_ID, model_name=TEST_MODEL_NAME, version_name=TEST_VERSION_NAME
+            project_id=TEST_PROJECT_ID,
+            model_name=TEST_MODEL_NAME,
+            version_name=TEST_VERSION_NAME,
         )
 
     def test_missing_version_name(self):
@@ -983,12 +1025,18 @@ class TestMLEngineStartTrainingJobOperator:
 
     @patch(MLENGINE_AI_PATH.format("MLEngineStartTrainingJobOperator._wait_for_job_done"))
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
-    def test_create_training_job_should_execute_successfully(self, mock_hook, mock_wait_for_job):
-        mock_hook.return_value.create_job_without_waiting_result.return_value = "test_training"
+    def test_create_training_job_should_execute_successfully(
+        self, mock_hook, mock_wait_for_job
+    ):
+        mock_hook.return_value.create_job_without_waiting_result.return_value = (
+            "test_training"
+        )
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
 
         with pytest.warns(AirflowProviderDeprecationWarning):
-            training_op = MLEngineStartTrainingJobOperator(deferrable=False, **self.TRAINING_DEFAULT_ARGS)
+            training_op = MLEngineStartTrainingJobOperator(
+                deferrable=False, **self.TRAINING_DEFAULT_ARGS
+            )
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1019,7 +1067,9 @@ class TestMLEngineStartTrainingJobOperator:
 
         success_response = training_input.copy()
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
-        mock_hook.return_value.create_job_without_waiting_result.return_value = success_response
+        mock_hook.return_value.create_job_without_waiting_result.return_value = (
+            success_response
+        )
 
         with pytest.warns(AirflowProviderDeprecationWarning):
             training_op = MLEngineStartTrainingJobOperator(
@@ -1121,7 +1171,11 @@ class TestMLEngineStartTrainingJobOperator:
         )
 
         hyperparams["params"].append(
-            {"parameterName": "numRnnCells", "type": "DISCRETE", "discreteValues": [1, 2, 3, 4]}
+            {
+                "parameterName": "numRnnCells",
+                "type": "DISCRETE",
+                "discreteValues": [1, 2, 3, 4],
+            }
         )
 
         hyperparams["params"].append(
@@ -1142,7 +1196,9 @@ class TestMLEngineStartTrainingJobOperator:
 
         success_response = self.TRAINING_INPUT.copy()
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
-        mock_hook.return_value.create_job_without_waiting_result.return_value = success_response
+        mock_hook.return_value.create_job_without_waiting_result.return_value = (
+            success_response
+        )
 
         with pytest.warns(AirflowProviderDeprecationWarning):
             training_op = MLEngineStartTrainingJobOperator(
@@ -1185,7 +1241,9 @@ class TestMLEngineStartTrainingJobOperator:
         )
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
-    def test_create_training_job_should_throw_exception_when_http_error_403(self, mock_hook):
+    def test_create_training_job_should_throw_exception_when_http_error_403(
+        self, mock_hook
+    ):
         mock_hook.return_value.create_job_without_waiting_result.side_effect = HttpError(
             resp=httplib2.Response({"status": "403"}), content=b"content"
         )
@@ -1202,11 +1260,18 @@ class TestMLEngineStartTrainingJobOperator:
 
     @patch(MLENGINE_AI_PATH.format("MLEngineStartTrainingJobOperator._wait_for_job_done"))
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
-    def test_create_training_job_should_throw_exception_when_job_failed(self, mock_hook, mock_wait_for_job):
+    def test_create_training_job_should_throw_exception_when_job_failed(
+        self, mock_hook, mock_wait_for_job
+    ):
         failure_response = self.TRAINING_INPUT.copy()
 
-        mock_wait_for_job.return_value = {"state": "FAILED", "errorMessage": "A failure message"}
-        mock_hook.return_value.create_job_without_waiting_result.return_value = failure_response
+        mock_wait_for_job.return_value = {
+            "state": "FAILED",
+            "errorMessage": "A failure message",
+        }
+        mock_hook.return_value.create_job_without_waiting_result.return_value = (
+            failure_response
+        )
 
         with pytest.warns(AirflowProviderDeprecationWarning):
             training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
@@ -1276,7 +1341,9 @@ TEST_REGION = "us-central1"
 TEST_RUNTIME_VERSION = "1.15"
 TEST_PYTHON_VERSION = "3.9"
 TEST_JOB_DIR = "gs://example_mlengine_bucket/job-dir"
-TEST_PACKAGE_URIS = ["gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"]
+TEST_PACKAGE_URIS = [
+    "gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"
+]
 TEST_TRAINING_PYTHON_MODULE = "trainer.task"
 TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
@@ -1288,7 +1355,9 @@ def test_async_create_training_job_should_execute_successfully(mock_hook):
     Asserts that a task is deferred and a MLEngineStartTrainingJobTrigger will be fired
     when the MLEngineStartTrainingJobOperator is executed in deferrable mode when deferrable=True.
     """
-    mock_hook.return_value.create_job_without_waiting_result.return_value = "test_training"
+    mock_hook.return_value.create_job_without_waiting_result.return_value = (
+        "test_training"
+    )
 
     with pytest.warns(AirflowProviderDeprecationWarning):
         op = MLEngineStartTrainingJobOperator(
@@ -1334,7 +1403,9 @@ def test_async_create_training_job_should_throw_exception():
         )
 
     with pytest.raises(AirflowException):
-        op.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
+        op.execute_complete(
+            context=None, event={"status": "error", "message": "test failure message"}
+        )
 
 
 def create_context(task):
@@ -1380,9 +1451,15 @@ def test_async_create_training_job_logging_should_execute_successfully():
     with mock.patch.object(op.log, "info") as mock_log_info:
         op.execute_complete(
             context=create_context(op),
-            event={"status": "success", "message": "Job completed", "job_id": TEST_TASK_ID},
+            event={
+                "status": "success",
+                "message": "Job completed",
+                "job_id": TEST_TASK_ID,
+            },
         )
-    mock_log_info.assert_called_with("%s completed with response %s ", TEST_TASK_ID, "Job completed")
+    mock_log_info.assert_called_with(
+        "%s completed with response %s ", TEST_TASK_ID, "Job completed"
+    )
 
 
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -1434,7 +1511,8 @@ def test_async_create_training_job_should_throw_exception_if_job_id_none():
             deferrable=True,
         )
     with pytest.raises(
-        AirflowException, match=r"An unique job id is required for Google MLEngine training job."
+        AirflowException,
+        match=r"An unique job id is required for Google MLEngine training job.",
     ):
         op.execute(create_context(op))
 
@@ -1477,7 +1555,9 @@ def test_async_create_training_job_should_throw_exception_if_custom_none():
             master_type=None,
             deferrable=True,
         )
-    with pytest.raises(AirflowException, match=r"master_type must be set when master_config is provided"):
+    with pytest.raises(
+        AirflowException, match=r"master_type must be set when master_config is provided"
+    ):
         op.execute(create_context(op))
 
 

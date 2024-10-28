@@ -38,7 +38,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_cluster_def"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
@@ -73,10 +75,16 @@ CLUSTER_CONFIG = {
 # Update options
 # [START how_to_cloud_dataproc_updatemask_cluster_operator]
 CLUSTER_UPDATE = {
-    "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 3}}
+    "config": {
+        "worker_config": {"num_instances": 3},
+        "secondary_worker_config": {"num_instances": 3},
+    }
 }
 UPDATE_MASK = {
-    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
+    "paths": [
+        "config.worker_config.num_instances",
+        "config.secondary_worker_config.num_instances",
+    ]
 }
 # [END how_to_cloud_dataproc_updatemask_cluster_operator]
 

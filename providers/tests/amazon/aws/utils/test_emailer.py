@@ -51,6 +51,7 @@ class TestSendEmailSes:
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SesHook")
     def test_send_ses_email_no_from_mail(self, mock_hook):
         with pytest.raises(
-            RuntimeError, match="The `from_email' configuration has to be set for the SES emailer."
+            RuntimeError,
+            match="The `from_email' configuration has to be set for the SES emailer.",
         ):
             send_email(to="to@test.com", subject="subject", html_content="content")

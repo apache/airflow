@@ -67,7 +67,9 @@ class TestSparkJDBCOperator:
         spark_conn_id = "spark-default"
         jdbc_conn_id = "jdbc-default"
 
-        operator = SparkJDBCOperator(task_id="spark_jdbc_job", dag=self.dag, **self._config)
+        operator = SparkJDBCOperator(
+            task_id="spark_jdbc_job", dag=self.dag, **self._config
+        )
 
         # Then
         expected_dict = {
@@ -128,7 +130,10 @@ class TestSparkJDBCOperator:
         assert expected_dict["partition_column"] == operator._partition_column
         assert expected_dict["lower_bound"] == operator._lower_bound
         assert expected_dict["upper_bound"] == operator._upper_bound
-        assert expected_dict["create_table_column_types"] == operator._create_table_column_types
+        assert (
+            expected_dict["create_table_column_types"]
+            == operator._create_table_column_types
+        )
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
     @pytest.mark.db_test

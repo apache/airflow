@@ -70,7 +70,9 @@ class TestPokeRaisesAirflowException(TestEmrServerlessJobSensor):
     def test_poke_raises_airflow_exception_with_specified_states(self, state):
         state_details = f"mock {state}"
         exception_msg = f"EMR Serverless job failed: {state_details}"
-        get_job_run_return_value = {"jobRun": {"state": state, "stateDetails": state_details}}
+        get_job_run_return_value = {
+            "jobRun": {"state": state, "stateDetails": state_details}
+        }
         self.set_get_job_run_return_value(get_job_run_return_value)
 
         with pytest.raises(AirflowException) as ctx:

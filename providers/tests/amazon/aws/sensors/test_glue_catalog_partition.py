@@ -24,7 +24,9 @@ from moto import mock_aws
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
-from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
+from airflow.providers.amazon.aws.sensors.glue_catalog_partition import (
+    GlueCatalogPartitionSensor,
+)
 
 
 class TestGlueCatalogPartitionSensor:
@@ -53,7 +55,9 @@ class TestGlueCatalogPartitionSensor:
 
         assert op.hook.region_name is None
         assert op.hook.aws_conn_id == "aws_default"
-        mock_check_for_partition.assert_called_once_with("default", table_name, "ds='{{ ds }}'")
+        mock_check_for_partition.assert_called_once_with(
+            "default", table_name, "ds='{{ ds }}'"
+        )
 
     @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
@@ -84,7 +88,9 @@ class TestGlueCatalogPartitionSensor:
         assert op.hook.aws_conn_id == aws_conn_id
         assert op.poke_interval == poke_interval
         assert op.timeout == timeout
-        mock_check_for_partition.assert_called_once_with(database_name, table_name, expression)
+        mock_check_for_partition.assert_called_once_with(
+            database_name, table_name, expression
+        )
 
     @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
@@ -93,27 +99,37 @@ class TestGlueCatalogPartitionSensor:
         op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name=db_table)
         op.poke({})
 
-        mock_check_for_partition.assert_called_once_with("my_db", "my_tbl", "ds='{{ ds }}'")
+        mock_check_for_partition.assert_called_once_with(
+            "my_db", "my_tbl", "ds='{{ ds }}'"
+        )
 
     def test_deferrable_mode_raises_task_deferred(self):
-        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        op = GlueCatalogPartitionSensor(
+            task_id=self.task_id, table_name="tbl", deferrable=True
+        )
         with pytest.raises(TaskDeferred):
             op.execute({})
 
     def test_execute_complete_fails_if_status_is_not_success(self):
-        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        op = GlueCatalogPartitionSensor(
+            task_id=self.task_id, table_name="tbl", deferrable=True
+        )
         event = {"status": "FAILED"}
         with pytest.raises(AirflowException):
             op.execute_complete(context={}, event=event)
 
     def test_execute_complete_succeeds_if_status_is_success(self, caplog):
-        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        op = GlueCatalogPartitionSensor(
+            task_id=self.task_id, table_name="tbl", deferrable=True
+        )
         event = {"status": "success"}
         op.execute_complete(context={}, event=event)
         assert "Partition exists in the Glue Catalog" in caplog.messages
 
     def test_fail_execute_complete(self):
-        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        op = GlueCatalogPartitionSensor(
+            task_id=self.task_id, table_name="tbl", deferrable=True
+        )
         event = {"status": "Failed"}
         message = f"Trigger error: event is {event}"
         with pytest.raises(AirflowException, match=message):

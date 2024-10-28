@@ -138,7 +138,9 @@ class TestS3ToHiveTransfer:
         # Hence decompress to test for equality
         if ext.lower() == ".gz":
             with GzipFile(fn_1, "rb") as f_1, NamedTemporaryFile(mode="wb") as f_txt_1:
-                with GzipFile(fn_2, "rb") as f_2, NamedTemporaryFile(mode="wb") as f_txt_2:
+                with GzipFile(fn_2, "rb") as f_2, NamedTemporaryFile(
+                    mode="wb"
+                ) as f_txt_2:
                     shutil.copyfileobj(f_1, f_txt_1)
                     shutil.copyfileobj(f_2, f_txt_2)
                     f_txt_1.flush()
@@ -162,11 +164,17 @@ class TestS3ToHiveTransfer:
         self.kwargs["delimiter"] = "\t"
         fn_txt = self._get_fn(".txt", True)
         header_list = S3ToHiveOperator(**self.kwargs)._get_top_row_as_list(fn_txt)
-        assert header_list == ["Sno", "Some,Text"], "Top row from file doesn't matched expected value"
+        assert header_list == [
+            "Sno",
+            "Some,Text",
+        ], "Top row from file doesn't matched expected value"
 
         self.kwargs["delimiter"] = ","
         header_list = S3ToHiveOperator(**self.kwargs)._get_top_row_as_list(fn_txt)
-        assert header_list == ["Sno\tSome", "Text"], "Top row from file doesn't matched expected value"
+        assert header_list == [
+            "Sno\tSome",
+            "Text",
+        ], "Top row from file doesn't matched expected value"
 
     def test__match_headers(self):
         self.kwargs["field_dict"] = {"Sno": "BIGINT", "Some,Text": "STRING"}
@@ -188,11 +196,15 @@ class TestS3ToHiveTransfer:
         fn_txt = self._get_fn(".txt", True)
         gz_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, ".gz", self.tmp_dir)
         fn_gz = self._get_fn(".gz", False)
-        assert self._check_file_equality(gz_txt_nh, fn_gz, ".gz"), "gz Compressed file not as expected"
+        assert self._check_file_equality(
+            gz_txt_nh, fn_gz, ".gz"
+        ), "gz Compressed file not as expected"
         # Testing bz2 file type
         bz2_txt_nh = s32hive._delete_top_row_and_compress(fn_txt, ".bz2", self.tmp_dir)
         fn_bz2 = self._get_fn(".bz2", False)
-        assert self._check_file_equality(bz2_txt_nh, fn_bz2, ".bz2"), "bz2 Compressed file not as expected"
+        assert self._check_file_equality(
+            bz2_txt_nh, fn_bz2, ".bz2"
+        ), "bz2 Compressed file not as expected"
 
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
     @moto.mock_aws
@@ -202,14 +214,19 @@ class TestS3ToHiveTransfer:
             conn.create_bucket(Bucket="bucket")
         else:
             conn.create_bucket(
-                Bucket="bucket", CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name}
+                Bucket="bucket",
+                CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name},
             )
 
         # Testing txt, zip, bz2 files with and without header row
-        for ext, has_header in itertools.product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
+        for ext, has_header in itertools.product(
+            [".txt", ".gz", ".bz2", ".GZ"], [True, False]
+        ):
             self.kwargs["headers"] = has_header
             self.kwargs["check_headers"] = has_header
-            logger.info("Testing %s format %s header", ext, "with" if has_header else "without")
+            logger.info(
+                "Testing %s format %s header", ext, "with" if has_header else "without"
+            )
             self.kwargs["input_compressed"] = ext.lower() != ".txt"
             self.kwargs["s3_key"] = "s3://bucket/" + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs["headers"])
@@ -220,8 +237,8 @@ class TestS3ToHiveTransfer:
 
             # file parameter to HiveCliHook.load_file is compared
             # against expected file output
-            mock_hiveclihook().load_file.side_effect = lambda *args, **kwargs: self._load_file_side_effect(
-                args, op_fn, ext
+            mock_hiveclihook().load_file.side_effect = (
+                lambda *args, **kwargs: self._load_file_side_effect(args, op_fn, ext)
             )
             # Execute S3ToHiveTransfer
             s32hive = S3ToHiveOperator(**self.kwargs)
@@ -235,7 +252,8 @@ class TestS3ToHiveTransfer:
             conn.create_bucket(Bucket="bucket")
         else:
             conn.create_bucket(
-                Bucket="bucket", CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name}
+                Bucket="bucket",
+                CreateBucketConfiguration={"LocationConstraint": conn.meta.region_name},
             )
 
         select_expression = "SELECT * FROM S3Object s"

@@ -92,7 +92,9 @@ class DiscordWebhookHook(HttpHook):
         self.tts = tts
         self.proxy = proxy
 
-    def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
+    def _get_webhook_endpoint(
+        self, http_conn_id: str | None, webhook_endpoint: str | None
+    ) -> str:
         """
         Return the default webhook endpoint or override if a webhook_endpoint is manually supplied.
 
@@ -137,7 +139,9 @@ class DiscordWebhookHook(HttpHook):
         if len(self.message) <= 2000:
             payload["content"] = self.message
         else:
-            raise AirflowException("Discord message length must be 2000 or fewer characters.")
+            raise AirflowException(
+                "Discord message length must be 2000 or fewer characters."
+            )
 
         return json.dumps(payload)
 

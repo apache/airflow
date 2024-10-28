@@ -21,7 +21,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, select, text
+from sqlalchemy import (
+    Column,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    asc,
+    desc,
+    select,
+    text,
+)
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -54,7 +64,14 @@ class TaskReschedule(TaskInstanceDependencies):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
+        Index(
+            "idx_task_reschedule_dag_task_run",
+            dag_id,
+            task_id,
+            run_id,
+            map_index,
+            unique=False,
+        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

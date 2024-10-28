@@ -37,7 +37,9 @@ class TestCompression:
         line2 = b"2\tCompressionUtil\n"
         self.tmp_dir = tempfile.mkdtemp(prefix="test_utils_compression_")
         # create sample txt, gz and bz2 files
-        with tempfile.NamedTemporaryFile(mode="wb+", dir=self.tmp_dir, delete=False) as f_txt:
+        with tempfile.NamedTemporaryFile(
+            mode="wb+", dir=self.tmp_dir, delete=False
+        ) as f_txt:
             self._set_fn(f_txt.name, ".txt")
             f_txt.writelines([header, line1, line2])
 
@@ -72,7 +74,9 @@ class TestCompression:
 
     def test_uncompress_file(self):
         # Testing txt file type
-        with pytest.raises(NotImplementedError, match="^Received .txt format. Only gz and bz2.*"):
+        with pytest.raises(
+            NotImplementedError, match="^Received .txt format. Only gz and bz2.*"
+        ):
             compression.uncompress_file(
                 **{"input_file_name": None, "file_extension": ".txt", "dest_dir": None},
             )
@@ -80,8 +84,12 @@ class TestCompression:
         fn_txt = self._get_fn(".txt")
         fn_gz = self._get_fn(".gz")
         txt_gz = compression.uncompress_file(fn_gz, ".gz", self.tmp_dir)
-        assert filecmp.cmp(txt_gz, fn_txt, shallow=False), "Uncompressed file does not match original"
+        assert filecmp.cmp(
+            txt_gz, fn_txt, shallow=False
+        ), "Uncompressed file does not match original"
         # Testing bz2 file type
         fn_bz2 = self._get_fn(".bz2")
         txt_bz2 = compression.uncompress_file(fn_bz2, ".bz2", self.tmp_dir)
-        assert filecmp.cmp(txt_bz2, fn_txt, shallow=False), "Uncompressed file does not match original"
+        assert filecmp.cmp(
+            txt_bz2, fn_txt, shallow=False
+        ), "Uncompressed file does not match original"

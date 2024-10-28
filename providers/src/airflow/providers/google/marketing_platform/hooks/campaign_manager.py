@@ -120,7 +120,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             reports.extend(response.get("items", []))
-            request = conn.reports().list_next(previous_request=request, previous_response=response)
+            request = conn.reports().list_next(
+                previous_request=request, previous_response=response
+            )
 
         return reports
 
@@ -141,7 +143,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def run_report(self, profile_id: str, report_id: str, synchronous: bool | None = None) -> Any:
+    def run_report(
+        self, profile_id: str, report_id: str, synchronous: bool | None = None
+    ) -> Any:
         """
         Run a report.
 
@@ -189,7 +193,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         )
         return response
 
-    def get_report_file(self, file_id: str, profile_id: str, report_id: str) -> http.HttpRequest:
+    def get_report_file(
+        self, file_id: str, profile_id: str, report_id: str
+    ) -> http.HttpRequest:
         """
         Retrieve a media part of report file.
 
@@ -264,7 +270,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         if response.get("hasFailures", False):
-            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
+            errored_conversions = [
+                stat["errors"] for stat in response["status"] if "errors" in stat
+            ]
             if len(errored_conversions) > max_failed_inserts:
                 raise AirflowException(errored_conversions)
         return response
@@ -308,7 +316,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         if response.get("hasFailures", False):
-            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
+            errored_conversions = [
+                stat["errors"] for stat in response["status"] if "errors" in stat
+            ]
             if len(errored_conversions) > max_failed_updates:
                 raise AirflowException(errored_conversions)
         return response

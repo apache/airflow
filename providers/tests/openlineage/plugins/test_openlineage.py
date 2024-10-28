@@ -28,7 +28,8 @@ from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.skipif(
-    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Plugin initialization is done early in case of packages"
+    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+    reason="Plugin initialization is done early in case of packages",
 )
 class TestOpenLineageProviderPlugin:
     def setup_method(self):
@@ -70,7 +71,12 @@ class TestOpenLineageProviderPlugin:
             (
                 [
                     conf_vars(
-                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
+                        {
+                            (
+                                "openlineage",
+                                "transport",
+                            ): '{"type": "http", "url": "http://localhost:5000"}'
+                        }
                     ),
                     patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "1"}),
                 ],
@@ -81,7 +87,10 @@ class TestOpenLineageProviderPlugin:
                 [
                     conf_vars(
                         {
-                            ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
+                            (
+                                "openlineage",
+                                "transport",
+                            ): '{"type": "http", "url": "http://localhost:5000"}',
                             ("openlineage", "disabled"): "true",
                         }
                     )
@@ -94,7 +103,10 @@ class TestOpenLineageProviderPlugin:
                     conf_vars(
                         {
                             ("openlineage", "disabled"): "0",
-                            ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
+                            (
+                                "openlineage",
+                                "transport",
+                            ): '{"type": "http", "url": "http://localhost:5000"}',
                         }
                     )
                 ],
@@ -105,7 +117,10 @@ class TestOpenLineageProviderPlugin:
                 [
                     conf_vars(
                         {
-                            ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
+                            (
+                                "openlineage",
+                                "transport",
+                            ): '{"type": "http", "url": "http://localhost:5000"}',
                         }
                     ),
                     patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "false"}),
@@ -118,7 +133,12 @@ class TestOpenLineageProviderPlugin:
             (
                 [
                     conf_vars(
-                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
+                        {
+                            (
+                                "openlineage",
+                                "transport",
+                            ): '{"type": "http", "url": "http://localhost:5000"}'
+                        }
                     )
                 ],
                 1,
@@ -129,7 +149,9 @@ class TestOpenLineageProviderPlugin:
         with contextlib.ExitStack() as stack:
             for mock in mocks:
                 stack.enter_context(mock)
-            from airflow.providers.openlineage.plugins.openlineage import OpenLineageProviderPlugin
+            from airflow.providers.openlineage.plugins.openlineage import (
+                OpenLineageProviderPlugin,
+            )
 
             plugin = OpenLineageProviderPlugin()
 

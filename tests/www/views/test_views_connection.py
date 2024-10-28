@@ -108,7 +108,9 @@ def test_all_fields_with_blanks(admin_client, session):
 @pytest.mark.enable_redact
 def test_action_logging_connection_masked_secrets(session, admin_client):
     admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
-    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
+    _check_last_log_masked_connection(
+        session, dag_id=None, event="connection.create", execution_date=None
+    )
 
 
 def test_prefill_form_null_extra():
@@ -142,7 +144,9 @@ def test_prefill_form_sensitive_fields_extra():
 @pytest.mark.parametrize(
     "extras, expected",
     [
-        pytest.param({"extra__test__my_param": "this_val"}, "this_val", id="conn_not_upgraded"),
+        pytest.param(
+            {"extra__test__my_param": "this_val"}, "this_val", id="conn_not_upgraded"
+        ),
         pytest.param({"my_param": "my_val"}, "my_val", id="conn_upgraded"),
         pytest.param(
             {"extra__test__my_param": "this_val", "my_param": "my_val"},
@@ -288,7 +292,9 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
             "extra__test4__custom_field": "custom_field_val3",
         }
     else:
-        assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
+        assert json.loads(mock_form.extra.data) == {
+            "extra__test4__custom_field": "custom_field_val4"
+        }
 
 
 @mock.patch("airflow.utils.module_loading.import_string")
@@ -308,7 +314,9 @@ def test_process_form_extras_updates_sensitive_placeholder_unchanged(
         "conn_id": "extras_test4",
         "extra": '{"sensitive_extra": "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER", "extra__custom": "value"}',
     }
-    mock_base_hook.get_connection.return_value = Connection(extra='{"sensitive_extra": "old_value"}')
+    mock_base_hook.get_connection.return_value = Connection(
+        extra='{"sensitive_extra": "old_value"}'
+    )
     cmv = ConnectionModelView()
     cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
         return_value=[("sensitive_extra_key", "sensitive_extra", True)]
@@ -390,7 +398,9 @@ def test_duplicate_connection_error(admin_client):
     resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
     assert resp.status_code == 200
 
-    expected_connections_ids = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
+    expected_connections_ids = {
+        f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)
+    }
     connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
     assert expected_connections_ids == connections_ids
 
@@ -406,7 +416,9 @@ def connection():
         session.add(connection)
     yield connection
     with create_session() as session:
-        session.query(Connection).filter(Connection.conn_id == CONNECTION["conn_id"]).delete()
+        session.query(Connection).filter(
+            Connection.conn_id == CONNECTION["conn_id"]
+        ).delete()
 
 
 def test_connection_muldelete(admin_client, connection):

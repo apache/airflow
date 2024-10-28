@@ -23,7 +23,9 @@ from unittest import mock
 import pytest
 from google.cloud.bigquery import Row
 
-from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_mssql import (
+    BigQueryToMsSqlOperator,
+)
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 AIRFLOW_CONN_MSSQL_DEFAULT = "mssql://sa:airflow123@mssql:1433/"
@@ -32,7 +34,10 @@ TEST_PROJECT_ID = "test-project"
 TEST_DATASET = "test_dataset"
 TEST_TABLE_ID = "Persons"
 TEST_ROWS = [
-    Row((0, "Airflow", "Apache", "1000 N West Street, Suite 1200", "Wilmington, NC, USA"), field_to_index={})
+    Row(
+        (0, "Airflow", "Apache", "1000 N West Street, Suite 1200", "Wilmington, NC, USA"),
+        field_to_index={},
+    )
 ]
 
 
@@ -57,7 +62,9 @@ class TestBigQueryToMsSqlOperator:
 
     @mock.patch(
         "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook",
-        return_value=mock.MagicMock(list_rows=mock.MagicMock(side_effect=[TEST_ROWS, []])),
+        return_value=mock.MagicMock(
+            list_rows=mock.MagicMock(side_effect=[TEST_ROWS, []])
+        ),
     )
     def test_execute(self, mock_hook):
         operator = BigQueryToMsSqlOperator(
@@ -74,14 +81,26 @@ class TestBigQueryToMsSqlOperator:
                     dataset_id=TEST_DATASET,
                     table_id=TEST_TABLE_ID,
                     max_results=1000,
-                    selected_fields=["PersonID", "LastName", "FirstName", "Address", "City"],
+                    selected_fields=[
+                        "PersonID",
+                        "LastName",
+                        "FirstName",
+                        "Address",
+                        "City",
+                    ],
                     start_index=0,
                 ),
                 mock.call(
                     dataset_id=TEST_DATASET,
                     table_id=TEST_TABLE_ID,
                     max_results=1000,
-                    selected_fields=["PersonID", "LastName", "FirstName", "Address", "City"],
+                    selected_fields=[
+                        "PersonID",
+                        "LastName",
+                        "FirstName",
+                        "Address",
+                        "City",
+                    ],
                     start_index=1000,
                 ),
             ],

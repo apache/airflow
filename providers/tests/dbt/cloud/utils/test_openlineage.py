@@ -27,7 +27,9 @@ from packaging.version import parse
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
-from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.providers.dbt.cloud.utils.openlineage import (
+    generate_openlineage_events_from_dbt_cloud_run,
+)
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 TASK_ID = "dbt_test"
@@ -55,14 +57,26 @@ def emit_event(event):
     assert event.job.name.startswith("SANDBOX.TEST_SCHEMA.test_project")
 
     if len(event.inputs) > 0:
-        assert event.inputs[0].facets["dataSource"].name == "snowflake://gp21411.us-east-1.aws"
-        assert event.inputs[0].facets["dataSource"].uri == "snowflake://gp21411.us-east-1.aws"
+        assert (
+            event.inputs[0].facets["dataSource"].name
+            == "snowflake://gp21411.us-east-1.aws"
+        )
+        assert (
+            event.inputs[0].facets["dataSource"].uri
+            == "snowflake://gp21411.us-east-1.aws"
+        )
         assert event.inputs[0].facets["schema"].fields[0].name.upper() == "ID"
         if event.inputs[0].name == "SANDBOX.TEST_SCHEMA.my_first_dbt_model":
             assert event.inputs[0].facets["schema"].fields[0].type.upper() == "NUMBER"
     if len(event.outputs) > 0:
-        assert event.outputs[0].facets["dataSource"].name == "snowflake://gp21411.us-east-1.aws"
-        assert event.outputs[0].facets["dataSource"].uri == "snowflake://gp21411.us-east-1.aws"
+        assert (
+            event.outputs[0].facets["dataSource"].name
+            == "snowflake://gp21411.us-east-1.aws"
+        )
+        assert (
+            event.outputs[0].facets["dataSource"].uri
+            == "snowflake://gp21411.us-east-1.aws"
+        )
         assert event.outputs[0].facets["schema"].fields[0].name.upper() == "ID"
         if event.outputs[0].name == "SANDBOX.TEST_SCHEMA.my_first_dbt_model":
             assert event.outputs[0].facets["schema"].fields[0].type.upper() == "NUMBER"
@@ -94,7 +108,9 @@ def test_previous_version_openlineage_provider():
 
     def custom_import(name, *args, **kwargs):
         if name == "airflow.providers.openlineage.conf":
-            raise ModuleNotFoundError("No module named 'airflow.providers.openlineage.conf")
+            raise ModuleNotFoundError(
+                "No module named 'airflow.providers.openlineage.conf"
+            )
         else:
             return original_import(name, *args, **kwargs)
 
@@ -103,14 +119,21 @@ def test_previous_version_openlineage_provider():
 
     with patch("builtins.__import__", side_effect=custom_import):
         with pytest.raises(AirflowOptionalProviderFeatureException) as exc:
-            generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
+            generate_openlineage_events_from_dbt_cloud_run(
+                mock_operator, mock_task_instance
+            )
     assert str(exc.value.args[0]) == "No module named 'airflow.providers.openlineage.conf"
-    assert str(exc.value.args[1]) == "Please install `apache-airflow-providers-openlineage>=1.7.0`"
+    assert (
+        str(exc.value.args[1])
+        == "Please install `apache-airflow-providers-openlineage>=1.7.0`"
+    )
 
 
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
     @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
-    @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id")
+    @patch(
+        "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id"
+    )
     @patch.object(DbtCloudHook, "get_job_run")
     @patch.object(DbtCloudHook, "get_project")
     @patch.object(DbtCloudHook, "get_job_run_artifact")
@@ -157,15 +180,17 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_client = MagicMock()
 
         mock_client.emit.side_effect = emit_event
-        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value = (
-            mock_client
-        )
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value = mock_client
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
-        generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
+        generate_openlineage_events_from_dbt_cloud_run(
+            mock_operator, task_instance=mock_task_instance
+        )
         assert mock_client.emit.call_count == 4
 
     def test_do_not_raise_error_if_runid_not_set_on_operator(self):
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)
         assert operator.run_id is None
-        assert operator.get_openlineage_facets_on_complete(MagicMock()) == OperatorLineage()
+        assert (
+            operator.get_openlineage_facets_on_complete(MagicMock()) == OperatorLineage()
+        )

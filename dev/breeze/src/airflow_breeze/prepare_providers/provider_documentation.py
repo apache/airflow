@@ -142,7 +142,9 @@ def get_most_impactful_change(changes: list[TypeOfChange]):
 
 def format_message_for_classification(message):
     num = re.search(r"#(\d+)", message).group(1)
-    new_message = re.sub(r"#(\d+)", f"https://github.com/apache/airflow/pull/{num}", message)
+    new_message = re.sub(
+        r"#(\d+)", f"https://github.com/apache/airflow/pull/{num}", message
+    )
     return new_message
 
 
@@ -188,7 +190,9 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 
 
 def _get_git_log_command(
-    folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
+    folder_paths: list[Path] | None = None,
+    from_commit: str | None = None,
+    to_commit: str | None = None,
 ) -> list[str]:
     """Get git command to run for the current repo from the current folder.
 
@@ -211,7 +215,11 @@ def _get_git_log_command(
         git_cmd.append(from_commit)
     elif to_commit:
         raise ValueError("It makes no sense to specify to_commit without from_commit.")
-    folders = [folder_path.as_posix() for folder_path in folder_paths] if folder_paths else ["."]
+    folders = (
+        [folder_path.as_posix() for folder_path in folder_paths]
+        if folder_paths
+        else ["."]
+    )
     git_cmd.extend(["--", *folders])
     return git_cmd
 
@@ -327,7 +335,9 @@ def _get_all_changes_for_package(
         # The tag already exists
         result = run_command(
             _get_git_log_command(
-                providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix
+                providers_folder_paths,
+                f"{HTTPS_REMOTE}/{base_branch}",
+                current_tag_no_suffix,
             ),
             cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
@@ -338,14 +348,17 @@ def _get_all_changes_for_package(
         if changes:
             provider_details = get_provider_details(provider_package_id)
             doc_only_change_file = (
-                provider_details.source_provider_package_path / ".latest-doc-only-change.txt"
+                provider_details.source_provider_package_path
+                / ".latest-doc-only-change.txt"
             )
             if doc_only_change_file.exists():
                 last_doc_only_hash = doc_only_change_file.read_text().strip()
                 try:
                     result = run_command(
                         _get_git_log_command(
-                            providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash
+                            providers_folder_paths,
+                            f"{HTTPS_REMOTE}/{base_branch}",
+                            last_doc_only_hash,
                         ),
                         cwd=AIRFLOW_SOURCES_ROOT,
                         capture_output=True,
@@ -358,7 +371,9 @@ def _get_all_changes_for_package(
                             "\n[warning]The provider has doc-only changes since the last release. Skipping[/]"
                         )
                         raise PrepareReleaseDocsChangesOnlyException()
-                    if len(changes.splitlines()) > len(changes_since_last_doc_only_check.splitlines()):
+                    if len(changes.splitlines()) > len(
+                        changes_since_last_doc_only_check.splitlines()
+                    ):
                         # if doc-only was released after previous release - use it as starting point
                         # but if before - stay with the releases from last tag.
                         changes = changes_since_last_doc_only_check
@@ -407,8 +422,13 @@ def _get_all_changes_for_package(
             check=True,
         )
         changes = result.stdout.strip()
-        changes_table_for_version, array_of_changes_for_version = _convert_git_changes_to_table(
-            current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
+        changes_table_for_version, array_of_changes_for_version = (
+            _convert_git_changes_to_table(
+                current_version,
+                changes,
+                base_url="https://github.com/apache/airflow/commit/",
+                markdown=False,
+            )
         )
         changes_table += changes_table_for_version
         list_of_list_of_changes.append(array_of_changes_for_version)
@@ -422,8 +442,13 @@ def _get_all_changes_for_package(
         check=True,
     )
     changes = result.stdout.strip()
-    changes_table_for_version, array_of_changes_for_version = _convert_git_changes_to_table(
-        current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
+    changes_table_for_version, array_of_changes_for_version = (
+        _convert_git_changes_to_table(
+            current_version,
+            changes,
+            base_url="https://github.com/apache/airflow/commit/",
+            markdown=False,
+        )
     )
     changes_table += changes_table_for_version
     return True, list_of_list_of_changes, changes_table
@@ -469,9 +494,9 @@ def _mark_latest_changes_as_documentation_only(
         f"[special]Marking last change: {latest_change.short_hash} and all above "
         f"changes since the last release as doc-only changes!"
     )
-    (provider_details.source_provider_package_path / ".latest-doc-only-change.txt").write_text(
-        latest_change.full_hash + "\n"
-    )
+    (
+        provider_details.source_provider_package_path / ".latest-doc-only-change.txt"
+    ).write_text(latest_change.full_hash + "\n")
     raise PrepareReleaseDocsChangesOnlyException()
 
 
@@ -505,7 +530,11 @@ def _update_version_in_provider_yaml(
     provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
     original_provider_yaml_content = provider_yaml_path.read_text()
     new_provider_yaml_content = re.sub(
-        r"^versions:", f"versions:\n  - {v}", original_provider_yaml_content, 1, re.MULTILINE
+        r"^versions:",
+        f"versions:\n  - {v}",
+        original_provider_yaml_content,
+        1,
+        re.MULTILINE,
     )
     provider_yaml_path.write_text(new_provider_yaml_content)
     get_console().print(f"[special]Bumped version to {v}\n")
@@ -524,7 +553,10 @@ def _update_source_date_epoch_in_provider_yaml(
     original_text = provider_yaml_path.read_text()
     source_date_epoch = int(time())
     new_text = re.sub(
-        r"source-date-epoch: [0-9]*", f"source-date-epoch: {source_date_epoch}", original_text, 1
+        r"source-date-epoch: [0-9]*",
+        f"source-date-epoch: {source_date_epoch}",
+        original_text,
+        1,
     )
     provider_yaml_path.write_text(new_text)
     refresh_provider_metadata_with_provider_id(provider_package_id)
@@ -538,7 +570,9 @@ def _verify_changelog_exists(package: str) -> Path:
         get_console().print(f"\n[error]ERROR: Missing {changelog_path}[/]\n")
         get_console().print("[info]Please add the file with initial content:")
         get_console().print("----- START COPYING AFTER THIS LINE ------- ")
-        processed_changelog = jinja2.Template(INITIAL_CHANGELOG_CONTENT, autoescape=True).render(
+        processed_changelog = jinja2.Template(
+            INITIAL_CHANGELOG_CONTENT, autoescape=True
+        ).render(
             package_name=provider_details.pypi_package_name,
         )
         syntax = Syntax(
@@ -580,9 +614,14 @@ def replace_content(file_path: Path, old_text: str, new_text: str, provider_id: 
             if file_path.is_file():
                 copyfile(file_path, temp_file_path)
             file_path.write_text(new_text)
-            get_console().print(f"\n[info]Generated {file_path} file for the {provider_id} provider\n")
+            get_console().print(
+                f"\n[info]Generated {file_path} file for the {provider_id} provider\n"
+            )
             if old_text != "":
-                run_command(["diff", "--color=always", temp_file_path, file_path.as_posix()], check=False)
+                run_command(
+                    ["diff", "--color=always", temp_file_path, file_path.as_posix()],
+                    check=False,
+                )
         finally:
             os.unlink(temp_file_path)
 
@@ -605,7 +644,10 @@ def _update_file(
             )
         return
     new_text = render_template(
-        template_name=template_name, context=context, extension=extension, keep_trailing_newline=True
+        template_name=template_name,
+        context=context,
+        extension=extension,
+        keep_trailing_newline=True,
     )
     target_file_path = target_path / file_name
     old_text = ""
@@ -614,7 +656,9 @@ def _update_file(
     replace_content(target_file_path, old_text, new_text, provider_package_id)
     index_path = target_path / "index.rst"
     if not index_path.exists():
-        get_console().print(f"[error]ERROR! The index must exist for the provider docs: {index_path}")
+        get_console().print(
+            f"[error]ERROR! The index must exist for the provider docs: {index_path}"
+        )
         raise PrepareReleaseDocsErrorOccurredException()
 
     expected_link_in_index = f"<{file_name.split('.')[0]}>"
@@ -626,7 +670,9 @@ def _update_file(
             f"[info]Please make sure to add it to {index_path}.\n"
         )
 
-    get_console().print(f"[info]Checking for backticks correctly generated in: {target_file_path}")
+    get_console().print(
+        f"[info]Checking for backticks correctly generated in: {target_file_path}"
+    )
     match = BACKTICKS_CHECK.search(target_file_path.read_text())
     if match:
         get_console().print(
@@ -656,7 +702,9 @@ def _update_file(
     #         console.print(f"\n[red] Errors found in {file_path}")
     #         raise PrepareReleaseDocsErrorOccurredException()
 
-    get_console().print(f"[success]Generated {target_file_path} for {provider_package_id} is OK[/]")
+    get_console().print(
+        f"[success]Generated {target_file_path} for {provider_package_id} is OK[/]"
+    )
     return
 
 
@@ -753,7 +801,9 @@ def update_release_notes(
                 f"Does the provider: {provider_package_id} have any changes apart from 'doc-only'?"
             )
             if answer == Answer.NO:
-                _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
+                _mark_latest_changes_as_documentation_only(
+                    provider_package_id, list_of_list_of_changes
+                )
                 return with_breaking_changes, maybe_with_new_features
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
@@ -769,7 +819,9 @@ def update_release_notes(
                     f"`{formatted_message}`"
                     f" by referring to the above table[/]"
                 )
-                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                type_of_change = _ask_the_user_for_the_type_of_changes(
+                    non_interactive=non_interactive
+                )
                 change_hash = list_of_list_of_changes[0][table_iter].short_hash
                 SHORT_HASH_TO_TYPE_DICT[change_hash] = type_of_change
                 type_of_current_package_changes.append(type_of_change)
@@ -793,17 +845,21 @@ def update_release_notes(
                 TypeOfChange.BREAKING_CHANGE,
                 TypeOfChange.MISC,
             ]:
-                with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
-                    _update_version_in_provider_yaml(
-                        provider_package_id=provider_package_id, type_of_change=type_of_change
-                    )
+                (
+                    with_breaking_changes,
+                    maybe_with_new_features,
+                    original_provider_yaml_content,
+                ) = _update_version_in_provider_yaml(
+                    provider_package_id=provider_package_id, type_of_change=type_of_change
                 )
                 _update_source_date_epoch_in_provider_yaml(provider_package_id)
-            proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
-                provider_package_id=provider_package_id,
-                base_branch=base_branch,
-                reapply_templates_only=reapply_templates_only,
-                only_min_version_update=only_min_version_update,
+            proceed, list_of_list_of_changes, changes_as_table = (
+                _get_all_changes_for_package(
+                    provider_package_id=provider_package_id,
+                    base_branch=base_branch,
+                    reapply_templates_only=reapply_templates_only,
+                    only_min_version_update=only_min_version_update,
+                )
             )
     else:
         _update_source_date_epoch_in_provider_yaml(provider_package_id)
@@ -835,23 +891,29 @@ def update_release_notes(
         )
         get_console().print()
         if type_of_change == TypeOfChange.DOCUMENTATION:
-            _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
+            _mark_latest_changes_as_documentation_only(
+                provider_package_id, list_of_list_of_changes
+            )
         elif type_of_change in [
             TypeOfChange.BUGFIX,
             TypeOfChange.FEATURE,
             TypeOfChange.BREAKING_CHANGE,
             TypeOfChange.MISC,
         ]:
-            with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
-                provider_package_id=provider_package_id,
-                type_of_change=type_of_change,
+            with_breaking_changes, maybe_with_new_features, _ = (
+                _update_version_in_provider_yaml(
+                    provider_package_id=provider_package_id,
+                    type_of_change=type_of_change,
+                )
             )
             _update_source_date_epoch_in_provider_yaml(provider_package_id)
-            proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
-                provider_package_id=provider_package_id,
-                base_branch=base_branch,
-                reapply_templates_only=reapply_templates_only,
-                only_min_version_update=only_min_version_update,
+            proceed, list_of_list_of_changes, changes_as_table = (
+                _get_all_changes_for_package(
+                    provider_package_id=provider_package_id,
+                    base_branch=base_branch,
+                    reapply_templates_only=reapply_templates_only,
+                    only_min_version_update=only_min_version_update,
+                )
             )
     else:
         get_console().print(
@@ -881,7 +943,9 @@ def update_release_notes(
     return with_breaking_changes, maybe_with_new_features
 
 
-def _find_insertion_index_for_version(content: list[str], version: str) -> tuple[int, bool]:
+def _find_insertion_index_for_version(
+    content: list[str], version: str
+) -> tuple[int, bool]:
     """Finds insertion index for the specified version from the .rst changelog content.
 
     :param content: changelog split into separate lines
@@ -951,7 +1015,9 @@ def _generate_new_changelog(
     latest_version = provider_details.versions[0]
     current_changelog = provider_details.changelog_path.read_text()
     current_changelog_lines = current_changelog.splitlines()
-    insertion_index, append = _find_insertion_index_for_version(current_changelog_lines, latest_version)
+    insertion_index, append = _find_insertion_index_for_version(
+        current_changelog_lines, latest_version
+    )
     new_context = deepcopy(context)
     if append:
         if not changes:
@@ -961,7 +1027,9 @@ def _generate_new_changelog(
             )
             return
         new_changes = [
-            change for change in changes[0] if change.pr and "(#" + change.pr + ")" not in current_changelog
+            change
+            for change in changes[0]
+            if change.pr and "(#" + change.pr + ")" not in current_changelog
         ]
         if not new_changes:
             get_console().print(
@@ -997,7 +1065,9 @@ def _generate_new_changelog(
     new_changelog_lines = current_changelog_lines[0:insertion_index]
     new_changelog_lines.extend(generated_new_changelog.splitlines())
     new_changelog_lines.extend(current_changelog_lines[insertion_index:])
-    diff = "\n".join(difflib.context_diff(current_changelog_lines, new_changelog_lines, n=5))
+    diff = "\n".join(
+        difflib.context_diff(current_changelog_lines, new_changelog_lines, n=5)
+    )
     syntax = Syntax(diff, "diff")
     get_console().print(syntax)
     if not append:
@@ -1018,7 +1088,10 @@ def _update_index_rst(
     target_path: Path,
 ):
     index_update = render_template(
-        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+        template_name="PROVIDER_INDEX",
+        context=context,
+        extension=".rst",
+        keep_trailing_newline=True,
     )
     index_file_path = target_path / "index.rst"
     old_text = ""
@@ -1047,7 +1120,9 @@ def get_provider_documentation_jinja_context(
     jinja_context["MAYBE_WITH_NEW_FEATURES"] = maybe_with_new_features
 
     jinja_context["ADDITIONAL_INFO"] = (
-        _get_additional_package_info(provider_package_path=provider_details.source_provider_package_path),
+        _get_additional_package_info(
+            provider_package_path=provider_details.source_provider_package_path
+        ),
     )
     return jinja_context
 
@@ -1098,7 +1173,9 @@ def update_changelog(
             maybe_with_new_features=maybe_with_new_features,
         )
     get_console().print(f"\n[info]Update index.rst for {package_id}\n")
-    _update_index_rst(jinja_context, package_id, provider_details.documentation_provider_package_path)
+    _update_index_rst(
+        jinja_context, package_id, provider_details.documentation_provider_package_path
+    )
 
 
 def _generate_init_py_file_for_provider(

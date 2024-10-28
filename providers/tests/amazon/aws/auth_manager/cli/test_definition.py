@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.cli.definition import AWS_AUTH_MANAGER_COMMANDS
+from airflow.providers.amazon.aws.auth_manager.cli.definition import (
+    AWS_AUTH_MANAGER_COMMANDS,
+)
 
 
 class TestAwsCliDefinition:

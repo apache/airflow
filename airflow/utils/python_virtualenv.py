@@ -31,7 +31,9 @@ from airflow.utils.decorators import remove_task_decorator as _remove_task_decor
 from airflow.utils.process_utils import execute_in_subprocess
 
 
-def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
+def _generate_virtualenv_cmd(
+    tmp_dir: str, python_bin: str, system_site_packages: bool
+) -> list[str]:
     cmd = [sys.executable, "-m", "virtualenv", tmp_dir]
     if system_site_packages:
         cmd.append("--system-site-packages")
@@ -43,7 +45,13 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
 def _generate_pip_install_cmd_from_file(
     tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
 ) -> list[str]:
-    return [f"{tmp_dir}/bin/pip", "install", *pip_install_options, "-r", requirements_file_path]
+    return [
+        f"{tmp_dir}/bin/pip",
+        "install",
+        *pip_install_options,
+        "-r",
+        requirements_file_path,
+    ]
 
 
 def _generate_pip_install_cmd_from_list(
@@ -56,7 +64,9 @@ def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
     if index_urls:
         pip_conf_options = f"index-url = {index_urls[0]}"
         if len(index_urls) > 1:
-            pip_conf_options += f"\nextra-index-url = {' '.join(x for x in index_urls[1:])}"
+            pip_conf_options += (
+                f"\nextra-index-url = {' '.join(x for x in index_urls[1:])}"
+            )
     else:
         pip_conf_options = "no-index = true"
     conf_file.write_text(f"[global]\n{pip_conf_options}")
@@ -101,15 +111,21 @@ def prepare_virtualenv(
     if index_urls is not None:
         _generate_pip_conf(Path(venv_directory) / "pip.conf", index_urls)
 
-    virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
+    virtualenv_cmd = _generate_virtualenv_cmd(
+        venv_directory, python_bin, system_site_packages
+    )
     execute_in_subprocess(virtualenv_cmd)
 
     if requirements is not None and requirements_file_path is not None:
-        raise ValueError("Either requirements OR requirements_file_path has to be passed, but not both")
+        raise ValueError(
+            "Either requirements OR requirements_file_path has to be passed, but not both"
+        )
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
-        pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements, pip_install_options)
+        pip_cmd = _generate_pip_install_cmd_from_list(
+            venv_directory, requirements, pip_install_options
+        )
     if requirements_file_path is not None and requirements_file_path:
         pip_cmd = _generate_pip_install_cmd_from_file(
             venv_directory, requirements_file_path, pip_install_options

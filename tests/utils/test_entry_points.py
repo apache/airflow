@@ -34,10 +34,15 @@ class MockMetadata:
         return [
             MockDistribution(
                 "dist1",
-                [metadata.EntryPoint("a", "b", "group_x"), metadata.EntryPoint("c", "d", "group_y")],
+                [
+                    metadata.EntryPoint("a", "b", "group_x"),
+                    metadata.EntryPoint("c", "d", "group_y"),
+                ],
             ),
             MockDistribution("Dist2", [metadata.EntryPoint("e", "f", "group_x")]),
-            MockDistribution("dist2", [metadata.EntryPoint("g", "h", "group_x")]),  # Duplicated name.
+            MockDistribution(
+                "dist2", [metadata.EntryPoint("g", "h", "group_x")]
+            ),  # Duplicated name.
         ]
 
 

@@ -36,6 +36,10 @@ class TestHive:
         assert "2017-04-28" == str(hive._closest_date(target_dt, date_list, False))
 
         # when before is not set, the closest date should be returned
-        assert "2017-04-26" == str(hive._closest_date(target_dt, [date1, date2, date3, date5], None))
-        assert "2017-04-28" == str(hive._closest_date(target_dt, [date1, date2, date4, date5]))
+        assert "2017-04-26" == str(
+            hive._closest_date(target_dt, [date1, date2, date3, date5], None)
+        )
+        assert "2017-04-28" == str(
+            hive._closest_date(target_dt, [date1, date2, date4, date5])
+        )
         assert "2017-04-26" == str(hive._closest_date(target_dt, date_list))

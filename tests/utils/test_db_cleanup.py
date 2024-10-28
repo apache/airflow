@@ -141,7 +141,11 @@ class TestDBCleanup:
             verbose=None,
         )
         run_cleanup(**base_kwargs, table_names=table_names)
-        assert clean_table_mock.call_count == len(table_names) if table_names else len(config_dict)
+        assert (
+            clean_table_mock.call_count == len(table_names)
+            if table_names
+            else len(config_dict)
+        )
 
     @patch("airflow.utils.db_cleanup._cleanup_table")
     @patch("airflow.utils.db_cleanup._confirm_delete")
@@ -188,12 +192,24 @@ class TestDBCleanup:
             pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
             pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param(
+                "task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"
+            ),
+            pytest.param(
+                "dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"
+            ),
+            pytest.param(
+                "dag_run",
+                dict(days=9, microseconds=1),
+                10,
+                True,
+                id="beyond_end_dr_external",
+            ),
         ],
     )
-    def test__build_query(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
+    def test__build_query(
+        self, table_name, date_add_kwargs, expected_to_delete, external_trigger
+    ):
         """
         Verify that ``_build_query`` produces a query that would delete the right
         task instance records depending on the value of ``clean_before_timestamp``.
@@ -230,12 +246,24 @@ class TestDBCleanup:
             pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
             pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param(
+                "task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"
+            ),
+            pytest.param(
+                "dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"
+            ),
+            pytest.param(
+                "dag_run",
+                dict(days=9, microseconds=1),
+                10,
+                True,
+                id="beyond_end_dr_external",
+            ),
         ],
     )
-    def test__cleanup_table(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
+    def test__cleanup_table(
+        self, table_name, date_add_kwargs, expected_to_delete, external_trigger
+    ):
         """
         Verify that _cleanup_table actually deletes the rows it should.
 
@@ -277,7 +305,10 @@ class TestDBCleanup:
 
     @pytest.mark.parametrize(
         "skip_archive, expected_archives",
-        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
+        [
+            pytest.param(True, 0, id="skip_archive"),
+            pytest.param(False, 1, id="do_archive"),
+        ],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
@@ -301,7 +332,9 @@ class TestDBCleanup:
             )
             model = config_dict["dag_run"].orm_model
             assert len(session.query(model).all()) == 5
-            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+            assert (
+                len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+            )
 
     def test_no_models_missing(self):
         """
@@ -372,8 +405,15 @@ class TestDBCleanup:
 
         # Lets check we have the right error message just in case
         caplog.clear()
-        with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
-            run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
+        with patch(
+            "airflow.utils.db_cleanup._cleanup_table",
+            side_effect=OperationalError("oops", {}, None),
+        ):
+            run_cleanup(
+                clean_before_timestamp=timezone.utcnow(),
+                table_names=["task_instance"],
+                dry_run=True,
+            )
         assert "Encountered error when attempting to clean table" in caplog.text
 
     @pytest.mark.parametrize(
@@ -390,7 +430,10 @@ class TestDBCleanup:
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run__233"]
         export_archived_records(
-            export_format="csv", output_path="path", drop_archives=drop_archive, session=MagicMock()
+            export_format="csv",
+            output_path="path",
+            drop_archives=drop_archive,
+            session=MagicMock(),
         )
         if drop_archive:
             confirm_drop_mock.assert_called()
@@ -447,9 +490,15 @@ class TestDBCleanup:
         """Test export_archived_records and show that only tables with the archive prefix are exported."""
         session_mock = MagicMock()
         inspector = inspect_mock.return_value
-        inspector.get_table_names.return_value = [f"{ARCHIVE_TABLE_PREFIX}dag_run__233", "task_instance"]
+        inspector.get_table_names.return_value = [
+            f"{ARCHIVE_TABLE_PREFIX}dag_run__233",
+            "task_instance",
+        ]
         export_archived_records(
-            export_format="csv", output_path="path", drop_archives=drop_archive, session=session_mock
+            export_format="csv",
+            output_path="path",
+            drop_archives=drop_archive,
+            session=session_mock,
         )
         dump_mock.assert_called_once_with(
             target_table=f"{ARCHIVE_TABLE_PREFIX}dag_run__233",
@@ -478,7 +527,10 @@ class TestDBCleanup:
         # No tables with the archive prefix
         inspector.get_table_names.return_value = ["dag_run", "task_instance"]
         export_archived_records(
-            export_format="csv", output_path="path", drop_archives=drop_archive, session=session_mock
+            export_format="csv",
+            output_path="path",
+            drop_archives=drop_archive,
+            session=session_mock,
         )
         mock_confirm.assert_not_called()
         dump_mock.assert_not_called()
@@ -489,7 +541,10 @@ class TestDBCleanup:
         mockopen = mock_open()
         with patch("airflow.utils.db_cleanup.open", mockopen, create=True):
             _dump_table_to_file(
-                target_table="mytable", file_path="dags/myfile.csv", export_format="csv", session=MagicMock()
+                target_table="mytable",
+                file_path="dags/myfile.csv",
+                export_format="csv",
+                session=MagicMock(),
             )
             mockopen.assert_called_once_with("dags/myfile.csv", "w")
             writer = mock_csv.writer
@@ -527,7 +582,9 @@ class TestDBCleanup:
     @patch("airflow.utils.db_cleanup.inspect")
     @patch("airflow.utils.db_cleanup._confirm_drop_archives")
     @patch("builtins.input", side_effect=["drop archived tables"])
-    def test_drop_archived_tables(self, mock_input, confirm_mock, inspect_mock, caplog, confirm):
+    def test_drop_archived_tables(
+        self, mock_input, confirm_mock, inspect_mock, caplog, confirm
+    ):
         """Test drop_archived_tables"""
         archived_table = f"{ARCHIVE_TABLE_PREFIX}dag_run__233"
         normal_table = "dag_run"
@@ -557,7 +614,8 @@ def create_tis(base_date, num_tis, external_trigger=False):
                 external_trigger=external_trigger,
             )
             ti = TaskInstance(
-                PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
             )
             ti.dag_id = dag.dag_id
             ti.start_date = start_date

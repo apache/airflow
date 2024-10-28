@@ -65,8 +65,12 @@ class TestHelpers:
         task_id = "test_render_log_filename_task"
         execution_date = timezone.datetime(2016, 1, 1)
 
-        ti = create_task_instance(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
-        filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
+        ti = create_task_instance(
+            dag_id=dag_id, task_id=task_id, execution_date=execution_date
+        )
+        filename_template = (
+            "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
+        )
 
         ts = ti.get_template_context()["ts"]
         expected_filename = f"{dag_id}/{task_id}/{ts}/{try_number}.log"
@@ -87,11 +91,20 @@ class TestHelpers:
         assert list(helpers.chunks([1, 2, 3], 2)) == [[1, 2], [3]]
 
     def test_reduce_in_chunks(self):
-        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], []) == [[1, 2, 3, 4, 5]]
+        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], []) == [
+            [1, 2, 3, 4, 5]
+        ]
 
-        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], [], 2) == [[1, 2], [3, 4], [5]]
+        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], [], 2) == [
+            [1, 2],
+            [3, 4],
+            [5],
+        ]
 
-        assert helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2) == 14
+        assert (
+            helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2)
+            == 14
+        )
 
     def test_is_container(self):
         assert not helpers.is_container("a string is not a container")
@@ -103,7 +116,9 @@ class TestHelpers:
         assert not helpers.is_container(10)
 
     def test_as_tuple(self):
-        assert helpers.as_tuple("a string is not a container") == ("a string is not a container",)
+        assert helpers.as_tuple("a string is not a container") == (
+            "a string is not a container",
+        )
 
         assert helpers.as_tuple(["a", "list", "is", "a", "container"]) == (
             "a",
@@ -125,7 +140,10 @@ class TestHelpers:
 
     def test_convert_camel_to_snake(self):
         assert helpers.convert_camel_to_snake("LocalTaskJob") == "local_task_job"
-        assert helpers.convert_camel_to_snake("somethingVeryRandom") == "something_very_random"
+        assert (
+            helpers.convert_camel_to_snake("somethingVeryRandom")
+            == "something_very_random"
+        )
 
     def test_merge_dicts(self):
         """
@@ -186,7 +204,11 @@ class TestHelpers:
         "key_id, message, exception",
         [
             (3, "The key has to be a string and is <class 'int'>:3", TypeError),
-            (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
+            (
+                None,
+                "The key has to be a string and is <class 'NoneType'>:None",
+                TypeError,
+            ),
             ("simple_key", None, None),
             ("simple-key", None, None),
             ("group.simple_key", None, None),
@@ -203,7 +225,11 @@ class TestHelpers:
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
-            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
+            (
+                " " * 251,
+                f"The key: {' ' * 251} has to be less than 250 characters",
+                AirflowException,
+            ),
         ],
     )
     def test_validate_key(self, key_id, message, exception):
@@ -217,7 +243,11 @@ class TestHelpers:
         "key_id, message, exception",
         [
             (3, "The key has to be a string and is <class 'int'>:3", TypeError),
-            (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
+            (
+                None,
+                "The key has to be a string and is <class 'NoneType'>:None",
+                TypeError,
+            ),
             ("simple_key", None, None),
             ("simple-key", None, None),
             (
@@ -265,7 +295,12 @@ class TestHelpers:
 
         def assert_exactly_one(true=0, truthy=0, false=0, falsy=0):
             sample = []
-            for truth_value, num in [(True, true), (False, false), ("a", truthy), ("", falsy)]:
+            for truth_value, num in [
+                (True, true),
+                (False, false),
+                ("a", truthy),
+                ("", falsy),
+            ]:
                 if num:
                     sample.extend([truth_value] * num)
             if sample:
@@ -316,7 +351,13 @@ class TestHelpers:
                     "b": "",
                     "c": {"b": "", "c": "hi", "d": ["", 0, "1"]},
                     "d": ["", 0, "1"],
-                    "e": ["", 0, {"b": "", "c": "hi", "d": ["", 0, "1"]}, ["", 0, "1"], [""]],
+                    "e": [
+                        "",
+                        0,
+                        {"b": "", "c": "hi", "d": ["", 0, "1"]},
+                        ["", 0, "1"],
+                        [""],
+                    ],
                     "f": {},
                     "g": [""],
                 },
@@ -334,7 +375,15 @@ class TestHelpers:
     def test_prune_dict(self, mode, expected):
         l1 = ["", 0, "1", None]
         d1 = {"a": None, "b": "", "c": "hi", "d": l1}
-        d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]], "f": {}, "g": [""]}
+        d2 = {
+            "a": None,
+            "b": "",
+            "c": d1,
+            "d": l1,
+            "e": [None, "", 0, d1, l1, [""]],
+            "f": {},
+            "g": [""],
+        }
         assert prune_dict(d2, mode=mode) == expected
 
 
@@ -372,7 +421,10 @@ class ClassToValidateArgs:
 @pytest.mark.parametrize(
     "instance, expected_arg_types",
     [
-        (ClassToValidateArgs("Alice", 30, None), {"name": str, "age": int, "active": bool}),
+        (
+            ClassToValidateArgs("Alice", 30, None),
+            {"name": str, "age": int, "active": bool},
+        ),
         (ClassToValidateArgs(None, 25, True), {"name": str, "age": int, "active": bool}),
     ],
 )
@@ -384,8 +436,14 @@ def test_validate_instance_args_raises_no_error(instance, expected_arg_types):
 @pytest.mark.parametrize(
     "instance, expected_arg_types",
     [
-        (ClassToValidateArgs("Alice", "thirty", True), {"name": str, "age": int, "active": bool}),
-        (ClassToValidateArgs("Bob", 25, "yes"), {"name": str, "age": int, "active": bool}),
+        (
+            ClassToValidateArgs("Alice", "thirty", True),
+            {"name": str, "age": int, "active": bool},
+        ),
+        (
+            ClassToValidateArgs("Bob", 25, "yes"),
+            {"name": str, "age": int, "active": bool},
+        ),
         (ClassToValidateArgs(123, 25, True), {"name": str, "age": int, "active": bool}),
     ],
 )

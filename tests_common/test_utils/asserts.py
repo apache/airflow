@@ -114,14 +114,18 @@ class CountQueries:
         if self.session:
             event.listen(self.session, "do_orm_execute", self.after_cursor_execute)
         else:
-            event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+            event.listen(
+                airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute
+            )
         return self.result
 
     def __exit__(self, type_, value, tb):
         if self.session:
             event.remove(self.session, "do_orm_execute", self.after_cursor_execute)
         else:
-            event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+            event.remove(
+                airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute
+            )
         log.debug("Queries count: %d", sum(self.result.values()))
 
     def after_cursor_execute(self, *args, **kwargs):
@@ -159,7 +163,9 @@ def assert_queries_count(
     :param stacklevel_from_module: Filter stack trace from specific module.
     """
     with count_queries(
-        stacklevel=stacklevel, stacklevel_from_module=stacklevel_from_module, session=session
+        stacklevel=stacklevel,
+        stacklevel_from_module=stacklevel_from_module,
+        session=session,
     ) as result:
         yield None
 
@@ -171,7 +177,9 @@ def assert_queries_count(
             "The current number is {current_count}.\n\n"
             "Recorded query locations:"
         )
-        message = message_fmt.format(current_count=count, expected_count=expected_count, margin=margin)
+        message = message_fmt.format(
+            current_count=count, expected_count=expected_count, margin=margin
+        )
 
         for location, count in result.items():
             message += f"\n\t{location}:\t{count}"

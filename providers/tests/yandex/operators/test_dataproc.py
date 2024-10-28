@@ -375,7 +375,9 @@ class TestDataprocClusterCreateOperator:
             main_python_file_uri="s3a://some-in-bucket/jobs/sources/pyspark-001/main.py",
             name="Pyspark job",
             properties={"spark.submit.deployMode": "cluster"},
-            python_file_uris=["s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py"],
+            python_file_uris=[
+                "s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py"
+            ],
             packages=None,
             repositories=None,
             exclude_packages=None,

@@ -33,7 +33,10 @@ from sqlalchemy.orm import make_transient
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    AsyncKubernetesHook,
+    KubernetesHook,
+)
 from airflow.utils import db
 from airflow.utils.db import merge_conn
 
@@ -62,7 +65,11 @@ DEFAULT_CONN_ID = "kubernetes_default"
 
 @pytest.fixture
 def remove_default_conn(session):
-    before_conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).one_or_none()
+    before_conn = (
+        session.query(Connection)
+        .filter(Connection.conn_id == DEFAULT_CONN_ID)
+        .one_or_none()
+    )
     if before_conn:
         session.delete(before_conn)
         session.commit()
@@ -94,7 +101,10 @@ class TestKubernetesHook:
             ("disable_verify_ssl_empty", {"disable_verify_ssl": ""}),
             ("disable_tcp_keepalive", {"disable_tcp_keepalive": True}),
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
-            ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
+            (
+                "sidecar_container_image",
+                {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"},
+            ),
             ("sidecar_container_image_empty", {"xcom_sidecar_container_image": ""}),
             (
                 "sidecar_container_resources",
@@ -107,9 +117,16 @@ class TestKubernetesHook:
                     ),
                 },
             ),
-            ("sidecar_container_resources_empty", {"xcom_sidecar_container_resources": ""}),
+            (
+                "sidecar_container_resources_empty",
+                {"xcom_sidecar_container_resources": ""},
+            ),
         ]:
-            db.merge_conn(Connection(conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra)))
+            db.merge_conn(
+                Connection(
+                    conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra)
+                )
+            )
 
     @classmethod
     def teardown_class(cls) -> None:
@@ -219,7 +236,9 @@ class TestKubernetesHook:
         Verifies whether disable verify ssl is called depending on combination of hook param and
         connection extra. Hook param should beat extra.
         """
-        kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_verify_ssl=disable_verify_ssl)
+        kubernetes_hook = KubernetesHook(
+            conn_id=conn_id, disable_verify_ssl=disable_verify_ssl
+        )
         api_conn = kubernetes_hook.get_conn()
         assert mock_disable.called is disable_called
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
@@ -251,7 +270,9 @@ class TestKubernetesHook:
         Verifies whether enable tcp keepalive is called depending on combination of hook
         param and connection extra. Hook param should beat extra.
         """
-        kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_tcp_keepalive=disable_tcp_keepalive)
+        kubernetes_hook = KubernetesHook(
+            conn_id=conn_id, disable_tcp_keepalive=disable_tcp_keepalive
+        )
         api_conn = kubernetes_hook.get_conn()
         assert mock_enable.called is expected
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
@@ -270,7 +291,12 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     def test_kube_config_path(
-        self, mock_kube_config_merger, mock_kube_config_loader, config_path_param, conn_id, call_path
+        self,
+        mock_kube_config_merger,
+        mock_kube_config_loader,
+        config_path_param,
+        conn_id,
+        call_path,
     ):
         """
         Verifies kube config path depending on combination of hook param and connection extra.
@@ -295,7 +321,12 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch.object(tempfile, "NamedTemporaryFile")
     def test_kube_config_connection(
-        self, mock_tempfile, mock_kube_config_merger, mock_kube_config_loader, conn_id, has_config
+        self,
+        mock_tempfile,
+        mock_kube_config_merger,
+        mock_kube_config_loader,
+        conn_id,
+        has_config,
     ):
         """
         Verifies whether temporary kube config file is created.
@@ -326,19 +357,25 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.load_kube_config")
-    def test_cluster_context(self, mock_load_kube_config, context_param, conn_id, expected_context):
+    def test_cluster_context(
+        self, mock_load_kube_config, context_param, conn_id, expected_context
+    ):
         """
         Verifies cluster context depending on combination of hook param and connection extra.
         Hook param should beat extra.
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, cluster_context=context_param)
         kubernetes_hook.get_conn()
-        mock_load_kube_config.assert_called_with(client_configuration=None, context=expected_context)
+        mock_load_kube_config.assert_called_with(
+            client_configuration=None, context=expected_context
+        )
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION", "/mock/config")
-    def test_default_kube_config_connection(self, mock_kube_config_merger, mock_kube_config_loader):
+    def test_default_kube_config_connection(
+        self, mock_kube_config_merger, mock_kube_config_loader
+    ):
         kubernetes_hook = KubernetesHook(conn_id="default_kube_config")
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_merger.assert_called_once_with("/mock/config")
@@ -356,7 +393,9 @@ class TestKubernetesHook:
     def test_get_namespace(self, conn_id, expected):
         hook = KubernetesHook(conn_id=conn_id)
         assert hook.get_namespace() == expected
-        if get_provider_min_airflow_version("apache-airflow-providers-cncf-kubernetes") >= (6, 0):
+        if get_provider_min_airflow_version(
+            "apache-airflow-providers-cncf-kubernetes"
+        ) >= (6, 0):
             raise DeprecationRemovalRequired(
                 "You must update get_namespace so that if namespace not set "
                 "in the connection, then None is returned. To do so, remove get_namespace "
@@ -366,8 +405,14 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         "conn_id, expected",
         (
-            pytest.param("sidecar_container_image", "private.repo.com/alpine:3.16", id="sidecar-with-image"),
-            pytest.param("sidecar_container_image_empty", None, id="sidecar-without-image"),
+            pytest.param(
+                "sidecar_container_image",
+                "private.repo.com/alpine:3.16",
+                id="sidecar-with-image",
+            ),
+            pytest.param(
+                "sidecar_container_image_empty", None, id="sidecar-without-image"
+            ),
         ),
     )
     def test_get_xcom_sidecar_container_image(self, conn_id, expected):
@@ -388,7 +433,9 @@ class TestKubernetesHook:
                 },
                 id="sidecar-with-resources",
             ),
-            pytest.param("sidecar_container_resources_empty", None, id="sidecar-without-resources"),
+            pytest.param(
+                "sidecar_container_resources_empty", None, id="sidecar-without-resources"
+            ),
         ),
     )
     def test_get_xcom_sidecar_container_resources(self, conn_id, expected):
@@ -423,7 +470,9 @@ class TestKubernetesHook:
 
         # meanwhile, asking for non-default should still fail if it doesn't exist
         hook = KubernetesHook("some_conn")
-        with pytest.raises(AirflowNotFoundException, match="The conn_id `some_conn` isn't defined"):
+        with pytest.raises(
+            AirflowNotFoundException, match="The conn_id `some_conn` isn't defined"
+        ):
             hook.conn_extras
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
@@ -454,7 +503,9 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
-    def test_get_job_status(self, mock_client, mock_kube_config_merger, mock_kube_config_loader):
+    def test_get_job_status(
+        self, mock_client, mock_kube_config_merger, mock_kube_config_loader
+    ):
         job_expected = mock_client.read_namespaced_job_status.return_value
 
         hook = KubernetesHook()
@@ -473,7 +524,10 @@ class TestKubernetesHook:
             ([mock.MagicMock(type="Complete", status=True)], False),
             ([mock.MagicMock(type="Complete", status=False)], False),
             ([mock.MagicMock(type="Failed", status=False)], False),
-            ([mock.MagicMock(type="Failed", status=True, reason="test reason 1")], "test reason 1"),
+            (
+                [mock.MagicMock(type="Failed", status=True, reason="test reason 1")],
+                "test reason 1",
+            ),
             (
                 [
                     mock.MagicMock(type="Complete", status=False),
@@ -527,7 +581,9 @@ class TestKubernetesHook:
     )
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
-    def test_is_job_successful(self, mock_merger, mock_loader, condition_type, status, expected_result):
+    def test_is_job_successful(
+        self, mock_merger, mock_loader, condition_type, status, expected_result
+    ):
         mock_job = mock.MagicMock()
         mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
 
@@ -562,7 +618,9 @@ class TestKubernetesHook:
     )
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
-    def test_is_job_complete(self, mock_merger, mock_loader, condition_type, status, expected_result):
+    def test_is_job_complete(
+        self, mock_merger, mock_loader, condition_type, status, expected_result
+    ):
         mock_job = mock.MagicMock()
         mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
 
@@ -585,7 +643,9 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch(f"{HOOK_MODULE}.KubernetesHook.get_job_status")
-    def test_wait_until_job_complete(self, mock_job_status, mock_kube_config_merger, mock_kube_config_loader):
+    def test_wait_until_job_complete(
+        self, mock_job_status, mock_kube_config_merger, mock_kube_config_loader
+    ):
         job_expected = mock.MagicMock(
             status=mock.MagicMock(
                 conditions=[
@@ -597,7 +657,9 @@ class TestKubernetesHook:
         )
         mock_job_status.side_effect = [
             mock.MagicMock(status=mock.MagicMock(conditions=None)),
-            mock.MagicMock(status=mock.MagicMock(conditions=[mock.MagicMock(type="TestType")])),
+            mock.MagicMock(
+                status=mock.MagicMock(conditions=[mock.MagicMock(type="TestType")])
+            ),
             mock.MagicMock(
                 status=mock.MagicMock(
                     conditions=[
@@ -624,7 +686,9 @@ class TestKubernetesHook:
                 job_name=JOB_NAME, namespace=NAMESPACE, job_poll_interval=POLL_INTERVAL
             )
 
-        mock_job_status.assert_has_calls([mock.call(job_name=JOB_NAME, namespace=NAMESPACE)] * 5)
+        mock_job_status.assert_has_calls(
+            [mock.call(job_name=JOB_NAME, namespace=NAMESPACE)] * 5
+        )
         mock_sleep.assert_has_calls([mock.call(POLL_INTERVAL)] * 4)
         assert job_actual == job_expected
 
@@ -687,9 +751,13 @@ class TestKubernetesHookIncorrectConfiguration:
 
 class TestAsyncKubernetesHook:
     KUBE_CONFIG_MERGER = "kubernetes_asyncio.config.kube_config.KubeConfigMerger"
-    INCLUSTER_CONFIG_LOADER = "kubernetes_asyncio.config.incluster_config.InClusterConfigLoader"
+    INCLUSTER_CONFIG_LOADER = (
+        "kubernetes_asyncio.config.incluster_config.InClusterConfigLoader"
+    )
     KUBE_LOADER_CONFIG = "kubernetes_asyncio.config.kube_config.KubeConfigLoader"
-    KUBE_CONFIG_FROM_DICT = "kubernetes_asyncio.config.kube_config.load_kube_config_from_dict"
+    KUBE_CONFIG_FROM_DICT = (
+        "kubernetes_asyncio.config.kube_config.load_kube_config_from_dict"
+    )
     KUBE_API = "kubernetes_asyncio.client.api.core_v1_api.CoreV1Api.{}"
     KUBE_BATCH_API = "kubernetes_asyncio.client.api.batch_v1_api.BatchV1Api.{}"
     KUBE_ASYNC_HOOK = HOOK_MODULE + ".AsyncKubernetesHook.{}"
@@ -703,7 +771,9 @@ class TestAsyncKubernetesHook:
     @pytest.fixture
     def kube_config_loader(self):
         with mock.patch(self.KUBE_LOADER_CONFIG) as kube_config_loader:
-            kube_config_loader.return_value.load_and_set.return_value = self.mock_await_result(None)
+            kube_config_loader.return_value.load_and_set.return_value = (
+                self.mock_await_result(None)
+            )
             yield kube_config_loader
 
     @staticmethod
@@ -724,7 +794,9 @@ class TestAsyncKubernetesHook:
     @mock.patch(INCLUSTER_CONFIG_LOADER)
     @mock.patch(KUBE_LOADER_CONFIG)
     @mock.patch(KUBE_CONFIG_MERGER)
-    async def test_load_config_with_incluster(self, kube_config_merger, kube_config_loader, incluster_config):
+    async def test_load_config_with_incluster(
+        self, kube_config_merger, kube_config_loader, incluster_config
+    ):
         hook = AsyncKubernetesHook(
             conn_id=None,
             in_cluster=True,
@@ -901,7 +973,9 @@ class TestAsyncKubernetesHook:
         self, mock_get_job_status, mock_is_job_complete, mock_sleep, kube_config_loader
     ):
         mock_job_0, mock_job_1 = mock.MagicMock(), mock.MagicMock()
-        mock_get_job_status.side_effect = mock.AsyncMock(side_effect=[mock_job_0, mock_job_1])
+        mock_get_job_status.side_effect = mock.AsyncMock(
+            side_effect=[mock_job_0, mock_job_1]
+        )
         mock_is_job_complete.side_effect = [False, True]
 
         hook = AsyncKubernetesHook(
@@ -923,7 +997,9 @@ class TestAsyncKubernetesHook:
                 mock.call(name=JOB_NAME, namespace=NAMESPACE),
             ]
         )
-        mock_is_job_complete.assert_has_calls([mock.call(job=mock_job_0), mock.call(job=mock_job_1)])
+        mock_is_job_complete.assert_has_calls(
+            [mock.call(job=mock_job_0), mock.call(job=mock_job_1)]
+        )
         mock_sleep.assert_awaited_once_with(10)
         assert job_actual == mock_job_1
 

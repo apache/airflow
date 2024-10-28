@@ -49,7 +49,9 @@ from airflow.models import DagModel, DagRun
 dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
-@dags_router.get("/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True)
+@dags_router.get(
+    "/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True
+)
 async def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -103,7 +105,15 @@ async def recent_dag_runs(
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
         dags_with_recent_dag_runs_select,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
+        [
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
         None,
         offset,
         limit,

@@ -39,7 +39,9 @@ IMPERSONATION_CHAIN = None
 class TestWorkflowExecutionSensor:
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
     def test_poke_success(self, mock_hook):
-        mock_hook.return_value.get_execution.return_value = mock.MagicMock(state=Execution.State.SUCCEEDED)
+        mock_hook.return_value.get_execution.return_value = mock.MagicMock(
+            state=Execution.State.SUCCEEDED
+        )
         op = WorkflowExecutionSensor(
             task_id="test_task",
             workflow_id=WORKFLOW_ID,
@@ -73,7 +75,9 @@ class TestWorkflowExecutionSensor:
 
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
     def test_poke_wait(self, mock_hook):
-        mock_hook.return_value.get_execution.return_value = mock.MagicMock(state=Execution.State.ACTIVE)
+        mock_hook.return_value.get_execution.return_value = mock.MagicMock(
+            state=Execution.State.ACTIVE
+        )
         op = WorkflowExecutionSensor(
             task_id="test_task",
             workflow_id=WORKFLOW_ID,
@@ -92,7 +96,9 @@ class TestWorkflowExecutionSensor:
 
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
     def test_poke_failure(self, mock_hook):
-        mock_hook.return_value.get_execution.return_value = mock.MagicMock(state=Execution.State.FAILED)
+        mock_hook.return_value.get_execution.return_value = mock.MagicMock(
+            state=Execution.State.FAILED
+        )
         op = WorkflowExecutionSensor(
             task_id="test_task",
             workflow_id=WORKFLOW_ID,

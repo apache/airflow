@@ -60,7 +60,8 @@ class JWTSigner:
             "aud": self._audience,
             "iat": timezone.utcnow(),
             "nbf": timezone.utcnow(),
-            "exp": timezone.utcnow() + timedelta(seconds=self._expiration_time_in_seconds),
+            "exp": timezone.utcnow()
+            + timedelta(seconds=self._expiration_time_in_seconds),
         }
         jwt_dict.update(extra_payload)
         token = jwt.encode(

@@ -47,7 +47,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "cloudsql_query"
 REGION = "us-central1"
 HOME_DIR = Path.home()
@@ -213,7 +215,9 @@ CONNECTION_PUBLIC_TCP_ID = f"{DAG_ID}_{ENV_ID}_public_tcp"
 
 ConnectionConfig = namedtuple("ConnectionConfig", "id kwargs")
 CONNECTIONS = [
-    ConnectionConfig(id=CONNECTION_PROXY_SOCKET_ID, kwargs=CONNECTION_PROXY_SOCKET_KWARGS),
+    ConnectionConfig(
+        id=CONNECTION_PROXY_SOCKET_ID, kwargs=CONNECTION_PROXY_SOCKET_KWARGS
+    ),
     ConnectionConfig(id=CONNECTION_PROXY_TCP_ID, kwargs=CONNECTION_PROXY_TCP_KWARGS),
     ConnectionConfig(id=CONNECTION_PUBLIC_TCP_ID, kwargs=CONNECTION_PUBLIC_TCP_KWARGS),
 ]

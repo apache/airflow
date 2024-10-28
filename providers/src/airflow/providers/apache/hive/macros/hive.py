@@ -21,7 +21,11 @@ import datetime
 
 
 def max_partition(
-    table, schema="default", field=None, filter_map=None, metastore_conn_id="metastore_default"
+    table,
+    schema="default",
+    field=None,
+    filter_map=None,
+    metastore_conn_id="metastore_default",
 ):
     """
     Get the max partition for a table.
@@ -47,7 +51,9 @@ def max_partition(
     if "." in table:
         schema, table = table.split(".")
     hive_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
-    return hive_hook.max_partition(schema=schema, table_name=table, field=field, filter_map=filter_map)
+    return hive_hook.max_partition(
+        schema=schema, table_name=table, field=field, filter_map=filter_map
+    )
 
 
 def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | None:

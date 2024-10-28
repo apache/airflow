@@ -20,7 +20,10 @@ from typing import TYPE_CHECKING
 
 from airflow.api_connexion import security
 from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
+from airflow.api_connexion.schemas.plugin_schema import (
+    PluginCollection,
+    plugin_collection_schema,
+)
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.plugins_manager import get_plugin_info
 from airflow.utils.api_migration import mark_fastapi_migration_done
@@ -35,5 +38,7 @@ if TYPE_CHECKING:
 def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
     """Get plugins endpoint."""
     plugins_info = get_plugin_info()
-    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
+    collection = PluginCollection(
+        plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info)
+    )
     return plugin_collection_schema.dump(collection)

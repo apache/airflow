@@ -93,7 +93,10 @@ class DataSyncHook(AwsBaseHook):
         return location["LocationArn"]
 
     def get_location_arns(
-        self, location_uri: str, case_sensitive: bool = False, ignore_trailing_slash: bool = True
+        self,
+        location_uri: str,
+        case_sensitive: bool = False,
+        ignore_trailing_slash: bool = True,
     ) -> list[str]:
         """
         Return all LocationArns which match a LocationUri.
@@ -134,7 +137,10 @@ class DataSyncHook(AwsBaseHook):
             self.locations.extend(locations["Locations"])
 
     def create_task(
-        self, source_location_arn: str, destination_location_arn: str, **create_task_kwargs
+        self,
+        source_location_arn: str,
+        destination_location_arn: str,
+        **create_task_kwargs,
     ) -> str:
         """
         Create a Task between the specified source and destination LocationArns.
@@ -210,7 +216,10 @@ class DataSyncHook(AwsBaseHook):
             task_arn = task["TaskArn"]
             task_description = self.get_task_description(task_arn)
             if task_description["SourceLocationArn"] in source_location_arns:
-                if task_description["DestinationLocationArn"] in destination_location_arns:
+                if (
+                    task_description["DestinationLocationArn"]
+                    in destination_location_arns
+                ):
                     result.append(task_arn)
         return result
 
@@ -274,7 +283,9 @@ class DataSyncHook(AwsBaseHook):
         :return: AWS metadata about a task execution.
         :raises AirflowBadRequest: If ``task_execution_arn`` is empty.
         """
-        return self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
+        return self.get_conn().describe_task_execution(
+            TaskExecutionArn=task_execution_arn
+        )
 
     def get_current_task_execution_arn(self, task_arn: str) -> str | None:
         """
@@ -291,7 +302,9 @@ class DataSyncHook(AwsBaseHook):
             return task_description["CurrentTaskExecutionArn"]
         return None
 
-    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 60) -> bool:
+    def wait_for_task_execution(
+        self, task_execution_arn: str, max_iterations: int = 60
+    ) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
 
@@ -307,7 +320,9 @@ class DataSyncHook(AwsBaseHook):
             raise AirflowBadRequest("task_execution_arn not specified")
 
         for _ in range(max_iterations):
-            task_execution = self.get_conn().describe_task_execution(TaskExecutionArn=task_execution_arn)
+            task_execution = self.get_conn().describe_task_execution(
+                TaskExecutionArn=task_execution_arn
+            )
             status = task_execution["Status"]
             self.log.info("status=%s", status)
             if status in self.TASK_EXECUTION_SUCCESS_STATES:

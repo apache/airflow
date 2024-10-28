@@ -21,7 +21,12 @@ import subprocess
 
 
 def run_command(
-    cmd: list[str], *, print_output_on_error: bool = True, return_output: bool = False, check=True, **kwargs
+    cmd: list[str],
+    *,
+    print_output_on_error: bool = True,
+    return_output: bool = False,
+    check=True,
+    **kwargs,
 ) -> str | bool:
     print(f"Running command: {' '.join(shlex.quote(c) for c in cmd)}")
     try:

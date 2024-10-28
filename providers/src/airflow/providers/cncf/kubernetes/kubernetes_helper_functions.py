@@ -49,7 +49,9 @@ def rand_str(num):
     return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
 
-def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
+def add_unique_suffix(
+    *, name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH
+) -> str:
     """
     Add random string to pod or job name while staying under max length.
 
@@ -66,7 +68,9 @@ def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_M
     reason="This function is deprecated. Please use `add_unique_suffix`",
     category=AirflowProviderDeprecationWarning,
 )
-def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
+def add_pod_suffix(
+    *, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH
+) -> str:
     """
     Add random string to pod name while staying under max length.
 
@@ -130,7 +134,9 @@ def create_pod_id(
     :param unique: whether a random string suffix should be added
     :return: A valid identifier for a kubernetes pod name
     """
-    return create_unique_id(dag_id=dag_id, task_id=task_id, max_length=max_length, unique=unique)
+    return create_unique_id(
+        dag_id=dag_id, task_id=task_id, max_length=max_length, unique=unique
+    )
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:

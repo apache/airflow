@@ -54,14 +54,19 @@ class TestYQExecuteQueryOperator:
     @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_execute_query(self, mock_get_connection):
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
-        operator = YQExecuteQueryOperator(task_id="simple_sql", sql="select 987", folder_id="my_folder_id")
+        operator = YQExecuteQueryOperator(
+            task_id="simple_sql", sql="select 987", folder_id="my_folder_id"
+        )
         context = {"ti": MagicMock()}
 
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
                 matchers.header_matcher(
-                    {"Content-Type": "application/json", "Authorization": f"Bearer {OAUTH_TOKEN}"}
+                    {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {OAUTH_TOKEN}",
+                    }
                 ),
                 matchers.query_param_matcher({"project": FOLDER_ID}),
                 matchers.json_params_matcher({"text": "select 987"}),
@@ -89,7 +94,10 @@ class TestYQExecuteQueryOperator:
         )
 
         results = operator.execute(context)
-        assert results == {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]}
+        assert results == {
+            "rows": [[777]],
+            "columns": [{"name": "column0", "type": "Int32"}],
+        }
 
         if AIRFLOW_V_3_0_PLUS:
             context["ti"].xcom_push.assert_has_calls(
@@ -124,6 +132,7 @@ class TestYQExecuteQueryOperator:
         )
 
         with pytest.raises(
-            RuntimeError, match=re.escape("""Query query1 failed with issues=['some error']""")
+            RuntimeError,
+            match=re.escape("""Query query1 failed with issues=['some error']"""),
         ):
             operator.execute(context)

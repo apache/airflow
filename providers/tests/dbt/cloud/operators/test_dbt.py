@@ -24,7 +24,11 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+)
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
@@ -45,9 +49,7 @@ TOKEN = "token"
 PROJECT_ID = 33333
 JOB_ID = 4444
 RUN_ID = 5555
-EXPECTED_JOB_RUN_OP_EXTRA_LINK = (
-    "https://cloud.getdbt.com/#/accounts/{account_id}/projects/{project_id}/runs/{run_id}/"
-)
+EXPECTED_JOB_RUN_OP_EXTRA_LINK = "https://cloud.getdbt.com/#/accounts/{account_id}/projects/{project_id}/runs/{run_id}/"
 DEFAULT_ACCOUNT_JOB_RUN_RESPONSE = {
     "data": {
         "id": RUN_ID,
@@ -94,7 +96,9 @@ def setup_module():
 
 class TestDbtCloudRunJobOperator:
     def setup_method(self):
-        self.dag = DAG("test_dbt_cloud_job_run_op", schedule=None, start_date=DEFAULT_DATE)
+        self.dag = DAG(
+            "test_dbt_cloud_job_run_op", schedule=None, start_date=DEFAULT_DATE
+        )
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
@@ -170,7 +174,9 @@ class TestDbtCloudRunJobOperator:
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
-    def test_dbt_run_job_op_async(self, mock_trigger_job_run, mock_dbt_hook, mock_job_run_status, status):
+    def test_dbt_run_job_op_async(
+        self, mock_trigger_job_run, mock_dbt_hook, mock_job_run_status, status
+    ):
         """
         Asserts that a task is deferred and an DbtCloudRunJobTrigger will be fired
         when the DbtCloudRunJobOperator has deferrable param set to True
@@ -187,10 +193,14 @@ class TestDbtCloudRunJobOperator:
         )
         with pytest.raises(TaskDeferred) as exc:
             dbt_op.execute(MagicMock())
-        assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
+        assert isinstance(
+            exc.value.trigger, DbtCloudRunJobTrigger
+        ), "Trigger is not a DbtCloudRunJobTrigger"
 
     @patch.object(
-        DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)
+        DbtCloudHook,
+        "trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
     @pytest.mark.parametrize(
         "job_run_status, expected_output",
@@ -209,10 +219,20 @@ class TestDbtCloudRunJobOperator:
         ids=["default_account", "explicit_account"],
     )
     def test_execute_wait_for_termination(
-        self, mock_run_job, conn_id, account_id, job_run_status, expected_output, time_machine
+        self,
+        mock_run_job,
+        conn_id,
+        account_id,
+        job_run_status,
+        expected_output,
+        time_machine,
     ):
         operator = DbtCloudRunJobOperator(
-            task_id=TASK_ID, dbt_cloud_conn_id=conn_id, account_id=account_id, dag=self.dag, **self.config
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            dag=self.dag,
+            **self.config,
         )
 
         assert operator.dbt_cloud_conn_id == conn_id
@@ -237,7 +257,9 @@ class TestDbtCloudRunJobOperator:
 
         with (
             patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run,
-            patch("airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep),
+            patch(
+                "airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep
+            ),
         ):
             mock_get_job_run.return_value.json.return_value = {
                 "data": {"status": job_run_status, "id": RUN_ID}
@@ -255,7 +277,9 @@ class TestDbtCloudRunJobOperator:
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
                 timeout = self.config["timeout"]
-                error_message = rf"has not reached a terminal status after {timeout} seconds\.$"
+                error_message = (
+                    rf"has not reached a terminal status after {timeout} seconds\.$"
+                )
                 with pytest.raises(DbtCloudJobRunException, match=error_message):
                     operator.execute(context=self.mock_context)
 
@@ -336,14 +360,18 @@ class TestDbtCloudRunJobOperator:
                     "id": 10000,
                     "status": 1,
                     "href": EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
-                        account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+                        account_id=DEFAULT_ACCOUNT_ID,
+                        project_id=PROJECT_ID,
+                        run_id=RUN_ID,
                     ),
                 },
                 {
                     "id": 10001,
                     "status": 2,
                     "href": EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
-                        account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+                        account_id=DEFAULT_ACCOUNT_ID,
+                        project_id=PROJECT_ID,
+                        run_id=RUN_ID,
                     ),
                 },
             ]
@@ -462,7 +490,9 @@ class TestDbtCloudRunJobOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_run_job_operator_link(self, conn_id, account_id, create_task_instance_of_operator, request):
+    def test_run_job_operator_link(
+        self, conn_id, account_id, create_task_instance_of_operator, request
+    ):
         ti = create_task_instance_of_operator(
             DbtCloudRunJobOperator,
             dag_id="test_dbt_cloud_run_job_op_link",
@@ -493,7 +523,9 @@ class TestDbtCloudRunJobOperator:
 
 class TestDbtCloudGetJobRunArtifactOperator:
     def setup_method(self):
-        self.dag = DAG("test_dbt_cloud_get_artifact_op", schedule=None, start_date=DEFAULT_DATE)
+        self.dag = DAG(
+            "test_dbt_cloud_get_artifact_op", schedule=None, start_date=DEFAULT_DATE
+        )
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
@@ -501,7 +533,9 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_json_artifact(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
+    def test_get_json_artifact(
+        self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch
+    ):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -535,7 +569,9 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_json_artifact_with_step(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
+    def test_get_json_artifact_with_step(
+        self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch
+    ):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -570,7 +606,9 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_text_artifact(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
+    def test_get_text_artifact(
+        self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch
+    ):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -604,7 +642,9 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_text_artifact_with_step(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
+    def test_get_text_artifact_with_step(
+        self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch
+    ):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -639,7 +679,9 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_artifact_with_specified_output_file(self, mock_get_artifact, conn_id, account_id, tmp_path):
+    def test_get_artifact_with_specified_output_file(
+        self, mock_get_artifact, conn_id, account_id, tmp_path
+    ):
         specified_output_file = (tmp_path / "run_results.json").as_posix()
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
@@ -668,7 +710,9 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
 class TestDbtCloudListJobsOperator:
     def setup_method(self):
-        self.dag = DAG("test_dbt_cloud_list_jobs_op", schedule=None, start_date=DEFAULT_DATE)
+        self.dag = DAG(
+            "test_dbt_cloud_list_jobs_op", schedule=None, start_date=DEFAULT_DATE
+        )
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
 
@@ -687,4 +731,6 @@ class TestDbtCloudListJobsOperator:
 
         mock_list_jobs.return_value.json.return_value = {}
         operator.execute(context=self.mock_context)
-        mock_list_jobs.assert_called_once_with(account_id=account_id, order_by=None, project_id=PROJECT_ID)
+        mock_list_jobs.assert_called_once_with(
+            account_id=account_id, order_by=None, project_id=PROJECT_ID
+        )

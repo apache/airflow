@@ -41,8 +41,12 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
     ComputeEngineInsertInstanceOperator,
 )
-from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
-from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
+from airflow.providers.google.suite.operators.sheets import (
+    GoogleSheetsCreateSpreadsheetOperator,
+)
+from airflow.providers.google.suite.transfers.sql_to_sheets import (
+    SQLToGoogleSheetsOperator,
+)
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session, json
@@ -186,7 +190,9 @@ with DAG(
     @task
     def get_public_ip() -> str:
         hook = ComputeEngineHook()
-        address = hook.get_instance_address(resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        address = hook.get_instance_address(
+            resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID
+        )
         return address
 
     get_public_ip_task = get_public_ip()
@@ -212,7 +218,9 @@ with DAG(
         session.commit()
         log.info("Connection %s created", connection_id)
 
-    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
+    create_connection_task = create_connection(
+        connection_id=CONNECTION_ID, ip_address=get_public_ip_task
+    )
 
     create_sql_table = SQLExecuteQueryOperator(
         task_id="create_sql_table",
@@ -248,7 +256,9 @@ with DAG(
     setup_sheets_connection_task = setup_sheets_connection()
 
     create_spreadsheet = GoogleSheetsCreateSpreadsheetOperator(
-        task_id="create_spreadsheet", spreadsheet=SPREADSHEET, gcp_conn_id=SHEETS_CONNECTION_ID
+        task_id="create_spreadsheet",
+        spreadsheet=SPREADSHEET,
+        gcp_conn_id=SHEETS_CONNECTION_ID,
     )
 
     # [START upload_sql_to_sheets]
@@ -297,7 +307,11 @@ with DAG(
     # TEST SETUP
     create_gce_instance >> get_public_ip_task >> create_connection_task
     [create_gce_instance, create_firewall_rule] >> setup_postgres
-    [setup_postgres, create_connection_task, create_firewall_rule] >> create_sql_table >> insert_sql_data
+    (
+        [setup_postgres, create_connection_task, create_firewall_rule]
+        >> create_sql_table
+        >> insert_sql_data
+    )
     setup_sheets_connection_task >> create_spreadsheet
 
     (

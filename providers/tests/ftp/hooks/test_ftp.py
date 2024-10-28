@@ -117,7 +117,9 @@ class TestFTPHook:
         _buffer = StringIO("buffer")
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer)
-        self.conn_mock.retrbinary.assert_called_once_with("RETR /some/path", _buffer.write, 8192)
+        self.conn_mock.retrbinary.assert_called_once_with(
+            "RETR /some/path", _buffer.write, 8192
+        )
 
     def test_retrieve_file_with_callback(self):
         func = mock.Mock()
@@ -148,11 +150,21 @@ class TestIntegrationFTPHook:
         from airflow.utils import db
 
         db.merge_conn(
-            Connection(conn_id="ftp_passive", conn_type="ftp", host="localhost", extra='{"passive": true}')
+            Connection(
+                conn_id="ftp_passive",
+                conn_type="ftp",
+                host="localhost",
+                extra='{"passive": true}',
+            )
         )
 
         db.merge_conn(
-            Connection(conn_id="ftp_active", conn_type="ftp", host="localhost", extra='{"passive": false}')
+            Connection(
+                conn_id="ftp_active",
+                conn_type="ftp",
+                host="localhost",
+                extra='{"passive": false}',
+            )
         )
 
         db.merge_conn(

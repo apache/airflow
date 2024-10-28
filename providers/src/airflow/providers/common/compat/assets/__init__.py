@@ -45,11 +45,17 @@ else:
     except ModuleNotFoundError:
         from packaging.version import Version
 
-        _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
-        _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
+        _IS_AIRFLOW_2_10_OR_HIGHER = Version(
+            Version(AIRFLOW_VERSION).base_version
+        ) >= Version("2.10.0")
+        _IS_AIRFLOW_2_9_OR_HIGHER = Version(
+            Version(AIRFLOW_VERSION).base_version
+        ) >= Version("2.9.0")
 
         # dataset is renamed to asset since Airflow 3.0
-        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
+        from airflow.auth.managers.models.resource_details import (
+            DatasetDetails as AssetDetails,
+        )
         from airflow.datasets import Dataset as Asset
 
         if _IS_AIRFLOW_2_9_OR_HIGHER:

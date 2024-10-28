@@ -44,7 +44,11 @@ from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.compat import (
+    AIRFLOW_V_2_10_PLUS,
+    AIRFLOW_V_3_0_PLUS,
+    BashOperator,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -68,7 +72,9 @@ class SafeStrDict(dict):
 
 @patch("airflow.providers.openlineage.utils.utils.metadata.distributions")
 def test_get_all_packages_installed(mock_distributions):
-    mock_distributions.return_value = [MagicMock(metadata={"Name": "package1"}, version="1.0.0")]
+    mock_distributions.return_value = [
+        MagicMock(metadata={"Name": "package1"}, version="1.0.0")
+    ]
     assert _get_all_packages_installed() == {"package1": "1.0.0"}
 
 
@@ -95,7 +101,9 @@ def test_get_dagrun_start_end():
     AIRFLOW_DAG.bulk_write_to_db([dag])
     dag_model = DagModel.get_dagmodel(dag.dag_id)
     run_id = str(uuid.uuid1())
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dagrun = dag.create_dagrun(
         state=State.NONE,
         run_id=run_id,
@@ -105,7 +113,10 @@ def test_get_dagrun_start_end():
     assert dagrun.data_interval_start is not None
     start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)
     end_date_tz = datetime.datetime(2022, 1, 1, hour=2, tzinfo=timezone.utc)
-    assert dagrun.data_interval_start, dagrun.data_interval_end == (start_date_tz, end_date_tz)
+    assert dagrun.data_interval_start, dagrun.data_interval_end == (
+        start_date_tz,
+        end_date_tz,
+    )
 
 
 def test_parse_version():
@@ -240,7 +251,10 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact(NotMixin()).password == "***"
 
     assert redactor.redact(Proxy()) == "<<non-redactable: Proxy>>"
-    assert redactor.redact({"a": "a", "b": Proxy()}) == {"a": "a", "b": "<<non-redactable: Proxy>>"}
+    assert redactor.redact({"a": "a", "b": Proxy()}) == {
+        "a": "a",
+        "b": "<<non-redactable: Proxy>>",
+    }
 
     class Mixined(RedactMixin):
         _skip_redact = ["password"]
@@ -258,14 +272,18 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact(Mixined()).password == "passwd"
     assert redactor.redact(Mixined()).transparent == "123"
     assert redactor.redact({"password": "passwd"}) == {"password": "***"}
-    redacted_nested = redactor.redact(NestedMixined("passwd", NestedMixined("passwd", None)))
+    redacted_nested = redactor.redact(
+        NestedMixined("passwd", NestedMixined("passwd", None))
+    )
     assert redacted_nested == NestedMixined("***", NestedMixined("passwd", None))
 
 
 def test_get_fully_qualified_class_name():
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
-    result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
+    result = get_fully_qualified_class_name(
+        BashOperator(task_id="test", bash_command="exit 0;")
+    )
     assert result == f"{BASH_OPERATOR_PATH}.BashOperator"
 
     result = get_fully_qualified_class_name(OpenLineageAdapter())

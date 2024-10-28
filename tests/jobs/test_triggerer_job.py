@@ -30,7 +30,11 @@ import pytest
 
 from airflow.config_templates import airflow_local_settings
 from airflow.jobs.job import Job
-from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner, setup_queue_listener
+from airflow.jobs.triggerer_job_runner import (
+    TriggererJobRunner,
+    TriggerRunner,
+    setup_queue_listener,
+)
 from airflow.logging_config import configure_logging
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
@@ -92,7 +96,11 @@ def session():
 
 def create_trigger_in_db(session, trigger, operator=None):
     dag_model = DagModel(dag_id="test_dag")
-    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
+    dag = DAG(
+        dag_id=dag_model.dag_id,
+        schedule="@daily",
+        start_date=pendulum.datetime(2023, 1, 1),
+    )
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -141,7 +149,9 @@ def test_trigger_logging_sensitive_info(session, caplog):
         # Wait for up to 3 seconds for it to fire and appear in the event queue
         for _ in range(30):
             if triggerer_job_runner.trigger_runner.events:
-                assert list(triggerer_job_runner.trigger_runner.events) == [(1, TriggerEvent(True))]
+                assert list(triggerer_job_runner.trigger_runner.events) == [
+                    (1, TriggerEvent(True))
+                ]
                 break
             time.sleep(0.1)
         else:
@@ -176,7 +186,9 @@ def test_is_alive():
     # Completed state should not be alive
     triggerer_job.state = State.SUCCESS
     triggerer_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
-    assert not triggerer_job.is_alive(), "Completed jobs even with recent heartbeat should not be alive"
+    assert (
+        not triggerer_job.is_alive()
+    ), "Completed jobs even with recent heartbeat should not be alive"
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -271,10 +283,14 @@ def test_trigger_lifecycle(session):
 
 class TestTriggerRunner:
     @pytest.mark.asyncio
-    @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging"
+    )
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(), "name": "mock_name", "events": 0}
+        }
         mock_trigger = MagicMock()
         mock_trigger.task_instance.trigger_timeout = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -283,12 +299,18 @@ class TestTriggerRunner:
             await trigger_runner.run_trigger(1, mock_trigger)
 
     @pytest.mark.asyncio
-    @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging"
+    )
     async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(), "name": "mock_name", "events": 0}
+        }
         mock_trigger = MagicMock()
-        mock_trigger.task_instance.trigger_timeout = timezone.utcnow() - datetime.timedelta(hours=1)
+        mock_trigger.task_instance.trigger_timeout = (
+            timezone.utcnow() - datetime.timedelta(hours=1)
+        )
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
@@ -336,7 +358,9 @@ async def test_trigger_create_race_condition_38599(session, tmp_path):
             look up TI1 (because T1 no longer has a TaskInstance linked to it).
     """
     path = tmp_path / "test_trigger_create_after_completion.txt"
-    trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
+    trigger = TimeDeltaTrigger_(
+        delta=datetime.timedelta(microseconds=1), filename=path.as_posix()
+    )
     trigger_orm = Trigger.from_object(trigger)
     trigger_orm.id = 1
     session.add(trigger_orm)
@@ -469,14 +493,18 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
                 getattr(self.trigger_runner, "handle_events_count", 0) + 1
             )
 
-    trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
+    trigger = TimeDeltaTrigger_(
+        delta=datetime.timedelta(microseconds=1), filename=path.as_posix()
+    )
     trigger_orm = Trigger.from_object(trigger)
     trigger_orm.id = 1
     session.add(trigger_orm)
 
     dag = DagModel(dag_id="test-dag")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
-    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
+    ti = TaskInstance(
+        PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id
+    )
     ti.dag_id = dag.dag_id
     ti.trigger_id = 1
     session.add(dag)
@@ -601,10 +629,14 @@ def test_trigger_runner_exception_stops_triggerer(session):
             if not thread.is_alive():
                 break
         else:
-            pytest.fail("TriggererJobRunner did not stop after exception in TriggerRunner")
+            pytest.fail(
+                "TriggererJobRunner did not stop after exception in TriggerRunner"
+            )
 
         if not job_runner.trigger_runner.stop:
-            pytest.fail("TriggerRunner not marked as stopped after exception in TriggerRunner")
+            pytest.fail(
+                "TriggerRunner not marked as stopped after exception in TriggerRunner"
+            )
 
     finally:
         job_runner.trigger_runner.stop = True
@@ -739,7 +771,10 @@ def test_invalid_trigger(session, dag_maker):
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method == "__fail__"
     assert task_instance.next_kwargs["error"] == "Trigger failure"
-    assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
+    assert (
+        task_instance.next_kwargs["traceback"][-1]
+        == "ModuleNotFoundError: No module named 'fake'\n"
+    )
 
 
 @pytest.mark.parametrize("should_wrap", (True, False))

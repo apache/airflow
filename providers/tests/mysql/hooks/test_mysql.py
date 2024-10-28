@@ -40,7 +40,11 @@ from airflow.utils import timezone
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
-SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
+SSL_DICT = {
+    "cert": "/tmp/client-cert.pem",
+    "ca": "/tmp/server-ca.pem",
+    "key": "/tmp/client-key.pem",
+}
 
 
 class TestMySqlHookConn:
@@ -89,11 +93,15 @@ class TestMySqlHookConn:
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        assert self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
+        assert (
+            self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
+        )
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="schema")
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="schema"
+        )
         hook = MySqlHook(connection=conn)
         hook.get_conn()
         mock_connect.assert_called_once_with(
@@ -102,11 +110,17 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection_with_schema(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="schema")
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="schema"
+        )
         hook = MySqlHook(connection=conn, schema="schema-override")
         hook.get_conn()
         mock_connect.assert_called_once_with(
-            user="login-conn", passwd="password-conn", host="host", db="schema-override", port=3306
+            user="login-conn",
+            passwd="password-conn",
+            host="host",
+            db="schema-override",
+            port=3306,
         )
 
     @mock.patch("MySQLdb.connect")
@@ -246,7 +260,10 @@ class TestMySqlHook:
 
     def test_get_autocommit_mysql_connector(self):
         conn = MockMySQLConnectorConnection()
-        assert self.db_hook.get_autocommit(conn) == MockMySQLConnectorConnection.DEFAULT_AUTOCOMMIT
+        assert (
+            self.db_hook.get_autocommit(conn)
+            == MockMySQLConnectorConnection.DEFAULT_AUTOCOMMIT
+        )
 
     def test_set_autocommit_mysqldb(self):
         autocommit = False
@@ -298,11 +315,15 @@ class TestMySqlHook:
 
     def test_bulk_load(self):
         self.db_hook.bulk_load("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with("LOAD DATA LOCAL INFILE %s INTO TABLE table", ("/tmp/file",))
+        self.cur.execute.assert_called_once_with(
+            "LOAD DATA LOCAL INFILE %s INTO TABLE table", ("/tmp/file",)
+        )
 
     def test_bulk_dump(self):
         self.db_hook.bulk_dump("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
+        self.cur.execute.assert_called_once_with(
+            "SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",)
+        )
 
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
@@ -402,9 +423,13 @@ class TestMySql:
                     os.path.join(priv[0], f"TABLES_{client}-{uuid.uuid1()}"),
                 )
             elif priv == ("",):
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
+                hook.bulk_dump(
+                    "INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}"
+                )
             else:
-                raise pytest.skip("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
+                raise pytest.skip(
+                    "Skip test_mysql_hook_test_bulk_load since file output is not permitted"
+                )
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     @mock.patch("airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn")

@@ -21,7 +21,9 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
@@ -35,7 +37,9 @@ class TestOpenSearchServerlessCollectionActiveSensor:
             poke_interval=5,
             max_retries=1,
         )
-        self.sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, aws_conn_id=None)
+        self.sensor = OpenSearchServerlessCollectionActiveSensor(
+            **self.default_op_kwargs, aws_conn_id=None
+        )
 
     def test_base_aws_op_attributes(self):
         op = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs)
@@ -65,7 +69,9 @@ class TestOpenSearchServerlessCollectionActiveSensor:
             pytest.param(None, "id", True, id="only_id_provided_passes"),
         ],
     )
-    def test_name_and_id_combinations(self, collection_name, collection_id, expected_pass):
+    def test_name_and_id_combinations(
+        self, collection_name, collection_id, expected_pass
+    ):
         call_args = {
             "task_id": "test_sensor",
             "collection_name": collection_name,
@@ -79,26 +85,41 @@ class TestOpenSearchServerlessCollectionActiveSensor:
             assert op.collection_name == collection_name
         if not expected_pass:
             with pytest.raises(
-                AttributeError, match="Either collection_ids or collection_names must be provided, not both."
+                AttributeError,
+                match="Either collection_ids or collection_names must be provided, not both.",
             ):
                 OpenSearchServerlessCollectionActiveSensor(**call_args)
 
-    @pytest.mark.parametrize("state", list(OpenSearchServerlessCollectionActiveSensor.SUCCESS_STATES))
+    @pytest.mark.parametrize(
+        "state", list(OpenSearchServerlessCollectionActiveSensor.SUCCESS_STATES)
+    )
     @mock.patch.object(OpenSearchServerlessHook, "conn")
     def test_poke_success_states(self, mock_conn, state):
-        mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": state}]}
+        mock_conn.batch_get_collection.return_value = {
+            "collectionDetails": [{"status": state}]
+        }
         assert self.sensor.poke({}) is True
 
-    @pytest.mark.parametrize("state", list(OpenSearchServerlessCollectionActiveSensor.INTERMEDIATE_STATES))
+    @pytest.mark.parametrize(
+        "state", list(OpenSearchServerlessCollectionActiveSensor.INTERMEDIATE_STATES)
+    )
     @mock.patch.object(OpenSearchServerlessHook, "conn")
     def test_poke_intermediate_states(self, mock_conn, state):
-        mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": state}]}
+        mock_conn.batch_get_collection.return_value = {
+            "collectionDetails": [{"status": state}]
+        }
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize("state", list(OpenSearchServerlessCollectionActiveSensor.FAILURE_STATES))
+    @pytest.mark.parametrize(
+        "state", list(OpenSearchServerlessCollectionActiveSensor.FAILURE_STATES)
+    )
     @mock.patch.object(OpenSearchServerlessHook, "conn")
     def test_poke_failure_states(self, mock_conn, state):
-        mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": state}]}
-        sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, aws_conn_id=None)
+        mock_conn.batch_get_collection.return_value = {
+            "collectionDetails": [{"status": state}]
+        }
+        sensor = OpenSearchServerlessCollectionActiveSensor(
+            **self.default_op_kwargs, aws_conn_id=None
+        )
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})

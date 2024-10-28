@@ -102,7 +102,9 @@ def mock_json_response(status_code, *contents) -> Response:
     return response
 
 
-def mock_response(status_code, content: Any = None, headers: dict | None = None) -> Response:
+def mock_response(
+    status_code, content: Any = None, headers: dict | None = None
+) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
     response.headers = Headers(headers or {})
@@ -142,10 +144,14 @@ def mock_context(task) -> Context:
             default: Any | None = None,
         ) -> Any:
             if map_indexes:
-                return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}")
+                return values.get(
+                    f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}"
+                )
             return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}")
 
-        def xcom_push(self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs) -> None:
+        def xcom_push(
+            self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs
+        ) -> None:
             values[f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"] = value
 
     values["ti"] = MockedTaskInstance(task=task)
@@ -176,7 +182,9 @@ def load_json(*args: str):
 
 def load_file(*args: str, mode="r", encoding="utf-8"):
     directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]  # type: ignore
-    with open(join(dirname(__file__), directory, join(*args)), mode=mode, encoding=encoding) as file:
+    with open(
+        join(dirname(__file__), directory, join(*args)), mode=mode, encoding=encoding
+    ) as file:
         if mode == "r":
             return remove_license_header(file.read())
         return file.read()
@@ -225,4 +233,6 @@ def get_airflow_connection(
 
 @pytest.fixture
 def powerbi_hook():
-    return PowerBIHook(**{"conn_id": "powerbi_conn_id", "timeout": 3, "api_version": "v1.0"})
+    return PowerBIHook(
+        **{"conn_id": "powerbi_conn_id", "timeout": 3, "api_version": "v1.0"}
+    )

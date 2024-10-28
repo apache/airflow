@@ -47,7 +47,9 @@ S3_DOC_URL_VERSIONED = S3_DOC_URL + "/docs/{package_name}/stable/objects.inv"
 S3_DOC_URL_NON_VERSIONED = S3_DOC_URL + "/docs/{package_name}/objects.inv"
 
 
-def _fetch_file(session: requests.Session, package_name: str, url: str, path: str) -> tuple[str, bool]:
+def _fetch_file(
+    session: requests.Session, package_name: str, url: str, path: str
+) -> tuple[str, bool]:
     """
     Download a file, validate Sphinx Inventory headers and returns status information as a tuple with package
     name and success status(bool value).
@@ -60,7 +62,9 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
         return package_name, False
     if not response.ok:
         print(f"{package_name}: Failed to fetch inventory: {url}")
-        print(f"{package_name}: Failed with status: {response.status_code}", file=sys.stderr)
+        print(
+            f"{package_name}: Failed with status: {response.status_code}", file=sys.stderr
+        )
         return package_name, False
 
     if response.url != url:
@@ -75,7 +79,9 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
 
         line = InventoryFileReader(tf).readline()
         if not line.startswith("# Sphinx inventory version"):
-            print(f"{package_name}: Response contain unexpected Sphinx Inventory header: {line!r}.")
+            print(
+                f"{package_name}: Response contain unexpected Sphinx Inventory header: {line!r}."
+            )
             return package_name, False
 
         tf.seek(0, 0)
@@ -90,7 +96,9 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
 def _is_outdated(path: str):
     if not os.path.exists(path):
         return True
-    delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getmtime(path))
+    delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(
+        os.path.getmtime(path)
+    )
     return delta > datetime.timedelta(hours=12)
 
 
@@ -132,14 +140,18 @@ def fetch_inventories():
         for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
     )
 
-    to_download = [(pkg_name, url, path) for pkg_name, url, path in to_download if _is_outdated(path)]
+    to_download = [
+        (pkg_name, url, path) for pkg_name, url, path in to_download if _is_outdated(path)
+    ]
     if not to_download:
         print("Nothing to do")
         return []
 
     print(f"To download {len(to_download)} inventorie(s)")
 
-    with requests.Session() as session, concurrent.futures.ThreadPoolExecutor(DEFAULT_POOLSIZE) as pool:
+    with requests.Session() as session, concurrent.futures.ThreadPoolExecutor(
+        DEFAULT_POOLSIZE
+    ) as pool:
         download_results: Iterator[tuple[str, bool]] = pool.map(
             _fetch_file,
             itertools.repeat(session, len(to_download)),

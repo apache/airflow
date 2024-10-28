@@ -42,9 +42,13 @@ class TestCassandraToGCS:
         gzip = True
         query_timeout = 20
         try:
-            from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
+            from airflow.providers.google.cloud.transfers.cassandra_to_gcs import (
+                CassandraToGCSOperator,
+            )
         except cassandra.DependencyException:
-            pytest.skip("cassandra-driver not installed with libev support. Skipping test.")
+            pytest.skip(
+                "cassandra-driver not installed with libev support. Skipping test."
+            )
 
         with (
             mock.patch(
@@ -92,13 +96,23 @@ class TestCassandraToGCS:
 
     def test_convert_value(self):
         try:
-            from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
+            from airflow.providers.google.cloud.transfers.cassandra_to_gcs import (
+                CassandraToGCSOperator,
+            )
         except cassandra.DependencyException:
-            pytest.skip("cassandra-driver not installed with libev support. Skipping test.")
+            pytest.skip(
+                "cassandra-driver not installed with libev support. Skipping test."
+            )
 
-        op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME)
+        op = CassandraToGCSOperator(
+            task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME
+        )
         unencoded_uuid_op = CassandraToGCSOperator(
-            task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME, encode_uuid=False
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            cql=CQL,
+            filename=FILENAME,
+            encode_uuid=False,
         )
         assert op.convert_value(None) is None
         assert op.convert_value(1) == 1

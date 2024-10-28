@@ -35,7 +35,9 @@ with models.DAG(
         task_id="workspaces",
         conn_id="powerbi",
         url="myorg/admin/workspaces/modified",
-        result_processor=lambda context, response: list(map(lambda workspace: workspace["id"], response)),
+        result_processor=lambda context, response: list(
+            map(lambda workspace: workspace["id"], response)
+        ),
     )
     # [END howto_operator_powerbi_workspaces]
 

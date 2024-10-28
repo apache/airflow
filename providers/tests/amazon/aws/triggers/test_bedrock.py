@@ -52,7 +52,9 @@ class TestBedrockCustomizeModelCompletedTrigger(TestBaseBedrockTrigger):
         """Assert that arguments and classpath are correctly serialized."""
         trigger = BedrockCustomizeModelCompletedTrigger(job_name=self.JOB_NAME)
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockCustomizeModelCompletedTrigger"
+        assert (
+            classpath == BASE_TRIGGER_CLASSPATH + "BedrockCustomizeModelCompletedTrigger"
+        )
         assert kwargs.get("job_name") == self.JOB_NAME
 
     @pytest.mark.asyncio
@@ -81,7 +83,10 @@ class TestBedrockProvisionModelThroughputCompletedTrigger(TestBaseBedrockTrigger
             provisioned_model_id=self.PROVISIONED_MODEL_ID
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockProvisionModelThroughputCompletedTrigger"
+        assert (
+            classpath
+            == BASE_TRIGGER_CLASSPATH + "BedrockProvisionModelThroughputCompletedTrigger"
+        )
         assert kwargs.get("provisioned_model_id") == self.PROVISIONED_MODEL_ID
 
     @pytest.mark.asyncio
@@ -110,7 +115,9 @@ class TestBedrockKnowledgeBaseActiveTrigger(TestBaseBedrockTrigger):
 
     def test_serialization(self):
         """Assert that arguments and classpath are correctly serialized."""
-        trigger = BedrockKnowledgeBaseActiveTrigger(knowledge_base_id=self.KNOWLEDGE_BASE_NAME)
+        trigger = BedrockKnowledgeBaseActiveTrigger(
+            knowledge_base_id=self.KNOWLEDGE_BASE_NAME
+        )
         classpath, kwargs = trigger.serialize()
         assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockKnowledgeBaseActiveTrigger"
         assert kwargs.get("knowledge_base_id") == self.KNOWLEDGE_BASE_NAME
@@ -121,12 +128,16 @@ class TestBedrockKnowledgeBaseActiveTrigger(TestBaseBedrockTrigger):
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
-        trigger = BedrockKnowledgeBaseActiveTrigger(knowledge_base_id=self.KNOWLEDGE_BASE_NAME)
+        trigger = BedrockKnowledgeBaseActiveTrigger(
+            knowledge_base_id=self.KNOWLEDGE_BASE_NAME
+        )
 
         generator = trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "knowledge_base_id": self.KNOWLEDGE_BASE_NAME})
+        assert response == TriggerEvent(
+            {"status": "success", "knowledge_base_id": self.KNOWLEDGE_BASE_NAME}
+        )
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         mock_get_waiter().wait.assert_called_once()
 
@@ -167,5 +178,7 @@ class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
         response = await generator.asend(None)
 
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
-        assert response == TriggerEvent({"status": "success", "ingestion_job_id": self.INGESTION_JOB_ID})
+        assert response == TriggerEvent(
+            {"status": "success", "ingestion_job_id": self.INGESTION_JOB_ID}
+        )
         mock_get_waiter().wait.assert_called_once()

@@ -23,7 +23,11 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
+from airflow.providers.google.cloud.hooks.gcs import (
+    GCSHook,
+    _parse_gcs_url,
+    gcs_object_is_directory,
+)
 
 try:
     from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
@@ -143,7 +147,9 @@ class AzureFileShareToGCSOperator(BaseOperator):
             # if we are not replacing -> list all files in the GCS bucket
             # and only keep those files which are present in
             # S3 and not in Google Cloud Storage
-            existing_files_prefixed = gcs_hook.list(dest_gcs_bucket, prefix=dest_gcs_object_prefix)
+            existing_files_prefixed = gcs_hook.list(
+                dest_gcs_bucket, prefix=dest_gcs_object_prefix
+            )
 
             existing_files = []
 
@@ -178,10 +184,16 @@ class AzureFileShareToGCSOperator(BaseOperator):
                     # There will always be a '/' before file because it is
                     # enforced at instantiation time
                     dest_gcs_object = dest_gcs_object_prefix + file
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
-            self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
+                    gcs_hook.upload(
+                        dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip
+                    )
+            self.log.info(
+                "All done, uploaded %d files to Google Cloud Storage.", len(files)
+            )
         else:
             self.log.info("There are no new files to sync. Have a nice day!")
-            self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
+            self.log.info(
+                "In sync, no files needed to be uploaded to Google Cloud Storage"
+            )
 
         return files

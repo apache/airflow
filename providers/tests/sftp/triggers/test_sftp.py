@@ -34,7 +34,9 @@ class TestSFTPTrigger:
         """
         Asserts that the SFTPTrigger correctly serializes its arguments and classpath.
         """
-        trigger = SFTPTrigger(path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file")
+        trigger = SFTPTrigger(
+            path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file"
+        )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPTrigger"
         assert kwargs == {
@@ -50,8 +52,12 @@ class TestSFTPTrigger:
         "newer_than",
         ["19700101053001", None],
     )
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")
-    async def test_sftp_trigger_run_trigger_success_state(self, mock_get_files_by_pattern, newer_than):
+    @mock.patch(
+        "airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern"
+    )
+    async def test_sftp_trigger_run_trigger_success_state(
+        self, mock_get_files_by_pattern, newer_than
+    ):
         """
         Assert that a TriggerEvent with a success status is yielded if a file
         matching the pattern is returned by the hook
@@ -62,11 +68,17 @@ class TestSFTPTrigger:
         ]
 
         trigger = SFTPTrigger(
-            path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file", newer_than=newer_than
+            path="test/path/",
+            sftp_conn_id="sftp_default",
+            file_pattern="my_test_file",
+            newer_than=newer_than,
         )
 
         if newer_than:
-            expected_event = {"status": "success", "message": "Sensed 1 files: ['some_file']"}
+            expected_event = {
+                "status": "success",
+                "message": "Sensed 1 files: ['some_file']",
+            }
         else:
             expected_event = {
                 "status": "success",
@@ -88,9 +100,14 @@ class TestSFTPTrigger:
 
         mock_mod_time.return_value = "19700101053001"
 
-        trigger = SFTPTrigger(path="test/path/test.txt", sftp_conn_id="sftp_default", file_pattern="")
+        trigger = SFTPTrigger(
+            path="test/path/test.txt", sftp_conn_id="sftp_default", file_pattern=""
+        )
 
-        expected_event = {"status": "success", "message": "Sensed file: test/path/test.txt"}
+        expected_event = {
+            "status": "success",
+            "message": "Sensed file: test/path/test.txt",
+        }
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -107,10 +124,16 @@ class TestSFTPTrigger:
         mock_mod_time.return_value = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
         trigger = SFTPTrigger(
-            path="test/path/test.txt", sftp_conn_id="sftp_default", file_pattern="", newer_than=yesterday
+            path="test/path/test.txt",
+            sftp_conn_id="sftp_default",
+            file_pattern="",
+            newer_than=yesterday,
         )
 
-        expected_event = {"status": "success", "message": "Sensed file: test/path/test.txt"}
+        expected_event = {
+            "status": "success",
+            "message": "Sensed file: test/path/test.txt",
+        }
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -118,7 +141,9 @@ class TestSFTPTrigger:
         assert TriggerEvent(expected_event) == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")
+    @mock.patch(
+        "airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern"
+    )
     async def test_sftp_trigger_run_trigger_defer_state(
         self,
         mock_get_files_by_pattern,
@@ -127,10 +152,15 @@ class TestSFTPTrigger:
         Assert that a the task does not complete,
         indicating that the task needs to be deferred
         """
-        mock_get_files_by_pattern.return_value = [SFTPName("my_test_file.txt", attrs=SFTPAttrs(mtime=49129))]
+        mock_get_files_by_pattern.return_value = [
+            SFTPName("my_test_file.txt", attrs=SFTPAttrs(mtime=49129))
+        ]
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
         trigger = SFTPTrigger(
-            path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file", newer_than=yesterday
+            path="test/path/",
+            sftp_conn_id="sftp_default",
+            file_pattern="my_test_file",
+            newer_than=yesterday,
         )
 
         task = asyncio.create_task(trigger.run().__anext__())
@@ -149,7 +179,9 @@ class TestSFTPTrigger:
         state and assert to success
         """
         today_time = time.time()
-        mock_mod_time.return_value = datetime.date.fromtimestamp(today_time).strftime("%Y%m%d%H%M%S")
+        mock_mod_time.return_value = datetime.date.fromtimestamp(today_time).strftime(
+            "%Y%m%d%H%M%S"
+        )
         newer_then_time = datetime.datetime.now() + datetime.timedelta(hours=1)
         trigger = SFTPTrigger(
             path="test/path/test.txt",
@@ -166,30 +198,42 @@ class TestSFTPTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")
-    async def test_sftp_trigger_run_trigger_failure_state(self, mock_get_files_by_pattern):
+    @mock.patch(
+        "airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern"
+    )
+    async def test_sftp_trigger_run_trigger_failure_state(
+        self, mock_get_files_by_pattern
+    ):
         """
         Mock the hook to raise other than an AirflowException and assert that a TriggerEvent with a failure status
         """
         mock_get_files_by_pattern.side_effect = Exception("An unexpected exception")
 
-        trigger = SFTPTrigger(path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file")
+        trigger = SFTPTrigger(
+            path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file"
+        )
         expected_event = {"status": "error", "message": "An unexpected exception"}
         generator = trigger.run()
         actual_event = await generator.asend(None)
         assert TriggerEvent(expected_event) == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")
+    @mock.patch(
+        "airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern"
+    )
     async def test_sftp_trigger_run_airflow_exception(self, mock_get_files_by_pattern):
         """
         Assert that a the task does not complete if the hook raises an AirflowException,
         indicating that the task needs to be deferred
         """
 
-        mock_get_files_by_pattern.side_effect = AirflowException("No files at path /test/path/ found...")
+        mock_get_files_by_pattern.side_effect = AirflowException(
+            "No files at path /test/path/ found..."
+        )
 
-        trigger = SFTPTrigger(path="/test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file")
+        trigger = SFTPTrigger(
+            path="/test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file"
+        )
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)

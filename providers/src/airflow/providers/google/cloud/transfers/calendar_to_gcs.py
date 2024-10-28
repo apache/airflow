@@ -144,7 +144,9 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         # Construct destination file path
         file_name = f"{self.calendar_id}.json".replace(" ", "_")
         dest_file_name = (
-            f"{self.destination_path.strip('/')}/{file_name}" if self.destination_path else file_name
+            f"{self.destination_path.strip('/')}/{file_name}"
+            if self.destination_path
+            else file_name
         )
 
         with NamedTemporaryFile("w+") as temp_file:

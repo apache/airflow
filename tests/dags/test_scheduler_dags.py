@@ -40,6 +40,9 @@ dag2 = DAG(
     schedule=timedelta(days=1),
 )
 dag2_task1 = EmptyOperator(
-    task_id="dummy1", dag=dag2, owner="airflow", start_date=DEFAULT_DATE + timedelta(days=3)
+    task_id="dummy1",
+    dag=dag2,
+    owner="airflow",
+    start_date=DEFAULT_DATE + timedelta(days=3),
 )
 dag2_task2 = EmptyOperator(task_id="dummy2", dag=dag2, owner="airflow")

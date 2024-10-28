@@ -46,17 +46,27 @@ def generate_auth_manager_airflow_diagram():
             webserver = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
             with Cluster("Provider X"):
-                auth_manager = Custom("X auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                auth_manager = Custom(
+                    "X auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
             with Cluster("Core Airflow"):
                 auth_manager_interface = Custom(
                     "Auth manager\ninterface", PYTHON_MULTIPROCESS_LOGO.as_posix()
                 )
 
-        (user >> Edge(color="black", style="solid", reverse=True, label="Access to the console") >> webserver)
+        (
+            user
+            >> Edge(
+                color="black", style="solid", reverse=True, label="Access to the console"
+            )
+            >> webserver
+        )
 
         (
             webserver
-            >> Edge(color="black", style="solid", reverse=True, label="Is user authorized?")
+            >> Edge(
+                color="black", style="solid", reverse=True, label="Is user authorized?"
+            )
             >> auth_manager
         )
 

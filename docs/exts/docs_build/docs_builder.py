@@ -75,7 +75,9 @@ class AirflowDocsBuilder:
     @property
     def log_spelling_output_dir(self) -> str:
         """Results from spelling job."""
-        return os.path.join(self._build_dir, f"output-spelling-results-{self.package_name}")
+        return os.path.join(
+            self._build_dir, f"output-spelling-results-{self.package_name}"
+        )
 
     @property
     def log_build_filename(self) -> str:
@@ -100,7 +102,9 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> tuple[list[SpellingError], list[DocBuildError]]:
+    def check_spelling(
+        self, verbose: bool
+    ) -> tuple[list[SpellingError], list[DocBuildError]]:
         """
         Checks spelling
 
@@ -135,7 +139,9 @@ class AirflowDocsBuilder:
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
-            console.print(f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs.")
+            console.print(
+                f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs."
+            )
         with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
@@ -159,17 +165,23 @@ class AirflowDocsBuilder:
                 )
             )
             spelling_warning_text = ""
-            for filepath in glob(f"{self.log_spelling_output_dir}/**/*.spelling", recursive=True):
+            for filepath in glob(
+                f"{self.log_spelling_output_dir}/**/*.spelling", recursive=True
+            ):
                 with open(filepath) as spelling_file:
                     spelling_warning_text += spelling_file.read()
-            spelling_errors.extend(parse_spelling_warnings(spelling_warning_text, self._src_dir))
+            spelling_errors.extend(
+                parse_spelling_warnings(spelling_warning_text, self._src_dir)
+            )
             if os.path.isfile(self.log_spelling_filename):
                 with open(self.log_spelling_filename) as warning_file:
                     warning_text = warning_file.read()
                 # Remove 7-bit C1 ANSI escape sequences
                 warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
                 build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
-            console.print(f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]")
+            console.print(
+                f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]"
+            )
         else:
             if spelling_errors:
                 console.print(
@@ -242,9 +254,13 @@ class AirflowDocsBuilder:
             warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
             build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
         if build_errors:
-            console.print(f"[info]{self.package_name:60}:[/] [red]Finished docs building with errors[/]")
+            console.print(
+                f"[info]{self.package_name:60}:[/] [red]Finished docs building with errors[/]"
+            )
         else:
-            console.print(f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]")
+            console.print(
+                f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]"
+            )
         return build_errors
 
 
@@ -252,13 +268,17 @@ def get_available_providers_packages(include_suspended: bool = False):
     """Get list of all available providers packages to build."""
     return [
         provider["package-name"]
-        for provider in (ALL_PROVIDER_YAMLS_WITH_SUSPENDED if include_suspended else ALL_PROVIDER_YAMLS)
+        for provider in (
+            ALL_PROVIDER_YAMLS_WITH_SUSPENDED if include_suspended else ALL_PROVIDER_YAMLS
+        )
     ]
 
 
 def get_available_packages(include_suspended: bool = False):
     """Get list of all available packages to build."""
-    provider_package_names = get_available_providers_packages(include_suspended=include_suspended)
+    provider_package_names = get_available_providers_packages(
+        include_suspended=include_suspended
+    )
     return [
         "apache-airflow",
         *provider_package_names,

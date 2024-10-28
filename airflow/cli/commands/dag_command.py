@@ -83,7 +83,9 @@ def dag_delete(args) -> None:
     api_client = get_current_api_client()
     if (
         args.yes
-        or input("This will drop all existing records related to the specified DAG. Proceed? (y/n)").upper()
+        or input(
+            "This will drop all existing records related to the specified DAG. Proceed? (y/n)"
+        ).upper()
         == "Y"
     ):
         try:
@@ -143,7 +145,10 @@ def set_is_paused(is_paused: bool, args) -> None:
             dag_model.set_is_paused(is_paused=is_paused)
 
         AirflowConsole().print_as(
-            data=[{"dag_id": dag.dag_id, "is_paused": not dag.get_is_paused()} for dag in matched_dags],
+            data=[
+                {"dag_id": dag.dag_id, "is_paused": not dag.get_is_paused()}
+                for dag in matched_dags
+            ],
             output=args.output,
         )
     else:
@@ -198,7 +203,9 @@ def dag_show(args) -> None:
 def _display_dot_via_imgcat(dot: Dot) -> None:
     data = dot.pipe(format="png")
     try:
-        with subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
+        with subprocess.Popen(
+            "imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE
+        ) as proc:
             out, err = proc.communicate(data)
             if out:
                 print(out.decode("utf-8"))
@@ -206,7 +213,9 @@ def _display_dot_via_imgcat(dot: Dot) -> None:
                 print(err.decode("utf-8"))
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise SystemExit("Failed to execute. Make sure the imgcat executables are on your systems 'PATH'")
+            raise SystemExit(
+                "Failed to execute. Make sure the imgcat executables are on your systems 'PATH'"
+            )
         else:
             raise
 
@@ -240,7 +249,9 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "max_active_runs": dag.max_active_runs,
         "max_consecutive_failed_dag_runs": dag.max_consecutive_failed_dag_runs,
         "has_task_concurrency_limits": any(
-            t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
+            t.max_active_tis_per_dag is not None
+            or t.max_active_tis_per_dagrun is not None
+            for t in dag.tasks
         ),
         "has_import_errors": False,
         "next_dagrun": None,
@@ -266,7 +277,9 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date))
+    dr = session.scalar(
+        select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date)
+    )
     out = dr.state if dr else None
     conf_out = ""
     if out and dr.conf:
@@ -367,7 +380,10 @@ def dag_details(args, session=NEW_SESSION):
     dag_detail = dag_schema.dump(dag)
 
     if args.output in ["table", "plain"]:
-        data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]
+        data = [
+            {"property_name": key, "property_value": value}
+            for key, value in dag_detail.items()
+        ]
     else:
         data = [dag_detail]
 
@@ -436,7 +452,9 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
     all_jobs_iter = session.scalars(
         select(Job).where(*queries).order_by(Job.start_date.desc()).limit(args.limit)
     )
-    all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs_iter]
+    all_jobs = [
+        {f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs_iter
+    ]
 
     AirflowConsole().print_as(
         data=all_jobs,
@@ -448,7 +466,9 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
+def dag_list_dag_runs(
+    args, dag: DAG | None = None, session: Session = NEW_SESSION
+) -> None:
     """List dag runs for a given DAG."""
     if dag:
         args.dag_id = dag.dag_id
@@ -498,7 +518,9 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     use_executor = args.use_executor
 
     mark_success_pattern = (
-        re2.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
+        re2.compile(args.mark_success_pattern)
+        if args.mark_success_pattern is not None
+        else None
     )
 
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
@@ -539,7 +561,9 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
+    session.execute(
+        delete(SerializedDagModel).execution_options(synchronize_session=False)
+    )
 
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))

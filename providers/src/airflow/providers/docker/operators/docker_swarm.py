@@ -146,7 +146,9 @@ class DockerSwarmOperator(DockerOperator):
         self.mode = mode
         self.networks = networks
         self.placement = placement
-        self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
+        self.container_resources = container_resources or types.Resources(
+            mem_limit=self.mem_limit
+        )
         self.logging_driver = logging_driver
         self.logging_driver_opts = logging_driver_opts
 
@@ -156,7 +158,9 @@ class DockerSwarmOperator(DockerOperator):
                 raise AirflowException(
                     f"Invalid logging driver provided: {self.logging_driver}. Must be one of: [{', '.join(supported_logging_drivers)}]"
                 )
-            self.log_driver_config = types.DriverConfig(self.logging_driver, self.logging_driver_opts)
+            self.log_driver_config = types.DriverConfig(
+                self.logging_driver, self.logging_driver_opts
+            )
         else:
             self.log_driver_config = None
 
@@ -217,7 +221,10 @@ class DockerSwarmOperator(DockerOperator):
         if self.retrieve_output:
             return self._attempt_to_retrieve_results()
 
-        self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
+        self.log.info(
+            "auto_removeauto_removeauto_removeauto_removeauto_remove : %s",
+            str(self.auto_remove),
+        )
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
                 self.cli.remove_service(self.service["ID"])
@@ -230,11 +237,20 @@ class DockerSwarmOperator(DockerOperator):
     def _service_status(self) -> str | None:
         if not self.service:
             raise RuntimeError("The 'service' should be initialized before!")
-        return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"]["State"]
+        return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"][
+            "State"
+        ]
 
     def _has_service_terminated(self) -> bool:
         status = self._service_status()
-        return status in ["complete", "failed", "shutdown", "rejected", "orphaned", "remove"]
+        return status in [
+            "complete",
+            "failed",
+            "shutdown",
+            "rejected",
+            "orphaned",
+            "remove",
+        ]
 
     def _stream_logs_to_output(self) -> None:
         if not self.service:
@@ -255,7 +271,9 @@ class DockerSwarmOperator(DockerOperator):
             if last_line_logged in logs:
                 logs = logs[logs.index(last_line_logged) + 1 :]
             for line in logs:
-                match = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6,}Z) (.*)", line)
+                match = re.match(
+                    r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6,}Z) (.*)", line
+                )
                 timestamp, message = match.groups()
                 self.log.info(message)
 
@@ -272,7 +290,9 @@ class DockerSwarmOperator(DockerOperator):
 
         while not self._has_service_terminated():
             sleep(2)
-            last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since=last_timestamp)
+            last_line_logged, last_timestamp = stream_new_logs(
+                last_line_logged, since=last_timestamp
+            )
 
     def _attempt_to_retrieve_results(self):
         """
@@ -284,7 +304,9 @@ class DockerSwarmOperator(DockerOperator):
         try:
             file_contents = []
             for container in self.containers:
-                file_content = self._copy_from_docker(container["Id"], self.retrieve_output_path)
+                file_content = self._copy_from_docker(
+                    container["Id"], self.retrieve_output_path
+                )
                 file_contents.append(file_content)
             if len(file_contents) == 1:
                 return file_contents[0]

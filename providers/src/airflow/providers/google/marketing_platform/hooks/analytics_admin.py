@@ -87,9 +87,15 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
 
         :returns: List of Google Analytics accounts.
         """
-        request = {"page_size": page_size, "page_token": page_token, "show_deleted": show_deleted}
+        request = {
+            "page_size": page_size,
+            "page_token": page_token,
+            "show_deleted": show_deleted,
+        }
         client = self.get_conn()
-        return client.list_accounts(request=request, retry=retry, timeout=timeout, metadata=metadata)
+        return client.list_accounts(
+            request=request, retry=retry, timeout=timeout, metadata=metadata
+        )
 
     def create_property(
         self,
@@ -146,7 +152,9 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         """
         client = self.get_conn()
         request = {"name": f"properties/{property_id}"}
-        return client.delete_property(request=request, retry=retry, timeout=timeout, metadata=metadata)
+        return client.delete_property(
+            request=request, retry=retry, timeout=timeout, metadata=metadata
+        )
 
     def create_data_stream(
         self,
@@ -237,5 +245,11 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         :returns: List of Google Analytics accounts.
         """
         client = self.get_conn()
-        request = {"parent": f"properties/{property_id}", "page_size": page_size, "page_token": page_token}
-        return client.list_google_ads_links(request=request, retry=retry, timeout=timeout, metadata=metadata)
+        request = {
+            "parent": f"properties/{property_id}",
+            "page_size": page_size,
+            "page_token": page_token,
+        }
+        return client.list_google_ads_links(
+            request=request, retry=retry, timeout=timeout, metadata=metadata
+        )

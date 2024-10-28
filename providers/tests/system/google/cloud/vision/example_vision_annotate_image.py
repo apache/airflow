@@ -22,7 +22,10 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionDetectImageLabelsOperator,
     CloudVisionDetectImageSafeSearchOperator,
@@ -46,7 +49,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 # [END howto_operator_vision_enums_import]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcp_vision_annotate_image"
 
@@ -131,7 +136,10 @@ with DAG(
 
     # [START howto_operator_vision_document_detect_text]
     document_detect_text = CloudVisionTextDetectOperator(
-        image=DETECT_IMAGE, retry=Retry(maximum=10.0), timeout=5, task_id="document_detect_text"
+        image=DETECT_IMAGE,
+        retry=Retry(maximum=10.0),
+        timeout=5,
+        task_id="document_detect_text",
     )
     # [END howto_operator_vision_document_detect_text]
 
@@ -157,7 +165,10 @@ with DAG(
 
     # [START howto_operator_vision_detect_safe_search]
     detect_safe_search = CloudVisionDetectImageSafeSearchOperator(
-        image=DETECT_IMAGE, retry=Retry(maximum=10.0), timeout=5, task_id="detect_safe_search"
+        image=DETECT_IMAGE,
+        retry=Retry(maximum=10.0),
+        timeout=5,
+        task_id="detect_safe_search",
     )
     # [END howto_operator_vision_detect_safe_search]
 
@@ -169,7 +180,9 @@ with DAG(
     # [END howto_operator_vision_detect_safe_search_result]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

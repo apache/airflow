@@ -81,8 +81,12 @@ sudo docker run -d -p {DB_PORT}:{DB_PORT} --name {DB_NAME} \
     mysql:8.1.0
 """
 SQL_TABLE = "test_table"
-SQL_CREATE = f"CREATE TABLE IF NOT EXISTS {DB_NAME}.{SQL_TABLE} (col_1 INT, col_2 VARCHAR(8))"
-SQL_INSERT = f"INSERT INTO {DB_NAME}.{SQL_TABLE} (col_1, col_2) VALUES (1, 'one'), (2, 'two')"
+SQL_CREATE = (
+    f"CREATE TABLE IF NOT EXISTS {DB_NAME}.{SQL_TABLE} (col_1 INT, col_2 VARCHAR(8))"
+)
+SQL_INSERT = (
+    f"INSERT INTO {DB_NAME}.{SQL_TABLE} (col_1, col_2) VALUES (1, 'one'), (2, 'two')"
+)
 SQL_SELECT = f"SELECT * FROM {DB_NAME}.{SQL_TABLE}"
 
 GCE_MACHINE_TYPE = "n1-standard-1"
@@ -185,7 +189,9 @@ with DAG(
     @task
     def get_public_ip() -> str:
         hook = ComputeEngineHook()
-        address = hook.get_instance_address(resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        address = hook.get_instance_address(
+            resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID
+        )
         return address
 
     get_public_ip_task = get_public_ip()
@@ -210,7 +216,9 @@ with DAG(
         session.commit()
         log.info("Connection %s created", connection_id)
 
-    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
+    create_connection_task = create_connection(
+        connection_id=CONNECTION_ID, ip_address=get_public_ip_task
+    )
 
     create_sql_table = SQLExecuteQueryOperator(
         task_id="create_sql_table",
@@ -292,7 +300,12 @@ with DAG(
     )
 
     # TEST TEARDOWN
-    mysql_to_gcs >> [delete_gcs_bucket, delete_firewall_rule, delete_gce_instance, delete_connection_task]
+    mysql_to_gcs >> [
+        delete_gcs_bucket,
+        delete_firewall_rule,
+        delete_gce_instance,
+        delete_connection_task,
+    ]
     delete_gce_instance >> delete_persistent_disk
 
     from tests_common.test_utils.watcher import watcher

@@ -43,7 +43,9 @@ class TestCloudantHook:
 
     @patch(
         "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
-        return_value=Connection(login="the_user", password="the_password", host="the_account"),
+        return_value=Connection(
+            login="the_user", password="the_password", host="the_account"
+        ),
     )
     @patch("airflow.providers.cloudant.hooks.cloudant.CouchDbSessionAuthenticator")
     @patch("airflow.providers.cloudant.hooks.cloudant.CloudantV1")
@@ -54,11 +56,17 @@ class TestCloudantHook:
 
         conn = mock_get_connection.return_value
 
-        mock_session_authenticator.assert_called_once_with(username=conn.login, password=conn.password)
-        mock_cloudant_v1.assert_called_once_with(authenticator=mock_session_authenticator.return_value)
+        mock_session_authenticator.assert_called_once_with(
+            username=conn.login, password=conn.password
+        )
+        mock_cloudant_v1.assert_called_once_with(
+            authenticator=mock_session_authenticator.return_value
+        )
 
         cloudant_service = mock_cloudant_v1.return_value
-        cloudant_service.set_service_url.assert_called_once_with(f"https://{conn.host}.cloudant.com")
+        cloudant_service.set_service_url.assert_called_once_with(
+            f"https://{conn.host}.cloudant.com"
+        )
 
         assert cloudant_session == cloudant_service
 

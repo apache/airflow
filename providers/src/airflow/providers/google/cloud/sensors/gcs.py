@@ -81,7 +81,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -232,7 +234,9 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -272,12 +276,16 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+    def execute_complete(
+        self, context: dict[str, Any], event: dict[str, str] | None = None
+    ) -> str:
         """Return immediately and rely on trigger to throw a success event. Callback for the trigger."""
         if event:
             if event["status"] == "success":
                 self.log.info(
-                    "Checking last updated time for object %s in bucket : %s", self.object, self.bucket
+                    "Checking last updated time for object %s in bucket : %s",
+                    self.object,
+                    self.bucket,
                 )
                 return event["message"]
             raise AirflowException(event["message"])
@@ -323,7 +331,9 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         prefix: str,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -335,7 +345,9 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
+        self.log.info(
+            "Checking for existence of object: %s, %s", self.bucket, self.prefix
+        )
         hook = GCSHook(
             gcp_conn_id=self.google_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -345,7 +357,9 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
 
     def execute(self, context: Context):
         """Overridden to allow matches to be passed."""
-        self.log.info("Checking for existence of object: %s, %s", self.bucket, self.prefix)
+        self.log.info(
+            "Checking for existence of object: %s, %s", self.bucket, self.prefix
+        )
         if not self.deferrable:
             super().execute(context)
             return self._matches
@@ -367,7 +381,9 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
             else:
                 return self._matches
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
+    def execute_complete(
+        self, context: dict[str, Any], event: dict[str, str | list[str]]
+    ) -> str | list[str]:
         """Return immediately and rely on trigger to throw a success event. Callback for the trigger."""
         self.log.info("Resuming from trigger and checking status")
         if event["status"] == "success":
@@ -435,7 +451,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         allow_delete: bool = True,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -477,7 +495,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 "New objects found at %s resetting last_activity_time.",
                 os.path.join(self.bucket, self.prefix),
             )
-            self.log.debug("New objects: %s", "\n".join(current_objects - self.previous_objects))
+            self.log.debug(
+                "New objects: %s", "\n".join(current_objects - self.previous_objects)
+            )
             self.last_activity_time = get_time()
             self.inactivity_seconds = 0
             self.previous_objects = current_objects
@@ -508,7 +528,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             raise AirflowException(message)
 
         if self.last_activity_time:
-            self.inactivity_seconds = (get_time() - self.last_activity_time).total_seconds()
+            self.inactivity_seconds = (
+                get_time() - self.last_activity_time
+            ).total_seconds()
         else:
             # Handles the first poke where last inactivity time is None.
             self.last_activity_time = get_time()
@@ -532,7 +554,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 )
                 return True
 
-            self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
+            self.log.error(
+                "FAILURE: Inactivity Period passed, not enough objects found in %s", path
+            )
 
             return False
         return False
@@ -566,7 +590,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+    def execute_complete(
+        self, context: dict[str, Any], event: dict[str, str] | None = None
+    ) -> str:
         """
         Rely on trigger to throw an exception, otherwise it assumes execution was successful.
 

@@ -74,7 +74,9 @@ def attributes_to_test(
                 final_tag_set = {**value, **final_tag_set}
         # Inject it back into the list.
         result = [
-            (key, value) if (key != NodegroupAttributes.TAGS) else (NodegroupAttributes.TAGS, final_tag_set)
+            (key, value)
+            if (key != NodegroupAttributes.TAGS)
+            else (NodegroupAttributes.TAGS, final_tag_set)
             for key, value in result
         ]
 
@@ -94,9 +96,9 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> li
     """
     # Generates N clusters named cluster0, cluster1, .., clusterN
     return [
-        eks_hook.create_cluster(name=f"cluster{count}", **_input_builder(ClusterInputs, minimal))[
-            ResponseAttributes.CLUSTER
-        ][ClusterAttributes.NAME]
+        eks_hook.create_cluster(
+            name=f"cluster{count}", **_input_builder(ClusterInputs, minimal)
+        )[ResponseAttributes.CLUSTER][ClusterAttributes.NAME]
         for count in range(num_clusters)
     ]
 
@@ -119,7 +121,9 @@ def generate_fargate_profiles(
             fargateProfileName=f"profile{count}",
             clusterName=cluster_name,
             **_input_builder(FargateProfileInputs, minimal),
-        )[ResponseAttributes.FARGATE_PROFILE][FargateProfileAttributes.FARGATE_PROFILE_NAME]
+        )[ResponseAttributes.FARGATE_PROFILE][
+            FargateProfileAttributes.FARGATE_PROFILE_NAME
+        ]
         for count in range(num_profiles)
     ]
 
@@ -233,7 +237,10 @@ def convert_keys(original: dict) -> dict:
             "resources_vpc_config": "resourcesVpcConfig",
         }
 
-    return {conversion_map[k] if k in conversion_map else k: v for (k, v) in deepcopy(original).items()}
+    return {
+        conversion_map[k] if k in conversion_map else k: v
+        for (k, v) in deepcopy(original).items()
+    }
 
 
 def iso_date(input_datetime: datetime.datetime) -> str:

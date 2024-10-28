@@ -39,7 +39,9 @@ class SsmHook(AwsBaseHook):
         kwargs["client_type"] = "ssm"
         super().__init__(*args, **kwargs)
 
-    def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
+    def get_parameter_value(
+        self, parameter: str, default: str | ArgNotSet = NOTSET
+    ) -> str:
         """
         Return the provided Parameter or an optional default; if it is encrypted, then decrypt and mask.
 
@@ -50,7 +52,9 @@ class SsmHook(AwsBaseHook):
         :param default: Optional default value to return if none is found.
         """
         try:
-            param = self.conn.get_parameter(Name=parameter, WithDecryption=True)["Parameter"]
+            param = self.conn.get_parameter(Name=parameter, WithDecryption=True)[
+                "Parameter"
+            ]
             value = param["Value"]
             if param["Type"] == "SecureString":
                 mask_secret(value)

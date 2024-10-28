@@ -47,7 +47,9 @@ def check_file(the_file: Path) -> int:
             if uses is not None and uses.startswith("actions/checkout"):
                 with_clause = step.get("with")
                 if with_clause is None:
-                    console.print(f"\n[red]The `with` clause is missing in step:[/]\n\n{pretty_step}")
+                    console.print(
+                        f"\n[red]The `with` clause is missing in step:[/]\n\n{pretty_step}"
+                    )
                     error_num += 1
                     continue
                 path = with_clause.get("path")

@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
+from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import (
+    FacebookAdsReportToGcsOperator,
+)
 
 GCS_BUCKET = "airflow_bucket_fb"
 GCS_OBJ_PATH = "Temp/this_is_my_report_json.json"
@@ -60,10 +62,14 @@ FACEBOOK_RETURN_VALUE = {
 
 
 class TestFacebookAdsReportToGcsOperator:
-    @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook"
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.GCSHook")
     def test_execute(self, mock_gcs_hook, mock_ads_hook):
-        mock_ads_hook.return_value.bulk_facebook_report.return_value = FACEBOOK_RETURN_VALUE
+        mock_ads_hook.return_value.bulk_facebook_report.return_value = (
+            FACEBOOK_RETURN_VALUE
+        )
         op = FacebookAdsReportToGcsOperator(
             facebook_conn_id=FACEBOOK_ADS_CONN_ID,
             fields=FIELDS,
@@ -74,7 +80,9 @@ class TestFacebookAdsReportToGcsOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute({})
-        mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
+        mock_ads_hook.assert_called_once_with(
+            facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None
+        )
         mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
             params=PARAMETERS, fields=FIELDS
         )
@@ -83,13 +91,20 @@ class TestFacebookAdsReportToGcsOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.return_value.upload.assert_called_once_with(
-            bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
+            bucket_name=GCS_BUCKET,
+            object_name=GCS_OBJ_PATH,
+            filename=mock.ANY,
+            gzip=False,
         )
 
-    @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook"
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.GCSHook")
     def test_execute_with_upload(self, mock_gcs_hook, mock_ads_hook):
-        mock_ads_hook.return_value.bulk_facebook_report.return_value = FACEBOOK_RETURN_VALUE
+        mock_ads_hook.return_value.bulk_facebook_report.return_value = (
+            FACEBOOK_RETURN_VALUE
+        )
         op = FacebookAdsReportToGcsOperator(
             facebook_conn_id=FACEBOOK_ADS_CONN_ID,
             fields=FIELDS,
@@ -101,7 +116,9 @@ class TestFacebookAdsReportToGcsOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute({})
-        mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
+        mock_ads_hook.assert_called_once_with(
+            facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None
+        )
         mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
             params=PARAMETERS, fields=FIELDS
         )
@@ -110,6 +127,20 @@ class TestFacebookAdsReportToGcsOperator:
             [mock.call(gcp_conn_id=GCS_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)],
         )
         mock_gcs_hook.return_value.upload.assert_has_calls(
-            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_1, filename=mock.ANY, gzip=False)],
-            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_2, fidlename=mock.ANY, gzip=False)],
+            [
+                mock.call(
+                    bucket_name=GCS_BUCKET,
+                    object_name=GCS_OBJ_PATH_1,
+                    filename=mock.ANY,
+                    gzip=False,
+                )
+            ],
+            [
+                mock.call(
+                    bucket_name=GCS_BUCKET,
+                    object_name=GCS_OBJ_PATH_2,
+                    fidlename=mock.ANY,
+                    gzip=False,
+                )
+            ],
         )

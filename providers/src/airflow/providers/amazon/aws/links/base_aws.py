@@ -81,7 +81,12 @@ class BaseAwsLink(BaseOperatorLink):
     @classmethod
     @return_on_error(None)
     def persist(
-        cls, context: Context, operator: BaseOperator, region_name: str, aws_partition: str, **kwargs
+        cls,
+        context: Context,
+        operator: BaseOperator,
+        region_name: str,
+        aws_partition: str,
+        **kwargs,
     ) -> None:
         """Store link information into XCom."""
         if not operator.do_xcom_push:

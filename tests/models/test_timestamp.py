@@ -70,7 +70,12 @@ def test_timestamp_behaviour_with_timezone(dag_maker, session=None):
     execdate = timezone.utcnow()
     with time_machine.travel(execdate, tick=False):
         current_time = timezone.utcnow()
-        old_log = add_log(execdate, session, dag_maker, timezone_override=pendulum.timezone("Europe/Warsaw"))
+        old_log = add_log(
+            execdate,
+            session,
+            dag_maker,
+            timezone_override=pendulum.timezone("Europe/Warsaw"),
+        )
         session.expunge(old_log)
         # No matter what timezone we set - we should always get back UTC
         log_time = session.query(Log).one().dttm

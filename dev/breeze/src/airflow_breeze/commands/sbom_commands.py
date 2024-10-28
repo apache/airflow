@@ -121,7 +121,10 @@ SBOM_INDEX_TEMPLATE = """
 """
 
 
-@sbom.command(name="update-sbom-information", help="Update SBOM information in airflow-site project.")
+@sbom.command(
+    name="update-sbom-information",
+    help="Update SBOM information in airflow-site project.",
+)
 @click.option(
     "--airflow-site-directory",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
@@ -231,7 +234,9 @@ def update_sbom_information(
                 return False
         return False
 
-    apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
+    apache_airflow_documentation_directory = (
+        airflow_site_archive_directory / "apache-airflow"
+    )
     if package_filter == "apache-airflow":
         if all_combinations:
             for include_npm, include_python, include_provider_dependencies in [
@@ -300,9 +305,7 @@ def update_sbom_information(
             )
 
             for python_version in python_versions:
-                target_sbom_file_name = (
-                    f"apache-airflow-sbom-{provider_id}-{provider_version}-python{python_version}.json"
-                )
+                target_sbom_file_name = f"apache-airflow-sbom-{provider_id}-{provider_version}-python{python_version}.json"
                 target_sbom_path = destination_dir / target_sbom_file_name
 
                 if _dir_exists_warn_and_should_skip(target_sbom_path, force):
@@ -326,7 +329,9 @@ def update_sbom_information(
         parallelism = min(parallelism, len(jobs_to_run))
         get_console().print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
         with ci_group(f"Generating SBOMs for {jobs_to_run}"):
-            all_params = [f"Generate SBOMs for {job.get_job_name()} " for job in jobs_to_run]
+            all_params = [
+                f"Generate SBOMs for {job.get_job_name()} " for job in jobs_to_run
+            ]
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=all_params,
@@ -358,13 +363,17 @@ def update_sbom_information(
 
     html_template = SBOM_INDEX_TEMPLATE
 
-    def _generate_index(destination_dir: Path, provider_id: str | None, version: str) -> None:
+    def _generate_index(
+        destination_dir: Path, provider_id: str | None, version: str
+    ) -> None:
         destination_index_path = destination_dir / "index.html"
         get_console().print(f"[info]Generating index for {destination_dir}")
         sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
         if not get_dry_run():
             destination_index_path.write_text(
-                jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
+                jinja2.Template(
+                    html_template, autoescape=True, undefined=StrictUndefined
+                ).render(
                     provider_id=provider_id,
                     version=version,
                     sbom_files=sbom_files,
@@ -403,7 +412,9 @@ def core_jobs(
     for airflow_v in airflow_versions:
         airflow_version_dir = apache_airflow_documentation_directory / airflow_v
         if not airflow_version_dir.exists():
-            get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
+            get_console().print(
+                f"[warning]The {airflow_version_dir} does not exist. Skipping"
+            )
             continue
         destination_dir = airflow_version_dir / "sbom"
 
@@ -444,7 +455,10 @@ def core_jobs(
             )
 
 
-@sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")
+@sbom.command(
+    name="build-all-airflow-images",
+    help="Generate images with airflow versions pre-installed",
+)
 @option_historical_python_version
 @option_verbose
 @option_dry_run
@@ -506,7 +520,10 @@ def build_all_airflow_images(
             )
 
 
-@sbom.command(name="generate-providers-requirements", help="Generate requirements for selected provider.")
+@sbom.command(
+    name="generate-providers-requirements",
+    help="Generate requirements for selected provider.",
+)
 @option_historical_python_version
 @click.option(
     "--provider-id",
@@ -604,7 +621,9 @@ def generate_providers_requirements(
                     info["associated_airflow_version"],
                 )
                 for (p_version, info) in provider_metadata[provider_id].items()
-                for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[info["associated_airflow_version"]]
+                for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[
+                    info["associated_airflow_version"]
+                ]
                 if python_version in python_versions
             ]
 
@@ -648,7 +667,12 @@ def generate_providers_requirements(
             skip_cleanup=skip_cleanup,
         )
     else:
-        for provider_id, provider_version, python_version, airflow_version in providers_info:
+        for (
+            provider_id,
+            provider_version,
+            python_version,
+            airflow_version,
+        ) in providers_info:
             get_requirements_for_provider(
                 provider_id=provider_id,
                 provider_version=provider_version,
@@ -659,7 +683,9 @@ def generate_providers_requirements(
             )
 
 
-@sbom.command(name="export-dependency-information", help="Export dependency information from SBOM.")
+@sbom.command(
+    name="export-dependency-information", help="Export dependency information from SBOM."
+)
 @option_airflow_version
 @option_python
 @click.option(
@@ -673,7 +699,9 @@ def generate_providers_requirements(
 @option_github_token
 @click.option(
     "--json-credentials-file",
-    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False, exists=False),
+    type=click.Path(
+        file_okay=True, dir_okay=False, path_type=Path, writable=False, exists=False
+    ),
     help="Gsheet JSON credentials file (defaults to ~/.config/gsheet/credentials.json",
     envvar="JSON_CREDENTIALS_FILE",
     default=Path.home() / ".config" / "gsheet" / "credentials.json"
@@ -808,7 +836,9 @@ def convert_all_sbom_to_value_dictionaries(
     project_name: str | None = None,
 ) -> list[dict[str, Any]]:
     core_dependencies = set()
-    dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
+    dev_deps = set(
+        normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines()
+    )
     num_deps = 0
     all_dependency_value_dicts = []
     dependency_depth: dict[str, int] = json.loads(
@@ -822,7 +852,8 @@ def convert_all_sbom_to_value_dictionaries(
             "Core dependencies", total=len(core_sbom["components"])
         )
         other_dependencies_progress = progress.add_task(
-            "Other dependencies", total=len(full_sbom["components"]) - len(core_sbom["components"])
+            "Other dependencies",
+            total=len(full_sbom["components"]) - len(core_sbom["components"]),
         )
         for key, value in dependency_depth.items():
             dependency_depth[normalize_package_name(key)] = value
@@ -848,7 +879,9 @@ def convert_all_sbom_to_value_dictionaries(
             num_deps += 1
             progress.advance(task_id=core_dependencies_progress, advance=1)
             if limit_output and num_deps >= limit_output:
-                get_console().print(f"[info]Processed limited {num_deps} dependencies and stopping.")
+                get_console().print(
+                    f"[info]Processed limited {num_deps} dependencies and stopping."
+                )
                 return all_dependency_value_dicts
         for dependency in full_sbom["components"]:
             normalized_name = normalize_package_name(dependency["name"])
@@ -872,7 +905,9 @@ def convert_all_sbom_to_value_dictionaries(
                 num_deps += 1
                 progress.advance(task_id=other_dependencies_progress, advance=1)
             if limit_output and num_deps >= limit_output:
-                get_console().print(f"[info]Processed limited {num_deps} dependencies and stopping.")
+                get_console().print(
+                    f"[info]Processed limited {num_deps} dependencies and stopping."
+                )
                 return all_dependency_value_dicts
     get_console().print(f"[info]Processed {num_deps} dependencies")
     return all_dependency_value_dicts

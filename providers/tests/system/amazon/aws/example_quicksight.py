@@ -25,7 +25,9 @@ import boto3
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
+from airflow.providers.amazon.aws.operators.quicksight import (
+    QuickSightCreateIngestionOperator,
+)
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -77,19 +79,25 @@ def create_quicksight_data_source(
         Name=datasource_name,
         Type="S3",
         DataSourceParameters={
-            "S3Parameters": {"ManifestFileLocation": {"Bucket": bucket, "Key": manifest_key}}
+            "S3Parameters": {
+                "ManifestFileLocation": {"Bucket": bucket, "Key": manifest_key}
+            }
         },
     )
     return response["Arn"]
 
 
 @task
-def create_quicksight_dataset(aws_account_id: int, dataset_name: str, data_source_arn: str) -> None:
+def create_quicksight_dataset(
+    aws_account_id: int, dataset_name: str, data_source_arn: str
+) -> None:
     table_map = {
         "default": {
             "S3Source": {
                 "DataSourceArn": data_source_arn,
-                "InputColumns": [{"Name": name, "Type": "STRING"} for name in SAMPLE_DATA_COLUMNS],
+                "InputColumns": [
+                    {"Name": name, "Type": "STRING"} for name in SAMPLE_DATA_COLUMNS
+                ],
             }
         }
     }
@@ -105,12 +113,16 @@ def create_quicksight_dataset(aws_account_id: int, dataset_name: str, data_sourc
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_quicksight_data_source(aws_account_id: str, datasource_name: str):
-    boto3.client("quicksight").delete_data_source(AwsAccountId=aws_account_id, DataSourceId=datasource_name)
+    boto3.client("quicksight").delete_data_source(
+        AwsAccountId=aws_account_id, DataSourceId=datasource_name
+    )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_dataset(aws_account_id: str, dataset_name: str):
-    boto3.client("quicksight").delete_data_set(AwsAccountId=aws_account_id, DataSetId=dataset_name)
+    boto3.client("quicksight").delete_data_set(
+        AwsAccountId=aws_account_id, DataSetId=dataset_name
+    )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -142,9 +154,13 @@ with DAG(
     datasource_id = f"{env_id}-data-source"
     ingestion_id = f"{env_id}-ingestion"
     manifest_filename = f"{env_id}-manifest.json"
-    manifest_contents = {"fileLocations": [{"URIs": [f"s3://{bucket_name}/{data_filename}"]}]}
+    manifest_contents = {
+        "fileLocations": [{"URIs": [f"s3://{bucket_name}/{data_filename}"]}]
+    }
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=bucket_name
+    )
 
     upload_manifest_file = S3CreateObjectOperator(
         task_id="upload_manifest_file",

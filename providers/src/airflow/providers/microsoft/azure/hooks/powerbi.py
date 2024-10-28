@@ -86,7 +86,9 @@ class PowerBIHook(KiotaRequestAdapterHook):
         from wtforms import StringField
 
         return {
-            "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "tenant_id": StringField(
+                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -123,7 +125,10 @@ class PowerBIHook(KiotaRequestAdapterHook):
             )
 
             refresh_histories = response.get("value")
-            return [self.raw_to_refresh_details(refresh_history) for refresh_history in refresh_histories]
+            return [
+                self.raw_to_refresh_details(refresh_history)
+                for refresh_history in refresh_histories
+            ]
 
         except AirflowException:
             raise PowerBIDatasetRefreshException("Failed to retrieve refresh history")
@@ -136,13 +141,17 @@ class PowerBIHook(KiotaRequestAdapterHook):
         :param refresh_details: Raw object of refresh details.
         """
         return {
-            PowerBIDatasetRefreshFields.REQUEST_ID.value: str(refresh_details.get("requestId")),
+            PowerBIDatasetRefreshFields.REQUEST_ID.value: str(
+                refresh_details.get("requestId")
+            ),
             PowerBIDatasetRefreshFields.STATUS.value: (
                 "In Progress"
                 if str(refresh_details.get("status")) == "Unknown"
                 else str(refresh_details.get("status"))
             ),
-            PowerBIDatasetRefreshFields.ERROR.value: str(refresh_details.get("serviceExceptionJson")),
+            PowerBIDatasetRefreshFields.ERROR.value: str(
+                refresh_details.get("serviceExceptionJson")
+            ),
         }
 
     async def get_refresh_details_by_refresh_id(
@@ -153,7 +162,9 @@ class PowerBIHook(KiotaRequestAdapterHook):
 
         :param refresh_id: Request Id of the Dataset refresh.
         """
-        refresh_histories = await self.get_refresh_history(dataset_id=dataset_id, group_id=group_id)
+        refresh_histories = await self.get_refresh_history(
+            dataset_id=dataset_id, group_id=group_id
+        )
 
         if len(refresh_histories) == 0:
             raise PowerBIDatasetRefreshException(
@@ -198,7 +209,9 @@ class PowerBIHook(KiotaRequestAdapterHook):
         except AirflowException:
             raise PowerBIDatasetRefreshException("Failed to trigger dataset refresh.")
 
-    async def cancel_dataset_refresh(self, dataset_id: str, group_id: str, dataset_refresh_id: str) -> None:
+    async def cancel_dataset_refresh(
+        self, dataset_id: str, group_id: str, dataset_refresh_id: str
+    ) -> None:
         """
         Cancel the dataset refresh.
 

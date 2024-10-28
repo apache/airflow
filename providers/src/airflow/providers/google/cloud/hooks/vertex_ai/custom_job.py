@@ -44,7 +44,10 @@ from google.cloud.aiplatform_v1 import (
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -77,7 +80,9 @@ class CustomJobHook(GoogleBaseHook):
             impersonation_chain=impersonation_chain,
         )
         self._job: None | (
-            CustomContainerTrainingJob | CustomPythonPackageTrainingJob | CustomTrainingJob
+            CustomContainerTrainingJob
+            | CustomPythonPackageTrainingJob
+            | CustomTrainingJob
         ) = None
 
     def get_pipeline_service_client(
@@ -86,11 +91,15 @@ class CustomJobHook(GoogleBaseHook):
     ) -> PipelineServiceClient:
         """Return PipelineServiceClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
         return PipelineServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_job_service_client(
@@ -99,12 +108,16 @@ class CustomJobHook(GoogleBaseHook):
     ) -> JobServiceClient:
         """Return JobServiceClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_custom_container_training_job(
@@ -276,9 +289,13 @@ class CustomJobHook(GoogleBaseHook):
         return custom_job_name.rpartition("/")[-1]
 
     @staticmethod
-    def extract_custom_job_id_from_training_pipeline(training_pipeline: dict[str, Any]) -> str:
+    def extract_custom_job_id_from_training_pipeline(
+        training_pipeline: dict[str, Any],
+    ) -> str:
         """Return a unique Custom Job id from a serialized TrainingPipeline proto."""
-        return training_pipeline["training_task_metadata"]["backingCustomJob"].rpartition("/")[-1]
+        return training_pipeline["training_task_metadata"]["backingCustomJob"].rpartition(
+            "/"
+        )[-1]
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Wait for long-lasting operation to complete."""
@@ -295,10 +312,17 @@ class CustomJobHook(GoogleBaseHook):
 
     def _run_job(
         self,
-        job: (CustomTrainingJob | CustomContainerTrainingJob | CustomPythonPackageTrainingJob),
+        job: (
+            CustomTrainingJob
+            | CustomContainerTrainingJob
+            | CustomPythonPackageTrainingJob
+        ),
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -654,7 +678,10 @@ class CustomJobHook(GoogleBaseHook):
         # RUN
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -1034,7 +1061,10 @@ class CustomJobHook(GoogleBaseHook):
         # RUN
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -1422,7 +1452,10 @@ class CustomJobHook(GoogleBaseHook):
         # RUN
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -1806,7 +1839,10 @@ class CustomJobHook(GoogleBaseHook):
         # RUN
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -2181,7 +2217,10 @@ class CustomJobHook(GoogleBaseHook):
         # RUN
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -2496,7 +2535,9 @@ class CustomJobHook(GoogleBaseHook):
         )
 
         if not self._job:
-            raise AirflowException("CustomPythonPackageTrainingJob instance creation failed.")
+            raise AirflowException(
+                "CustomPythonPackageTrainingJob instance creation failed."
+            )
 
         self._job.run(
             dataset=dataset,
@@ -2565,7 +2606,10 @@ class CustomJobHook(GoogleBaseHook):
         # RUN
         dataset: None
         | (
-            datasets.ImageDataset | datasets.TabularDataset | datasets.TextDataset | datasets.VideoDataset
+            datasets.ImageDataset
+            | datasets.TabularDataset
+            | datasets.TextDataset
+            | datasets.VideoDataset
         ) = None,
         annotation_schema_uri: str | None = None,
         model_display_name: str | None = None,
@@ -3371,7 +3415,9 @@ class CustomJobAsyncHook(GoogleBaseAsyncHook):
             **kwargs,
         )
         self._job: None | (
-            CustomContainerTrainingJob | CustomPythonPackageTrainingJob | CustomTrainingJob
+            CustomContainerTrainingJob
+            | CustomPythonPackageTrainingJob
+            | CustomTrainingJob
         ) = None
 
     async def get_credentials(self) -> Credentials:
@@ -3383,7 +3429,9 @@ class CustomJobAsyncHook(GoogleBaseAsyncHook):
     ) -> JobServiceAsyncClient:
         """Retrieve Vertex AI JobServiceAsyncClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
         return JobServiceAsyncClient(
@@ -3398,7 +3446,9 @@ class CustomJobAsyncHook(GoogleBaseAsyncHook):
     ) -> PipelineServiceAsyncClient:
         """Retrieve Vertex AI PipelineServiceAsyncClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
         return PipelineServiceAsyncClient(
@@ -3533,9 +3583,16 @@ class CustomJobAsyncHook(GoogleBaseAsyncHook):
                     client=client,
                 )
             except Exception as ex:
-                self.log.exception("Exception occurred while requesting training pipeline %s", pipeline_id)
+                self.log.exception(
+                    "Exception occurred while requesting training pipeline %s",
+                    pipeline_id,
+                )
                 raise AirflowException(ex)
-            self.log.info("Status of the training pipeline %s is %s", pipeline.name, pipeline.state.name)
+            self.log.info(
+                "Status of the training pipeline %s is %s",
+                pipeline.name,
+                pipeline.state.name,
+            )
             if pipeline.state in self.PIPELINE_COMPLETE_STATES:
                 return pipeline
             self.log.info("Sleeping for %s seconds.", poll_interval)

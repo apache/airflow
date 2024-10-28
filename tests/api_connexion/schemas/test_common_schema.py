@@ -33,7 +33,12 @@ class TestTimeDeltaSchema:
         instance = datetime.timedelta(days=12)
         schema_instance = TimeDeltaSchema()
         result = schema_instance.dump(instance)
-        assert {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0} == result
+        assert {
+            "__type": "TimeDelta",
+            "days": 12,
+            "seconds": 0,
+            "microseconds": 0,
+        } == result
 
     def test_should_deserialize(self):
         instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}

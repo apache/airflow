@@ -73,7 +73,9 @@ class TestProviderManager:
             assert [] == self._caplog.records
 
     def test_hooks_deprecation_warnings_generated(self):
-        with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
+        with pytest.warns(
+            expected_warning=DeprecationWarning, match="hook-class-names"
+        ) as warning_records:
             providers_manager = ProvidersManager()
             providers_manager._provider_dict["test-package"] = ProviderInfo(
                 version="0.0.1",
@@ -86,38 +88,48 @@ class TestProviderManager:
     def test_hooks_deprecation_warnings_not_generated(self):
         with warnings.catch_warnings(record=True) as warning_records:
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
-                            "connection-type": "sftp",
-                        }
-                    ],
-                },
-                package_or_source="package",
+            providers_manager._provider_dict["apache-airflow-providers-sftp"] = (
+                ProviderInfo(
+                    version="0.0.1",
+                    data={
+                        "hook-class-names": [
+                            "airflow.providers.sftp.hooks.sftp.SFTPHook"
+                        ],
+                        "connection-types": [
+                            {
+                                "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                                "connection-type": "sftp",
+                            }
+                        ],
+                    },
+                    package_or_source="package",
+                )
             )
             providers_manager._discover_hooks()
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [] == [
+            w.message for w in warning_records if "hook-class-names" in str(w.message)
+        ]
 
     def test_warning_logs_generated(self):
         providers_manager = ProvidersManager()
         providers_manager._hooks_lazy_dict = LazyDictWithCache()
         with self._caplog.at_level(logging.WARNING):
-            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
-                            "connection-type": "wrong-connection-type",
-                        }
-                    ],
-                },
-                package_or_source="package",
+            providers_manager._provider_dict["apache-airflow-providers-sftp"] = (
+                ProviderInfo(
+                    version="0.0.1",
+                    data={
+                        "hook-class-names": [
+                            "airflow.providers.sftp.hooks.sftp.SFTPHook"
+                        ],
+                        "connection-types": [
+                            {
+                                "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                                "connection-type": "wrong-connection-type",
+                            }
+                        ],
+                    },
+                    package_or_source="package",
+                )
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["wrong-connection-type"]
@@ -128,18 +140,22 @@ class TestProviderManager:
     def test_warning_logs_not_generated(self):
         with self._caplog.at_level(logging.WARNING):
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
-                            "connection-type": "sftp",
-                        }
-                    ],
-                },
-                package_or_source="package",
+            providers_manager._provider_dict["apache-airflow-providers-sftp"] = (
+                ProviderInfo(
+                    version="0.0.1",
+                    data={
+                        "hook-class-names": [
+                            "airflow.providers.sftp.hooks.sftp.SFTPHook"
+                        ],
+                        "connection-types": [
+                            {
+                                "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                                "connection-type": "sftp",
+                            }
+                        ],
+                    },
+                    package_or_source="package",
+                )
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["sftp"]
@@ -149,26 +165,31 @@ class TestProviderManager:
     def test_already_registered_conn_type_in_provide(self):
         with self._caplog.at_level(logging.WARNING):
             providers_manager = ProvidersManager()
-            providers_manager._provider_dict["apache-airflow-providers-dummy"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook",
-                            "connection-type": "dummy",
-                        },
-                        {
-                            "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook2",
-                            "connection-type": "dummy",
-                        },
-                    ],
-                },
-                package_or_source="package",
+            providers_manager._provider_dict["apache-airflow-providers-dummy"] = (
+                ProviderInfo(
+                    version="0.0.1",
+                    data={
+                        "connection-types": [
+                            {
+                                "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook",
+                                "connection-type": "dummy",
+                            },
+                            {
+                                "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook2",
+                                "connection-type": "dummy",
+                            },
+                        ],
+                    },
+                    package_or_source="package",
+                )
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["dummy"]
         assert len(self._caplog.records) == 1
-        assert "The connection type 'dummy' is already registered" in self._caplog.records[0].message
+        assert (
+            "The connection type 'dummy' is already registered"
+            in self._caplog.records[0].message
+        )
         assert (
             "different class names: 'airflow.providers.dummy.hooks.dummy.DummyHook'"
             " and 'airflow.providers.dummy.hooks.dummy.DummyHook2'."
@@ -177,17 +198,19 @@ class TestProviderManager:
     def test_providers_manager_register_plugins(self):
         providers_manager = ProvidersManager()
         providers_manager._provider_dict = LazyDictWithCache()
-        providers_manager._provider_dict["apache-airflow-providers-apache-hive"] = ProviderInfo(
-            version="0.0.1",
-            data={
-                "plugins": [
-                    {
-                        "name": "plugin1",
-                        "plugin-class": "airflow.providers.apache.hive.plugins.hive.HivePlugin",
-                    }
-                ]
-            },
-            package_or_source="package",
+        providers_manager._provider_dict["apache-airflow-providers-apache-hive"] = (
+            ProviderInfo(
+                version="0.0.1",
+                data={
+                    "plugins": [
+                        {
+                            "name": "plugin1",
+                            "plugin-class": "airflow.providers.apache.hive.plugins.hive.HivePlugin",
+                        }
+                    ]
+                },
+                package_or_source="package",
+            )
         )
         providers_manager._discover_plugins()
         assert len(providers_manager._plugins_set) == 1
@@ -207,19 +230,27 @@ class TestProviderManager:
             for record in self._caplog.records:
                 print(record.message, file=sys.stderr)
                 print(record.exc_info, file=sys.stderr)
-            raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+            raise AssertionError(
+                "There are warnings generated during hook imports. Please fix them"
+            )
+        assert [] == [
+            w.message for w in warning_records if "hook-class-names" in str(w.message)
+        ]
 
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
         provider_dependencies = json.loads(
-            (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
+            (
+                AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+            ).read_text()
         )
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
         excluded_providers: list[str] = []
         for provider_name, provider_info in provider_dependencies.items():
             if python_version in provider_info.get("excluded-python-versions", []):
-                excluded_providers.append(f"apache-airflow-providers-{provider_name.replace('.', '-')}")
+                excluded_providers.append(
+                    f"apache-airflow-providers-{provider_name.replace('.', '-')}"
+                )
         with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
@@ -229,15 +260,22 @@ class TestProviderManager:
             real_warning_count = 0
             for record in self._caplog.records:
                 # When there is error importing provider that is excluded the provider name is in the message
-                if any(excluded_provider in record.message for excluded_provider in excluded_providers):
+                if any(
+                    excluded_provider in record.message
+                    for excluded_provider in excluded_providers
+                ):
                     continue
                 else:
                     print(record.message, file=sys.stderr)
                     print(record.exc_info, file=sys.stderr)
                     real_warning_count += 1
             if real_warning_count:
-                raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+                raise AssertionError(
+                    "There are warnings generated during hook imports. Please fix them"
+                )
+        assert [] == [
+            w.message for w in warning_records if "hook-class-names" in str(w.message)
+        ]
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
@@ -285,7 +323,10 @@ class TestProviderManager:
             hook_class=MyHook,
             widgets=widgets,
         )
-        assert provider_manager.connection_form_widgets["extra__test__my_param"].field == widget_field
+        assert (
+            provider_manager.connection_form_widgets["extra__test__my_param"].field
+            == widget_field
+        )
 
     def test_connection_field_behaviors_placeholders_prefix(self):
         class MyHook:
@@ -296,7 +337,11 @@ class TestProviderManager:
                 return {
                     "hidden_fields": ["host", "schema"],
                     "relabeling": {},
-                    "placeholders": {"abc": "hi", "extra__anything": "n/a", "password": "blah"},
+                    "placeholders": {
+                        "abc": "hi",
+                        "extra__anything": "n/a",
+                        "password": "blah",
+                    },
                 }
 
         provider_manager = ProvidersManager()
@@ -328,12 +373,19 @@ class TestProviderManager:
         provider_manager._add_widgets(
             package_name="mock",
             hook_class=TestHook,
-            widgets={f: BooleanField(lazy_gettext("Dummy param")) for f in expected_field_names_order},
+            widgets={
+                f: BooleanField(lazy_gettext("Dummy param"))
+                for f in expected_field_names_order
+            },
         )
         actual_field_names_order = tuple(
-            key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
+            key
+            for key in provider_manager.connection_form_widgets.keys()
+            if key.startswith(field_prefix)
         )
-        assert actual_field_names_order == expected_field_names_order, "Not keeping original fields order"
+        assert (
+            actual_field_names_order == expected_field_names_order
+        ), "Not keeping original fields order"
 
     def test_connection_form_widgets_fields_order_multiple_hooks(self):
         """
@@ -361,20 +413,26 @@ class TestProviderManager:
             package_name="mock",
             hook_class=TestHook1,
             widgets={
-                f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_1
+                f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param"))
+                for f in field_names_hook_1
             },
         )
         provider_manager._add_widgets(
             package_name="another_mock",
             hook_class=TestHook2,
             widgets={
-                f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_2
+                f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param"))
+                for f in field_names_hook_2
             },
         )
         actual_field_names_order = tuple(
-            key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
+            key
+            for key in provider_manager.connection_form_widgets.keys()
+            if key.startswith(field_prefix)
         )
-        assert actual_field_names_order == expected_field_names_order, "Not keeping original fields order"
+        assert (
+            actual_field_names_order == expected_field_names_order
+        ), "Not keeping original fields order"
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
@@ -419,26 +477,36 @@ class TestProviderManager:
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.WARNING):
-            mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
+            mock_importlib_import_string.side_effect = (
+                AirflowOptionalProviderFeatureException()
+            )
             providers_manager = ProvidersManager()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
                 package_name="test_package", hook_class_name="HookClass"
             )
             providers_manager._import_hook(
-                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
+                hook_class_name=None,
+                provider_info=None,
+                package_name=None,
+                connection_type="test_connection",
             )
             assert [] == self._caplog.messages
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_debug(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.INFO):
-            mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
+            mock_importlib_import_string.side_effect = (
+                AirflowOptionalProviderFeatureException()
+            )
             providers_manager = ProvidersManager()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
                 package_name="test_package", hook_class_name="HookClass"
             )
             providers_manager._import_hook(
-                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
+                hook_class_name=None,
+                provider_info=None,
+                package_name=None,
+                connection_type="test_connection",
             )
             assert [
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"

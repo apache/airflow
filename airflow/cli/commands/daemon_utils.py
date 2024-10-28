@@ -24,7 +24,12 @@ from daemon import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
-from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.cli import (
+    setup_locations,
+    setup_logging,
+    sigint_handler,
+    sigquit_handler,
+)
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 
 
@@ -49,9 +54,15 @@ def run_command_with_daemon_option(
         If not specified, a file path is generated with the default pattern.
     """
     if args.daemon:
-        pid = pid_file or args.pid if pid_file is not None or args.pid is not None else None
+        pid = (
+            pid_file or args.pid if pid_file is not None or args.pid is not None else None
+        )
         pid, stdout, stderr, log_file = setup_locations(
-            process=process_name, pid=pid, stdout=args.stdout, stderr=args.stderr, log=args.log_file
+            process=process_name,
+            pid=pid,
+            stdout=args.stdout,
+            stderr=args.stderr,
+            log=args.log_file,
         )
 
         # Check if the process is already running; if not but a pidfile exists, clean it up

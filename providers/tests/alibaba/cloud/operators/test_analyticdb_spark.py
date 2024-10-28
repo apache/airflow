@@ -28,7 +28,9 @@ from airflow.providers.alibaba.cloud.operators.analyticdb_spark import (
     AnalyticDBSparkSQLOperator,
 )
 
-ADB_SPARK_OPERATOR_STRING = "airflow.providers.alibaba.cloud.operators.analyticdb_spark.{}"
+ADB_SPARK_OPERATOR_STRING = (
+    "airflow.providers.alibaba.cloud.operators.analyticdb_spark.{}"
+)
 
 MOCK_FILE = "oss://test.py"
 MOCK_CLUSTER_ID = "mock_cluster_id"
@@ -52,7 +54,9 @@ class TestAnalyticDBSparkBaseOperator:
     def test_get_hook(self, mock_hook):
         """Test get_hook function works as expected."""
         self.operator.hook
-        mock_hook.assert_called_once_with(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION)
+        mock_hook.assert_called_once_with(
+            adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION
+        )
 
     @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.hook"))
     def test_poll_for_termination(self, mock_hook):
@@ -70,7 +74,9 @@ class TestAnalyticDBSparkBaseOperator:
         mock_hook.get_spark_state.return_value = "FATAL"
 
         # When
-        with pytest.raises(AirflowException, match="Application mock_app_id did not succeed"):
+        with pytest.raises(
+            AirflowException, match="Application mock_app_id did not succeed"
+        ):
             self.operator.poll_for_termination(MOCK_APP_ID)
 
 
@@ -89,7 +95,9 @@ class TestAnalyticDBSparkBatchOperator:
 
         operator.execute(None)
 
-        mock_hook.assert_called_once_with(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION)
+        mock_hook.assert_called_once_with(
+            adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION
+        )
         mock_hook.return_value.submit_spark_app.assert_called_once_with(
             cluster_id=MOCK_CLUSTER_ID,
             rg_name=MOCK_RG_NAME,
@@ -143,7 +151,9 @@ class TestAnalyticDBSparklSQLOperator:
 
         operator.execute(None)
 
-        mock_hook.assert_called_once_with(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION)
+        mock_hook.assert_called_once_with(
+            adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION
+        )
         mock_hook.return_value.submit_spark_sql.assert_called_once_with(
             cluster_id=MOCK_CLUSTER_ID,
             rg_name=MOCK_RG_NAME,

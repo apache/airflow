@@ -24,7 +24,9 @@ import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
-from airflow.providers.amazon.aws.operators.glue_databrew import GlueDataBrewStartJobOperator
+from airflow.providers.amazon.aws.operators.glue_databrew import (
+    GlueDataBrewStartJobOperator,
+)
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -67,7 +69,10 @@ class TestGlueDataBrewOperator:
     def test_start_job_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
         TEST_RUN_ID = "12345"
         operator = GlueDataBrewStartJobOperator(
-            task_id="task_test", job_name=JOB_NAME, wait_for_completion=True, aws_conn_id="aws_default"
+            task_id="task_test",
+            job_name=JOB_NAME,
+            wait_for_completion=True,
+            aws_conn_id="aws_default",
         )
         mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
         operator.execute(None)
@@ -78,7 +83,10 @@ class TestGlueDataBrewOperator:
     def test_start_job_no_wait(self, mock_hook_get_waiter, mock_conn):
         TEST_RUN_ID = "12345"
         operator = GlueDataBrewStartJobOperator(
-            task_id="task_test", job_name=JOB_NAME, wait_for_completion=False, aws_conn_id="aws_default"
+            task_id="task_test",
+            job_name=JOB_NAME,
+            wait_for_completion=False,
+            aws_conn_id="aws_default",
         )
         mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
         operator.execute(None)

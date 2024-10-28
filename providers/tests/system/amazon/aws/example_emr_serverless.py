@@ -29,8 +29,14 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStartJobOperator,
     EmrServerlessStopApplicationOperator,
 )
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
+from airflow.providers.amazon.aws.sensors.emr import (
+    EmrServerlessApplicationSensor,
+    EmrServerlessJobSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -56,7 +62,9 @@ with DAG(
     bucket_name = f"{env_id}-emr-serverless-bucket"
     region = boto3.session.Session().region_name
     entryPoint = f"s3://{region}.elasticmapreduce/emr-containers/samples/wordcount/scripts/wordcount.py"
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=bucket_name
+    )
 
     SPARK_JOB_DRIVER = {
         "sparkSubmit": {
@@ -68,7 +76,9 @@ with DAG(
     }
 
     SPARK_CONFIGURATION_OVERRIDES = {
-        "monitoringConfiguration": {"s3MonitoringConfiguration": {"logUri": f"s3://{bucket_name}/logs"}}
+        "monitoringConfiguration": {
+            "s3MonitoringConfiguration": {"logUri": f"s3://{bucket_name}/logs"}
+        }
     }
 
     # [START howto_operator_emr_serverless_create_application]

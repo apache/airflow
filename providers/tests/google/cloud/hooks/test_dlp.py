@@ -34,7 +34,9 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 API_RESPONSE: dict[Any, Any] = {}
 ORGANIZATION_ID = "test-org"
@@ -46,12 +48,22 @@ DLP_JOB_PATH = f"projects/{PROJECT_ID}/dlpJobs/{DLP_JOB_ID}"
 TEMPLATE_ID = "template123"
 STORED_INFO_TYPE_ID = "type123"
 TRIGGER_ID = "trigger123"
-DEIDENTIFY_TEMPLATE_ORGANIZATION_PATH = f"organizations/{ORGANIZATION_ID}/deidentifyTemplates/{TEMPLATE_ID}"
-INSPECT_TEMPLATE_ORGANIZATION_PATH = f"organizations/{ORGANIZATION_ID}/inspectTemplates/{TEMPLATE_ID}"
-STORED_INFO_TYPE_ORGANIZATION_PATH = f"organizations/{ORGANIZATION_ID}/storedInfoTypes/{STORED_INFO_TYPE_ID}"
-DEIDENTIFY_TEMPLATE_PROJECT_PATH = f"projects/{PROJECT_ID}/deidentifyTemplates/{TEMPLATE_ID}"
+DEIDENTIFY_TEMPLATE_ORGANIZATION_PATH = (
+    f"organizations/{ORGANIZATION_ID}/deidentifyTemplates/{TEMPLATE_ID}"
+)
+INSPECT_TEMPLATE_ORGANIZATION_PATH = (
+    f"organizations/{ORGANIZATION_ID}/inspectTemplates/{TEMPLATE_ID}"
+)
+STORED_INFO_TYPE_ORGANIZATION_PATH = (
+    f"organizations/{ORGANIZATION_ID}/storedInfoTypes/{STORED_INFO_TYPE_ID}"
+)
+DEIDENTIFY_TEMPLATE_PROJECT_PATH = (
+    f"projects/{PROJECT_ID}/deidentifyTemplates/{TEMPLATE_ID}"
+)
 INSPECT_TEMPLATE_PROJECT_PATH = f"projects/{PROJECT_ID}/inspectTemplates/{TEMPLATE_ID}"
-STORED_INFO_TYPE_PROJECT_PATH = f"projects/{PROJECT_ID}/storedInfoTypes/{STORED_INFO_TYPE_ID}"
+STORED_INFO_TYPE_PROJECT_PATH = (
+    f"projects/{PROJECT_ID}/storedInfoTypes/{STORED_INFO_TYPE_ID}"
+)
 JOB_TRIGGER_PATH = f"projects/{PROJECT_ID}/jobTriggers/{TRIGGER_ID}"
 
 
@@ -71,7 +83,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.DlpServiceClient")
     def test_dlp_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value, client_info=CLIENT_INFO
+        )
         assert mock_client.return_value == result
         assert self.hook._client == result
 
@@ -150,7 +164,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_dlp_job(self, get_conn):
         get_conn.return_value.create_dlp_job.return_value = API_RESPONSE
-        result = self.hook.create_dlp_job(project_id=PROJECT_ID, wait_until_finished=False)
+        result = self.hook.create_dlp_job(
+            project_id=PROJECT_ID, wait_until_finished=False
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.create_dlp_job.assert_called_once_with(
@@ -355,7 +371,9 @@ class TestCloudDLPHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_deidentify_template_with_org_id(self, get_conn, mock_project_id):
-        self.hook.delete_deidentify_template(template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID)
+        self.hook.delete_deidentify_template(
+            template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
+        )
 
         get_conn.return_value.delete_deidentify_template.assert_called_once_with(
             request=dict(
@@ -368,7 +386,9 @@ class TestCloudDLPHook:
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_deidentify_template_with_project_id(self, get_conn):
-        self.hook.delete_deidentify_template(template_id=TEMPLATE_ID, project_id=PROJECT_ID)
+        self.hook.delete_deidentify_template(
+            template_id=TEMPLATE_ID, project_id=PROJECT_ID
+        )
 
         get_conn.return_value.delete_deidentify_template.assert_called_once_with(
             request=dict(
@@ -390,7 +410,9 @@ class TestCloudDLPHook:
         return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
-    def test_delete_deidentify_template_without_parent(self, mock_get_conn, mock_project_id):
+    def test_delete_deidentify_template_without_parent(
+        self, mock_get_conn, mock_project_id
+    ):
         with pytest.raises(AirflowException):
             self.hook.delete_deidentify_template(template_id=TEMPLATE_ID)
 
@@ -429,7 +451,9 @@ class TestCloudDLPHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_inspect_template_with_org_id(self, get_conn, mock_project_id):
-        self.hook.delete_inspect_template(template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID)
+        self.hook.delete_inspect_template(
+            template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
+        )
 
         get_conn.return_value.delete_inspect_template.assert_called_once_with(
             request=dict(
@@ -518,7 +542,9 @@ class TestCloudDLPHook:
 
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_stored_info_type_with_project_id(self, get_conn):
-        self.hook.delete_stored_info_type(stored_info_type_id=STORED_INFO_TYPE_ID, project_id=PROJECT_ID)
+        self.hook.delete_stored_info_type(
+            stored_info_type_id=STORED_INFO_TYPE_ID, project_id=PROJECT_ID
+        )
 
         get_conn.return_value.delete_stored_info_type.assert_called_once_with(
             request=dict(
@@ -552,7 +578,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_deidentify_template_with_org_id(self, get_conn, mock_project_id):
         get_conn.return_value.get_deidentify_template.return_value = API_RESPONSE
-        result = self.hook.get_deidentify_template(template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID)
+        result = self.hook.get_deidentify_template(
+            template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.get_deidentify_template.assert_called_once_with(
@@ -567,7 +595,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_deidentify_template_with_project_id(self, get_conn):
         get_conn.return_value.get_deidentify_template.return_value = API_RESPONSE
-        result = self.hook.get_deidentify_template(template_id=TEMPLATE_ID, project_id=PROJECT_ID)
+        result = self.hook.get_deidentify_template(
+            template_id=TEMPLATE_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.get_deidentify_template.assert_called_once_with(
@@ -632,7 +662,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_inspect_template_with_org_id(self, get_conn, mock_project_id):
         get_conn.return_value.get_inspect_template.return_value = API_RESPONSE
-        result = self.hook.get_inspect_template(template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID)
+        result = self.hook.get_inspect_template(
+            template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.get_inspect_template.assert_called_once_with(
@@ -647,7 +679,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_inspect_template_with_project_id(self, get_conn):
         get_conn.return_value.get_inspect_template.return_value = API_RESPONSE
-        result = self.hook.get_inspect_template(template_id=TEMPLATE_ID, project_id=PROJECT_ID)
+        result = self.hook.get_inspect_template(
+            template_id=TEMPLATE_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.get_inspect_template.assert_called_once_with(
@@ -677,7 +711,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_job_trigger(self, get_conn):
         get_conn.return_value.get_job_trigger.return_value = API_RESPONSE
-        result = self.hook.get_job_trigger(job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID)
+        result = self.hook.get_job_trigger(
+            job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.get_job_trigger.assert_called_once_with(
@@ -754,7 +790,9 @@ class TestCloudDLPHook:
         return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
-    def test_get_stored_info_type_without_parent(self, mock_get_get_conn, mock_project_id):
+    def test_get_stored_info_type_without_parent(
+        self, mock_get_get_conn, mock_project_id
+    ):
         with pytest.raises(AirflowException):
             self.hook.get_stored_info_type(stored_info_type_id=STORED_INFO_TYPE_ID)
 
@@ -829,7 +867,9 @@ class TestCloudDLPHook:
         return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
-    def test_list_deidentify_templates_without_parent(self, mock_get_conn, mock_project_id):
+    def test_list_deidentify_templates_without_parent(
+        self, mock_get_conn, mock_project_id
+    ):
         with pytest.raises(AirflowException):
             self.hook.list_deidentify_templates()
 
@@ -1084,7 +1124,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_deidentify_template_with_project_id(self, get_conn):
         get_conn.return_value.update_deidentify_template.return_value = API_RESPONSE
-        result = self.hook.update_deidentify_template(template_id=TEMPLATE_ID, project_id=PROJECT_ID)
+        result = self.hook.update_deidentify_template(
+            template_id=TEMPLATE_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.update_deidentify_template.assert_called_once_with(
@@ -1101,7 +1143,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_deidentify_template_without_template_id(self, _):
         with pytest.raises(AirflowException):
-            self.hook.update_deidentify_template(template_id=None, organization_id=ORGANIZATION_ID)
+            self.hook.update_deidentify_template(
+                template_id=None, organization_id=ORGANIZATION_ID
+            )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
@@ -1109,7 +1153,9 @@ class TestCloudDLPHook:
         return_value=None,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
-    def test_update_deidentify_template_without_parent(self, mock_get_conn, mock_project_id):
+    def test_update_deidentify_template_without_parent(
+        self, mock_get_conn, mock_project_id
+    ):
         with pytest.raises(AirflowException):
             self.hook.update_deidentify_template(template_id=TEMPLATE_ID)
 
@@ -1121,7 +1167,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_with_org_id(self, get_conn, mock_project_id):
         get_conn.return_value.update_inspect_template.return_value = API_RESPONSE
-        result = self.hook.update_inspect_template(template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID)
+        result = self.hook.update_inspect_template(
+            template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.update_inspect_template.assert_called_once_with(
@@ -1138,7 +1186,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_with_project_id(self, get_conn):
         get_conn.return_value.update_inspect_template.return_value = API_RESPONSE
-        result = self.hook.update_inspect_template(template_id=TEMPLATE_ID, project_id=PROJECT_ID)
+        result = self.hook.update_inspect_template(
+            template_id=TEMPLATE_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.update_inspect_template.assert_called_once_with(
@@ -1155,7 +1205,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_without_template_id(self, _):
         with pytest.raises(AirflowException):
-            self.hook.update_inspect_template(template_id=None, organization_id=ORGANIZATION_ID)
+            self.hook.update_inspect_template(
+                template_id=None, organization_id=ORGANIZATION_ID
+            )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
@@ -1170,7 +1222,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_job_trigger(self, get_conn):
         get_conn.return_value.update_job_trigger.return_value = API_RESPONSE
-        result = self.hook.update_job_trigger(job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID)
+        result = self.hook.update_job_trigger(
+            job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
         get_conn.return_value.update_job_trigger.assert_called_once_with(
@@ -1243,7 +1297,9 @@ class TestCloudDLPHook:
     @mock.patch("airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_stored_info_type_without_stored_info_type_id(self, _):
         with pytest.raises(AirflowException):
-            self.hook.update_stored_info_type(stored_info_type_id=None, organization_id=ORGANIZATION_ID)
+            self.hook.update_stored_info_type(
+                stored_info_type_id=None, organization_id=ORGANIZATION_ID
+            )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",

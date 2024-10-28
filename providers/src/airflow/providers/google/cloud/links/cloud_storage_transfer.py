@@ -28,10 +28,13 @@ if TYPE_CHECKING:
 
 CLOUD_STORAGE_TRANSFER_BASE_LINK = "https://console.cloud.google.com/transfer"
 
-CLOUD_STORAGE_TRANSFER_LIST_LINK = CLOUD_STORAGE_TRANSFER_BASE_LINK + "/jobs?project={project_id}"
+CLOUD_STORAGE_TRANSFER_LIST_LINK = (
+    CLOUD_STORAGE_TRANSFER_BASE_LINK + "/jobs?project={project_id}"
+)
 
 CLOUD_STORAGE_TRANSFER_JOB_LINK = (
-    CLOUD_STORAGE_TRANSFER_BASE_LINK + "/jobs/transferJobs%2F{transfer_job}/runs?project={project_id}"
+    CLOUD_STORAGE_TRANSFER_BASE_LINK
+    + "/jobs/transferJobs%2F{transfer_job}/runs?project={project_id}"
 )
 
 CLOUD_STORAGE_TRANSFER_OPERATION_LINK = (
@@ -113,7 +116,9 @@ class CloudStorageTransferDetailsLink(BaseGoogleLink):
         project_id: str,
         operation_name: str,
     ):
-        transfer_operation, transfer_job = CloudStorageTransferLinkHelper.extract_parts(operation_name)
+        transfer_operation, transfer_job = CloudStorageTransferLinkHelper.extract_parts(
+            operation_name
+        )
 
         task_instance.xcom_push(
             context,

@@ -79,16 +79,22 @@ class TestProvisionedModelThroughputCompleteWaiter(TestBedrockCustomWaitersBase)
 
     @pytest.fixture
     def mock_get_job(self):
-        with mock.patch.object(self.client, "get_provisioned_model_throughput") as mock_getter:
+        with mock.patch.object(
+            self.client, "get_provisioned_model_throughput"
+        ) as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", BedrockProvisionModelThroughputCompletedSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", BedrockProvisionModelThroughputCompletedSensor.SUCCESS_STATES
+    )
     def test_model_customization_job_complete(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
         BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_id")
 
-    @pytest.mark.parametrize("state", BedrockProvisionModelThroughputCompletedSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", BedrockProvisionModelThroughputCompletedSensor.FAILURE_STATES
+    )
     def test_model_customization_job_failed(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 

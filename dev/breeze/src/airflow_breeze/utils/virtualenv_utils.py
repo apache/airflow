@@ -28,7 +28,11 @@ from airflow_breeze.utils.run_utils import run_command
 
 
 def create_pip_command(python: str | Path) -> list[str]:
-    return [python.as_posix() if hasattr(python, "as_posix") else str(python), "-m", "pip"]
+    return [
+        python.as_posix() if hasattr(python, "as_posix") else str(python),
+        "-m",
+        "pip",
+    ]
 
 
 def create_venv(
@@ -51,7 +55,9 @@ def create_venv(
         sys.exit(venv_command_result.returncode)
     python_path = venv_path / "bin" / "python"
     if not python_path.exists():
-        get_console().print(f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n")
+        get_console().print(
+            f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n"
+        )
         sys.exit(1)
     pip_command = create_pip_command(python_path)
     if pip_version:

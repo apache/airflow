@@ -101,7 +101,9 @@ class ChimeWebhookHook(HttpHook):
         """
         chime_payload = self._build_chime_payload(message)
         self.run(
-            endpoint=self.webhook_endpoint, data=chime_payload, headers={"Content-type": "application/json"}
+            endpoint=self.webhook_endpoint,
+            data=chime_payload,
+            headers={"Content-type": "application/json"},
         )
 
     @classmethod

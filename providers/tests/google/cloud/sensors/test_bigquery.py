@@ -69,7 +69,9 @@ class TestBigqueryTableExistenceSensor:
         )
 
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor.defer")
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor.defer"
+    )
     def test_table_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
         task = BigQueryTableExistenceSensor(
             task_id="task-id",
@@ -114,7 +116,9 @@ class TestBigqueryTableExistenceSensor:
             deferrable=True,
         )
         with pytest.raises(AirflowException):
-            task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
+            task.execute_complete(
+                context={}, event={"status": "error", "message": "test failure message"}
+            )
 
     def test_execute_complete(self):
         """Asserts that logging occurs as expected"""
@@ -127,13 +131,20 @@ class TestBigqueryTableExistenceSensor:
         )
         table_uri = f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
         with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context={}, event={"status": "success", "message": "Job completed"})
-        mock_log_info.assert_called_with("Sensor checks existence of table: %s", table_uri)
+            task.execute_complete(
+                context={}, event={"status": "success", "message": "Job completed"}
+            )
+        mock_log_info.assert_called_with(
+            "Sensor checks existence of table: %s", table_uri
+        )
 
     def test_execute_defered_complete_event_none(self):
         """Asserts that logging occurs as expected"""
         task = BigQueryTableExistenceSensor(
-            task_id="task-id", project_id=TEST_PROJECT_ID, dataset_id=TEST_DATASET_ID, table_id=TEST_TABLE_ID
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
         )
         with pytest.raises(AirflowException):
             task.execute_complete(context={}, event=None)
@@ -168,8 +179,12 @@ class TestBigqueryTablePartitionExistenceSensor:
         )
 
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor.defer")
-    def test_table_partition_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor.defer"
+    )
+    def test_table_partition_existence_sensor_finish_before_deferred(
+        self, mock_defer, mock_hook
+    ):
         """
         Asserts that a task is deferred and a BigQueryTablePartitionExistenceTrigger will be fired
         when the BigQueryTablePartitionExistenceSensor is executed and deferrable is set to True.
@@ -218,7 +233,9 @@ class TestBigqueryTablePartitionExistenceSensor:
             deferrable=True,
         )
         with pytest.raises(AirflowException):
-            task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
+            task.execute_complete(
+                context={}, event={"status": "error", "message": "test failure message"}
+            )
 
     def test_execute_complete_event_none(self):
         """Asserts that logging occurs as expected"""
@@ -230,7 +247,9 @@ class TestBigqueryTablePartitionExistenceSensor:
             partition_id=TEST_PARTITION_ID,
             deferrable=True,
         )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
+        with pytest.raises(
+            AirflowException, match="No event received in trigger callback"
+        ):
             task.execute_complete(context={}, event=None)
 
     def test_execute_complete(self):
@@ -245,9 +264,13 @@ class TestBigqueryTablePartitionExistenceSensor:
         )
         table_uri = f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
         with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context={}, event={"status": "success", "message": "test"})
+            task.execute_complete(
+                context={}, event={"status": "success", "message": "test"}
+            )
         mock_log_info.assert_called_with(
-            'Sensor checks existence of partition: "%s" in table: %s', TEST_PARTITION_ID, table_uri
+            'Sensor checks existence of partition: "%s" in table: %s',
+            TEST_PARTITION_ID,
+            table_uri,
         )
 
 
@@ -291,7 +314,9 @@ class TestBigQueryTableExistenceAsyncSensor:
                 table_id=TEST_TABLE_ID,
             )
         with pytest.raises(AirflowException):
-            task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
+            task.execute_complete(
+                context={}, event={"status": "error", "message": "test failure message"}
+            )
 
     def test_big_query_table_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
@@ -304,8 +329,12 @@ class TestBigQueryTableExistenceAsyncSensor:
             )
         table_uri = f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
         with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context={}, event={"status": "success", "message": "Job completed"})
-        mock_log_info.assert_called_with("Sensor checks existence of table: %s", table_uri)
+            task.execute_complete(
+                context={}, event={"status": "success", "message": "Job completed"}
+            )
+        mock_log_info.assert_called_with(
+            "Sensor checks existence of table: %s", table_uri
+        )
 
     def test_big_query_sensor_async_execute_complete_event_none(
         self,
@@ -355,9 +384,13 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
                 partition_id=TEST_PARTITION_ID,
             )
         with pytest.raises(AirflowException):
-            task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
+            task.execute_complete(
+                context={}, event={"status": "error", "message": "test failure message"}
+            )
 
-    def test_big_query_table_existence_partition_sensor_async_execute_complete_event_none(self):
+    def test_big_query_table_existence_partition_sensor_async_execute_complete_event_none(
+        self,
+    ):
         """Asserts that logging occurs as expected"""
         with pytest.warns(AirflowProviderDeprecationWarning):
             task = BigQueryTableExistencePartitionAsyncSensor(
@@ -367,7 +400,9 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
                 table_id=TEST_TABLE_ID,
                 partition_id=TEST_PARTITION_ID,
             )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
+        with pytest.raises(
+            AirflowException, match="No event received in trigger callback"
+        ):
             task.execute_complete(context={}, event=None)
 
     def test_big_query_table_existence_partition_sensor_async_execute_complete(self):
@@ -382,7 +417,11 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
             )
         table_uri = f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
         with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context={}, event={"status": "success", "message": "test"})
+            task.execute_complete(
+                context={}, event={"status": "success", "message": "test"}
+            )
         mock_log_info.assert_called_with(
-            'Sensor checks existence of partition: "%s" in table: %s', TEST_PARTITION_ID, table_uri
+            'Sensor checks existence of partition: "%s" in table: %s',
+            TEST_PARTITION_ID,
+            table_uri,
         )

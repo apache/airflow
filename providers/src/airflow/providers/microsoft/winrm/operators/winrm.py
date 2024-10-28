@@ -94,7 +94,9 @@ class WinRMOperator(BaseOperator):
 
         try:
             if self.ps_path is not None:
-                self.log.info("Running command as powershell script: '%s'...", self.command)
+                self.log.info(
+                    "Running command as powershell script: '%s'...", self.command
+                )
                 encoded_ps = b64encode(self.command.encode("utf_16_le")).decode("ascii")
                 command_id = self.winrm_hook.winrm_protocol.run_command(  # type: ignore[attr-defined]
                     winrm_client, f"{self.ps_path} -encodedcommand {encoded_ps}"
@@ -151,7 +153,5 @@ class WinRMOperator(BaseOperator):
                 return b64encode(b"".join(stdout_buffer)).decode(self.output_encoding)
         else:
             stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
-            error_msg = (
-                f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
-            )
+            error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
             raise AirflowException(error_msg)

@@ -36,7 +36,9 @@ CONN_ID = "snowflake_default"
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet"
+)
 class TestSnowparkDecorator:
     @mock.patch("airflow.providers.snowflake.operators.snowpark.SnowflakeHook")
     def test_snowpark_decorator_no_param(self, mock_snowflake_hook, dag_maker):
@@ -52,7 +54,10 @@ class TestSnowparkDecorator:
             authenticator="externalbrowser",
         )
         def func1(session: Session):
-            assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            assert (
+                session
+                == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            )
             return number
 
         @task.snowpark(
@@ -92,7 +97,10 @@ class TestSnowparkDecorator:
             authenticator="externalbrowser",
         )
         def func1(session: Session, number: int):
-            assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            assert (
+                session
+                == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            )
             return number
 
         @task.snowpark(
@@ -105,7 +113,10 @@ class TestSnowparkDecorator:
             authenticator="externalbrowser",
         )
         def func2(number: int, session: Session):
-            assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            assert (
+                session
+                == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            )
             return number
 
         @task.snowpark(
@@ -143,7 +154,10 @@ class TestSnowparkDecorator:
             authenticator="externalbrowser",
         )
         def func(session: Session):
-            assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            assert (
+                session
+                == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            )
 
         with dag_maker(dag_id=TEST_DAG_ID):
             ret = func()
@@ -168,7 +182,10 @@ class TestSnowparkDecorator:
             multiple_outputs=True,
         )
         def func(session: Session):
-            assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            assert (
+                session
+                == mock_snowflake_hook.return_value.get_snowpark_session.return_value
+            )
             return {"a": 1, "b": "2"}
 
         with dag_maker(dag_id=TEST_DAG_ID):

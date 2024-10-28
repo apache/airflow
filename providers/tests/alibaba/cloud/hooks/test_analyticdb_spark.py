@@ -35,7 +35,9 @@ from alibabacloud_adb20211201.models import (
 
 from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook
 
-from providers.tests.alibaba.cloud.utils.analyticdb_spark_mock import mock_adb_spark_hook_default_project_id
+from providers.tests.alibaba.cloud.utils.analyticdb_spark_mock import (
+    mock_adb_spark_hook_default_project_id,
+)
 
 ADB_SPARK_STRING = "airflow.providers.alibaba.cloud.hooks.analyticdb_spark.{}"
 MOCK_ADB_SPARK_CONN_ID = "mock_id"
@@ -115,7 +117,9 @@ class TestAnalyticDBSparkHook:
         exists_method.return_value = SubmitSparkAppResponse(status_code=200)
 
         # When
-        res = self.hook.submit_spark_app(MOCK_ADB_CLUSTER_ID, MOCK_ADB_RG_NAME, "oss://test.py")
+        res = self.hook.submit_spark_app(
+            MOCK_ADB_CLUSTER_ID, MOCK_ADB_RG_NAME, "oss://test.py"
+        )
 
         # Then
         assert isinstance(res, SubmitSparkAppResponse)
@@ -130,7 +134,9 @@ class TestAnalyticDBSparkHook:
         exists_method.return_value = SubmitSparkAppResponse(status_code=200)
 
         # When
-        res = self.hook.submit_spark_sql(MOCK_ADB_CLUSTER_ID, MOCK_ADB_RG_NAME, "SELECT 1")
+        res = self.hook.submit_spark_sql(
+            MOCK_ADB_CLUSTER_ID, MOCK_ADB_RG_NAME, "SELECT 1"
+        )
 
         # Then
         assert isinstance(res, SubmitSparkAppResponse)
@@ -143,7 +149,9 @@ class TestAnalyticDBSparkHook:
         mock_client = mock_service.return_value
         exists_method = mock_client.get_spark_app_state
         exists_method.return_value = GetSparkAppStateResponse(
-            body=GetSparkAppStateResponseBody(data=GetSparkAppStateResponseBodyData(state="RUNNING"))
+            body=GetSparkAppStateResponseBody(
+                data=GetSparkAppStateResponseBodyData(state="RUNNING")
+            )
         )
 
         # When
@@ -161,7 +169,9 @@ class TestAnalyticDBSparkHook:
         exists_method = mock_client.get_spark_app_web_ui_address
         exists_method.return_value = GetSparkAppWebUiAddressResponse(
             body=GetSparkAppWebUiAddressResponseBody(
-                data=GetSparkAppWebUiAddressResponseBodyData(web_ui_address="https://mock-web-ui-address.com")
+                data=GetSparkAppWebUiAddressResponseBodyData(
+                    web_ui_address="https://mock-web-ui-address.com"
+                )
             )
         )
 
@@ -179,7 +189,9 @@ class TestAnalyticDBSparkHook:
         mock_client = mock_service.return_value
         exists_method = mock_client.get_spark_app_log
         exists_method.return_value = GetSparkAppLogResponse(
-            body=GetSparkAppLogResponseBody(data=GetSparkAppLogResponseBodyData(log_content="Pi is 3.14"))
+            body=GetSparkAppLogResponseBody(
+                data=GetSparkAppLogResponseBodyData(log_content="Pi is 3.14")
+            )
         )
 
         # When

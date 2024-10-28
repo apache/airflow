@@ -60,7 +60,9 @@ class TestTableauOperator:
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(blocking_refresh=False, find="wb_2", resource="workbooks", **self.kwargs)
+        operator = TableauOperator(
+            blocking_refresh=False, find="wb_2", resource="workbooks", **self.kwargs
+        )
 
         job_id = operator.execute(context={})
 
@@ -125,7 +127,9 @@ class TestTableauOperator:
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(blocking_refresh=False, find="ds_2", resource="datasources", **self.kwargs)
+        operator = TableauOperator(
+            blocking_refresh=False, find="ds_2", resource="datasources", **self.kwargs
+        )
 
         job_id = operator.execute(context={})
 
@@ -193,5 +197,7 @@ class TestTableauOperator:
         Test get resource id
         """
         resource_id = "res_id"
-        operator = TableauOperator(resource="task", find=resource_id, method="run", task_id="t", dag=None)
+        operator = TableauOperator(
+            resource="task", find=resource_id, method="run", task_id="t", dag=None
+        )
         assert operator._get_resource_id(resource_id) == resource_id

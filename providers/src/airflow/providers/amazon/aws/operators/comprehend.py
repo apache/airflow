@@ -55,7 +55,10 @@ class ComprehendBaseOperator(AwsBaseOperator[ComprehendHook]):
         "input_data_config", "output_data_config", "data_access_role_arn", "language_code"
     )
 
-    template_fields_renderers: dict = {"input_data_config": "json", "output_data_config": "json"}
+    template_fields_renderers: dict = {
+        "input_data_config": "json",
+        "output_data_config": "json",
+    }
 
     def __init__(
         self,
@@ -130,7 +133,9 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(
@@ -154,7 +159,8 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
             )
 
         self.log.info(
-            "Submitting start pii entities detection job '%s'.", self.start_pii_entities_kwargs["JobName"]
+            "Submitting start pii entities detection job '%s'.",
+            self.start_pii_entities_kwargs["JobName"],
         )
         job_id = self.client.start_pii_entities_detection_job(
             InputDataConfig=self.input_data_config,
@@ -181,17 +187,24 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
             self.log.info("Waiting for %s", message_description)
             self.hook.get_waiter("pii_entities_detection_job_complete").wait(
                 JobId=job_id,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
         return job_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
         if event["status"] != "success":
             raise AirflowException("Error while running job: %s", event)
 
-        self.log.info("Comprehend pii entities detection job `%s` complete.", event["job_id"])
+        self.log.info(
+            "Comprehend pii entities detection job `%s` complete.", event["job_id"]
+        )
         return event["job_id"]
 
 
@@ -267,7 +280,9 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
@@ -299,7 +314,9 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
             **self.document_classifier_kwargs,
         )["DocumentClassifierArn"]
 
-        message_description = f"document classifier {document_classifier_arn} to complete."
+        message_description = (
+            f"document classifier {document_classifier_arn} to complete."
+        )
         if self.deferrable:
             self.log.info("Deferring %s", message_description)
             self.defer(
@@ -316,24 +333,36 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
 
             self.hook.get_waiter("create_document_classifier_complete").wait(
                 DocumentClassifierArn=document_classifier_arn,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
             )
 
             self.hook.validate_document_classifier_training_status(
-                document_classifier_arn=document_classifier_arn, fail_on_warnings=self.fail_on_warnings
+                document_classifier_arn=document_classifier_arn,
+                fail_on_warnings=self.fail_on_warnings,
             )
 
         return document_classifier_arn
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
         if event["status"] != "success":
-            raise AirflowException("Error while running comprehend create document classifier: %s", event)
+            raise AirflowException(
+                "Error while running comprehend create document classifier: %s", event
+            )
 
         self.hook.validate_document_classifier_training_status(
-            document_classifier_arn=event["document_classifier_arn"], fail_on_warnings=self.fail_on_warnings
+            document_classifier_arn=event["document_classifier_arn"],
+            fail_on_warnings=self.fail_on_warnings,
         )
 
-        self.log.info("Comprehend document classifier `%s` complete.", event["document_classifier_arn"])
+        self.log.info(
+            "Comprehend document classifier `%s` complete.",
+            event["document_classifier_arn"],
+        )
 
         return event["document_classifier_arn"]

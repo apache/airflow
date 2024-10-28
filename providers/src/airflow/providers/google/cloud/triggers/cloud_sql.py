@@ -22,7 +22,10 @@ from __future__ import annotations
 import asyncio
 from typing import Sequence
 
-from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLAsyncHook, CloudSqlOperationStatus
+from airflow.providers.google.cloud.hooks.cloud_sql import (
+    CloudSQLAsyncHook,
+    CloudSqlOperationStatus,
+)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 

@@ -23,7 +23,10 @@ from azure.synapse.spark import SparkClient
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models.connection import Connection
-from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
+from airflow.providers.microsoft.azure.hooks.synapse import (
+    AzureSynapseHook,
+    AzureSynapseSparkBatchRunStatus,
+)
 
 DEFAULT_SPARK_POOL = "defaultSparkPool"
 
@@ -146,15 +149,51 @@ def test_get_job_run_status(hook: AzureSynapseHook):
 
 
 _wait_for_job_run_status_test_args = [
-    (AzureSynapseSparkBatchRunStatus.SUCCESS, AzureSynapseSparkBatchRunStatus.SUCCESS, True),
-    (AzureSynapseSparkBatchRunStatus.ERROR, AzureSynapseSparkBatchRunStatus.SUCCESS, False),
-    (AzureSynapseSparkBatchRunStatus.KILLED, AzureSynapseSparkBatchRunStatus.SUCCESS, False),
-    (AzureSynapseSparkBatchRunStatus.RUNNING, AzureSynapseSparkBatchRunStatus.SUCCESS, "timeout"),
-    (AzureSynapseSparkBatchRunStatus.NOT_STARTED, AzureSynapseSparkBatchRunStatus.SUCCESS, "timeout"),
-    (AzureSynapseSparkBatchRunStatus.SHUTTING_DOWN, AzureSynapseSparkBatchRunStatus.SUCCESS, "timeout"),
-    (AzureSynapseSparkBatchRunStatus.SUCCESS, AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES, True),
-    (AzureSynapseSparkBatchRunStatus.ERROR, AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES, True),
-    (AzureSynapseSparkBatchRunStatus.KILLED, AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES, True),
+    (
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        True,
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.ERROR,
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        False,
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.KILLED,
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        False,
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.RUNNING,
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        "timeout",
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.NOT_STARTED,
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        "timeout",
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.SHUTTING_DOWN,
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        "timeout",
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.SUCCESS,
+        AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES,
+        True,
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.ERROR,
+        AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES,
+        True,
+    ),
+    (
+        AzureSynapseSparkBatchRunStatus.KILLED,
+        AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES,
+        True,
+    ),
 ]
 
 
@@ -169,7 +208,12 @@ _wait_for_job_run_status_test_args = [
     ],
 )
 def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected_output):
-    config = {"job_id": ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
+    config = {
+        "job_id": ID,
+        "timeout": 3,
+        "check_interval": 1,
+        "expected_statuses": expected_status,
+    }
 
     with patch.object(AzureSynapseHook, "get_job_run_status") as mock_job_run:
         mock_job_run.return_value = job_run_status

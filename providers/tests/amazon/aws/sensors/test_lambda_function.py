@@ -92,8 +92,12 @@ class TestLambdaFunctionStateSensor:
             task_id="test_sensor",
             function_name=FUNCTION_NAME,
         )
-        message = "Lambda function state sensor failed because the Lambda is in a failed state"
-        with mock.patch("airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn") as conn:
+        message = (
+            "Lambda function state sensor failed because the Lambda is in a failed state"
+        )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn"
+        ) as conn:
             conn.get_function.return_value = {"Configuration": {"State": "Failed"}}
             with pytest.raises(AirflowException, match=message):
                 sensor.poke(context={})

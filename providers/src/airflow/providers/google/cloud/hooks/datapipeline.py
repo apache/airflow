@@ -52,7 +52,9 @@ class DataPipelineHook(DataflowHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> dict:
         """Create a new Data Pipelines instance from the Data Pipelines API."""
-        return super().create_data_pipeline(body=body, project_id=project_id, location=location)
+        return super().create_data_pipeline(
+            body=body, project_id=project_id, location=location
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_data_pipeline(

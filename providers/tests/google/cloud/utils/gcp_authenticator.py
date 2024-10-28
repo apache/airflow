@@ -97,13 +97,17 @@ class GcpAuthenticator(CommandExecutor):
         :return: None
         """
         with settings.Session() as session:
-            conn = session.query(Connection).filter(Connection.conn_id == "google_cloud_default")[0]
+            conn = session.query(Connection).filter(
+                Connection.conn_id == "google_cloud_default"
+            )[0]
             extras = conn.extra_dejson
             extras[KEYPATH_EXTRA] = self.full_key_path
             if extras.get(KEYFILE_DICT_EXTRA):
                 del extras[KEYFILE_DICT_EXTRA]
             extras[SCOPE_EXTRA] = "https://www.googleapis.com/auth/cloud-platform"
-            extras[PROJECT_EXTRA] = self.project_extra if self.project_extra else self.project_id
+            extras[PROJECT_EXTRA] = (
+                self.project_extra if self.project_extra else self.project_id
+            )
             conn.extra = json.dumps(extras)
 
     def set_dictionary_in_airflow_connection(self):
@@ -113,7 +117,9 @@ class GcpAuthenticator(CommandExecutor):
         :return: None
         """
         with settings.Session() as session:
-            conn = session.query(Connection).filter(Connection.conn_id == "google_cloud_default")[0]
+            conn = session.query(Connection).filter(
+                Connection.conn_id == "google_cloud_default"
+            )[0]
             extras = conn.extra_dejson
             with open(self.full_key_path) as path_file:
                 content = json.load(path_file)
@@ -181,8 +187,12 @@ class GcpAuthenticator(CommandExecutor):
         """
         self._validate_key_set()
         self.log.info("Revoking authentication - setting it to none")
-        self.execute_cmd(["gcloud", "config", "get-value", "account", f"--project={self.project_id}"])
-        self.execute_cmd(["gcloud", "config", "set", "account", "none", f"--project={self.project_id}"])
+        self.execute_cmd(
+            ["gcloud", "config", "get-value", "account", f"--project={self.project_id}"]
+        )
+        self.execute_cmd(
+            ["gcloud", "config", "set", "account", "none", f"--project={self.project_id}"]
+        )
 
     def gcp_store_authentication(self):
         """
@@ -192,9 +202,18 @@ class GcpAuthenticator(CommandExecutor):
         self._validate_key_set()
         if not GcpAuthenticator.original_account:
             GcpAuthenticator.original_account = self.check_output(
-                ["gcloud", "config", "get-value", "account", f"--project={self.project_id}"]
+                [
+                    "gcloud",
+                    "config",
+                    "get-value",
+                    "account",
+                    f"--project={self.project_id}",
+                ]
             ).decode("utf-8")
-            self.log.info("Storing account: to restore it later %s", GcpAuthenticator.original_account)
+            self.log.info(
+                "Storing account: to restore it later %s",
+                GcpAuthenticator.original_account,
+            )
 
     def gcp_restore_authentication(self):
         """
@@ -202,7 +221,9 @@ class GcpAuthenticator(CommandExecutor):
         """
         self._validate_key_set()
         if GcpAuthenticator.original_account:
-            self.log.info("Restoring original account stored: %s", GcpAuthenticator.original_account)
+            self.log.info(
+                "Restoring original account stored: %s", GcpAuthenticator.original_account
+            )
             subprocess.call(
                 [
                     "gcloud",
@@ -214,4 +235,6 @@ class GcpAuthenticator(CommandExecutor):
                 ]
             )
         else:
-            self.log.info("Not restoring the original Google Cloud account: it is not set")
+            self.log.info(
+                "Not restoring the original Google Cloud account: it is not set"
+            )

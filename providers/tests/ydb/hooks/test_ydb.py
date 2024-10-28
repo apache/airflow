@@ -65,7 +65,8 @@ class FakeYDBCursor:
 @patch("ydb.Driver")
 @patch("ydb.SessionPool")
 @patch(
-    "airflow.providers.ydb.hooks._vendor.dbapi.connection.Connection._cursor_class", new_callable=PropertyMock
+    "airflow.providers.ydb.hooks._vendor.dbapi.connection.Connection._cursor_class",
+    new_callable=PropertyMock,
 )
 def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connection):
     mock_get_connection.return_value = Connection(
@@ -83,7 +84,9 @@ def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connecti
     mock_session_pool.return_value = FakeSessionPool(driver_instance)
 
     hook = YDBHook()
-    assert hook.get_uri() == "ydb://grpc://my_user:my_pwd@localhost:2135/?database=%2Fmy_db1"
+    assert (
+        hook.get_uri() == "ydb://grpc://my_user:my_pwd@localhost:2135/?database=%2Fmy_db1"
+    )
     with hook.get_conn() as conn:
         with conn.cursor() as cur:
             assert cur.execute("INSERT INTO table VALUES ('aaa'), ('bbbb')")

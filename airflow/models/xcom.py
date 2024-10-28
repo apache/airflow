@@ -74,7 +74,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     dag_run_id = Column(Integer(), nullable=False, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    map_index = Column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
     key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
@@ -90,7 +92,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
+        PrimaryKeyConstraint(
+            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"
+        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -159,7 +163,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        dag_run_id = (
+            session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        )
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -203,7 +209,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                 cls.map_index == map_index,
             )
         )
-        new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
+        new = cast(
+            Any, cls
+        )(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
             key=key,
             value=value,
@@ -366,7 +374,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
             query = query.filter(
-                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
+                BaseXCom.map_index >= map_indexes.start,
+                BaseXCom.map_index < map_indexes.stop,
             )
         elif is_container(map_indexes):
             query = query.filter(BaseXCom.map_index.in_(map_indexes))
@@ -374,7 +383,11 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             query = query.filter(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
+            dr = (
+                session.query(DagRun.execution_date)
+                .filter(DagRun.run_id == run_id)
+                .subquery()
+            )
             query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
         else:
             query = query.filter(BaseXCom.run_id == run_id)
@@ -434,7 +447,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        query = session.query(BaseXCom).filter_by(
+            dag_id=dag_id, task_id=task_id, run_id=run_id
+        )
         if map_index is not None:
             query = query.filter_by(map_index=map_index)
 
@@ -483,10 +498,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             try:
                 return pickle.loads(result.value)
             except pickle.UnpicklingError:
-                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
+                return json.loads(
+                    result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook
+                )
         else:
             # Since xcom_pickling is disabled, we should only try to deserialize with JSON
-            return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
+            return json.loads(
+                result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook
+            )
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:
@@ -529,7 +548,9 @@ def _get_function_params(function) -> list[str]:
     """
     parameters = inspect.signature(function).parameters
     bound_arguments = [
-        name for name, p in parameters.items() if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+        name
+        for name, p in parameters.items()
+        if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
     ]
     return bound_arguments
 
@@ -541,7 +562,9 @@ def resolve_xcom_backend() -> type[BaseXCom]:
     Confirm that custom XCom class extends the BaseXCom.
     Compare the function signature of the custom XCom serialize_value to the base XCom serialize_value.
     """
-    clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
+    clazz = conf.getimport(
+        "core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}"
+    )
     if not clazz:
         return BaseXCom
     if not issubclass(clazz, BaseXCom):

@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
+from airflow.providers.google.cloud.transfers.sheets_to_gcs import (
+    GoogleSheetsToGCSOperator,
+)
 
 RANGE = "test!A:E"
 FILTER = ["sheet_filter"]
@@ -34,7 +36,9 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class TestGoogleSheetsToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.csv.writer")
-    @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.NamedTemporaryFile")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.sheets_to_gcs.NamedTemporaryFile"
+    )
     def test_upload_data(self, mock_tempfile, mock_writer):
         filename = "file://97g23r"
         file_handle = mock.MagicMock()
@@ -42,7 +46,9 @@ class TestGoogleSheetsToGCSOperator:
         mock_tempfile.return_value.__enter__.return_value.name = filename
 
         mock_sheet_hook = mock.MagicMock()
-        mock_sheet_hook.get_spreadsheet.return_value = {"properties": {"title": SHEET_TITLE}}
+        mock_sheet_hook.get_spreadsheet.return_value = {
+            "properties": {"title": SHEET_TITLE}
+        }
         expected_dest_file = f"{PATH}/{SHEET_TITLE}_{RANGE}.csv"
 
         mock_gcs_hook = mock.MagicMock()
@@ -78,7 +84,9 @@ class TestGoogleSheetsToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GSheetsHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator.xcom_push")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator.xcom_push"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.transfers.sheets_to_gcs.GoogleSheetsToGCSOperator._upload_data"
     )
@@ -115,7 +123,9 @@ class TestGoogleSheetsToGCSOperator:
         calls = [mock.call(spreadsheet_id=SPREADSHEET_ID, range_=r) for r in RANGES]
         mock_sheet_hook.return_value.get_values.assert_has_calls(calls)
 
-        calls = [mock.call(mock_gcs_hook, mock_sheet_hook, r, v) for r, v in zip(RANGES, data)]
+        calls = [
+            mock.call(mock_gcs_hook, mock_sheet_hook, r, v) for r, v in zip(RANGES, data)
+        ]
         mock_upload_data.assert_called()
         actual_call_count = mock_upload_data.call_count
         assert len(RANGES) == actual_call_count

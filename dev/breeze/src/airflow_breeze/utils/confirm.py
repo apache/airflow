@@ -86,7 +86,9 @@ def user_confirm(
             elif user_status.upper() in ["Q", "QUIT"] and quit_allowed:
                 return Answer.QUIT
             else:
-                print(f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again.")
+                print(
+                    f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again."
+                )
         except TimeoutOccurred:
             if default_answer:
                 return default_answer

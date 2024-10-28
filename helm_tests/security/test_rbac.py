@@ -153,9 +153,12 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         ]
-        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version))
+        assert sorted(list_of_kind_names_tuples) == sorted(
+            self._get_object_tuples(version)
+        )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_with_sa(self, version):
@@ -174,9 +177,12 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
+        real_list_of_kind_names = (
+            self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
+        )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
@@ -213,9 +219,12 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_tuples(version) + RBAC_ENABLED_KIND_NAME_TUPLES
+        real_list_of_kind_names = (
+            self._get_object_tuples(version) + RBAC_ENABLED_KIND_NAME_TUPLES
+        )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
@@ -234,10 +243,13 @@ class TestRBAC:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+            self._get_object_tuples(version)
+            + SERVICE_ACCOUNT_NAME_TUPLES
+            + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
@@ -254,21 +266,33 @@ class TestRBAC:
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-                "_rpcServer": {"enabled": True, "serviceAccount": {"name": CUSTOM_RPC_SERVER_NAME}},
+                "_rpcServer": {
+                    "enabled": True,
+                    "serviceAccount": {"name": CUSTOM_RPC_SERVER_NAME},
+                },
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
-                "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
+                "flower": {
+                    "enabled": True,
+                    "serviceAccount": {"name": CUSTOM_FLOWER_NAME},
+                },
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
-                "postgresql": {"serviceAccount": {"create": True, "name": CUSTOM_POSTGRESQL_NAME}},
+                "postgresql": {
+                    "serviceAccount": {"create": True, "name": CUSTOM_POSTGRESQL_NAME}
+                },
                 "pgbouncer": {
                     "enabled": True,
                     "serviceAccount": {
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
-                "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
+                "createUserJob": {
+                    "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}
+                },
+                "migrateDatabaseJob": {
+                    "serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}
+                },
             },
         )
         list_of_sa_names = [
@@ -291,10 +315,16 @@ class TestRBAC:
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-                "_rpcServer": {"enabled": True, "serviceAccount": {"name": CUSTOM_RPC_SERVER_NAME}},
+                "_rpcServer": {
+                    "enabled": True,
+                    "serviceAccount": {"name": CUSTOM_RPC_SERVER_NAME},
+                },
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
-                "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
+                "flower": {
+                    "enabled": True,
+                    "serviceAccount": {"name": CUSTOM_FLOWER_NAME},
+                },
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "postgresql": {"serviceAccount": {"name": CUSTOM_POSTGRESQL_NAME}},
@@ -304,8 +334,12 @@ class TestRBAC:
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
-                "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
+                "createUserJob": {
+                    "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}
+                },
+                "migrateDatabaseJob": {
+                    "serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}
+                },
             },
         )
         list_of_sa_names_in_objects = []

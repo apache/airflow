@@ -48,7 +48,9 @@ RUN_FACETS: dict[str, RunFacet] = {
         job=parent_run.Job(namespace="namespace", name="parentjob"),
     )
 }
-JOB_FACETS: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query="SELECT * FROM inputtable")}
+JOB_FACETS: dict[str, JobFacet] = {
+    "sql": sql_job.SQLJobFacet(query="SELECT * FROM inputtable")
+}
 
 
 @define
@@ -196,9 +198,9 @@ def test_extraction_without_on_complete():
 
     task_instance = mock.MagicMock()
 
-    metadata_on_complete = extractor(OperatorWithoutComplete(task_id="test")).extract_on_complete(
-        task_instance=task_instance
-    )
+    metadata_on_complete = extractor(
+        OperatorWithoutComplete(task_id="test")
+    ).extract_on_complete(task_instance=task_instance)
 
     expected_task_metadata = OperatorLineage(
         inputs=INPUTS,
@@ -220,9 +222,9 @@ def test_extraction_without_on_start():
 
     task_instance = mock.MagicMock()
 
-    metadata_on_complete = extractor(OperatorWithoutStart(task_id="test")).extract_on_complete(
-        task_instance=task_instance
-    )
+    metadata_on_complete = extractor(
+        OperatorWithoutStart(task_id="test")
+    ).extract_on_complete(task_instance=task_instance)
 
     assert metadata == OperatorLineage()
 
@@ -246,10 +248,16 @@ def test_extraction_without_on_start():
         (TaskInstanceState.RUNNING, False, True),
         (TaskInstanceState.SUCCESS, False, False),
         (TaskInstanceState.FAILED, False, False),  # should never happen, fixed in #41053
-        (TaskInstanceState.UP_FOR_RETRY, False, False),  # should never happen, fixed in #41053
+        (
+            TaskInstanceState.UP_FOR_RETRY,
+            False,
+            False,
+        ),  # should never happen, fixed in #41053
     ),
 )
-def test_extract_on_failure(task_state, is_airflow_2_10_or_higher, should_call_on_failure):
+def test_extract_on_failure(
+    task_state, is_airflow_2_10_or_higher, should_call_on_failure
+):
     task_instance = mock.Mock(state=task_state)
     operator = mock.Mock()
     operator.get_openlineage_facets_on_failure = mock.Mock(
@@ -260,24 +268,31 @@ def test_extract_on_failure(task_state, is_airflow_2_10_or_higher, should_call_o
     extractor = DefaultExtractor(operator=operator)
 
     with mock.patch(
-        "airflow.providers.openlineage.extractors.base.IS_AIRFLOW_2_10_OR_HIGHER", is_airflow_2_10_or_higher
+        "airflow.providers.openlineage.extractors.base.IS_AIRFLOW_2_10_OR_HIGHER",
+        is_airflow_2_10_or_higher,
     ):
         result = extractor.extract_on_complete(task_instance)
 
         if should_call_on_failure:
-            operator.get_openlineage_facets_on_failure.assert_called_once_with(task_instance)
+            operator.get_openlineage_facets_on_failure.assert_called_once_with(
+                task_instance
+            )
             operator.get_openlineage_facets_on_complete.assert_not_called()
             assert isinstance(result, OperatorLineage)
             assert result.run_facets == {"failed": True}
         else:
             operator.get_openlineage_facets_on_failure.assert_not_called()
-            operator.get_openlineage_facets_on_complete.assert_called_once_with(task_instance)
+            operator.get_openlineage_facets_on_complete.assert_called_once_with(
+                task_instance
+            )
             assert result is None
 
 
 @mock.patch("airflow.providers.openlineage.conf.custom_extractors")
 def test_extractors_env_var(custom_extractors):
-    custom_extractors.return_value = {"providers.tests.openlineage.extractors.test_base.ExampleExtractor"}
+    custom_extractors.return_value = {
+        "providers.tests.openlineage.extractors.test_base.ExampleExtractor"
+    }
     extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
     assert extractor is ExampleExtractor
 
@@ -317,5 +332,6 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     # If extractor returns lineage class that can't be changed into OperatorLineage, just return
     # empty OperatorLineage
     assert (
-        ExtractorManager().extract_metadata(mock.MagicMock(), operator, complete=False) == OperatorLineage()
+        ExtractorManager().extract_metadata(mock.MagicMock(), operator, complete=False)
+        == OperatorLineage()
     )

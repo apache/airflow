@@ -167,8 +167,12 @@ class TaskDoneTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         async with (
-            EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as ecs_client,
-            AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as logs_client,
+            EcsHook(
+                aws_conn_id=self.aws_conn_id, region_name=self.region
+            ).async_conn as ecs_client,
+            AwsLogsHook(
+                aws_conn_id=self.aws_conn_id, region_name=self.region
+            ).async_conn as logs_client,
         ):
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
@@ -176,24 +180,35 @@ class TaskDoneTrigger(BaseTrigger):
                 self.waiter_max_attempts -= 1
                 try:
                     await waiter.wait(
-                        cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}
+                        cluster=self.cluster,
+                        tasks=[self.task_arn],
+                        WaiterConfig={"MaxAttempts": 1},
                     )
                     # we reach this point only if the waiter met a success criteria
                     yield TriggerEvent(
-                        {"status": "success", "task_arn": self.task_arn, "cluster": self.cluster}
+                        {
+                            "status": "success",
+                            "task_arn": self.task_arn,
+                            "cluster": self.cluster,
+                        }
                     )
                     return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
-                    self.log.info("Status of the task is %s", error.last_response["tasks"][0]["lastStatus"])
+                    self.log.info(
+                        "Status of the task is %s",
+                        error.last_response["tasks"][0]["lastStatus"],
+                    )
                     await asyncio.sleep(int(self.waiter_delay))
                 finally:
                     if self.log_group and self.log_stream:
                         logs_token = await self._forward_logs(logs_client, logs_token)
         raise AirflowException("Waiter error: max attempts reached")
 
-    async def _forward_logs(self, logs_client, next_token: str | None = None) -> str | None:
+    async def _forward_logs(
+        self, logs_client, next_token: str | None = None
+    ) -> str | None:
         """
         Read logs from the cloudwatch stream and print them to the task logs.
 

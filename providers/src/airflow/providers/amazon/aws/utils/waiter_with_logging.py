@@ -75,7 +75,11 @@ def wait(
             last_response = error.last_response
 
             if "terminal failure" in error_reason:
-                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, last_response))
+                log.error(
+                    "%s: %s",
+                    failure_message,
+                    _LazyStatusFormatter(status_args, last_response),
+                )
                 raise AirflowException(f"{failure_message}: {error}")
 
             if (
@@ -85,7 +89,9 @@ def wait(
             ):
                 raise AirflowException(f"{failure_message}: {error}")
 
-            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, last_response))
+            log.info(
+                "%s: %s", status_message, _LazyStatusFormatter(status_args, last_response)
+            )
         else:
             break
     else:
@@ -136,7 +142,11 @@ async def async_wait(
             last_response = error.last_response
 
             if "terminal failure" in error_reason:
-                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, last_response))
+                log.error(
+                    "%s: %s",
+                    failure_message,
+                    _LazyStatusFormatter(status_args, last_response),
+                )
                 raise AirflowException(f"{failure_message}: {error}")
 
             if (
@@ -146,7 +156,9 @@ async def async_wait(
             ):
                 raise AirflowException(f"{failure_message}: {error}")
 
-            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, last_response))
+            log.info(
+                "%s: %s", status_message, _LazyStatusFormatter(status_args, last_response)
+            )
         else:
             break
     else:

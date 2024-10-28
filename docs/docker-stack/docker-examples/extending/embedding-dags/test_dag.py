@@ -28,7 +28,9 @@ from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 
 now = pendulum.now(tz="UTC")
-now_to_the_hour = (now - datetime.timedelta(0, 0, 0, 0, 0, 3)).replace(minute=0, second=0, microsecond=0)
+now_to_the_hour = (now - datetime.timedelta(0, 0, 0, 0, 0, 3)).replace(
+    minute=0, second=0, microsecond=0
+)
 START_DATE = now_to_the_hour
 DAG_NAME = "test_dag_v1"
 

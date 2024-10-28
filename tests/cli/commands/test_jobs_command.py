@@ -55,10 +55,14 @@ class TestCliConfigList:
             self.scheduler_job.state = State.RUNNING
             session.add(self.scheduler_job)
             session.commit()
-            self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
+            self.scheduler_job.heartbeat(
+                heartbeat_callback=self.job_runner.heartbeat_callback
+            )
 
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            jobs_command.check(self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"]))
+            jobs_command.check(
+                self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"])
+            )
         assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_one_working_scheduler_with_hostname(self):
@@ -69,12 +73,21 @@ class TestCliConfigList:
             self.scheduler_job.hostname = "HOSTNAME"
             session.add(self.scheduler_job)
             session.commit()
-            self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
+            self.scheduler_job.heartbeat(
+                heartbeat_callback=self.job_runner.heartbeat_callback
+            )
 
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             jobs_command.check(
                 self.parser.parse_args(
-                    ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
+                    [
+                        "jobs",
+                        "check",
+                        "--job-type",
+                        "SchedulerJob",
+                        "--hostname",
+                        "HOSTNAME",
+                    ]
                 )
             )
         assert "Found one alive job." in temp_stdout.getvalue()
@@ -96,7 +109,15 @@ class TestCliConfigList:
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 jobs_command.check(
                     self.parser.parse_args(
-                        ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
+                        [
+                            "jobs",
+                            "check",
+                            "--job-type",
+                            "SchedulerJob",
+                            "--limit",
+                            "100",
+                            "--allow-multiple",
+                        ]
                     )
                 )
             assert "Found 3 alive jobs." in temp_stdout.getvalue()
@@ -162,4 +183,6 @@ class TestCliConfigList:
             SystemExit,
             match=r"To use option --allow-multiple, you must set the limit to a value greater than 1.",
         ):
-            jobs_command.check(self.parser.parse_args(["jobs", "check", "--allow-multiple"]))
+            jobs_command.check(
+                self.parser.parse_args(["jobs", "check", "--allow-multiple"])
+            )

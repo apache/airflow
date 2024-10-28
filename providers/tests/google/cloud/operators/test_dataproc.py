@@ -130,7 +130,10 @@ CONFIG = {
         "is_preemptible": True,
         "preemptibility": "SPOT",
     },
-    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "software_config": {
+        "properties": {"properties": "data"},
+        "optional_components": ["optional_components"],
+    },
     "lifecycle_config": {
         "idle_delete_ttl": {"seconds": 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
@@ -202,7 +205,10 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
         "is_preemptible": True,
         "preemptibility": "SPOT",
     },
-    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "software_config": {
+        "properties": {"properties": "data"},
+        "optional_components": ["optional_components"],
+    },
     "lifecycle_config": {
         "idle_delete_ttl": {"seconds": 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
@@ -258,11 +264,19 @@ CONFIG_WITH_FLEX_MIG = {
                     ],
                     "rank": 0,
                 },
-                {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
+                {
+                    "machine_types": [
+                        "projects/project_id/zones/zone/machineTypes/machine3"
+                    ],
+                    "rank": 1,
+                },
             ],
         },
     },
-    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "software_config": {
+        "properties": {"properties": "data"},
+        "optional_components": ["optional_components"],
+    },
     "lifecycle_config": {
         "idle_delete_ttl": {"seconds": 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
@@ -293,7 +307,10 @@ CONFIG_WITH_GPU_ACCELERATOR = {
         "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
-        "accelerators": {"accelerator_type_uri": "master_accelerator_type", "accelerator_count": 1},
+        "accelerators": {
+            "accelerator_type_uri": "master_accelerator_type",
+            "accelerator_count": 1,
+        },
     },
     "worker_config": {
         "num_instances": 2,
@@ -302,7 +319,10 @@ CONFIG_WITH_GPU_ACCELERATOR = {
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
         "min_num_instances": 1,
-        "accelerators": {"accelerator_type_uri": "worker_accelerator_type", "accelerator_count": 1},
+        "accelerators": {
+            "accelerator_type_uri": "worker_accelerator_type",
+            "accelerator_count": 1,
+        },
     },
     "secondary_worker_config": {
         "num_instances": 4,
@@ -310,9 +330,15 @@ CONFIG_WITH_GPU_ACCELERATOR = {
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
         "preemptibility": "PREEMPTIBLE",
-        "accelerators": {"accelerator_type_uri": "secondary_worker_accelerator_type", "accelerator_count": 1},
+        "accelerators": {
+            "accelerator_type_uri": "secondary_worker_accelerator_type",
+            "accelerator_count": 1,
+        },
     },
-    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "software_config": {
+        "properties": {"properties": "data"},
+        "optional_components": ["optional_components"],
+    },
     "lifecycle_config": {
         "idle_delete_ttl": {"seconds": 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
@@ -330,10 +356,18 @@ LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION_LABEL}
 
 LABELS.update({"airflow-version": AIRFLOW_VERSION_LABEL})
 
-CLUSTER = {"project_id": "project_id", "cluster_name": CLUSTER_NAME, "config": CONFIG, "labels": LABELS}
+CLUSTER = {
+    "project_id": "project_id",
+    "cluster_name": CLUSTER_NAME,
+    "config": CONFIG,
+    "labels": LABELS,
+}
 
 UPDATE_MASK = {
-    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
+    "paths": [
+        "config.worker_config.num_instances",
+        "config.secondary_worker_config.num_instances",
+    ]
 }
 
 TIMEOUT = 120
@@ -444,12 +478,18 @@ class DataprocJobTestBase(DataprocTestBase):
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls = [
                 call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+                call.hook().wait_for_job(
+                    job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT
+                ),
             ]
         else:
             cls.extra_links_expected_calls = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
-                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+                call.ti.xcom_push(
+                    key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
+                ),
+                call.hook().wait_for_job(
+                    job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT
+                ),
             ]
 
 
@@ -464,7 +504,9 @@ class DataprocClusterTestBase(DataprocTestBase):
         else:
             cls.extra_links_expected_calls_base = [
                 call.ti.xcom_push(
-                    key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED, execution_date=None
+                    key="dataproc_cluster",
+                    value=DATAPROC_CLUSTER_EXPECTED,
+                    execution_date=None,
                 )
             ]
 
@@ -501,15 +543,23 @@ class TestsClusterGenerator:
         assert "custom_image and custom_image_family" in str(ctx.value)
 
     def test_nodes_number(self):
-        with pytest.raises(ValueError, match="Single node cannot have preemptible workers"):
+        with pytest.raises(
+            ValueError, match="Single node cannot have preemptible workers"
+        ):
             ClusterGenerator(
-                num_workers=0, num_preemptible_workers=1, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+                num_workers=0,
+                num_preemptible_workers=1,
+                project_id=GCP_PROJECT,
+                cluster_name=CLUSTER_NAME,
             )
 
     def test_min_num_workers_less_than_num_workers(self):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
-                num_workers=3, min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+                num_workers=3,
+                min_num_workers=4,
+                project_id=GCP_PROJECT,
+                cluster_name=CLUSTER_NAME,
             )
         assert (
             "The value of min_num_workers must be less than or equal to num_workers. "
@@ -518,8 +568,12 @@ class TestsClusterGenerator:
 
     def test_min_num_workers_without_num_workers(self):
         with pytest.raises(ValueError) as ctx:
-            ClusterGenerator(min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME)
-        assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
+            ClusterGenerator(
+                min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+            )
+        assert "Must specify num_workers when min_num_workers are provided." in str(
+            ctx.value
+        )
 
     def test_build(self):
         generator = ClusterGenerator(
@@ -644,7 +698,9 @@ class TestsClusterGenerator:
                         ],
                         0,
                     ),
-                    InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
+                    InstanceSelection(
+                        ["projects/project_id/zones/zone/machineTypes/machine3"], 1
+                    ),
                 ]
             ),
         )
@@ -704,7 +760,9 @@ class TestsClusterGenerator:
     def test_build_sets_provided_value_for_internal_ip_only(self):
         for internal_ip_only in [True, False]:
             generator = ClusterGenerator(
-                project_id="project_id", internal_ip_only=internal_ip_only, subnetwork_uri="subnetwork_uri"
+                project_id="project_id",
+                internal_ip_only=internal_ip_only,
+                subnetwork_uri="subnetwork_uri",
             )
             cluster = generator.make()
             assert cluster["gce_cluster_config"]["internal_ip_only"] == internal_ip_only
@@ -765,8 +823,12 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.create_cluster.assert_called_once_with(
+            **create_cluster_args
+        )
 
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
@@ -821,8 +883,12 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.create_cluster.assert_called_once_with(
+            **create_cluster_args
+        )
 
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
@@ -860,7 +926,9 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -881,7 +949,9 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        to_dict_mock.assert_called_once_with(mock_hook.return_value.get_cluster.return_value)
+        to_dict_mock.assert_called_once_with(
+            mock_hook.return_value.get_cluster.return_value
+        )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists_do_not_use(self, mock_hook):
@@ -904,9 +974,15 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         with pytest.raises(AlreadyExists):
             op.execute(context=self.mock_context)
 
-    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
+    @mock.patch(
+        DATAPROC_PATH.format(
+            "DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"
+        )
+    )
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_if_cluster_exists_in_error_state(self, mock_hook, mock_wait_for_deleting):
+    def test_execute_if_cluster_exists_in_error_state(
+        self, mock_hook, mock_wait_for_deleting
+    ):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         cluster_status = mock_hook.return_value.get_cluster.return_value.status
         cluster_status.state = 0
@@ -1030,7 +1106,9 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator.defer"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
-    def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
+    def test_create_execute_call_finished_before_defer(
+        self, mock_trigger_hook, mock_hook, mock_defer
+    ):
         cluster = Cluster(
             cluster_name="test_cluster",
             status=dataproc.ClusterStatus(state=dataproc.ClusterStatus.State.RUNNING),
@@ -1111,10 +1189,16 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     # Assert operator links are preserved in deserialized tasks after execution
-    assert deserialized_task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        deserialized_task.get_extra_links(ti, DataprocClusterLink.name)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        ti.task.get_extra_links(ti, DataprocClusterLink.name)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
 
 class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
@@ -1127,12 +1211,16 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
             ]
         else:
             cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None)
+                call.ti.xcom_push(
+                    key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None
+                )
             ]
 
     def test_deprecation_warning(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
+            DataprocScaleClusterOperator(
+                task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT
+            )
         assert_warning("DataprocUpdateClusterOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -1140,7 +1228,10 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
         self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
         mock_hook.return_value.update_cluster.result.return_value = None
         cluster_update = {
-            "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 4}}
+            "config": {
+                "worker_config": {"num_instances": 3},
+                "secondary_worker_config": {"num_instances": 4},
+            }
         }
         update_cluster_args = {
             "project_id": GCP_PROJECT,
@@ -1167,8 +1258,12 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.update_cluster.assert_called_once_with(
+            **update_cluster_args
+        )
 
         # Test whether xcom push occurs before cluster is updated
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
@@ -1227,10 +1322,15 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     )
 
     # Assert operator links are preserved in deserialized tasks after execution
-    assert deserialized_task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        deserialized_task.get_extra_links(ti, DataprocLink.name)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
 
 class TestDataprocClusterDeleteOperator:
@@ -1249,7 +1349,9 @@ class TestDataprocClusterDeleteOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -1305,7 +1407,9 @@ class TestDataprocClusterDeleteOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocDeleteClusterOperator.defer"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
-    def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
+    def test_create_execute_call_finished_before_defer(
+        self, mock_trigger_hook, mock_hook, mock_defer
+    ):
         mock_hook.return_value.create_cluster.return_value = None
         mock_hook.return_value.get_cluster.side_effect = NotFound("test")
         operator = DataprocDeleteClusterOperator(
@@ -1348,7 +1452,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         if AIRFLOW_V_3_0_PLUS:
-            xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+            xcom_push_call = call.ti.xcom_push(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED
+            )
         else:
             xcom_push_call = call.ti.xcom_push(
                 key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
@@ -1376,7 +1482,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         op.execute(context=self.mock_context)
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
 
         # Test whether xcom push occurs before polling for job
         assert self.extra_links_manager_mock.mock_calls.index(
@@ -1399,7 +1507,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED
+            )
         else:
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
@@ -1442,7 +1552,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         mock_hook.return_value.wait_for_job.assert_not_called()
 
         if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED
+            )
         else:
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
@@ -1494,7 +1606,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_PATH.format("DataprocSubmitJobOperator.defer"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook.submit_job"))
-    def test_dataproc_operator_execute_async_done_before_defer(self, mock_submit_job, mock_defer, mock_hook):
+    def test_dataproc_operator_execute_async_done_before_defer(
+        self, mock_submit_job, mock_defer, mock_hook
+    ):
         mock_submit_job.return_value.reference.job_id = TEST_JOB_ID
         job_status = mock_hook.return_value.get_job.return_value.status
         job_status.state = JobStatus.State.DONE
@@ -1594,7 +1708,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
+def test_submit_job_operator_extra_links(
+    mock_hook, dag_maker, create_task_instance_of_operator
+):
     mock_hook.return_value.project_id = GCP_PROJECT
     ti = create_task_instance_of_operator(
         DataprocSubmitJobOperator,
@@ -1628,7 +1744,10 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
     # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocJobLink.name) == DATAPROC_JOB_LINK_EXPECTED
+    assert (
+        deserialized_task.get_extra_links(ti, DataprocJobLink.name)
+        == DATAPROC_JOB_LINK_EXPECTED
+    )
 
     # Assert operator links after execution
     assert ti.task.get_extra_links(ti, DataprocJobLink.name) == DATAPROC_JOB_LINK_EXPECTED
@@ -1673,8 +1792,12 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        mock_hook.return_value.update_cluster.assert_called_once_with(
+            **update_cluster_args
+        )
 
         # Test whether the xcom push happens before updating the cluster
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
@@ -1755,7 +1878,9 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator.defer"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
-    def test_create_execute_call_finished_before_defer(self, mock_trigger_hook, mock_hook, mock_defer):
+    def test_create_execute_call_finished_before_defer(
+        self, mock_trigger_hook, mock_hook, mock_defer
+    ):
         cluster = Cluster(
             cluster_name="test_cluster",
             status=dataproc.ClusterStatus(state=dataproc.ClusterStatus.State.RUNNING),
@@ -1839,10 +1964,16 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
     # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        deserialized_task.get_extra_links(ti, DataprocClusterLink.name)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        ti.task.get_extra_links(ti, DataprocClusterLink.name)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
 
 class TestDataprocStartClusterOperator(DataprocClusterTestBase):
@@ -1950,7 +2081,9 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.instantiate_workflow_template.assert_called_once_with(
             template_name=TEMPLATE_ID,
             region=GCP_REGION,
@@ -1985,7 +2118,9 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
 
         mock_hook.return_value.instantiate_workflow_template.assert_called_once()
 
@@ -2028,7 +2163,9 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
+def test_instantiate_workflow_operator_extra_links(
+    mock_hook, dag_maker, create_task_instance_of_operator
+):
     mock_hook.return_value.project_id = GCP_PROJECT
     ti = create_task_instance_of_operator(
         DataprocInstantiateWorkflowTemplateOperator,
@@ -2061,10 +2198,16 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
 
     # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+    assert (
+        deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name)
+        == DATAPROC_WORKFLOW_LINK_EXPECTED
+    )
 
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+    assert (
+        ti.task.get_extra_links(ti, DataprocWorkflowLink.name)
+        == DATAPROC_WORKFLOW_LINK_EXPECTED
+    )
 
 
 class TestDataprocWorkflowTemplateInstantiateInlineOperator:
@@ -2085,7 +2228,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             template=template,
             region=GCP_REGION,
@@ -2116,7 +2261,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
 
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once()
 
@@ -2127,9 +2274,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
         operation_name = "operation_name"
-        mock_hook.return_value.instantiate_inline_workflow_template.return_value.operation.name = (
-            operation_name
-        )
+        mock_hook.return_value.instantiate_inline_workflow_template.return_value.operation.name = operation_name
         op = DataprocInstantiateInlineWorkflowTemplateOperator(
             task_id=TASK_ID,
             template={},
@@ -2178,7 +2323,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         mock_hook.return_value.instantiate_inline_workflow_template.return_value = mock_op
 
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.wait_for_operation.assert_called_once_with(
             timeout=custom_timeout, result_retry=custom_retry, operation=mock_op
         )
@@ -2223,10 +2370,16 @@ def test_instantiate_inline_workflow_operator_extra_links(
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
 
     # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+    assert (
+        deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name)
+        == DATAPROC_WORKFLOW_LINK_EXPECTED
+    )
 
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+    assert (
+        ti.task.get_extra_links(ti, DataprocWorkflowLink.name)
+        == DATAPROC_WORKFLOW_LINK_EXPECTED
+    )
 
 
 class TestDataProcHiveOperator:
@@ -2244,7 +2397,9 @@ class TestDataProcHiveOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
+            DataprocSubmitHiveJobOperator(
+                task_id=TASK_ID, region=GCP_REGION, query="query"
+            )
         assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -2265,7 +2420,9 @@ class TestDataProcHiveOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, region=GCP_REGION
         )
@@ -2306,7 +2463,9 @@ class TestDataProcPigOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
+            DataprocSubmitPigJobOperator(
+                task_id=TASK_ID, region=GCP_REGION, query="query"
+            )
         assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -2327,7 +2486,9 @@ class TestDataProcPigOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, region=GCP_REGION
         )
@@ -2362,19 +2523,27 @@ class TestDataProcSparkSqlOperator:
         "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
+        "spark_sql_job": {
+            "query_list": {"queries": [query]},
+            "script_variables": variables,
+        },
     }
     other_project_job = {
         "reference": {"project_id": "other-project", "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
-        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
+        "spark_sql_job": {
+            "query_list": {"queries": [query]},
+            "script_variables": variables,
+        },
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
+            DataprocSubmitSparkSqlJobOperator(
+                task_id=TASK_ID, region=GCP_REGION, query="query"
+            )
         assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -2395,7 +2564,9 @@ class TestDataProcSparkSqlOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, region=GCP_REGION
         )
@@ -2422,7 +2593,9 @@ class TestDataProcSparkSqlOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id="other-project", job=self.other_project_job, region=GCP_REGION
         )
@@ -2454,12 +2627,18 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls = [
                 call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+                call.hook().wait_for_job(
+                    job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT
+                ),
             ]
         else:
             cls.extra_links_expected_calls = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
-                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+                call.ti.xcom_push(
+                    key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
+                ),
+                call.hook().wait_for_job(
+                    job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT
+                ),
             ]
 
     main_class = "org.apache.spark.examples.SparkPi"
@@ -2479,7 +2658,10 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
     def test_deprecation_warning(self, mock_hook):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitSparkJobOperator(
-                task_id=TASK_ID, region=GCP_REGION, main_class=self.main_class, dataproc_jars=self.jars
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                main_class=self.main_class,
+                dataproc_jars=self.jars,
             )
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -2505,20 +2687,26 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
 
         op.execute(context=self.mock_context)
         if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(key="conf", value=DATAPROC_JOB_CONF_EXPECTED)
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="conf", value=DATAPROC_JOB_CONF_EXPECTED
+            )
         else:
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
             )
 
         # Test whether xcom push occurs before polling for job
-        self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
+        self.extra_links_manager_mock.assert_has_calls(
+            self.extra_links_expected_calls, any_order=False
+        )
 
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
+def test_submit_spark_job_operator_extra_links(
+    mock_hook, dag_maker, create_task_instance_of_operator
+):
     mock_hook.return_value.project_id = GCP_PROJECT
 
     ti = create_task_instance_of_operator(
@@ -2613,7 +2801,9 @@ class TestDataProcPySparkOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_REGION, main=self.uri)
+            DataprocSubmitPySparkJobOperator(
+                task_id=TASK_ID, region=GCP_REGION, main=self.uri
+            )
         assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -2644,7 +2834,8 @@ class TestDataProcPySparkOperator:
     def test_generate_temp_filename(self, filename, time_machine):
         time_machine.move_to(datetime(2024, 2, 29, 1, 2, 3), tick=False)
         with mock.patch(
-            DATAPROC_PATH.format("uuid.uuid4"), return_value=UUID("12345678-0000-4000-0000-000000000000")
+            DATAPROC_PATH.format("uuid.uuid4"),
+            return_value=UUID("12345678-0000-4000-0000-000000000000"),
         ):
             assert (
                 DataprocSubmitPySparkJobOperator._generate_temp_filename(filename)
@@ -2667,7 +2858,9 @@ class TestDataprocCreateWorkflowTemplateOperator:
             template=WORKFLOW_TEMPLATE,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_workflow_template.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -2708,9 +2901,13 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_operation.return_value = Batch(
+            state=Batch.State.SUCCEEDED
+        )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -2739,9 +2936,13 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.wait_for_operation.return_value = Batch(
+            state=Batch.State.SUCCEEDED
+        )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.create_batch.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -2769,7 +2970,9 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(
+            state=Batch.State.FAILED
+        )
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
 
@@ -2789,8 +2992,12 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
-        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
+        mock_hook.return_value.wait_for_batch.return_value = Batch(
+            state=Batch.State.SUCCEEDED
+        )
+        mock_hook.return_value.create_batch.return_value.metadata.batch = (
+            f"prefix/{BATCH_ID}"
+        )
         op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
@@ -2817,8 +3024,12 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
-        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
+        mock_hook.return_value.wait_for_batch.return_value = Batch(
+            state=Batch.State.FAILED
+        )
+        mock_hook.return_value.create_batch.return_value.metadata.batch = (
+            f"prefix/{BATCH_ID}"
+        )
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
@@ -2846,8 +3057,12 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
-        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.CANCELLED)
-        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
+        mock_hook.return_value.wait_for_batch.return_value = Batch(
+            state=Batch.State.CANCELLED
+        )
+        mock_hook.return_value.create_batch.return_value.metadata.batch = (
+            f"prefix/{BATCH_ID}"
+        )
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
@@ -2875,7 +3090,9 @@ class TestDataprocDeleteBatchOperator:
             metadata=METADATA,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.delete_batch.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_REGION,
@@ -2902,7 +3119,9 @@ class TestDataprocGetBatchOperator:
             metadata=METADATA,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.get_batch.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_REGION,
@@ -2936,7 +3155,9 @@ class TestDataprocListBatchesOperator:
             order_by=order_by,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.list_batches.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,
@@ -3006,7 +3227,9 @@ class TestDataprocDiagnoseClusterOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
         mock_hook.return_value.diagnose_cluster.assert_called_once_with(
             region=GCP_REGION,
             project_id=GCP_PROJECT,

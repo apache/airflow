@@ -62,7 +62,9 @@ def get_airflow_health() -> dict[str, Any]:
         latest_dag_processor_job = DagProcessorJobRunner.most_recent_job()
 
         if latest_dag_processor_job:
-            latest_dag_processor_heartbeat = latest_dag_processor_job.latest_heartbeat.isoformat()
+            latest_dag_processor_heartbeat = (
+                latest_dag_processor_job.latest_heartbeat.isoformat()
+            )
             if latest_dag_processor_job.is_alive():
                 dag_processor_status = HEALTHY
         else:

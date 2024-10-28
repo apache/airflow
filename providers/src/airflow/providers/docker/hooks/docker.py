@@ -143,7 +143,10 @@ class DockerHook(BaseHook):
         for url in self.__base_url:
             try:
                 client = APIClient(
-                    base_url=url, version=self.__version, tls=self.__tls, timeout=self.__timeout
+                    base_url=url,
+                    version=self.__version,
+                    tls=self.__tls,
+                    timeout=self.__timeout,
                 )
                 if not client.ping():
                     msg = f"Failed to ping host {url}."
@@ -154,11 +157,15 @@ class DockerHook(BaseHook):
             except APIError:
                 raise
             except DockerException as e:
-                self.log.error("Failed to establish connection to Docker host %s: %s", url, e)
+                self.log.error(
+                    "Failed to establish connection to Docker host %s: %s", url, e
+                )
             else:
                 self._client_created = True
                 return client
-        raise AirflowException("Failed to establish connection to any given Docker hosts.")
+        raise AirflowException(
+            "Failed to establish connection to any given Docker hosts."
+        )
 
     @property
     def client_created(self) -> bool:
@@ -192,7 +199,11 @@ class DockerHook(BaseHook):
         try:
             self.log.info("Login into Docker Registry: %s", registry)
             client.login(
-                username=conn.login, password=conn.password, registry=registry, email=email, reauth=reauth
+                username=conn.login,
+                password=conn.password,
+                registry=registry,
+                email=email,
+                reauth=reauth,
             )
             self.log.debug("Login successful")
         except APIError:
@@ -238,5 +249,7 @@ class DockerHook(BaseHook):
             url = url.replace("tcp://", "https://")
             self.log.debug("Change `base_url` schema from 'tcp://' to 'https://'.")
         if not url.startswith("https://"):
-            self.log.warning("When `tls` specified then `base_url` expected 'https://' schema.")
+            self.log.warning(
+                "When `tls` specified then `base_url` expected 'https://' schema."
+            )
         return url

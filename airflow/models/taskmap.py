@@ -97,7 +97,9 @@ class TaskMap(TaskInstanceDependencies):
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: TaskInstance | TaskInstancePydantic, value: Collection) -> TaskMap:
+    def from_task_instance_xcom(
+        cls, ti: TaskInstance | TaskInstancePydantic, value: Collection
+    ) -> TaskMap:
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
         return cls(

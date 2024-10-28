@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import AzureFileShareToGCSOperator
+from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import (
+    AzureFileShareToGCSOperator,
+)
 
 TASK_ID = "test-azure-fileshare-to-gcs"
 AZURE_FILESHARE_SHARE = "test-share"
@@ -52,7 +54,9 @@ class TestAzureFileShareToGCSOperator:
         assert operator.dest_gcs == GCS_PATH_PREFIX
         assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
 
-    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook"
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
     def test_execute(self, gcs_mock_hook, azure_fileshare_mock_hook):
         """Test the execute function when the run is successful."""
@@ -89,7 +93,9 @@ class TestAzureFileShareToGCSOperator:
 
         assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
-    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook"
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
     def test_execute_with_gzip(self, gcs_mock_hook, azure_fileshare_mock_hook):
         """Test the execute function when the run is successful."""

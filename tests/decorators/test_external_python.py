@@ -39,7 +39,9 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
-CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+CLOUDPICKLE_MARKER = pytest.mark.skipif(
+    not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed"
+)
 
 TI_CONTEXT_ENV_VARS = [
     "AIRFLOW_CTX_DAG_ID",
@@ -73,8 +75,12 @@ class TestExternalPythonDecorator:
             pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
         ],
     )
-    def test_with_serializer_works(self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill):
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+    def test_with_serializer_works(
+        self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
+    ):
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f():
             """Import cloudpickle/dill to double-check it is installed ."""
             import cloudpickle  # noqa: F401
@@ -97,9 +103,13 @@ class TestExternalPythonDecorator:
         self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
     ):
         # add template that produces empty string when rendered
-        templated_python_with_cloudpickle = venv_python_with_cloudpickle_and_dill + "{{ '' }}"
+        templated_python_with_cloudpickle = (
+            venv_python_with_cloudpickle_and_dill + "{{ '' }}"
+        )
 
-        @task.external_python(python=templated_python_with_cloudpickle, serializer=serializer)
+        @task.external_python(
+            python=templated_python_with_cloudpickle, serializer=serializer
+        )
         def f():
             """Import cloudpickle/dill to double-check it is installed ."""
             import cloudpickle  # noqa: F401
@@ -151,8 +161,12 @@ class TestExternalPythonDecorator:
             pytest.param(None, id="default"),
         ],
     )
-    def test_with_args(self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill):
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+    def test_with_args(
+        self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
+    ):
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
@@ -174,8 +188,12 @@ class TestExternalPythonDecorator:
             pytest.param(None, id="default"),
         ],
     )
-    def test_return_none(self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill):
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+    def test_return_none(
+        self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
+    ):
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f():
             return None
 
@@ -194,8 +212,12 @@ class TestExternalPythonDecorator:
             pytest.param(None, id="default"),
         ],
     )
-    def test_nonimported_as_arg(self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill):
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+    def test_nonimported_as_arg(
+        self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
+    ):
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f(_):
             return None
 
@@ -218,7 +240,9 @@ class TestExternalPythonDecorator:
         self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
     ):
         @setup
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f():
             return 1
 
@@ -244,7 +268,9 @@ class TestExternalPythonDecorator:
         self, serializer, dag_maker, venv_python_with_cloudpickle_and_dill
     ):
         @teardown
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f():
             return 1
 
@@ -268,10 +294,16 @@ class TestExternalPythonDecorator:
     )
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_marking_external_python_task_as_teardown_with_on_failure_fail(
-        self, serializer, dag_maker, on_failure_fail_dagrun, venv_python_with_cloudpickle_and_dill
+        self,
+        serializer,
+        dag_maker,
+        on_failure_fail_dagrun,
+        venv_python_with_cloudpickle_and_dill,
     ):
         @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
-        @task.external_python(python=venv_python_with_cloudpickle_and_dill, serializer=serializer)
+        @task.external_python(
+            python=venv_python_with_cloudpickle_and_dill, serializer=serializer
+        )
         def f():
             return 1
 

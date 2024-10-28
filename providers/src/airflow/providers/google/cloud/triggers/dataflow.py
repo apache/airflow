@@ -31,11 +31,16 @@ from google.cloud.dataflow_v1beta3.types import (
     MetricUpdate,
 )
 
-from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook, DataflowJobStatus
+from airflow.providers.google.cloud.hooks.dataflow import (
+    AsyncDataflowHook,
+    DataflowJobStatus,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+    from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import (
+        ListJobMessagesAsyncPager,
+    )
 
 
 DEFAULT_DATAFLOW_LOCATION = "us-central1"
@@ -357,7 +362,10 @@ class DataflowStartYamlJobTrigger(BaseTrigger):
                         }
                     )
                     return
-                elif job_type == JobType.JOB_TYPE_STREAMING and job_state == JobState.JOB_STATE_RUNNING:
+                elif (
+                    job_type == JobType.JOB_TYPE_STREAMING
+                    and job_state == JobState.JOB_STATE_RUNNING
+                ):
                     yield TriggerEvent(
                         {
                             "job": Job.to_dict(job),
@@ -366,7 +374,10 @@ class DataflowStartYamlJobTrigger(BaseTrigger):
                         }
                     )
                     return
-                elif job_type == JobType.JOB_TYPE_BATCH and job_state == JobState.JOB_STATE_DONE:
+                elif (
+                    job_type == JobType.JOB_TYPE_BATCH
+                    and job_state == JobState.JOB_STATE_DONE
+                ):
                     yield TriggerEvent(
                         {
                             "job": Job.to_dict(job),
@@ -489,7 +500,10 @@ class DataflowJobMetricsTrigger(BaseTrigger):
                     location=self.location,
                 )
                 job_metrics = await self.get_job_metrics()
-                if self.fail_on_terminal_state and job_status.name in DataflowJobStatus.TERMINAL_STATES:
+                if (
+                    self.fail_on_terminal_state
+                    and job_status.name in DataflowJobStatus.TERMINAL_STATES
+                ):
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -522,7 +536,9 @@ class DataflowJobMetricsTrigger(BaseTrigger):
         )
         return self._get_metrics_from_job_response(job_response)
 
-    def _get_metrics_from_job_response(self, job_response: JobMetrics) -> list[dict[str, Any]]:
+    def _get_metrics_from_job_response(
+        self, job_response: JobMetrics
+    ) -> list[dict[str, Any]]:
         """Return a list of serialized MetricUpdate objects."""
         return [MetricUpdate.to_dict(metric) for metric in job_response.metrics]
 
@@ -614,7 +630,10 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
                     location=self.location,
                 )
                 autoscaling_events = await self.list_job_autoscaling_events()
-                if self.fail_on_terminal_state and job_status.name in DataflowJobStatus.TERMINAL_STATES:
+                if (
+                    self.fail_on_terminal_state
+                    and job_status.name in DataflowJobStatus.TERMINAL_STATES
+                ):
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -635,7 +654,9 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
                 self.log.info("Sleeping for %s seconds.", self.poll_sleep)
                 await asyncio.sleep(self.poll_sleep)
         except Exception as e:
-            self.log.error("Exception occurred while checking for job's autoscaling events!")
+            self.log.error(
+                "Exception occurred while checking for job's autoscaling events!"
+            )
             yield TriggerEvent({"status": "error", "message": str(e), "result": None})
 
     async def list_job_autoscaling_events(self) -> list[dict[str, str | dict]]:
@@ -651,7 +672,9 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
         self, job_response: ListJobMessagesAsyncPager
     ) -> list[dict[str, str | dict]]:
         """Return a list of serialized AutoscalingEvent objects."""
-        return [AutoscalingEvent.to_dict(event) for event in job_response.autoscaling_events]
+        return [
+            AutoscalingEvent.to_dict(event) for event in job_response.autoscaling_events
+        ]
 
     @cached_property
     def async_hook(self) -> AsyncDataflowHook:
@@ -741,7 +764,10 @@ class DataflowJobMessagesTrigger(BaseTrigger):
                     location=self.location,
                 )
                 job_messages = await self.list_job_messages()
-                if self.fail_on_terminal_state and job_status.name in DataflowJobStatus.TERMINAL_STATES:
+                if (
+                    self.fail_on_terminal_state
+                    and job_status.name in DataflowJobStatus.TERMINAL_STATES
+                ):
                     yield TriggerEvent(
                         {
                             "status": "error",

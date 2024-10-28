@@ -80,7 +80,9 @@ class TestGetProviders(TestBaseProviderEndpoint):
         return_value={},
     )
     def test_response_200_empty_list(self, mock_providers):
-        response = self.client.get("/api/v1/providers", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/providers", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {"providers": [], "total_entries": 0}
 
@@ -90,7 +92,9 @@ class TestGetProviders(TestBaseProviderEndpoint):
         return_value=MOCK_PROVIDERS,
     )
     def test_response_200(self, mock_providers):
-        response = self.client.get("/api/v1/providers", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/providers", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {
             "providers": [

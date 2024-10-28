@@ -55,43 +55,70 @@ class TestCliPools:
         session.close()
 
     def test_pool_list(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test"])
+        )
         with redirect_stdout(StringIO()) as stdout:
             pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
 
         assert "foo" in stdout.getvalue()
 
     def test_pool_list_with_args(self):
-        pool_command.pool_list(self.parser.parse_args(["pools", "list", "--output", "json"]))
+        pool_command.pool_list(
+            self.parser.parse_args(["pools", "list", "--output", "json"])
+        )
 
     def test_pool_create(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test"])
+        )
         assert self.session.query(Pool).count() == 2
 
     def test_pool_update_deferred(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test"])
+        )
+        assert (
+            self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred
+            is False
+        )
 
         pool_command.pool_set(
-            self.parser.parse_args(["pools", "set", "foo", "1", "test", "--include-deferred"])
+            self.parser.parse_args(
+                ["pools", "set", "foo", "1", "test", "--include-deferred"]
+            )
         )
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is True
+        assert (
+            self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred
+            is True
+        )
 
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test"])
+        )
+        assert (
+            self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred
+            is False
+        )
 
     def test_pool_get(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test"])
+        )
         pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
 
     def test_pool_delete(self):
-        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test"])
+        )
         pool_command.pool_delete(self.parser.parse_args(["pools", "delete", "foo"]))
         assert self.session.query(Pool).count() == 1
 
     def test_pool_import_nonexistent(self):
         with pytest.raises(SystemExit):
-            pool_command.pool_import(self.parser.parse_args(["pools", "import", "nonexistent.json"]))
+            pool_command.pool_import(
+                self.parser.parse_args(["pools", "import", "nonexistent.json"])
+            )
 
     def test_pool_import_invalid_json(self, tmp_path):
         invalid_pool_import_file_path = tmp_path / "pools_import_invalid.json"
@@ -100,18 +127,24 @@ class TestCliPools:
 
         with pytest.raises(SystemExit):
             pool_command.pool_import(
-                self.parser.parse_args(["pools", "import", str(invalid_pool_import_file_path)])
+                self.parser.parse_args(
+                    ["pools", "import", str(invalid_pool_import_file_path)]
+                )
             )
 
     def test_pool_import_invalid_pools(self, tmp_path):
         invalid_pool_import_file_path = tmp_path / "pools_import_invalid.json"
-        pool_config_input = {"foo": {"description": "foo_test", "include_deferred": False}}
+        pool_config_input = {
+            "foo": {"description": "foo_test", "include_deferred": False}
+        }
         with open(invalid_pool_import_file_path, mode="w") as file:
             json.dump(pool_config_input, file)
 
         with pytest.raises(SystemExit):
             pool_command.pool_import(
-                self.parser.parse_args(["pools", "import", str(invalid_pool_import_file_path)])
+                self.parser.parse_args(
+                    ["pools", "import", str(invalid_pool_import_file_path)]
+                )
             )
 
     def test_pool_import_backwards_compatibility(self, tmp_path):
@@ -123,27 +156,42 @@ class TestCliPools:
         with open(pool_import_file_path, mode="w") as file:
             json.dump(pool_config_input, file)
 
-        pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
+        pool_command.pool_import(
+            self.parser.parse_args(["pools", "import", str(pool_import_file_path)])
+        )
 
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert (
+            self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred
+            is False
+        )
 
     def test_pool_import_export(self, tmp_path):
         pool_import_file_path = tmp_path / "pools_import.json"
         pool_export_file_path = tmp_path / "pools_export.json"
         pool_config_input = {
             "foo": {"description": "foo_test", "slots": 1, "include_deferred": True},
-            "default_pool": {"description": "Default pool", "slots": 128, "include_deferred": False},
+            "default_pool": {
+                "description": "Default pool",
+                "slots": 128,
+                "include_deferred": False,
+            },
             "baz": {"description": "baz_test", "slots": 2, "include_deferred": False},
         }
         with open(pool_import_file_path, mode="w") as file:
             json.dump(pool_config_input, file)
 
         # Import json
-        pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
+        pool_command.pool_import(
+            self.parser.parse_args(["pools", "import", str(pool_import_file_path)])
+        )
 
         # Export json
-        pool_command.pool_export(self.parser.parse_args(["pools", "export", str(pool_export_file_path)]))
+        pool_command.pool_export(
+            self.parser.parse_args(["pools", "export", str(pool_export_file_path)])
+        )
 
         with open(pool_export_file_path) as file:
             pool_config_output = json.load(file)
-            assert pool_config_input == pool_config_output, "Input and output pool files are not same"
+            assert (
+                pool_config_input == pool_config_output
+            ), "Input and output pool files are not same"

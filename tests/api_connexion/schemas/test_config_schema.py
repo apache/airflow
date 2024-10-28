@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
+from airflow.api_connexion.schemas.config_schema import (
+    Config,
+    ConfigOption,
+    ConfigSection,
+    config_schema,
+)
 
 
 class TestConfigSchema:

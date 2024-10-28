@@ -73,7 +73,9 @@ class PigOperator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info("Executing: %s", self.pig)
-        self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id, pig_properties=self.pig_properties)
+        self.hook = PigCliHook(
+            pig_cli_conn_id=self.pig_cli_conn_id, pig_properties=self.pig_properties
+        )
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 
     def on_kill(self):

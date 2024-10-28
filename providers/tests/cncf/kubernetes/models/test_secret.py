@@ -31,7 +31,9 @@ class TestSecret:
         secret = Secret("env", "name", "secret", "key")
         assert secret.to_env_secret() == k8s.V1EnvVar(
             name="NAME",
-            value_from=k8s.V1EnvVarSource(secret_key_ref=k8s.V1SecretKeySelector(name="secret", key="key")),
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(name="secret", key="key")
+            ),
         )
 
     def test_to_env_from_secret(self):
@@ -45,7 +47,9 @@ class TestSecret:
         mock_uuid.return_value = "0"
         secret = Secret("volume", "/etc/foo", "secret_b")
         assert secret.to_volume_secret() == (
-            k8s.V1Volume(name="secretvol0", secret=k8s.V1SecretVolumeSource(secret_name="secret_b")),
+            k8s.V1Volume(
+                name="secretvol0", secret=k8s.V1SecretVolumeSource(secret_name="secret_b")
+            ),
             k8s.V1VolumeMount(mount_path="/etc/foo", name="secretvol0", read_only=True),
         )
 
@@ -56,7 +60,8 @@ class TestSecret:
         secret = Secret("volume", "/etc/foo", "secret_b", items=items)
         assert secret.to_volume_secret() == (
             k8s.V1Volume(
-                name="secretvol0", secret=k8s.V1SecretVolumeSource(secret_name="secret_b", items=items)
+                name="secretvol0",
+                secret=k8s.V1SecretVolumeSource(secret_name="secret_b", items=items),
             ),
             k8s.V1VolumeMount(mount_path="/etc/foo", name="secretvol0", read_only=True),
         )
@@ -98,7 +103,12 @@ class TestSecret:
                             {"name": "LOG_LEVEL", "value": "warning"},
                             {
                                 "name": "TARGET",
-                                "valueFrom": {"secretKeyRef": {"key": "source_b", "name": "secret_b"}},
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "key": "source_b",
+                                        "name": "secret_b",
+                                    }
+                                },
                             },
                         ],
                         "envFrom": [
@@ -108,7 +118,10 @@ class TestSecret:
                         "image": "busybox",
                         "name": "base",
                         "ports": [{"containerPort": 1234, "name": "foo"}],
-                        "resources": {"limits": {"memory": "200Mi"}, "requests": {"memory": "100Mi"}},
+                        "resources": {
+                            "limits": {"memory": "200Mi"},
+                            "requests": {"memory": "100Mi"},
+                        },
                         "volumeMounts": [
                             {
                                 "mountPath": "/etc/foo",
@@ -119,10 +132,16 @@ class TestSecret:
                     },
                 ],
                 "hostNetwork": True,
-                "imagePullSecrets": [{"name": "pull_secret_a"}, {"name": "pull_secret_b"}],
+                "imagePullSecrets": [
+                    {"name": "pull_secret_a"},
+                    {"name": "pull_secret_b"},
+                ],
                 "securityContext": {"fsGroup": 2000, "runAsUser": 1000},
                 "volumes": [
-                    {"name": f"secretvol{static_uuid}", "secret": {"secretName": "secret_b"}},
+                    {
+                        "name": f"secretvol{static_uuid}",
+                        "secret": {"secretName": "secret_b"},
+                    },
                 ],
             },
         }

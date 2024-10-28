@@ -37,7 +37,12 @@ if TYPE_CHECKING:
         ListDataItemsPager,
         ListDatasetsPager,
     )
-    from google.cloud.aiplatform_v1.types import AnnotationSpec, Dataset, ExportDataConfig, ImportDataConfig
+    from google.cloud.aiplatform_v1.types import (
+        AnnotationSpec,
+        Dataset,
+        ExportDataConfig,
+        ImportDataConfig,
+    )
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
@@ -52,15 +57,21 @@ class DatasetHook(GoogleBaseHook):
             )
         super().__init__(**kwargs)
 
-    def get_dataset_service_client(self, region: str | None = None) -> DatasetServiceClient:
+    def get_dataset_service_client(
+        self, region: str | None = None
+    ) -> DatasetServiceClient:
         """Return DatasetServiceClient."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return DatasetServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):

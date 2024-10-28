@@ -47,13 +47,17 @@ with DAG(
     # Example of creating a Databricks Repo
     repo_path = "/Repos/user@domain.com/demo-repo"
     git_url = "https://github.com/test/test"
-    create_repo = DatabricksReposCreateOperator(task_id="create_repo", repo_path=repo_path, git_url=git_url)
+    create_repo = DatabricksReposCreateOperator(
+        task_id="create_repo", repo_path=repo_path, git_url=git_url
+    )
     # [END howto_operator_databricks_repo_create]
 
     # [START howto_operator_databricks_repo_update]
     # Example of updating a Databricks Repo to the latest code
     repo_path = "/Repos/user@domain.com/demo-repo"
-    update_repo = DatabricksReposUpdateOperator(task_id="update_repo", repo_path=repo_path, branch="releases")
+    update_repo = DatabricksReposUpdateOperator(
+        task_id="update_repo", repo_path=repo_path, branch="releases"
+    )
     # [END howto_operator_databricks_repo_update]
 
     notebook_task_params = {
@@ -68,12 +72,16 @@ with DAG(
         },
     }
 
-    notebook_task = DatabricksSubmitRunOperator(task_id="notebook_task", json=notebook_task_params)
+    notebook_task = DatabricksSubmitRunOperator(
+        task_id="notebook_task", json=notebook_task_params
+    )
 
     # [START howto_operator_databricks_repo_delete]
     # Example of deleting a Databricks Repo
     repo_path = "/Repos/user@domain.com/demo-repo"
-    delete_repo = DatabricksReposDeleteOperator(task_id="delete_repo", repo_path=repo_path)
+    delete_repo = DatabricksReposDeleteOperator(
+        task_id="delete_repo", repo_path=repo_path
+    )
     # [END howto_operator_databricks_repo_delete]
 
     (create_repo >> update_repo >> notebook_task >> delete_repo)

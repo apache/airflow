@@ -51,7 +51,9 @@ class TestTelegramOperator:
         )
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
-    def test_should_send_message_when_all_parameters_are_provided(self, mock_telegram_hook):
+    def test_should_send_message_when_all_parameters_are_provided(
+        self, mock_telegram_hook
+    ):
         mock_telegram_hook.return_value = mock.Mock()
         mock_telegram_hook.return_value.send_message.return_value = True
 
@@ -79,7 +81,9 @@ class TestTelegramOperator:
         assert "No valid Telegram connection id supplied." == str(ctx.value)
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
-    def test_should_throw_exception_if_telegram_hook_throws_any_exception(self, mock_telegram_hook):
+    def test_should_throw_exception_if_telegram_hook_throws_any_exception(
+        self, mock_telegram_hook
+    ):
         def side_effect(*args, **kwargs):
             raise telegram.error.TelegramError("cosmic rays caused bit flips")
 
@@ -91,7 +95,9 @@ class TestTelegramOperator:
             task_id="telegram",
             text="some non empty text",
         )
-        with pytest.raises(telegram.error.TelegramError, match="cosmic rays caused bit flips"):
+        with pytest.raises(
+            telegram.error.TelegramError, match="cosmic rays caused bit flips"
+        ):
             op.execute({})
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
@@ -118,7 +124,9 @@ class TestTelegramOperator:
         )
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
-    def test_should_give_precedence_to_text_passed_in_constructor(self, mock_telegram_hook):
+    def test_should_give_precedence_to_text_passed_in_constructor(
+        self, mock_telegram_hook
+    ):
         mock_telegram_hook.return_value = mock.Mock()
         mock_telegram_hook.return_value.send_message.return_value = True
 
@@ -127,7 +135,10 @@ class TestTelegramOperator:
             chat_id="-420913222",
             task_id="telegram",
             text="some non empty text - higher precedence",
-            telegram_kwargs={"custom_arg": "value", "text": "some text, that will be ignored"},
+            telegram_kwargs={
+                "custom_arg": "value",
+                "text": "some text, that will be ignored",
+            },
         )
         hook.execute(None)
 
@@ -146,7 +157,10 @@ class TestTelegramOperator:
             chat_id="-420913222",
             task_id="telegram",
             text="some non empty text - higher precedence",
-            telegram_kwargs={"custom_arg": "value", "text": "some text, that will be ignored"},
+            telegram_kwargs={
+                "custom_arg": "value",
+                "text": "some text, that will be ignored",
+            },
         )
         assert ("text", "chat_id") == hook.template_fields
 

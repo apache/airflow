@@ -23,7 +23,10 @@ import yaml
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.github import get_tag_date
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_NS_PACKAGE, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
+    PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
+)
 
 DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
 
@@ -42,7 +45,9 @@ def get_related_providers(
     :return: set of dependent provider ids
     """
     if not upstream_dependencies and not downstream_dependencies:
-        raise ValueError("At least one of upstream_dependencies or downstream_dependencies must be True")
+        raise ValueError(
+            "At least one of upstream_dependencies or downstream_dependencies must be True"
+        )
     related_providers = set()
     if upstream_dependencies:
         # Providers that use this provider
@@ -67,7 +72,10 @@ def generate_providers_metadata_for_package(
 ) -> dict[str, dict[str, str]]:
     get_console().print(f"[info]Generating metadata for {provider_id}")
     provider_yaml_dict = yaml.safe_load(
-        (AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split(".")) / "provider.yaml").read_text()
+        (
+            AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
+            / "provider.yaml"
+        ).read_text()
     )
     provider_metadata: dict[str, dict[str, str]] = {}
     last_airflow_version = START_AIRFLOW_VERSION_FROM

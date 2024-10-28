@@ -120,7 +120,10 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
 )
 from airflow_breeze.utils.docs_publisher import DocsPublisher
-from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
+from airflow_breeze.utils.github import (
+    download_constraints_file,
+    get_active_airflow_versions,
+)
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     expand_all_provider_packages,
@@ -151,13 +154,22 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.python_versions import check_python_version, get_python_version_list
-from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
+from airflow_breeze.utils.python_versions import (
+    check_python_version,
+    get_python_version_list,
+)
+from airflow_breeze.utils.reproducible import (
+    get_source_date_epoch,
+    repack_deterministically,
+)
 from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
-from airflow_breeze.utils.version_utils import get_latest_airflow_version, get_latest_helm_chart_version
+from airflow_breeze.utils.version_utils import (
+    get_latest_airflow_version,
+    get_latest_helm_chart_version,
+)
 from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 
@@ -165,7 +177,9 @@ argument_provider_packages = click.argument(
     "provider_packages",
     nargs=-1,
     required=False,
-    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False, include_not_ready=False)),
+    type=NotVerifiedBetterChoice(
+        get_available_packages(include_removed=False, include_not_ready=False)
+    ),
 )
 option_airflow_site_directory = click.option(
     "-a",
@@ -308,7 +322,9 @@ AIRFLOW_BUILD_IMAGE_TAG = "apache/airflow:local-build-image"
 NODE_BUILD_IMAGE_TAG = f"node:{NODE_VERSION}-bookworm-slim"
 
 AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile"
-AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
+AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = (
+    AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
+)
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
@@ -324,7 +340,10 @@ class DistributionPackageInfo(NamedTuple):
 
         package, version = parse_sdist_filename(filepath.name)
         return cls(
-            filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="sdist"
+            filepath=filepath.resolve().absolute(),
+            package=package,
+            version=version,
+            dist_type="sdist",
         )
 
     @classmethod
@@ -333,7 +352,10 @@ class DistributionPackageInfo(NamedTuple):
 
         package, version, *_ = parse_wheel_filename(filepath.name)
         return cls(
-            filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="wheel"
+            filepath=filepath.resolve().absolute(),
+            package=package,
+            version=version,
+            dist_type="wheel",
         )
 
     @classmethod
@@ -430,8 +452,15 @@ def _build_airflow_packages_with_docker(
         sys.exit(result.returncode)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-    run_command(["docker", "cp", f"{container_id}:/opt/airflow/dist/.", "./dist"], check=True)
-    run_command(["docker", "rm", "--force", container_id], check=False, stderr=DEVNULL, stdout=DEVNULL)
+    run_command(
+        ["docker", "cp", f"{container_id}:/opt/airflow/dist/.", "./dist"], check=True
+    )
+    run_command(
+        ["docker", "rm", "--force", container_id],
+        check=False,
+        stderr=DEVNULL,
+        stdout=DEVNULL,
+    )
 
 
 def _build_airflow_packages_with_hatch(
@@ -461,7 +490,9 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                python_path = create_venv(
+                    Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION
+                )
                 pip_command = create_pip_command(python_path)
                 venv_created = True
 
@@ -476,7 +507,9 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
         sys.exit(1)
 
 
-def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[str], cwd: str) -> int:
+def _check_sdist_to_wheel(
+    dist_info: DistributionPackageInfo, pip_command: list[str], cwd: str
+) -> int:
     get_console().print(
         f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
     )
@@ -536,7 +569,9 @@ def prepare_airflow_packages(
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
-        get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
+        get_console().print(
+            "[info]Checking if sdist packages can be built into wheels[/]"
+        )
         packages = DistributionPackageInfo.dist_packages(
             package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
         )
@@ -630,14 +665,24 @@ def prepare_airflow_task_sdk_packages(
         DIST_DIR.mkdir(parents=True, exist_ok=True)
         get_console().print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-        run_command(["docker", "cp", f"{container_id}:/opt/airflow/task_sdk/dist/.", "./dist"], check=True)
-        run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
+        run_command(
+            ["docker", "cp", f"{container_id}:/opt/airflow/task_sdk/dist/.", "./dist"],
+            check=True,
+        )
+        run_command(
+            ["docker", "rm", "--force", container_id],
+            check=False,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+        )
 
     if use_local_hatch:
         _build_package_with_hatch(
             package_format=package_format,
         )
-        get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
+        get_console().print(
+            "[info]Checking if sdist packages can be built into wheels[/]"
+        )
         packages = DistributionPackageInfo.dist_packages(
             package_format=package_format, dist_directory=DIST_DIR, build_type="task-sdk"
         )
@@ -654,7 +699,9 @@ def prepare_airflow_task_sdk_packages(
     get_console().print("[success]Successfully prepared Airflow Task SDK packages")
 
 
-def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
+def provider_action_summary(
+    description: str, message_type: MessageType, packages: list[str]
+):
     if packages:
         get_console().print(f"{description}: {len(packages)}\n")
         get_console().print(f"[{message_type.value}]{' '.join(packages)}")
@@ -729,11 +776,16 @@ def prepare_provider_documentation(
     cleanup_python_generated_files()
     if not provider_packages:
         provider_packages = get_available_packages(
-            include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
+            include_removed=include_removed_providers,
+            include_not_ready=include_not_ready_providers,
         )
 
     if not skip_git_fetch:
-        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        run_command(
+            ["git", "remote", "rm", "apache-https-for-providers"],
+            check=False,
+            stderr=DEVNULL,
+        )
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     no_changes_packages = []
     doc_only_packages = []
@@ -755,7 +807,9 @@ def prepare_provider_documentation(
                 skip_printing_title=only_min_version_update,
             ):
                 if not only_min_version_update:
-                    get_console().print("Updating documentation for the latest release version.")
+                    get_console().print(
+                        "Updating documentation for the latest release version."
+                    )
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
                         reapply_templates_only=reapply_templates_only,
@@ -805,10 +859,14 @@ def prepare_provider_documentation(
         MessageType.SUCCESS,
         success_packages,
     )
-    provider_action_summary("Scheduled for removal", MessageType.SUCCESS, removed_packages)
+    provider_action_summary(
+        "Scheduled for removal", MessageType.SUCCESS, removed_packages
+    )
     provider_action_summary("Docs only", MessageType.SUCCESS, doc_only_packages)
     provider_action_summary(
-        "Skipped on no changes" if not only_min_version_update else "Min Version Not Bumped",
+        "Skipped on no changes"
+        if not only_min_version_update
+        else "Min Version Not Bumped",
         MessageType.WARNING,
         no_changes_packages,
     )
@@ -816,12 +874,16 @@ def prepare_provider_documentation(
     provider_action_summary("Skipped by user", MessageType.SPECIAL, user_skipped_packages)
     provider_action_summary("Errors", MessageType.ERROR, error_packages)
     if error_packages:
-        get_console().print("\n[errors]There were errors when generating packages. Exiting!\n")
+        get_console().print(
+            "\n[errors]There were errors when generating packages. Exiting!\n"
+        )
         sys.exit(1)
     if not success_packages and not doc_only_packages and not removed_packages:
         get_console().print("\n[warning]No packages prepared!\n")
         sys.exit(0)
-    get_console().print("\n[success]Successfully prepared documentation for packages!\n\n")
+    get_console().print(
+        "\n[success]Successfully prepared documentation for packages!\n\n"
+    )
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
@@ -831,7 +893,9 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     provider_packages_metadata = get_provider_packages_metadata()
     provider_metadata = provider_packages_metadata.get(provider_package_id)
     if not provider_metadata:
-        get_console().print(f"[error]The package {provider_package_id} is not a provider package. Exiting[/]")
+        get_console().print(
+            f"[error]The package {provider_package_id} is not a provider package. Exiting[/]"
+        )
         sys.exit(1)
     if provider_metadata["state"] == "removed":
         get_console().print(
@@ -839,7 +903,9 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
             f"since you asked for it, it will be built [/]\n"
         )
     elif provider_metadata.get("state") == "suspended":
-        get_console().print(f"[warning]The package: {provider_package_id} is suspended skipping it [/]\n")
+        get_console().print(
+            f"[warning]The package: {provider_package_id} is suspended skipping it [/]\n"
+        )
         raise PackageSuspendedException()
     return provider_metadata
 
@@ -908,7 +974,9 @@ def prepare_provider_packages(
     cleanup_python_generated_files()
     packages_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}"
+        )
         # Override provider_packages with values from PACKAGE_LIST
         packages_list_as_tuple = tuple(package_list.split(","))
     if provider_packages and packages_list_as_tuple:
@@ -925,7 +993,11 @@ def prepare_provider_packages(
         include_not_ready=include_not_ready_providers,
     )
     if not skip_tag_check:
-        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        run_command(
+            ["git", "remote", "rm", "apache-https-for-providers"],
+            check=False,
+            stderr=DEVNULL,
+        )
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
     skipped_as_already_released_packages = []
@@ -933,7 +1005,9 @@ def prepare_provider_packages(
     wrong_setup_packages = []
     error_packages = []
     if clean_dist:
-        get_console().print("\n[warning]Cleaning dist directory before building packages[/]\n")
+        get_console().print(
+            "\n[warning]Cleaning dist directory before building packages[/]\n"
+        )
         shutil.rmtree(DIST_DIR, ignore_errors=True)
         DIST_DIR.mkdir(parents=True, exist_ok=True)
     for provider_id in packages_list:
@@ -941,13 +1015,17 @@ def prepare_provider_packages(
         try:
             basic_provider_checks(provider_id)
             if not skip_tag_check:
-                should_skip, package_version = should_skip_the_package(provider_id, package_version)
+                should_skip, package_version = should_skip_the_package(
+                    provider_id, package_version
+                )
                 if should_skip:
                     continue
             get_console().print()
             with ci_group(f"Preparing provider package [special]{provider_id}"):
                 get_console().print()
-                target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
+                target_provider_root_sources_path = copy_provider_sources_to_target(
+                    provider_id
+                )
                 generate_build_files(
                     provider_id=provider_id,
                     version_suffix=package_version,
@@ -960,7 +1038,9 @@ def prepare_provider_packages(
                     target_provider_root_sources_path=target_provider_root_sources_path,
                 )
                 move_built_packages_and_cleanup(
-                    target_provider_root_sources_path, DIST_DIR, skip_cleanup=skip_deleting_generated_files
+                    target_provider_root_sources_path,
+                    DIST_DIR,
+                    skip_cleanup=skip_deleting_generated_files,
                 )
         except PrepareReleasePackageTagExistException:
             skipped_as_already_released_packages.append(provider_id)
@@ -979,13 +1059,19 @@ def prepare_provider_packages(
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
     provider_action_summary(
-        "Skipped as already released", MessageType.SUCCESS, skipped_as_already_released_packages
+        "Skipped as already released",
+        MessageType.SUCCESS,
+        skipped_as_already_released_packages,
     )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
-    provider_action_summary("Wrong setup generated", MessageType.ERROR, wrong_setup_packages)
+    provider_action_summary(
+        "Wrong setup generated", MessageType.ERROR, wrong_setup_packages
+    )
     provider_action_summary("Errors", MessageType.ERROR, error_packages)
     if error_packages or wrong_setup_packages:
-        get_console().print("\n[errors]There were errors when generating packages. Exiting!\n")
+        get_console().print(
+            "\n[errors]There were errors when generating packages. Exiting!\n"
+        )
         sys.exit(1)
     if not success_packages and not skipped_as_already_released_packages:
         get_console().print("\n[warning]No packages prepared!\n")
@@ -1019,13 +1105,13 @@ def run_generate_constraints(
     )
 
 
-CONSTRAINT_PROGRESS_MATCHER = (
-    r"Found|Uninstalling|uninstalled|Collecting|Downloading|eta|Running|Installing|built|Attempting"
-)
+CONSTRAINT_PROGRESS_MATCHER = r"Found|Uninstalling|uninstalled|Collecting|Downloading|eta|Running|Installing|built|Attempting"
 
 
 def list_generated_constraints(output: Output | None):
-    get_console(output=output).print("\n[info]List of generated files in './files' folder:[/]\n")
+    get_console(output=output).print(
+        "\n[info]List of generated files in './files' folder:[/]\n"
+    )
     found_files = Path("./files").rglob("*")
     for file in sorted(found_files):
         if file.is_file():
@@ -1138,7 +1224,9 @@ def tag_providers(
             if push_result.returncode == 0:
                 get_console().print("\n[success]Tags pushed successfully.[/]")
         except subprocess.CalledProcessError:
-            get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
+            get_console().print(
+                "\n[error]Failed to push tags, probably a connectivity issue to Github.[/]"
+            )
             if clean_local_tags:
                 for tag in tags:
                     try:
@@ -1251,7 +1339,9 @@ def generate_constraints(
         )
         fix_ownership_using_docker()
         if return_code != 0:
-            get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
+            get_console().print(
+                f"[error]There was an error when generating constraints: {info}[/]"
+            )
             sys.exit(return_code)
     list_generated_constraints(output=None)
 
@@ -1274,7 +1364,9 @@ def _get_all_providers_in_dist(
         yield provider_package_id
 
 
-def get_all_providers_in_dist(package_format: str, install_selected_providers: str) -> list[str]:
+def get_all_providers_in_dist(
+    package_format: str, install_selected_providers: str
+) -> list[str]:
     """
     Returns all providers in dist, optionally filtered by install_selected_providers.
 
@@ -1284,13 +1376,15 @@ def get_all_providers_in_dist(package_format: str, install_selected_providers: s
     if package_format == "sdist":
         all_found_providers = list(
             _get_all_providers_in_dist(
-                filename_prefix=SDIST_FILENAME_PREFIX, filename_pattern=SDIST_FILENAME_PATTERN
+                filename_prefix=SDIST_FILENAME_PREFIX,
+                filename_pattern=SDIST_FILENAME_PATTERN,
             )
         )
     elif package_format == "wheel":
         all_found_providers = list(
             _get_all_providers_in_dist(
-                filename_prefix=WHEEL_FILENAME_PREFIX, filename_pattern=WHEEL_FILENAME_PATTERN
+                filename_prefix=WHEEL_FILENAME_PREFIX,
+                filename_pattern=WHEEL_FILENAME_PATTERN,
             )
         )
     else:
@@ -1308,11 +1402,15 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(
+        shell_params, project_name=f"providers-{index}"
+    )
     return result_command.returncode, f"{list_of_providers}"
 
 
-SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*|  Created wheel.*"
+SDIST_INSTALL_PROGRESS_REGEXP = (
+    r"Processing .*|Requirement already satisfied:.*|  Created wheel.*"
+)
 
 
 @release_management.command(
@@ -1395,12 +1493,15 @@ def install_provider_packages(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     if run_in_parallel:
         list_of_all_providers = get_all_providers_in_dist(
-            package_format=package_format, install_selected_providers=install_selected_providers
+            package_format=package_format,
+            install_selected_providers=install_selected_providers,
         )
         get_console().print(
             f"[info]Splitting {len(list_of_all_providers)} providers into max {parallelism} chunks"
         )
-        provider_chunks = [sorted(list_of_all_providers[i::parallelism]) for i in range(parallelism)]
+        provider_chunks = [
+            sorted(list_of_all_providers[i::parallelism]) for i in range(parallelism)
+        ]
         # filter out empty ones
         provider_chunks = [chunk for chunk in provider_chunks if chunk]
         if not provider_chunks:
@@ -1509,7 +1610,9 @@ def verify_provider_packages(
     use_packages_from_dist: bool,
 ):
     if install_selected_providers and not use_packages_from_dist:
-        get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
+        get_console().print(
+            "Forcing use_packages_from_dist as installing selected_providers is set"
+        )
         use_packages_from_dist = True
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1554,7 +1657,15 @@ def convert_build_args_dict_to_array_of_args(build_args: dict[str, str]) -> list
 def alias_image(image_from: str, image_to: str):
     get_console().print(f"[info]Creating {image_to} alias for {image_from}[/]")
     run_command(
-        ["regctl", "image", "copy", "--force-recursive", "--digest-tags", image_from, image_to],
+        [
+            "regctl",
+            "image",
+            "copy",
+            "--force-recursive",
+            "--digest-tags",
+            image_from,
+            image_to,
+        ],
     )
 
 
@@ -1566,7 +1677,9 @@ def run_docs_publishing(
     output: Output | None,
 ) -> tuple[int, str]:
     builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
-    return builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+    return builder.publish(
+        override_versioned=override_versioned, airflow_site_dir=airflow_site_directory
+    )
 
 
 PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
@@ -1643,7 +1756,9 @@ def run_publish_docs_in_parallel(
 @option_include_not_ready_providers
 @option_include_removed_providers
 @option_include_success_outputs
-@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
+@click.option(
+    "-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True
+)
 @click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
@@ -1686,7 +1801,9 @@ def publish_docs(
         )
     packages_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}"
+        )
         # Override doc_packages with values from PACKAGE_LIST
         packages_list_as_tuple = tuple(package_list.split(","))
     if doc_packages and packages_list_as_tuple:
@@ -1723,7 +1840,11 @@ def publish_docs(
         skipped_entries = []
         for package_name in current_packages:
             return_code, message = run_docs_publishing(
-                package_name, airflow_site_directory, override_versioned, verbose=get_verbose(), output=None
+                package_name,
+                airflow_site_directory,
+                override_versioned,
+                verbose=get_verbose(),
+                output=None,
             )
             if return_code == 0:
                 success_entries.append(message)
@@ -1848,9 +1969,14 @@ def clean_old_provider_artifacts(
 
 
 @release_management.command(
-    name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
+    name="release-prod-images",
+    help="Release production images to DockerHub (needs DockerHub permissions).",
 )
-@click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
+@click.option(
+    "--airflow-version",
+    required=True,
+    help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)",
+)
 @option_dry_run
 @option_chicken_egg_providers
 @click.option(
@@ -1905,7 +2031,9 @@ def release_prod_images(
         skip_latest = True
     else:
         if skip_latest:
-            get_console().print("[info]Skipping latest image tagging as user requested it.[/]")
+            get_console().print(
+                "[info]Skipping latest image tagging as user requested it.[/]"
+            )
         else:
             get_console().print(
                 "[info]Also tagging the images with latest tags as this is release version.[/]"
@@ -1915,13 +2043,21 @@ def release_prod_images(
         check=False,
     )
     if result_docker_buildx.returncode != 0:
-        get_console().print("[error]Docker buildx plugin must be installed to release the images[/]")
+        get_console().print(
+            "[error]Docker buildx plugin must be installed to release the images[/]"
+        )
         get_console().print()
-        get_console().print("See https://docs.docker.com/buildx/working-with-buildx/ for installation info.")
+        get_console().print(
+            "See https://docs.docker.com/buildx/working-with-buildx/ for installation info."
+        )
         sys.exit(1)
-    result_inspect_builder = run_command(["docker", "buildx", "inspect", "airflow_cache"], check=False)
+    result_inspect_builder = run_command(
+        ["docker", "buildx", "inspect", "airflow_cache"], check=False
+    )
     if result_inspect_builder.returncode != 0:
-        get_console().print("[error]Airflow Cache builder must be configured to release the images[/]")
+        get_console().print(
+            "[error]Airflow Cache builder must be configured to release the images[/]"
+        )
         get_console().print()
         get_console().print(
             "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
@@ -1930,13 +2066,17 @@ def release_prod_images(
         sys.exit(1)
     result_regctl = run_command(["regctl", "version"], check=False)
     if result_regctl.returncode != 0:
-        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print(
+            "[error]Regctl must be installed and on PATH to release the images[/]"
+        )
         get_console().print()
         get_console().print(
             "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
         )
         sys.exit(1)
-    python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if limit_python is None else [limit_python]
+    python_versions = (
+        CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if limit_python is None else [limit_python]
+    )
     for python in python_versions:
         if slim_images:
             slim_build_args = {
@@ -1947,7 +2087,9 @@ def release_prod_images(
             }
             if commit_sha:
                 slim_build_args["COMMIT_SHA"] = commit_sha
-            get_console().print(f"[info]Building slim {airflow_version} image for Python {python}[/]")
+            get_console().print(
+                f"[info]Building slim {airflow_version} image for Python {python}[/]"
+            )
             python_build_args = deepcopy(slim_build_args)
             slim_image_name = f"{dockerhub_repo}:slim-{airflow_version}-python{python}"
             _add_chicken_egg_providers_to_build_args(
@@ -1974,7 +2116,9 @@ def release_prod_images(
                     f"{dockerhub_repo}:slim-{airflow_version}",
                 )
         else:
-            get_console().print(f"[info]Building regular {airflow_version} image for Python {python}[/]")
+            get_console().print(
+                f"[info]Building regular {airflow_version} image for Python {python}[/]"
+            )
             image_name = f"{dockerhub_repo}:{airflow_version}-python{python}"
             regular_build_args = {
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
@@ -2005,7 +2149,9 @@ def release_prod_images(
     # in case of re-tagging the images might need few seconds to refresh multi-platform images in DockerHub
     time.sleep(10)
     if not skip_latest:
-        get_console().print("[info]Replacing latest images with links to the newly created images.[/]")
+        get_console().print(
+            "[info]Replacing latest images with links to the newly created images.[/]"
+        )
         for python in python_versions:
             if slim_images:
                 alias_image(
@@ -2050,9 +2196,9 @@ VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
 def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
     """Get suffix from package prepared in dist folder."""
     for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".", "_")}') and file.endswith(
-            ".tar.gz"
-        ):
+        if file.startswith(
+            f'apache_airflow_providers_{package.replace(".", "_")}'
+        ) and file.endswith(".tar.gz"):
             file = file[: -len(".tar.gz")]
             version = file.split("-")[-1]
             match = VERSION_MATCH.match(version)
@@ -2066,7 +2212,9 @@ def get_prs_for_package(provider_id: str) -> list[int]:
     prs = []
     provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
     if not provider_yaml_dict:
-        raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
+        raise RuntimeError(
+            f"The provider id {provider_id} does not have provider.yaml file"
+        )
     current_release_version = provider_yaml_dict["versions"][0]
     provider_details = get_provider_details(provider_id)
     changelog_lines = provider_details.changelog_path.read_text().splitlines()
@@ -2112,10 +2260,15 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
 
 
 @release_management.command(
-    name="generate-issue-content-providers", help="Generates content for issue to test the release."
+    name="generate-issue-content-providers",
+    help="Generates content for issue to test the release.",
 )
 @click.option("--disable-progress", is_flag=True, help="Disable progress bar")
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option(
+    "--excluded-pr-list",
+    type=str,
+    help="Coma-separated list of PRs to exclude from the issue.",
+)
 @click.option(
     "--github-token",
     envvar="GITHUB_TOKEN",
@@ -2164,7 +2317,9 @@ def generate_issue_content_providers(
             files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
         prepared_package_ids = []
         for provider_id in provider_packages:
-            if not only_available_in_dist or is_package_in_dist(files_in_dist, provider_id):
+            if not only_available_in_dist or is_package_in_dist(
+                files_in_dist, provider_id
+            ):
                 get_console().print(f"Extracting PRs for provider {provider_id}")
                 prepared_package_ids.append(provider_id)
             else:
@@ -2186,7 +2341,9 @@ def generate_issue_content_providers(
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         linked_issues: dict[int, list[Issue.Issue]] = {}
         with Progress(console=get_console(), disable=disable_progress) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
+            task = progress.add_task(
+                f"Retrieving {len(all_prs)} PRs ", total=len(all_prs)
+            )
             for pr_number in all_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
@@ -2196,14 +2353,19 @@ def generate_issue_content_providers(
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                        pull_requests[pr_number] = repo.get_issue(
+                            pr_number
+                        )  # (same fields as PR)
                     except UnknownObjectException:
-                        get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                        get_console().print(
+                            f"[red]The PR #{pr_number} could not be found[/]"
+                        )
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
                     linked_issue_numbers = {
-                        int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                        int(issue_match.group(1))
+                        for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                     }
                     for linked_issue_number in linked_issue_numbers:
                         try:
@@ -2220,7 +2382,9 @@ def generate_issue_content_providers(
                         try:
                             if pr_number not in linked_issues:
                                 linked_issues[pr_number] = []
-                            linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
+                            linked_issues[pr_number].append(
+                                repo.get_issue(linked_issue_number)
+                            )
                         except UnknownObjectException:
                             progress.console.print(
                                 f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
@@ -2228,7 +2392,11 @@ def generate_issue_content_providers(
                 progress.advance(task)
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
-            pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
+            pull_request_list = [
+                pull_requests[pr]
+                for pr in provider_prs[provider_id]
+                if pr in pull_requests
+            ]
             provider_yaml_dict = yaml.safe_load(
                 (
                     AIRFLOW_PROVIDERS_SRC
@@ -2239,7 +2407,9 @@ def generate_issue_content_providers(
                 ).read_text()
             )
             if pull_request_list:
-                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+                package_suffix = get_suffix_from_package_in_dist(
+                    files_in_dist, provider_id
+                )
                 providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
                     provider_package_id=provider_id,
@@ -2250,7 +2420,9 @@ def generate_issue_content_providers(
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )
-        issue_content = template.render(providers=providers, linked_issues=linked_issues, date=datetime.now())
+        issue_content = template.render(
+            providers=providers, linked_issues=linked_issues, date=datetime.now()
+        )
         get_console().print()
         get_console().print(
             "[green]Below you can find the issue content that you can use "
@@ -2333,7 +2505,9 @@ def get_change_from_line(line: str):
         short_hash=split_line[1],
         date=split_line[2],
         message=message,
-        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace("&amp;", "&"),
+        message_without_backticks=message.replace("`", "'")
+        .replace("&#39;", "'")
+        .replace("&amp;", "&"),
         pr=int(pr) if pr else None,
     )
 
@@ -2391,7 +2565,9 @@ def print_issue_content(
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
     pr_list = sorted(pull_requests.keys())
-    user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
+    user_logins: dict[int, str] = {
+        pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()
+    }
     all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
@@ -2439,7 +2615,11 @@ def print_issue_content(
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
 )
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option(
+    "--excluded-pr-list",
+    type=str,
+    help="Coma-separated list of PRs to exclude from the issue.",
+)
 @click.option(
     "--limit-pr-count",
     type=int,
@@ -2472,7 +2652,8 @@ def generate_issue_content_helm_chart(
 
 
 @release_management.command(
-    name="generate-issue-content-core", help="Generates content for issue to test the core release."
+    name="generate-issue-content-core",
+    help="Generates content for issue to test the core release.",
 )
 @click.option(
     "--github-token",
@@ -2495,7 +2676,11 @@ def generate_issue_content_helm_chart(
     type=str,
     help="commit reference (for example hash or tag) of the current release.",
 )
-@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@click.option(
+    "--excluded-pr-list",
+    type=str,
+    help="Coma-separated list of PRs to exclude from the issue.",
+)
 @click.option(
     "--limit-pr-count",
     type=int,
@@ -2532,9 +2717,13 @@ def get_all_constraint_files(
 ) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
         shutil.rmtree(CONSTRAINTS_CACHE_DIR, ignore_errors=True)
-    all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
+    all_airflow_versions, airflow_release_dates = get_active_airflow_versions(
+        confirm=False
+    )
     if not CONSTRAINTS_CACHE_DIR.exists():
-        with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
+        with ci_group(
+            f"Downloading constraints for all Airflow versions for Python {python_version}"
+        ):
             CONSTRAINTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
             for airflow_version in all_airflow_versions:
                 if not download_constraints_file(
@@ -2556,7 +2745,9 @@ MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
 
 def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     constraints: dict[str, dict[str, str]] = {}
-    for filename in sorted(CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt")):
+    for filename in sorted(
+        CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt")
+    ):
         filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
         if filename_match:
             airflow_version = filename_match.group(1)
@@ -2568,7 +2759,9 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     return constraints
 
 
-@release_management.command(name="generate-providers-metadata", help="Generates metadata for providers.")
+@release_management.command(
+    name="generate-providers-metadata", help="Generates metadata for providers."
+)
 @click.option(
     "--refresh-constraints",
     is_flag=True,
@@ -2601,14 +2794,18 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
             metadata_dict[package_id] = result
     import json
 
-    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
+    PROVIDER_METADATA_JSON_FILE_PATH.write_text(
+        json.dumps(metadata_dict, indent=4) + "\n"
+    )
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
     run_command(["git", "fetch", remote_name], cwd=constraints_repo)
 
 
-def checkout_constraint_tag_and_reset_branch(constraints_repo: Path, airflow_version: str) -> None:
+def checkout_constraint_tag_and_reset_branch(
+    constraints_repo: Path, airflow_version: str
+) -> None:
     run_command(
         ["git", "reset", "--hard"],
         cwd=constraints_repo,
@@ -2653,7 +2850,9 @@ def update_comment(content: str, comment_file: Path) -> str:
 
 
 def modify_single_file_constraints(
-    constraints_file: Path, updated_constraints: tuple[str, ...] | None, comment_file: Path | None
+    constraints_file: Path,
+    updated_constraints: tuple[str, ...] | None,
+    comment_file: Path | None,
 ) -> bool:
     constraint_content = constraints_file.read_text()
     original_content = constraint_content
@@ -2663,7 +2862,10 @@ def modify_single_file_constraints(
         for constraint in updated_constraints:
             package, version = constraint.split("==")
             constraint_content = re.sub(
-                rf"^{package}==.*$", f"{package}=={version}", constraint_content, flags=re.MULTILINE
+                rf"^{package}==.*$",
+                f"{package}=={version}",
+                constraint_content,
+                flags=re.MULTILINE,
             )
     if constraint_content != original_content:
         if not get_dry_run():
@@ -2694,7 +2896,9 @@ def modify_all_constraint_files(
         raise RuntimeError(f"Invalid airflow-constraints-mode: {airflow_constrains_mode}")
     for constraints_file in constraints_repo.glob(select_glob):
         get_console().print(f"[info]Updating {constraints_file.name}")
-        if modify_single_file_constraints(constraints_file, updated_constraint, comit_file):
+        if modify_single_file_constraints(
+            constraints_file, updated_constraint, comit_file
+        ):
             modified = True
     return modified
 
@@ -2710,18 +2914,31 @@ def confirm_modifications(constraints_repo: Path) -> bool:
         sys.exit(1)
 
 
-def commit_constraints_and_tag(constraints_repo: Path, airflow_version: str, commit_message: str) -> None:
+def commit_constraints_and_tag(
+    constraints_repo: Path, airflow_version: str, commit_message: str
+) -> None:
     run_command(
         ["git", "commit", "-a", "--no-verify", "-m", commit_message],
         cwd=constraints_repo,
     )
     run_command(
-        ["git", "tag", f"constraints-{airflow_version}", "--force", "-s", "-m", commit_message, "HEAD"],
+        [
+            "git",
+            "tag",
+            f"constraints-{airflow_version}",
+            "--force",
+            "-s",
+            "-m",
+            commit_message,
+            "HEAD",
+        ],
         cwd=constraints_repo,
     )
 
 
-def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_version: str) -> None:
+def push_constraints_and_tag(
+    constraints_repo: Path, remote_name: str, airflow_version: str
+) -> None:
     run_command(
         ["git", "push", remote_name, f"constraints-{airflow_version}-fix"],
         cwd=constraints_repo,
@@ -2792,15 +3009,24 @@ def update_constraints(
     comment_file: Path | None,
 ) -> None:
     if not updated_constraint and not comment_file:
-        get_console().print("[error]You have to provide one of --updated-constraint or --comment-file[/]")
+        get_console().print(
+            "[error]You have to provide one of --updated-constraint or --comment-file[/]"
+        )
         sys.exit(1)
     airflow_versions_array = airflow_versions.split(",")
     if not airflow_versions_array:
-        get_console().print("[error]No airflow versions specified - you provided empty string[/]")
+        get_console().print(
+            "[error]No airflow versions specified - you provided empty string[/]"
+        )
         sys.exit(1)
-    get_console().print(f"Updating constraints for {airflow_versions_array} with {updated_constraint}")
+    get_console().print(
+        f"Updating constraints for {airflow_versions_array} with {updated_constraint}"
+    )
     if (
-        user_confirm(f"The {constraints_repo.name} repo will be reset. Continue?", quit_allowed=False)
+        user_confirm(
+            f"The {constraints_repo.name} repo will be reset. Continue?",
+            quit_allowed=False,
+        )
         != Answer.YES
     ):
         sys.exit(1)
@@ -2811,7 +3037,9 @@ def update_constraints(
             constraints_repo, updated_constraint, comment_file, airflow_constraints_mode
         ):
             if confirm_modifications(constraints_repo):
-                commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
+                commit_constraints_and_tag(
+                    constraints_repo, airflow_version, commit_message
+                )
                 push_constraints_and_tag(constraints_repo, remote_name, airflow_version)
 
 
@@ -2838,7 +3066,9 @@ PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
 REPRODUCIBLE_BUILD_YAML = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
 
 VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
-SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "openapi" / "v1.yaml"
+SOURCE_API_YAML_PATH = (
+    AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "openapi" / "v1.yaml"
+)
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 
@@ -2931,10 +3161,14 @@ def _copy_selected_sources_from_tmp_directory_to_clients_python():
     for dir in GENERATED_CLIENT_DIRECTORIES_TO_COPY:
         source_dir = PYTHON_CLIENT_TMP_DIR / dir
         target_dir = PYTHON_CLIENT_DIR_PATH / dir
-        get_console().print(f"[info]  Copying generated sources from {source_dir} to {target_dir}[/]")
+        get_console().print(
+            f"[info]  Copying generated sources from {source_dir} to {target_dir}[/]"
+        )
         shutil.rmtree(target_dir, ignore_errors=True)
         shutil.copytree(source_dir, target_dir)
-        get_console().print(f"[success]  Copied generated sources from {source_dir} to {target_dir}[/]")
+        get_console().print(
+            f"[success]  Copied generated sources from {source_dir} to {target_dir}[/]"
+        )
     get_console().print(
         f"[info]Copied selected sources {GENERATED_CLIENT_DIRECTORIES_TO_COPY} from "
         f"{PYTHON_CLIENT_TMP_DIR} to {PYTHON_CLIENT_DIR_PATH}[/]\n"
@@ -3003,11 +3237,21 @@ def _build_client_packages_with_docker(source_date_epoch: int, package_format: s
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     get_console().print()
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-    run_command(["docker", "cp", f"{container_id}:/opt/airflow/clients/python/dist/.", "./dist"], check=True)
-    run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
+    run_command(
+        ["docker", "cp", f"{container_id}:/opt/airflow/clients/python/dist/.", "./dist"],
+        check=True,
+    )
+    run_command(
+        ["docker", "rm", "--force", container_id],
+        check=False,
+        stdout=DEVNULL,
+        stderr=DEVNULL,
+    )
 
 
-@release_management.command(name="prepare-python-client", help="Prepares python client packages.")
+@release_management.command(
+    name="prepare-python-client", help="Prepares python client packages."
+)
 @option_package_format
 @option_version_suffix_for_pypi
 @option_use_local_hatch
@@ -3092,9 +3336,13 @@ def prepare_python_client(
         spec_dir.mkdir(parents=True, exist_ok=True)
         source_spec_file = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
         target_spec_file = spec_dir / "v1.yaml"
-        get_console().print(f"[info]  Copying {source_spec_file} to {target_spec_file}[/]")
+        get_console().print(
+            f"[info]  Copying {source_spec_file} to {target_spec_file}[/]"
+        )
         shutil.copy(source_spec_file, target_spec_file)
-        get_console().print(f"[success]  Copied {source_spec_file} to {target_spec_file}[/]")
+        get_console().print(
+            f"[success]  Copied {source_spec_file} to {target_spec_file}[/]"
+        )
         get_console().print(
             f"[success]Copied client code from {PYTHON_CLIENT_DIR_PATH} to {python_client_repo}[/]\n"
         )
@@ -3102,7 +3350,9 @@ def prepare_python_client(
         get_console().print(
             "\n[warning]No python client repo directory provided - skipping copying the generated client[/]\n"
         )
-    get_console().print(f"\n[info]Building packages in {PYTHON_CLIENT_DIST_DIR_PATH}[/]\n")
+    get_console().print(
+        f"\n[info]Building packages in {PYTHON_CLIENT_DIST_DIR_PATH}[/]\n"
+    )
     shutil.rmtree(PYTHON_CLIENT_DIST_DIR_PATH, ignore_errors=True)
     PYTHON_CLIENT_DIST_DIR_PATH.mkdir(parents=True, exist_ok=True)
     version = _get_python_client_version(version_suffix_for_pypi)
@@ -3129,7 +3379,9 @@ CHART_YAML_FILE = CHART_DIR / "Chart.yaml"
 VALUES_YAML_FILE = CHART_DIR / "values.yaml"
 
 
-@release_management.command(name="prepare-helm-chart-tarball", help="Prepares helm chart tarball.")
+@release_management.command(
+    name="prepare-helm-chart-tarball", help="Prepares helm chart tarball."
+)
 @click.option(
     "--version",
     help="Version used for helm chart. This version has to be set and has to match the version in "
@@ -3195,9 +3447,15 @@ def prepare_helm_chart_tarball(
                 "use --ignore-version-check[/]"
             )
             sys.exit(1)
-    get_console().print(f"[info]Airflow version in values.yaml: {airflow_version_in_values}[/]")
-    get_console().print(f"[info]Default Airflow Tag in values.yaml: {default_airflow_tag_in_values}[/]")
-    get_console().print(f"[info]Airflow version in Chart.yaml: {airflow_version_in_chart}[/]")
+    get_console().print(
+        f"[info]Airflow version in values.yaml: {airflow_version_in_values}[/]"
+    )
+    get_console().print(
+        f"[info]Default Airflow Tag in values.yaml: {default_airflow_tag_in_values}[/]"
+    )
+    get_console().print(
+        f"[info]Airflow version in Chart.yaml: {airflow_version_in_chart}[/]"
+    )
     if airflow_version_in_values != default_airflow_tag_in_values:
         get_console().print(
             f"[error]Airflow version ({airflow_version_in_values}) does not match the "
@@ -3223,7 +3481,8 @@ def prepare_helm_chart_tarball(
         )
         updating = True
         chart_yaml_file_content = chart_yaml_file_content.replace(
-            f"appVersion: {airflow_version_in_chart}", f"appVersion: {airflow_version_in_values}"
+            f"appVersion: {airflow_version_in_chart}",
+            f"appVersion: {airflow_version_in_values}",
         )
     else:
         get_console().print(
@@ -3259,14 +3518,18 @@ def prepare_helm_chart_tarball(
             tag_command.append("--sign")
         result = run_command(tag_command, check=False)
         if result.returncode != 0:
-            get_console().print(f"[error]Error tagging the chart with {tag_with_suffix}.\n")
+            get_console().print(
+                f"[error]Error tagging the chart with {tag_with_suffix}.\n"
+            )
             get_console().print(
                 "[warning]If you are sure the tag is set correctly, you can add --skip-tagging"
                 " flag to the command[/]"
             )
             sys.exit(result.returncode)
     else:
-        get_console().print(f"[warning]Skipping tagging the chart with {tag_with_suffix}[/]")
+        get_console().print(
+            f"[warning]Skipping tagging the chart with {tag_with_suffix}[/]"
+        )
     get_console().print(f"[info]Creating tarball for Helm Chart {tag_with_suffix}[/]")
     archive_name = f"airflow-chart-{version}-source.tar.gz"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -3289,7 +3552,9 @@ def prepare_helm_chart_tarball(
         check=False,
     )
     if result.returncode != 0:
-        get_console().print(f"[error]Error running git archive for Helm Chart {tag_with_suffix}[/]")
+        get_console().print(
+            f"[error]Error running git archive for Helm Chart {tag_with_suffix}[/]"
+        )
         sys.exit(result.returncode)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     final_archive = DIST_DIR / archive_name
@@ -3309,7 +3574,9 @@ def prepare_helm_chart_tarball(
     get_console().print(f"[success]Tarball created in {final_archive}")
 
 
-@release_management.command(name="prepare-helm-chart-package", help="Prepares helm chart package.")
+@release_management.command(
+    name="prepare-helm-chart-package", help="Prepares helm chart package."
+)
 @click.option(
     "--sign-email",
     help="Email associated with the key used to sign the package.",
@@ -3344,7 +3611,14 @@ def prepare_helm_chart_package(sign_email: str):
     archive_name = f"airflow-{version}.tgz"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     result = run_command(
-        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_DIR.as_posix()],
+        cmd=[
+            "helm",
+            "package",
+            "chart",
+            "--dependency-update",
+            "--destination",
+            OUT_DIR.as_posix(),
+        ],
         env=k8s_env,
         check=False,
     )
@@ -3393,7 +3667,9 @@ def prepare_helm_chart_package(sign_email: str):
             get_console().print("[error]Error signing the chart[/]")
             sys.exit(result.returncode)
         else:
-            get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")
+            get_console().print(
+                f"[success]Chart signed - the {prov_file} file created.[/]"
+            )
 
 
 def generate_issue_content(
@@ -3416,7 +3692,9 @@ def generate_issue_content(
     if latest:
         if is_helm_chart:
             latest_helm_version = get_latest_helm_chart_version()
-            get_console().print(f"\n[info] Latest stable version of helm chart is {latest_helm_version}\n")
+            get_console().print(
+                f"\n[info] Latest stable version of helm chart is {latest_helm_version}\n"
+            )
             previous = f"helm-chart/{latest_helm_version}"
             current = os.getenv("VERSION", "HEAD")
             if current == "HEAD":
@@ -3468,11 +3746,15 @@ def generate_issue_content(
                     continue
 
             if pr.user.login == "dependabot[bot]":
-                get_console().print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
+                get_console().print(
+                    f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
+                )
                 continue
             # Ignore doc-only and skipped PRs
             label_names = [label.name for label in pr.labels]
-            if not is_helm_chart and ("type:doc-only" in label_names or "changelog:skip" in label_names):
+            if not is_helm_chart and (
+                "type:doc-only" in label_names or "changelog:skip" in label_names
+            ):
                 continue
 
             pull_requests[pr_number] = pr
@@ -3485,7 +3767,9 @@ def generate_issue_content(
                         author = commit.author
                         if author:
                             users[pr_number].add(author.login)
-                            progress.console.print(f"Added commit author {author.login} for PR#{pr_number}")
+                            progress.console.print(
+                                f"Added commit author {author.login} for PR#{pr_number}"
+                            )
 
                 except Exception as e:
                     progress.console.print(
@@ -3497,7 +3781,8 @@ def generate_issue_content(
             if pr.body:
                 body = " ".join(pr.body.splitlines())
                 linked_issue_numbers = {
-                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                    int(issue_match.group(1))
+                    for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                 }
                 for linked_issue_number in linked_issue_numbers:
                     progress.console.print(
@@ -3505,7 +3790,9 @@ def generate_issue_content(
                         f"https://github.com/apache/airflow/issue/{linked_issue_number}"
                     )
                     try:
-                        linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
+                        linked_issues[pr_number].append(
+                            repo.get_issue(linked_issue_number)
+                        )
                     except UnknownObjectException:
                         progress.console.print(
                             f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"

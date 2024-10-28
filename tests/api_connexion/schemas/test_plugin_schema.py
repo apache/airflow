@@ -100,12 +100,16 @@ class TestPluginCollectionSchema(TestPluginBase):
     def test_serialize(self):
         plugins = [self.mock_plugin, self.mock_plugin_2]
 
-        deserialized = plugin_collection_schema.dump(PluginCollection(plugins=plugins, total_entries=2))
+        deserialized = plugin_collection_schema.dump(
+            PluginCollection(plugins=plugins, total_entries=2)
+        )
         assert deserialized == {
             "plugins": [
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
-                    "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
+                    "appbuilder_views": [
+                        {"view": self.mock_plugin.appbuilder_views[0]["view"]}
+                    ],
                     "flask_blueprints": [str(bp)],
                     "fastapi_apps": [
                         {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
@@ -121,7 +125,9 @@ class TestPluginCollectionSchema(TestPluginBase):
                 },
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
-                    "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
+                    "appbuilder_views": [
+                        {"view": self.mock_plugin.appbuilder_views[0]["view"]}
+                    ],
                     "flask_blueprints": [str(bp)],
                     "fastapi_apps": [
                         {"app": app, "name": "App name", "url_prefix": "/some_prefix"},

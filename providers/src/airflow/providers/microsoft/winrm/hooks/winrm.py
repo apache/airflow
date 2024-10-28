@@ -152,15 +152,23 @@ class WinRMHook(BaseHook):
                 if "cert_key_pem" in extra_options:
                     self.cert_key_pem = str(extra_options["cert_key_pem"])
                 if "server_cert_validation" in extra_options:
-                    self.server_cert_validation = str(extra_options["server_cert_validation"])
+                    self.server_cert_validation = str(
+                        extra_options["server_cert_validation"]
+                    )
                 if "kerberos_delegation" in extra_options:
-                    self.kerberos_delegation = str(extra_options["kerberos_delegation"]).lower() == "true"
+                    self.kerberos_delegation = (
+                        str(extra_options["kerberos_delegation"]).lower() == "true"
+                    )
                 if "read_timeout_sec" in extra_options:
                     self.read_timeout_sec = int(extra_options["read_timeout_sec"])
                 if "operation_timeout_sec" in extra_options:
-                    self.operation_timeout_sec = int(extra_options["operation_timeout_sec"])
+                    self.operation_timeout_sec = int(
+                        extra_options["operation_timeout_sec"]
+                    )
                 if "kerberos_hostname_override" in extra_options:
-                    self.kerberos_hostname_override = str(extra_options["kerberos_hostname_override"])
+                    self.kerberos_hostname_override = str(
+                        extra_options["kerberos_hostname_override"]
+                    )
                 if "message_encryption" in extra_options:
                     self.message_encryption = str(extra_options["message_encryption"])
                 if "credssp_disable_tlsv1_2" in extra_options:

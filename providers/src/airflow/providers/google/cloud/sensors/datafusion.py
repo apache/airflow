@@ -124,6 +124,8 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
                 raise AirflowException(message)
 
         self.log.debug(
-            "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status
+            "Current status of the pipeline workflow for %s: %s.",
+            self.pipeline_id,
+            pipeline_status,
         )
         return pipeline_status in self.expected_statuses

@@ -40,7 +40,9 @@ def test_get_field_warns_on_dupe():
         value = get_field(
             conn_id="my_conn",
             conn_type="this_type",
-            extras=dict(extra__this_type__this_param="prefixed", this_param="non-prefixed"),
+            extras=dict(
+                extra__this_type__this_param="prefixed", this_param="non-prefixed"
+            ),
             field_name="this_param",
         )
     assert value == "non-prefixed"
@@ -54,7 +56,10 @@ def test_get_field_warns_on_dupe():
         (dict(extra__this_type__this_param="prefixed"), "prefixed"),
         (dict(extra__this_type__this_param=""), None),
         (dict(extra__this_type__this_param=None), None),
-        (dict(extra__this_type__this_param="prefixed", this_param="non-prefixed"), "non-prefixed"),
+        (
+            dict(extra__this_type__this_param="prefixed", this_param="non-prefixed"),
+            "non-prefixed",
+        ),
         (dict(extra__this_type__this_param="prefixed", this_param=""), None),
         (dict(extra__this_type__this_param="prefixed", this_param=0), 0),
         (dict(extra__this_type__this_param="prefixed", this_param=False), False),
@@ -102,7 +107,9 @@ class TestAzureIdentityCredentialAdapter:
     @mock.patch(f"{MODULE}.PipelineRequest")
     @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
     @mock.patch(f"{MODULE}.DefaultAzureCredential")
-    def test_signed_session(self, mock_default_azure_credential, mock_policy, mock_request):
+    def test_signed_session(
+        self, mock_default_azure_credential, mock_policy, mock_request
+    ):
         mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
 
         adapter = AzureIdentityCredentialAdapter()
@@ -115,7 +122,9 @@ class TestAzureIdentityCredentialAdapter:
     @mock.patch(f"{MODULE}.PipelineRequest")
     @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
     @mock.patch(f"{MODULE}.DefaultAzureCredential")
-    def test_init_with_identity(self, mock_default_azure_credential, mock_policy, mock_request):
+    def test_init_with_identity(
+        self, mock_default_azure_credential, mock_policy, mock_request
+    ):
         mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
 
         adapter = AzureIdentityCredentialAdapter(
@@ -137,9 +146,17 @@ class TestAzureIdentityCredentialAdapter:
 @pytest.mark.parametrize(
     "host, login, expected_url",
     [
-        (None, None, "https://None.blob.core.windows.net/"),  # to maintain existing behaviour
+        (
+            None,
+            None,
+            "https://None.blob.core.windows.net/",
+        ),  # to maintain existing behaviour
         (None, "storage_account", "https://storage_account.blob.core.windows.net/"),
-        ("testaccountname.blob.core.windows.net", None, "https://testaccountname.blob.core.windows.net"),
+        (
+            "testaccountname.blob.core.windows.net",
+            None,
+            "https://testaccountname.blob.core.windows.net",
+        ),
         (
             "testaccountname.blob.core.windows.net",
             "service_principal_id",

@@ -26,7 +26,10 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
 
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
-from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, VertexAIDatasetListLink
+from airflow.providers.google.cloud.links.vertex_ai import (
+    VertexAIDatasetLink,
+    VertexAIDatasetListLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
@@ -106,7 +109,9 @@ class CreateDatasetOperator(GoogleCloudBaseOperator):
         self.log.info("Dataset was created. Dataset id: %s", dataset_id)
 
         self.xcom_push(context, key="dataset_id", value=dataset_id)
-        VertexAIDatasetLink.persist(context=context, task_instance=self, dataset_id=dataset_id)
+        VertexAIDatasetLink.persist(
+            context=context, task_instance=self, dataset_id=dataset_id
+        )
         return dataset
 
 
@@ -176,7 +181,9 @@ class GetDatasetOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            VertexAIDatasetLink.persist(context=context, task_instance=self, dataset_id=self.dataset_id)
+            VertexAIDatasetLink.persist(
+                context=context, task_instance=self, dataset_id=self.dataset_id
+            )
             self.log.info("Dataset was gotten.")
             return Dataset.to_dict(dataset_obj)
         except NotFound:

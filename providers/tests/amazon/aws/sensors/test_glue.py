@@ -47,7 +47,9 @@ class TestGlueJobSensor:
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "get_job_state")
-    def test_poke_with_verbose_logging(self, mock_get_job_state, mock_conn, mock_print_job_logs):
+    def test_poke_with_verbose_logging(
+        self, mock_get_job_state, mock_conn, mock_print_job_logs
+    ):
         mock_conn.return_value.get_job_run()
         mock_get_job_state.return_value = "SUCCEEDED"
         job_name = "job_name"
@@ -88,7 +90,9 @@ class TestGlueJobSensor:
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "get_job_state")
-    def test_poke_false_with_verbose_logging(self, mock_get_job_state, mock_conn, mock_print_job_logs):
+    def test_poke_false_with_verbose_logging(
+        self, mock_get_job_state, mock_conn, mock_print_job_logs
+    ):
         mock_conn.return_value.get_job_run()
         mock_get_job_state.return_value = "RUNNING"
         job_name = "job_name"
@@ -112,7 +116,9 @@ class TestGlueJobSensor:
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "get_job_state")
-    def test_poke_failed_job_with_verbose_logging(self, mock_get_job_state, mock_conn, mock_print_job_logs):
+    def test_poke_failed_job_with_verbose_logging(
+        self, mock_get_job_state, mock_conn, mock_print_job_logs
+    ):
         mock_conn.return_value.get_job_run()
         mock_get_job_state.return_value = "FAILED"
         job_name = "job_name"

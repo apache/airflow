@@ -47,7 +47,10 @@ class TestSsmHook:
             self.hook = SsmHook(region_name=REGION)
             self.param_type = request.param
             self.hook.conn.put_parameter(
-                Type=self.param_type, Name=EXISTING_PARAM_NAME, Value=PARAM_VALUE, Overwrite=True
+                Type=self.param_type,
+                Name=EXISTING_PARAM_NAME,
+                Value=PARAM_VALUE,
+                Overwrite=True,
             )
             yield
 
@@ -59,16 +62,34 @@ class TestSsmHook:
     @pytest.mark.parametrize(
         "param_name, default_value, expected_result",
         [
-            pytest.param(EXISTING_PARAM_NAME, None, PARAM_VALUE, id="param_exists_no_default_provided"),
-            pytest.param(EXISTING_PARAM_NAME, DEFAULT_VALUE, PARAM_VALUE, id="param_exists_with_default"),
             pytest.param(
-                BAD_PARAM_NAME, DEFAULT_VALUE, DEFAULT_VALUE, id="param_does_not_exist_uses_default"
+                EXISTING_PARAM_NAME,
+                None,
+                PARAM_VALUE,
+                id="param_exists_no_default_provided",
+            ),
+            pytest.param(
+                EXISTING_PARAM_NAME,
+                DEFAULT_VALUE,
+                PARAM_VALUE,
+                id="param_exists_with_default",
+            ),
+            pytest.param(
+                BAD_PARAM_NAME,
+                DEFAULT_VALUE,
+                DEFAULT_VALUE,
+                id="param_does_not_exist_uses_default",
             ),
         ],
     )
-    def test_get_parameter_value_happy_cases(self, param_name, default_value, expected_result) -> None:
+    def test_get_parameter_value_happy_cases(
+        self, param_name, default_value, expected_result
+    ) -> None:
         if default_value:
-            assert self.hook.get_parameter_value(param_name, default=default_value) == expected_result
+            assert (
+                self.hook.get_parameter_value(param_name, default=default_value)
+                == expected_result
+            )
         else:
             assert self.hook.get_parameter_value(param_name) == expected_result
 

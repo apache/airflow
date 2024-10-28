@@ -62,14 +62,26 @@ def pull_push_all_images(
         )
         print(f"Copying image: {source_image} -> {target_image}")
         subprocess.run(
-            ["regctl", "image", "copy", "--force-recursive", "--digest-tags", source_image, target_image],
+            [
+                "regctl",
+                "image",
+                "copy",
+                "--force-recursive",
+                "--digest-tags",
+                source_image,
+                target_image,
+            ],
             check=True,
         )
 
 
 @click.group(invoke_without_command=True)
-@click.option("--source-branch", type=str, default="main", help="Source branch name [main]")
-@click.option("--target-branch", type=str, default="main", help="Target branch name [main]")
+@click.option(
+    "--source-branch", type=str, default="main", help="Source branch name [main]"
+)
+@click.option(
+    "--target-branch", type=str, default="main", help="Target branch name [main]"
+)
 @click.option("--source-repo", type=str, default="apache/airflow", help="Source repo")
 @click.option("--target-repo", type=str, default="apache/airflow", help="Target repo")
 def main(
@@ -79,7 +91,13 @@ def main(
     target_repo: str,
 ):
     pull_push_all_images(
-        GHCR_IO_PREFIX, GHCR_IO_PREFIX, GHCR_IO_IMAGES, source_branch, source_repo, target_branch, target_repo
+        GHCR_IO_PREFIX,
+        GHCR_IO_PREFIX,
+        GHCR_IO_IMAGES,
+        source_branch,
+        source_repo,
+        target_branch,
+        target_repo,
     )
 
 

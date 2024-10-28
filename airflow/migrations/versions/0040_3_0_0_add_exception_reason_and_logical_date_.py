@@ -42,8 +42,12 @@ airflow_version = "3.0.0"
 def upgrade():
     """Apply Add exception_reason and logical_date to BackfillDagRun."""
     with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("exception_reason", sa.String(length=250), nullable=True))
-        batch_op.add_column(sa.Column("logical_date", UtcDateTime(timezone=True), nullable=False))
+        batch_op.add_column(
+            sa.Column("exception_reason", sa.String(length=250), nullable=True)
+        )
+        batch_op.add_column(
+            sa.Column("logical_date", UtcDateTime(timezone=True), nullable=False)
+        )
 
 
 def downgrade():

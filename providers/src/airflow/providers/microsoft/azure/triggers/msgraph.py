@@ -140,7 +140,9 @@ class MSGraphTrigger(BaseTrigger):
         self.query_parameters = query_parameters
         self.headers = headers
         self.data = data
-        self.serializer: ResponseSerializer = self.resolve_type(serializer, default=ResponseSerializer)()
+        self.serializer: ResponseSerializer = self.resolve_type(
+            serializer, default=ResponseSerializer
+        )()
 
     @classmethod
     def resolve_type(cls, value: str | type, default) -> type:

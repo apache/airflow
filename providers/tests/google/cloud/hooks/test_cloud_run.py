@@ -42,7 +42,9 @@ from airflow.providers.google.cloud.hooks.cloud_run import (
     CloudRunServiceHook,
 )
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 
 @pytest.mark.db_test
@@ -66,7 +68,9 @@ class TestCloudRunHook:
         region = "region1"
         project_id = "projectid"
 
-        get_job_request = GetJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        get_job_request = GetJobRequest(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+        )
 
         cloud_run_hook.get_job(job_name=job_name, region=region, project_id=project_id)
         cloud_run_hook._client.get_job.assert_called_once_with(get_job_request)
@@ -129,7 +133,8 @@ class TestCloudRunHook:
             "timeout": "60s",
         }
         run_job_request = RunJobRequest(
-            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}",
+            overrides=overrides,
         )
 
         cloud_run_hook.execute_job(
@@ -175,7 +180,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, show_deleted=True)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, show_deleted=True
+        )
 
         for i in range(number_of_jobs):
             assert jobs_list[i].name == f"name{i}"
@@ -201,7 +208,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit
+        )
 
         assert len(jobs_list) == limit
         for i in range(limit):
@@ -217,7 +226,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit
+        )
 
         assert len(jobs_list) == 0
 
@@ -226,7 +237,9 @@ class TestCloudRunHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_list_jobs_with_limit_greater_then_range(self, mock_batch_service_client, cloud_run_hook):
+    def test_list_jobs_with_limit_greater_then_range(
+        self, mock_batch_service_client, cloud_run_hook
+    ):
         number_of_jobs = 3
         limit = 5
         region = "us-central1"
@@ -235,7 +248,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit
+        )
 
         assert len(jobs_list) == number_of_jobs
         for i in range(number_of_jobs):
@@ -246,7 +261,9 @@ class TestCloudRunHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_list_jobs_with_limit_less_than_zero(self, mock_batch_service_client, cloud_run_hook):
+    def test_list_jobs_with_limit_less_than_zero(
+        self, mock_batch_service_client, cloud_run_hook
+    ):
         number_of_jobs = 3
         limit = -1
         region = "us-central1"
@@ -264,7 +281,9 @@ class TestCloudRunHook:
         region = "region1"
         project_id = "projectid"
 
-        delete_request = DeleteJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        delete_request = DeleteJobRequest(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+        )
 
         cloud_run_hook.delete_job(job_name=job_name, region=region, project_id=project_id)
         cloud_run_hook._client.delete_job.assert_called_once_with(delete_request)
@@ -288,13 +307,17 @@ class TestCloudRunAsyncHook:
         expected_operation = {"name": "somename"}
         operation_name = "operationname"
         mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.get_operation = self.mock_get_operation(expected_operation)
+        mock_client.return_value.get_operation = self.mock_get_operation(
+            expected_operation
+        )
         hook = CloudRunAsyncHook()
         hook.get_credentials = self._dummy_get_credentials
 
         returned_operation = await hook.get_operation(operation_name=operation_name)
 
-        mock_client.return_value.get_operation.assert_called_once_with(mock.ANY, timeout=120)
+        mock_client.return_value.get_operation.assert_called_once_with(
+            mock.ANY, timeout=120
+        )
         assert returned_operation == expected_operation
 
     def mock_get_operation(self, expected_operation):
@@ -331,8 +354,12 @@ class TestCloudRunServiceHook:
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
 
-        cloud_run_service_hook.get_service(service_name=service_name, region=region, project_id=project_id)
-        cloud_run_service_hook._client.get_service.assert_called_once_with(get_service_request)
+        cloud_run_service_hook.get_service(
+            service_name=service_name, region=region, project_id=project_id
+        )
+        cloud_run_service_hook._client.get_service.assert_called_once_with(
+            get_service_request
+        )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -351,9 +378,14 @@ class TestCloudRunServiceHook:
         create_request.parent = f"projects/{project_id}/locations/{region}"
 
         cloud_run_service_hook.create_service(
-            service=service, service_name=service_name, region=region, project_id=project_id
+            service=service,
+            service_name=service_name,
+            region=region,
+            project_id=project_id,
         )
-        cloud_run_service_hook._client.create_service.assert_called_once_with(create_request)
+        cloud_run_service_hook._client.create_service.assert_called_once_with(
+            create_request
+        )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -369,8 +401,12 @@ class TestCloudRunServiceHook:
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
 
-        cloud_run_service_hook.delete_service(service_name=service_name, region=region, project_id=project_id)
-        cloud_run_service_hook._client.delete_service.assert_called_once_with(delete_request)
+        cloud_run_service_hook.delete_service(
+            service_name=service_name, region=region, project_id=project_id
+        )
+        cloud_run_service_hook._client.delete_service.assert_called_once_with(
+            delete_request
+        )
 
 
 class TestCloudRunServiceAsyncHook:

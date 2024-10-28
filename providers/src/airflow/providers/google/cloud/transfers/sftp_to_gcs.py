@@ -129,7 +129,9 @@ class SFTPToGCSOperator(BaseOperator):
             prefix, delimiter = self.source_path.split(WILDCARD, 1)
             base_path = os.path.dirname(prefix)
 
-            files, _, _ = sftp_hook.get_tree_map(base_path, prefix=prefix, delimiter=delimiter)
+            files, _, _ = sftp_hook.get_tree_map(
+                base_path, prefix=prefix, delimiter=delimiter
+            )
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
@@ -143,9 +145,13 @@ class SFTPToGCSOperator(BaseOperator):
 
         else:
             destination_object = (
-                self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
+                self.destination_path
+                if self.destination_path
+                else self.source_path.rsplit("/", 1)[1]
             )
-            self._copy_single_object(gcs_hook, sftp_hook, self.source_path, destination_object)
+            self._copy_single_object(
+                gcs_hook, sftp_hook, self.source_path, destination_object
+            )
 
     def _copy_single_object(
         self,

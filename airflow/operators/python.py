@@ -33,7 +33,16 @@ from collections.abc import Container
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    NamedTuple,
+    Sequence,
+)
 
 import lazy_object_proxy
 
@@ -52,7 +61,11 @@ from airflow.operators.branch import BranchMixIn
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_get_outlet_events, context_merge
+from airflow.utils.context import (
+    context_copy_partial,
+    context_get_outlet_events,
+    context_merge,
+)
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -77,7 +90,11 @@ def is_venv_installed() -> bool:
     return False
 
 
-def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
+def task(
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
+    **kwargs,
+):
     """
     Use :func:`airflow.decorators.task` instead, this is deprecated.
 
@@ -106,7 +123,9 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+    return python_task(
+        python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs
+    )
 
 
 @cache
@@ -135,7 +154,11 @@ class _PythonVersionInfo(NamedTuple):
     @classmethod
     def from_executable(cls, executable: str) -> _PythonVersionInfo:
         """Parse python version info from an executable."""
-        cmd = [executable, "-c", 'import sys; print(".".join(map(str, sys.version_info)))']
+        cmd = [
+            executable,
+            "-c",
+            'import sys; print(".".join(map(str, sys.version_info)))',
+        ]
         try:
             result = subprocess.check_output(cmd, text=True)
         except Exception as e:
@@ -191,7 +214,11 @@ class PythonOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
-    template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
+    template_fields_renderers = {
+        "templates_dict": "json",
+        "op_args": "py",
+        "op_kwargs": "py",
+    }
     BLUE = "#ffefeb"
     ui_color = BLUE
 
@@ -245,7 +272,9 @@ class PythonOperator(BaseOperator):
         return return_value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
+        return KeywordParameters.determine(
+            self.python_callable, self.op_args, context
+        ).unpacking()
 
     def execute_callable(self) -> Any:
         """
@@ -253,7 +282,9 @@ class PythonOperator(BaseOperator):
 
         :return: the return value of the call.
         """
-        runner = ExecutionCallableRunner(self.python_callable, self._asset_events, logger=self.log)
+        runner = ExecutionCallableRunner(
+            self.python_callable, self._asset_events, logger=self.log
+        )
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
@@ -356,7 +387,9 @@ def _load_dill():
     try:
         import dill
     except ModuleNotFoundError:
-        log.error("Unable to import `dill` module. Please please make sure that it installed.")
+        log.error(
+            "Unable to import `dill` module. Please please make sure that it installed."
+        )
         raise
     return dill
 
@@ -450,9 +483,13 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             or isinstance(python_callable, types.LambdaType)
             and python_callable.__name__ == "<lambda>"
         ):
-            raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
+            raise ValueError(
+                f"{type(self).__name__} only supports functions for python_callable arg"
+            )
         if inspect.isgeneratorfunction(python_callable):
-            raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
+            raise ValueError(
+                f"{type(self).__name__} does not support using 'yield' in python_callable"
+            )
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -514,7 +551,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     def _write_args(self, file: Path):
         if self.op_args or self.op_kwargs:
             self.log.info("Use %r as serializer.", self.serializer)
-            file.write_bytes(self.pickling_library.dumps({"args": self.op_args, "kwargs": self.op_kwargs}))
+            file.write_bytes(
+                self.pickling_library.dumps(
+                    {"args": self.op_args, "kwargs": self.op_kwargs}
+                )
+            )
 
     def _write_string_args(self, file: Path):
         file.write_text("\n".join(map(str, self.string_args)))
@@ -549,7 +590,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             self._write_string_args(string_args_path)
 
             if self.use_airflow_context and not _ENABLE_AIP_44:
-                error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
+                error_msg = (
+                    "`get_current_context()` needs to be used with AIP-44 enabled."
+                )
                 raise AirflowException(error_msg)
 
             jinja_context = {
@@ -563,7 +606,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             }
 
             if inspect.getfile(self.python_callable) == self.dag.fileloc:
-                jinja_context["modified_dag_module_name"] = get_unique_dag_module_name(self.dag.fileloc)
+                jinja_context["modified_dag_module_name"] = get_unique_dag_module_name(
+                    self.dag.fileloc
+                )
 
             write_python_script(
                 jinja_context=jinja_context,
@@ -578,8 +623,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     # FIXME: DetachedInstanceError
                     dag_run, task_instance = context["dag_run"], context["task_instance"]
                     session.add_all([dag_run, task_instance])
-                    serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(
-                        context, use_pydantic_models=True
+                    serializable_context: dict[Encoding, Any] = (
+                        BaseSerialization.serialize(context, use_pydantic_models=True)
                     )
                 with airflow_context_path.open("w+") as file:
                     json.dump(serializable_context, file)
@@ -603,8 +648,13 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 )
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
-                    raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
-                elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                    raise AirflowSkipException(
+                        f"Process exited with code {e.returncode}. Skipping."
+                    )
+                elif (
+                    termination_log_path.exists()
+                    and termination_log_path.stat().st_size > 0
+                ):
                     error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
                     with open(termination_log_path) as file:
                         error_msg += file.read()
@@ -618,7 +668,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
+        return KeywordParameters.determine(
+            self.python_callable, self.op_args, context
+        ).serializing()
 
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
@@ -693,7 +745,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
+        {"requirements", "index_urls", "venv_cache_path"}.union(
+            PythonOperator.template_fields
+        )
     )
     template_ext: Sequence[str] = (".txt",)
 
@@ -739,7 +793,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 stacklevel=2,
             )
         if not is_venv_installed():
-            raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
+            raise AirflowException(
+                "PythonVirtualenvOperator requires virtualenv, please install it."
+            )
         if use_airflow_context and (not expect_airflow and not system_site_packages):
             error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
             raise AirflowException(error_msg)
@@ -797,7 +853,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         requirements_file.write_text("\n".join(self._requirements_list()))
         prepare_virtualenv(
             venv_directory=str(venv_path),
-            python_bin=f"python{self.python_version}" if self.python_version else "python",
+            python_bin=f"python{self.python_version}"
+            if self.python_version
+            else "python",
             system_site_packages=self.system_site_packages,
             requirements_file_path=str(requirements_file),
             pip_install_options=self.pip_install_options,
@@ -819,7 +877,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         Returns a hash and the data dict which is the base for the hash as text.
         """
         hash_dict = {
-            "requirements_list": self._requirements_list(exclude_cloudpickle=exclude_cloudpickle),
+            "requirements_list": self._requirements_list(
+                exclude_cloudpickle=exclude_cloudpickle
+            ),
             "pip_install_options": self.pip_install_options,
             "index_urls": self.index_urls,
             "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
@@ -849,10 +909,15 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                     if hash_marker.exists():
                         previous_hash_data = hash_marker.read_text(encoding="utf8")
                         if previous_hash_data == hash_data:
-                            self.log.info("Re-using cached Python virtual environment in %s", venv_path)
+                            self.log.info(
+                                "Re-using cached Python virtual environment in %s",
+                                venv_path,
+                            )
                             return venv_path
 
-                        _, hash_data_before_upgrade = self._calculate_cache_hash(exclude_cloudpickle=True)
+                        _, hash_data_before_upgrade = self._calculate_cache_hash(
+                            exclude_cloudpickle=True
+                        )
                         if previous_hash_data == hash_data_before_upgrade:
                             self.log.warning(
                                 "Found a previous virtual environment in  with outdated dependencies %s, "
@@ -882,7 +947,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 hash_marker.write_text(hash_data, encoding="utf8")
             except Exception as e:
                 shutil.rmtree(venv_path)
-                raise AirflowException(f"Unable to create new virtual environment in {venv_path}") from e
+                raise AirflowException(
+                    f"Unable to create new virtual environment in {venv_path}"
+                ) from e
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
@@ -994,7 +1061,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
-    template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"python"}.union(PythonOperator.template_fields)
+    )
 
     def __init__(
         self,
@@ -1019,7 +1088,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
         if use_airflow_context and not expect_airflow:
-            error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+            error_msg = (
+                "use_airflow_context is set to True, but expect_airflow is set to False."
+            )
             raise AirflowException(error_msg)
         self.python = python
         self.expect_pendulum = expect_pendulum
@@ -1049,7 +1120,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         if not python_path.is_absolute():
             raise ValueError(f"Python Path '{python_path}' must be an absolute path.")
         python_version = _PythonVersionInfo.from_executable(self.python)
-        if python_version.major != sys.version_info.major and (self.op_args or self.op_kwargs):
+        if python_version.major != sys.version_info.major and (
+            self.op_args or self.op_kwargs
+        ):
             raise AirflowException(
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for ExternalPythonOperator. Please use string_args."
@@ -1072,7 +1145,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return True
         except Exception as e:
             if self.expect_pendulum:
-                self.log.warning("When checking for Pendulum installed in virtual environment got %s", e)
+                self.log.warning(
+                    "When checking for Pendulum installed in virtual environment got %s",
+                    e,
+                )
                 self.log.warning(
                     "Pendulum is not properly installed in the virtual environment "
                     "Pendulum context keys will not be available. "
@@ -1123,7 +1199,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return target_airflow_version
         except Exception as e:
             if self.expect_airflow:
-                self.log.warning("When checking for Airflow installed in virtual environment got %s", e)
+                self.log.warning(
+                    "When checking for Airflow installed in virtual environment got %s", e
+                )
                 self.log.warning(
                     "This means that Airflow is not properly installed by %s. "
                     "Airflow context keys will not be available. "

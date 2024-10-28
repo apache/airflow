@@ -25,4 +25,6 @@ __deprecated_classes = {
     },
 }
 
-add_deprecated_classes(__deprecated_classes, __name__, {}, "The `celery` provider must be >= 3.3.0 for that.")
+add_deprecated_classes(
+    __deprecated_classes, __name__, {}, "The `celery` provider must be >= 3.3.0 for that."
+)

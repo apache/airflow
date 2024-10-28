@@ -37,7 +37,11 @@ class ExecDateAfterStartDateDep(BaseTIDep):
                 )
             )
 
-        if ti.task.dag and ti.task.dag.start_date and ti.execution_date < ti.task.dag.start_date:
+        if (
+            ti.task.dag
+            and ti.task.dag.start_date
+            and ti.execution_date < ti.task.dag.start_date
+        ):
             yield self._failing_status(
                 reason=(
                     f"The execution date is {ti.execution_date.isoformat()} but this is "

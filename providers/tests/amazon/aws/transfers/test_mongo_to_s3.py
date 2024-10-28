@@ -120,7 +120,11 @@ class TestMongoToS3Operator:
         s3_doc_str = op_stringify(op_transform(MOCK_MONGO_RETURN))
 
         mock_s3_hook.return_value.load_string.assert_called_once_with(
-            string_data=s3_doc_str, key=S3_KEY, bucket_name=S3_BUCKET, replace=False, compression=COMPRESSION
+            string_data=s3_doc_str,
+            key=S3_KEY,
+            bucket_name=S3_BUCKET,
+            replace=False,
+            compression=COMPRESSION,
         )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoHook")
@@ -147,5 +151,9 @@ class TestMongoToS3Operator:
         s3_doc_str = op_stringify(op_transform(MOCK_MONGO_RETURN))
 
         mock_s3_hook.return_value.load_string.assert_called_once_with(
-            string_data=s3_doc_str, key=S3_KEY, bucket_name=S3_BUCKET, replace=False, compression="gzip"
+            string_data=s3_doc_str,
+            key=S3_KEY,
+            bucket_name=S3_BUCKET,
+            replace=False,
+            compression="gzip",
         )

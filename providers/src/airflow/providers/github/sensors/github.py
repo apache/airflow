@@ -124,7 +124,9 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         )
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Poking for tag: %s in repository: %s", self.tag_name, self.repository_name)
+        self.log.info(
+            "Poking for tag: %s in repository: %s", self.tag_name, self.repository_name
+        )
         return GithubSensor.poke(self, context=context)
 
     def tag_checker(self, repo: Any) -> bool | None:
@@ -136,12 +138,22 @@ class GithubTagSensor(BaseGithubRepositorySensor):
                 result = self.tag_name in all_tags
 
         except GithubException as github_error:  # type: ignore[misc]
-            raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
+            raise AirflowException(
+                f"Failed to execute GithubSensor, error: {github_error}"
+            )
         except Exception as e:
             raise AirflowException(f"GitHub operator error: {e}")
 
         if result is True:
-            self.log.info("Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name)
+            self.log.info(
+                "Tag %s exists in %s repository, Success.",
+                self.tag_name,
+                self.repository_name,
+            )
         else:
-            self.log.info("Tag %s doesn't exists in %s repository yet.", self.tag_name, self.repository_name)
+            self.log.info(
+                "Tag %s doesn't exists in %s repository yet.",
+                self.tag_name,
+                self.repository_name,
+            )
         return result

@@ -95,7 +95,10 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
         )
 
         if self.sort_key_name and self.sort_key_value:
-            key = {self.partition_key_name: self.partition_key_value, self.sort_key_name: self.sort_key_value}
+            key = {
+                self.partition_key_name: self.partition_key_value,
+                self.sort_key_name: self.sort_key_value,
+            }
             msg += f"\nSort Key: {self.sort_key_name}={self.sort_key_value}"
 
         msg += f"\nattribute: {self.attribute_name}={self.attribute_value}"
@@ -121,9 +124,14 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
                 item_attribute_value = response["Item"][self.attribute_name]
                 self.log.info("Response: %s", response)
                 self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
-                self.log.info("Got: {response['Item'][self.attribute_name]} = %s", item_attribute_value)
+                self.log.info(
+                    "Got: {response['Item'][self.attribute_name]} = %s",
+                    item_attribute_value,
+                )
                 return item_attribute_value in (
-                    [self.attribute_value] if isinstance(self.attribute_value, str) else self.attribute_value
+                    [self.attribute_value]
+                    if isinstance(self.attribute_value, str)
+                    else self.attribute_value
                 )
             except KeyError:
                 return False

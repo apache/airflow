@@ -23,14 +23,21 @@ from pathlib import Path
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, check_list_sorted, console
 
 BUG_REPORT_TEMPLATE = (
-    AIRFLOW_SOURCES_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "airflow_providers_bug_report.yml"
+    AIRFLOW_SOURCES_ROOT_PATH
+    / ".github"
+    / "ISSUE_TEMPLATE"
+    / "airflow_providers_bug_report.yml"
 )
 
-DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "generated" / "provider_dependencies.json"
+DEPENDENCIES_JSON_FILE_PATH = (
+    AIRFLOW_SOURCES_ROOT_PATH / "generated" / "provider_dependencies.json"
+)
 
 
 if __name__ == "__main__":
@@ -40,10 +47,14 @@ if __name__ == "__main__":
         attributes = field.get("attributes")
         if attributes:
             if attributes.get("label") == "Apache Airflow Provider(s)":
-                check_list_sorted(attributes["options"], "Apache Airflow Provider(s)", errors)
+                check_list_sorted(
+                    attributes["options"], "Apache Airflow Provider(s)", errors
+                )
                 all_providers = set(
                     provider.replace(".", "-")
-                    for provider in yaml.safe_load(DEPENDENCIES_JSON_FILE_PATH.read_text()).keys()
+                    for provider in yaml.safe_load(
+                        DEPENDENCIES_JSON_FILE_PATH.read_text()
+                    ).keys()
                 )
                 for provider in set(attributes["options"]):
                     if provider not in all_providers:

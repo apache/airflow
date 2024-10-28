@@ -27,11 +27,19 @@ class Terraform(SystemTest):
     def setup_method(self) -> None:
         self.execute_cmd(["terraform", "init", "-input=false", self.TERRAFORM_DIR])
         self.execute_cmd(["terraform", "plan", "-input=false", self.TERRAFORM_DIR])
-        self.execute_cmd(["terraform", "apply", "-input=false", "-auto-approve", self.TERRAFORM_DIR])
+        self.execute_cmd(
+            ["terraform", "apply", "-input=false", "-auto-approve", self.TERRAFORM_DIR]
+        )
 
     def get_tf_output(self, name):
-        return "".join(self.check_output(["terraform", "output", name]).decode("utf-8").splitlines())
+        return "".join(
+            self.check_output(["terraform", "output", name]).decode("utf-8").splitlines()
+        )
 
     def teardown_method(self) -> None:
-        self.execute_cmd(["terraform", "plan", "-destroy", "-input=false", self.TERRAFORM_DIR])
-        self.execute_cmd(["terraform", "destroy", "-input=false", "-auto-approve", self.TERRAFORM_DIR])
+        self.execute_cmd(
+            ["terraform", "plan", "-destroy", "-input=false", self.TERRAFORM_DIR]
+        )
+        self.execute_cmd(
+            ["terraform", "destroy", "-input=false", "-auto-approve", self.TERRAFORM_DIR]
+        )

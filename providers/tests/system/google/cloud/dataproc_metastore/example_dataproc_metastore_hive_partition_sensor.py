@@ -39,14 +39,18 @@ from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreDeleteServiceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSDeleteBucketOperator
-from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
+from airflow.providers.google.cloud.sensors.dataproc_metastore import (
+    MetastoreHivePartitionSensor,
+)
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "hive_partition_sensor"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 REGION = "europe-west1"
 NETWORK = "default"
@@ -60,7 +64,9 @@ METASTORE_SERVICE = {
     },
     "network": f"projects/{PROJECT_ID}/global/networks/{NETWORK}",
 }
-METASTORE_SERVICE_QFN = f"projects/{PROJECT_ID}/locations/{REGION}/services/{METASTORE_SERVICE_ID}"
+METASTORE_SERVICE_QFN = (
+    f"projects/{PROJECT_ID}/locations/{REGION}/services/{METASTORE_SERVICE_ID}"
+)
 DATAPROC_CLUSTER_NAME = f"cluster-{DAG_ID}-{ENV_ID}".replace("_", "-")
 DATAPROC_CLUSTER_CONFIG = {
     "master_config": {
@@ -90,7 +96,9 @@ PARTITION_2 = f"{COLUMN}=debit".lower()
 SOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 SOURCE_DATA_PATH = "dataproc/hive"
 SOURCE_DATA_FILE_NAME = "part-00000.parquet"
-EXTERNAL_TABLE_BUCKET = "{{task_instance.xcom_pull(task_ids='get_hive_warehouse_bucket_task', key='bucket')}}"
+EXTERNAL_TABLE_BUCKET = (
+    "{{task_instance.xcom_pull(task_ids='get_hive_warehouse_bucket_task', key='bucket')}}"
+)
 QUERY_CREATE_EXTERNAL_TABLE = f"""
 CREATE EXTERNAL TABLE IF NOT EXISTS transactions
 (SubmissionDate DATE, TransactionAmount DOUBLE, TransactionType STRING)
@@ -137,7 +145,9 @@ with DAG(
         """Return Hive Metastore Warehouse GCS bucket name."""
         ti = kwargs["ti"]
         metastore_service: dict = ti.xcom_pull(task_ids="create_metastore_service")
-        config_overrides: dict = metastore_service["hive_metastore_config"]["config_overrides"]
+        config_overrides: dict = metastore_service["hive_metastore_config"][
+            "config_overrides"
+        ]
         destination_dir: str = config_overrides["hive.metastore.warehouse.dir"]
         bucket, _ = _parse_gcs_url(destination_dir)
         ti.xcom_push(key="bucket", value=bucket)

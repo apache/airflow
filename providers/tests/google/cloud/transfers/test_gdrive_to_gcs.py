@@ -19,7 +19,9 @@ from __future__ import annotations
 import os
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
+from airflow.providers.google.cloud.transfers.gdrive_to_gcs import (
+    GoogleDriveToGCSOperator,
+)
 
 FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", "abcd1234")
 DRIVE_ID = os.environ.get("GCP_GDRIVE_DRIVE_ID", "abcd1234")

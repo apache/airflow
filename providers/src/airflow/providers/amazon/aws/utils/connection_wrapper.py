@@ -139,7 +139,11 @@ class AwsConnectionWrapper(LoggingMixin):
         return self.service_config.get(service_name, {})
 
     def get_service_endpoint_url(
-        self, service_name: str, *, sts_connection_assume: bool = False, sts_test_connection: bool = False
+        self,
+        service_name: str,
+        *,
+        sts_connection_assume: bool = False,
+        sts_test_connection: bool = False,
     ) -> str | None:
         service_config = self.get_service_config(service_name=service_name)
         global_endpoint_url = self.endpoint_url
@@ -158,7 +162,9 @@ class AwsConnectionWrapper(LoggingMixin):
 
         return service_config.get("endpoint_url", global_endpoint_url)
 
-    def __post_init__(self, conn: Connection | AwsConnectionWrapper | _ConnectionMetadata | None) -> None:
+    def __post_init__(
+        self, conn: Connection | AwsConnectionWrapper | _ConnectionMetadata | None
+    ) -> None:
         """Initialize the AwsConnectionWrapper object after instantiation."""
         if isinstance(conn, type(self)):
             # For every field with init=False we copy reference value from original wrapper
@@ -211,20 +217,32 @@ class AwsConnectionWrapper(LoggingMixin):
 
         # Retrieve initial connection credentials
         init_credentials = self._get_credentials(**extra)
-        self.aws_access_key_id, self.aws_secret_access_key, self.aws_session_token = init_credentials
+        self.aws_access_key_id, self.aws_secret_access_key, self.aws_session_token = (
+            init_credentials
+        )
 
         if not self.region_name:
             if "region_name" in extra:
                 self.region_name = extra["region_name"]
-                self.log.debug("Retrieving region_name=%s from %s extra.", self.region_name, self.conn_repr)
+                self.log.debug(
+                    "Retrieving region_name=%s from %s extra.",
+                    self.region_name,
+                    self.conn_repr,
+                )
 
         if self.verify is None and "verify" in extra:
             self.verify = extra["verify"]
-            self.log.debug("Retrieving verify=%s from %s extra.", self.verify, self.conn_repr)
+            self.log.debug(
+                "Retrieving verify=%s from %s extra.", self.verify, self.conn_repr
+            )
 
         if "profile_name" in extra:
             self.profile_name = extra["profile_name"]
-            self.log.debug("Retrieving profile_name=%s from %s extra.", self.profile_name, self.conn_repr)
+            self.log.debug(
+                "Retrieving profile_name=%s from %s extra.",
+                self.profile_name,
+                self.conn_repr,
+            )
 
         # Warn the user that an invalid parameter is being used which actually not related to 'profile_name'.
         # ToDo: Remove this check entirely as soon as drop support credentials from s3_config_file
@@ -240,7 +258,11 @@ class AwsConnectionWrapper(LoggingMixin):
         config_kwargs = extra.get("config_kwargs")
         if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-            self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            self.log.debug(
+                "Retrieving botocore config=%s from %s extra.",
+                config_kwargs,
+                self.conn_repr,
+            )
             if config_kwargs.get("signature_version") == "unsigned":
                 config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
@@ -249,7 +271,9 @@ class AwsConnectionWrapper(LoggingMixin):
 
         # Retrieve Assume Role Configuration
         assume_role_configs = self._get_assume_role_configs(**extra)
-        self.role_arn, self.assume_role_method, self.assume_role_kwargs = assume_role_configs
+        self.role_arn, self.assume_role_method, self.assume_role_kwargs = (
+            assume_role_configs
+        )
 
     @classmethod
     def from_connection_metadata(
@@ -322,14 +346,18 @@ class AwsConnectionWrapper(LoggingMixin):
         session_aws_session_token = session_kwargs.get("aws_session_token")
 
         if self.login and self.password:
-            self.log.info("%s credentials retrieved from login and password.", self.conn_repr)
+            self.log.info(
+                "%s credentials retrieved from login and password.", self.conn_repr
+            )
             aws_access_key_id, aws_secret_access_key = self.login, self.password
         elif aws_access_key_id and aws_secret_access_key:
             self.log.info("%s credentials retrieved from extra.", self.conn_repr)
         elif session_aws_access_key_id and session_aws_secret_access_key:
             aws_access_key_id = session_aws_access_key_id
             aws_secret_access_key = session_aws_secret_access_key
-            self.log.info("%s credentials retrieved from extra['session_kwargs'].", self.conn_repr)
+            self.log.info(
+                "%s credentials retrieved from extra['session_kwargs'].", self.conn_repr
+            )
 
         if aws_session_token:
             self.log.info(
@@ -356,19 +384,27 @@ class AwsConnectionWrapper(LoggingMixin):
     ) -> tuple[str | None, str | None, dict[Any, str]]:
         """Get assume role configs from Connection extra."""
         if role_arn:
-            self.log.debug("Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr)
+            self.log.debug(
+                "Retrieving role_arn=%r from %s extra.", role_arn, self.conn_repr
+            )
         else:
             # There is no reason obtain `assume_role_method` and `assume_role_kwargs` if `role_arn` not set.
             return None, None, {}
 
-        supported_methods = ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
+        supported_methods = [
+            "assume_role",
+            "assume_role_with_saml",
+            "assume_role_with_web_identity",
+        ]
         if assume_role_method not in supported_methods:
             raise NotImplementedError(
                 f"Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra."
                 f" Currently {supported_methods} are supported."
                 ' (Exclude this setting will default to "assume_role").'
             )
-        self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)
+        self.log.debug(
+            "Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr
+        )
 
         assume_role_kwargs = assume_role_kwargs or {}
 

@@ -140,8 +140,12 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if self.table_name.split(".")[0] == "delta":
             _fully_qualified_table_name = self.table_name
         else:
-            _fully_qualified_table_name = f"{self.catalog}.{self.schema}.{self.table_name}"
-        self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
+            _fully_qualified_table_name = (
+                f"{self.catalog}.{self.schema}.{self.table_name}"
+            )
+        self.log.debug(
+            "Table name generated from arguments: %s", _fully_qualified_table_name
+        )
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
         _suffix = " LIMIT 1"
@@ -193,7 +197,9 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                     partition_col = self.escaper.escape_item(partition_col)
                 if partition_col in partition_columns:
                     if isinstance(partition_value, list):
-                        output_list.append(f"""{partition_col} in {tuple(partition_value)}""")
+                        output_list.append(
+                            f"""{partition_col} in {tuple(partition_value)}"""
+                        )
                         self.log.debug("List formatting for partitions: %s", output_list)
                     if isinstance(partition_value, (int, float, complex)):
                         output_list.append(

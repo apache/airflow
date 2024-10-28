@@ -27,7 +27,9 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
     S3DeleteObjectsOperator,
 )
-from airflow.providers.microsoft.azure.transfers.s3_to_wasb import S3ToAzureBlobStorageOperator
+from airflow.providers.microsoft.azure.transfers.s3_to_wasb import (
+    S3ToAzureBlobStorageOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
@@ -42,7 +44,9 @@ BLOB_PREFIX: str = "TEST"
 BLOB_NAME: str = "TEST/TEST1.csv"
 
 
-with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catchup=False) as dag:
+with DAG(
+    dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catchup=False
+) as dag:
     # Pull the task context, as well as the ENV_ID
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
@@ -53,7 +57,9 @@ with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catch
 
     # Create an S3 bucket as part of testing set up, which will be removed by the remove_s3_bucket during
     # teardown
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket_name
+    )
 
     # Add a file to the S3 bucket created above. Part of testing set up, this file will eventually be removed
     # by the remove_s3_object task during teardown
@@ -80,7 +86,10 @@ with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catch
 
     # Part of tear down, remove all the objects at the S3_PREFIX
     remove_s3_object = S3DeleteObjectsOperator(
-        task_id="remove_s3_object", bucket=s3_bucket_name, prefix=S3_PREFIX, trigger_rule=TriggerRule.ALL_DONE
+        task_id="remove_s3_object",
+        bucket=s3_bucket_name,
+        prefix=S3_PREFIX,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # Remove the S3 bucket created as part of setup

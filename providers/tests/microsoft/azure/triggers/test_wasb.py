@@ -53,7 +53,10 @@ class TestWasbBlobSensorTrigger:
         """
 
         classpath, kwargs = self.TRIGGER.serialize()
-        assert classpath == "airflow.providers.microsoft.azure.triggers.wasb.WasbBlobSensorTrigger"
+        assert (
+            classpath
+            == "airflow.providers.microsoft.azure.triggers.wasb.WasbBlobSensorTrigger"
+        )
         assert kwargs == {
             "container_name": TEST_DATA_STORAGE_CONTAINER_NAME,
             "blob_name": TEST_DATA_STORAGE_BLOB_NAME,
@@ -67,7 +70,9 @@ class TestWasbBlobSensorTrigger:
         "blob_exists",
         [True, False],
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async"
+    )
     async def test_running(self, mock_check_for_blob, blob_exists):
         """
         Test if the task is run in trigger successfully.
@@ -81,7 +86,9 @@ class TestWasbBlobSensorTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async"
+    )
     async def test_success(self, mock_check_for_blob):
         """Tests the success state for that the WasbBlobSensorTrigger."""
         mock_check_for_blob.return_value = True
@@ -97,7 +104,9 @@ class TestWasbBlobSensorTrigger:
         assert task.result() == TriggerEvent({"status": "success", "message": message})
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async"
+    )
     async def test_waiting_for_blob(self, mock_check_for_blob, caplog):
         """Tests the WasbBlobSensorTrigger sleeps waiting for the blob to arrive."""
         mock_check_for_blob.side_effect = [False, True]
@@ -117,7 +126,9 @@ class TestWasbBlobSensorTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async"
+    )
     async def test_trigger_exception(self, mock_check_for_blob):
         """Tests the WasbBlobSensorTrigger yields an error event if there is an exception."""
         mock_check_for_blob.side_effect = Exception("Test exception")
@@ -141,7 +152,10 @@ class TestWasbPrefixSensorTrigger:
         Asserts that the WasbPrefixSensorTrigger correctly serializes its arguments and classpath."""
 
         classpath, kwargs = self.TRIGGER.serialize()
-        assert classpath == "airflow.providers.microsoft.azure.triggers.wasb.WasbPrefixSensorTrigger"
+        assert (
+            classpath
+            == "airflow.providers.microsoft.azure.triggers.wasb.WasbPrefixSensorTrigger"
+        )
         assert kwargs == {
             "container_name": TEST_DATA_STORAGE_CONTAINER_NAME,
             "prefix": TEST_DATA_STORAGE_BLOB_PREFIX,
@@ -159,7 +173,9 @@ class TestWasbPrefixSensorTrigger:
         "prefix_exists",
         [True, False],
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async"
+    )
     async def test_running(self, mock_check_for_prefix, prefix_exists):
         """Test if the task is run in trigger successfully."""
         mock_check_for_prefix.return_value = prefix_exists
@@ -171,7 +187,9 @@ class TestWasbPrefixSensorTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async"
+    )
     async def test_success(self, mock_check_for_prefix):
         """Tests the success state for that the WasbPrefixSensorTrigger."""
         mock_check_for_prefix.return_value = True
@@ -183,13 +201,13 @@ class TestWasbPrefixSensorTrigger:
         assert task.done() is True
         asyncio.get_event_loop().stop()
 
-        message = (
-            f"Prefix {TEST_DATA_STORAGE_BLOB_PREFIX} found in container {TEST_DATA_STORAGE_CONTAINER_NAME}."
-        )
+        message = f"Prefix {TEST_DATA_STORAGE_BLOB_PREFIX} found in container {TEST_DATA_STORAGE_CONTAINER_NAME}."
         assert task.result() == TriggerEvent({"status": "success", "message": message})
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async"
+    )
     async def test_waiting_for_blob(self, mock_check_for_prefix):
         """Tests the WasbPrefixSensorTrigger sleeps waiting for the blob to arrive."""
         mock_check_for_prefix.side_effect = [False, True]
@@ -208,7 +226,9 @@ class TestWasbPrefixSensorTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async"
+    )
     async def test_trigger_exception(self, mock_check_for_prefix):
         """Tests the WasbPrefixSensorTrigger yields an error event if there is an exception."""
         mock_check_for_prefix.side_effect = Exception("Test exception")

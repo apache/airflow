@@ -95,7 +95,9 @@ class AssetManager(LoggingMixin):
         already_related = {m.name for m in asset.aliases}
         existing_aliases = {
             m.name: m
-            for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
+            for m in session.scalars(
+                select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names))
+            )
         }
         asset.aliases.extend(
             existing_aliases.get(name, AssetAliasModel(name=name))
@@ -128,14 +130,18 @@ class AssetManager(LoggingMixin):
             .where(AssetModel.uri == asset.uri)
             .options(
                 joinedload(AssetModel.aliases),
-                joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
+                joinedload(AssetModel.consuming_dags).joinedload(
+                    DagScheduleAssetReference.dag
+                ),
             )
         )
         if not asset_model:
             cls.logger().warning("AssetModel %s not found", asset)
             return None
 
-        cls._add_asset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
+        cls._add_asset_alias_association(
+            {alias.name for alias in aliases}, asset_model, session=session
+        )
 
         event_kwargs = {
             "asset_id": asset_model.id,
@@ -154,7 +160,9 @@ class AssetManager(LoggingMixin):
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
 
         dags_to_queue_from_asset = {
-            ref.dag for ref in asset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
+            ref.dag
+            for ref in asset_model.consuming_dags
+            if ref.dag.is_active and not ref.dag.is_paused
         }
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
@@ -162,7 +170,9 @@ class AssetManager(LoggingMixin):
                 select(AssetAliasModel)
                 .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
-                    joinedload(AssetAliasModel.consuming_dags).joinedload(DagScheduleAssetAliasReference.dag)
+                    joinedload(AssetAliasModel.consuming_dags).joinedload(
+                        DagScheduleAssetAliasReference.dag
+                    )
                 )
             ).unique()
 
@@ -186,7 +196,9 @@ class AssetManager(LoggingMixin):
         Stats.incr("asset.updates")
 
         dags_to_queue = dags_to_queue_from_asset | dags_to_queue_from_asset_alias
-        cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
+        cls._queue_dagruns(
+            asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session
+        )
         return asset_event
 
     @staticmethod
@@ -205,7 +217,9 @@ class AssetManager(LoggingMixin):
         get_listener_manager().hook.on_asset_changed(asset=asset)
 
     @classmethod
-    def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
@@ -222,7 +236,9 @@ class AssetManager(LoggingMixin):
         return cls._slow_path_queue_dagruns(asset_id, dags_to_queue, session)
 
     @classmethod
-    def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _slow_path_queue_dagruns(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
@@ -239,7 +255,9 @@ class AssetManager(LoggingMixin):
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _postgres_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _postgres_queue_dagruns(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
@@ -247,13 +265,17 @@ class AssetManager(LoggingMixin):
         session.execute(stmt, values)
 
     @classmethod
-    def _send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
+    def _send_dag_priority_parsing_request(
+        cls, file_locs: Iterable[str], session: Session
+    ) -> None:
         if session.bind.dialect.name == "postgresql":
             return cls._postgres_send_dag_priority_parsing_request(file_locs, session)
         return cls._slow_path_send_dag_priority_parsing_request(file_locs, session)
 
     @classmethod
-    def _slow_path_send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
+    def _slow_path_send_dag_priority_parsing_request(
+        cls, file_locs: Iterable[str], session: Session
+    ) -> None:
         def _send_dag_priority_parsing_request_if_needed(fileloc: str) -> str | None:
             # Don't error whole transaction when a single DagPriorityParsingRequest item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
@@ -262,7 +284,9 @@ class AssetManager(LoggingMixin):
                 with session.begin_nested():
                     session.merge(req)
             except exc.IntegrityError:
-                cls.logger().debug("Skipping request %s, already present", req, exc_info=True)
+                cls.logger().debug(
+                    "Skipping request %s, already present", req, exc_info=True
+                )
                 return None
             return req.fileloc
 
@@ -270,7 +294,9 @@ class AssetManager(LoggingMixin):
             _send_dag_priority_parsing_request_if_needed(fileloc)
 
     @classmethod
-    def _postgres_send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
+    def _postgres_send_dag_priority_parsing_request(
+        cls, file_locs: Iterable[str], session: Session
+    ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         stmt = insert(DagPriorityParsingRequest).on_conflict_do_nothing()

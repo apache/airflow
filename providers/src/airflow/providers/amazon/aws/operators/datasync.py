@@ -195,7 +195,10 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
-        return {**super()._hook_parameters, "wait_interval_seconds": self.wait_interval_seconds}
+        return {
+            **super()._hook_parameters,
+            "wait_interval_seconds": self.wait_interval_seconds,
+        }
 
     def execute(self, context: Context):
         # If task_arn was not specified then try to
@@ -234,9 +237,13 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
 
     def _get_tasks_and_locations(self) -> None:
         """Find existing DataSync Task based on source and dest Locations."""
-        self.candidate_source_location_arns = self._get_location_arns(self.source_location_uri)
+        self.candidate_source_location_arns = self._get_location_arns(
+            self.source_location_uri
+        )
 
-        self.candidate_destination_location_arns = self._get_location_arns(self.destination_location_uri)
+        self.candidate_destination_location_arns = self._get_location_arns(
+            self.destination_location_uri
+        )
 
         if not self.candidate_source_location_arns:
             self.log.info("No matching source Locations")
@@ -283,8 +290,14 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
 
     def _create_datasync_task(self) -> None:
         """Create a AWS DataSyncTask."""
-        self.source_location_arn = self.choose_location(self.candidate_source_location_arns)
-        if not self.source_location_arn and self.source_location_uri and self.create_source_location_kwargs:
+        self.source_location_arn = self.choose_location(
+            self.candidate_source_location_arns
+        )
+        if (
+            not self.source_location_arn
+            and self.source_location_uri
+            and self.create_source_location_kwargs
+        ):
             self.log.info("Attempting to create source Location")
             self.source_location_arn = self.hook.create_location(
                 self.source_location_uri, **self.create_source_location_kwargs
@@ -294,7 +307,9 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
                 "Unable to determine source LocationArn. Does a suitable DataSync Location exist?"
             )
 
-        self.destination_location_arn = self.choose_location(self.candidate_destination_location_arns)
+        self.destination_location_arn = self.choose_location(
+            self.candidate_destination_location_arns
+        )
         if (
             not self.destination_location_arn
             and self.destination_location_uri
@@ -311,7 +326,9 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
 
         self.log.info("Creating a Task.")
         self.task_arn = self.hook.create_task(
-            self.source_location_arn, self.destination_location_arn, **self.create_task_kwargs
+            self.source_location_arn,
+            self.destination_location_arn,
+            **self.create_task_kwargs,
         )
         if not self.task_arn:
             raise AirflowException("Task could not be created")
@@ -333,7 +350,9 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
 
         # Create a task execution:
         self.log.info("Starting execution for TaskArn %s", self.task_arn)
-        self.task_execution_arn = self.hook.start_task_execution(self.task_arn, **self.task_execution_kwargs)
+        self.task_execution_arn = self.hook.start_task_execution(
+            self.task_arn, **self.task_execution_kwargs
+        )
         self.log.info("Started TaskExecutionArn %s", self.task_execution_arn)
 
         if not self.wait_for_completion:
@@ -390,5 +409,7 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
 
     def _get_location_arns(self, location_uri) -> list[str]:
         location_arns = self.hook.get_location_arns(location_uri)
-        self.log.info("Found LocationArns %s for LocationUri %s", location_arns, location_uri)
+        self.log.info(
+            "Found LocationArns %s for LocationUri %s", location_arns, location_uri
+        )
         return location_arns

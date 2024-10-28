@@ -30,17 +30,25 @@ from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
+from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import (
+    BatchPredictionJobHook,
+)
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIBatchPredictionJobLink,
     VertexAIBatchPredictionJobListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.vertex_ai import CreateBatchPredictionJobTrigger
+from airflow.providers.google.cloud.triggers.vertex_ai import (
+    CreateBatchPredictionJobTrigger,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform import BatchPredictionJob as BatchPredictionJobObject, Model, explain
+    from google.cloud.aiplatform import (
+        BatchPredictionJob as BatchPredictionJobObject,
+        Model,
+        explain,
+    )
 
     from airflow.utils.context import Context
 
@@ -163,7 +171,13 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
     """
 
-    template_fields = ("region", "project_id", "model_name", "impersonation_chain", "job_display_name")
+    template_fields = (
+        "region",
+        "project_id",
+        "model_name",
+        "impersonation_chain",
+        "job_display_name",
+    )
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(
@@ -195,7 +209,9 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         batch_size: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -243,38 +259,46 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
             stacklevel=2,
         )
         self.log.info("Creating Batch prediction job")
-        batch_prediction_job: BatchPredictionJobObject = self.hook.submit_batch_prediction_job(
-            region=self.region,
-            project_id=self.project_id,
-            job_display_name=self.job_display_name,
-            model_name=self.model_name,
-            instances_format=self.instances_format,
-            predictions_format=self.predictions_format,
-            gcs_source=self.gcs_source,
-            bigquery_source=self.bigquery_source,
-            gcs_destination_prefix=self.gcs_destination_prefix,
-            bigquery_destination_prefix=self.bigquery_destination_prefix,
-            model_parameters=self.model_parameters,
-            machine_type=self.machine_type,
-            accelerator_type=self.accelerator_type,
-            accelerator_count=self.accelerator_count,
-            starting_replica_count=self.starting_replica_count,
-            max_replica_count=self.max_replica_count,
-            generate_explanation=self.generate_explanation,
-            explanation_metadata=self.explanation_metadata,
-            explanation_parameters=self.explanation_parameters,
-            labels=self.labels,
-            encryption_spec_key_name=self.encryption_spec_key_name,
-            create_request_timeout=self.create_request_timeout,
-            batch_size=self.batch_size,
+        batch_prediction_job: BatchPredictionJobObject = (
+            self.hook.submit_batch_prediction_job(
+                region=self.region,
+                project_id=self.project_id,
+                job_display_name=self.job_display_name,
+                model_name=self.model_name,
+                instances_format=self.instances_format,
+                predictions_format=self.predictions_format,
+                gcs_source=self.gcs_source,
+                bigquery_source=self.bigquery_source,
+                gcs_destination_prefix=self.gcs_destination_prefix,
+                bigquery_destination_prefix=self.bigquery_destination_prefix,
+                model_parameters=self.model_parameters,
+                machine_type=self.machine_type,
+                accelerator_type=self.accelerator_type,
+                accelerator_count=self.accelerator_count,
+                starting_replica_count=self.starting_replica_count,
+                max_replica_count=self.max_replica_count,
+                generate_explanation=self.generate_explanation,
+                explanation_metadata=self.explanation_metadata,
+                explanation_parameters=self.explanation_parameters,
+                labels=self.labels,
+                encryption_spec_key_name=self.encryption_spec_key_name,
+                create_request_timeout=self.create_request_timeout,
+                batch_size=self.batch_size,
+            )
         )
         batch_prediction_job.wait_for_resource_creation()
         batch_prediction_job_id = batch_prediction_job.name
-        self.log.info("Batch prediction job was created. Job id: %s", batch_prediction_job_id)
+        self.log.info(
+            "Batch prediction job was created. Job id: %s", batch_prediction_job_id
+        )
 
-        self.xcom_push(context, key="batch_prediction_job_id", value=batch_prediction_job_id)
+        self.xcom_push(
+            context, key="batch_prediction_job_id", value=batch_prediction_job_id
+        )
         VertexAIBatchPredictionJobLink.persist(
-            context=context, task_instance=self, batch_prediction_job_id=batch_prediction_job_id
+            context=context,
+            task_instance=self,
+            batch_prediction_job_id=batch_prediction_job_id,
         )
 
         if self.deferrable:
@@ -291,7 +315,9 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
             )
 
         batch_prediction_job.wait_for_completion()
-        self.log.info("Batch prediction job was completed. Job id: %s", batch_prediction_job_id)
+        self.log.info(
+            "Batch prediction job was completed. Job id: %s", batch_prediction_job_id
+        )
         return batch_prediction_job.to_dict()
 
     def on_kill(self) -> None:
@@ -303,7 +329,9 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
         job: dict[str, Any] = event["job"]
-        self.log.info("Batch prediction job %s created and completed successfully.", job["name"])
+        self.log.info(
+            "Batch prediction job %s created and completed successfully.", job["name"]
+        )
         job_id = self.hook.extract_batch_prediction_job_id(job)
         self.xcom_push(
             context,
@@ -343,7 +371,12 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "batch_prediction_job_id", "impersonation_chain")
+    template_fields = (
+        "region",
+        "project_id",
+        "batch_prediction_job_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -375,7 +408,9 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
         )
 
         try:
-            self.log.info("Deleting batch prediction job: %s", self.batch_prediction_job_id)
+            self.log.info(
+                "Deleting batch prediction job: %s", self.batch_prediction_job_id
+            )
             operation = hook.delete_batch_prediction_job(
                 project_id=self.project_id,
                 region=self.region,
@@ -387,7 +422,10 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
             self.log.info("Batch prediction job was deleted.")
         except NotFound:
-            self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job_id)
+            self.log.info(
+                "The Batch prediction job %s does not exist.",
+                self.batch_prediction_job_id,
+            )
 
 
 class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
@@ -455,11 +493,15 @@ class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
             )
             self.log.info("Batch prediction job was gotten.")
             VertexAIBatchPredictionJobLink.persist(
-                context=context, task_instance=self, batch_prediction_job_id=self.batch_prediction_job
+                context=context,
+                task_instance=self,
+                batch_prediction_job_id=self.batch_prediction_job,
             )
             return BatchPredictionJob.to_dict(result)
         except NotFound:
-            self.log.info("The Batch prediction job %s does not exist.", self.batch_prediction_job)
+            self.log.info(
+                "The Batch prediction job %s does not exist.", self.batch_prediction_job
+            )
 
 
 class ListBatchPredictionJobsOperator(GoogleCloudBaseOperator):

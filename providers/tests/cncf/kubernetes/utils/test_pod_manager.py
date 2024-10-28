@@ -41,7 +41,10 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 )
 from airflow.utils.timezone import utc
 
-from providers.tests.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+from providers.tests.cncf.kubernetes.test_callbacks import (
+    MockKubernetesPodOperatorCallback,
+    MockWrapper,
+)
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -94,8 +97,12 @@ class TestPodManager:
             ]
         )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    def test_fetch_container_logs_do_not_log_none(self, mock_container_is_running, caplog):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
+    def test_fetch_container_logs_do_not_log_none(
+        self, mock_container_is_running, caplog
+    ):
         MockWrapper.reset()
         caplog.set_level(logging.INFO)
 
@@ -106,8 +113,12 @@ class TestPodManager:
         with mock.patch.object(PodLogsConsumer, "__iter__") as mock_consumer_iter:
             mock_consumer_iter.side_effect = consumer_iter
             mock_container_is_running.side_effect = [True, True, False]
-            self.pod_manager.fetch_container_logs(mock.MagicMock(), "container-name", follow=True)
-            assert "[container-name] None" not in (record.message for record in caplog.records)
+            self.pod_manager.fetch_container_logs(
+                mock.MagicMock(), "container-name", follow=True
+            )
+            assert "[container-name] None" not in (
+                record.message for record in caplog.records
+            )
 
     def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -125,7 +136,9 @@ class TestPodManager:
     def test_read_pod_logs_successfully_with_tail_lines(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [mock.sentinel.logs]
-        logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base", tail_lines=100)
+        logs = self.pod_manager.read_pod_logs(
+            pod=mock.sentinel, container_name="base", tail_lines=100
+        )
         assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
@@ -224,7 +237,9 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         running_status = mock.MagicMock()
         running_status.configure_mock(**{"name": "base", "state.running": True})
-        pod_info_running = mock.MagicMock(**{"status.container_statuses": [running_status]})
+        pod_info_running = mock.MagicMock(
+            **{"status.container_statuses": [running_status]}
+        )
         pod_info_succeeded = mock.MagicMock(**{"status.phase": PodPhase.SUCCEEDED})
 
         def pod_state_gen():
@@ -241,7 +256,9 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         running_status = mock.MagicMock()
         running_status.configure_mock(**{"name": "base", "state.running": True})
-        pod_info_running = mock.MagicMock(**{"status.container_statuses": [running_status]})
+        pod_info_running = mock.MagicMock(
+            **{"status.container_statuses": [running_status]}
+        )
         pod_info_succeeded = mock.MagicMock(**{"status.phase": PodPhase.SUCCEEDED})
 
         def pod_state_gen():
@@ -277,38 +294,64 @@ class TestPodManager:
         assert line == log_message
 
         real_timestamp = "2020-10-08T14:16:17.793417674Z"
-        timestamp, line = self.pod_manager.parse_log_line(f"{real_timestamp} {log_message}")
+        timestamp, line = self.pod_manager.parse_log_line(
+            f"{real_timestamp} {log_message}"
+        )
         assert timestamp == pendulum.parse(real_timestamp)
         assert line == log_message
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs"
+    )
     def test_fetch_container_logs_returning_last_timestamp(
         self, mock_read_pod_logs, mock_container_is_running
     ):
         timestamp_string = "2020-10-08T14:16:17.793417674Z"
-        mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8"), b"notimestamp"]
+        mock_read_pod_logs.return_value = [
+            bytes(f"{timestamp_string} message", "utf-8"),
+            b"notimestamp",
+        ]
         mock_container_is_running.side_effect = [True, False]
 
-        status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        status = self.pod_manager.fetch_container_logs(
+            mock.MagicMock(), mock.MagicMock(), follow=True
+        )
 
         assert status.last_log_time == cast("DateTime", pendulum.parse(timestamp_string))
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs"
+    )
     def test_fetch_container_logs_invoke_deprecated_progress_callback(
         self, mock_read_pod_logs, mock_container_is_running
     ):
         message = "2020-10-08T14:16:17.793417674Z message"
         no_ts_message = "notimestamp"
-        mock_read_pod_logs.return_value = [bytes(message, "utf-8"), bytes(no_ts_message, "utf-8")]
+        mock_read_pod_logs.return_value = [
+            bytes(message, "utf-8"),
+            bytes(no_ts_message, "utf-8"),
+        ]
         mock_container_is_running.return_value = False
 
-        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
-        self.mock_progress_callback.assert_has_calls([mock.call(message), mock.call(no_ts_message)])
+        self.pod_manager.fetch_container_logs(
+            mock.MagicMock(), mock.MagicMock(), follow=True
+        )
+        self.mock_progress_callback.assert_has_calls(
+            [mock.call(message), mock.call(no_ts_message)]
+        )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs"
+    )
     def test_fetch_container_logs_invoke_progress_callback(
         self, mock_read_pod_logs, mock_container_is_running
     ):
@@ -316,18 +359,27 @@ class TestPodManager:
         mock_callbacks = MockWrapper.mock_callbacks
         message = "2020-10-08T14:16:17.793417674Z message"
         no_ts_message = "notimestamp"
-        mock_read_pod_logs.return_value = [bytes(message, "utf-8"), bytes(no_ts_message, "utf-8")]
+        mock_read_pod_logs.return_value = [
+            bytes(message, "utf-8"),
+            bytes(no_ts_message, "utf-8"),
+        ]
         mock_container_is_running.return_value = False
 
-        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        self.pod_manager.fetch_container_logs(
+            mock.MagicMock(), mock.MagicMock(), follow=True
+        )
         mock_callbacks.progress_callback.assert_has_calls(
             [
                 mock.call(line=message, client=self.pod_manager._client, mode="sync"),
-                mock.call(line=no_ts_message, client=self.pod_manager._client, mode="sync"),
+                mock.call(
+                    line=no_ts_message, client=self.pod_manager._client, mode="sync"
+                ),
             ]
         )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
     def test_fetch_container_logs_failures(self, mock_container_is_running):
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
@@ -338,7 +390,9 @@ class TestPodManager:
             None,
             bytes(f"{last_timestamp_string} message", "utf-8"),
         ]
-        expected_call_count = len([message for message in messages if message is not None])
+        expected_call_count = len(
+            [message for message in messages if message is not None]
+        )
 
         def consumer_iter():
             while messages:
@@ -350,14 +404,24 @@ class TestPodManager:
         with mock.patch.object(PodLogsConsumer, "__iter__") as mock_consumer_iter:
             mock_consumer_iter.side_effect = consumer_iter
             mock_container_is_running.side_effect = [True, True, False]
-            status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
-        assert status.last_log_time == cast("DateTime", pendulum.parse(last_timestamp_string))
+            status = self.pod_manager.fetch_container_logs(
+                mock.MagicMock(), mock.MagicMock(), follow=True
+            )
+        assert status.last_log_time == cast(
+            "DateTime", pendulum.parse(last_timestamp_string)
+        )
         assert self.mock_progress_callback.call_count == expected_call_count
         assert mock_callbacks.progress_callback.call_count == expected_call_count
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
-    def test_parse_multi_line_logs(self, mock_read_pod_logs, mock_container_is_running, caplog):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs"
+    )
+    def test_parse_multi_line_logs(
+        self, mock_read_pod_logs, mock_container_is_running, caplog
+    ):
         log = (
             "2020-10-08T14:16:17.793417674Z message1 line1\n"
             "message1 line2\n"
@@ -366,11 +430,15 @@ class TestPodManager:
             "message2 line2\n"
             "2020-10-08T14:16:19.793417674Z message3 line1\n"
         )
-        mock_read_pod_logs.return_value = [bytes(log_line, "utf-8") for log_line in log.split("\n")]
+        mock_read_pod_logs.return_value = [
+            bytes(log_line, "utf-8") for log_line in log.split("\n")
+        ]
         mock_container_is_running.return_value = False
 
         with caplog.at_level(logging.INFO):
-            self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+            self.pod_manager.fetch_container_logs(
+                mock.MagicMock(), mock.MagicMock(), follow=True
+            )
 
         assert "message1 line1" in caplog.text
         assert "message1 line2" in caplog.text
@@ -380,7 +448,9 @@ class TestPodManager:
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async"
+    )
     def test_start_pod_retries_on_409_error(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [
             ApiException(status=409),
@@ -389,13 +459,17 @@ class TestPodManager:
         self.pod_manager.create_pod(mock.sentinel)
         assert mock_run_pod_async.call_count == 2
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async"
+    )
     def test_start_pod_fails_on_other_exception(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [ApiException(status=504)]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async"
+    )
     def test_start_pod_retries_three_times(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [
             ApiException(status=409),
@@ -432,7 +506,9 @@ class TestPodManager:
                 yield pod_info_succeeded
 
         self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
-        startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do nothing
+        startup_check_interval = (
+            10  # Any value is fine, as time.sleep is mocked to do nothing
+        )
         mock_pod = MagicMock()
         self.pod_manager.await_pod_start(
             pod=mock_pod,
@@ -442,7 +518,9 @@ class TestPodManager:
         mock_time_sleep.assert_called_with(startup_check_interval)
         assert mock_time_sleep.call_count == 2
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
     def test_container_is_running(self, container_is_running_mock):
         mock_pod = MagicMock()
         self.pod_manager.read_pod = mock.MagicMock(return_value=mock_pod)
@@ -450,22 +528,34 @@ class TestPodManager:
         container_is_running_mock.assert_called_with(pod=mock_pod, container_name="base")
 
     @pytest.mark.parametrize("follow", [True, False])
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available"
+    )
     def test_fetch_container_done(self, logs_available, container_running, follow):
         """If container done, should exit, no matter setting of follow."""
         mock_pod = MagicMock()
         logs_available.return_value = False
         container_running.return_value = False
-        ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", follow=follow)
+        ret = self.pod_manager.fetch_container_logs(
+            pod=mock_pod, container_name="base", follow=follow
+        )
         assert ret.last_log_time is None
         assert ret.running is False
 
     # adds all valid types for container_logs
     @pytest.mark.parametrize("follow", [True, False])
-    @pytest.mark.parametrize("container_logs", ["base", "alpine", True, ["base", "alpine"]])
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
-    def test_fetch_requested_container_logs(self, container_is_running, container_logs, follow):
+    @pytest.mark.parametrize(
+        "container_logs", ["base", "alpine", True, ["base", "alpine"]]
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
+    def test_fetch_requested_container_logs(
+        self, container_is_running, container_logs, follow
+    ):
         mock_pod = MagicMock()
         self.pod_manager.read_pod = MagicMock()
         self.pod_manager.get_container_names = MagicMock()
@@ -483,8 +573,12 @@ class TestPodManager:
 
     # adds all invalid types for container_logs
     @pytest.mark.parametrize("container_logs", [1, None, 6.8, False])
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
-    def test_fetch_requested_container_logs_invalid(self, container_running, container_logs):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
+    def test_fetch_requested_container_logs_invalid(
+        self, container_running, container_logs
+    ):
         mock_pod = MagicMock()
         self.pod_manager.read_pod = MagicMock()
         self.pod_manager.get_container_names = MagicMock()
@@ -502,9 +596,15 @@ class TestPodManager:
         assert len(ret_values) == 0
 
     @mock.patch("pendulum.now")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
-    def test_fetch_container_since_time(self, logs_available, container_running, mock_now):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available"
+    )
+    def test_fetch_container_since_time(
+        self, logs_available, container_running, mock_now
+    ):
         """If given since_time, should be used."""
         mock_pod = MagicMock()
         mock_now.return_value = pendulum.datetime(2020, 1, 1, 0, 0, 5, tz="UTC")
@@ -514,12 +614,18 @@ class TestPodManager:
             stream=mock.MagicMock(return_value=[b"2021-01-01 hi"])
         )
         since_time = pendulum.datetime(2020, 1, 1, tz="UTC")
-        self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", since_time=since_time)
+        self.pod_manager.fetch_container_logs(
+            pod=mock_pod, container_name="base", since_time=since_time
+        )
         args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
         assert kwargs["since_seconds"] == 5
 
-    @pytest.mark.parametrize("follow, is_running_calls, exp_running", [(True, 3, False), (False, 3, False)])
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    @pytest.mark.parametrize(
+        "follow, is_running_calls, exp_running", [(True, 3, False), (False, 3, False)]
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
     def test_fetch_container_running_follow(
         self, container_running_mock, follow, is_running_calls, exp_running
     ):
@@ -532,7 +638,9 @@ class TestPodManager:
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
             stream=mock.MagicMock(return_value=[b"2021-01-01 hi"])
         )
-        ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", follow=follow)
+        ret = self.pod_manager.fetch_container_logs(
+            pod=mock_pod, container_name="base", follow=follow
+        )
         assert len(container_running_mock.call_args_list) == is_running_calls
         assert ret.last_log_time == pendulum.datetime(2021, 1, 1, tz="UTC")
         assert ret.running is exp_running
@@ -541,7 +649,9 @@ class TestPodManager:
         "container_state, expected_is_terminated",
         [("waiting", False), ("running", False), ("terminated", True)],
     )
-    def test_container_is_terminated_with_waiting_state(self, container_state, expected_is_terminated):
+    def test_container_is_terminated_with_waiting_state(
+        self, container_state, expected_is_terminated
+    ):
         container_status = MagicMock()
         container_status.configure_mock(
             **{
@@ -556,9 +666,15 @@ class TestPodManager:
         assert container_is_terminated(pod_info, "base") == expected_is_terminated
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_success(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill"
+    )
+    def test_extract_xcom_success(
+        self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream
+    ):
         """test when valid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "true"}"""
         mock_pod = MagicMock()
@@ -568,9 +684,15 @@ class TestPodManager:
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill"
+    )
+    def test_extract_xcom_failure(
+        self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream
+    ):
         """test when invalid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "tru"""  # codespell:ignore tru
         mock_pod = MagicMock()
@@ -580,9 +702,15 @@ class TestPodManager:
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_empty(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill"
+    )
+    def test_extract_xcom_empty(
+        self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream
+    ):
         """test when __airflow_xcom_result_empty__ is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         xcom_result = "__airflow_xcom_result_empty__"
@@ -592,9 +720,15 @@ class TestPodManager:
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill"
+    )
+    def test_extract_xcom_none(
+        self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream
+    ):
         """test when None is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         mock_exec_pod_command.return_value = None
@@ -602,15 +736,21 @@ class TestPodManager:
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
     def test_await_xcom_sidecar_container_timeout(self, mock_container_is_running):
         mock_pod = MagicMock()
         mock_container_is_running.return_value = False
         with pytest.raises(AirflowException):
-            self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=10, log_interval=5)
+            self.pod_manager.await_xcom_sidecar_container_start(
+                pod=mock_pod, timeout=10, log_interval=5
+            )
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running"
+    )
     def test_await_xcom_sidecar_container_starts(self, mock_container_is_running):
         mock_pod = MagicMock()
         mock_container_is_running.return_value = True
@@ -659,11 +799,19 @@ def params_for_test_container_is_running():
     p = RemotePodMock()
     p.status = RemotePodMock()
     p.status.container_statuses = []
-    pod_mock_list.append(pytest.param(p, False, id="empty remote_pod.status.container_statuses"))
+    pod_mock_list.append(
+        pytest.param(p, False, id="empty remote_pod.status.container_statuses")
+    )
     pod_mock_list.append(pytest.param(remote_pod(), False, id="filter empty"))
-    pod_mock_list.append(pytest.param(remote_pod(None, ["base"]), False, id="filter 0 running"))
-    pod_mock_list.append(pytest.param(remote_pod(["hello"], ["base"]), False, id="filter 1 not running"))
-    pod_mock_list.append(pytest.param(remote_pod(["base"], ["hello"]), True, id="filter 1 running"))
+    pod_mock_list.append(
+        pytest.param(remote_pod(None, ["base"]), False, id="filter 0 running")
+    )
+    pod_mock_list.append(
+        pytest.param(remote_pod(["hello"], ["base"]), False, id="filter 1 not running")
+    )
+    pod_mock_list.append(
+        pytest.param(remote_pod(["base"], ["hello"]), True, id="filter 1 running")
+    )
     return pod_mock_list
 
 
@@ -693,7 +841,9 @@ class TestPodLogsConsumer:
             consumer = PodLogsConsumer(
                 response=mock.MagicMock(stream=mock.MagicMock(return_value=chunks)),
                 pod=mock.MagicMock(),
-                pod_manager=mock.MagicMock(container_is_running=mock.MagicMock(return_value=True)),
+                pod_manager=mock.MagicMock(
+                    container_is_running=mock.MagicMock(return_value=True)
+                ),
                 container_name="base",
             )
             assert list(consumer) == expected_logs
@@ -702,9 +852,13 @@ class TestPodLogsConsumer:
         with mock.patch.object(PodLogsConsumer, "logs_available") as logs_available:
             logs_available.return_value = False
             consumer = PodLogsConsumer(
-                response=mock.MagicMock(stream=mock.MagicMock(return_value=[b"message1", b"message2"])),
+                response=mock.MagicMock(
+                    stream=mock.MagicMock(return_value=[b"message1", b"message2"])
+                ),
                 pod=mock.MagicMock(),
-                pod_manager=mock.MagicMock(container_is_running=mock.MagicMock(return_value=False)),
+                pod_manager=mock.MagicMock(
+                    container_is_running=mock.MagicMock(return_value=False)
+                ),
                 container_name="base",
             )
             assert list(consumer) == []
@@ -756,8 +910,12 @@ class TestPodLogsConsumer:
             ),
         ],
     )
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_status")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.get_container_status"
+    )
     def test_logs_available(
         self,
         mock_get_container_status,
@@ -894,11 +1052,19 @@ def params_for_test_container_is_succeeded():
     p = RemotePodMock()
     p.status = RemotePodMock()
     p.status.container_statuses = []
-    pod_mock_list.append(pytest.param(p, False, id="empty remote_pod.status.container_statuses"))
+    pod_mock_list.append(
+        pytest.param(p, False, id="empty remote_pod.status.container_statuses")
+    )
     pod_mock_list.append(pytest.param(remote_pod(), False, id="filter empty"))
-    pod_mock_list.append(pytest.param(remote_pod(None, ["base"]), False, id="filter 0 succeeded"))
-    pod_mock_list.append(pytest.param(remote_pod(["hello"], ["base"]), False, id="filter 1 not succeeded"))
-    pod_mock_list.append(pytest.param(remote_pod(["base"], ["hello"]), True, id="filter 1 succeeded"))
+    pod_mock_list.append(
+        pytest.param(remote_pod(None, ["base"]), False, id="filter 0 succeeded")
+    )
+    pod_mock_list.append(
+        pytest.param(remote_pod(["hello"], ["base"]), False, id="filter 1 not succeeded")
+    )
+    pod_mock_list.append(
+        pytest.param(remote_pod(["base"], ["hello"]), True, id="filter 1 succeeded")
+    )
     return pod_mock_list
 
 

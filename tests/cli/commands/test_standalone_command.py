@@ -55,7 +55,9 @@ class TestStandaloneCommand:
             (DEBUG_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
         ],
     )
-    def test_calculate_env(self, conf_executor_name, conf_sql_alchemy_conn, expected_standalone_executor):
+    def test_calculate_env(
+        self, conf_executor_name, conf_sql_alchemy_conn, expected_standalone_executor
+    ):
         """Should always force a local executor compatible with the db."""
         with mock.patch.dict(
             "os.environ",

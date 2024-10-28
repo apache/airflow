@@ -33,9 +33,15 @@ class LoggingCommandExecutor(LoggingMixin):
 
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
-            self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            self.log.info(
+                "Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd)
+            )
             return subprocess.call(
-                args=cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, env=env, cwd=cwd
+                args=cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+                env=env,
+                cwd=cwd,
             )
         else:
             self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
@@ -52,16 +58,22 @@ class LoggingCommandExecutor(LoggingMixin):
                 self.log.info("Stdout: %s", output)
                 self.log.info("Stderr: %s", err)
                 if retcode:
-                    self.log.error("Error when executing %s", " ".join(shlex.quote(c) for c in cmd))
+                    self.log.error(
+                        "Error when executing %s", " ".join(shlex.quote(c) for c in cmd)
+                    )
                 return retcode
 
     def check_output(self, cmd):
         self.log.info("Executing for output: '%s'", " ".join(shlex.quote(c) for c in cmd))
-        with subprocess.Popen(args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
+        with subprocess.Popen(
+            args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        ) as process:
             output, err = process.communicate()
             retcode = process.poll()
             if retcode:
-                self.log.error("Error when executing '%s'", " ".join(shlex.quote(c) for c in cmd))
+                self.log.error(
+                    "Error when executing '%s'", " ".join(shlex.quote(c) for c in cmd)
+                )
                 self.log.info("Stdout: %s", output)
                 self.log.info("Stderr: %s", err)
                 raise AirflowException(
@@ -83,9 +95,15 @@ class CommandExecutor(LoggingCommandExecutor):
 
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
-            self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            self.log.info(
+                "Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd)
+            )
             return subprocess.call(
-                args=cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, env=env, cwd=cwd
+                args=cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+                env=env,
+                cwd=cwd,
             )
         else:
             self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))

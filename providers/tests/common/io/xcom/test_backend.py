@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
+from tests_common.test_utils.compat import (
+    AIRFLOW_V_2_9_PLUS,
+    ignore_provider_compatibility_error,
+)
 from tests_common.test_utils.db import is_db_isolation_mode
 
 pytestmark = [
@@ -83,7 +86,10 @@ class TestXComObjectStorageBackend:
         xcom_path.mkdir()
         self.path = f"file://{xcom_path.as_posix()}"
         configuration = {
-            ("core", "xcom_backend"): "airflow.providers.common.io.xcom.backend.XComObjectStorageBackend",
+            (
+                "core",
+                "xcom_backend",
+            ): "airflow.providers.common.io.xcom.backend.XComObjectStorageBackend",
             ("common.io", "xcom_objectstorage_path"): self.path,
             ("common.io", "xcom_objectstorage_threshold"): "50",
         }

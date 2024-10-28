@@ -86,7 +86,9 @@ class Templater(LoggingMixin):
         if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
+                if isinstance(content, str) and content.endswith(
+                    tuple(self.template_ext)
+                ):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
@@ -95,7 +97,9 @@ class Templater(LoggingMixin):
                 elif isinstance(content, list):
                     env = self.get_template_env()
                     for i, item in enumerate(content):
-                        if isinstance(item, str) and item.endswith(tuple(self.template_ext)):
+                        if isinstance(item, str) and item.endswith(
+                            tuple(self.template_ext)
+                        ):
                             try:
                                 content[i] = env.loader.get_source(env, item)[0]  # type: ignore
                             except Exception:
@@ -176,15 +180,29 @@ class Templater(LoggingMixin):
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
-            return tuple(self.render_template(element, context, jinja_env, oids) for element in value)
+            return tuple(
+                self.render_template(element, context, jinja_env, oids)
+                for element in value
+            )
         elif isinstance(value, tuple):  # Special case for named tuples.
-            return value.__class__(*(self.render_template(el, context, jinja_env, oids) for el in value))
+            return value.__class__(
+                *(self.render_template(el, context, jinja_env, oids) for el in value)
+            )
         elif isinstance(value, list):
-            return [self.render_template(element, context, jinja_env, oids) for element in value]
+            return [
+                self.render_template(element, context, jinja_env, oids)
+                for element in value
+            ]
         elif isinstance(value, dict):
-            return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
+            return {
+                k: self.render_template(v, context, jinja_env, oids)
+                for k, v in value.items()
+            }
         elif isinstance(value, set):
-            return {self.render_template(element, context, jinja_env, oids) for element in value}
+            return {
+                self.render_template(element, context, jinja_env, oids)
+                for element in value
+            }
 
         # More complex collections.
         self._render_nested_template_fields(value, context, jinja_env, oids)
@@ -195,7 +213,9 @@ class Templater(LoggingMixin):
     ) -> ObjectStoragePath:
         serialized_path = value.serialize()
         path_version = value.__version__
-        serialized_path["path"] = self._render(jinja_env.from_string(serialized_path["path"]), context)
+        serialized_path["path"] = self._render(
+            jinja_env.from_string(serialized_path["path"]), context
+        )
         return ObjectStoragePath.deserialize(data=serialized_path, version=path_version)
 
     def _render_nested_template_fields(
@@ -213,4 +233,6 @@ class Templater(LoggingMixin):
         except AttributeError:
             # content has no inner template fields
             return
-        self._do_render_template_fields(value, nested_template_fields, context, jinja_env, seen_oids)
+        self._do_render_template_fields(
+            value, nested_template_fields, context, jinja_env, seen_oids
+        )

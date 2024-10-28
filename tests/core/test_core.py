@@ -61,7 +61,9 @@ class TestCore:
             template_fields = ["missing_field"]
 
         with dag_maker():
-            op = InvalidTemplateFieldOperator(task_id="test_dryrun_invalid_template_field")
+            op = InvalidTemplateFieldOperator(
+                task_id="test_dryrun_invalid_template_field"
+            )
         dag_maker.create_dagrun()
 
         error_message = (
@@ -185,5 +187,9 @@ class TestCore:
         context1 = ti1.get_template_context()
         context2 = ti2.get_template_context()
 
-        assert context1["params"] == {"key_1": "value_1", "key_2": "value_2_new", "key_3": "value_3"}
+        assert context1["params"] == {
+            "key_1": "value_1",
+            "key_2": "value_2_new",
+            "key_3": "value_3",
+        }
         assert context2["params"] == {"key_1": "value_1", "key_2": "value_2_old"}

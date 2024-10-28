@@ -271,7 +271,9 @@ def load_plugins_from_plugin_directory():
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if conf.getboolean("core", "LOAD_EXAMPLES"):
-        log.debug("Note: Loading plugins from examples as well: %s", settings.PLUGINS_FOLDER)
+        log.debug(
+            "Note: Loading plugins from examples as well: %s", settings.PLUGINS_FOLDER
+        )
         from airflow.example_dags import plugins
 
         example_plugins_folder = next(iter(plugins.__path__))
@@ -292,7 +294,9 @@ def load_plugins_from_plugin_directory():
                 sys.modules[spec.name] = mod
                 loader.exec_module(mod)
 
-                for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
+                for mod_attr_value in (
+                    m for m in mod.__dict__.values() if is_valid_plugin(m)
+                ):
                     plugin_instance = mod_attr_value()
                     plugin_instance.source = PluginsDirectorySource(file_path)
                     register_plugin(plugin_instance)
@@ -317,7 +321,11 @@ def load_providers_plugins():
             else:
                 log.warning("Plugin %s is not a valid plugin", plugin.name)
         except ImportError:
-            log.exception("Failed to load plugin %s from class name %s", plugin.name, plugin.plugin_class)
+            log.exception(
+                "Failed to load plugin %s from class name %s",
+                plugin.name,
+                plugin.plugin_class,
+            )
 
 
 def make_module(name: str, objects: list[Any]):
@@ -393,7 +401,9 @@ def initialize_web_ui_plugins():
     for plugin in plugins:
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
-        flask_blueprints.extend([{"name": plugin.name, "blueprint": bp} for bp in plugin.flask_blueprints])
+        flask_blueprints.extend(
+            [{"name": plugin.name, "blueprint": bp} for bp in plugin.flask_blueprints]
+        )
 
         if (plugin.admin_views and not plugin.appbuilder_views) or (
             plugin.menu_links and not plugin.appbuilder_menu_items
@@ -476,7 +486,10 @@ def initialize_extra_operators_links_plugins():
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
         registered_operator_link_classes.update(
-            {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}
+            {
+                qualname(link.__class__): link.__class__
+                for link in plugin.operator_extra_links
+            }
         )
 
 
@@ -587,17 +600,25 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             info: dict[str, Any] = {"name": plugin.name}
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
-                    info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
+                    info[attr] = [
+                        f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)
+                    ]
                 elif attr in ("macros", "timetables", "priority_weight_strategies"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
                     # listeners may be modules or class instances
                     info[attr] = [
-                        d.__name__ if inspect.ismodule(d) else qualname(d) for d in getattr(plugin, attr)
+                        d.__name__ if inspect.ismodule(d) else qualname(d)
+                        for d in getattr(plugin, attr)
                     ]
                 elif attr == "appbuilder_views":
                     info[attr] = [
-                        {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
+                        {
+                            **d,
+                            "view": qualname(d["view"].__class__)
+                            if "view" in d
+                            else None,
+                        }
                         for d in getattr(plugin, attr)
                     ]
                 elif attr == "flask_blueprints":

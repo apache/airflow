@@ -126,10 +126,16 @@ from airflow_breeze.utils.run_utils import (
     run_compile_ui_assets,
     run_compile_www_assets,
 )
-from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
+from airflow_breeze.utils.shared_options import (
+    get_dry_run,
+    get_verbose,
+    set_forced_answer,
+)
 
 
-def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
+def _determine_constraint_branch_used(
+    airflow_constraints_reference: str, use_airflow_version: str | None
+):
     """
     Determine which constraints reference to use.
 
@@ -143,7 +149,9 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
     if (
         use_airflow_version
         and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", use_airflow_version)
+        and re.match(
+            r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", use_airflow_version
+        )
     ):
         get_console().print(
             f"[info]Using constraints for {use_airflow_version} - matching airflow version used."
@@ -160,7 +168,9 @@ class TimerThread(threading.Thread):
     def run(self):
         get_console().print(f"[info]Setting timer to fail after {self.max_time} s.")
         sleep(self.max_time)
-        get_console().print(f"[error]The command took longer than {self.max_time} s. Failing!")
+        get_console().print(
+            f"[error]The command took longer than {self.max_time} s. Failing!"
+        )
         os.killpg(os.getpgid(0), SIGTERM)
 
 
@@ -178,7 +188,9 @@ option_celery_broker = click.option(
     default=DEFAULT_CELERY_BROKER,
     show_default=True,
 )
-option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_celery_flower = click.option(
+    "--celery-flower", help="Start celery flower", is_flag=True
+)
 option_executor_shell = click.option(
     "--executor",
     type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
@@ -187,7 +199,9 @@ option_executor_shell = click.option(
     show_default=True,
 )
 option_force_build = click.option(
-    "--force-build", help="Force image build no matter if it is determined as needed.", is_flag=True
+    "--force-build",
+    help="Force image build no matter if it is determined as needed.",
+    is_flag=True,
 )
 option_include_mypy_volume = click.option(
     "--include-mypy-volume",
@@ -198,7 +212,9 @@ option_include_mypy_volume = click.option(
 option_platform_single = click.option(
     "--platform",
     help="Platform for Airflow image.",
-    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
+    default=DOCKER_DEFAULT_PLATFORM
+    if not generating_command_images()
+    else SINGLE_PLATFORMS[0],
     envvar="PLATFORM",
     type=BetterChoice(SINGLE_PLATFORMS),
 )
@@ -240,7 +256,12 @@ option_install_airflow_with_constraints_default_true = click.option(
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
-@click.option("--quiet", is_flag=True, envvar="QUIET", help="Suppress initialization output when starting.")
+@click.option(
+    "--quiet",
+    is_flag=True,
+    envvar="QUIET",
+    help="Suppress initialization output when starting.",
+)
 @click.option(
     "--tty",
     envvar="TTY",
@@ -374,7 +395,9 @@ def shell(
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
-        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+        get_console().print(
+            f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n"
+        )
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
@@ -709,7 +732,9 @@ def build_docs(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     build_params = BuildCiParams(
-        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
@@ -720,7 +745,9 @@ def build_docs(
                 shutil.rmtree(directory, ignore_errors=True)
     docs_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}"
+        )
         # Override doc_packages with values from PACKAGE_LIST
         docs_list_as_tuple = tuple(package_list.split(","))
     if doc_packages and docs_list_as_tuple:
@@ -776,9 +803,18 @@ def build_docs(
     type=BetterChoice(PRE_COMMIT_LIST),
 )
 @click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
-@click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
 @click.option(
-    "-s", "--show-diff-on-failure", help="Show diff for files modified by the checks.", is_flag=True
+    "-f",
+    "--file",
+    help="List of files to run the checks on.",
+    type=click.Path(),
+    multiple=True,
+)
+@click.option(
+    "-s",
+    "--show-diff-on-failure",
+    help="Show diff for files modified by the checks.",
+    is_flag=True,
 )
 @click.option(
     "-c",
@@ -852,14 +888,18 @@ def static_checks(
         rebuild_or_pull_ci_image_if_needed(command_params=build_params)
 
     if initialize_environment:
-        get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
+        get_console().print(
+            "[info]Make sure that pre-commit is installed and environment initialized[/]"
+        )
         get_console().print(
             f"[info]Trying to install the environments up to {max_initialization_attempts} "
             f"times in case of flakiness[/]"
         )
         return_code = 0
         for attempt in range(1, 1 + max_initialization_attempts):
-            get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
+            get_console().print(
+                f"[info]Attempt number {attempt} to install pre-commit environments"
+            )
             initialization_result = run_command(
                 [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
                 check=False,
@@ -885,7 +925,10 @@ def static_checks(
         command_to_execute.append(type_)
     if only_my_changes:
         merge_base = run_command(
-            ["git", "merge-base", "HEAD", "main"], capture_output=True, check=False, text=True
+            ["git", "merge-base", "HEAD", "main"],
+            capture_output=True,
+            check=False,
+            text=True,
         ).stdout.strip()
         if not merge_base:
             get_console().print(
@@ -902,11 +945,15 @@ def static_checks(
     if show_diff_on_failure:
         command_to_execute.append("--show-diff-on-failure")
     if last_commit:
-        get_console().print("\n[info]Running checks for last commit in the current branch: HEAD^..HEAD\n")
+        get_console().print(
+            "\n[info]Running checks for last commit in the current branch: HEAD^..HEAD\n"
+        )
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
         get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
-        command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
+        command_to_execute.extend(
+            ["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"]
+        )
     if get_verbose() or get_dry_run():
         command_to_execute.append("--verbose")
     if file:
@@ -933,8 +980,12 @@ def static_checks(
         fix_ownership_using_docker()
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
-            get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
-            get_console().print("\n[info]Some of the problems might be fixed automatically via pre-commit[/]")
+            get_console().print(
+                "\n[error]This error means that you have to fix the issues listed above:[/]"
+            )
+            get_console().print(
+                "\n[info]Some of the problems might be fixed automatically via pre-commit[/]"
+            )
             get_console().print(
                 "\n[info]You can run it locally with: `pre-commit run --all-files` "
                 "but it might take quite some time.[/]"
@@ -1028,13 +1079,17 @@ def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
     shell_params = ShellParams(
         backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
     )
-    bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
+    bring_compose_project_down(
+        preserve_volumes=preserve_volumes, shell_params=shell_params
+    )
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
 
 
-@main.command(name="exec", help="Joins the interactive shell of running airflow container.")
+@main.command(
+    name="exec", help="Joins the interactive shell of running airflow container."
+)
 @option_verbose
 @option_dry_run
 @click.argument("exec_args", nargs=-1, type=click.UNPROCESSED)
@@ -1063,7 +1118,9 @@ def exec(exec_args: tuple):
 
 
 def stop_exec_on_error(returncode: int):
-    get_console().print("\n[error]ERROR in finding the airflow docker-compose process id[/]\n")
+    get_console().print(
+        "\n[error]ERROR in finding the airflow docker-compose process id[/]\n"
+    )
     sys.exit(returncode)
 
 
@@ -1083,7 +1140,11 @@ def find_airflow_container() -> str | None:
         "airflow",
     ]
     docker_compose_ps_command = run_command(
-        cmd, text=True, capture_output=True, check=False, env=shell_params.env_variables_for_docker_commands
+        cmd,
+        text=True,
+        capture_output=True,
+        check=False,
+        env=shell_params.env_variables_for_docker_commands,
     )
     if get_dry_run():
         return "CONTAINER_ID"
@@ -1108,7 +1169,8 @@ def find_airflow_container() -> str | None:
 
 
 @main.command(
-    name="generate-migration-file", help="Autogenerate the alembic migration file for the ORM changes."
+    name="generate-migration-file",
+    help="Autogenerate the alembic migration file for the ORM changes.",
 )
 @option_builder
 @option_github_repository
@@ -1128,7 +1190,9 @@ def autogenerate(
     perform_environment_checks()
     fix_ownership_using_docker()
     build_params = BuildCiParams(
-        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     shell_params = ShellParams(

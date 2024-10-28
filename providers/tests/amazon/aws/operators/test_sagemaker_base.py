@@ -50,10 +50,14 @@ EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
 
 class TestSageMakerBaseOperator:
-    ERROR_WHEN_RESOURCE_NOT_FOUND = ClientError({"Error": {"Code": "ValidationException"}}, "op")
+    ERROR_WHEN_RESOURCE_NOT_FOUND = ClientError(
+        {"Error": {"Code": "ValidationException"}}, "op"
+    )
 
     def setup_method(self):
-        self.sagemaker = SageMakerBaseOperator(task_id="test_sagemaker_operator", config=CONFIG)
+        self.sagemaker = SageMakerBaseOperator(
+            task_id="test_sagemaker_operator", config=CONFIG
+        )
         self.sagemaker.aws_conn_id = "aws_default"
 
     def test_parse_integer(self):
@@ -113,9 +117,15 @@ class TestSageMakerBaseOperator:
                 resource_type="model",
             )
 
-        assert str(context.value) == "A SageMaker model with name existing_name already exists."
+        assert (
+            str(context.value)
+            == "A SageMaker model with name existing_name already exists."
+        )
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=3000000)
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns",
+        return_value=3000000,
+    )
     def test_get_unique_name_avoids_name_collision(self, time_mock):
         new_name = self.sagemaker._get_unique_name(
             "existing_name",
@@ -128,7 +138,9 @@ class TestSageMakerBaseOperator:
         assert new_name == "existing_name-3"
 
     def test_get_unique_name_checks_only_once_when_resource_does_not_exist(self):
-        describe_func = MagicMock(side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op"))
+        describe_func = MagicMock(
+            side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op")
+        )
         new_name = "new_name"
 
         name = self.sagemaker._get_unique_name(
@@ -143,11 +155,17 @@ class TestSageMakerBaseOperator:
         assert name == new_name
 
     def test_check_if_resource_exists_returns_true_when_it_finds_existing_resource(self):
-        exists = self.sagemaker._check_if_resource_exists("job_123", "job", lambda name: None)
+        exists = self.sagemaker._check_if_resource_exists(
+            "job_123", "job", lambda name: None
+        )
         assert exists
 
-    def test_check_if_resource_exists_returns_false_when_validation_exception_is_raised(self):
-        describe_func = MagicMock(side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op"))
+    def test_check_if_resource_exists_returns_false_when_validation_exception_is_raised(
+        self,
+    ):
+        describe_func = MagicMock(
+            side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op")
+        )
         exists = self.sagemaker._check_if_resource_exists("job_123", "job", describe_func)
         assert not exists
 
@@ -180,7 +198,10 @@ class TestSageMakerExperimentOperator:
             dag=dag,
         )
         dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+            dag_id=dag.dag_id,
+            execution_date=execution_date,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
         )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

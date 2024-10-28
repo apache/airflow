@@ -41,7 +41,9 @@ from common_precommit_utils import (
 )
 from tabulate import tabulate
 
-DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst"
+DOCUMENTATION_PATH = (
+    AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst"
+)
 INTEGRATION_TESTS_PATH = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose"
 INTEGRATION_TEST_PREFIX = "integration-*.yml"
 DOCS_MARKER_START = ".. BEGIN AUTO-GENERATED INTEGRATION LIST"
@@ -74,7 +76,9 @@ def get_ci_integrations(
             _key = _i.stem.split("-")[1]
             integrations[_key] = _i
         except IndexError:
-            console.print(f"[red]Tried to parse {_i.stem}, but did not contain '-' separator. [/]")
+            console.print(
+                f"[red]Tried to parse {_i.stem}, but did not contain '-' separator. [/]"
+            )
             continue
 
     return integrations
@@ -128,9 +132,16 @@ def update_integration_tests_array(contents: dict[str, list[str]]):
             description[0] if len(description) == 1 else "* " + "\n* ".join(description)
         )
         rows.append((integration, formatted_hook_description))
-    formatted_table = "\n" + tabulate(rows, tablefmt="grid", headers=("Identifier", "Description")) + "\n\n"
+    formatted_table = (
+        "\n"
+        + tabulate(rows, tablefmt="grid", headers=("Identifier", "Description"))
+        + "\n\n"
+    )
     insert_documentation(
-        file_path=AIRFLOW_SOURCES_ROOT_PATH / "contributing-docs" / "testing" / "integration_tests.rst",
+        file_path=AIRFLOW_SOURCES_ROOT_PATH
+        / "contributing-docs"
+        / "testing"
+        / "integration_tests.rst",
         content=formatted_table.splitlines(keepends=True),
         header=DOCS_MARKER_START,
         footer=DOCS_MARKER_END,
@@ -146,7 +157,9 @@ def print_diff(source, target, msg):
     return list(difference)
 
 
-def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "breeze.description"):
+def _get_breeze_description(
+    parsed_compose: dict[str, Any], label_key: str = "breeze.description"
+):
     """Extract all breeze.description labels per image."""
     image_label_map = {}
     # possible key error handled outside
@@ -188,8 +201,12 @@ def main():
     _ci_items = set(ci_integrations)
     _docs_items = set(docs_integrations)
     diff = []
-    diff.append(print_diff(_ci_items, _docs_items, "[red]Found in ci files, but not in docs: [/]"))
-    diff.append(print_diff(_docs_items, _ci_items, "[red]Found in docs, but not in ci files: [/]"))
+    diff.append(
+        print_diff(_ci_items, _docs_items, "[red]Found in ci files, but not in docs: [/]")
+    )
+    diff.append(
+        print_diff(_docs_items, _ci_items, "[red]Found in docs, but not in ci files: [/]")
+    )
     if diff:
         console.print(
             "[yellow]Regenerating documentation table. Don't forget to review and commit possible changes.[/]"

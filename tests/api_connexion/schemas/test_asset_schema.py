@@ -56,10 +56,15 @@ class TestAssetSchema(TestAssetSchemaBase):
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
-        with dag_maker(dag_id="test_asset_upstream_schema", serialized=True, session=session):
+        with dag_maker(
+            dag_id="test_asset_upstream_schema", serialized=True, session=session
+        ):
             EmptyOperator(task_id="task1", outlets=[asset])
         with dag_maker(
-            dag_id="test_asset_downstream_schema", schedule=[asset], serialized=True, session=session
+            dag_id="test_asset_downstream_schema",
+            schedule=[asset],
+            serialized=True,
+            session=session,
         ):
             EmptyOperator(task_id="task2")
 
@@ -107,7 +112,9 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
         session.add_all(assets)
         session.add_all(asset_aliases)
         session.flush()
-        serialized_data = asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=2))
+        serialized_data = asset_collection_schema.dump(
+            AssetCollection(assets=assets, total_entries=2)
+        )
         serialized_data["assets"][0]["id"] = 1
         serialized_data["assets"][1]["id"] = 2
         serialized_data["assets"][0]["aliases"][0]["id"] = 1

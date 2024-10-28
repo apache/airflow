@@ -66,7 +66,9 @@ with DAG(
     )
     # [END postgres_sql_execute_query_operator_howto_guide_populate_pet_table]
     # [START postgres_sql_execute_query_operator_howto_guide_get_all_pets]
-    get_all_pets = SQLExecuteQueryOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
+    get_all_pets = SQLExecuteQueryOperator(
+        task_id="get_all_pets", sql="SELECT * FROM pet;"
+    )
     # [END postgres_sql_execute_query_operator_howto_guide_get_all_pets]
     # [START postgres_sql_execute_query_operator_howto_guide_get_birth_date]
     get_birth_date = SQLExecuteQueryOperator(

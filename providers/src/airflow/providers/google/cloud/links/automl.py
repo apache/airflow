@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 AUTOML_BASE_LINK = "https://console.cloud.google.com/automl-tables"
 AUTOML_DATASET_LINK = (
-    AUTOML_BASE_LINK + "/locations/{location}/datasets/{dataset_id}/schemav2?project={project_id}"
+    AUTOML_BASE_LINK
+    + "/locations/{location}/datasets/{dataset_id}/schemav2?project={project_id}"
 )
 AUTOML_DATASET_LIST_LINK = AUTOML_BASE_LINK + "/datasets?project={project_id}"
 AUTOML_MODEL_LINK = (
@@ -38,7 +39,8 @@ AUTOML_MODEL_LINK = (
     + "/locations/{location}/datasets/{dataset_id};modelId={model_id}/evaluate?project={project_id}"
 )
 AUTOML_MODEL_TRAIN_LINK = (
-    AUTOML_BASE_LINK + "/locations/{location}/datasets/{dataset_id}/train?project={project_id}"
+    AUTOML_BASE_LINK
+    + "/locations/{location}/datasets/{dataset_id}/train?project={project_id}"
 )
 AUTOML_MODEL_PREDICT_LINK = (
     AUTOML_BASE_LINK
@@ -68,7 +70,11 @@ class AutoMLDatasetLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=AutoMLDatasetLink.key,
-            value={"location": task_instance.location, "dataset_id": dataset_id, "project_id": project_id},
+            value={
+                "location": task_instance.location,
+                "dataset_id": dataset_id,
+                "project_id": project_id,
+            },
         )
 
 

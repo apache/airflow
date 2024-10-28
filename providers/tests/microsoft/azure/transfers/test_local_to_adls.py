@@ -22,7 +22,9 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
+from airflow.providers.microsoft.azure.transfers.local_to_adls import (
+    LocalFilesystemToADLSOperator,
+)
 
 TASK_ID = "test-adls-upload-operator"
 LOCAL_PATH = "test/*"
@@ -31,7 +33,9 @@ REMOTE_PATH = "TEST-DIR"
 
 
 class TestADLSUploadOperator:
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook"
+    )
     def test_execute_success(self, mock_hook):
         operator = LocalFilesystemToADLSOperator(
             task_id=TASK_ID, local_path=LOCAL_PATH, remote_path=REMOTE_PATH
@@ -46,7 +50,9 @@ class TestADLSUploadOperator:
             blocksize=4194304,
         )
 
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook"
+    )
     def test_execute_raises_for_bad_glob_val(self, mock_hook):
         operator = LocalFilesystemToADLSOperator(
             task_id=TASK_ID, local_path=BAD_LOCAL_PATH, remote_path=REMOTE_PATH
@@ -55,7 +61,9 @@ class TestADLSUploadOperator:
             operator.execute(None)
         assert str(ctx.value) == "Recursive glob patterns using `**` are not supported"
 
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook"
+    )
     def test_extra_options_is_passed(self, mock_hook):
         operator = LocalFilesystemToADLSOperator(
             task_id=TASK_ID,

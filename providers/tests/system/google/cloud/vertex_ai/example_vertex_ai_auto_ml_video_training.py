@@ -59,7 +59,9 @@ VIDEO_DATASET = {
 VIDEO_DATA_CONFIG = [
     {
         "import_schema_uri": schema.dataset.ioformat.video.classification,
-        "gcs_source": {"uris": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/video-dataset.csv"]},
+        "gcs_source": {
+            "uris": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/video-dataset.csv"]
+        },
     },
 ]
 

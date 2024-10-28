@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
+from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import (
+    AzureBlobStorageToGCSOperator,
+)
 
 WASB_CONN_ID = "wasb_default"
 GCP_CONN_ID = "google_cloud_default"
@@ -97,7 +99,9 @@ class TestAzureBlobStorageToGCSTransferOperator:
         from airflow.providers.common.compat.openlineage.facet import Dataset
 
         MOCK_AZURE_ACCOUNT_NAME = "mock_account_name"
-        mock_hook_wasb.return_value.get_conn.return_value.account_name = MOCK_AZURE_ACCOUNT_NAME
+        mock_hook_wasb.return_value.get_conn.return_value.account_name = (
+            MOCK_AZURE_ACCOUNT_NAME
+        )
 
         operator = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,
@@ -117,6 +121,9 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert len(lineage.inputs) == 1
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == Dataset(
-            namespace=f"wasbs://{CONTAINER_NAME}@{MOCK_AZURE_ACCOUNT_NAME}", name=BLOB_NAME
+            namespace=f"wasbs://{CONTAINER_NAME}@{MOCK_AZURE_ACCOUNT_NAME}",
+            name=BLOB_NAME,
         )
-        assert lineage.outputs[0] == Dataset(namespace=f"gs://{BUCKET_NAME}", name=OBJECT_NAME)
+        assert lineage.outputs[0] == Dataset(
+            namespace=f"gs://{BUCKET_NAME}", name=OBJECT_NAME
+        )

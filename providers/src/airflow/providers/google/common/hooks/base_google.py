@@ -93,10 +93,16 @@ def is_soft_quota_exception(exception: Exception):
     * Google Video Intelligence
     """
     if isinstance(exception, Forbidden):
-        return any(reason in error.details() for reason in INVALID_REASONS for error in exception.errors)
+        return any(
+            reason in error.details()
+            for reason in INVALID_REASONS
+            for error in exception.errors
+        )
 
     if isinstance(exception, (ResourceExhausted, TooManyRequests)):
-        return any(key in error.details() for key in INVALID_KEYS for error in exception.errors)
+        return any(
+            key in error.details() for key in INVALID_KEYS for error in exception.errors
+        )
 
     return False
 
@@ -221,24 +227,37 @@ class GoogleBaseHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, PasswordField, StringField
         from wtforms.validators import NumberRange
 
         return {
-            "project": StringField(lazy_gettext("Project Id"), widget=BS3TextFieldWidget()),
-            "key_path": StringField(lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()),
-            "keyfile_dict": PasswordField(lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()),
+            "project": StringField(
+                lazy_gettext("Project Id"), widget=BS3TextFieldWidget()
+            ),
+            "key_path": StringField(
+                lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()
+            ),
+            "keyfile_dict": PasswordField(
+                lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()
+            ),
             "credential_config_file": StringField(
                 lazy_gettext("Credential Configuration File"), widget=BS3TextFieldWidget()
             ),
-            "scope": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
+            "scope": StringField(
+                lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()
+            ),
             "key_secret_name": StringField(
-                lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"),
+                widget=BS3TextFieldWidget(),
             ),
             "key_secret_project_id": StringField(
-                lazy_gettext("Keyfile Secret Project Id (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Keyfile Secret Project Id (in GCP Secret Manager)"),
+                widget=BS3TextFieldWidget(),
             ),
             "num_retries": IntegerField(
                 lazy_gettext("Number of Retries"),
@@ -254,7 +273,8 @@ class GoogleBaseHook(BaseHook):
                 widget=BS3TextFieldWidget(),
             ),
             "client_id": StringField(
-                lazy_gettext("Client ID (Client Credentials Grant Flow)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Client ID (Client Credentials Grant Flow)"),
+                widget=BS3TextFieldWidget(),
             ),
             "client_secret": StringField(
                 lazy_gettext("Client Secret (Client Credentials Grant Flow)"),
@@ -264,7 +284,8 @@ class GoogleBaseHook(BaseHook):
                 lazy_gettext("IdP Extra Request Parameters"), widget=BS3TextFieldWidget()
             ),
             "is_anonymous": BooleanField(
-                lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
+                lazy_gettext("Anonymous credentials (ignores all other settings)"),
+                default=False,
             ),
         }
 
@@ -297,7 +318,9 @@ class GoogleBaseHook(BaseHook):
 
         key_path: str | None = self._get_field("key_path", None)
         try:
-            keyfile_dict: str | dict[str, str] | None = self._get_field("keyfile_dict", None)
+            keyfile_dict: str | dict[str, str] | None = self._get_field(
+                "keyfile_dict", None
+            )
             keyfile_dict_json: dict[str, str] | None = None
             if keyfile_dict:
                 if isinstance(keyfile_dict, dict):
@@ -310,14 +333,23 @@ class GoogleBaseHook(BaseHook):
         key_secret_name: str | None = self._get_field("key_secret_name", None)
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
 
-        credential_config_file: str | None = self._get_field("credential_config_file", None)
+        credential_config_file: str | None = self._get_field(
+            "credential_config_file", None
+        )
 
         if not self.impersonation_chain:
             self.impersonation_chain = self._get_field("impersonation_chain", None)
-            if isinstance(self.impersonation_chain, str) and "," in self.impersonation_chain:
-                self.impersonation_chain = [s.strip() for s in self.impersonation_chain.split(",")]
+            if (
+                isinstance(self.impersonation_chain, str)
+                and "," in self.impersonation_chain
+            ):
+                self.impersonation_chain = [
+                    s.strip() for s in self.impersonation_chain.split(",")
+                ]
 
-        target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
+        target_principal, delegates = _get_target_principal_and_delegates(
+            self.impersonation_chain
+        )
         is_anonymous = self._get_field("is_anonymous")
 
         idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
@@ -397,7 +429,9 @@ class GoogleBaseHook(BaseHook):
             return service_account_email
 
         http_authorized = self._authorize()
-        oauth2_client = discovery.build("oauth2", "v1", http=http_authorized, cache_discovery=False)
+        oauth2_client = discovery.build(
+            "oauth2", "v1", http=http_authorized, cache_discovery=False
+        )
         return oauth2_client.tokeninfo().execute()["email"]
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
@@ -599,7 +633,9 @@ class GoogleBaseHook(BaseHook):
             )
         elif key_path:
             if key_path.endswith(".p12"):
-                raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
+                raise AirflowException(
+                    "Legacy P12 key file are not supported, use a JSON key file."
+                )
             with patch_environ({CREDENTIALS: key_path}):
                 yield key_path
         elif keyfile_dict:
@@ -630,7 +666,9 @@ class GoogleBaseHook(BaseHook):
         with ExitStack() as exit_stack:
             exit_stack.enter_context(self.provide_gcp_credential_file_as_context())
             gcloud_config_tmp = exit_stack.enter_context(tempfile.TemporaryDirectory())
-            exit_stack.enter_context(patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}))
+            exit_stack.enter_context(
+                patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp})
+            )
 
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
@@ -649,10 +687,24 @@ class GoogleBaseHook(BaseHook):
                 with open(credentials_path) as creds_file:
                     creds_content = json.loads(creds_file.read())
                     # Don't display stdout/stderr for security reason
-                    check_output(["gcloud", "config", "set", "auth/client_id", creds_content["client_id"]])
+                    check_output(
+                        [
+                            "gcloud",
+                            "config",
+                            "set",
+                            "auth/client_id",
+                            creds_content["client_id"],
+                        ]
+                    )
                     # Don't display stdout/stderr for security reason
                     check_output(
-                        ["gcloud", "config", "set", "auth/client_secret", creds_content["client_secret"]]
+                        [
+                            "gcloud",
+                            "config",
+                            "set",
+                            "auth/client_secret",
+                            creds_content["client_secret"],
+                        ]
                     )
                     # Don't display stdout/stderr for security reason
                     check_output(
@@ -672,7 +724,9 @@ class GoogleBaseHook(BaseHook):
             yield
 
     @staticmethod
-    def download_content_from_request(file_handle, request: dict, chunk_size: int) -> None:
+    def download_content_from_request(
+        file_handle, request: dict, chunk_size: int
+    ) -> None:
         """
         Download media resources.
 
@@ -748,12 +802,16 @@ class _CredentialsToken(Token):
         return self.project
 
     async def refresh(self, *, timeout: int) -> TokenResponse:
-        await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
+        await sync_to_async(self.credentials.refresh)(
+            google.auth.transport.requests.Request()
+        )
 
         self.access_token = cast(str, self.credentials.token)
         self.access_token_duration = 3600
         self.access_token_acquired_at = self._now()
-        return TokenResponse(value=self.access_token, expires_in=self.access_token_duration)
+        return TokenResponse(
+            value=self.access_token, expires_in=self.access_token_duration
+        )
 
     async def acquire_access_token(self, timeout: int = 10) -> None:
         await self.refresh(timeout=timeout)
@@ -799,10 +857,14 @@ class GoogleBaseAsyncHook(BaseHook):
     async def get_sync_hook(self) -> Any:
         """Sync version of the Google Cloud Hook makes blocking calls in ``__init__``; don't inherit it."""
         if not self._sync_hook:
-            self._sync_hook = await sync_to_async(self.sync_hook_class)(**self._hook_kwargs)
+            self._sync_hook = await sync_to_async(self.sync_hook_class)(
+                **self._hook_kwargs
+            )
         return self._sync_hook
 
-    async def get_token(self, *, session: ClientSession | None = None) -> _CredentialsToken:
+    async def get_token(
+        self, *, session: ClientSession | None = None
+    ) -> _CredentialsToken:
         """Return a Token instance for use in [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients."""
         sync_hook = await self.get_sync_hook()
         return await _CredentialsToken.from_hook(sync_hook, session=session)

@@ -79,7 +79,9 @@ class CloudFormationHook(AwsBaseHook):
             cloudformation_parameters["StackName"] = stack_name
         self.get_conn().create_stack(**cloudformation_parameters)
 
-    def delete_stack(self, stack_name: str, cloudformation_parameters: dict | None = None) -> None:
+    def delete_stack(
+        self, stack_name: str, cloudformation_parameters: dict | None = None
+    ) -> None:
         """
         Delete stack in CloudFormation.
 

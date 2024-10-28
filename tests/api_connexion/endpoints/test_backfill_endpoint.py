@@ -83,7 +83,9 @@ def configured_app(minimal_app_for_api):
     ) as dag:
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+    with DAG(
+        DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)
+    ) as dag2:  # no doc_md
         EmptyOperator(task_id=TASK_ID)
 
     with DAG(DAG3_ID, schedule=None) as dag3:  # DAG start_date set to None
@@ -110,7 +112,9 @@ class TestBackfillEndpoint:
         self.dag3_id = DAG3_ID
 
     @provide_session
-    def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+    def _create_dag_models(
+        self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None
+    ):
         dags = []
         for num in range(1, count + 1):
             dag_model = DagModel(
@@ -387,7 +391,8 @@ class TestCancelBackfill(TestBackfillEndpoint):
 
         # get conflict when canceling already-canceled backfill
         response = self.client.post(
-            f"/api/v1/backfills/{backfill.id}/cancel", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/backfills/{backfill.id}/cancel",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409
 
@@ -420,5 +425,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             assert pendulum.parse(response.json["completed_at"])
 
             # get conflict when canceling already-canceled backfill
-            response = self.client.post(f"/api/v1/backfills/{backfill.id}/cancel", **kwargs)
+            response = self.client.post(
+                f"/api/v1/backfills/{backfill.id}/cancel", **kwargs
+            )
             assert response.status_code == 409

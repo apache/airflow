@@ -47,7 +47,9 @@ def getattr_with_deprecation(
     warning_class_name = target_class_full_name
     if override_deprecated_classes and name in override_deprecated_classes:
         warning_class_name = override_deprecated_classes[name]
-    message = f"The `{module}.{name}` class is deprecated. Please use `{warning_class_name!r}`."
+    message = (
+        f"The `{module}.{name}` class is deprecated. Please use `{warning_class_name!r}`."
+    )
     if extra_message:
         message += f" {extra_message}."
     warnings.warn(message, DeprecationWarning, stacklevel=2)
@@ -55,9 +57,7 @@ def getattr_with_deprecation(
     try:
         return getattr(importlib.import_module(new_module), new_class_name)
     except ImportError as e:
-        error_message = (
-            f"Could not import `{new_module}.{new_class_name}` while trying to import `{module}.{name}`."
-        )
+        error_message = f"Could not import `{new_module}.{new_class_name}` while trying to import `{module}.{name}`."
         if extra_message:
             error_message += f" {extra_message}."
         raise ImportError(error_message) from e
@@ -82,7 +82,9 @@ def add_deprecated_classes(
         full_module_name = f"{package}.{module_name}"
         module_type = ModuleType(full_module_name)
         if override_deprecated_classes and module_name in override_deprecated_classes:
-            override_deprecated_classes_for_module = override_deprecated_classes[module_name]
+            override_deprecated_classes_for_module = override_deprecated_classes[
+                module_name
+            ]
         else:
             override_deprecated_classes_for_module = {}
 

@@ -24,11 +24,16 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 BIGTABLE_BASE_LINK = "/bigtable"
-BIGTABLE_INSTANCE_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/overview?project={project_id}"
-BIGTABLE_CLUSTER_LINK = (
-    BIGTABLE_BASE_LINK + "/instances/{instance_id}/clusters/{cluster_id}?project={project_id}"
+BIGTABLE_INSTANCE_LINK = (
+    BIGTABLE_BASE_LINK + "/instances/{instance_id}/overview?project={project_id}"
 )
-BIGTABLE_TABLES_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/tables?project={project_id}"
+BIGTABLE_CLUSTER_LINK = (
+    BIGTABLE_BASE_LINK
+    + "/instances/{instance_id}/clusters/{cluster_id}?project={project_id}"
+)
+BIGTABLE_TABLES_LINK = (
+    BIGTABLE_BASE_LINK + "/instances/{instance_id}/tables?project={project_id}"
+)
 
 
 class BigtableInstanceLink(BaseGoogleLink):

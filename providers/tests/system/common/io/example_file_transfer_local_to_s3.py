@@ -71,7 +71,9 @@ with DAG(
     temp_file_path = cast(ObjectStoragePath, temp_file)
 
     # [START howto_transfer_local_to_s3]
-    transfer = FileTransferOperator(src=temp_file_path, dst=AWS_BUCKET, task_id="transfer")
+    transfer = FileTransferOperator(
+        src=temp_file_path, dst=AWS_BUCKET, task_id="transfer"
+    )
     # [END howto_transfer_local_to_s3]
 
     temp_file >> transfer >> remove_bucket() >> delete_temp_file(temp_file_path)

@@ -88,7 +88,9 @@ class TestNeptuneStartClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_start_cluster_cluster_available(self, mock_waiter, mock_get_cluster_status, mock_conn):
+    def test_start_cluster_cluster_available(
+        self, mock_waiter, mock_get_cluster_status, mock_conn
+    ):
         mock_get_cluster_status.return_value = "available"
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
@@ -120,7 +122,9 @@ class TestNeptuneStartClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_start_cluster_cluster_error(self, mock_waiter, mock_get_cluster_status, mock_conn):
+    def test_start_cluster_cluster_error(
+        self, mock_waiter, mock_get_cluster_status, mock_conn
+    ):
         mock_get_cluster_status.return_value = "migration-failed"
         operator = NeptuneStartDbClusterOperator(
             task_id="task_test",
@@ -133,11 +137,17 @@ class TestNeptuneStartClusterOperator:
         with pytest.raises(AirflowException):
             operator.execute(None)
 
-    @mock.patch("airflow.providers.amazon.aws.operators.neptune.NeptuneStartDbClusterOperator.defer")
-    @mock.patch("airflow.providers.amazon.aws.operators.neptune.handle_waitable_exception")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.neptune.NeptuneStartDbClusterOperator.defer"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.neptune.handle_waitable_exception"
+    )
     @mock.patch.object(NeptuneHook, "conn")
     def test_start_cluster_not_ready_defer(self, mock_conn, mock_wait, mock_defer):
-        err_response = {"Error": {"Code": "InvalidClusterState", "Message": "Test message"}}
+        err_response = {
+            "Error": {"Code": "InvalidClusterState", "Message": "Test message"}
+        }
         exception = client("neptune").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
@@ -162,7 +172,9 @@ class TestNeptuneStartClusterOperator:
     @mock.patch.object(NeptuneHook, "get_waiter")
     @mock.patch.object(NeptuneHook, "conn")
     def test_start_cluster_instances_not_ready(self, mock_conn, mock_get_waiter):
-        err_response = {"Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}}
+        err_response = {
+            "Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}
+        }
         exception = client("neptune").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
@@ -179,12 +191,16 @@ class TestNeptuneStartClusterOperator:
         operator.execute(None)
         mock_get_waiter.assert_any_call("db_instance_available")
 
-    @mock.patch("airflow.providers.amazon.aws.operators.neptune.NeptuneStartDbClusterOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.neptune.NeptuneStartDbClusterOperator.defer"
+    )
     @mock.patch.object(NeptuneHook, "conn")
     def test_start_cluster_instances_not_ready_defer(self, mock_conn, mock_defer):
         """Tests both waiters are called if an instance exception is raised"""
 
-        err_response = {"Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}}
+        err_response = {
+            "Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}
+        }
         exception = client("neptune").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
@@ -218,7 +234,9 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_stop_cluster_wait_for_completion(self, mock_hook_get_waiter, mock_get_cluster_status, mock_conn):
+    def test_stop_cluster_wait_for_completion(
+        self, mock_hook_get_waiter, mock_get_cluster_status, mock_conn
+    ):
         '''Test the waiter is only once when the cluster is "available"'''
         mock_get_cluster_status.return_value = "available"
         operator = NeptuneStopDbClusterOperator(
@@ -236,7 +254,9 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_stop_cluster_no_wait(self, mock_hook_get_waiter, mock_get_cluster_status, mock_conn):
+    def test_stop_cluster_no_wait(
+        self, mock_hook_get_waiter, mock_get_cluster_status, mock_conn
+    ):
         mock_get_cluster_status.return_value = "available"
 
         operator = NeptuneStopDbClusterOperator(
@@ -254,7 +274,9 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_stop_cluster_cluster_stopped(self, mock_waiter, mock_get_cluster_status, mock_conn):
+    def test_stop_cluster_cluster_stopped(
+        self, mock_waiter, mock_get_cluster_status, mock_conn
+    ):
         mock_get_cluster_status.return_value = "stopped"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
@@ -273,7 +295,9 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_stop_cluster_cluster_error(self, mock_waiter, mock_get_cluster_status, mock_conn):
+    def test_stop_cluster_cluster_error(
+        self, mock_waiter, mock_get_cluster_status, mock_conn
+    ):
         mock_get_cluster_status.return_value = "migration-failed"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
@@ -289,7 +313,9 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_stop_cluster_not_in_available(self, mock_waiter, mock_get_cluster_status, mock_conn):
+    def test_stop_cluster_not_in_available(
+        self, mock_waiter, mock_get_cluster_status, mock_conn
+    ):
         mock_get_cluster_status.return_value = "backing-up"
         operator = NeptuneStopDbClusterOperator(
             task_id="task_test",
@@ -305,7 +331,9 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneStopDbClusterOperator, "defer")
     @mock.patch.object(NeptuneHook, "conn")
     def test_stop_cluster_not_ready_defer(self, mock_conn, mock_defer):
-        err_response = {"Error": {"Code": "InvalidClusterState", "Message": "Test message"}}
+        err_response = {
+            "Error": {"Code": "InvalidClusterState", "Message": "Test message"}
+        }
         exception = client("neptune").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
@@ -325,8 +353,12 @@ class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
     @mock.patch.object(NeptuneHook, "get_cluster_status")
     @mock.patch.object(NeptuneHook, "get_waiter")
-    def test_stop_cluster_instances_not_ready(self, mock_get_waiter, mock_get_cluster_status, mock_conn):
-        err_response = {"Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}}
+    def test_stop_cluster_instances_not_ready(
+        self, mock_get_waiter, mock_get_cluster_status, mock_conn
+    ):
+        err_response = {
+            "Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}
+        }
         exception = client("neptune").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
@@ -343,12 +375,16 @@ class TestNeptuneStopClusterOperator:
         operator.execute(None)
         mock_get_waiter.assert_any_call("db_instance_available")
 
-    @mock.patch("airflow.providers.amazon.aws.operators.neptune.NeptuneStopDbClusterOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.neptune.NeptuneStopDbClusterOperator.defer"
+    )
     @mock.patch.object(NeptuneHook, "conn")
     def test_stop_cluster_instances_not_ready_defer(self, mock_conn, mock_defer):
         """Tests both waiters are called if an instance exception is raised"""
 
-        err_response = {"Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}}
+        err_response = {
+            "Error": {"Code": "InvalidDBInstanceState", "Message": "Test message"}
+        }
         exception = client("neptune").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 

@@ -42,7 +42,10 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsStartExportTaskOperator,
     RdsStopDbOperator,
 )
-from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
+from airflow.providers.amazon.aws.triggers.rds import (
+    RdsDbAvailableTrigger,
+    RdsDbStoppedTrigger,
+)
 from airflow.utils import timezone
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -153,7 +156,9 @@ class TestBaseRdsOperator:
             schedule=None,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
         )
-        cls.op = RdsBaseOperator(task_id="test_task", aws_conn_id="aws_default", dag=cls.dag)
+        cls.op = RdsBaseOperator(
+            task_id="test_task", aws_conn_id="aws_default", dag=cls.dag
+        )
 
     @classmethod
     def teardown_class(cls):
@@ -195,7 +200,9 @@ class TestRdsCreateDbSnapshotOperator:
         _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
-        result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+        result = self.hook.conn.describe_db_snapshots(
+            DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT
+        )
         instance_snapshots = result.get("DBSnapshots")
 
         assert instance_snapshots
@@ -217,7 +224,9 @@ class TestRdsCreateDbSnapshotOperator:
         _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
 
-        result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+        result = self.hook.conn.describe_db_snapshots(
+            DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT
+        )
         instance_snapshots = result.get("DBSnapshots")
 
         assert instance_snapshots
@@ -238,7 +247,9 @@ class TestRdsCreateDbSnapshotOperator:
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
-        result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+        result = self.hook.conn.describe_db_cluster_snapshots(
+            DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT
+        )
         cluster_snapshots = result.get("DBClusterSnapshots")
 
         assert cluster_snapshots
@@ -260,7 +271,9 @@ class TestRdsCreateDbSnapshotOperator:
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
 
-        result = self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+        result = self.hook.conn.describe_db_cluster_snapshots(
+            DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT
+        )
         cluster_snapshots = result.get("DBClusterSnapshots")
 
         assert cluster_snapshots
@@ -309,7 +322,9 @@ class TestRdsCopyDbSnapshotOperator:
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
-        result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
+        result = self.hook.conn.describe_db_snapshots(
+            DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY
+        )
         instance_snapshots = result.get("DBSnapshots")
 
         assert instance_snapshots
@@ -332,7 +347,9 @@ class TestRdsCopyDbSnapshotOperator:
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
-        result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY)
+        result = self.hook.conn.describe_db_snapshots(
+            DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT_COPY
+        )
         instance_snapshots = result.get("DBSnapshots")
 
         assert instance_snapshots
@@ -427,12 +444,16 @@ class TestRdsDeleteDbSnapshotOperator:
             dag=self.dag,
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
-        with patch.object(instance_snapshot_operator.hook, "wait_for_db_snapshot_state") as mock_wait:
+        with patch.object(
+            instance_snapshot_operator.hook, "wait_for_db_snapshot_state"
+        ) as mock_wait:
             instance_snapshot_operator.execute(None)
         mock_wait.assert_called_once_with(DB_INSTANCE_SNAPSHOT, target_state="deleted")
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
-            self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+            self.hook.conn.describe_db_snapshots(
+                DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT
+            )
 
     @mock_aws
     def test_delete_db_instance_snapshot_no_wait(self):
@@ -452,12 +473,16 @@ class TestRdsDeleteDbSnapshotOperator:
             wait_for_completion=False,
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
-        with patch.object(instance_snapshot_operator.hook, "wait_for_db_snapshot_state") as mock_wait:
+        with patch.object(
+            instance_snapshot_operator.hook, "wait_for_db_snapshot_state"
+        ) as mock_wait:
             instance_snapshot_operator.execute(None)
         mock_wait.assert_not_called()
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
-            self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+            self.hook.conn.describe_db_snapshots(
+                DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT
+            )
 
     @mock_aws
     def test_delete_db_cluster_snapshot(self):
@@ -472,12 +497,16 @@ class TestRdsDeleteDbSnapshotOperator:
             dag=self.dag,
         )
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
-        with patch.object(cluster_snapshot_operator.hook, "wait_for_db_cluster_snapshot_state") as mock_wait:
+        with patch.object(
+            cluster_snapshot_operator.hook, "wait_for_db_cluster_snapshot_state"
+        ) as mock_wait:
             cluster_snapshot_operator.execute(None)
         mock_wait.assert_called_once_with(DB_CLUSTER_SNAPSHOT, target_state="deleted")
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
-            self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+            self.hook.conn.describe_db_cluster_snapshots(
+                DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT
+            )
 
     @mock_aws
     def test_delete_db_cluster_snapshot_no_wait(self):
@@ -497,12 +526,16 @@ class TestRdsDeleteDbSnapshotOperator:
             wait_for_completion=False,
         )
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
-        with patch.object(cluster_snapshot_operator.hook, "wait_for_db_cluster_snapshot_state") as mock_wait:
+        with patch.object(
+            cluster_snapshot_operator.hook, "wait_for_db_cluster_snapshot_state"
+        ) as mock_wait:
             cluster_snapshot_operator.execute(None)
         mock_wait.assert_not_called()
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
-            self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
+            self.hook.conn.describe_db_cluster_snapshots(
+                DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT
+            )
 
     def test_template_fields(self):
         operator = RdsDeleteDbSnapshotOperator(
@@ -549,7 +582,9 @@ class TestRdsStartExportTaskOperator:
         _patch_hook_get_connection(start_export_operator.hook)
         start_export_operator.execute(None)
 
-        result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
+        result = self.hook.conn.describe_export_tasks(
+            ExportTaskIdentifier=EXPORT_TASK_NAME
+        )
         export_tasks = result.get("ExportTasks")
 
         assert export_tasks
@@ -576,7 +611,9 @@ class TestRdsStartExportTaskOperator:
         _patch_hook_get_connection(start_export_operator.hook)
         start_export_operator.execute(None)
 
-        result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
+        result = self.hook.conn.describe_export_tasks(
+            ExportTaskIdentifier=EXPORT_TASK_NAME
+        )
         export_tasks = result.get("ExportTasks")
 
         assert export_tasks
@@ -629,7 +666,9 @@ class TestRdsCancelExportTaskOperator:
         _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)
 
-        result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
+        result = self.hook.conn.describe_export_tasks(
+            ExportTaskIdentifier=EXPORT_TASK_NAME
+        )
         export_tasks = result.get("ExportTasks")
 
         assert export_tasks
@@ -653,7 +692,9 @@ class TestRdsCancelExportTaskOperator:
         _patch_hook_get_connection(cancel_export_operator.hook)
         cancel_export_operator.execute(None)
 
-        result = self.hook.conn.describe_export_tasks(ExportTaskIdentifier=EXPORT_TASK_NAME)
+        result = self.hook.conn.describe_export_tasks(
+            ExportTaskIdentifier=EXPORT_TASK_NAME
+        )
         export_tasks = result.get("ExportTasks")
 
         assert export_tasks
@@ -702,7 +743,9 @@ class TestRdsCreateEventSubscriptionOperator:
         _patch_hook_get_connection(create_subscription_operator.hook)
         create_subscription_operator.execute(None)
 
-        result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
+        result = self.hook.conn.describe_event_subscriptions(
+            SubscriptionName=SUBSCRIPTION_NAME
+        )
         subscriptions = result.get("EventSubscriptionsList")
 
         assert subscriptions
@@ -727,7 +770,9 @@ class TestRdsCreateEventSubscriptionOperator:
         _patch_hook_get_connection(create_subscription_operator.hook)
         create_subscription_operator.execute(None)
 
-        result = self.hook.conn.describe_event_subscriptions(SubscriptionName=SUBSCRIPTION_NAME)
+        result = self.hook.conn.describe_event_subscriptions(
+            SubscriptionName=SUBSCRIPTION_NAME
+        )
         subscriptions = result.get("EventSubscriptionsList")
 
         assert subscriptions
@@ -820,7 +865,9 @@ class TestRdsCreateDbInstanceOperator:
         _patch_hook_get_connection(create_db_instance_operator.hook)
         create_db_instance_operator.execute(None)
 
-        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         db_instances = result.get("DBInstances")
 
         assert db_instances
@@ -845,7 +892,9 @@ class TestRdsCreateDbInstanceOperator:
         _patch_hook_get_connection(create_db_instance_operator.hook)
         create_db_instance_operator.execute(None)
 
-        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         db_instances = result.get("DBInstances")
 
         assert db_instances
@@ -956,10 +1005,14 @@ class TestRdsStopDbOperator:
     @mock_aws
     def test_stop_db_instance(self):
         _create_db_instance(self.hook)
-        stop_db_instance = RdsStopDbOperator(task_id="test_stop_db_instance", db_identifier=DB_INSTANCE_NAME)
+        stop_db_instance = RdsStopDbOperator(
+            task_id="test_stop_db_instance", db_identifier=DB_INSTANCE_NAME
+        )
         _patch_hook_get_connection(stop_db_instance.hook)
         stop_db_instance.execute(None)
-        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         status = result["DBInstances"][0]["DBInstanceStatus"]
         assert status == "stopped"
 
@@ -968,11 +1021,15 @@ class TestRdsStopDbOperator:
     def test_stop_db_instance_no_wait(self, mock_get_waiter):
         _create_db_instance(self.hook)
         stop_db_instance = RdsStopDbOperator(
-            task_id="test_stop_db_instance_no_wait", db_identifier=DB_INSTANCE_NAME, wait_for_completion=False
+            task_id="test_stop_db_instance_no_wait",
+            db_identifier=DB_INSTANCE_NAME,
+            wait_for_completion=False,
         )
         _patch_hook_get_connection(stop_db_instance.hook)
         stop_db_instance.execute(None)
-        result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         status = result["DBInstances"][0]["DBInstanceStatus"]
         assert status == "stopped"
         mock_get_waiter.assert_not_called()
@@ -1001,11 +1058,15 @@ class TestRdsStopDbOperator:
         _patch_hook_get_connection(stop_db_instance.hook)
         stop_db_instance.execute(None)
 
-        describe_result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        describe_result = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         status = describe_result["DBInstances"][0]["DBInstanceStatus"]
         assert status == "stopped"
 
-        snapshot_result = self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
+        snapshot_result = self.hook.conn.describe_db_snapshots(
+            DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT
+        )
         instance_snapshots = snapshot_result.get("DBSnapshots")
         assert instance_snapshots
         assert len(instance_snapshots) == 1
@@ -1014,12 +1075,16 @@ class TestRdsStopDbOperator:
     def test_stop_db_cluster(self):
         _create_db_cluster(self.hook)
         stop_db_cluster = RdsStopDbOperator(
-            task_id="test_stop_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+            task_id="test_stop_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
         )
         _patch_hook_get_connection(stop_db_cluster.hook)
         stop_db_cluster.execute(None)
 
-        describe_result = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        describe_result = self.hook.conn.describe_db_clusters(
+            DBClusterIdentifier=DB_CLUSTER_NAME
+        )
         status = describe_result["DBClusters"][0]["Status"]
         assert status == "stopped"
 
@@ -1035,9 +1100,7 @@ class TestRdsStopDbOperator:
         _patch_hook_get_connection(stop_db_cluster.hook)
         with caplog.at_level(logging.WARNING, logger=stop_db_cluster.log.name):
             stop_db_cluster.execute(None)
-        warning_message = (
-            "'db_snapshot_identifier' does not apply to db clusters. Remove it to silence this warning."
-        )
+        warning_message = "'db_snapshot_identifier' does not apply to db clusters. Remove it to silence this warning."
         assert warning_message in caplog.text
 
     def test_template_fields(self):
@@ -1070,7 +1133,9 @@ class TestRdsStartDbOperator:
     def test_start_db_instance(self):
         _create_db_instance(self.hook)
         self.hook.conn.stop_db_instance(DBInstanceIdentifier=DB_INSTANCE_NAME)
-        result_before = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result_before = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         status_before = result_before["DBInstances"][0]["DBInstanceStatus"]
         assert status_before == "stopped"
 
@@ -1080,7 +1145,9 @@ class TestRdsStartDbOperator:
         _patch_hook_get_connection(start_db_instance.hook)
         start_db_instance.execute(None)
 
-        result_after = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
+        result_after = self.hook.conn.describe_db_instances(
+            DBInstanceIdentifier=DB_INSTANCE_NAME
+        )
         status_after = result_after["DBInstances"][0]["DBInstanceStatus"]
         assert status_after == "available"
 
@@ -1088,17 +1155,23 @@ class TestRdsStartDbOperator:
     def test_start_db_cluster(self):
         _create_db_cluster(self.hook)
         self.hook.conn.stop_db_cluster(DBClusterIdentifier=DB_CLUSTER_NAME)
-        result_before = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        result_before = self.hook.conn.describe_db_clusters(
+            DBClusterIdentifier=DB_CLUSTER_NAME
+        )
         status_before = result_before["DBClusters"][0]["Status"]
         assert status_before == "stopped"
 
         start_db_cluster = RdsStartDbOperator(
-            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+            task_id="test_start_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
         )
         _patch_hook_get_connection(start_db_cluster.hook)
         start_db_cluster.execute(None)
 
-        result_after = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
+        result_after = self.hook.conn.describe_db_clusters(
+            DBClusterIdentifier=DB_CLUSTER_NAME
+        )
         status_after = result_after["DBClusters"][0]["Status"]
         assert status_after == "available"
 
@@ -1117,6 +1190,8 @@ class TestRdsStartDbOperator:
 
     def test_template_fields(self):
         operator = RdsStartDbOperator(
-            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+            task_id="test_start_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
         )
         validate_template_fields(operator)

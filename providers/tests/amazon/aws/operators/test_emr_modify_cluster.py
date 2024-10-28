@@ -29,7 +29,10 @@ from airflow.utils import timezone
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-MODIFY_CLUSTER_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "StepConcurrencyLevel": 1}
+MODIFY_CLUSTER_SUCCESS_RETURN = {
+    "ResponseMetadata": {"HTTPStatusCode": 200},
+    "StepConcurrencyLevel": 1,
+}
 MODIFY_CLUSTER_ERROR_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 400}}
 
 

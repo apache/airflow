@@ -58,6 +58,8 @@ def test_mapped_task_with_arbitrary_default_args(dag_maker, session):
     xcoms = set()
     for ti in decision.schedulable_tis:
         ti.run(session=session)
-        xcoms.add(ti.xcom_pull(session=session, task_ids=ti.task_id, map_indexes=ti.map_index))
+        xcoms.add(
+            ti.xcom_pull(session=session, task_ids=ti.task_id, map_indexes=ti.map_index)
+        )
 
     assert xcoms == {11, 12, 13}

@@ -39,7 +39,10 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLPredictOperator,
     AutoMLTrainModelOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -97,7 +100,9 @@ with DAG(
         contents = blob.download_as_string().decode()
 
         # update memory content
-        updated_contents = contents.replace("template-bucket", DATA_SAMPLE_GCS_BUCKET_NAME)
+        updated_contents = contents.replace(
+            "template-bucket", DATA_SAMPLE_GCS_BUCKET_NAME
+        )
 
         # upload updated content to bucket
         destination_bucket = storage_client.bucket(DATA_SAMPLE_GCS_BUCKET_NAME)
@@ -129,7 +134,9 @@ with DAG(
 
     MODEL["dataset_id"] = dataset_id
     # [START howto_operator_automl_create_model]
-    create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
+    create_model = AutoMLTrainModelOperator(
+        task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION
+    )
     # [END howto_operator_automl_create_model]
     model_id = cast(str, XComArg(create_model, key="model_id"))
 

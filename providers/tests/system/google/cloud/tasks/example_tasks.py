@@ -149,7 +149,14 @@ with DAG(
     # [END delete_task]
 
     chain(
-        random_string, create_queue, create_task, tasks_get, list_tasks, run_task, delete_task, delete_queue
+        random_string,
+        create_queue,
+        create_task,
+        tasks_get,
+        list_tasks,
+        run_task,
+        delete_task,
+        delete_queue,
     )
 
     from tests_common.test_utils.watcher import watcher

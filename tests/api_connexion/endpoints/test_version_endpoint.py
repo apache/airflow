@@ -32,9 +32,13 @@ class TestGetHealthTest:
         self.app = minimal_app_for_api
         self.client = self.app.test_client()  # type:ignore
 
-    @mock.patch("airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION")
     @mock.patch(
-        "airflow.api_connexion.endpoints.version_endpoint.get_airflow_git_version", return_value="GIT_COMMIT"
+        "airflow.api_connexion.endpoints.version_endpoint.airflow.__version__",
+        "MOCK_VERSION",
+    )
+    @mock.patch(
+        "airflow.api_connexion.endpoints.version_endpoint.get_airflow_git_version",
+        return_value="GIT_COMMIT",
     )
     def test_should_respond_200(self, mock_get_airflow_get_commit):
         response = self.client.get("/api/v1/version")

@@ -34,7 +34,9 @@ class TestConnectionsFromSecrets:
         SecretCache.reset()
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
-    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch(
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection"
+    )
     def test_get_connection_second_try(self, mock_env_get, mock_meta_get):
         mock_env_get.side_effect = [None]  # return None
         Connection.get_connection_from_secrets("fake_conn_id")
@@ -42,7 +44,9 @@ class TestConnectionsFromSecrets:
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
-    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch(
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection"
+    )
     def test_get_connection_first_try(self, mock_env_get, mock_meta_get):
         mock_env_get.return_value = Connection("something")  # returns something
         Connection.get_connection_from_secrets("fake_conn_id")
@@ -55,7 +59,10 @@ class TestConnectionsFromSecrets:
                 "secrets",
                 "backend",
             ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+            (
+                "secrets",
+                "backend_kwargs",
+            ): '{"connections_prefix": "/airflow", "profile_name": null}',
         }
     )
     def test_initialize_secrets_backends(self):
@@ -90,7 +97,10 @@ class TestConnectionsFromSecrets:
                 "secrets",
                 "backend",
             ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+            (
+                "secrets",
+                "backend_kwargs",
+            ): '{"connections_prefix": "/airflow", "profile_name": null}',
         }
     )
     @mock.patch.dict(
@@ -128,7 +138,9 @@ class TestVariableFromSecrets:
         clear_db_variables()
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
-    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
+    @mock.patch(
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable"
+    )
     def test_get_variable_second_try(self, mock_env_get, mock_meta_get):
         """
         Test if Variable is not present in Environment Variable, it then looks for it in
@@ -143,7 +155,9 @@ class TestVariableFromSecrets:
         mock_env_get.assert_called_once_with(key="fake_var_key")
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
-    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
+    @mock.patch(
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable"
+    )
     def test_get_variable_first_try(self, mock_env_get, mock_meta_get):
         """
         Test if Variable is present in Environment Variable, it does not look for it in
@@ -168,7 +182,10 @@ class TestVariableFromSecrets:
                 "secrets",
                 "backend",
             ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
+            (
+                "secrets",
+                "backend_kwargs",
+            ): '{"variables_prefix": "/airflow", "profile_name": null}',
         }
     )
     @mock.patch.dict(

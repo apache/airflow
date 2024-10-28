@@ -84,10 +84,14 @@ def _trigger_dag(
     run_id = run_id or dag.timetable.generate_run_id(
         run_type=DagRunType.MANUAL, logical_date=logical_date, data_interval=data_interval
     )
-    dag_run = DagRun.find_duplicate(dag_id=dag_id, execution_date=execution_date, run_id=run_id)
+    dag_run = DagRun.find_duplicate(
+        dag_id=dag_id, execution_date=execution_date, run_id=run_id
+    )
 
     if dag_run:
-        raise DagRunAlreadyExists(dag_run=dag_run, execution_date=execution_date, run_id=run_id)
+        raise DagRunAlreadyExists(
+            dag_run=dag_run, execution_date=execution_date, run_id=run_id
+        )
 
     run_conf = None
     if conf:

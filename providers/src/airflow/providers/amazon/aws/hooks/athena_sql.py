@@ -89,7 +89,9 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                         "work_group": "primary",
                         "region_name": "us-east-1",
                         "session_kwargs": {"profile_name": "default"},
-                        "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+                        "config_kwargs": {
+                            "retries": {"mode": "standard", "max_attempts": 10}
+                        },
                         "role_arn": "arn:aws:iam::123456789098:role/role-name",
                         "assume_role_method": "assume_role",
                         "assume_role_kwargs": {"RoleSessionName": "airflow"},
@@ -111,16 +113,22 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 connection.login = athena_conn.login
                 connection.password = athena_conn.password
                 connection.schema = athena_conn.schema
-                connection.set_extra(json.dumps({**athena_conn.extra_dejson, **connection.extra_dejson}))
+                connection.set_extra(
+                    json.dumps({**athena_conn.extra_dejson, **connection.extra_dejson})
+                )
             except AirflowNotFoundException:
                 connection = athena_conn
                 connection.conn_type = "aws"
                 self.log.warning(
-                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
+                    "Unable to find AWS Connection ID '%s', switching to empty.",
+                    self.aws_conn_id,
                 )
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
+            conn=connection,
+            region_name=self._region_name,
+            botocore_config=self._config,
+            verify=self._verify,
         )
 
     @property
@@ -131,7 +139,9 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
     def _get_conn_params(self) -> dict[str, str | None]:
         """Retrieve connection parameters."""
         if not self.conn.region_name:
-            raise AirflowException("region_name must be specified in the connection's extra")
+            raise AirflowException(
+                "region_name must be specified in the connection's extra"
+            )
 
         return dict(
             driver=self.conn.extra_dejson.get("driver", "rest"),

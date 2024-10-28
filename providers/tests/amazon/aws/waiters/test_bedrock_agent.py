@@ -79,7 +79,11 @@ class TestKnowledgeBaseActiveWaiter(TestBedrockAgentCustomWaitersBase):
 
 class TestIngestionJobWaiter(TestBedrockAgentCustomWaitersBase):
     WAITER_NAME = "ingestion_job_complete"
-    WAITER_ARGS = {"knowledgeBaseId": "kb_id", "dataSourceId": "ds_id", "ingestionJobId": "job_id"}
+    WAITER_ARGS = {
+        "knowledgeBaseId": "kb_id",
+        "dataSourceId": "ds_id",
+        "ingestionJobId": "job_id",
+    }
     SENSOR = BedrockIngestionJobSensor
 
     @pytest.fixture

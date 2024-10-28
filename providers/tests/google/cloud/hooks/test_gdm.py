@@ -40,7 +40,9 @@ TEST_DEPLOYMENT = "my-deployment"
 class TestDeploymentManagerHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            GoogleDeploymentManagerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+            GoogleDeploymentManagerHook(
+                gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to"
+            )
 
     def setup_method(self):
         with mock.patch(
@@ -49,10 +51,18 @@ class TestDeploymentManagerHook:
         ):
             self.gdm_hook = GoogleDeploymentManagerHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn"
+    )
     def test_list_deployments(self, mock_get_conn):
-        response1 = {"deployments": [{"id": "deployment1", "name": "test-deploy1"}], "pageToken": None}
-        response2 = {"deployments": [{"id": "deployment2", "name": "test-deploy2"}], "pageToken": None}
+        response1 = {
+            "deployments": [{"id": "deployment1", "name": "test-deploy1"}],
+            "pageToken": None,
+        }
+        response2 = {
+            "deployments": [{"id": "deployment2", "name": "test-deploy2"}],
+            "pageToken": None,
+        }
 
         mock_get_conn.return_value.deployments.return_value.list.return_value.execute.return_value = response1
 
@@ -75,29 +85,43 @@ class TestDeploymentManagerHook:
             orderBy="name",
         )
 
-        assert mock_get_conn.return_value.deployments.return_value.list_next.call_count == 2
+        assert (
+            mock_get_conn.return_value.deployments.return_value.list_next.call_count == 2
+        )
 
         assert deployments == [
             {"id": "deployment1", "name": "test-deploy1"},
             {"id": "deployment2", "name": "test-deploy2"},
         ]
 
-    @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn"
+    )
     def test_delete_deployment(self, mock_get_conn):
-        self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
+        self.gdm_hook.delete_deployment(
+            project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT
+        )
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().delete.assert_called_once_with(
             project=TEST_PROJECT, deployment=TEST_DEPLOYMENT, deletePolicy=None
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn"
+    )
     def test_delete_deployment_delete_fails(self, mock_get_conn):
-        resp = {"error": {"errors": [{"message": "error deleting things.", "domain": "global"}]}}
+        resp = {
+            "error": {
+                "errors": [{"message": "error deleting things.", "domain": "global"}]
+            }
+        }
 
         mock_get_conn.return_value.deployments.return_value.delete.return_value.execute.return_value = resp
 
         with pytest.raises(AirflowException):
-            self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
+            self.gdm_hook.delete_deployment(
+                project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT
+            )
 
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().delete.assert_called_once_with(

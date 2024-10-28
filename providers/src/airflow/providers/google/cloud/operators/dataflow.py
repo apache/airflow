@@ -38,7 +38,10 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.links.dataflow import DataflowJobLink, DataflowPipelineLink
+from airflow.providers.google.cloud.links.dataflow import (
+    DataflowJobLink,
+    DataflowPipelineLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowStartYamlJobTrigger,
@@ -424,7 +427,9 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         with ExitStack() as exit_stack:
             if self.jar.lower().startswith("gs://"):
                 gcs_hook = GCSHook(self.gcp_conn_id)
-                tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
+                tmp_gcs_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.jar)
+                )
                 self.jar = tmp_gcs_file.name
 
             is_running = False
@@ -462,7 +467,8 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         self.log.info("On kill.")
         if self.job_id:
             self.dataflow_hook.cancel_job(
-                job_id=self.job_id, project_id=self.project_id or self.dataflow_hook.project_id
+                job_id=self.job_id,
+                project_id=self.project_id or self.dataflow_hook.project_id,
             )
 
 
@@ -628,7 +634,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         append_job_name: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         expected_terminal_state: str | None = None,
         **kwargs,
     ) -> None:
@@ -681,7 +689,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         def set_current_job(current_job):
             self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
+            DataflowJobLink.persist(
+                self, context, self.project_id, self.location, self.job.get("id")
+            )
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -738,7 +748,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
 
         job_id = event["job_id"]
         self.xcom_push(context, key="job_id", value=job_id)
-        self.log.info("Task %s completed with response %s", self.task_id, event["message"])
+        self.log.info(
+            "Task %s completed with response %s", self.task_id, event["message"]
+        )
         return job_id
 
     def on_kill(self) -> None:
@@ -835,7 +847,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         append_job_name: bool = True,
         expected_terminal_state: str | None = None,
         poll_sleep: int = 10,
@@ -888,7 +902,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
+            DataflowJobLink.persist(
+                self, context, self.project_id, self.location, self.job.get("id")
+            )
 
         if not self.deferrable:
             self.job = self.hook.start_flex_template(
@@ -938,7 +954,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         job_id = event["job_id"]
         self.log.info("Task %s completed with response %s", job_id, event["message"])
         self.xcom_push(context, key="job_id", value=job_id)
-        job = self.hook.get_job(job_id=job_id, project_id=self.project_id, location=self.location)
+        job = self.hook.get_job(
+            job_id=job_id, project_id=self.project_id, location=self.location
+        )
         return job
 
     def on_kill(self) -> None:
@@ -1135,7 +1153,9 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         append_job_name: bool = True,
         drain_pipeline: bool = False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_sleep: int = 10,
         cancel_timeout: int | None = 5 * 60,
         expected_terminal_state: str | None = None,
@@ -1190,9 +1210,14 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
             )
 
         self.hook.wait_for_done(
-            job_name=self.job_name, location=self.region, project_id=self.project_id, job_id=self.job_id
+            job_name=self.job_name,
+            location=self.region,
+            project_id=self.project_id,
+            job_id=self.job_id,
         )
-        job = self.hook.get_job(job_id=self.job_id, location=self.region, project_id=self.project_id)
+        job = self.hook.get_job(
+            job_id=self.job_id, location=self.region, project_id=self.project_id
+        )
         return job
 
     def execute_complete(self, context: Context, event: dict) -> dict[str, Any]:
@@ -1339,7 +1364,12 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
     """
 
-    template_fields: Sequence[str] = ("options", "dataflow_default_options", "job_name", "py_file")
+    template_fields: Sequence[str] = (
+        "options",
+        "dataflow_default_options",
+        "job_name",
+        "py_file",
+    )
 
     def __init__(
         self,
@@ -1408,7 +1438,9 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         def camel_to_snake(name):
             return re.sub("[A-Z]", lambda x: "_" + x.group(0).lower(), name)
 
-        formatted_pipeline_options = {camel_to_snake(key): pipeline_options[key] for key in pipeline_options}
+        formatted_pipeline_options = {
+            camel_to_snake(key): pipeline_options[key] for key in pipeline_options
+        }
 
         def set_current_job_id(job_id):
             self.job_id = job_id
@@ -1420,7 +1452,9 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         with ExitStack() as exit_stack:
             if self.py_file.lower().startswith("gs://"):
                 gcs_hook = GCSHook(self.gcp_conn_id)
-                tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
+                tmp_gcs_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.py_file)
+                )
                 self.py_file = tmp_gcs_file.name
 
             with self.dataflow_hook.provide_authorized_gcloud():
@@ -1447,7 +1481,8 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         self.log.info("On kill.")
         if self.job_id:
             self.dataflow_hook.cancel_job(
-                job_id=self.job_id, project_id=self.project_id or self.dataflow_hook.project_id
+                job_id=self.job_id,
+                project_id=self.project_id or self.dataflow_hook.project_id,
             )
 
 
@@ -1607,7 +1642,9 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
                 "Project ID not given; cannot create a Data Pipeline without the Project ID."
             )
         if self.location is None:
-            raise AirflowException("location not given; cannot create a Data Pipeline without the location.")
+            raise AirflowException(
+                "location not given; cannot create a Data Pipeline without the location."
+            )
 
         self.dataflow_hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -1629,7 +1666,9 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
                     pipeline_name=self.pipeline_name,
                     location=self.location,
                 )
-        DataflowPipelineLink.persist(self, context, self.project_id, self.location, self.pipeline_name)
+        DataflowPipelineLink.persist(
+            self, context, self.project_id, self.location, self.pipeline_name
+        )
         self.xcom_push(context, key="pipeline_name", value=self.pipeline_name)
         if self.pipeline:
             if "error" in self.pipeline:
@@ -1689,11 +1728,17 @@ class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
         )
 
         if self.pipeline_name is None:
-            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+            raise AirflowException(
+                "Data Pipeline name not given; cannot run unspecified pipeline."
+            )
         if self.project_id is None:
-            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+            raise AirflowException(
+                "Data Pipeline Project ID not given; cannot run pipeline."
+            )
         if self.location is None:
-            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+            raise AirflowException(
+                "Data Pipeline location not given; cannot run pipeline."
+            )
         try:
             self.job = self.dataflow_hook.run_data_pipeline(
                 pipeline_name=self.pipeline_name,
@@ -1760,11 +1805,17 @@ class DataflowDeletePipelineOperator(GoogleCloudBaseOperator):
         )
 
         if self.pipeline_name is None:
-            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+            raise AirflowException(
+                "Data Pipeline name not given; cannot run unspecified pipeline."
+            )
         if self.project_id is None:
-            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+            raise AirflowException(
+                "Data Pipeline Project ID not given; cannot run pipeline."
+            )
         if self.location is None:
-            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+            raise AirflowException(
+                "Data Pipeline location not given; cannot run pipeline."
+            )
 
         self.response = self.dataflow_hook.delete_data_pipeline(
             pipeline_name=self.pipeline_name,

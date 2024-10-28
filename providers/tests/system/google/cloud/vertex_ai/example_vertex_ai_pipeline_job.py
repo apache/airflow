@@ -38,7 +38,9 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSListObjectsOperator,
     GCSSynchronizeBucketsOperator,
 )
-from airflow.providers.google.cloud.operators.vertex_ai.dataset import CreateDatasetOperator
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     DeletePipelineJobOperator,
     GetPipelineJobOperator,
@@ -69,7 +71,11 @@ TABULAR_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
+                "gcs_source": {
+                    "uri": [
+                        f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"
+                    ]
+                }
             }
         },
         Value(),
@@ -147,10 +153,14 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
 
-    list_buckets = GCSListObjectsOperator(task_id="list_buckets", bucket=DATA_SAMPLE_GCS_BUCKET_NAME)
+    list_buckets = GCSListObjectsOperator(
+        task_id="list_buckets", bucket=DATA_SAMPLE_GCS_BUCKET_NAME
+    )
 
     delete_files = GCSDeleteObjectsOperator(
-        task_id="delete_files", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, objects=list_buckets.output
+        task_id="delete_files",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        objects=list_buckets.output,
     )
 
     delete_bucket = GCSDeleteBucketOperator(

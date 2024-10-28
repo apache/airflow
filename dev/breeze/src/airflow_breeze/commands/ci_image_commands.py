@@ -94,7 +94,11 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     warm_up_docker_builder,
 )
-from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
+from airflow_breeze.utils.image import (
+    run_pull_image,
+    run_pull_in_parallel,
+    tag_image_as_latest,
+)
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import (
@@ -120,13 +124,17 @@ if TYPE_CHECKING:
 
 
 @click.group(
-    cls=BreezeGroup, name="ci-image", help="Tools that developers can use to manually manage CI images"
+    cls=BreezeGroup,
+    name="ci-image",
+    help="Tools that developers can use to manually manage CI images",
 )
 def ci_image():
     pass
 
 
-def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Output | None) -> bool:
+def check_if_image_building_is_needed(
+    ci_image_params: BuildCiParams, output: Output | None
+) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
     result = run_command(
         ["docker", "inspect", ci_image_params.airflow_image_name_with_tag],
@@ -136,7 +144,10 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     )
     if result.returncode != 0:
         return True
-    if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
+    if (
+        not ci_image_params.force_build
+        and not ci_image_params.upgrade_to_newer_dependencies
+    ):
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
     return True
@@ -152,7 +163,9 @@ def run_build_in_parallel(
 ) -> None:
     warm_up_docker_builder(image_params_list)
     with ci_group(f"Building for {params_description_list}"):
-        all_params = [f"CI {param_description}" for param_description in params_description_list]
+        all_params = [
+            f"CI {param_description}" for param_description in params_description_list
+        ]
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
@@ -551,7 +564,9 @@ def pull(
             tag_as_latest=tag_as_latest,
         )
         if return_code != 0:
-            get_console().print(f"[error]There was an error when pulling CI image: {info}[/]")
+            get_console().print(
+                f"[error]There was an error when pulling CI image: {info}[/]"
+            )
             sys.exit(return_code)
 
 
@@ -712,7 +727,9 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
             default_answer=Answer.NO,
         )
         if answer == answer.YES:
-            if is_repo_rebased(build_ci_params.github_repository, build_ci_params.airflow_branch):
+            if is_repo_rebased(
+                build_ci_params.github_repository, build_ci_params.airflow_branch
+            ):
                 return True
             else:
                 get_console().print(
@@ -807,7 +824,9 @@ def run_build_ci_image(
         )
         if process.returncode != 0:
             sys.exit(process.returncode)
-        get_console(output=output).print(f"\n[info]Building CI Image for {param_description}\n")
+        get_console(output=output).print(
+            f"\n[info]Building CI Image for {param_description}\n"
+        )
         build_command_result = run_command(
             prepare_docker_build_command(
                 image_params=ci_image_params,
@@ -818,7 +837,10 @@ def run_build_ci_image(
             env=env,
             output=output,
         )
-        if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
+        if (
+            build_command_result.returncode != 0
+            and not ci_image_params.upgrade_to_newer_dependencies
+        ):
             if ci_image_params.upgrade_on_failure:
                 ci_image_params.upgrade_to_newer_dependencies = True
                 get_console().print(
@@ -843,7 +865,9 @@ def run_build_ci_image(
                 )
         if build_command_result.returncode == 0:
             if ci_image_params.tag_as_latest:
-                build_command_result = tag_image_as_latest(image_params=ci_image_params, output=output)
+                build_command_result = tag_image_as_latest(
+                    image_params=ci_image_params, output=output
+                )
             if ci_image_params.preparing_latest_image():
                 if get_dry_run():
                     get_console(output=output).print(
@@ -854,7 +878,9 @@ def run_build_ci_image(
     return build_command_result.returncode, f"Image build: {param_description}"
 
 
-def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
+def rebuild_or_pull_ci_image_if_needed(
+    command_params: ShellParams | BuildCiParams,
+) -> None:
     """
     Rebuilds CI image if needed and user confirms it.
 
@@ -887,12 +913,16 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
             tag_as_latest=False,
         )
         if return_code != 0:
-            get_console().print(f"[error]Pulling image with {command_params.image_tag} failed! {message}[/]")
+            get_console().print(
+                f"[error]Pulling image with {command_params.image_tag} failed! {message}[/]"
+            )
             sys.exit(return_code)
         return
     if build_ci_image_check_cache.exists():
         if get_verbose():
-            get_console().print(f"[info]{command_params.image_type} image already built locally.[/]")
+            get_console().print(
+                f"[info]{command_params.image_type} image already built locally.[/]"
+            )
     else:
         get_console().print(
             f"[warning]{command_params.image_type} image for Python {command_params.python} "
@@ -904,5 +934,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         output=None,
     ):
         run_build_ci_image(
-            ci_image_params=ci_image_params, param_description=ci_image_params.python, output=None
+            ci_image_params=ci_image_params,
+            param_description=ci_image_params.python,
+            output=None,
         )

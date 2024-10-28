@@ -28,12 +28,21 @@ class TestCreateUserJob:
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
         assert "Job" == docs[0]["kind"]
-        assert "create-user" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
-        assert 50000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        assert "create-user" == jmespath.search(
+            "spec.template.spec.containers[0].name", docs[0]
+        )
+        assert 50000 == jmespath.search(
+            "spec.template.spec.securityContext.runAsUser", docs[0]
+        )
 
     def test_should_support_annotations(self):
         docs = render_chart(
-            values={"createUserJob": {"annotations": {"foo": "bar"}, "jobAnnotations": {"fiz": "fuz"}}},
+            values={
+                "createUserJob": {
+                    "annotations": {"foo": "bar"},
+                    "jobAnnotations": {"fiz": "fuz"},
+                }
+            },
             show_only=["templates/jobs/create-user-job.yaml"],
         )
         annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
@@ -53,7 +62,10 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -65,7 +77,11 @@ class TestCreateUserJob:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -73,7 +89,12 @@ class TestCreateUserJob:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 }
@@ -130,7 +151,9 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert resources == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
+        assert resources == jmespath.search(
+            "spec.template.spec.containers[0].resources", docs[0]
+        )
 
     def test_should_disable_default_helm_hooks(self):
         docs = render_chart(
@@ -154,7 +177,10 @@ class TestCreateUserJob:
             values={
                 "createUserJob": {
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name}}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -171,7 +197,10 @@ class TestCreateUserJob:
             values={
                 "createUserJob": {
                     "extraInitContainers": [
-                        {"name": "{{ .Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name}}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -201,7 +230,9 @@ class TestCreateUserJob:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "extraVolumes": [{"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],
@@ -215,7 +246,9 @@ class TestCreateUserJob:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "extraVolumeMounts": [{"name": "foobar-{{ .Chart.Name }}", "mountPath": "foo/bar"}],
+                    "extraVolumeMounts": [
+                        {"name": "foobar-{{ .Chart.Name }}", "mountPath": "foo/bar"}
+                    ],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],
@@ -249,11 +282,18 @@ class TestCreateUserJob:
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
                             "name": "TEST_ENV_2",
-                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "my-secret", "key": "my-key"}
+                            },
                         },
                         {
                             "name": "TEST_ENV_3",
-                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "my-config-map",
+                                    "key": "my-key",
+                                }
+                            },
                         },
                     ],
                 },
@@ -334,7 +374,9 @@ class TestCreateUserJob:
             ("2.0.2", "airflow users create"),
         ],
     )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    def test_default_command_and_args_airflow_version(
+        self, airflow_version, expected_arg
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -342,7 +384,9 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert [
             "bash",
             "-c",
@@ -370,19 +414,28 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                "createUserJob": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}
+                "createUserJob": {
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
             },
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     def test_default_user_overrides(self):
         docs = render_chart(
@@ -401,7 +454,9 @@ class TestCreateUserJob:
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert [
             "bash",
             "-c",
@@ -423,9 +478,12 @@ class TestCreateUserJob:
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/jobs/create-user-job.yaml"]
+            values={"airflowLocalSettings": None},
+            show_only=["templates/jobs/create-user-job.yaml"],
         )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts)
 
     def test_airflow_local_settings(self):
@@ -455,7 +513,10 @@ class TestCreateUserJobServiceAccount:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
@@ -472,7 +533,10 @@ class TestCreateUserJobServiceAccount:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/jobs/create-user-job-serviceaccount.yaml"],

@@ -76,7 +76,11 @@ class AwsHookParams(NamedTuple):
                     **kwargs,
                 ):
                     params = AwsHookParams.from_constructor(
-                        aws_conn_id, region_name, verify, botocore_config, additional_params=kwargs
+                        aws_conn_id,
+                        region_name,
+                        verify,
+                        botocore_config,
+                        additional_params=kwargs,
                     )
                     super().__init__(**kwargs)
                     self.aws_conn_id = params.aws_conn_id
@@ -109,7 +113,9 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
 
     def validate_attributes(self):
         """Validate class attributes."""
-        if hasattr(self, "aws_hook_class"):  # Validate if ``aws_hook_class`` is properly set.
+        if hasattr(
+            self, "aws_hook_class"
+        ):  # Validate if ``aws_hook_class`` is properly set.
             try:
                 if not issubclass(self.aws_hook_class, AwsGenericHook):
                     raise TypeError
@@ -120,7 +126,9 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
                     f"is not a subclass of AwsGenericHook."
                 ) from None
         else:
-            raise AttributeError(f"Class attribute '{type(self).__name__}.aws_hook_class' should be set.")
+            raise AttributeError(
+                f"Class attribute '{type(self).__name__}.aws_hook_class' should be set."
+            )
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
@@ -158,4 +166,6 @@ def aws_template_fields(*template_fields: str) -> tuple[str, ...]:
             f"{', '.join(map(repr, template_fields))}."
         )
         raise TypeError(msg)
-    return tuple(sorted(list({"aws_conn_id", "region_name", "verify"} | set(template_fields))))
+    return tuple(
+        sorted(list({"aws_conn_id", "region_name", "verify"} | set(template_fields)))
+    )

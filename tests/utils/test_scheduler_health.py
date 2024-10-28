@@ -55,7 +55,9 @@ class TestSchedulerHealthServer:
     def test_healthy_scheduler(self, mock_session, mock_send_response, mock_end_headers):
         mock_scheduler_job = MagicMock()
         mock_scheduler_job.is_alive.return_value = True
-        mock_session.return_value.__enter__.return_value.query.return_value = mock_scheduler_job
+        mock_session.return_value.__enter__.return_value.query.return_value = (
+            mock_scheduler_job
+        )
         self.mock_server.do_GET("/health")
         mock_send_response.assert_called_once_with(200)
         mock_end_headers.assert_called_once()
@@ -66,7 +68,9 @@ class TestSchedulerHealthServer:
     def test_unhealthy_scheduler(self, mock_session, mock_send_error):
         mock_scheduler_job = MagicMock()
         mock_scheduler_job.is_alive.return_value = False
-        mock_session.return_value.__enter__.return_value.query.return_value = mock_scheduler_job
+        mock_session.return_value.__enter__.return_value.query.return_value = (
+            mock_scheduler_job
+        )
         self.mock_server.do_GET("/health")
         mock_send_error.assert_called_with(503)
 

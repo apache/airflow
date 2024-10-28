@@ -60,7 +60,9 @@ def provide_facebook_connection(key_file_path: str):
     if missing_keys:
         message = f"{missing_keys} fields are missing"
         raise AirflowException(message)
-    conn = Connection(conn_id=FACEBOOK_CONNECTION_ID, conn_type=CONNECTION_TYPE, extra=json.dumps(creds))
+    conn = Connection(
+        conn_id=FACEBOOK_CONNECTION_ID, conn_type=CONNECTION_TYPE, extra=json.dumps(creds)
+    )
     with patch_environ({f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
         yield
 

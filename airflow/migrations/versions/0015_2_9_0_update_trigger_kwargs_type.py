@@ -60,7 +60,9 @@ def upgrade():
     if not context.is_offline_mode():
         session = get_session()
         try:
-            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
+            for trigger in session.query(Trigger).options(
+                lazyload(Trigger.task_instance)
+            ):
                 trigger.kwargs = trigger.kwargs
             session.commit()
         finally:
@@ -81,13 +83,20 @@ def downgrade():
     else:
         session = get_session()
         try:
-            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
-                trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
+            for trigger in session.query(Trigger).options(
+                lazyload(Trigger.task_instance)
+            ):
+                trigger.encrypted_kwargs = json.dumps(
+                    BaseSerialization.serialize(trigger.kwargs)
+                )
             session.commit()
         finally:
             session.close()
 
     with op.batch_alter_table("trigger") as batch_op:
         batch_op.alter_column(
-            "kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json", existing_nullable=False
+            "kwargs",
+            type_=ExtendedJSON(),
+            postgresql_using="kwargs::json",
+            existing_nullable=False,
         )

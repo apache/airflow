@@ -95,7 +95,11 @@ class HookLineageCollector(LoggingMixin):
         return f"{asset.uri}_{extra_hash}_{id(context)}"
 
     def create_asset(
-        self, scheme: str | None, uri: str | None, asset_kwargs: dict | None, asset_extra: dict | None
+        self,
+        scheme: str | None,
+        uri: str | None,
+        asset_kwargs: dict | None,
+        asset_extra: dict | None,
     ) -> Asset | None:
         """
         Create an asset instance using the provided parameters.
@@ -122,7 +126,10 @@ class HookLineageCollector(LoggingMixin):
 
         asset_factory = ProvidersManager().asset_factories.get(scheme)
         if not asset_factory:
-            self.log.debug("Unsupported scheme: %s. Please provide a valid URI to create an asset.", scheme)
+            self.log.debug(
+                "Unsupported scheme: %s. Please provide a valid URI to create an asset.",
+                scheme,
+            )
             return None
 
         asset_kwargs = asset_kwargs or {}
@@ -141,7 +148,9 @@ class HookLineageCollector(LoggingMixin):
         asset_extra: dict | None = None,
     ):
         """Add the input asset and its corresponding hook execution context to the collector."""
-        asset = self.create_asset(scheme=scheme, uri=uri, asset_kwargs=asset_kwargs, asset_extra=asset_extra)
+        asset = self.create_asset(
+            scheme=scheme, uri=uri, asset_kwargs=asset_kwargs, asset_extra=asset_extra
+        )
         if asset:
             key = self._generate_key(asset, context)
             if key not in self._inputs:
@@ -157,7 +166,9 @@ class HookLineageCollector(LoggingMixin):
         asset_extra: dict | None = None,
     ):
         """Add the output asset and its corresponding hook execution context to the collector."""
-        asset = self.create_asset(scheme=scheme, uri=uri, asset_kwargs=asset_kwargs, asset_extra=asset_extra)
+        asset = self.create_asset(
+            scheme=scheme, uri=uri, asset_kwargs=asset_kwargs, asset_extra=asset_extra
+        )
         if asset:
             key = self._generate_key(asset, context)
             if key not in self._outputs:
@@ -169,11 +180,15 @@ class HookLineageCollector(LoggingMixin):
         """Get the collected hook lineage information."""
         return HookLineage(
             [
-                AssetLineageInfo(asset=asset, count=self._input_counts[key], context=context)
+                AssetLineageInfo(
+                    asset=asset, count=self._input_counts[key], context=context
+                )
                 for key, (asset, context) in self._inputs.items()
             ],
             [
-                AssetLineageInfo(asset=asset, count=self._output_counts[key], context=context)
+                AssetLineageInfo(
+                    asset=asset, count=self._output_counts[key], context=context
+                )
                 for key, (asset, context) in self._outputs.items()
             ],
         )

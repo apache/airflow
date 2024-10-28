@@ -26,7 +26,9 @@ class TestPineconeHook:
     def setup_method(self):
         """Set up the test environment, mocking necessary connections and initializing the
         PineconeHook object."""
-        with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
+        with patch(
+            "airflow.models.Connection.get_connection_from_secrets"
+        ) as mock_get_connection:
             mock_conn = Mock()
             mock_conn.host = "pinecone.io"
             mock_conn.login = "us-west1-gcp"  # Pinecone Environment
@@ -44,7 +46,9 @@ class TestPineconeHook:
         mock_upsert = Mock()
         mock_index.return_value.upsert = mock_upsert
         self.pinecone_hook.upsert(self.index_name, data)
-        mock_upsert.assert_called_once_with(vectors=data, namespace="", batch_size=None, show_progress=True)
+        mock_upsert.assert_called_once_with(
+            vectors=data, namespace="", batch_size=None, show_progress=True
+        )
 
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.list_indexes")
     def test_list_indexes(self, mock_list_indexes):
@@ -61,14 +65,20 @@ class TestPineconeHook:
     def test_create_index_for_pod_based(self, mock_create_index):
         """Test that the create_index method of PineconeHook is called with correct arguments for pod based index."""
         pod_spec = self.pinecone_hook.get_pod_spec_obj()
-        self.pinecone_hook.create_index(index_name=self.index_name, dimension=128, spec=pod_spec)
-        mock_create_index.assert_called_once_with(index_name="test_index", dimension=128, spec=pod_spec)
+        self.pinecone_hook.create_index(
+            index_name=self.index_name, dimension=128, spec=pod_spec
+        )
+        mock_create_index.assert_called_once_with(
+            index_name="test_index", dimension=128, spec=pod_spec
+        )
 
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.create_index")
     def test_create_index_for_serverless_based(self, mock_create_index):
         """Test that the create_index method of PineconeHook is called with correct arguments for serverless index."""
         serverless_spec = self.pinecone_hook.get_serverless_spec_obj(cloud="aws")
-        self.pinecone_hook.create_index(index_name=self.index_name, dimension=128, spec=serverless_spec)
+        self.pinecone_hook.create_index(
+            index_name=self.index_name, dimension=128, spec=serverless_spec
+        )
         mock_create_index.assert_called_once_with(
             index_name="test_index", dimension=128, spec=serverless_spec
         )
@@ -117,7 +127,9 @@ class TestPineconeHook:
         Test that the describe_collection method of PineconeHook is called correctly.
         """
         self.pinecone_hook.describe_collection(collection_name="test_collection")
-        mock_describe_collection.assert_called_once_with(collection_name="test_collection")
+        mock_describe_collection.assert_called_once_with(
+            collection_name="test_collection"
+        )
 
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.list_collections")
     def test_list_collections(self, mock_list_collections):

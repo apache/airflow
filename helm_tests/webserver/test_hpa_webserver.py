@@ -45,7 +45,10 @@ class TestWebserverHPA:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     @pytest.mark.parametrize(
         "min_replicas, max_replicas",
@@ -68,8 +71,16 @@ class TestWebserverHPA:
             },
             show_only=["templates/webserver/webserver-hpa.yaml"],
         )
-        assert jmespath.search("spec.minReplicas", docs[0]) == 1 if min_replicas is None else min_replicas
-        assert jmespath.search("spec.maxReplicas", docs[0]) == 5 if max_replicas is None else max_replicas
+        assert (
+            jmespath.search("spec.minReplicas", docs[0]) == 1
+            if min_replicas is None
+            else min_replicas
+        )
+        assert (
+            jmespath.search("spec.maxReplicas", docs[0]) == 5
+            if max_replicas is None
+            else max_replicas
+        )
 
     def test_hpa_behavior(self):
         """Verify HPA behavior."""
@@ -100,7 +111,10 @@ class TestWebserverHPA:
                 None,
                 {
                     "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                    "resource": {
+                        "name": "cpu",
+                        "target": {"type": "Utilization", "averageUtilization": 80},
+                    },
                 },
             ),
             # custom metric

@@ -80,7 +80,9 @@ def pyodbc_instancecheck():
 
 class TestOdbcHook:
     def test_driver_in_extra_not_used(self):
-        conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
+        conn_params = dict(
+            extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param"))
+        )
         hook_params = {"driver": "ParamDriver"}
         hook = mock_hook(OdbcHook, conn_params=conn_params, hook_params=hook_params)
         expected = (
@@ -95,7 +97,9 @@ class TestOdbcHook:
         assert hook.odbc_connection_string == expected
 
     def test_driver_in_both(self):
-        conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
+        conn_params = dict(
+            extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param"))
+        )
         hook_params = dict(driver="ParamDriver")
         hook = mock_hook(OdbcHook, conn_params=conn_params, hook_params=hook_params)
         expected = (
@@ -112,9 +116,7 @@ class TestOdbcHook:
     def test_dsn_in_extra(self):
         conn_params = dict(extra=json.dumps(dict(DSN="MyDSN", Fake_Param="Fake Param")))
         hook = mock_hook(OdbcHook, conn_params=conn_params)
-        expected = (
-            "DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;"
-        )
+        expected = "DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;"
         assert hook.odbc_connection_string == expected
 
     def test_dsn_in_both(self):
@@ -158,7 +160,10 @@ class TestOdbcHook:
             ),
         )
         assert hook.connect_kwargs == {
-            "attrs_before": {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
+            "attrs_before": {
+                1: 2,
+                pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
+            },
             "readonly": True,
             "autocommit": False,
         }
@@ -179,7 +184,10 @@ class TestOdbcHook:
 
         hook = mock_hook(OdbcHook, conn_params=dict(extra=extra))
         assert hook.connect_kwargs == {
-            "attrs_before": {1: 2, pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED},
+            "attrs_before": {
+                1: 2,
+                pyodbc.SQL_TXN_ISOLATION: pyodbc.SQL_TXN_READ_UNCOMMITTED,
+            },
             "readonly": True,
             "autocommit": True,
         }
@@ -189,12 +197,19 @@ class TestOdbcHook:
         When connect_kwargs in both hook and conn, should be merged properly.
         Hook beats conn.
         """
-        conn_extra = json.dumps(dict(connect_kwargs={"attrs_before": {1: 2, 3: 4}, "readonly": False}))
+        conn_extra = json.dumps(
+            dict(connect_kwargs={"attrs_before": {1: 2, 3: 4}, "readonly": False})
+        )
         hook_params = dict(
-            connect_kwargs={"attrs_before": {3: 5, pyodbc.SQL_TXN_ISOLATION: 0}, "readonly": True}
+            connect_kwargs={
+                "attrs_before": {3: 5, pyodbc.SQL_TXN_ISOLATION: 0},
+                "readonly": True,
+            }
         )
 
-        hook = mock_hook(OdbcHook, conn_params=dict(extra=conn_extra), hook_params=hook_params)
+        hook = mock_hook(
+            OdbcHook, conn_params=dict(extra=conn_extra), hook_params=hook_params
+        )
         assert hook.connect_kwargs == {
             "attrs_before": {1: 2, 3: 5, pyodbc.SQL_TXN_ISOLATION: 0},
             "readonly": True,
@@ -217,12 +232,21 @@ class TestOdbcHook:
         assert hook.driver == "Blah driver"
 
     def test_driver_extra_raises_warning_by_default(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"):
-            driver = mock_hook(OdbcHook, conn_params=dict(extra='{"driver": "Blah driver"}')).driver
-            assert "You have supplied 'driver' via connection extra but it will not be used" in caplog.text
+        with caplog.at_level(
+            logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"
+        ):
+            driver = mock_hook(
+                OdbcHook, conn_params=dict(extra='{"driver": "Blah driver"}')
+            ).driver
+            assert (
+                "You have supplied 'driver' via connection extra but it will not be used"
+                in caplog.text
+            )
             assert driver is None
 
-    @mock.patch.dict("os.environ", {"AIRFLOW__PROVIDERS_ODBC__ALLOW_DRIVER_IN_EXTRA": "TRUE"})
+    @mock.patch.dict(
+        "os.environ", {"AIRFLOW__PROVIDERS_ODBC__ALLOW_DRIVER_IN_EXTRA": "TRUE"}
+    )
     def test_driver_extra_works_when_allow_driver_extra(self):
         hook = mock_hook(
             OdbcHook,
@@ -245,11 +269,20 @@ class TestOdbcHook:
         hook = mock_hook(OdbcHook)
         assert hook.driver is None
 
-    def test_driver_extra_raises_warning_and_returns_default_driver_by_default(self, caplog):
+    def test_driver_extra_raises_warning_and_returns_default_driver_by_default(
+        self, caplog
+    ):
         with patch.object(OdbcHook, "default_driver", "Blah driver"):
-            with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"):
-                driver = mock_hook(OdbcHook, conn_params=dict(extra='{"driver": "Blah driver2"}')).driver
-                assert "have supplied 'driver' via connection extra but it will not be used" in caplog.text
+            with caplog.at_level(
+                logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"
+            ):
+                driver = mock_hook(
+                    OdbcHook, conn_params=dict(extra='{"driver": "Blah driver2"}')
+                ).driver
+                assert (
+                    "have supplied 'driver' via connection extra but it will not be used"
+                    in caplog.text
+                )
                 assert driver == "Blah driver"
 
     def test_database(self):
@@ -269,7 +302,10 @@ class TestOdbcHook:
         assert urlsplit(uri).scheme == "my-scheme"
 
     def test_sqlalchemy_scheme_extra(self):
-        hook = mock_hook(OdbcHook, conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
+        hook = mock_hook(
+            OdbcHook,
+            conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))),
+        )
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
 
@@ -289,7 +325,10 @@ class TestOdbcHook:
         Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
         get converted into a list of tuples.
         """
-        pyodbc_result = [pyodbc_row_mock(key=1, column="value1"), pyodbc_row_mock(key=2, column="value2")]
+        pyodbc_result = [
+            pyodbc_row_mock(key=1, column="value1"),
+            pyodbc_row_mock(key=2, column="value2"),
+        ]
         hook_result = [(1, "value1"), (2, "value2")]
 
         def mock_handler(*_):
@@ -301,7 +340,9 @@ class TestOdbcHook:
             result = hook.run("SQL", handler=mock_handler)
         assert hook_result == result
 
-    def test_query_return_serializable_result_empty(self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck):
+    def test_query_return_serializable_result_empty(
+        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
+    ):
         """
         Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
         get converted into a list of tuples.

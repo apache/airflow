@@ -22,7 +22,10 @@ import pytest
 from airflow.security import permissions
 from airflow.www import app as application
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.www import client_with_login
 
@@ -64,5 +67,7 @@ def client_user_stats_reader(fab_app, user_user_stats_reader):
 @pytest.mark.db_test
 class TestUserStats:
     def test_user_stats(self, client_user_stats_reader):
-        resp = client_user_stats_reader.get("/userstatschartview/chart", follow_redirects=True)
+        resp = client_user_stats_reader.get(
+            "/userstatschartview/chart", follow_redirects=True
+        )
         assert resp.status_code == 200

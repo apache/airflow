@@ -82,9 +82,14 @@ def example_weaviate_without_vectorizer_dag():
         weaviate_hook = WeaviateHook()
         properties = ["question", "answer", "category"]
         response = weaviate_hook.query_with_vector(
-            query_vector, "Weaviate_example_without_vectorizer_collection", properties=properties
+            query_vector,
+            "Weaviate_example_without_vectorizer_collection",
+            properties=properties,
         )
-        assert "In 1953 Watson & Crick built a model" in response.objects[0].properties["question"]
+        assert (
+            "In 1953 Watson & Crick built a model"
+            in response.objects[0].properties["question"]
+        )
 
     @teardown
     @task

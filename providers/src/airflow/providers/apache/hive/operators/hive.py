@@ -130,7 +130,9 @@ class HiveOperator(BaseOperator):
 
     def prepare_template(self) -> None:
         if self.hiveconf_jinja_translate:
-            self.hql = re.sub(r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql)
+            self.hql = re.sub(
+                r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql
+            )
         if self.script_begin_tag and self.script_begin_tag in self.hql:
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
@@ -171,6 +173,7 @@ class HiveOperator(BaseOperator):
     def clear_airflow_vars(self) -> None:
         """Reset airflow environment variables to prevent existing ones from impacting behavior."""
         blank_env_vars = {
-            value["env_var_format"]: "" for value in operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
+            value["env_var_format"]: ""
+            for value in operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
         }
         os.environ.update(blank_env_vars)

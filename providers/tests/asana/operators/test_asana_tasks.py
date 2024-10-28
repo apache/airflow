@@ -49,9 +49,15 @@ class TestAsanaTaskOperators:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=args)
         self.dag = dag
-        db.merge_conn(Connection(conn_id="asana_test", conn_type="asana", password="test"))
+        db.merge_conn(
+            Connection(conn_id="asana_test", conn_type="asana", password="test")
+        )
 
-    @patch("airflow.providers.asana.hooks.asana.Client", autospec=True, return_value=asana_client_mock)
+    @patch(
+        "airflow.providers.asana.hooks.asana.Client",
+        autospec=True,
+        return_value=asana_client_mock,
+    )
     def test_asana_create_task_operator(self, asana_client):
         """
         Tests that the AsanaCreateTaskOperator makes the expected call to python-asana given valid arguments.
@@ -64,10 +70,16 @@ class TestAsanaTaskOperators:
             task_parameters={"workspace": "1"},
             dag=self.dag,
         )
-        create_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        create_task.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
         assert asana_client.access_token.return_value.tasks.create.called
 
-    @patch("airflow.providers.asana.hooks.asana.Client", autospec=True, return_value=asana_client_mock)
+    @patch(
+        "airflow.providers.asana.hooks.asana.Client",
+        autospec=True,
+        return_value=asana_client_mock,
+    )
     def test_asana_find_task_operator(self, asana_client):
         """
         Tests that the AsanaFindTaskOperator makes the expected call to python-asana given valid arguments.
@@ -79,10 +91,16 @@ class TestAsanaTaskOperators:
             search_parameters={"project": "test"},
             dag=self.dag,
         )
-        find_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        find_task.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
         assert asana_client.access_token.return_value.tasks.find_all.called
 
-    @patch("airflow.providers.asana.hooks.asana.Client", autospec=True, return_value=asana_client_mock)
+    @patch(
+        "airflow.providers.asana.hooks.asana.Client",
+        autospec=True,
+        return_value=asana_client_mock,
+    )
     def test_asana_update_task_operator(self, asana_client):
         """
         Tests that the AsanaUpdateTaskOperator makes the expected call to python-asana given valid arguments.
@@ -94,16 +112,27 @@ class TestAsanaTaskOperators:
             task_parameters={"completed": True},
             dag=self.dag,
         )
-        update_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        update_task.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
         assert asana_client.access_token.return_value.tasks.update.called
 
-    @patch("airflow.providers.asana.hooks.asana.Client", autospec=True, return_value=asana_client_mock)
+    @patch(
+        "airflow.providers.asana.hooks.asana.Client",
+        autospec=True,
+        return_value=asana_client_mock,
+    )
     def test_asana_delete_task_operator(self, asana_client):
         """
         Tests that the AsanaDeleteTaskOperator makes the expected call to python-asana given valid arguments.
         """
         delete_task = AsanaDeleteTaskOperator(
-            task_id="delete_task", conn_id="asana_test", asana_task_gid="test", dag=self.dag
+            task_id="delete_task",
+            conn_id="asana_test",
+            asana_task_gid="test",
+            dag=self.dag,
         )
-        delete_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        delete_task.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
         assert asana_client.access_token.return_value.tasks.delete_task.called

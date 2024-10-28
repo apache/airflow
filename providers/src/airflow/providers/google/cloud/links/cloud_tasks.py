@@ -28,7 +28,9 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 CLOUD_TASKS_BASE_LINK = "/cloudtasks"
-CLOUD_TASKS_QUEUE_LINK = CLOUD_TASKS_BASE_LINK + "/queue/{location}/{queue_id}/tasks?project={project_id}"
+CLOUD_TASKS_QUEUE_LINK = (
+    CLOUD_TASKS_BASE_LINK + "/queue/{location}/{queue_id}/tasks?project={project_id}"
+)
 CLOUD_TASKS_LINK = CLOUD_TASKS_BASE_LINK + "?project={project_id}"
 
 

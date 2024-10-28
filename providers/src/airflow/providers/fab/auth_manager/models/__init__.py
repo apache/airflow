@@ -60,9 +60,9 @@ Compatibility note: The models in this file are duplicated from Flask AppBuilder
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) >= packaging.version.parse(
-    "3.0.0"
-):
+if packaging.version.parse(
+    packaging.version.parse(airflow_version).base_version
+) >= packaging.version.parse("3.0.0"):
     Model.metadata = metadata
 else:
     from airflow.models.base import Base
@@ -115,7 +115,9 @@ class Role(Model):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role", lazy="joined")
+    permissions = relationship(
+        "Permission", secondary=assoc_permission_role, backref="role", lazy="joined"
+    )
 
     def __repr__(self):
         return self.name
@@ -162,7 +164,9 @@ class User(Model, BaseUser):
     first_name = Column(String(256), nullable=False)
     last_name = Column(String(256), nullable=False)
     username = Column(
-        String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
+        String(512).with_variant(String(512, collation="NOCASE"), "sqlite"),
+        unique=True,
+        nullable=False,
     )
     password = Column(String(256))
     active = Column(Boolean, default=True)
@@ -170,17 +174,23 @@ class User(Model, BaseUser):
     last_login = Column(DateTime)
     login_count = Column(Integer)
     fail_login_count = Column(Integer)
-    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="selectin")
+    roles = relationship(
+        "Role", secondary=assoc_user_role, backref="user", lazy="selectin"
+    )
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
 
     @declared_attr
     def created_by_fk(self):
-        return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
+        return Column(
+            Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True
+        )
 
     @declared_attr
     def changed_by_fk(self):
-        return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
+        return Column(
+            Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True
+        )
 
     created_by = relationship(
         "User",
@@ -234,7 +244,9 @@ class User(Model, BaseUser):
                 )
             else:
                 self._perms = {
-                    (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
+                    (perm.action.name, perm.resource.name)
+                    for role in self.roles
+                    for perm in role.permissions
                 }
         return self._perms
 
@@ -261,7 +273,9 @@ class RegisterUser(Model):
     first_name = Column(String(256), nullable=False)
     last_name = Column(String(256), nullable=False)
     username = Column(
-        String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
+        String(512).with_variant(String(512, collation="NOCASE"), "sqlite"),
+        unique=True,
+        nullable=False,
     )
     password = Column(String(256))
     email = Column(String(512), nullable=False)

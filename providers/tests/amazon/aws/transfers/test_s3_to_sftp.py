@@ -87,7 +87,9 @@ class TestS3ToSFTPOperator:
         s3_hook.load_file(LOCAL_FILE_PATH, self.s3_key, bucket_name=BUCKET)
 
         # Check if object was created in s3
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
+        objects_in_dest_bucket = conn.list_objects(
+            Bucket=self.s3_bucket, Prefix=self.s3_key
+        )
         # there should be object found, and there should only be one object found
         assert len(objects_in_dest_bucket["Contents"]) == 1
 

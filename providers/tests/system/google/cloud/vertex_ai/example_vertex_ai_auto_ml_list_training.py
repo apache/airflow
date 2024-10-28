@@ -27,7 +27,9 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import ListAutoMLTrainingJobOperator
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    ListAutoMLTrainingJobOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

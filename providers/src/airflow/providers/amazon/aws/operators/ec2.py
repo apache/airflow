@@ -188,7 +188,11 @@ class EC2CreateInstanceOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context):
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        ec2_hook = EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            api_type="client_type",
+        )
         instances = ec2_hook.conn.run_instances(
             ImageId=self.image_id,
             MinCount=self.min_count,
@@ -196,7 +200,9 @@ class EC2CreateInstanceOperator(BaseOperator):
             **self.config,
         )["Instances"]
 
-        instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
+        instance_ids = self._on_kill_instance_ids = [
+            instance["InstanceId"] for instance in instances
+        ]
         for instance_id in instance_ids:
             self.log.info("Created EC2 instance %s", instance_id)
 
@@ -249,7 +255,12 @@ class EC2TerminateInstanceOperator(BaseOperator):
         in the `terminated` state before returning.
     """
 
-    template_fields: Sequence[str] = ("instance_ids", "region_name", "aws_conn_id", "wait_for_completion")
+    template_fields: Sequence[str] = (
+        "instance_ids",
+        "region_name",
+        "aws_conn_id",
+        "wait_for_completion",
+    )
 
     def __init__(
         self,
@@ -272,7 +283,11 @@ class EC2TerminateInstanceOperator(BaseOperator):
     def execute(self, context: Context):
         if isinstance(self.instance_ids, str):
             self.instance_ids = [self.instance_ids]
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        ec2_hook = EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            api_type="client_type",
+        )
         ec2_hook.conn.terminate_instances(InstanceIds=self.instance_ids)
 
         for instance_id in self.instance_ids:
@@ -336,7 +351,11 @@ class EC2RebootInstanceOperator(BaseOperator):
     def execute(self, context: Context):
         if isinstance(self.instance_ids, str):
             self.instance_ids = [self.instance_ids]
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        ec2_hook = EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            api_type="client_type",
+        )
         self.log.info("Rebooting EC2 instances %s", ", ".join(self.instance_ids))
         ec2_hook.conn.reboot_instances(InstanceIds=self.instance_ids)
 
@@ -399,14 +418,20 @@ class EC2HibernateInstanceOperator(BaseOperator):
     def execute(self, context: Context):
         if isinstance(self.instance_ids, str):
             self.instance_ids = [self.instance_ids]
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
+        ec2_hook = EC2Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            api_type="client_type",
+        )
         self.log.info("Hibernating EC2 instances %s", ", ".join(self.instance_ids))
         instances = ec2_hook.get_instances(instance_ids=self.instance_ids)
 
         for instance in instances:
             hibernation_options = instance.get("HibernationOptions")
             if not hibernation_options or not hibernation_options["Configured"]:
-                raise AirflowException(f"Instance {instance['InstanceId']} is not configured for hibernation")
+                raise AirflowException(
+                    f"Instance {instance['InstanceId']} is not configured for hibernation"
+                )
 
         ec2_hook.conn.stop_instances(InstanceIds=self.instance_ids, Hibernate=True)
 

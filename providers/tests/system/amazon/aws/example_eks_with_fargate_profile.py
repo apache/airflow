@@ -28,7 +28,10 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteFargateProfileOperator,
     EksPodOperator,
 )
-from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksFargateProfileStateSensor
+from airflow.providers.amazon.aws.sensors.eks import (
+    EksClusterStateSensor,
+    EksFargateProfileStateSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

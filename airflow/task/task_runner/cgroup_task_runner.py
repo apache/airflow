@@ -93,11 +93,15 @@ class CgroupTaskRunner(BaseTaskRunner):
             # https://github.com/cloudsigma/cgroupspy/blob/e705ac4ccdfe33d8ecc700e9a35a9556084449ca/cgroupspy/nodes.py#L64
             name_to_node = {x.name.decode(): x for x in node.children}
             if path_element not in name_to_node:
-                self.log.debug("Creating cgroup %s in %s", path_element, node.path.decode())
+                self.log.debug(
+                    "Creating cgroup %s in %s", path_element, node.path.decode()
+                )
                 node = node.create_cgroup(path_element)
             else:
                 self.log.debug(
-                    "Not creating cgroup %s in %s since it already exists", path_element, node.path.decode()
+                    "Not creating cgroup %s in %s since it already exists",
+                    path_element,
+                    node.path.decode(),
                 )
                 node = name_to_node[path_element]
         return node
@@ -154,14 +158,22 @@ class CgroupTaskRunner(BaseTaskRunner):
         self.mem_cgroup_node = self._create_cgroup(self.mem_cgroup_name)
         self._created_mem_cgroup = True
         if self._mem_mb_limit > 0:
-            self.log.debug("Setting %s with %s MB of memory", self.mem_cgroup_name, self._mem_mb_limit)
-            self.mem_cgroup_node.controller.limit_in_bytes = self._mem_mb_limit * 1024 * 1024
+            self.log.debug(
+                "Setting %s with %s MB of memory",
+                self.mem_cgroup_name,
+                self._mem_mb_limit,
+            )
+            self.mem_cgroup_node.controller.limit_in_bytes = (
+                self._mem_mb_limit * 1024 * 1024
+            )
 
         # Create the CPU cgroup
         cpu_cgroup_node = self._create_cgroup(self.cpu_cgroup_name)
         self._created_cpu_cgroup = True
         if self._cpu_shares > 0:
-            self.log.debug("Setting %s with %s CPU shares", self.cpu_cgroup_name, self._cpu_shares)
+            self.log.debug(
+                "Setting %s with %s CPU shares", self.cpu_cgroup_name, self._cpu_shares
+            )
             cpu_cgroup_node.controller.shares = self._cpu_shares
 
         # Start the process w/ cgroups
@@ -203,7 +215,9 @@ class CgroupTaskRunner(BaseTaskRunner):
         limit_gb = byte_to_gb(mem_cgroup_node.controller.limit_in_bytes)
 
         self.log.info(
-            "Memory max usage of the task is %s GB, while the memory limit is %s GB", used_gb, limit_gb
+            "Memory max usage of the task is %s GB, while the memory limit is %s GB",
+            used_gb,
+            limit_gb,
         )
 
         if max_usage_in_bytes >= mem_cgroup_node.controller.limit_in_bytes:

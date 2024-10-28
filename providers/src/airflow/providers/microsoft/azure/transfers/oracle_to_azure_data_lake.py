@@ -93,7 +93,9 @@ class OracleToAzureDataLakeOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        azure_data_lake_hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
+        azure_data_lake_hook = AzureDataLakeHook(
+            azure_data_lake_conn_id=self.azure_data_lake_conn_id
+        )
 
         self.log.info("Dumping Oracle query results to local file")
         conn = oracle_hook.get_conn()
@@ -104,7 +106,8 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             self._write_temp_file(cursor, os.path.join(temp, self.filename))
             self.log.info("Uploading local file to Azure Data Lake")
             azure_data_lake_hook.upload_file(
-                os.path.join(temp, self.filename), os.path.join(self.azure_data_lake_path, self.filename)
+                os.path.join(temp, self.filename),
+                os.path.join(self.azure_data_lake_path, self.filename),
             )
         cursor.close()
         conn.close()  # type: ignore[attr-defined]

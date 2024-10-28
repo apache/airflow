@@ -171,11 +171,15 @@ class GoogleSearchAdsReportingHook(GoogleBaseHook):
         :param field_name: The name of the field.
         """
         resource_name = f"searchAds360Fields/{field_name}"
-        response = self.fields_service.get(resourceName=resource_name).execute(num_retries=self.num_retries)
+        response = self.fields_service.get(resourceName=resource_name).execute(
+            num_retries=self.num_retries
+        )
         self.log.info("Retrieved field: %s", response)
         return response
 
-    def search_fields(self, query: str, page_token: str | None = None, page_size: int | None = 10000):
+    def search_fields(
+        self, query: str, page_token: str | None = None, page_size: int | None = 10000
+    ):
         """
         Retrieve all the fields that match with the given search.
 
@@ -193,7 +197,9 @@ class GoogleSearchAdsReportingHook(GoogleBaseHook):
         }
         if page_token is not None:
             params.update({"pageToken": page_token})
-        response = self.fields_service.search(body=params).execute(num_retries=self.num_retries)
+        response = self.fields_service.search(body=params).execute(
+            num_retries=self.num_retries
+        )
         self.log.info("Retrieved fields: %s", response)
         return response
 

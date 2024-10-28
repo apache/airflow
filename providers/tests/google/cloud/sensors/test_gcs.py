@@ -59,7 +59,9 @@ TEST_DAG_ID = "unit_tests_gcs_sensor"
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
-MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10) for i in range(25)]
+MOCK_DATE_ARRAY = [
+    datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10) for i in range(25)
+]
 
 TEST_INACTIVITY_PERIOD = 5
 
@@ -79,7 +81,9 @@ mock_time = mock.Mock(side_effect=next_time_side_effect)
 
 class TestGoogleCloudStorageObjectSensor:
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer")
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer"
+    )
     def test_gcs_object_existence_sensor_return_value(self, mock_defer, mock_hook):
         task = GCSObjectExistenceSensor(
             task_id="task-id",
@@ -111,7 +115,9 @@ class TestGoogleCloudStorageObjectSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY)
+        mock_hook.return_value.exists.assert_called_once_with(
+            TEST_BUCKET, TEST_OBJECT, DEFAULT_RETRY
+        )
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook_using_glob(self, mock_hook):
@@ -132,11 +138,17 @@ class TestGoogleCloudStorageObjectSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, match_glob=TEST_OBJECT)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, match_glob=TEST_OBJECT
+        )
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer")
-    def test_gcs_object_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor.defer"
+    )
+    def test_gcs_object_existence_sensor_finish_before_deferred(
+        self, mock_defer, mock_hook
+    ):
         task = GCSObjectExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
@@ -164,7 +176,9 @@ class TestGoogleCloudStorageObjectSensor:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
-        assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
+        assert isinstance(
+            exc.value.trigger, GCSBlobTrigger
+        ), "Trigger is not a GCSBlobTrigger"
 
     def test_gcs_object_existence_sensor_deferred_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event when deferrable is set to True"""
@@ -176,7 +190,9 @@ class TestGoogleCloudStorageObjectSensor:
             deferrable=True,
         )
         with pytest.raises(AirflowException):
-            task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
+            task.execute_complete(
+                context=None, event={"status": "error", "message": "test failure message"}
+            )
 
     def test_gcs_object_existence_sensor_execute_complete(self):
         """Asserts that logging occurs as expected when deferrable is set to True"""
@@ -188,8 +204,12 @@ class TestGoogleCloudStorageObjectSensor:
             deferrable=True,
         )
         with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
-        mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
+            task.execute_complete(
+                context=None, event={"status": "success", "message": "Job completed"}
+            )
+        mock_log_info.assert_called_with(
+            "File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET
+        )
 
     def test_gcs_object_existence_sensor_execute_complete_return_value(self):
         """Asserts that logging occurs as expected when deferrable is set to True"""
@@ -204,7 +224,9 @@ class TestGoogleCloudStorageObjectSensor:
             return_value = task.execute_complete(
                 context=None, event={"status": "success", "message": "Job completed"}
             )
-        mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
+        mock_log_info.assert_called_with(
+            "File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET
+        )
         assert return_value, True
 
 
@@ -225,7 +247,9 @@ class TestGoogleCloudStorageObjectAsyncSensor:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
-        assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
+        assert isinstance(
+            exc.value.trigger, GCSBlobTrigger
+        ), "Trigger is not a GCSBlobTrigger"
 
     def test_gcs_object_existence_async_sensor_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
@@ -237,7 +261,9 @@ class TestGoogleCloudStorageObjectAsyncSensor:
                 google_cloud_conn_id=TEST_GCP_CONN_ID,
             )
         with pytest.raises(AirflowException):
-            task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
+            task.execute_complete(
+                context=None, event={"status": "error", "message": "test failure message"}
+            )
 
     def test_gcs_object_existence_async_sensor_execute_complete(self):
         """Asserts that logging occurs as expected"""
@@ -249,15 +275,21 @@ class TestGoogleCloudStorageObjectAsyncSensor:
                 google_cloud_conn_id=TEST_GCP_CONN_ID,
             )
         with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
-        mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
+            task.execute_complete(
+                context=None, event={"status": "success", "message": "Job completed"}
+            )
+        mock_log_info.assert_called_with(
+            "File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET
+        )
 
 
 class TestTsFunction:
     def test_should_support_datetime(self):
         context = {
             "dag": DAG(
-                dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0)
+                dag_id=TEST_DAG_ID,
+                schedule=timedelta(days=5),
+                start_date=datetime(2019, 2, 14, 0, 0),
             ),
             "execution_date": datetime(2019, 2, 14, 0, 0),
         }
@@ -265,7 +297,9 @@ class TestTsFunction:
         assert datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc) == result
 
     def test_should_support_cron(self):
-        dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule="@weekly")
+        dag = DAG(
+            dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule="@weekly"
+        )
 
         context = {
             "dag": dag,
@@ -292,7 +326,9 @@ class TestGoogleCloudStorageObjectUpdatedSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.is_updated_after.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, mock.ANY)
+        mock_hook.return_value.is_updated_after.assert_called_once_with(
+            TEST_BUCKET, TEST_OBJECT, mock.ANY
+        )
         assert result is True
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
@@ -348,7 +384,9 @@ class TestGCSObjectUpdateAsyncSensor:
                 context={}, event={"status": "success", "message": "Job completed"}
             )
         mock_log_info.assert_called_with(
-            "Checking last updated time for object %s in bucket : %s", TEST_OBJECT, TEST_BUCKET
+            "Checking last updated time for object %s in bucket : %s",
+            TEST_OBJECT,
+            TEST_BUCKET,
         )
 
 
@@ -369,7 +407,9 @@ class TestGoogleCloudStoragePrefixSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix=TEST_PREFIX
+        )
         assert result is True
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
@@ -404,7 +444,9 @@ class TestGoogleCloudStoragePrefixSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix=TEST_PREFIX
+        )
         assert response == generated_messages
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
@@ -421,8 +463,12 @@ class TestGoogleCloudStoragePrefixSensor:
             task.execute(mock.MagicMock)
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor.defer")
-    def test_gcs_object_prefix_existence_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor.defer"
+    )
+    def test_gcs_object_prefix_existence_sensor_finish_before_deferred(
+        self, mock_defer, mock_hook
+    ):
         task = GCSObjectsWithPrefixExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
@@ -468,7 +514,9 @@ class TestGCSObjectsWithPrefixExistenceAsyncSensor:
         mock_hook.return_value.list.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.OPERATOR.execute(mock.MagicMock())
-        assert isinstance(exc.value.trigger, GCSPrefixBlobTrigger), "Trigger is not a GCSPrefixBlobTrigger"
+        assert isinstance(
+            exc.value.trigger, GCSPrefixBlobTrigger
+        ), "Trigger is not a GCSPrefixBlobTrigger"
 
     def test_gcs_object_with_prefix_existence_async_sensor_execute_failure(
         self,
@@ -485,7 +533,11 @@ class TestGCSObjectsWithPrefixExistenceAsyncSensor:
         with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
             self.OPERATOR.execute_complete(
                 context={},
-                event={"status": "success", "message": "Job completed", "matches": [TEST_OBJECT]},
+                event={
+                    "status": "success",
+                    "message": "Job completed",
+                    "matches": [TEST_OBJECT],
+                },
             )
         mock_log_info.assert_called_with("Resuming from trigger and checking status")
 
@@ -621,4 +673,6 @@ class TestGCSUploadSessionCompleteAsyncSensor:
     def test_gcs_upload_session_complete_async_sensor_execute_complete(self):
         """Asserts that execute complete is completed as expected"""
 
-        assert self.OPERATOR.execute_complete(context={}, event={"status": "success", "message": "success"})
+        assert self.OPERATOR.execute_complete(
+            context={}, event={"status": "success", "message": "success"}
+        )

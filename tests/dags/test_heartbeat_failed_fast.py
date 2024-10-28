@@ -30,4 +30,6 @@ args = {
 }
 
 dag = DAG(dag_id="test_heartbeat_failed_fast", default_args=args, schedule=None)
-task = BashOperator(task_id="test_heartbeat_failed_fast_op", bash_command="sleep 7", dag=dag)
+task = BashOperator(
+    task_id="test_heartbeat_failed_fast_op", bash_command="sleep 7", dag=dag
+)

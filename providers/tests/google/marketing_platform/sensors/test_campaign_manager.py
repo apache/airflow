@@ -31,7 +31,9 @@ class TestGoogleCampaignManagerDeleteReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.sensors.campaign_manager.BaseSensorOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.sensors.campaign_manager.BaseSensorOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         profile_id = "PROFILE_ID"
         report_id = "REPORT_ID"

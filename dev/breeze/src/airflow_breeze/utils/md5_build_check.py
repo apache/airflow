@@ -26,7 +26,10 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow_breeze.global_constants import ALL_PROVIDER_YAML_FILES, FILES_FOR_REBUILD_CHECK
+from airflow_breeze.global_constants import (
+    ALL_PROVIDER_YAML_FILES,
+    FILES_FOR_REBUILD_CHECK,
+)
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
@@ -36,7 +39,9 @@ if TYPE_CHECKING:
     from airflow_breeze.params.build_ci_params import BuildCiParams
 
 
-def check_md5checksum_in_cache_modified(file_hash: str, cache_path: Path, update: bool) -> bool:
+def check_md5checksum_in_cache_modified(
+    file_hash: str, cache_path: Path, update: bool
+) -> bool:
     """
     Check if the file hash is present in cache and its content has been modified. Optionally updates
     the hash.
@@ -73,14 +78,20 @@ def check_md5_sum_for_file(file_to_check: str, md5sum_cache_dir: Path, update: b
     md5_checksum = generate_md5(file_to_get_md5)
     sub_dir_name = file_to_get_md5.parts[-2]
     actual_file_name = file_to_get_md5.parts[-1]
-    cache_file_name = Path(md5sum_cache_dir, sub_dir_name + "-" + actual_file_name + ".md5sum")
+    cache_file_name = Path(
+        md5sum_cache_dir, sub_dir_name + "-" + actual_file_name + ".md5sum"
+    )
     file_content = md5_checksum + "  " + str(file_to_get_md5) + "\n"
-    is_modified = check_md5checksum_in_cache_modified(file_content, cache_file_name, update=update)
+    is_modified = check_md5checksum_in_cache_modified(
+        file_content, cache_file_name, update=update
+    )
     return is_modified
 
 
 def calculate_md5_checksum_for_files(
-    md5sum_cache_dir: Path, update: bool = False, skip_provider_dependencies_check: bool = False
+    md5sum_cache_dir: Path,
+    update: bool = False,
+    skip_provider_dependencies_check: bool = False,
 ) -> tuple[list[str], list[str]]:
     """
     Calculates checksums for all interesting files and stores the hashes in the md5sum_cache_dir.
@@ -140,7 +151,9 @@ def calculate_md5_checksum_for_files(
 
 
 def md5sum_check_if_build_is_needed(
-    build_ci_params: BuildCiParams, md5sum_cache_dir: Path, skip_provider_dependencies_check: bool
+    build_ci_params: BuildCiParams,
+    md5sum_cache_dir: Path,
+    skip_provider_dependencies_check: bool,
 ) -> bool:
     """
     Checks if build is needed based on whether important files were modified.
@@ -152,7 +165,9 @@ def md5sum_check_if_build_is_needed(
     :return: True if build is needed.
     """
     modified_files, not_modified_files = calculate_md5_checksum_for_files(
-        md5sum_cache_dir, update=False, skip_provider_dependencies_check=skip_provider_dependencies_check
+        md5sum_cache_dir,
+        update=False,
+        skip_provider_dependencies_check=skip_provider_dependencies_check,
     )
     if modified_files:
         if build_ci_params.skip_image_upgrade_check:

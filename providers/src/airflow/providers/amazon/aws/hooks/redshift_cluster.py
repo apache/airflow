@@ -86,14 +86,18 @@ class RedshiftHook(AwsBaseHook):
         :param cluster_identifier: unique identifier of a cluster
         """
         try:
-            response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"]
+            response = self.get_conn().describe_clusters(
+                ClusterIdentifier=cluster_identifier
+            )["Clusters"]
             return response[0]["ClusterStatus"] if response else None
         except self.get_conn().exceptions.ClusterNotFoundFault:
             return "cluster_not_found"
 
     async def cluster_status_async(self, cluster_identifier: str) -> str:
         async with self.async_conn as client:
-            response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"]
+            response = await client.describe_clusters(
+                ClusterIdentifier=cluster_identifier
+            )["Clusters"]
             return response[0]["ClusterStatus"] if response else None
 
     def delete_cluster(
@@ -130,7 +134,9 @@ class RedshiftHook(AwsBaseHook):
 
         :param cluster_identifier: unique identifier of a cluster
         """
-        response = self.get_conn().describe_cluster_snapshots(ClusterIdentifier=cluster_identifier)
+        response = self.get_conn().describe_cluster_snapshots(
+            ClusterIdentifier=cluster_identifier
+        )
         if "Snapshots" not in response:
             return None
         snapshots = response["Snapshots"]
@@ -138,7 +144,9 @@ class RedshiftHook(AwsBaseHook):
         snapshots.sort(key=lambda x: x["SnapshotCreateTime"], reverse=True)
         return snapshots
 
-    def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> str:
+    def restore_from_cluster_snapshot(
+        self, cluster_identifier: str, snapshot_identifier: str
+    ) -> str:
         """
         Restore a cluster from its snapshot.
 

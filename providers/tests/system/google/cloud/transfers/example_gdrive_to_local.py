@@ -32,19 +32,30 @@ from pathlib import Path
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDriveToLocalOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.transfers.gdrive_to_local import (
+    GoogleDriveToLocalOperator,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
-from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
+from airflow.providers.google.suite.transfers.gcs_to_gdrive import (
+    GCSToGoogleDriveOperator,
+)
 from airflow.settings import Session, json
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "gdrive_to_local"
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
@@ -142,7 +153,9 @@ with DAG(
     remove_file_from_drive_task = remove_file_from_drive()
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     @task(task_id="delete_connection")

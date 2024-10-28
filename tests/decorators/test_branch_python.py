@@ -60,12 +60,18 @@ class Test_BranchPythonDecoratedOperator:
             branchoperator.set_downstream(task_2)
 
         dr = dag_maker.create_dagrun()
-        df.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        df.operator.run(
+            start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True
+        )
         branchoperator.operator.run(
             start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True
         )
-        task_1.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
-        task_2.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
+        task_1.operator.run(
+            start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True
+        )
+        task_2.operator.run(
+            start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True
+        )
         tis = dr.get_task_instances()
 
         for ti in tis:

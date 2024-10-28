@@ -31,7 +31,11 @@ initialize_breeze_precommit(__name__, __file__)
 
 files_to_test = sys.argv[1:]
 cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
+    [
+        "python3",
+        "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py",
+        *files_to_test,
+    ],
     backend="sqlite",
     warn_image_upgrade_needed=True,
     extra_env={"PYTHONWARNINGS": "default"},

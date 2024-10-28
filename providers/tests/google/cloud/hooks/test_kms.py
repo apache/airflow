@@ -41,9 +41,7 @@ TEST_PROJECT = "test-project"
 TEST_LOCATION = "global"
 TEST_KEY_RING = "test-key-ring"
 TEST_KEY = "test-key"
-TEST_KEY_ID = (
-    f"projects/{TEST_PROJECT}/locations/{TEST_LOCATION}/keyRings/{TEST_KEY_RING}/cryptoKeys/{TEST_KEY}"
-)
+TEST_KEY_ID = f"projects/{TEST_PROJECT}/locations/{TEST_LOCATION}/keyRings/{TEST_KEY_RING}/cryptoKeys/{TEST_KEY}"
 
 RESPONSE = Response(PLAINTEXT, PLAINTEXT)
 
@@ -72,7 +70,9 @@ class TestCloudKMSHook:
     @mock.patch("airflow.providers.google.cloud.hooks.kms.KeyManagementServiceClient")
     def test_kms_client_creation(self, mock_client, mock_get_creds):
         result = self.kms_hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value, client_info=CLIENT_INFO
+        )
         assert mock_client.return_value == result
         assert self.kms_hook._conn == result
 

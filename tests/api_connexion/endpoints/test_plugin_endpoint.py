@@ -28,7 +28,11 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
@@ -99,7 +103,10 @@ class MockPlugin(AirflowPlugin):
     macros = [plugin_macro]
     ti_deps = [ti_dep]
     timetables = [CustomTimetable]
-    listeners = [pytest, MyCustomListener()]  # using pytest here because we need a module(just for test)
+    listeners = [
+        pytest,
+        MyCustomListener(),
+    ]  # using pytest here because we need a module(just for test)
 
 
 @pytest.fixture(scope="module")
@@ -133,7 +140,9 @@ class TestGetPlugins(TestPluginsEndpoint):
         mock_plugin = MockPlugin()
         mock_plugin.name = "test_plugin"
         with mock_plugin_manager(plugins=[mock_plugin]):
-            response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "api/v1/plugins", environ_overrides={"REMOTE_USER": "test"}
+            )
         assert response.status_code == 200
         assert response.json == {
             "plugins": [
@@ -150,9 +159,13 @@ class TestGetPlugins(TestPluginsEndpoint):
                             "url_prefix": "/some_prefix",
                         }
                     ],
-                    "global_operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
+                    "global_operator_extra_links": [
+                        f"<{qualname(MockOperatorLink().__class__)} object>"
+                    ],
                     "macros": [qualname(plugin_macro)],
-                    "operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
+                    "operator_extra_links": [
+                        f"<{qualname(MockOperatorLink().__class__)} object>"
+                    ],
                     "source": None,
                     "name": "test_plugin",
                     "timetables": [qualname(CustomTimetable)],
@@ -172,13 +185,17 @@ class TestGetPlugins(TestPluginsEndpoint):
         mock_plugin_2 = AirflowPlugin()
         mock_plugin_2.name = "test_plugin2"
         with mock_plugin_manager(plugins=[mock_plugin, mock_plugin_2]):
-            response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "api/v1/plugins", environ_overrides={"REMOTE_USER": "test"}
+            )
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
 
     def test_get_plugins_return_200_if_no_plugins(self):
         with mock_plugin_manager(plugins=[]):
-            response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "api/v1/plugins", environ_overrides={"REMOTE_USER": "test"}
+            )
         assert response.status_code == 200
 
     def test_should_raises_401_unauthenticated(self):
@@ -244,7 +261,9 @@ class TestGetPluginsPagination(TestPluginsEndpoint):
     def test_should_respect_page_size_limit_default(self):
         plugins = self._create_plugins(200)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get("/api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "/api/v1/plugins", environ_overrides={"REMOTE_USER": "test"}
+            )
         assert response.status_code == 200
         assert response.json["total_entries"] == 200
         assert len(response.json["plugins"]) == 100
@@ -252,7 +271,9 @@ class TestGetPluginsPagination(TestPluginsEndpoint):
     def test_limit_of_zero_should_return_default(self):
         plugins = self._create_plugins(200)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get("/api/v1/plugins?limit=0", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "/api/v1/plugins?limit=0", environ_overrides={"REMOTE_USER": "test"}
+            )
         assert response.status_code == 200
         assert response.json["total_entries"] == 200
         assert len(response.json["plugins"]) == 100
@@ -261,7 +282,9 @@ class TestGetPluginsPagination(TestPluginsEndpoint):
     def test_should_return_conf_max_if_req_max_above_conf(self):
         plugins = self._create_plugins(200)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get("/api/v1/plugins?limit=180", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "/api/v1/plugins?limit=180", environ_overrides={"REMOTE_USER": "test"}
+            )
         assert response.status_code == 200
         assert len(response.json["plugins"]) == 150
 

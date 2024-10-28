@@ -27,7 +27,9 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     NAME,
     CloudDataTransferServiceHook,
 )
-from airflow.providers.google.cloud.links.cloud_storage_transfer import CloudStorageTransferJobLink
+from airflow.providers.google.cloud.links.cloud_storage_transfer import (
+    CloudStorageTransferJobLink,
+)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
@@ -82,7 +84,9 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.expected_statuses = (
-            {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
+            {expected_statuses}
+            if isinstance(expected_statuses, str)
+            else expected_statuses
         )
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
@@ -94,11 +98,18 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
-            request_filter={"project_id": self.project_id or hook.project_id, "job_names": [self.job_name]}
+            request_filter={
+                "project_id": self.project_id or hook.project_id,
+                "job_names": [self.job_name],
+            }
         )
 
         for operation in operations:
-            self.log.info("Progress for operation %s: %s", operation[NAME], operation[METADATA][COUNTERS])
+            self.log.info(
+                "Progress for operation %s: %s",
+                operation[NAME],
+                operation[METADATA][COUNTERS],
+            )
 
         check = CloudDataTransferServiceHook.operations_contain_expected_statuses(
             operations=operations, expected_statuses=self.expected_statuses

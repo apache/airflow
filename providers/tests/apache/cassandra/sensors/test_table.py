@@ -68,7 +68,9 @@ class TestCassandraTableSensor:
 
         assert exists
 
-        mock_hook.return_value.table_exists.assert_called_once_with(TEST_CASSANDRA_TABLE_WITH_KEYSPACE)
+        mock_hook.return_value.table_exists.assert_called_once_with(
+            TEST_CASSANDRA_TABLE_WITH_KEYSPACE
+        )
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
 
     @patch("airflow.providers.apache.cassandra.sensors.table.CassandraHook")

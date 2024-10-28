@@ -30,7 +30,9 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import (
+    BigQueryToBigQueryOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

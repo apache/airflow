@@ -58,7 +58,9 @@ IMAGE_DATA_CONFIG = [
     {
         "import_schema_uri": schema.dataset.ioformat.image.bounding_box,
         "gcs_source": {
-            "uris": [f"gs://{RESOURCE_DATA_BUCKET}/automl/datasets/vision/obj_detection_short.csv"]
+            "uris": [
+                f"gs://{RESOURCE_DATA_BUCKET}/automl/datasets/vision/obj_detection_short.csv"
+            ]
         },
     },
 ]

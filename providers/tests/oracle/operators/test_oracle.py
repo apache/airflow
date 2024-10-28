@@ -27,11 +27,16 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.providers.oracle.operators.oracle import OracleOperator, OracleStoredProcedureOperator
+from airflow.providers.oracle.operators.oracle import (
+    OracleOperator,
+    OracleStoredProcedureOperator,
+)
 
 
 class TestOracleOperator:
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_execute(self, mock_get_db_hook):
         sql = "SELECT * FROM test_table"
         oracle_conn_id = "oracle_default"
@@ -40,7 +45,9 @@ class TestOracleOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated class *"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match="Call to deprecated class *"
+        ):
             operator = OracleOperator(
                 sql=sql,
                 oracle_conn_id=oracle_conn_id,
@@ -97,7 +104,10 @@ class TestOracleStoredProcedureOperator:
 
         with dag_maker(dag_id=f"dag_{request.node.name}"):
             task = OracleStoredProcedureOperator(
-                procedure=procedure, oracle_conn_id=oracle_conn_id, parameters=parameters, task_id=task_id
+                procedure=procedure,
+                oracle_conn_id=oracle_conn_id,
+                parameters=parameters,
+                task_id=task_id,
             )
         dr = dag_maker.create_dagrun(run_id=task_id)
         ti = TaskInstance(task=task, run_id=dr.run_id)

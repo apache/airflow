@@ -57,7 +57,9 @@ def create_table(table_name: str):
         ProvisionedThroughput=TABLE_THROUGHPUT,
     )
     boto3.client("dynamodb").get_waiter("table_exists").wait(TableName=table_name)
-    table.put_item(Item={"PK": "Test", "SK": "2022-07-12T11:11:25-0400", "Value": "Testing"})
+    table.put_item(
+        Item={"PK": "Test", "SK": "2022-07-12T11:11:25-0400", "Value": "Testing"}
+    )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)

@@ -42,23 +42,35 @@ class TestComprehendCustomWaitersBase:
         monkeypatch.setattr(ComprehendHook, "conn", self.client)
 
 
-class TestComprehendStartPiiEntitiesDetectionJobCompleteWaiter(TestComprehendCustomWaitersBase):
+class TestComprehendStartPiiEntitiesDetectionJobCompleteWaiter(
+    TestComprehendCustomWaitersBase
+):
     WAITER_NAME = "pii_entities_detection_job_complete"
 
     @pytest.fixture
     def mock_get_job(self):
-        with mock.patch.object(self.client, "describe_pii_entities_detection_job") as mock_getter:
+        with mock.patch.object(
+            self.client, "describe_pii_entities_detection_job"
+        ) as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", ComprehendStartPiiEntitiesDetectionJobCompletedSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", ComprehendStartPiiEntitiesDetectionJobCompletedSensor.SUCCESS_STATES
+    )
     def test_pii_entities_detection_job_complete(self, state, mock_get_job):
-        mock_get_job.return_value = {"PiiEntitiesDetectionJobProperties": {"JobStatus": state}}
+        mock_get_job.return_value = {
+            "PiiEntitiesDetectionJobProperties": {"JobStatus": state}
+        }
 
         ComprehendHook().get_waiter(self.WAITER_NAME).wait(JobId="job_id")
 
-    @pytest.mark.parametrize("state", ComprehendStartPiiEntitiesDetectionJobCompletedSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", ComprehendStartPiiEntitiesDetectionJobCompletedSensor.FAILURE_STATES
+    )
     def test_pii_entities_detection_job_failed(self, state, mock_get_job):
-        mock_get_job.return_value = {"PiiEntitiesDetectionJobProperties": {"JobStatus": state}}
+        mock_get_job.return_value = {
+            "PiiEntitiesDetectionJobProperties": {"JobStatus": state}
+        }
 
         with pytest.raises(botocore.exceptions.WaiterError):
             ComprehendHook().get_waiter(self.WAITER_NAME).wait(JobId="job_id")
@@ -78,21 +90,37 @@ class TestComprehendDocumentClassifierCompleteWaiter(TestComprehendCustomWaiters
 
     @pytest.fixture
     def mock_describe_document_classifier(self):
-        with mock.patch.object(self.client, "describe_document_classifier") as mock_getter:
+        with mock.patch.object(
+            self.client, "describe_document_classifier"
+        ) as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", ComprehendCreateDocumentClassifierCompletedSensor.SUCCESS_STATES)
-    def test_create_document_classifier_complete(self, state, mock_describe_document_classifier):
-        mock_describe_document_classifier.return_value = {"DocumentClassifierProperties": {"Status": state}}
+    @pytest.mark.parametrize(
+        "state", ComprehendCreateDocumentClassifierCompletedSensor.SUCCESS_STATES
+    )
+    def test_create_document_classifier_complete(
+        self, state, mock_describe_document_classifier
+    ):
+        mock_describe_document_classifier.return_value = {
+            "DocumentClassifierProperties": {"Status": state}
+        }
 
         ComprehendHook().get_waiter(self.WAITER_NAME).wait(DocumentClassifierArn="arn")
 
-    @pytest.mark.parametrize("state", ComprehendCreateDocumentClassifierCompletedSensor.FAILURE_STATES)
-    def test_create_document_classifier_failed(self, state, mock_describe_document_classifier):
-        mock_describe_document_classifier.return_value = {"DocumentClassifierProperties": {"Status": state}}
+    @pytest.mark.parametrize(
+        "state", ComprehendCreateDocumentClassifierCompletedSensor.FAILURE_STATES
+    )
+    def test_create_document_classifier_failed(
+        self, state, mock_describe_document_classifier
+    ):
+        mock_describe_document_classifier.return_value = {
+            "DocumentClassifierProperties": {"Status": state}
+        }
 
         with pytest.raises(botocore.exceptions.WaiterError):
-            ComprehendHook().get_waiter(self.WAITER_NAME).wait(DocumentClassifierArn="arn")
+            ComprehendHook().get_waiter(self.WAITER_NAME).wait(
+                DocumentClassifierArn="arn"
+            )
 
     def test_create_document_classifier_wait(self, mock_describe_document_classifier):
         wait = {"DocumentClassifierProperties": {"Status": "TRAINING"}}

@@ -68,7 +68,9 @@ with DAG(
     # [END howto_operator_eventbridge_put_rule]
 
     # [START howto_operator_eventbridge_enable_rule]
-    enable_rule = EventBridgeEnableRuleOperator(task_id="enable_rule_task", name="example_rule")
+    enable_rule = EventBridgeEnableRuleOperator(
+        task_id="enable_rule_task", name="example_rule"
+    )
     # [END howto_operator_eventbridge_enable_rule]
 
     # [START howto_operator_eventbridge_disable_rule]

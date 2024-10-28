@@ -147,7 +147,9 @@ class DmsDeleteTaskOperator(AwsBaseOperator[DmsHook]):
         :return: replication task arn
         """
         self.hook.delete_replication_task(replication_task_arn=self.replication_task_arn)
-        self.log.info("DMS replication task(%s) has been deleted.", self.replication_task_arn)
+        self.log.info(
+            "DMS replication task(%s) has been deleted.", self.replication_task_arn
+        )
 
 
 class DmsDescribeTasksOperator(AwsBaseOperator[DmsHook]):

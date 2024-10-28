@@ -85,7 +85,9 @@ def replace_match(file: str, line: str, provider: str, version: str) -> str | No
                 console.print(line)
                 return line
             if line != new_line:
-                console.print(f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}")
+                console.print(
+                    f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}"
+                )
                 return new_line
     return line
 

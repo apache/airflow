@@ -64,7 +64,9 @@ class DmsHook(AwsBaseHook):
 
         return response.get("Marker"), response.get("ReplicationTasks", [])
 
-    def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
+    def find_replication_tasks_by_arn(
+        self, replication_task_arn: str, without_settings: bool | None = False
+    ):
         """
         Find and describe replication tasks by task ARN.
 
@@ -101,10 +103,16 @@ class DmsHook(AwsBaseHook):
 
         if len(replication_tasks) == 1:
             status = replication_tasks[0]["Status"]
-            self.log.info('Replication task with ARN(%s) has status "%s".', replication_task_arn, status)
+            self.log.info(
+                'Replication task with ARN(%s) has status "%s".',
+                replication_task_arn,
+                status,
+            )
             return status
         else:
-            self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
+            self.log.info(
+                "Replication task with ARN(%s) is not found.", replication_task_arn
+            )
             return None
 
     def create_replication_task(
@@ -142,7 +150,9 @@ class DmsHook(AwsBaseHook):
             **kwargs,
         )
 
-        replication_task_arn = create_task_response["ReplicationTask"]["ReplicationTaskArn"]
+        replication_task_arn = create_task_response["ReplicationTask"][
+            "ReplicationTaskArn"
+        ]
         self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.READY)
 
         return replication_task_arn
@@ -196,7 +206,9 @@ class DmsHook(AwsBaseHook):
 
         self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.DELETED)
 
-    def wait_for_task_status(self, replication_task_arn: str, status: DmsTaskWaiterStatus):
+    def wait_for_task_status(
+        self, replication_task_arn: str, status: DmsTaskWaiterStatus
+    ):
         """
         Wait for replication task to reach status; supported statuses: deleted, ready, running, stopped.
 

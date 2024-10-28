@@ -63,7 +63,9 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Jenki
     except HTTPError as e:
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
-            raise JenkinsException(f"Error in request. Possibly authentication failed [{e.code}]: {e.reason}")
+            raise JenkinsException(
+                f"Error in request. Possibly authentication failed [{e.code}]: {e.reason}"
+            )
         elif e.code == 404:
             raise jenkins.NotFoundException("Requested item could not be found")
         else:
@@ -114,9 +116,13 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.sleep_time = max(sleep_time, 1)
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
-        self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ["SUCCESS"]
+        self.allowed_jenkins_states = (
+            list(allowed_jenkins_states) if allowed_jenkins_states else ["SUCCESS"]
+        )
 
-    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> JenkinsRequest:
+    def build_job(
+        self, jenkins_server: Jenkins, params: ParamType = None
+    ) -> JenkinsRequest:
         """
         Trigger a build job.
 
@@ -134,7 +140,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
         if params and isinstance(params, str):
             params = ast.literal_eval(params)
 
-        request = Request(method="POST", url=jenkins_server.build_job_url(self.job_name, params, None))
+        request = Request(
+            method="POST", url=jenkins_server.build_job_url(self.job_name, params, None)
+        )
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location: str, jenkins_server: Jenkins) -> int:
@@ -179,7 +187,10 @@ class JenkinsJobTriggerOperator(BaseOperator):
                         and "number" in json_response["executable"]
                     ):
                         build_number = json_response["executable"]["number"]
-                        self.log.info("Job executed on Jenkins side with the build number %s", build_number)
+                        self.log.info(
+                            "Job executed on Jenkins side with the build number %s",
+                            build_number,
+                        )
                         return build_number
         else:
             raise AirflowException(
@@ -192,7 +203,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """Instantiate the Jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> JenkinsHook:
         """Instantiate the Jenkins hook."""
         return self.hook
@@ -206,14 +219,18 @@ class JenkinsJobTriggerOperator(BaseOperator):
         )
         jenkins_server = self.hook.get_jenkins_server()
         jenkins_response = self.build_job(jenkins_server, self.parameters)
-        build_number = self.poll_job_in_queue(jenkins_response["headers"]["Location"], jenkins_server)
+        build_number = self.poll_job_in_queue(
+            jenkins_response["headers"]["Location"], jenkins_server
+        )
 
         time.sleep(self.sleep_time)
         keep_polling_job = True
         build_info = None
         try:
             while keep_polling_job:
-                build_info = jenkins_server.get_build_info(name=self.job_name, number=build_number)
+                build_info = jenkins_server.get_build_info(
+                    name=self.job_name, number=build_number
+                )
                 if build_info["result"] is not None:
                     keep_polling_job = False
                     # Check if job ended with not allowed state.
@@ -223,10 +240,16 @@ class JenkinsJobTriggerOperator(BaseOperator):
                             f"Find more information on job url : {build_info['url']}"
                         )
                 else:
-                    self.log.info("Waiting for job to complete : %s , build %s", self.job_name, build_number)
+                    self.log.info(
+                        "Waiting for job to complete : %s , build %s",
+                        self.job_name,
+                        build_number,
+                    )
                     time.sleep(self.sleep_time)
         except jenkins.NotFoundException as err:
-            raise AirflowException(f"Jenkins job status check failed. Final error was: {err.resp.status}")
+            raise AirflowException(
+                f"Jenkins job status check failed. Final error was: {err.resp.status}"
+            )
         except jenkins.JenkinsException as err:
             raise AirflowException(
                 f"Jenkins call failed with error : {err}, if you have parameters "

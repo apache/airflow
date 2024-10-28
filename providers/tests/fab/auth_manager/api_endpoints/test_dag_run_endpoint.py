@@ -34,7 +34,11 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 try:
     from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -100,7 +104,9 @@ def configured_app(minimal_app_for_auth_api):
         "TEST_DAG_ID",
         access_control={
             "TestGranularDag": {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
-            "TestNoDagRunCreatePermission": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+            "TestNoDagRunCreatePermission": {
+                permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}
+            },
         },
     )
 
@@ -136,14 +142,22 @@ class TestDagRunEndpoint:
         dag_instance.is_active = True
         with create_session() as session:
             session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
+        dag = DAG(
+            dag_id=dag_id,
+            schedule=None,
+            params={"validated_number": Param(1, minimum=1, maximum=10)},
+        )
         self.app.dag_bag.bag_dag(dag)
         return dag_instance
 
-    def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
+    def _create_test_dag_run(
+        self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1
+    ):
         dag_runs = []
         dags = []
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         for i in range(idx_start, idx_start + 2):
             if i == 1:
@@ -183,11 +197,14 @@ class TestDagRunEndpoint:
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
-    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
+    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(
+        self,
+    ):
         self._create_test_dag_run(extra_dag=True)
         expected_dag_run_ids = ["TEST_DAG_ID", "TEST_DAG_ID"]
         response = self.client.get(
-            "api/v1/dags/~/dagRuns", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
+            "api/v1/dags/~/dagRuns",
+            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
@@ -195,7 +212,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
 
 class TestGetDagRunBatch(TestDagRunEndpoint):
-    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
+    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(
+        self,
+    ):
         self._create_test_dag_run(extra_dag=True)
         expected_response_json_1 = {
             "dag_id": "TEST_DAG_ID",
@@ -213,7 +232,9 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "run_type": "manual",
             "note": None,
         }
-        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        expected_response_json_1.update(
+            {"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {}
+        )
         expected_response_json_2 = {
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": "TEST_DAG_RUN_ID_2",
@@ -230,7 +251,9 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "run_type": "manual",
             "note": None,
         }
-        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        expected_response_json_2.update(
+            {"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",

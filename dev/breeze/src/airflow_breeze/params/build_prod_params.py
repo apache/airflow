@@ -21,7 +21,10 @@ import re
 import sys
 from dataclasses import dataclass, field
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import (
+    AIRFLOW_BRANCH,
+    DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+)
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -80,16 +83,25 @@ class BuildProdParams(CommonBuildParams):
         )
         if re.match("v?2.*", self.airflow_version):
             build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
+                [
+                    "--build-arg",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}",
+                ]
             )
         else:
             build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
+                [
+                    "--build-arg",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
+                ]
             )
         if self.airflow_constraints_location:
             # override location if specified
             build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
+                [
+                    "--build-arg",
+                    f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}",
+                ]
             )
         if self.airflow_version == "v2-0-test":
             self.airflow_branch_for_pypi_preloading = "v2-0-test"
@@ -122,24 +134,33 @@ class BuildProdParams(CommonBuildParams):
             )
             extra_build_flags.extend(self.args_for_remote_install)
         elif self.install_airflow_version:
-            if not re.match(r"^[0-9.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
+            if not re.match(
+                r"^[0-9.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version
+            ):
                 get_console().print(
                     f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
                 )
-                get_console().print("[error]Only numerical versions allowed for PROD image here !")
+                get_console().print(
+                    "[error]Only numerical versions allowed for PROD image here !"
+                )
                 sys.exit()
-            extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
-                ["--build-arg", f"AIRFLOW_VERSION_SPECIFICATION==={self.install_airflow_version}"]
+                ["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"]
             )
-            extra_build_flags.extend(["--build-arg", f"AIRFLOW_VERSION={self.install_airflow_version}"])
+            extra_build_flags.extend(
+                [
+                    "--build-arg",
+                    f"AIRFLOW_VERSION_SPECIFICATION==={self.install_airflow_version}",
+                ]
+            )
+            extra_build_flags.extend(
+                ["--build-arg", f"AIRFLOW_VERSION={self.install_airflow_version}"]
+            )
             constraints_base = (
                 f"https://raw.githubusercontent.com/{self.github_repository}/"
                 f"{self.airflow_constraints_reference}"
             )
-            constraints_location = (
-                f"{constraints_base}/constraints-{self.install_airflow_version}/constraints-{self.python}.txt"
-            )
+            constraints_location = f"{constraints_base}/constraints-{self.install_airflow_version}/constraints-{self.python}.txt"
             self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
         elif self.install_packages_from_context:
@@ -168,7 +189,9 @@ class BuildProdParams(CommonBuildParams):
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
                 ]
             )
-        maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
+        maintainers = json.dumps(
+            [{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}]
+        )
         logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
         readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
         extra_build_flags.extend(
@@ -214,7 +237,9 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
         self._req_arg("AIRFLOW_IMAGE_README_URL", self.airflow_image_readme_url)
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
-        self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
+        self._req_arg(
+            "AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages
+        )
         self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
         if self.use_uv:
             from airflow_breeze.utils.uv_utils import get_uv_timeout
@@ -235,7 +260,9 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
         self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
         self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
-        self._opt_arg("ADDITIONAL_RUNTIME_APT_COMMAND", self.additional_runtime_apt_command)
+        self._opt_arg(
+            "ADDITIONAL_RUNTIME_APT_COMMAND", self.additional_runtime_apt_command
+        )
         self._opt_arg("ADDITIONAL_RUNTIME_APT_DEPS", self.additional_runtime_apt_deps)
         self._opt_arg("ADDITIONAL_RUNTIME_APT_ENV", self.additional_runtime_apt_env)
         self._opt_arg("BUILD_PROGRESS", self.build_progress)
@@ -248,7 +275,10 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
         self._opt_arg("RUNTIME_APT_COMMAND", self.runtime_apt_command)
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
-        self._opt_arg("USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES", self.use_constraints_for_context_packages)
+        self._opt_arg(
+            "USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES",
+            self.use_constraints_for_context_packages,
+        )
         self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())

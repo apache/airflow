@@ -42,7 +42,8 @@ def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
     for key, value in params.items():
         if key == "QueryString":
             value = (
-                MULTI_LINE_QUERY_LOG_PREFIX + str(value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
+                MULTI_LINE_QUERY_LOG_PREFIX
+                + str(value).replace("\n", MULTI_LINE_QUERY_LOG_PREFIX).rstrip()
             )
         result += f"\t{key}: {value}\n"
     return result.rstrip()
@@ -117,7 +118,9 @@ class AthenaHook(AwsBaseHook):
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
         if self.log_query:
-            self.log.info("Running Query with params:\n%s", query_params_to_string(params))
+            self.log.info(
+                "Running Query with params:\n%s", query_params_to_string(params)
+            )
         response = self.get_conn().start_query_execution(**params)
         query_execution_id = response["QueryExecutionId"]
         self.log.info("Query execution id: %s", query_execution_id)
@@ -135,12 +138,16 @@ class AthenaHook(AwsBaseHook):
         """
         if use_cache and query_execution_id in self.__query_results:
             return self.__query_results[query_execution_id]
-        response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+        response = self.get_conn().get_query_execution(
+            QueryExecutionId=query_execution_id
+        )
         if use_cache:
             self.__query_results[query_execution_id] = response
         return response
 
-    def check_query_status(self, query_execution_id: str, use_cache: bool = False) -> str | None:
+    def check_query_status(
+        self, query_execution_id: str, use_cache: bool = False
+    ) -> str | None:
         """
         Fetch the state of a submitted query.
 
@@ -151,7 +158,9 @@ class AthenaHook(AwsBaseHook):
         :return: One of valid query states, or *None* if the response is
             malformed.
         """
-        response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
+        response = self.get_query_info(
+            query_execution_id=query_execution_id, use_cache=use_cache
+        )
         state = None
         try:
             state = response["QueryExecution"]["Status"]["State"]
@@ -165,7 +174,9 @@ class AthenaHook(AwsBaseHook):
             )
         return state
 
-    def get_state_change_reason(self, query_execution_id: str, use_cache: bool = False) -> str | None:
+    def get_state_change_reason(
+        self, query_execution_id: str, use_cache: bool = False
+    ) -> str | None:
         """
         Fetch the reason for a state change (e.g. error message). Returns None or reason string.
 
@@ -174,7 +185,9 @@ class AthenaHook(AwsBaseHook):
 
         :param query_execution_id: Id of submitted athena query
         """
-        response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
+        response = self.get_query_info(
+            query_execution_id=query_execution_id, use_cache=use_cache
+        )
         reason = None
         try:
             reason = response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -189,7 +202,10 @@ class AthenaHook(AwsBaseHook):
         return reason
 
     def get_query_results(
-        self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
+        self,
+        query_execution_id: str,
+        next_token_id: str | None = None,
+        max_results: int = 1000,
     ) -> dict | None:
         """
         Fetch submitted query results.
@@ -205,16 +221,23 @@ class AthenaHook(AwsBaseHook):
         """
         query_state = self.check_query_status(query_execution_id)
         if query_state is None:
-            self.log.error("Invalid Query state. Query execution id: %s", query_execution_id)
+            self.log.error(
+                "Invalid Query state. Query execution id: %s", query_execution_id
+            )
             return None
-        elif query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
+        elif (
+            query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES
+        ):
             self.log.error(
                 'Query is in "%s" state. Cannot fetch results. Query execution id: %s',
                 query_state,
                 query_execution_id,
             )
             return None
-        result_params = {"QueryExecutionId": query_execution_id, "MaxResults": max_results}
+        result_params = {
+            "QueryExecutionId": query_execution_id,
+            "MaxResults": max_results,
+        }
         if next_token_id:
             result_params["NextToken"] = next_token_id
         return self.get_conn().get_query_results(**result_params)
@@ -244,7 +267,9 @@ class AthenaHook(AwsBaseHook):
         """
         query_state = self.check_query_status(query_execution_id)
         if query_state is None:
-            self.log.error("Invalid Query state (null). Query execution id: %s", query_execution_id)
+            self.log.error(
+                "Invalid Query state (null). Query execution id: %s", query_execution_id
+            )
             return None
         if query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
             self.log.error(
@@ -265,7 +290,10 @@ class AthenaHook(AwsBaseHook):
         return paginator.paginate(**result_params)
 
     def poll_query_status(
-        self, query_execution_id: str, max_polling_attempts: int | None = None, sleep_time: int | None = None
+        self,
+        query_execution_id: str,
+        max_polling_attempts: int | None = None,
+        sleep_time: int | None = None,
     ) -> str | None:
         """
         Poll the state of a submitted query until it reaches final state.
@@ -311,15 +339,26 @@ class AthenaHook(AwsBaseHook):
         :param query_execution_id: Id of submitted athena query
         """
         if not query_execution_id:
-            raise ValueError(f"Invalid Query execution id. Query execution id: {query_execution_id}")
+            raise ValueError(
+                f"Invalid Query execution id. Query execution id: {query_execution_id}"
+            )
 
-        if not (response := self.get_query_info(query_execution_id=query_execution_id, use_cache=True)):
-            raise ValueError(f"Unable to get query information for execution id: {query_execution_id}")
+        if not (
+            response := self.get_query_info(
+                query_execution_id=query_execution_id, use_cache=True
+            )
+        ):
+            raise ValueError(
+                f"Unable to get query information for execution id: {query_execution_id}"
+            )
 
         try:
             return response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
         except KeyError:
-            self.log.error("Error retrieving OutputLocation. Query execution id: %s", query_execution_id)
+            self.log.error(
+                "Error retrieving OutputLocation. Query execution id: %s",
+                query_execution_id,
+            )
             raise
 
     def stop_query(self, query_execution_id: str) -> dict:

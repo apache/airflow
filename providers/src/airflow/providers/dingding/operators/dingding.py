@@ -67,6 +67,10 @@ class DingdingOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         self.log.info("Sending Dingding message.")
         hook = DingdingHook(
-            self.dingding_conn_id, self.message_type, self.message, self.at_mobiles, self.at_all
+            self.dingding_conn_id,
+            self.message_type,
+            self.message,
+            self.at_mobiles,
+            self.at_all,
         )
         hook.send()

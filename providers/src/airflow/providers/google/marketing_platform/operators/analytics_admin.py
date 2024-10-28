@@ -31,8 +31,12 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.marketing_platform.hooks.analytics_admin import GoogleAnalyticsAdminHook
-from airflow.providers.google.marketing_platform.links.analytics_admin import GoogleAnalyticsPropertyLink
+from airflow.providers.google.marketing_platform.hooks.analytics_admin import (
+    GoogleAnalyticsAdminHook,
+)
+from airflow.providers.google.marketing_platform.links.analytics_admin import (
+    GoogleAnalyticsPropertyLink,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -190,7 +194,9 @@ class GoogleAnalyticsAdminCreatePropertyOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info("The Google Analytics property %s was created successfully.", prop.name)
+        self.log.info(
+            "The Google Analytics property %s was created successfully.", prop.name
+        )
         GoogleAnalyticsPropertyLink.persist(
             context=context,
             task_instance=self,
@@ -264,7 +270,9 @@ class GoogleAnalyticsAdminDeletePropertyOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info("The Google Analytics property %s was soft-deleted successfully.", prop.name)
+        self.log.info(
+            "The Google Analytics property %s was soft-deleted successfully.", prop.name
+        )
         return Property.to_dict(prop)
 
 
@@ -338,7 +346,10 @@ class GoogleAnalyticsAdminCreateDataStreamOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.log.info("The Google Analytics data stream %s was created successfully.", data_stream.name)
+        self.log.info(
+            "The Google Analytics data stream %s was created successfully.",
+            data_stream.name,
+        )
         return DataStream.to_dict(data_stream)
 
 
@@ -403,7 +414,9 @@ class GoogleAnalyticsAdminDeleteDataStreamOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Deleting a Google Analytics data stream (id %s).", self.data_stream_id)
+        self.log.info(
+            "Deleting a Google Analytics data stream (id %s).", self.data_stream_id
+        )
         hook.delete_data_stream(
             property_id=self.property_id,
             data_stream_id=self.data_stream_id,
@@ -495,7 +508,9 @@ class GoogleAnalyticsAdminListGoogleAdsLinksOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        ads_links_list: Sequence[Message] = [GoogleAdsLink.to_dict(item) for item in google_ads_links]
+        ads_links_list: Sequence[Message] = [
+            GoogleAdsLink.to_dict(item) for item in google_ads_links
+        ]
         n = len(ads_links_list)
         self.log.info("Successful request. Retrieved %s item%s.", n, "s" if n > 1 else "")
         return ads_links_list
@@ -573,7 +588,11 @@ class GoogleAnalyticsAdminGetGoogleAdsLinkOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        find_link = (item for item in ads_links if item.name.split("/")[-1] == self.google_ads_link_id)
+        find_link = (
+            item
+            for item in ads_links
+            if item.name.split("/")[-1] == self.google_ads_link_id
+        )
         if ads_link := next(find_link, None):
             self.log.info("Successful request.")
             return GoogleAdsLink.to_dict(ads_link)

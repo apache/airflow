@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from airflow.providers.amazon.aws.triggers.lambda_function import (
+    LambdaCreateFunctionCompleteTrigger,
+)
 
 
 class TestLambdaCreateFunctionCompleteTrigger:

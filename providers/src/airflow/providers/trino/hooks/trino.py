@@ -30,7 +30,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import exactly_one
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+from airflow.utils.operator_helpers import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    DEFAULT_FORMAT_PREFIX,
+)
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -100,11 +103,15 @@ class TrinoHook(DbApiHook):
         auth = None
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
-            raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
+            raise AirflowException(
+                f"The {extra.get('auth')!r} authorization type doesn't support password."
+            )
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
-            if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
+            if not exactly_one(
+                jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra
+            ):
                 msg = (
                     "When auth set to 'jwt' then expected exactly one parameter 'jwt__file' or 'jwt__token'"
                     " in connection extra, but "
@@ -128,13 +135,17 @@ class TrinoHook(DbApiHook):
             auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
                 config=extra.get("kerberos__config", os.environ.get("KRB5_CONFIG")),
                 service_name=extra.get("kerberos__service_name"),
-                mutual_authentication=_boolify(extra.get("kerberos__mutual_authentication", False)),
+                mutual_authentication=_boolify(
+                    extra.get("kerberos__mutual_authentication", False)
+                ),
                 force_preemptive=_boolify(extra.get("kerberos__force_preemptive", False)),
                 hostname_override=extra.get("kerberos__hostname_override"),
                 sanitize_mutual_error_response=_boolify(
                     extra.get("kerberos__sanitize_mutual_error_response", True)
                 ),
-                principal=extra.get("kerberos__principal", conf.get("kerberos", "principal")),
+                principal=extra.get(
+                    "kerberos__principal", conf.get("kerberos", "principal")
+                ),
                 delegate=_boolify(extra.get("kerberos__delegate", False)),
                 ca_bundle=extra.get("kerberos__ca_bundle"),
             )
@@ -183,7 +194,9 @@ class TrinoHook(DbApiHook):
             raise TrinoException(e)
 
     def get_first(
-        self, sql: str | list[str] = "", parameters: Iterable | Mapping[str, Any] | None = None
+        self,
+        sql: str | list[str] = "",
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
@@ -192,7 +205,12 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
+    def get_pandas_df(
+        self,
+        sql: str = "",
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        **kwargs,
+    ):  # type: ignore[override]
         import pandas as pd
 
         cursor = self.get_cursor()
@@ -204,7 +222,10 @@ class TrinoHook(DbApiHook):
         column_descriptions = cursor.description
         if data:
             df = pd.DataFrame(data, **kwargs)
-            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
+            df.rename(
+                columns={n: c[0] for n, c in zip(df.columns, column_descriptions)},
+                inplace=True,
+            )
         else:
             df = pd.DataFrame(**kwargs)
         return df

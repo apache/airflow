@@ -24,7 +24,9 @@ from airflow.models import Log
 
 
 def client_with_login(app, expected_response_code=302, **kwargs):
-    patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
+    patch_path = (
+        "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
+    )
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         client = app.test_client()
@@ -52,9 +54,13 @@ def check_content_in_response(text, resp, resp_code=200):
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
-            assert line in resp_html, f"Couldn't find {line!r}\nThe response was:\n{resp_html!r}"
+            assert (
+                line in resp_html
+            ), f"Couldn't find {line!r}\nThe response was:\n{resp_html!r}"
     else:
-        assert text in resp_html, f"Couldn't find {text!r}\nThe response was:\n{resp_html!r}"
+        assert (
+            text in resp_html
+        ), f"Couldn't find {text!r}\nThe response was:\n{resp_html!r}"
 
 
 def check_content_not_in_response(text, resp, resp_code=200):

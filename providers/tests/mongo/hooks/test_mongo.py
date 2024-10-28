@@ -54,8 +54,18 @@ def mongo_connections():
             host="mongo",
             extra='{"srv": true}',
         ),
-        Connection(conn_id="mongo_invalid_conn_type", conn_type="mongodb", host="mongo", port=27017),
-        Connection(conn_id="mongo_invalid_conn_type_srv", conn_type="mongodb+srv", host="mongo", port=27017),
+        Connection(
+            conn_id="mongo_invalid_conn_type",
+            conn_type="mongodb",
+            host="mongo",
+            port=27017,
+        ),
+        Connection(
+            conn_id="mongo_invalid_conn_type_srv",
+            conn_type="mongodb+srv",
+            host="mongo",
+            port=27017,
+        ),
         Connection(
             conn_id="mongo_invalid_srv_with_port",
             conn_type="mongo",
@@ -70,7 +80,9 @@ def mongo_connections():
             extra='{"allow_insecure": false, "ssl": true}',
         ),
         # Mongo establishes connection during initialization, so we need to have this connection
-        Connection(conn_id="fake_connection", conn_type="mongo", host="mongo", port=27017),
+        Connection(
+            conn_id="fake_connection", conn_type="mongo", host="mongo", port=27017
+        ),
     ]
 
     with pytest.MonkeyPatch.context() as mp:
@@ -112,7 +124,9 @@ class TestMongoHook:
 
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             assert (
-                MongoHook(conn_id="fake_connection", mongo_conn_id="foo-bar").mongo_conn_id
+                MongoHook(
+                    conn_id="fake_connection", mongo_conn_id="foo-bar"
+                ).mongo_conn_id
                 == "fake_connection"
             )
 
@@ -139,7 +153,9 @@ class TestMongoHook:
             MongoHook(mongo_conn_id="mongo_invalid_conn_type_srv")
 
     def test_invalid_srv_with_port(self):
-        with pytest.raises(AirflowConfigException, match="srv URI should not specify a port"):
+        with pytest.raises(
+            AirflowConfigException, match="srv URI should not specify a port"
+        ):
             MongoHook(mongo_conn_id="mongo_invalid_srv_with_port")
 
     def test_insert_one(self):
@@ -153,7 +169,10 @@ class TestMongoHook:
 
     def test_insert_many(self):
         collection = mongomock.MongoClient().db.collection
-        objs = [{"test_insert_many_1": "test_value"}, {"test_insert_many_2": "test_value"}]
+        objs = [
+            {"test_insert_many_1": "test_value"},
+            {"test_insert_many_2": "test_value"},
+        ]
 
         self.hook.insert_many(collection, objs)
 
@@ -288,7 +307,10 @@ class TestMongoHook:
         self.hook.connection.host = "test_host"
         self.hook.connection.port = 1234
         self.hook.connection.schema = "test_db"
-        assert self.hook._create_uri() == "mongodb://test_user:test_password@test_host:1234/test_db"
+        assert (
+            self.hook._create_uri()
+            == "mongodb://test_user:test_password@test_host:1234/test_db"
+        )
 
     def test_create_uri_no_creds(self):
         self.hook.connection.login = None
@@ -303,7 +325,10 @@ class TestMongoHook:
         self.hook.connection.host = "test_host"
         self.hook.connection.port = 1234
         self.hook.connection.schema = "test_db"
-        assert self.hook._create_uri() == "mongodb+srv://test_user:test_password@test_host:1234/test_db"
+        assert (
+            self.hook._create_uri()
+            == "mongodb+srv://test_user:test_password@test_host:1234/test_db"
+        )
 
     def test_delete_one(self):
         collection = mongomock.MongoClient().db.collection
@@ -335,10 +360,15 @@ class TestMongoHook:
 
     def test_find_many(self):
         collection = mongomock.MongoClient().db.collection
-        objs = [{"_id": 1, "test_find_many_1": "test_value"}, {"_id": 2, "test_find_many_2": "test_value"}]
+        objs = [
+            {"_id": 1, "test_find_many_1": "test_value"},
+            {"_id": 2, "test_find_many_2": "test_value"},
+        ]
         collection.insert_many(objs)
 
-        result_objs = self.hook.find(mongo_collection=collection, query={}, projection={}, find_one=False)
+        result_objs = self.hook.find(
+            mongo_collection=collection, query={}, projection={}, find_one=False
+        )
 
         assert len(list(result_objs)) > 1
 

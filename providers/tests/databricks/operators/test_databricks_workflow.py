@@ -42,7 +42,9 @@ DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 @pytest.fixture
 def mock_databricks_hook():
     """Provide a mock DatabricksHook."""
-    with patch("airflow.providers.databricks.operators.databricks_workflow.DatabricksHook") as mock_hook:
+    with patch(
+        "airflow.providers.databricks.operators.databricks_workflow.DatabricksHook"
+    ) as mock_hook:
         yield mock_hook
 
 
@@ -100,7 +102,9 @@ def test_create_workflow_json(mock_databricks_hook, context, mock_task_group):
 
 def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator._create_or_reset_job resets the job if it already exists."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task", databricks_conn_id="databricks_default"
+    )
     operator.task_group = mock_task_group
     operator._hook.list_jobs.return_value = [{"job_id": 123}]
     operator._hook.create_job.return_value = 123
@@ -112,7 +116,9 @@ def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_g
 
 def test_create_or_reset_job_new(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator._create_or_reset_job creates a new job if it does not exist."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task", databricks_conn_id="databricks_default"
+    )
     operator.task_group = mock_task_group
     operator._hook.list_jobs.return_value = []
     operator._hook.create_job.return_value = 456
@@ -124,7 +130,9 @@ def test_create_or_reset_job_new(mock_databricks_hook, context, mock_task_group)
 
 def test_wait_for_job_to_start(mock_databricks_hook):
     """Test that _CreateDatabricksWorkflowOperator._wait_for_job_to_start waits for the job to start."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task", databricks_conn_id="databricks_default"
+    )
     mock_hook_instance = mock_databricks_hook.return_value
     mock_hook_instance.get_run_state.side_effect = [
         MagicMock(life_cycle_state=RunLifeCycleState.PENDING.value),
@@ -137,7 +145,9 @@ def test_wait_for_job_to_start(mock_databricks_hook):
 
 def test_execute(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task", databricks_conn_id="databricks_default"
+    )
     operator.task_group = mock_task_group
     mock_task_group.jar_params = {}
     mock_task_group.python_params = {}
@@ -166,10 +176,14 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
 
 def test_execute_invalid_task_group(context):
     """Test that _CreateDatabricksWorkflowOperator.execute raises an exception if the task group is invalid."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task", databricks_conn_id="databricks_default"
+    )
     operator.task_group = MagicMock()  # Not a DatabricksWorkflowTaskGroup
 
-    with pytest.raises(AirflowException, match="Task group must be a DatabricksWorkflowTaskGroup"):
+    with pytest.raises(
+        AirflowException, match="Task group must be a DatabricksWorkflowTaskGroup"
+    ):
         operator.execute(context)
 
 
@@ -183,7 +197,9 @@ def mock_databricks_workflow_operator():
 
 def test_task_group_initialization():
     """Test that DatabricksWorkflowTaskGroup initializes correctly."""
-    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE) as example_dag:
+    with DAG(
+        dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE
+    ) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow", databricks_conn_id="databricks_conn"
         ) as task_group:
@@ -196,7 +212,9 @@ def test_task_group_initialization():
 
 def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
     """Test that DatabricksWorkflowTaskGroup creates a _CreateDatabricksWorkflowOperator on exit."""
-    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE) as example_dag:
+    with DAG(
+        dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE
+    ) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow",
             databricks_conn_id="databricks_conn",
@@ -224,9 +242,13 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
     )
 
 
-def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
+def test_task_group_root_tasks_set_upstream_to_operator(
+    mock_databricks_workflow_operator,
+):
     """Test that tasks added to a DatabricksWorkflowTaskGroup are set upstream to the operator."""
-    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE):
+    with DAG(
+        dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE
+    ):
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow1",
             databricks_conn_id="databricks_conn",
@@ -241,7 +263,9 @@ def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow
 
 def test_on_kill(mock_databricks_hook, context, mock_workflow_run_metadata):
     """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task", databricks_conn_id="databricks_default"
+    )
     operator.workflow_run_metadata = mock_workflow_run_metadata
 
     RUN_ID = 789

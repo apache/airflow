@@ -67,7 +67,10 @@ def example_dag_decorator(email: str = "example@example.com"):
     email_info = prepare_email(get_ip.output)
 
     EmailOperator(
-        task_id="send_email", to=email, subject=email_info["subject"], html_content=email_info["body"]
+        task_id="send_email",
+        to=email,
+        subject=email_info["subject"],
+        html_content=email_info["body"],
     )
 
 

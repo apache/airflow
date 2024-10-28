@@ -70,7 +70,9 @@ def mock_hook():
     return mock.patch(HOOK_CLASS).start()
 
 
-def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock) -> None:
+def test_basic_kubernetes(
+    dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
+) -> None:
     with dag_maker(session=session) as dag:
 
         @task.kubernetes(
@@ -126,7 +128,9 @@ def test_kubernetes_with_input_output(
         def f(arg1, arg2, kwarg1=None, kwarg2=None):
             return {"key1": "value1", "key2": "value2"}
 
-        f.override(task_id="my_task_id", do_xcom_push=True)("arg1", "arg2", kwarg1="kwarg1")
+        f.override(task_id="my_task_id", do_xcom_push=True)(
+            "arg1", "arg2", kwarg1="kwarg1"
+        )
 
     mock_hook.return_value.get_xcom_sidecar_container_image.return_value = XCOM_IMAGE
     mock_hook.return_value.get_xcom_sidecar_container_resources.return_value = {
@@ -231,7 +235,9 @@ def test_kubernetes_with_mini_scheduler(
         def f(arg1, arg2, kwarg1=None, kwarg2=None):
             return {"key1": "value1", "key2": "value2"}
 
-        f1 = f.override(task_id="my_task_id", do_xcom_push=True)("arg1", "arg2", kwarg1="kwarg1")
+        f1 = f.override(task_id="my_task_id", do_xcom_push=True)(
+            "arg1", "arg2", kwarg1="kwarg1"
+        )
         f.override(task_id="my_task_id2", do_xcom_push=False)("arg1", "arg2", kwarg1=f1)
 
     dr = dag_maker.create_dagrun()

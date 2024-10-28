@@ -47,7 +47,12 @@ if TYPE_CHECKING:
 
 
 def _rename_index(
-    *, batch_op: BatchOperations, original_name: str, new_name: str, columns: list[str], unique: bool
+    *,
+    batch_op: BatchOperations,
+    original_name: str,
+    new_name: str,
+    columns: list[str],
+    unique: bool,
 ) -> None:
     batch_op.drop_index(original_name)
     batch_op.create_index(new_name, columns, unique=unique)
@@ -124,10 +129,14 @@ def upgrade():
         )
 
     with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
-        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False
+        )
 
     with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_alias_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("dataset_alias_dataset_alias_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_alias_id",
@@ -143,7 +152,9 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_dataset_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("dataset_alias_dataset_dataset_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_alias_dataset_id",
@@ -160,7 +171,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("asset_alias_asset_event", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_event_alias_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("dataset_alias_dataset_event_alias_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_event_alias_id",
@@ -176,7 +189,9 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_event_event_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("dataset_alias_dataset_event_event_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_event_event_id",
@@ -192,7 +207,9 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-    with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
+    with op.batch_alter_table(
+        "dag_schedule_asset_alias_reference", schema=None
+    ) as batch_op:
         batch_op.drop_constraint("dsdar_dataset_alias_fkey", type_="foreignkey")
         if op.get_bind().dialect.name in ("postgresql", "mysql"):
             batch_op.drop_constraint("dsdar_dag_id_fkey", type_="foreignkey")
@@ -227,7 +244,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
-        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False
+        )
 
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         batch_op.drop_constraint("dsdr_dag_id_fkey", type_="foreignkey")
@@ -264,7 +283,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
-        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False
+        )
 
         batch_op.drop_constraint("todr_dag_id_fkey", type_="foreignkey")
         if op.get_bind().dialect.name in ("postgresql", "mysql"):
@@ -301,7 +322,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
-        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False
+        )
 
         batch_op.drop_constraint("ddrq_dag_fkey", type_="foreignkey")
         if op.get_bind().dialect.name in ("postgresql", "mysql"):
@@ -353,7 +376,9 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint("dagrun_dataset_event_dag_run_id_fkey", type_="foreignkey")
+        batch_op.drop_constraint(
+            "dagrun_dataset_event_dag_run_id_fkey", type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_dataset_events_event_id",
@@ -370,7 +395,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("asset_event", schema=None) as batch_op:
-        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False
+        )
 
     with op.batch_alter_table("asset_event", schema=None) as batch_op:
         _rename_index(
@@ -426,10 +453,14 @@ def downgrade():
         )
 
     with op.batch_alter_table("dataset_alias_dataset", schema=None) as batch_op:
-        batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False
+        )
 
     with op.batch_alter_table("dataset_alias_dataset", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("asset_alias_asset_alias_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("asset_alias_asset_alias_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_asset_alias_asset_alias_id",
@@ -445,7 +476,9 @@ def downgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint(op.f("asset_alias_asset_asset_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("asset_alias_asset_asset_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_asset_alias_asset_asset_id",
@@ -462,7 +495,9 @@ def downgrade():
         )
 
     with op.batch_alter_table("dataset_alias_dataset_event", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("asset_alias_asset_event_alias_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("asset_alias_asset_event_alias_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_asset_alias_asset_event_alias_id",
@@ -478,7 +513,9 @@ def downgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint(op.f("asset_alias_asset_event_event_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("asset_alias_asset_event_event_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_asset_alias_asset_event_event_id",
@@ -494,7 +531,9 @@ def downgrade():
             ondelete="CASCADE",
         )
 
-    with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
+    with op.batch_alter_table(
+        "dag_schedule_dataset_alias_reference", schema=None
+    ) as batch_op:
         batch_op.drop_constraint("dsaar_asset_alias_fkey", type_="foreignkey")
         batch_op.drop_constraint("dsaar_dag_id_fkey", type_="foreignkey")
 
@@ -528,7 +567,9 @@ def downgrade():
         )
 
     with op.batch_alter_table("dag_schedule_dataset_reference", schema=None) as batch_op:
-        batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False
+        )
 
         batch_op.drop_constraint("dsar_dag_id_fkey", type_="foreignkey")
         batch_op.drop_constraint("dsar_asset_fkey", type_="foreignkey")
@@ -563,7 +604,9 @@ def downgrade():
         )
 
     with op.batch_alter_table("task_outlet_dataset_reference", schema=None) as batch_op:
-        batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False
+        )
 
         batch_op.drop_constraint("toar_asset_fkey", type_="foreignkey")
         batch_op.drop_constraint("toar_dag_id_fkey", type_="foreignkey")
@@ -598,7 +641,9 @@ def downgrade():
         )
 
     with op.batch_alter_table("dataset_dag_run_queue", schema=None) as batch_op:
-        batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False
+        )
 
         batch_op.drop_constraint("adrq_asset_fkey", type_="foreignkey")
         batch_op.drop_constraint("adrq_dag_fkey", type_="foreignkey")
@@ -633,7 +678,9 @@ def downgrade():
         )
 
     with op.batch_alter_table("dagrun_dataset_event", schema=None) as batch_op:
-        batch_op.drop_constraint(op.f("dagrun_asset_event_event_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("dagrun_asset_event_event_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_asset_events_event_id",
@@ -649,7 +696,9 @@ def downgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint(op.f("dagrun_asset_event_dag_run_id_fkey"), type_="foreignkey")
+        batch_op.drop_constraint(
+            op.f("dagrun_asset_event_dag_run_id_fkey"), type_="foreignkey"
+        )
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_asset_events_dag_run_id",
@@ -666,7 +715,9 @@ def downgrade():
         )
 
     with op.batch_alter_table("dataset_event", schema=None) as batch_op:
-        batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
+        batch_op.alter_column(
+            "asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False
+        )
 
     with op.batch_alter_table("dataset_event", schema=None) as batch_op:
         _rename_index(

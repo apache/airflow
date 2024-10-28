@@ -85,7 +85,9 @@ def summarize_file(input, test_type, backend):
 
     num_failures = int(testsuite.get("failures"))
     if num_failures:
-        fail_message_parts.append(f"{num_failures} failure{'' if num_failures == 1 else 's'}")
+        fail_message_parts.append(
+            f"{num_failures} failure{'' if num_failures == 1 else 's'}"
+        )
 
     num_errors = int(testsuite.get("errors"))
     if num_errors:
@@ -93,7 +95,9 @@ def summarize_file(input, test_type, backend):
 
     if not fail_message_parts:
         return
-    print(f"\n{TEXT_RED}==== {test_type} {backend}: {', '.join(fail_message_parts)} ===={TEXT_RESET}\n")
+    print(
+        f"\n{TEXT_RED}==== {test_type} {backend}: {', '.join(fail_message_parts)} ===={TEXT_RESET}\n"
+    )
 
     for testcase in testsuite.findall(".//testcase[error]"):
         case_name = translate_name(testcase)

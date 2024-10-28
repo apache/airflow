@@ -48,5 +48,7 @@ class VerticaOperator(SQLExecuteQueryOperator):
     template_fields_renderers = {"sql": "sql"}
     ui_color = "#b4e0ff"
 
-    def __init__(self, *, vertica_conn_id: str = "vertica_default", **kwargs: Any) -> None:
+    def __init__(
+        self, *, vertica_conn_id: str = "vertica_default", **kwargs: Any
+    ) -> None:
         super().__init__(conn_id=vertica_conn_id, **kwargs)

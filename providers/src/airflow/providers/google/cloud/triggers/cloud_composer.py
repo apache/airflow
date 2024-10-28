@@ -24,7 +24,9 @@ from datetime import datetime
 from typing import Any, Sequence
 
 from dateutil import parser
-from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
+from google.cloud.orchestration.airflow.service_v1.types import (
+    ExecuteAirflowCommandResponse,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
@@ -71,11 +73,15 @@ class CloudComposerExecutionTrigger(BaseTrigger):
 
     async def run(self):
         while True:
-            operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
+            operation = await self.gcp_hook.get_operation(
+                operation_name=self.operation_name
+            )
             if operation.done:
                 break
             elif operation.error.message:
-                raise AirflowException(f"Cloud Composer Environment error: {operation.error.message}")
+                raise AirflowException(
+                    f"Cloud Composer Environment error: {operation.error.message}"
+                )
             await asyncio.sleep(self.pooling_period_seconds)
         yield TriggerEvent(
             {
@@ -240,10 +246,15 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
     async def run(self):
         try:
             while True:
-                if datetime.now(self.end_date.tzinfo).timestamp() > self.end_date.timestamp():
+                if (
+                    datetime.now(self.end_date.tzinfo).timestamp()
+                    > self.end_date.timestamp()
+                ):
                     dag_runs = await self._pull_dag_runs()
 
-                    self.log.info("Sensor waits for allowed states: %s", self.allowed_states)
+                    self.log.info(
+                        "Sensor waits for allowed states: %s", self.allowed_states
+                    )
                     if self._check_dag_runs_states(
                         dag_runs=dag_runs,
                         start_date=self.start_date,

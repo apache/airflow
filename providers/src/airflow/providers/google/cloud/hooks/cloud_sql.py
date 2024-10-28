@@ -127,7 +127,9 @@ class CloudSQLHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("sqladmin", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "sqladmin", self.api_version, http=http_authorized, cache_discovery=False
+            )
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -166,7 +168,9 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
@@ -191,7 +195,9 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
@@ -256,7 +262,9 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
@@ -288,7 +296,9 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     @GoogleBaseHook.operation_in_progress_retry()
@@ -309,7 +319,9 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def export_instance(self, instance: str, body: dict, project_id: str):
@@ -354,7 +366,9 @@ class CloudSQLHook(GoogleBaseHook):
                 .execute(num_retries=self.num_retries)
             )
             operation_name = response["name"]
-            self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+            self._wait_for_operation_to_complete(
+                project_id=project_id, operation_name=operation_name
+            )
         except HttpError as ex:
             raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
 
@@ -381,7 +395,9 @@ class CloudSQLHook(GoogleBaseHook):
                 .execute(num_retries=self.num_retries)
             )
             operation_name = response["name"]
-            self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+            self._wait_for_operation_to_complete(
+                project_id=project_id, operation_name=operation_name
+            )
         except HttpError as ex:
             raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
 
@@ -405,12 +421,17 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response.get("operation", {}).get("name", {})
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name
+        )
         return response
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
-        self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
+        self,
+        project_id: str,
+        operation_name: str,
+        time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS,
     ) -> None:
         """
         Wait for the named operation to complete - checks status of the asynchronous call.
@@ -530,12 +551,16 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.gcp_conn_id = gcp_conn_id
         self.command_line_parameters: list[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
-        self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
+        self.sql_proxy_path = (
+            sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
+        )
         self.credentials_path = self.path_prefix + "_credentials.json"
         self._build_command_line_parameters()
 
     def _build_command_line_parameters(self) -> None:
-        self.command_line_parameters.extend(["-dir", self.cloud_sql_proxy_socket_directory])
+        self.command_line_parameters.extend(
+            ["-dir", self.cloud_sql_proxy_socket_directory]
+        )
         self.command_line_parameters.extend(["-instances", self.instance_specification])
 
     @staticmethod
@@ -548,7 +573,9 @@ class CloudSqlProxyRunner(LoggingMixin):
             return
         download_url = self._get_sql_proxy_download_url()
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
-        self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
+        self.log.info(
+            "Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp
+        )
         # httpx has a breaking API change (follow_redirects vs allow_redirects)
         # and this should work with both versions (cf. issue #20088)
         if "follow_redirects" in signature(httpx.get).parameters.keys():
@@ -565,7 +592,9 @@ class CloudSqlProxyRunner(LoggingMixin):
                 f"Status code = {response.status_code}. Reason = {response.reason_phrase}"
             )
 
-        self.log.info("Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path)
+        self.log.info(
+            "Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path
+        )
         shutil.move(proxy_path_tmp, self.sql_proxy_path)
         os.chmod(self.sql_proxy_path, 0o744)  # Set executable bit
         self.sql_proxy_was_downloaded = True
@@ -595,7 +624,11 @@ class CloudSqlProxyRunner(LoggingMixin):
         if key_path:
             credential_params = ["-credential_file", key_path]
         elif keyfile_dict:
-            keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
+            keyfile_content = (
+                keyfile_dict
+                if isinstance(keyfile_dict, dict)
+                else json.loads(keyfile_dict)
+            )
             self.log.info("Saving credentials to %s", self.credentials_path)
             with open(self.credentials_path, "w") as file:
                 json.dump(keyfile_content, file)
@@ -631,7 +664,9 @@ class CloudSqlProxyRunner(LoggingMixin):
         """
         self._download_sql_proxy_if_needed()
         if self.sql_proxy_process:
-            raise AirflowException(f"The sql proxy is already running: {self.sql_proxy_process}")
+            raise AirflowException(
+                f"The sql proxy is already running: {self.sql_proxy_process}"
+            )
         else:
             command_to_run = [self.sql_proxy_path]
             command_to_run.extend(self.command_line_parameters)
@@ -640,7 +675,9 @@ class CloudSqlProxyRunner(LoggingMixin):
             command_to_run.extend(self._get_credential_parameters())
             self.log.info("Running the command: `%s`", " ".join(command_to_run))
 
-            self.sql_proxy_process = Popen(command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            self.sql_proxy_process = Popen(
+                command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE
+            )
             self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
             while True:
                 line = (
@@ -658,7 +695,9 @@ class CloudSqlProxyRunner(LoggingMixin):
                     self.log.info(line)
                 if "googleapi: Error" in line or "invalid instance name:" in line:
                     self.stop_proxy()
-                    raise AirflowException(f"Error when starting the cloud_sql_proxy {line}!")
+                    raise AirflowException(
+                        f"Error when starting the cloud_sql_proxy {line}!"
+                    )
                 if "Ready for new connections" in line:
                     return
 
@@ -671,11 +710,15 @@ class CloudSqlProxyRunner(LoggingMixin):
         if not self.sql_proxy_process:
             raise AirflowException("The sql proxy is not started yet")
         else:
-            self.log.info("Stopping the cloud_sql_proxy pid: %s", self.sql_proxy_process.pid)
+            self.log.info(
+                "Stopping the cloud_sql_proxy pid: %s", self.sql_proxy_process.pid
+            )
             self.sql_proxy_process.kill()
             self.sql_proxy_process = None
         # Cleanup!
-        self.log.info("Removing the socket directory: %s", self.cloud_sql_proxy_socket_directory)
+        self.log.info(
+            "Removing the socket directory: %s", self.cloud_sql_proxy_socket_directory
+        )
         shutil.rmtree(self.cloud_sql_proxy_socket_directory, ignore_errors=True)
         if self.sql_proxy_was_downloaded:
             self.log.info("Removing downloaded proxy: %s", self.sql_proxy_path)
@@ -686,7 +729,9 @@ class CloudSqlProxyRunner(LoggingMixin):
                 if e.errno != errno.ENOENT:
                     raise
         else:
-            self.log.info("Skipped removing proxy - it was not downloaded: %s", self.sql_proxy_path)
+            self.log.info(
+                "Skipped removing proxy - it was not downloaded: %s", self.sql_proxy_path
+            )
         if os.path.isfile(self.credentials_path):
             self.log.info("Removing generated credentials file %s", self.credentials_path)
             # Here file cannot be delete by concurrent task (each task has its own copy)
@@ -839,7 +884,9 @@ class CloudSQLDatabaseHook(BaseHook):
         self.database_type = self.extras.get("database_type")
         self.use_proxy = self._get_bool(self.extras.get("use_proxy", "False"))
         self.use_ssl = self._get_bool(self.extras.get("use_ssl", "False"))
-        self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
+        self.sql_proxy_use_tcp = self._get_bool(
+            self.extras.get("sql_proxy_use_tcp", "False")
+        )
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
         self.sql_proxy_binary_path = sql_proxy_binary_path
         self.user = self.cloudsql_connection.login
@@ -863,23 +910,33 @@ class CloudSQLDatabaseHook(BaseHook):
 
     @property
     def sslcert(self) -> str | None:
-        return self._get_ssl_temporary_file_path(cert_name="sslcert", cert_path=self.ssl_cert)
+        return self._get_ssl_temporary_file_path(
+            cert_name="sslcert", cert_path=self.ssl_cert
+        )
 
     @property
     def sslkey(self) -> str | None:
-        return self._get_ssl_temporary_file_path(cert_name="sslkey", cert_path=self.ssl_key)
+        return self._get_ssl_temporary_file_path(
+            cert_name="sslkey", cert_path=self.ssl_key
+        )
 
     @property
     def sslrootcert(self) -> str | None:
-        return self._get_ssl_temporary_file_path(cert_name="sslrootcert", cert_path=self.ssl_root_cert)
+        return self._get_ssl_temporary_file_path(
+            cert_name="sslrootcert", cert_path=self.ssl_root_cert
+        )
 
-    def _get_ssl_temporary_file_path(self, cert_name: str, cert_path: str | None) -> str | None:
+    def _get_ssl_temporary_file_path(
+        self, cert_name: str, cert_path: str | None
+    ) -> str | None:
         cert_value = self._get_cert_from_secret(cert_name)
         original_cert_path = cert_path or self.extras.get(cert_name)
         if cert_value or original_cert_path:
             if cert_name not in self._ssl_cert_temp_files:
                 return self._set_temporary_ssl_file(
-                    cert_name=cert_name, cert_path=original_cert_path, cert_value=cert_value
+                    cert_name=cert_name,
+                    cert_path=original_cert_path,
+                    cert_value=cert_value,
                 )
             return self._ssl_cert_temp_files[cert_name].name
         return None
@@ -939,7 +996,11 @@ class CloudSQLDatabaseHook(BaseHook):
             _temp_file.write(cert_value.encode("ascii"))
         _temp_file.flush()
         self._ssl_cert_temp_files[cert_name] = _temp_file
-        self.log.info("Copied the certificate '%s' into a temporary file '%s'", cert_name, _temp_file.name)
+        self.log.info(
+            "Copied the certificate '%s' into a temporary file '%s'",
+            cert_name,
+            _temp_file.name,
+        )
         return _temp_file.name
 
     @staticmethod
@@ -980,10 +1041,14 @@ class CloudSQLDatabaseHook(BaseHook):
             )
         if any([self.ssl_key, self.ssl_cert, self.ssl_root_cert]):
             field_names = ["ssl_key", "ssl_cert", "ssl_root_cert"]
-            if missed_values := [field for field in field_names if not getattr(self, field)]:
+            if missed_values := [
+                field for field in field_names if not getattr(self, field)
+            ]:
                 s = "s are" if len(missed_values) > 1 else "is"
                 missed_values_str = ", ".join(f for f in missed_values)
-                raise AirflowException(f"Invalid SSL settings. Parameter{s} missing: {missed_values_str}")
+                raise AirflowException(
+                    f"Invalid SSL settings. Parameter{s} missing: {missed_values_str}"
+                )
 
     def validate_ssl_certs(self) -> None:
         """
@@ -1007,9 +1072,7 @@ class CloudSQLDatabaseHook(BaseHook):
                 suffix = "/.s.PGSQL.5432"
             else:
                 suffix = ""
-            expected_path = (
-                f"{self._generate_unique_path()}/{self.project_id}:{self.instance}:{self.database}{suffix}"
-            )
+            expected_path = f"{self._generate_unique_path()}/{self.project_id}:{self.instance}:{self.database}{suffix}"
             if len(expected_path) > UNIX_PATH_MAX:
                 self.log.info("Too long (%s) path: %s", len(expected_path), expected_path)
                 raise AirflowException(
@@ -1032,7 +1095,8 @@ class CloudSQLDatabaseHook(BaseHook):
         random.seed()
         while True:
             candidate = os.path.join(
-                gettempdir(), "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+                gettempdir(),
+                "".join(random.choices(string.ascii_lowercase + string.digits, k=8)),
             )
             if not os.path.exists(candidate):
                 return candidate
@@ -1060,12 +1124,18 @@ class CloudSQLDatabaseHook(BaseHook):
                 format_string = proxy_uris["tcp"]
             else:
                 format_string = proxy_uris["socket"]
-                socket_path = f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
+                socket_path = (
+                    f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
+                )
         else:
             public_uris = database_uris["public"]
             if self.use_ssl:
                 format_string = public_uris["ssl"]
-                ssl_spec = {"cert": self.sslcert, "key": self.sslkey, "ca": self.sslrootcert}
+                ssl_spec = {
+                    "cert": self.sslcert,
+                    "key": self.sslkey,
+                    "ca": self.sslrootcert,
+                }
             else:
                 format_string = public_uris["non-ssl"]
         if not self.user:
@@ -1128,7 +1198,9 @@ class CloudSQLDatabaseHook(BaseHook):
         :return: The Cloud SQL Proxy runner.
         """
         if not self.use_proxy:
-            raise ValueError("Proxy runner can only be retrieved in case of use_proxy = True")
+            raise ValueError(
+                "Proxy runner can only be retrieved in case of use_proxy = True"
+            )
         if not self.sql_proxy_unique_path:
             raise ValueError("The sql_proxy_unique_path should be set")
         return CloudSqlProxyRunner(
@@ -1150,7 +1222,9 @@ class CloudSQLDatabaseHook(BaseHook):
         if self.database_type == "postgres":
             from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-            db_hook: BaseHook = PostgresHook(connection=connection, database=self.database)
+            db_hook: BaseHook = PostgresHook(
+                connection=connection, database=self.database
+            )
         else:
             from airflow.providers.mysql.hooks.mysql import MySqlHook
 
@@ -1166,7 +1240,9 @@ class CloudSQLDatabaseHook(BaseHook):
             if not self.db_hook:
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
-                raise ValueError(f"The db_hook should be PostgresHook and is {type(self.db_hook)}")
+                raise ValueError(
+                    f"The db_hook should be PostgresHook and is {type(self.db_hook)}"
+                )
             conn = getattr(self.db_hook, "conn")
             if conn and conn.notices:
                 for output in self.db_hook.conn.notices:

@@ -51,7 +51,11 @@ if AIRFLOW_V_2_10_PLUS:
 
         @hookimpl
         def on_task_instance_failed(
-            self, previous_state, task_instance, error: None | str | BaseException, session
+            self,
+            previous_state,
+            task_instance,
+            error: None | str | BaseException,
+            session,
         ):
             self.state.append(TaskInstanceState.FAILED)
 else:

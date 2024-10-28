@@ -37,7 +37,9 @@ PYTHON_VERSION = f"{sys.version_info.major}{sys.version_info.minor}"
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
-CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+CLOUDPICKLE_MARKER = pytest.mark.skipif(
+    not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed"
+)
 
 _Invalid = Any
 
@@ -77,7 +79,9 @@ class TestPythonVirtualenvDecorator:
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+        with pytest.warns(
+            RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"
+        ):
             with dag_maker(serialized=True):
                 ret = f()
             dag_maker.create_dagrun()
@@ -105,7 +109,11 @@ class TestPythonVirtualenvDecorator:
         ],
     )
     def test_no_system_site_packages(self, serializer, dag_maker):
-        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, serializer=serializer)
+        @task.virtualenv(
+            system_site_packages=False,
+            python_version=PYTHON_VERSION,
+            serializer=serializer,
+        )
         def f():
             try:
                 import funcsigs  # noqa: F401
@@ -211,7 +219,9 @@ class TestPythonVirtualenvDecorator:
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )
@@ -257,12 +267,16 @@ class TestPythonVirtualenvDecorator:
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )
     def test_python_3(self, serializer, extra_requirements, dag_maker):
-        @task.virtualenv(python_version="3", serializer=serializer, requirements=extra_requirements)
+        @task.virtualenv(
+            python_version="3", serializer=serializer, requirements=extra_requirements
+        )
         def f():
             import sys
 
@@ -284,7 +298,9 @@ class TestPythonVirtualenvDecorator:
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(
+                "cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"
+            ),
             pytest.param(None, [], id="default"),
         ],
     )

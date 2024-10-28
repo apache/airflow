@@ -109,7 +109,9 @@ class TestDagCode:
                 assert DagCode.has_dag(dag.fileloc)
                 dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
                 result = (
-                    session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
+                    session.query(
+                        DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code
+                    )
                     .filter(DagCode.fileloc == dag.fileloc)
                     .filter(DagCode.fileloc_hash == dag_fileloc_hash)
                     .one()
@@ -133,7 +135,11 @@ class TestDagCode:
             mock_open.side_effect = FileNotFoundError
             dag_code = DagCode.get_code_by_fileloc(example_dag.fileloc)
 
-            for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
+            for test_string in [
+                "example_bash_operator",
+                "also_run_this",
+                "run_this_last",
+            ]:
                 assert test_string in dag_code
 
     def test_db_code_updated_on_dag_file_change(self):
@@ -142,20 +148,30 @@ class TestDagCode:
         example_dag.sync_to_db()
 
         with create_session() as session:
-            result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
+            result = (
+                session.query(DagCode)
+                .filter(DagCode.fileloc == example_dag.fileloc)
+                .one()
+            )
 
             assert result.fileloc == example_dag.fileloc
             assert result.source_code is not None
 
         with patch("airflow.models.dagcode.os.path.getmtime") as mock_mtime:
-            mock_mtime.return_value = (result.last_updated + timedelta(seconds=1)).timestamp()
+            mock_mtime.return_value = (
+                result.last_updated + timedelta(seconds=1)
+            ).timestamp()
 
             with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
                 mock_code.return_value = "# dummy code"
                 example_dag.sync_to_db()
 
                 with create_session() as session:
-                    new_result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
+                    new_result = (
+                        session.query(DagCode)
+                        .filter(DagCode.fileloc == example_dag.fileloc)
+                        .one()
+                    )
 
                     assert new_result.fileloc == example_dag.fileloc
                     assert new_result.source_code == "# dummy code"

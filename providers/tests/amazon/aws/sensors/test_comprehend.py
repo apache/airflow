@@ -90,9 +90,7 @@ class TestComprehendStartPiiEntitiesDetectionJobCompletedSensor:
 
 class TestComprehendCreateDocumentClassifierCompletedSensor:
     SENSOR = ComprehendCreateDocumentClassifierCompletedSensor
-    DOCUMENT_CLASSIFIER_ARN = (
-        "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
-    )
+    DOCUMENT_CLASSIFIER_ARN = "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
     EVALUATION_METRICS = {
         "EvaluationMetrics": {
             "Accuracy": 1,

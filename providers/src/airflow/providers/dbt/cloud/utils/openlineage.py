@@ -57,7 +57,10 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     :return: An empty OperatorLineage object indicating the completion of events generation.
     """
-    from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
+    from openlineage.common.provider.dbt import (
+        DbtCloudArtifactProcessor,
+        ParentRunMetadata,
+    )
 
     try:
         from airflow.providers.openlineage.conf import namespace
@@ -76,12 +79,16 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     # if no account_id set this will fallback
     job_run = operator.hook.get_job_run(
-        run_id=operator.run_id, account_id=operator.account_id, include_related=["run_steps,job"]
+        run_id=operator.run_id,
+        account_id=operator.account_id,
+        include_related=["run_steps,job"],
     ).json()["data"]
     job = job_run["job"]
     # retrieve account_id from job and use that starting from this line
     account_id = job["account_id"]
-    project = operator.hook.get_project(project_id=job["project_id"], account_id=account_id).json()["data"]
+    project = operator.hook.get_project(
+        project_id=job["project_id"], account_id=account_id
+    ).json()["data"]
     connection = project["connection"]
     execute_steps = job["execute_steps"]
     run_steps = job_run["run_steps"]
@@ -99,7 +106,9 @@ def generate_openlineage_events_from_dbt_cloud_run(
     # catalog is available only if docs are generated
     catalog = None
     with suppress(Exception):
-        catalog = operator.hook.get_job_run_artifact(operator.run_id, path="catalog.json").json()["data"]
+        catalog = operator.hook.get_job_run_artifact(
+            operator.run_id, path="catalog.json"
+        ).json()["data"]
 
     async def get_artifacts_for_steps(steps, artifacts):
         """Get artifacts for a list of steps concurrently."""
@@ -116,7 +125,9 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     # get artifacts for steps concurrently
     step_artifacts = asyncio.run(
-        get_artifacts_for_steps(steps=steps, artifacts=["manifest.json", "run_results.json"])
+        get_artifacts_for_steps(
+            steps=steps, artifacts=["manifest.json", "run_results.json"]
+        )
     )
 
     # process each step in loop, sending generated events in the same order as steps

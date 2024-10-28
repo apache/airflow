@@ -95,7 +95,11 @@ class DataplexDataQualityJobTrigger(BaseTrigger):
                 data_scan_id=self.data_scan_id,
             )
             state = job.state
-            if state in (DataScanJob.State.FAILED, DataScanJob.State.SUCCEEDED, DataScanJob.State.CANCELLED):
+            if state in (
+                DataScanJob.State.FAILED,
+                DataScanJob.State.SUCCEEDED,
+                DataScanJob.State.CANCELLED,
+            ):
                 break
             self.log.info(
                 "Current state is: %s, sleeping for %s seconds.",
@@ -103,7 +107,9 @@ class DataplexDataQualityJobTrigger(BaseTrigger):
                 self.polling_interval_seconds,
             )
             await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)})
+        yield TriggerEvent(
+            {"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)}
+        )
 
     def _convert_to_dict(self, job: DataScanJob) -> dict:
         """Return a representation of a DataScanJob instance as a dict."""
@@ -177,7 +183,11 @@ class DataplexDataProfileJobTrigger(BaseTrigger):
                 data_scan_id=self.data_scan_id,
             )
             state = job.state
-            if state in (DataScanJob.State.FAILED, DataScanJob.State.SUCCEEDED, DataScanJob.State.CANCELLED):
+            if state in (
+                DataScanJob.State.FAILED,
+                DataScanJob.State.SUCCEEDED,
+                DataScanJob.State.CANCELLED,
+            ):
                 break
             self.log.info(
                 "Current state is: %s, sleeping for %s seconds.",
@@ -185,7 +195,9 @@ class DataplexDataProfileJobTrigger(BaseTrigger):
                 self.polling_interval_seconds,
             )
             await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)})
+        yield TriggerEvent(
+            {"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)}
+        )
 
     def _convert_to_dict(self, job: DataScanJob) -> dict:
         """Return a representation of a DataScanJob instance as a dict."""

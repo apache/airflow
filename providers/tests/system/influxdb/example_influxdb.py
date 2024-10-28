@@ -33,8 +33,12 @@ def test_influxdb_hook():
     print(f"Organization name {influxdb_hook.org_name}")
 
     # Make sure enough permissions to create bucket.
-    influxdb_hook.create_bucket(bucket_name, "Bucket to test influxdb connection", influxdb_hook.org_name)
-    influxdb_hook.write(bucket_name, "test_point", "location", "Prague", "temperature", 25.3, True)
+    influxdb_hook.create_bucket(
+        bucket_name, "Bucket to test influxdb connection", influxdb_hook.org_name
+    )
+    influxdb_hook.write(
+        bucket_name, "test_point", "location", "Prague", "temperature", 25.3, True
+    )
 
     tables = influxdb_hook.query('from(bucket:"test-influx") |> range(start: -10m)')
 

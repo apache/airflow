@@ -31,7 +31,9 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunStatus,
     get_field,
 )
-from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
+from airflow.providers.microsoft.azure.triggers.data_factory import (
+    AzureDataFactoryTrigger,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -141,7 +143,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -162,7 +166,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     @cached_property
     def hook(self) -> AzureDataFactoryHook:
         """Create and return an AzureDataFactoryHook (cached)."""
-        return AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+        return AzureDataFactoryHook(
+            azure_data_factory_conn_id=self.azure_data_factory_conn_id
+        )
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing the %s pipeline.", self.pipeline_name)
@@ -194,7 +200,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                     check_interval=self.check_interval,
                     timeout=self.timeout,
                 ):
-                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                    self.log.info(
+                        "Pipeline run %s has completed successfully.", self.run_id
+                    )
                 else:
                     raise AzureDataFactoryPipelineRunException(
                         f"Pipeline run {self.run_id} has failed or has been cancelled."
@@ -204,7 +212,10 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 pipeline_run_status = self.hook.get_pipeline_run_status(
                     self.run_id, self.resource_group_name, self.factory_name
                 )
-                if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
+                if (
+                    pipeline_run_status
+                    not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES
+                ):
                     self.defer(
                         timeout=self.execution_timeout,
                         trigger=AzureDataFactoryTrigger(
@@ -219,8 +230,13 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                         method_name="execute_complete",
                     )
                 elif pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
-                elif pipeline_run_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
+                    self.log.info(
+                        "Pipeline run %s has completed successfully.", self.run_id
+                    )
+                elif (
+                    pipeline_run_status
+                    in AzureDataFactoryPipelineRunStatus.FAILURE_STATES
+                ):
                     raise AzureDataFactoryPipelineRunException(
                         f"Pipeline run {self.run_id} has failed or has been cancelled."
                     )
@@ -261,6 +277,10 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             ):
-                self.log.info("Pipeline run %s has been cancelled successfully.", self.run_id)
+                self.log.info(
+                    "Pipeline run %s has been cancelled successfully.", self.run_id
+                )
             else:
-                raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} was not cancelled.")
+                raise AzureDataFactoryPipelineRunException(
+                    f"Pipeline run {self.run_id} was not cancelled."
+                )

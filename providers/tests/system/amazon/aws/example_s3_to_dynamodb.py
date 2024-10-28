@@ -99,7 +99,9 @@ with DAG(
 
     create_table = set_up_table(table_name=existing_table_name)
 
-    create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
+    create_bucket = S3CreateBucketOperator(
+        task_id="create_bucket", bucket_name=bucket_name
+    )
 
     create_object = S3CreateObjectOperator(
         task_id="create_object",

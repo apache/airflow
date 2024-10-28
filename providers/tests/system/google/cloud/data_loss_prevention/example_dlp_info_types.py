@@ -38,15 +38,22 @@ from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPListStoredInfoTypesOperator,
     CloudDLPUpdateStoredInfoTypeOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_info_types"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 TEMPLATE_ID = f"dlp-inspect-info-{ENV_ID}"
 ITEM = ContentItem(
@@ -55,7 +62,9 @@ ITEM = ContentItem(
         "rows": [{"values": [{"string_value": "My phone number is (206) 555-0123"}]}],
     }
 )
-INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
+INSPECT_CONFIG = InspectConfig(
+    info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}]
+)
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
@@ -117,7 +126,9 @@ with DAG(
     )
 
     get_stored_info_type = CloudDLPGetStoredInfoTypeOperator(
-        task_id="get_stored_info_type", project_id=PROJECT_ID, stored_info_type_id=CUSTOM_INFO_TYPE_ID
+        task_id="get_stored_info_type",
+        project_id=PROJECT_ID,
+        stored_info_type_id=CUSTOM_INFO_TYPE_ID,
     )
 
     # [START howto_operator_dlp_update_info_type]
@@ -139,7 +150,9 @@ with DAG(
     delete_info_type.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

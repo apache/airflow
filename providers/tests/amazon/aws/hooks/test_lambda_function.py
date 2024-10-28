@@ -50,7 +50,8 @@ class TestLambdaHook:
         assert hook.conn is not None
 
     @mock.patch(
-        "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn", new_callable=mock.PropertyMock
+        "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn",
+        new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
         "payload, invoke_payload",
@@ -142,7 +143,10 @@ class TestLambdaHook:
 
     def test_encode_log_result(self):
         assert LambdaHook.encode_log_result(LOG_RESPONSE) == ["FOO", "", "BAR", ""]
-        assert LambdaHook.encode_log_result(LOG_RESPONSE, keep_empty_lines=False) == ["FOO", "BAR"]
+        assert LambdaHook.encode_log_result(LOG_RESPONSE, keep_empty_lines=False) == [
+            "FOO",
+            "BAR",
+        ]
         assert LambdaHook.encode_log_result("") == []
 
     @pytest.mark.parametrize(

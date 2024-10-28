@@ -31,7 +31,10 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -249,11 +252,14 @@ class StackdriverHook(GoogleBaseHook):
 
         record = json.loads(alerts)
         existing_policies = [
-            policy["name"] for policy in self.list_alert_policies(project_id=project_id, format_="dict")
+            policy["name"]
+            for policy in self.list_alert_policies(project_id=project_id, format_="dict")
         ]
         existing_channels = [
             channel["name"]
-            for channel in self.list_notification_channels(project_id=project_id, format_="dict")
+            for channel in self.list_notification_channels(
+                project_id=project_id, format_="dict"
+            )
         ]
         policies_ = []
         channels = []
@@ -265,9 +271,7 @@ class StackdriverHook(GoogleBaseHook):
         channel_name_map = {}
 
         for channel in channels:
-            channel.verification_status = (
-                monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
-            )
+            channel.verification_status = monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
 
             if channel.name in existing_channels:
                 channel_client.update_notification_channel(
@@ -280,7 +284,10 @@ class StackdriverHook(GoogleBaseHook):
                 old_name = channel.name
                 channel.name = None
                 new_channel = channel_client.create_notification_channel(
-                    request={"name": f"projects/{project_id}", "notification_channel": channel},
+                    request={
+                        "name": f"projects/{project_id}",
+                        "notification_channel": channel,
+                    },
                     retry=retry,
                     timeout=timeout,
                     metadata=metadata,
@@ -337,10 +344,15 @@ class StackdriverHook(GoogleBaseHook):
         policy_client = self._get_policy_client()
         try:
             policy_client.delete_alert_policy(
-                request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
+                request={"name": name},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata or (),
             )
         except HttpError as err:
-            raise AirflowException(f"Delete alerting policy failed. Error was {err.content}")
+            raise AirflowException(
+                f"Delete alerting policy failed. Error was {err.content}"
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_notification_channels(
@@ -527,7 +539,9 @@ class StackdriverHook(GoogleBaseHook):
         record = json.loads(channels)
         existing_channels = [
             channel["name"]
-            for channel in self.list_notification_channels(project_id=project_id, format_="dict")
+            for channel in self.list_notification_channels(
+                project_id=project_id, format_="dict"
+            )
         ]
         channels_list = []
         channel_name_map = {}
@@ -536,9 +550,7 @@ class StackdriverHook(GoogleBaseHook):
             channels_list.append(NotificationChannel(**channel))
 
         for channel in channels_list:
-            channel.verification_status = (
-                monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
-            )
+            channel.verification_status = monitoring_v3.NotificationChannel.VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
 
             if channel.name in existing_channels:
                 channel_client.update_notification_channel(
@@ -551,7 +563,10 @@ class StackdriverHook(GoogleBaseHook):
                 old_name = channel.name
                 channel.name = None
                 new_channel = channel_client.create_notification_channel(
-                    request={"name": f"projects/{project_id}", "notification_channel": channel},
+                    request={
+                        "name": f"projects/{project_id}",
+                        "notification_channel": channel,
+                    },
                     retry=retry,
                     timeout=timeout,
                     metadata=metadata,
@@ -582,7 +597,12 @@ class StackdriverHook(GoogleBaseHook):
         channel_client = self._get_channel_client()
         try:
             channel_client.delete_notification_channel(
-                request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
+                request={"name": name},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata or (),
             )
         except HttpError as err:
-            raise AirflowException(f"Delete notification channel failed. Error was {err.content}")
+            raise AirflowException(
+                f"Delete notification channel failed. Error was {err.content}"
+            )

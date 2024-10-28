@@ -130,7 +130,11 @@ class TestDingdingHook:
             "message": msg,
             "at_all": True,
         }
-        expect = {"msgtype": "markdown", "markdown": msg, "at": {"atMobiles": None, "isAtAll": True}}
+        expect = {
+            "msgtype": "markdown",
+            "markdown": msg,
+            "at": {"atMobiles": None, "isAtAll": True},
+        }
         hook = DingdingHook(**config)
         message = hook._build_message()
         assert json.dumps(expect) == message
@@ -142,7 +146,11 @@ class TestDingdingHook:
             "messageUrl": "https://airflow.apache.org",
             "picURL": "https://airflow.apache.org/_images/pin_large.png",
         }
-        config = {"dingding_conn_id": self.conn_id, "message_type": "link", "message": msg}
+        config = {
+            "dingding_conn_id": self.conn_id,
+            "message_type": "link",
+            "message": msg,
+        }
         expect = {"msgtype": "link", "link": msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
@@ -159,7 +167,11 @@ class TestDingdingHook:
             "singleTitle": "read more",
             "singleURL": "https://airflow.apache.org",
         }
-        config = {"dingding_conn_id": self.conn_id, "message_type": "actionCard", "message": msg}
+        config = {
+            "dingding_conn_id": self.conn_id,
+            "message_type": "actionCard",
+            "message": msg,
+        }
         expect = {"msgtype": "actionCard", "actionCard": msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
@@ -174,11 +186,21 @@ class TestDingdingHook:
             "hideAvatar": "0",
             "btnOrientation": "0",
             "btns": [
-                {"title": "Airflow Documentation", "actionURL": "https://airflow.apache.org"},
-                {"title": "Airflow GitHub", "actionURL": "https://github.com/apache/airflow"},
+                {
+                    "title": "Airflow Documentation",
+                    "actionURL": "https://airflow.apache.org",
+                },
+                {
+                    "title": "Airflow GitHub",
+                    "actionURL": "https://github.com/apache/airflow",
+                },
             ],
         }
-        config = {"dingding_conn_id": self.conn_id, "message_type": "actionCard", "message": msg}
+        config = {
+            "dingding_conn_id": self.conn_id,
+            "message_type": "actionCard",
+            "message": msg,
+        }
         expect = {"msgtype": "actionCard", "actionCard": msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
@@ -204,7 +226,11 @@ class TestDingdingHook:
                 },
             ]
         }
-        config = {"dingding_conn_id": self.conn_id, "message_type": "feedCard", "message": msg}
+        config = {
+            "dingding_conn_id": self.conn_id,
+            "message_type": "feedCard",
+            "message": msg,
+        }
         expect = {"msgtype": "feedCard", "feedCard": msg}
         hook = DingdingHook(**config)
         message = hook._build_message()

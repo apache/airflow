@@ -45,7 +45,12 @@ def example_pgvector_dag():
         pg_hook = PgVectorHook(postgres_conn_id=POSTGRES_CONN_ID)
 
         # Create a table
-        columns = ["id SERIAL PRIMARY KEY", "name VARCHAR(255)", "value INTEGER", "vector_column vector(3)"]
+        columns = [
+            "id SERIAL PRIMARY KEY",
+            "name VARCHAR(255)",
+            "value INTEGER",
+            "vector_column vector(3)",
+        ]
         pg_hook.create_table(TABLE_NAME, columns)
 
         # Create vector extension

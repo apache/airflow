@@ -101,5 +101,7 @@ class SesHook(AwsBaseHook):
         )
 
         return ses_client.send_raw_email(
-            Source=mail_from, Destinations=recipients, RawMessage={"Data": message.as_string()}
+            Source=mail_from,
+            Destinations=recipients,
+            RawMessage={"Data": message.as_string()},
         )

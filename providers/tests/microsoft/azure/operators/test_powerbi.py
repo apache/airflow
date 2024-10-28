@@ -27,7 +27,9 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
 )
-from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
+from airflow.providers.microsoft.azure.operators.powerbi import (
+    PowerBIDatasetRefreshOperator,
+)
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.utils import timezone
 
@@ -76,7 +78,9 @@ IN_PROGRESS_REFRESH_DETAILS = {
 
 
 class TestPowerBIDatasetRefreshOperator(Base):
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(
+        "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection
+    )
     def test_execute_wait_for_termination_with_deferrable(self, connection):
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
@@ -109,7 +113,11 @@ class TestPowerBIDatasetRefreshOperator(Base):
         with pytest.raises(AirflowException):
             operator.execute_complete(
                 context=context,
-                event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
+                event={
+                    "status": "error",
+                    "message": "error",
+                    "dataset_refresh_id": "1234",
+                },
             )
         assert context["ti"].xcom_push.call_count == 0
 

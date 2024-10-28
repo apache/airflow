@@ -34,14 +34,19 @@ from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogLookupEntryOperator,
     CloudDataCatalogUpdateEntryOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "datacatalog_entries"
 
@@ -58,7 +63,9 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     # Create
     # [START howto_operator_gcp_datacatalog_create_entry_group]
@@ -122,7 +129,9 @@ with DAG(
     # [END howto_operator_gcp_datacatalog_get_entry]
 
     # [START howto_operator_gcp_datacatalog_get_entry_result]
-    get_entry_result = BashOperator(task_id="get_entry_result", bash_command=f"echo {get_entry.output}")
+    get_entry_result = BashOperator(
+        task_id="get_entry_result", bash_command=f"echo {get_entry.output}"
+    )
     # [END howto_operator_gcp_datacatalog_get_entry_result]
 
     # Lookup
@@ -134,7 +143,10 @@ with DAG(
     lookup_entry_linked_resource = CloudDataCatalogLookupEntryOperator(
         task_id="lookup_entry",
         linked_resource=current_entry_template.format(
-            project_id=PROJECT_ID, location=LOCATION, entry_group=ENTRY_GROUP_ID, entry=ENTRY_ID
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_group=ENTRY_GROUP_ID,
+            entry=ENTRY_ID,
         ),
     )
     # [END howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
@@ -161,7 +173,10 @@ with DAG(
     # Delete
     # [START howto_operator_gcp_datacatalog_delete_entry]
     delete_entry = CloudDataCatalogDeleteEntryOperator(
-        task_id="delete_entry", location=LOCATION, entry_group=ENTRY_GROUP_ID, entry=ENTRY_ID
+        task_id="delete_entry",
+        location=LOCATION,
+        entry_group=ENTRY_GROUP_ID,
+        entry=ENTRY_ID,
     )
     # [END howto_operator_gcp_datacatalog_delete_entry]
     delete_entry.trigger_rule = TriggerRule.ALL_DONE
@@ -174,7 +189,9 @@ with DAG(
     delete_entry_group.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

@@ -45,7 +45,9 @@ dag = DAG(
 )
 
 
-python_task_getcwd = PythonOperator(task_id="python-task", python_callable=os.getcwd, dag=dag)
+python_task_getcwd = PythonOperator(
+    task_id="python-task", python_callable=os.getcwd, dag=dag
+)
 
 bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)
 
@@ -67,7 +69,9 @@ def test_extract_source_code():
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_code_disabled(mocked_source_enabled):
     mocked_source_enabled.return_value = False
-    operator = PythonOperator(task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1})
+    operator = PythonOperator(
+        task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1}
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = PythonExtractor(operator).extract()
@@ -85,11 +89,15 @@ def test_extract_operator_code_disabled(mocked_source_enabled):
 @patch("airflow.providers.openlineage.conf.is_source_enabled")
 def test_extract_operator_code_enabled(mocked_source_enabled):
     mocked_source_enabled.return_value = True
-    operator = PythonOperator(task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1})
+    operator = PythonOperator(
+        task_id="taskid", python_callable=callable, op_args=(1, 2), op_kwargs={"a": 1}
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = PythonExtractor(operator).extract()
-    assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet("python", CODE)
+    assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet(
+        "python", CODE
+    )
     assert "unknownSourceAttribute" in result.run_facets
     unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
     assert len(unknown_items) == 1

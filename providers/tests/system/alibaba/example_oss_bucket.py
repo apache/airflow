@@ -20,7 +20,10 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.alibaba.cloud.operators.oss import OSSCreateBucketOperator, OSSDeleteBucketOperator
+from airflow.providers.alibaba.cloud.operators.oss import (
+    OSSCreateBucketOperator,
+    OSSDeleteBucketOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "oss_bucket_dag"

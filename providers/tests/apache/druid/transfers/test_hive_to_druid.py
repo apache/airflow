@@ -51,7 +51,10 @@ class TestDruidHook:
         },
     }
 
-    index_spec_config = {"static_path": "/apps/db/warehouse/hive/", "columns": ["country", "segment"]}
+    index_spec_config = {
+        "static_path": "/apps/db/warehouse/hive/",
+        "columns": ["country", "segment"],
+    }
 
     def setup_method(self):
         import requests_mock
@@ -64,12 +67,16 @@ class TestDruidHook:
         session.mount("mock", adapter)
 
     def test_construct_ingest_query(self):
-        operator = HiveToDruidOperator(task_id="hive_to_druid", dag=self.dag, **self.hook_config)
+        operator = HiveToDruidOperator(
+            task_id="hive_to_druid", dag=self.dag, **self.hook_config
+        )
 
         provided_index_spec = operator.construct_ingest_query(**self.index_spec_config)
 
         expected_index_spec = {
-            "hadoopDependencyCoordinates": self.hook_config["hadoop_dependency_coordinates"],
+            "hadoopDependencyCoordinates": self.hook_config[
+                "hadoop_dependency_coordinates"
+            ],
             "type": "index_hadoop",
             "spec": {
                 "dataSchema": {
@@ -89,7 +96,10 @@ class TestDruidHook:
                                 "dimensions": self.index_spec_config["columns"],
                                 "spatialDimensions": [],
                             },
-                            "timestampSpec": {"column": self.hook_config["ts_dim"], "format": "auto"},
+                            "timestampSpec": {
+                                "column": self.hook_config["ts_dim"],
+                                "format": "auto",
+                            },
                             "format": "tsv",
                         },
                     },
@@ -105,7 +115,10 @@ class TestDruidHook:
                     },
                 },
                 "ioConfig": {
-                    "inputSpec": {"paths": self.index_spec_config["static_path"], "type": "static"},
+                    "inputSpec": {
+                        "paths": self.index_spec_config["static_path"],
+                        "type": "static",
+                    },
                     "type": "hadoop",
                 },
             },

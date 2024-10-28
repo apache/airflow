@@ -33,7 +33,12 @@ pytestmark = [pytest.mark.db_test]
 
 class TestRunDBManager:
     @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+        {
+            (
+                "database",
+                "external_db_managers",
+            ): "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        }
     )
     def test_fab_db_manager_is_default(self):
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
@@ -42,7 +47,12 @@ class TestRunDBManager:
         assert run_db_manager._managers == [FABDBManager]
 
     @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+        {
+            (
+                "database",
+                "external_db_managers",
+            ): "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        }
     )
     def test_defining_table_same_name_as_airflow_table_name_raises(self):
         from sqlalchemy import Column, Integer, String
@@ -51,17 +61,25 @@ class TestRunDBManager:
         metadata = run_db_manager._managers[0].metadata
         # Add dag_run table to metadata
         mytable = Table(
-            "dag_run", metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
+            "dag_run",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("name", String(50)),
         )
         metadata._add_table("dag_run", None, mytable)
-        with pytest.raises(AirflowException, match="Table 'dag_run' already exists in the Airflow metadata"):
+        with pytest.raises(
+            AirflowException,
+            match="Table 'dag_run' already exists in the Airflow metadata",
+        ):
             run_db_manager.validate()
         metadata._remove_table("dag_run", None)
 
     @mock.patch.object(RunDBManager, "downgrade")
     @mock.patch.object(RunDBManager, "upgradedb")
     @mock.patch.object(RunDBManager, "initdb")
-    def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, mock_downgrade_db, session):
+    def test_init_db_calls_rundbmanager(
+        self, mock_initdb, mock_upgrade_db, mock_downgrade_db, session
+    ):
         initdb(session=session)
         mock_initdb.assert_called()
         mock_initdb.assert_called_once_with(session)
@@ -72,16 +90,28 @@ class TestRunDBManager:
     @mock.patch.object(RunDBManager, "initdb")
     @mock.patch("alembic.command")
     def test_downgrade_dont_call_rundbmanager(
-        self, mock_alembic_command, mock_initdb, mock_upgrade_db, mock_downgrade_db, session
+        self,
+        mock_alembic_command,
+        mock_initdb,
+        mock_upgrade_db,
+        mock_downgrade_db,
+        session,
     ):
         downgrade(to_revision="base")
-        mock_alembic_command.downgrade.assert_called_once_with(mock.ANY, revision="base", sql=False)
+        mock_alembic_command.downgrade.assert_called_once_with(
+            mock.ANY, revision="base", sql=False
+        )
         mock_upgrade_db.assert_not_called()
         mock_initdb.assert_not_called()
         mock_downgrade_db.assert_not_called()
 
     @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+        {
+            (
+                "database",
+                "external_db_managers",
+            ): "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        }
     )
     @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     def test_rundbmanager_calls_dbmanager_methods(self, mock_fabdb_manager, session):

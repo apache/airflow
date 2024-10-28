@@ -47,7 +47,10 @@ class TestSnowflakeSqlApiTrigger:
         and classpath.
         """
         classpath, kwargs = self.TRIGGER.serialize()
-        assert classpath == "airflow.providers.snowflake.triggers.snowflake_trigger.SnowflakeSqlApiTrigger"
+        assert (
+            classpath
+            == "airflow.providers.snowflake.triggers.snowflake_trigger.SnowflakeSqlApiTrigger"
+        )
         assert kwargs == {
             "poll_interval": POLL_INTERVAL,
             "query_ids": ["uuid"],
@@ -57,8 +60,12 @@ class TestSnowflakeSqlApiTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status")
-    @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
+    @mock.patch(
+        f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status"
+    )
+    @mock.patch(
+        f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async"
+    )
     async def test_snowflake_sql_trigger_running(
         self, mock_get_sql_api_query_status_async, mock_get_query_status
     ):
@@ -73,8 +80,12 @@ class TestSnowflakeSqlApiTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status")
-    @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
+    @mock.patch(
+        f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status"
+    )
+    @mock.patch(
+        f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async"
+    )
     async def test_snowflake_sql_trigger_completed(
         self, mock_get_sql_api_query_status_async, mock_get_query_status
     ):
@@ -82,7 +93,10 @@ class TestSnowflakeSqlApiTrigger:
         Test SnowflakeSqlApiTrigger run method with success status and mock the get_sql_api_query_status
          result and  get_query_status to False.
         """
-        mock_get_query_status.return_value = {"status": "success", "statement_handles": ["uuid", "uuid1"]}
+        mock_get_query_status.return_value = {
+            "status": "success",
+            "statement_handles": ["uuid", "uuid1"],
+        }
         statement_query_ids = ["uuid", "uuid1"]
         mock_get_sql_api_query_status_async.return_value = {
             "message": "Statement executed successfully.",
@@ -92,11 +106,20 @@ class TestSnowflakeSqlApiTrigger:
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "statement_query_ids": statement_query_ids}) == actual
+        assert (
+            TriggerEvent(
+                {"status": "success", "statement_query_ids": statement_query_ids}
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
-    async def test_snowflake_sql_trigger_failure_status(self, mock_get_sql_api_query_status_async):
+    @mock.patch(
+        f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async"
+    )
+    async def test_snowflake_sql_trigger_failure_status(
+        self, mock_get_sql_api_query_status_async
+    ):
         """Test SnowflakeSqlApiTrigger task is executed and triggered with failure status."""
         mock_response = {
             "status": "error",
@@ -110,8 +133,12 @@ class TestSnowflakeSqlApiTrigger:
         assert TriggerEvent(mock_response) == actual
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
-    async def test_snowflake_sql_trigger_exception(self, mock_get_sql_api_query_status_async):
+    @mock.patch(
+        f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async"
+    )
+    async def test_snowflake_sql_trigger_exception(
+        self, mock_get_sql_api_query_status_async
+    ):
         """Tests the SnowflakeSqlApiTrigger does not fire if there is an exception."""
         mock_get_sql_api_query_status_async.side_effect = Exception("Test exception")
 

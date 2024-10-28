@@ -81,7 +81,9 @@ def convert_env_vars(env_vars: list[k8s.V1EnvVar] | dict[str, str]) -> list[k8s.
     return env_vars
 
 
-def convert_env_vars_or_raise_error(env_vars: list[k8s.V1EnvVar] | dict[str, str]) -> list[k8s.V1EnvVar]:
+def convert_env_vars_or_raise_error(
+    env_vars: list[k8s.V1EnvVar] | dict[str, str],
+) -> list[k8s.V1EnvVar]:
     """
     Separate function to convert env var collection for kubernetes and then raise an error if it is still the wrong type.
 

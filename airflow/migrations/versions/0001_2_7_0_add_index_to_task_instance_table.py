@@ -51,5 +51,9 @@ def downgrade():
 
     import sqlalchemy
 
-    with suppress(sqlalchemy.exc.DatabaseError):  # mysql does not support drop if exists index
-        op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
+    with suppress(
+        sqlalchemy.exc.DatabaseError
+    ):  # mysql does not support drop if exists index
+        op.drop_index(
+            "ti_state_incl_start_date", table_name="task_instance", if_exists=True
+        )

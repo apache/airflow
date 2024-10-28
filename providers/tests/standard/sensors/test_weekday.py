@@ -46,7 +46,10 @@ TEST_CASE_WEEKDAY_SENSOR_TRUE = {
     "with-enum-dict": {WeekDay.THURSDAY: "some_value"},
     "with-enum-set-2-items": {WeekDay.THURSDAY, WeekDay.FRIDAY},
     "with-enum-list-2-items": [WeekDay.THURSDAY, WeekDay.FRIDAY],
-    "with-enum-dict-2-items": {WeekDay.THURSDAY: "some_value", WeekDay.FRIDAY: "some_value_2"},
+    "with-enum-dict-2-items": {
+        WeekDay.THURSDAY: "some_value",
+        WeekDay.FRIDAY: "some_value_2",
+    },
     "with-string-set": {"Thursday"},
     "with-string-set-2-items": {"Thursday", "Friday"},
     "with-set-mix-types": {"Thursday", WeekDay.FRIDAY},
@@ -73,11 +76,16 @@ class TestDayOfWeekSensor:
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
-        "week_day", TEST_CASE_WEEKDAY_SENSOR_TRUE.values(), ids=TEST_CASE_WEEKDAY_SENSOR_TRUE.keys()
+        "week_day",
+        TEST_CASE_WEEKDAY_SENSOR_TRUE.values(),
+        ids=TEST_CASE_WEEKDAY_SENSOR_TRUE.keys(),
     )
     def test_weekday_sensor_true(self, week_day):
         op = DayOfWeekSensor(
-            task_id="weekday_sensor_check_true", week_day=week_day, use_task_logical_date=True, dag=self.dag
+            task_id="weekday_sensor_check_true",
+            week_day=week_day,
+            use_task_logical_date=True,
+            dag=self.dag,
         )
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
         assert op.week_day == week_day
@@ -97,7 +105,9 @@ class TestDayOfWeekSensor:
 
     def test_invalid_weekday_number(self):
         invalid_week_day = "Thsday"
-        with pytest.raises(AttributeError, match=f'Invalid Week Day passed: "{invalid_week_day}"'):
+        with pytest.raises(
+            AttributeError, match=f'Invalid Week Day passed: "{invalid_week_day}"'
+        ):
             DayOfWeekSensor(
                 task_id="weekday_sensor_invalid_weekday_num",
                 week_day=invalid_week_day,

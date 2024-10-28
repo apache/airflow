@@ -60,7 +60,9 @@ from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 
-BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
+BaseAwsConnection = TypeVar(
+    "BaseAwsConnection", bound=Union[boto3.client, boto3.resource]
+)
 
 if TYPE_CHECKING:
     from aiobotocore.session import AioSession
@@ -148,7 +150,9 @@ class BaseSessionFactory(LoggingMixin):
 
     def _apply_session_kwargs(self, session):
         if self.conn.session_kwargs.get("profile_name", None) is not None:
-            session.set_config_variable("profile", self.conn.session_kwargs["profile_name"])
+            session.set_config_variable(
+                "profile", self.conn.session_kwargs["profile_name"]
+            )
 
         if (
             self.conn.session_kwargs.get("aws_access_key_id", None)
@@ -171,7 +175,9 @@ class BaseSessionFactory(LoggingMixin):
         session.register_component("data_loader", _loader)
         return session
 
-    def create_session(self, deferrable: bool = False) -> boto3.session.Session | AioSession:
+    def create_session(
+        self, deferrable: bool = False
+    ) -> boto3.session.Session | AioSession:
         """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
@@ -208,7 +214,9 @@ class BaseSessionFactory(LoggingMixin):
             session_kwargs=assume_session_kwargs, deferrable=deferrable
         )
 
-    def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
+    def _create_basic_session(
+        self, session_kwargs: dict[str, Any]
+    ) -> boto3.session.Session:
         return boto3.session.Session(**session_kwargs)
 
     def _create_session_with_assume_role(
@@ -229,7 +237,9 @@ class BaseSessionFactory(LoggingMixin):
 
                 credentials = AioDeferredRefreshableCredentials(**params)
             else:
-                credentials = botocore.credentials.DeferredRefreshableCredentials(**params)
+                credentials = botocore.credentials.DeferredRefreshableCredentials(
+                    **params
+                )
         else:
             # Refreshable credentials do have initial credentials
             params = {
@@ -242,7 +252,11 @@ class BaseSessionFactory(LoggingMixin):
 
                 credentials = AioRefreshableCredentials.create_from_metadata(**params)
             else:
-                credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(**params)
+                credentials = (
+                    botocore.credentials.RefreshableCredentials.create_from_metadata(
+                        **params
+                    )
+                )
 
         if deferrable:
             from aiobotocore.session import get_session as async_get_session
@@ -263,12 +277,16 @@ class BaseSessionFactory(LoggingMixin):
         self.log.debug("Refreshing credentials")
         assume_role_method = self.conn.assume_role_method
         if assume_role_method not in ("assume_role", "assume_role_with_saml"):
-            raise NotImplementedError(f"assume_role_method={assume_role_method} not expected")
+            raise NotImplementedError(
+                f"assume_role_method={assume_role_method} not expected"
+            )
 
         sts_client = self.basic_session.client(
             "sts",
             config=self.config,
-            endpoint_url=self.conn.get_service_endpoint_url("sts", sts_connection_assume=True),
+            endpoint_url=self.conn.get_service_endpoint_url(
+                "sts", sts_connection_assume=True
+            ),
         )
 
         if assume_role_method == "assume_role":
@@ -293,7 +311,9 @@ class BaseSessionFactory(LoggingMixin):
 
     def _assume_role(self, sts_client: boto3.client) -> dict:
         kw = {
-            "RoleSessionName": self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}"),
+            "RoleSessionName": self._strip_invalid_session_name_characters(
+                f"Airflow_{self.conn.conn_id}"
+            ),
             **self.conn.assume_role_kwargs,
             "RoleArn": self.role_arn,
         }
@@ -305,14 +325,18 @@ class BaseSessionFactory(LoggingMixin):
 
         idp_auth_method = saml_config["idp_auth_method"]
         if idp_auth_method == "http_spegno_auth":
-            saml_assertion = self._fetch_saml_assertion_using_http_spegno_auth(saml_config)
+            saml_assertion = self._fetch_saml_assertion_using_http_spegno_auth(
+                saml_config
+            )
         else:
             raise NotImplementedError(
                 f"idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra."
                 'Currently only "http_spegno_auth" is supported, and must be specified.'
             )
 
-        self.log.debug("Doing sts_client.assume_role_with_saml to role_arn=%s", self.role_arn)
+        self.log.debug(
+            "Doing sts_client.assume_role_with_saml to role_arn=%s", self.role_arn
+        )
         return sts_client.assume_role_with_saml(
             RoleArn=self.role_arn,
             PrincipalArn=principal_arn,
@@ -349,7 +373,9 @@ class BaseSessionFactory(LoggingMixin):
 
         return idp_response
 
-    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: dict[str, Any]) -> str:
+    def _fetch_saml_assertion_using_http_spegno_auth(
+        self, saml_config: dict[str, Any]
+    ) -> str:
         # requests_gssapi will need paramiko > 2.6 since you'll need
         # 'gssapi' not 'python-gssapi' from PyPi.
         # https://github.com/paramiko/paramiko/pull/1311
@@ -375,7 +401,9 @@ class BaseSessionFactory(LoggingMixin):
         idp_response = self._get_idp_response(saml_config, auth=auth)
         # Assist with debugging. Note: contains sensitive info!
         xpath = saml_config["saml_response_xpath"]
-        log_idp_response = "log_idp_response" in saml_config and saml_config["log_idp_response"]
+        log_idp_response = (
+            "log_idp_response" in saml_config and saml_config["log_idp_response"]
+        )
         if log_idp_response:
             self.log.warning(
                 "The IDP response contains sensitive information, but log_idp_response is ON (%s).",
@@ -398,7 +426,9 @@ class BaseSessionFactory(LoggingMixin):
     ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
-        federation = str(self.extra_config.get("assume_role_with_web_identity_federation"))
+        federation = str(
+            self.extra_config.get("assume_role_with_web_identity_federation")
+        )
 
         web_identity_token_loader = {
             "file": self._get_file_token_loader,
@@ -418,9 +448,9 @@ class BaseSessionFactory(LoggingMixin):
     def _get_file_token_loader(self):
         from botocore.credentials import FileWebIdentityTokenLoader
 
-        token_file = self.extra_config.get("assume_role_with_web_identity_token_file") or os.getenv(
-            "AWS_WEB_IDENTITY_TOKEN_FILE"
-        )
+        token_file = self.extra_config.get(
+            "assume_role_with_web_identity_token_file"
+        ) or os.getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 
         return FileWebIdentityTokenLoader(token_file)
 
@@ -431,9 +461,13 @@ class BaseSessionFactory(LoggingMixin):
             get_default_id_token_credentials,
         )
 
-        audience = self.extra_config.get("assume_role_with_web_identity_federation_audience")
+        audience = self.extra_config.get(
+            "assume_role_with_web_identity_federation_audience"
+        )
 
-        google_id_token_credentials = get_default_id_token_credentials(target_audience=audience)
+        google_id_token_credentials = get_default_id_token_credentials(
+            target_audience=audience
+        )
 
         def web_identity_token_loader():
             if not google_id_token_credentials.valid:
@@ -506,7 +540,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             # This gets caught immediately, but without it MyPy complains
             # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
             # on the following line and static checks fail.
-            raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
+            raise ValueError(
+                f"Hook info for {cls.conn_type} not found in the Provider Manager."
+            )
         return manager.providers[hook.package_name].version
 
     @staticmethod
@@ -520,7 +556,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         stack = inspect.stack()
         # Find the index of the most recent frame which called the provided function name
         # and pull that frame off the stack.
-        target_frames = [frame for frame in stack if frame.function == target_function_name]
+        target_frames = [
+            frame for frame in stack if frame.function == target_function_name
+        ]
         if target_frames:
             target_frame = target_frames[0][0]
         else:
@@ -601,11 +639,15 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 connection = self.get_connection(self.aws_conn_id)
             except AirflowNotFoundException:
                 self.log.warning(
-                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
+                    "Unable to find AWS Connection ID '%s', switching to empty.",
+                    self.aws_conn_id,
                 )
 
         return AwsConnectionWrapper(
-            conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
+            conn=connection,
+            region_name=self._region_name,
+            botocore_config=self._config,
+            verify=self._verify,
         )
 
     def _resolve_service_name(self, is_resource_type: bool = False) -> str:
@@ -614,11 +656,15 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             # It is possible to write simple conditions, however it make mypy unhappy.
             if self.client_type:
                 if is_resource_type:
-                    raise LookupError("Requested `resource_type`, but `client_type` was set instead.")
+                    raise LookupError(
+                        "Requested `resource_type`, but `client_type` was set instead."
+                    )
                 return self.client_type
             elif self.resource_type:
                 if not is_resource_type:
-                    raise LookupError("Requested `client_type`, but `resource_type` was set instead.")
+                    raise LookupError(
+                        "Requested `client_type`, but `resource_type` was set instead."
+                    )
                 return self.resource_type
 
         raise ValueError(
@@ -665,7 +711,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             .get_caller_identity()["Account"]
         )
 
-    def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
+    def get_session(
+        self, region_name: str | None = None, deferrable: bool = False
+    ) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
         return SessionFactory(
             conn=self.conn_config, region_name=region_name, config=self.config
@@ -698,7 +746,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Get the underlying boto3 client using boto3 session."""
         service_name = self._resolve_service_name(is_resource_type=False)
         session = self.get_session(region_name=region_name, deferrable=deferrable)
-        endpoint_url = self.conn_config.get_service_endpoint_url(service_name=service_name)
+        endpoint_url = self.conn_config.get_service_endpoint_url(
+            service_name=service_name
+        )
         if not isinstance(session, boto3.session.Session):
             return session.create_client(
                 service_name=service_name,
@@ -724,7 +774,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         session = self.get_session(region_name=region_name)
         return session.resource(
             service_name=service_name,
-            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=service_name),
+            endpoint_url=self.conn_config.get_service_endpoint_url(
+                service_name=service_name
+            ),
             config=self._get_config(config),
             verify=self.verify,
         )
@@ -792,7 +844,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Credentials are refreshable, so accessing your access key and
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
-        creds = self.get_session(region_name=region_name).get_credentials().get_frozen_credentials()
+        creds = (
+            self.get_session(region_name=region_name)
+            .get_credentials()
+            .get_frozen_credentials()
+        )
         mask_secret(creds.secret_key)
         if creds.token:
             mask_secret(creds.token)
@@ -834,10 +890,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 min_limit = retry_args.get("min", 1)
                 max_limit = retry_args.get("max", 1)
                 stop_after_delay = retry_args.get("stop_after_delay", 10)
-                tenacity_before_logger = tenacity.before_log(self.log, logging.INFO) if self.log else None
-                tenacity_after_logger = tenacity.after_log(self.log, logging.INFO) if self.log else None
+                tenacity_before_logger = (
+                    tenacity.before_log(self.log, logging.INFO) if self.log else None
+                )
+                tenacity_after_logger = (
+                    tenacity.after_log(self.log, logging.INFO) if self.log else None
+                )
                 default_kwargs = {
-                    "wait": tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
+                    "wait": tenacity.wait_exponential(
+                        multiplier=multiplier, max=max_limit, min=min_limit
+                    ),
                     "retry": tenacity.retry_if_exception(should_retry),
                     "stop": tenacity.stop_after_delay(stop_after_delay),
                     "before": tenacity_before_logger,
@@ -865,7 +927,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                     {
                         "region_name": "us-east-1",
                         "session_kwargs": {"profile_name": "default"},
-                        "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+                        "config_kwargs": {
+                            "retries": {"mode": "standard", "max_attempts": 10}
+                        },
                         "role_arn": "arn:aws:iam::123456789098:role/role-name",
                         "assume_role_method": "assume_role",
                         "assume_role_kwargs": {"RoleSessionName": "airflow"},
@@ -888,7 +952,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             session = self.get_session()
             conn_info = session.client(
                 service_name="sts",
-                endpoint_url=self.conn_config.get_service_endpoint_url("sts", sts_test_connection=True),
+                endpoint_url=self.conn_config.get_service_endpoint_url(
+                    "sts", sts_test_connection=True
+                ),
             ).get_caller_identity()
             metadata = conn_info.pop("ResponseMetadata", {})
             if metadata.get("HTTPStatusCode") != 200:
@@ -901,7 +967,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return True, ", ".join(f"{k}={v!r}" for k, v in conn_info.items())
 
         except Exception as e:
-            return False, f"{type(e).__name__!r} error occurred while testing connection: {e}"
+            return (
+                False,
+                f"{type(e).__name__!r} error occurred while testing connection: {e}",
+            )
 
     @cached_property
     def waiter_path(self) -> os.PathLike[str] | None:
@@ -949,26 +1018,31 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 config = json.loads(config_file.read())
 
             config = self._apply_parameters_value(config, waiter_name, parameters)
-            return BaseBotoWaiter(client=client, model_config=config, deferrable=deferrable).waiter(
-                waiter_name
-            )
+            return BaseBotoWaiter(
+                client=client, model_config=config, deferrable=deferrable
+            ).waiter(waiter_name)
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
         return client.get_waiter(waiter_name)
 
     @staticmethod
-    def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
+    def _apply_parameters_value(
+        config: dict, waiter_name: str, parameters: dict[str, str] | None
+    ) -> dict:
         """Replace potential jinja templates in acceptors definition."""
         # only process the waiter we're going to use to not raise errors for missing params for other waiters.
         acceptors = config["waiters"][waiter_name]["acceptors"]
         for a in acceptors:
             arg = a["argument"]
-            template = jinja2.Template(arg, autoescape=False, undefined=jinja2.StrictUndefined)
+            template = jinja2.Template(
+                arg, autoescape=False, undefined=jinja2.StrictUndefined
+            )
             try:
                 a["argument"] = template.render(parameters or {})
             except jinja2.UndefinedError as e:
                 raise AirflowException(
-                    f"Parameter was not supplied for templated waiter's acceptor '{arg}'", e
+                    f"Parameter was not supplied for templated waiter's acceptor '{arg}'",
+                    e,
                 )
         return config
 

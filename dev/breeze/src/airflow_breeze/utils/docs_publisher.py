@@ -23,7 +23,10 @@ from pathlib import Path
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.helm_chart_utils import chart_version
-from airflow_breeze.utils.packages import get_provider_packages_metadata, get_short_package_name
+from airflow_breeze.utils.packages import (
+    get_provider_packages_metadata,
+    get_short_package_name,
+)
 from airflow_breeze.utils.publish_docs_helpers import pretty_format_path
 
 PROCESS_TIMEOUT = 15 * 60
@@ -66,7 +69,9 @@ class DocsPublisher:
         if self.package_name == "apache-airflow":
             return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
-            provider = get_provider_packages_metadata().get(get_short_package_name(self.package_name))
+            provider = get_provider_packages_metadata().get(
+                get_short_package_name(self.package_name)
+            )
             return provider["versions"][0]
         if self.package_name == "helm-chart":
             return chart_version()
@@ -85,18 +90,25 @@ class DocsPublisher:
         output_dir = os.path.join(airflow_site_dir, self._publish_dir)
         pretty_source = pretty_format_path(self._build_dir, os.getcwd())
         pretty_target = pretty_format_path(output_dir, airflow_site_dir)
-        get_console(output=self.output).print(f"Copy directory: {pretty_source} => {pretty_target}")
+        get_console(output=self.output).print(
+            f"Copy directory: {pretty_source} => {pretty_target}"
+        )
         if os.path.exists(output_dir):
             if self.is_versioned:
                 if override_versioned:
-                    get_console(output=self.output).print(f"Overriding previously existing {output_dir}! ")
+                    get_console(output=self.output).print(
+                        f"Overriding previously existing {output_dir}! "
+                    )
                 else:
                     get_console(output=self.output).print(
                         f"Skipping previously existing {output_dir}! "
                         f"Delete it manually if you want to regenerate it!"
                     )
                     get_console(output=self.output).print()
-                    return 1, f"Skipping {self.package_name}: Previously existing directory"
+                    return (
+                        1,
+                        f"Skipping {self.package_name}: Previously existing directory",
+                    )
             # If output directory exists and is not versioned, delete it
             shutil.rmtree(output_dir)
         shutil.copytree(self._build_dir, output_dir)

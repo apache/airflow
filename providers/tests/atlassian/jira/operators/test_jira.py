@@ -41,7 +41,9 @@ MINIMAL_TEST_TICKET = {
 
 @pytest.fixture
 def mocked_jira_client():
-    with mock.patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True) as m:
+    with mock.patch(
+        "airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True
+    ) as m:
         m.return_value = mock.Mock(name="jira_client_for_test")
         yield m
 
@@ -61,12 +63,16 @@ class TestJiraOperator:
                 )
             ),
         )
-        with mock.patch("airflow.models.baseoperator.BaseOperator.xcom_push", return_value=None) as m:
+        with mock.patch(
+            "airflow.models.baseoperator.BaseOperator.xcom_push", return_value=None
+        ) as m:
             self.mocked_xcom_push = m
             yield
 
     def test_operator_init_with_optional_args(self):
-        jira_operator = JiraOperator(task_id="jira_list_issue_types", jira_method="issue_types")
+        jira_operator = JiraOperator(
+            task_id="jira_list_issue_types", jira_method="issue_types"
+        )
 
         assert jira_operator.jira_method_args == {}
         assert jira_operator.result_processor is None
@@ -88,7 +94,9 @@ class TestJiraOperator:
 
     def test_issue_search(self, mocked_jira_client):
         jql_str = "issuekey=TEST-1226"
-        mocked_jira_client.return_value.jql_get_list_of_tickets.return_value = MINIMAL_TEST_TICKET
+        mocked_jira_client.return_value.jql_get_list_of_tickets.return_value = (
+            MINIMAL_TEST_TICKET
+        )
         op = JiraOperator(
             task_id="search-ticket-test",
             jira_method="jql_get_list_of_tickets",
@@ -102,12 +110,17 @@ class TestJiraOperator:
         self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value="911539")
 
     def test_update_issue(self, mocked_jira_client):
-        mocked_jira_client.return_value.issue_add_comment.return_value = MINIMAL_TEST_TICKET
+        mocked_jira_client.return_value.issue_add_comment.return_value = (
+            MINIMAL_TEST_TICKET
+        )
 
         op = JiraOperator(
             task_id="add_comment_test",
             jira_method="issue_add_comment",
-            jira_method_args={"issue_key": MINIMAL_TEST_TICKET.get("key"), "comment": "this is test comment"},
+            jira_method_args={
+                "issue_key": MINIMAL_TEST_TICKET.get("key"),
+                "comment": "this is test comment",
+            },
         )
 
         op.execute({})

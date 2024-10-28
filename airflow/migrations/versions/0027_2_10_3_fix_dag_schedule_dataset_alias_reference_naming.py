@@ -66,10 +66,15 @@ def _rename_fk_constraint(
 
 def upgrade():
     """Rename dag_schedule_dataset_alias_reference constraint."""
-    with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
+    with op.batch_alter_table(
+        "dag_schedule_dataset_alias_reference", schema=None
+    ) as batch_op:
         bind = op.get_context().bind
         insp = inspect(bind)
-        fk_constraints = [fk["name"] for fk in insp.get_foreign_keys("dag_schedule_dataset_alias_reference")]
+        fk_constraints = [
+            fk["name"]
+            for fk in insp.get_foreign_keys("dag_schedule_dataset_alias_reference")
+        ]
 
         # "dsdar_dataset_alias_fkey" was the constraint name defined in the model while "dsdar_dataset_fkey" is the one
         # defined in the previous migration.
@@ -102,10 +107,15 @@ def upgrade():
 
 def downgrade():
     """Undo dag_schedule_dataset_alias_reference constraint rename."""
-    with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
+    with op.batch_alter_table(
+        "dag_schedule_dataset_alias_reference", schema=None
+    ) as batch_op:
         bind = op.get_context().bind
         insp = inspect(bind)
-        fk_constraints = [fk["name"] for fk in insp.get_foreign_keys("dag_schedule_dataset_alias_reference")]
+        fk_constraints = [
+            fk["name"]
+            for fk in insp.get_foreign_keys("dag_schedule_dataset_alias_reference")
+        ]
         if "dsdar_dataset_alias_fkey" in fk_constraints:
             _rename_fk_constraint(
                 batch_op=batch_op,

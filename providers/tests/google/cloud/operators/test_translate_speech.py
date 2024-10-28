@@ -29,20 +29,30 @@ from google.cloud.speech_v1 import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
+from airflow.providers.google.cloud.operators.translate_speech import (
+    CloudTranslateSpeechOperator,
+)
 
 GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestCloudTranslateSpeech:
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook"
+    )
     def test_minimal_green_path(self, mock_translate_hook, mock_speech_hook):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
             results=[
                 SpeechRecognitionResult(
-                    alternatives=[SpeechRecognitionAlternative(transcript="test speech recognition result")]
+                    alternatives=[
+                        SpeechRecognitionAlternative(
+                            transcript="test speech recognition result"
+                        )
+                    ]
                 )
             ]
         )
@@ -99,8 +109,12 @@ class TestCloudTranslateSpeech:
             }
         ] == return_value
 
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook"
+    )
     def test_bad_recognition_response(self, mock_translate_hook, mock_speech_hook):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
             results=[SpeechRecognitionResult()]
@@ -136,14 +150,24 @@ class TestCloudTranslateSpeech:
 
         mock_translate_hook.return_value.translate.assert_not_called()
 
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.FileDetailsLink.persist")
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
-    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.FileDetailsLink.persist"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook"
+    )
     def test_no_audio_uri(self, mock_translate_hook, mock_speech_hook, file_link_mock):
         mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
             results=[
                 SpeechRecognitionResult(
-                    alternatives=[SpeechRecognitionAlternative(transcript="test speech recognition result")]
+                    alternatives=[
+                        SpeechRecognitionAlternative(
+                            transcript="test speech recognition result"
+                        )
+                    ]
                 )
             ]
         )

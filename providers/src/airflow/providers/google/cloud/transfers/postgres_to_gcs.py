@@ -125,8 +125,14 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             available_length = 63 - len(random_sufix) - (len(separator) * 2)
             return separator.join(
                 (
-                    slugify(self.dag_id, allow_unicode=False, max_length=available_length // 2),
-                    slugify(self.task_id, allow_unicode=False, max_length=available_length // 2),
+                    slugify(
+                        self.dag_id, allow_unicode=False, max_length=available_length // 2
+                    ),
+                    slugify(
+                        self.task_id,
+                        allow_unicode=False,
+                        max_length=available_length // 2,
+                    ),
                     random_sufix,
                 )
             )
@@ -172,7 +178,9 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         if isinstance(value, datetime.time):
             formatted_time = time.strptime(str(value), "%H:%M:%S")
             time_delta = datetime.timedelta(
-                hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
+                hours=formatted_time.tm_hour,
+                minutes=formatted_time.tm_min,
+                seconds=formatted_time.tm_sec,
             )
             return str(time_delta)
         if stringify_dict and isinstance(value, dict):

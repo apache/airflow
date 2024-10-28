@@ -26,7 +26,10 @@ import requests
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -81,7 +84,10 @@ class CloudFunctionsHook(GoogleBaseHook):
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                "cloudfunctions", self.api_version, http=http_authorized, cache_discovery=False
+                "cloudfunctions",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
             )
         return self._conn
 
@@ -204,7 +210,13 @@ class CloudFunctionsHook(GoogleBaseHook):
             Cloud connection is used.
         """
         name = f"projects/{project_id}/locations/{location}/functions/{function_id}"
-        operation = self.get_conn().projects().locations().functions().call(name=name, body=input_data)
+        operation = (
+            self.get_conn()
+            .projects()
+            .locations()
+            .functions()
+            .call(name=name, body=input_data)
+        )
         response = operation.execute(num_retries=self.num_retries)
         if "error" in response:
             raise AirflowException(response["error"])

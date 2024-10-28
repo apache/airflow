@@ -36,7 +36,9 @@ DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
-CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+CLOUDPICKLE_MARKER = pytest.mark.skipif(
+    not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed"
+)
 
 
 class TestDockerDecorator:
@@ -73,7 +75,11 @@ class TestDockerDecorator:
         assert len(result) == 50
 
     def test_basic_docker_operator_with_template_fields(self, dag_maker):
-        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
+        @task.docker(
+            image="python:3.9-slim",
+            container_name="python_{{dag_run.dag_id}}",
+            auto_remove="force",
+        )
         def f():
             raise RuntimeError("Should not executed")
 
@@ -118,7 +124,12 @@ class TestDockerDecorator:
     def test_call_decorated_multiple_times(self):
         """Test calling decorated function 21 times in a DAG"""
 
-        @task.docker(image="python:3.9-slim", network_mode="bridge", api_version="auto", auto_remove="force")
+        @task.docker(
+            image="python:3.9-slim",
+            network_mode="bridge",
+            api_version="auto",
+            auto_remove="force",
+        )
         def do_run():
             return 4
 
@@ -152,7 +163,9 @@ class TestDockerDecorator:
             ({"skip_on_exit_code": (100,)}, 101, TaskInstanceState.FAILED),
         ],
     )
-    def test_skip_docker_operator(self, kwargs, actual_exit_code, expected_state, dag_maker):
+    def test_skip_docker_operator(
+        self, kwargs, actual_exit_code, expected_state, dag_maker
+    ):
         @task.docker(image="python:3.9-slim", auto_remove="force", **kwargs)
         def f(exit_code):
             raise SystemExit(exit_code)
@@ -330,7 +343,10 @@ class TestDockerDecorator:
         log_content = str(log_capture_string.getvalue())
         assert 'with open(sys.argv[4], "w") as file:' not in log_content
         last_line_of_docker_operator_log = log_content.splitlines()[-1]
-        assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
+        assert (
+            "ValueError: This task is expected to fail"
+            in last_line_of_docker_operator_log
+        )
 
     @pytest.mark.parametrize(
         "serializer",
@@ -341,16 +357,23 @@ class TestDockerDecorator:
         ],
     )
     def test_ambiguous_serializer(self, dag_maker, serializer):
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True, serializer=serializer)
+        @task.docker(
+            image="python:3.9-slim",
+            auto_remove="force",
+            use_dill=True,
+            serializer=serializer,
+        )
         def f():
             pass
 
         with dag_maker():
             with pytest.warns(
-                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
+                AirflowProviderDeprecationWarning,
+                match="`use_dill` is deprecated and will be removed",
             ):
                 with pytest.raises(
-                    AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
+                    AirflowException,
+                    match="Both 'use_dill' and 'serializer' parameters are set",
                 ):
                     f()
 
@@ -361,7 +384,9 @@ class TestDockerDecorator:
             import dill  # noqa: F401
 
         with dag_maker():
-            with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
+            with pytest.raises(
+                AirflowException, match="Unsupported serializer 'airflow'"
+            ):
                 f()
 
     @pytest.mark.parametrize(
@@ -370,14 +395,16 @@ class TestDockerDecorator:
             pytest.param(
                 "dill",
                 marks=pytest.mark.skipif(
-                    DILL_INSTALLED, reason="For this test case `dill` shouldn't be installed"
+                    DILL_INSTALLED,
+                    reason="For this test case `dill` shouldn't be installed",
                 ),
                 id="dill",
             ),
             pytest.param(
                 "cloudpickle",
                 marks=pytest.mark.skipif(
-                    CLOUDPICKLE_INSTALLED, reason="For this test case `cloudpickle` shouldn't be installed"
+                    CLOUDPICKLE_INSTALLED,
+                    reason="For this test case `cloudpickle` shouldn't be installed",
                 ),
                 id="cloudpickle",
             ),
@@ -396,7 +423,9 @@ class TestDockerDecorator:
 
     @CLOUDPICKLE_MARKER
     def test_add_cloudpickle(self, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="cloudpickle")
+        @task.docker(
+            image="python:3.9-slim", auto_remove="force", serializer="cloudpickle"
+        )
         def f():
             """Ensure cloudpickle is correctly installed."""
             import cloudpickle  # noqa: F401
@@ -423,6 +452,7 @@ class TestDockerDecorator:
 
         with dag_maker():
             with pytest.warns(
-                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
+                AirflowProviderDeprecationWarning,
+                match="`use_dill` is deprecated and will be removed",
             ):
                 f()

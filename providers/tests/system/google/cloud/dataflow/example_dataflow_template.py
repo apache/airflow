@@ -34,14 +34,21 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowStartFlexTemplateOperator,
     DataflowTemplatedJobStartOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "dataflow_template"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
@@ -85,7 +92,9 @@ with DAG(
     catchup=False,
     tags=["example", "dataflow"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -106,7 +115,10 @@ with DAG(
         task_id="start_template_job",
         project_id=PROJECT_ID,
         template="gs://dataflow-templates/latest/Word_Count",
-        parameters={"inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}", "output": GCS_OUTPUT},
+        parameters={
+            "inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}",
+            "output": GCS_OUTPUT,
+        },
         location=LOCATION,
         wait_until_finished=True,
     )
@@ -128,7 +140,10 @@ with DAG(
         task_id="start_template_job_deferrable",
         project_id=PROJECT_ID,
         template="gs://dataflow-templates/latest/Word_Count",
-        parameters={"inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}", "output": GCS_OUTPUT},
+        parameters={
+            "inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}",
+            "output": GCS_OUTPUT,
+        },
         location=LOCATION,
         deferrable=True,
     )
@@ -146,7 +161,9 @@ with DAG(
     # [END howto_operator_start_flex_template_job_deferrable]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

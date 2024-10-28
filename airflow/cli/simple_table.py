@@ -110,15 +110,21 @@ class AirflowConsole(Console):
         }
         renderer = output_to_renderer.get(output)
         if not renderer:
-            raise ValueError(f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer)}")
+            raise ValueError(
+                f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer)}"
+            )
 
         if mapper:
             dict_data: Sequence[dict] = [mapper(d) for d in data]
         elif is_data_sequence(data):
             dict_data = data
         else:
-            raise ValueError("To tabulate non-dictionary data you need to provide `mapper` function")
-        dict_data = [{k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data]
+            raise ValueError(
+                "To tabulate non-dictionary data you need to provide `mapper` function"
+            )
+        dict_data = [
+            {k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data
+        ]
         renderer(dict_data)
 
 

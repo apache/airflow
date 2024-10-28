@@ -25,7 +25,10 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.teradata.hooks.teradata import TeradataHook, _handle_user_query_band_text
+from airflow.providers.teradata.hooks.teradata import (
+    TeradataHook,
+    _handle_user_query_band_text,
+)
 
 
 class TestTeradataHook:
@@ -37,7 +40,9 @@ class TestTeradataHook:
             host="host",
             schema="schema",
         )
-        self.db_hook = TeradataHook(teradata_conn_id="teradata_conn_id", database="test_db")
+        self.db_hook = TeradataHook(
+            teradata_conn_id="teradata_conn_id", database="test_db"
+        )
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
         self.cur = mock.MagicMock(rowcount=0)
@@ -178,9 +183,7 @@ class TestTeradataHook:
         assert mock_connect.call_count == 1
         args = mock_connect.call_args.args
         assert len(args) == 1
-        expected_link = (
-            f"teradatasql://{self.connection.login}:{self.connection.password}@{self.connection.host}"
-        )
+        expected_link = f"teradatasql://{self.connection.login}:{self.connection.password}@{self.connection.host}"
         assert expected_link == args[0]
 
     def test_get_uri(self):
@@ -252,12 +255,17 @@ class TestTeradataHook:
             AirflowProviderDeprecationWarning,
             match="bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
         ):
-            self.test_db_hook.bulk_insert_rows("table", rows, target_fields, commit_every=2)
+            self.test_db_hook.bulk_insert_rows(
+                "table", rows, target_fields, commit_every=2
+            )
         calls = [
             mock.call(
-                "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("1", "2", "3"), ("4", "5", "6")]
+                "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)",
+                [("1", "2", "3"), ("4", "5", "6")],
             ),
-            mock.call("INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("7", "8", "9")]),
+            mock.call(
+                "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("7", "8", "9")]
+            ),
         ]
         self.cur.executemany.assert_has_calls(calls, any_order=True)
 
@@ -319,7 +327,10 @@ class TestTeradataHook:
 
 def test_handle_user_query_band_text_invalid():
     query_band_text = _handle_user_query_band_text("invalid_queryband")
-    assert query_band_text == "invalid_queryband;org=teradata-internal-telem;appname=airflow;"
+    assert (
+        query_band_text
+        == "invalid_queryband;org=teradata-internal-telem;appname=airflow;"
+    )
 
 
 def test_handle_user_query_band_text_override_appname():

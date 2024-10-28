@@ -26,7 +26,11 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -114,13 +118,43 @@ class TestGetDagRun:
     @pytest.mark.parametrize(
         "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
         [
-            (DAG1_ID, DAG1_RUN1_ID, DAG1_RUN1_STATE, DAG1_RUN1_RUN_TYPE, DAG1_RUN1_TRIGGERED_BY, DAG1_NOTE),
-            (DAG1_ID, DAG1_RUN2_ID, DAG1_RUN2_STATE, DAG1_RUN2_RUN_TYPE, DAG1_RUN2_TRIGGERED_BY, None),
-            (DAG2_ID, DAG2_RUN1_ID, DAG2_RUN1_STATE, DAG2_RUN1_RUN_TYPE, DAG2_RUN1_TRIGGERED_BY, None),
-            (DAG2_ID, DAG2_RUN2_ID, DAG2_RUN2_STATE, DAG2_RUN2_RUN_TYPE, DAG2_RUN2_TRIGGERED_BY, None),
+            (
+                DAG1_ID,
+                DAG1_RUN1_ID,
+                DAG1_RUN1_STATE,
+                DAG1_RUN1_RUN_TYPE,
+                DAG1_RUN1_TRIGGERED_BY,
+                DAG1_NOTE,
+            ),
+            (
+                DAG1_ID,
+                DAG1_RUN2_ID,
+                DAG1_RUN2_STATE,
+                DAG1_RUN2_RUN_TYPE,
+                DAG1_RUN2_TRIGGERED_BY,
+                None,
+            ),
+            (
+                DAG2_ID,
+                DAG2_RUN1_ID,
+                DAG2_RUN1_STATE,
+                DAG2_RUN1_RUN_TYPE,
+                DAG2_RUN1_TRIGGERED_BY,
+                None,
+            ),
+            (
+                DAG2_ID,
+                DAG2_RUN2_ID,
+                DAG2_RUN2_STATE,
+                DAG2_RUN2_RUN_TYPE,
+                DAG2_RUN2_TRIGGERED_BY,
+                None,
+            ),
         ],
     )
-    def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
+    def test_get_dag_run(
+        self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note
+    ):
         response = test_client.get(f"/public/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
         body = response.json()
@@ -135,7 +169,10 @@ class TestGetDagRun:
         response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 404
         body = response.json()
-        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+        assert (
+            body["detail"]
+            == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+        )
 
 
 class TestDeleteDagRun:
@@ -147,4 +184,7 @@ class TestDeleteDagRun:
         response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 404
         body = response.json()
-        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+        assert (
+            body["detail"]
+            == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+        )

@@ -47,7 +47,10 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             True,
             [SerializableRow(1, "value1"), SerializableRow(2, "value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            ),
             id="Scalar: Single SQL statement, return_last, split statement",
         ),
         pytest.param(
@@ -56,7 +59,10 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             True,
             [SerializableRow(1, "value1"), SerializableRow(2, "value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            ),
             id="Scalar: Multiple SQL statements, return_last, split statement",
         ),
         pytest.param(
@@ -65,7 +71,10 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             False,
             [SerializableRow(1, "value1"), SerializableRow(2, "value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            ),
             id="Scalar: Single SQL statements, no return_last (doesn't matter), no split statement",
         ),
         pytest.param(
@@ -74,7 +83,10 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             False,
             [SerializableRow(1, "value1"), SerializableRow(2, "value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            ),
             id="Scalar: Single SQL statements, return_last (doesn't matter), no split statement",
         ),
         pytest.param(
@@ -83,7 +95,12 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             False,
             [[SerializableRow(1, "value1"), SerializableRow(2, "value2")]],
             [[("id",), ("value",)]],
-            [([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")])],
+            [
+                (
+                    [("id",), ("value",)],
+                    [Row(id=1, value="value1"), Row(id=2, value="value2")],
+                )
+            ],
             id="Non-Scalar: Single SQL statements in list, no return_last, no split statement",
         ),
         pytest.param(
@@ -96,8 +113,14 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             ],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
-                ([("id2",), ("value2",)], [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")]),
+                (
+                    [("id",), ("value",)],
+                    [Row(id=1, value="value1"), Row(id=2, value="value2")],
+                ),
+                (
+                    [("id2",), ("value2",)],
+                    [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
+                ),
             ],
             id="Non-Scalar: Multiple SQL statements in list, no return_last (no matter), no split statement",
         ),
@@ -111,18 +134,28 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
             ],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([("id",), ("value",)], [Row(id=1, value="value1"), Row(id=2, value="value2")]),
-                ([("id2",), ("value2",)], [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")]),
+                (
+                    [("id",), ("value",)],
+                    [Row(id=1, value="value1"), Row(id=2, value="value2")],
+                ),
+                (
+                    [("id2",), ("value2",)],
+                    [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
+                ),
             ],
             id="Non-Scalar: Multiple SQL statements in list, return_last (no matter), no split statement",
         ),
     ],
 )
-def test_exec_success(sql, return_last, split_statement, hook_results, hook_descriptions, expected_results):
+def test_exec_success(
+    sql, return_last, split_statement, hook_results, hook_descriptions, expected_results
+):
     """
     Test the execute function in case where SQL query was successful.
     """
-    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+    with patch(
+        "airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook"
+    ) as db_mock_class:
         op = DatabricksSqlOperator(
             task_id=TASK_ID,
             sql=sql,
@@ -204,7 +237,10 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [
                 [SerializableRow2(1, "value1"), SerializableRow(2, "value2")],
-                [SerializableRow(id=1, value="value1"), SerializableRow(id=2, value="value2")],
+                [
+                    SerializableRow(id=1, value="value1"),
+                    SerializableRow(id=2, value="value2"),
+                ],
             ],
             True,
             id="Non-Scalar: return_last False and split_statement is True",
@@ -249,13 +285,22 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
 )
 @pytest.mark.parametrize("output_format", ["csv", "json", "jsonl"])
 def test_exec_write_file(
-    return_last, split_statements, sql, descriptions, hook_results, do_xcom_push, output_format, tmp_path
+    return_last,
+    split_statements,
+    sql,
+    descriptions,
+    hook_results,
+    do_xcom_push,
+    output_format,
+    tmp_path,
 ):
     """
     Test the execute function in case where SQL query was successful
     and data is written as CSV, JSON.
     """
-    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+    with patch(
+        "airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook"
+    ) as db_mock_class:
         path = tmp_path / "testfile"
         op = DatabricksSqlOperator(
             task_id=TASK_ID,

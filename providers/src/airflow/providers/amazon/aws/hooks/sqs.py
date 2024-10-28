@@ -50,7 +50,9 @@ class SqsHook(AwsBaseHook):
         :param attributes: additional attributes for the queue (default: None)
         :return: dict with the information about the queue.
         """
-        return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
+        return self.get_conn().create_queue(
+            QueueName=queue_name, Attributes=attributes or {}
+        )
 
     def send_message(
         self,

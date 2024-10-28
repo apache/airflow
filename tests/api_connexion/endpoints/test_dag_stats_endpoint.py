@@ -28,7 +28,11 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -171,7 +175,8 @@ class TestDagStatsEndpoint:
 
         dag_ids = "dag_stats_dag,dag_stats_dag_2"
         response = self.client.get(
-            f"api/v1/dagStats?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
+            f"api/v1/dagStats?dag_ids={dag_ids}",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert len(response.json["dags"]) == 2
@@ -358,13 +363,15 @@ class TestDagStatsEndpoint:
     def test_should_raises_401_unauthenticated(self):
         dag_ids = "dag_stats_dag,dag_stats_dag_2"
         response = self.client.get(
-            f"api/v1/dagStats?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "no_user"}
+            f"api/v1/dagStats?dag_ids={dag_ids}",
+            environ_overrides={"REMOTE_USER": "no_user"},
         )
         assert response.status_code == 401
 
     def test_should_raises_403_no_permission(self):
         dag_ids = "dag_stats_dag,dag_stats_dag_2"
         response = self.client.get(
-            f"api/v1/dagStats?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            f"api/v1/dagStats?dag_ids={dag_ids}",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403

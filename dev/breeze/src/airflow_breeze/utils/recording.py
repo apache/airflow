@@ -36,7 +36,9 @@ def generating_command_images() -> bool:
     return "RECORD_BREEZE_TITLE" in os.environ or "regenerate-command-images" in sys.argv
 
 
-def enable_recording_of_help_output(path: str, title: str | None, width: str | None, unique_id: str | None):
+def enable_recording_of_help_output(
+    path: str, title: str | None, width: str | None, unique_id: str | None
+):
     import rich_click as click
 
     if not title:
@@ -61,7 +63,9 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
 
     from rich_click import RichHelpConfiguration
 
-    def create_recording_console(config: RichHelpConfiguration, file: IO[str] | None = None) -> Console:
+    def create_recording_console(
+        config: RichHelpConfiguration, file: IO[str] | None = None
+    ) -> Console:
         recording_config = deepcopy(config)
         recording_config.width = width_int
         recording_config.force_terminal = True

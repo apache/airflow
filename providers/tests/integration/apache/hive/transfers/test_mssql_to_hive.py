@@ -45,7 +45,10 @@ class TestMsSqlToHiveTransfer:
                             City varchar(255)
                             )""")
         self.kwargs = dict(
-            sql=f"SELECT * FROM {TEST_TABLE_ID}", hive_table="table", task_id="test_mssql_to_hive", dag=None
+            sql=f"SELECT * FROM {TEST_TABLE_ID}",
+            hive_table="table",
+            task_id="test_mssql_to_hive",
+            dag=None,
         )
 
     def teardown_method(self):
@@ -61,7 +64,9 @@ class TestMsSqlToHiveTransfer:
         mssql_to_hive_transfer.execute(context={})
 
         mock_tmp_file.assert_called_with(mode="w", encoding="utf-8")
-        mock_csv.writer.assert_called_once_with(mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter)
+        mock_csv.writer.assert_called_once_with(
+            mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter
+        )
         mock_hive_hook.return_value.load_file.assert_has_calls(
             [
                 call(

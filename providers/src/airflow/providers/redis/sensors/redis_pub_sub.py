@@ -38,7 +38,9 @@ class RedisPubSubSensor(BaseSensorOperator):
     template_fields: Sequence[str] = ("channels",)
     ui_color = "#f0eee4"
 
-    def __init__(self, *, channels: list[str] | str, redis_conn_id: str, **kwargs) -> None:
+    def __init__(
+        self, *, channels: list[str] | str, redis_conn_id: str, **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
@@ -58,7 +60,9 @@ class RedisPubSubSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
         """
-        self.log.info("RedisPubSubSensor checking for message on channels: %s", self.channels)
+        self.log.info(
+            "RedisPubSubSensor checking for message on channels: %s", self.channels
+        )
         message = self.pubsub.get_message()
         self.log.info("Message %s from channel %s", message, self.channels)
 

@@ -86,7 +86,9 @@ class TestPluginsRBAC:
 
         appbuilder_class_name = str(v_appbuilder_package["view"].__class__.__name__)
         plugin_views = [
-            view for view in self.appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
+            view
+            for view in self.appbuilder.baseviews
+            if view.blueprint.name == appbuilder_class_name
         ]
 
         assert len(plugin_views) == 1
@@ -143,7 +145,10 @@ class TestPluginsRBAC:
 
     def test_app_static_folder(self):
         # Blueprint static folder should be properly set
-        assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
+        assert (
+            AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static"
+            == Path(self.app.static_folder).resolve()
+        )
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
@@ -159,7 +164,11 @@ def test_flaskappbuilder_nomenu_views():
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
         appbuilder = application.create_app(testing=True).appbuilder
 
-        plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
+        plugin_views = [
+            view
+            for view in appbuilder.baseviews
+            if view.blueprint.name == appbuilder_class_name
+        ]
 
         assert len(plugin_views) == 1
 
@@ -286,7 +295,9 @@ class TestPluginsManager:
 
         assert caplog.record_tuples == []
 
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_metadata_distribution, caplog):
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(
+        self, mock_metadata_distribution, caplog
+    ):
         """
         Test that Airflow does not raise an error if there is any Exception because of a plugin.
         """
@@ -312,7 +323,10 @@ class TestPluginsManager:
             assert "Traceback (most recent call last):" in received_logs
             assert "my_fake_module not found" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
+            assert (
+                "test.plugins.test_plugins_manager",
+                "my_fake_module not found",
+            ) in import_errors.items()
 
     def test_registering_plugin_macros(self, request):
         """
@@ -362,7 +376,9 @@ class TestPluginsManager:
 
             assert get_listener_manager().has_listeners
             listeners = get_listener_manager().pm.get_plugins()
-            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+            listener_names = [
+                el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners
+            ]
             # sort names as order of listeners is not guaranteed
             assert [
                 "airflow.example_dags.plugins.event_listener",
@@ -426,4 +442,7 @@ class TestEntryPointSource:
         source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)
         assert str(mock_entrypoint) == source.entrypoint
         assert "test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint) == str(source)
-        assert "<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint) == source.__html__()
+        assert (
+            "<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint)
+            == source.__html__()
+        )

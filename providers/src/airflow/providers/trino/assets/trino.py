@@ -30,5 +30,7 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
         host = uri.netloc.rstrip(":")
         uri = uri._replace(netloc=f"{host}:8080")
     if len(uri.path.split("/")) != 4:  # Leading slash, catalog, schema, and table names.
-        raise ValueError("URI format trino:// must contain catalog, schema, and table names")
+        raise ValueError(
+            "URI format trino:// must contain catalog, schema, and table names"
+        )
     return uri

@@ -28,12 +28,16 @@ with DAG(
     "opsgenie_notifier",
     start_date=datetime(2023, 1, 1),
     schedule=None,
-    on_failure_callback=[send_opsgenie_notification(payload={"message": "Something went wrong!"})],
+    on_failure_callback=[
+        send_opsgenie_notification(payload={"message": "Something went wrong!"})
+    ],
 ) as dag:
     BashOperator(
         task_id="mytask",
         bash_command="fail",
-        on_failure_callback=[send_opsgenie_notification(payload={"message": "Something went wrong!"})],
+        on_failure_callback=[
+            send_opsgenie_notification(payload={"message": "Something went wrong!"})
+        ],
     )
 # [END howto_notifier_opsgenie]
 

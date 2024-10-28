@@ -27,7 +27,9 @@ from google.cloud.tasks_v2.types import Queue, Task
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 API_RESPONSE: dict[Any, Any] = {}
 PROJECT_ID = "test-project"
@@ -36,7 +38,9 @@ FULL_LOCATION_PATH = "projects/test-project/locations/asia-east2"
 QUEUE_ID = "test-queue"
 FULL_QUEUE_PATH = "projects/test-project/locations/asia-east2/queues/test-queue"
 TASK_NAME = "test-task"
-FULL_TASK_PATH = "projects/test-project/locations/asia-east2/queues/test-queue/tasks/test-task"
+FULL_TASK_PATH = (
+    "projects/test-project/locations/asia-east2/queues/test-queue/tasks/test-task"
+)
 
 
 def mock_patch_return_object(attribute: str, return_value: Any) -> object:
@@ -60,11 +64,15 @@ class TestCloudTasksHook:
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_credentials")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_credentials"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksClient")
     def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value, client_info=CLIENT_INFO
+        )
         assert mock_client.return_value == result
         assert self.hook._client == result
 
@@ -115,7 +123,9 @@ class TestCloudTasksHook:
         return_value=mock_patch_return_object("get_queue", API_RESPONSE),
     )
     def test_get_queue(self, get_conn):
-        result = self.hook.get_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
+        result = self.hook.get_queue(
+            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
+        )
 
         assert result is API_RESPONSE
 
@@ -125,7 +135,9 @@ class TestCloudTasksHook:
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object("list_queues", [Queue(name=FULL_QUEUE_PATH)]),
+        return_value=mock_patch_return_object(
+            "list_queues", [Queue(name=FULL_QUEUE_PATH)]
+        ),
     )
     def test_list_queues(self, get_conn):
         result = self.hook.list_queues(location=LOCATION, project_id=PROJECT_ID)
@@ -144,7 +156,9 @@ class TestCloudTasksHook:
         return_value=mock_patch_return_object("delete_queue", None),
     )
     def test_delete_queue(self, get_conn):
-        result = self.hook.delete_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
+        result = self.hook.delete_queue(
+            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
+        )
 
         assert result is None
 
@@ -157,7 +171,9 @@ class TestCloudTasksHook:
         return_value=mock_patch_return_object("purge_queue", Queue(name=FULL_QUEUE_PATH)),
     )
     def test_purge_queue(self, get_conn):
-        result = self.hook.purge_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
+        result = self.hook.purge_queue(
+            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
+        )
 
         assert result == Queue(name=FULL_QUEUE_PATH)
 
@@ -170,7 +186,9 @@ class TestCloudTasksHook:
         return_value=mock_patch_return_object("pause_queue", Queue(name=FULL_QUEUE_PATH)),
     )
     def test_pause_queue(self, get_conn):
-        result = self.hook.pause_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
+        result = self.hook.pause_queue(
+            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
+        )
 
         assert result == Queue(name=FULL_QUEUE_PATH)
 
@@ -180,10 +198,14 @@ class TestCloudTasksHook:
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
-        return_value=mock_patch_return_object("resume_queue", Queue(name=FULL_QUEUE_PATH)),
+        return_value=mock_patch_return_object(
+            "resume_queue", Queue(name=FULL_QUEUE_PATH)
+        ),
     )
     def test_resume_queue(self, get_conn):
-        result = self.hook.resume_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
+        result = self.hook.resume_queue(
+            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
+        )
 
         assert result == Queue(name=FULL_QUEUE_PATH)
 
@@ -207,7 +229,9 @@ class TestCloudTasksHook:
         assert result == Task(name=FULL_TASK_PATH)
 
         get_conn.return_value.create_task.assert_called_once_with(
-            request=dict(parent=FULL_QUEUE_PATH, task=Task(name=FULL_TASK_PATH), response_view=None),
+            request=dict(
+                parent=FULL_QUEUE_PATH, task=Task(name=FULL_TASK_PATH), response_view=None
+            ),
             retry=DEFAULT,
             timeout=None,
             metadata=(),
@@ -239,7 +263,9 @@ class TestCloudTasksHook:
         return_value=mock_patch_return_object("list_tasks", [Task(name=FULL_TASK_PATH)]),
     )
     def test_list_tasks(self, get_conn):
-        result = self.hook.list_tasks(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
+        result = self.hook.list_tasks(
+            location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID
+        )
 
         assert result == [Task(name=FULL_TASK_PATH)]
 

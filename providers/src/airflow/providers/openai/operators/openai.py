@@ -74,8 +74,12 @@ class OpenAIEmbeddingOperator(BaseOperator):
             raise ValueError(
                 "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
             )
-        self.log.info("Generating embeddings for the input text of length: %d", len(self.input_text))
-        embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
+        self.log.info(
+            "Generating embeddings for the input text of length: %d", len(self.input_text)
+        )
+        embeddings = self.hook.create_embeddings(
+            self.input_text, model=self.model, **self.embedding_kwargs
+        )
         self.log.info("Generated embeddings for %d items", len(embeddings))
         return embeddings
 
@@ -107,7 +111,9 @@ class OpenAITriggerBatchOperator(BaseOperator):
         file_id: str,
         endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
         conn_id: str = OpenAIHook.default_conn_name,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         wait_seconds: float = 3,
         timeout: float = 24 * 60 * 60,
         wait_for_completion: bool = True,
@@ -145,7 +151,9 @@ class OpenAITriggerBatchOperator(BaseOperator):
                 )
             else:
                 self.log.info("Waiting for batch %s to complete", self.batch_id)
-                self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+                self.hook.wait_for_batch(
+                    self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout
+                )
         return self.batch_id
 
     def execute_complete(self, context: Context, event: Any = None) -> str:

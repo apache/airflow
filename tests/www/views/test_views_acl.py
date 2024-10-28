@@ -31,7 +31,9 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user_scope
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user_scope,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
@@ -148,7 +150,9 @@ def _reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def _init_dagruns(acl_app, _reset_dagruns):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
@@ -292,10 +296,18 @@ def test_dag_autocomplete_success(client_all_dags):
             "type": "dag",
             "dag_display_name": None,
         },
-        {"name": "example_setup_teardown_taskflow", "type": "dag", "dag_display_name": None},
+        {
+            "name": "example_setup_teardown_taskflow",
+            "type": "dag",
+            "dag_display_name": None,
+        },
         {"name": "test_mapped_taskflow", "type": "dag", "dag_display_name": None},
         {"name": "tutorial_taskflow_api", "type": "dag", "dag_display_name": None},
-        {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
+        {
+            "name": "tutorial_taskflow_api_virtualenv",
+            "type": "dag",
+            "dag_display_name": None,
+        },
     ]
 
     assert resp.json == expected
@@ -322,7 +334,11 @@ def test_dag_autocomplete_dag_display_name(client_all_dags):
     url = "dagmodel/autocomplete?query=Sample"
     resp = client_all_dags.get(url, follow_redirects=False)
     assert resp.json == [
-        {"name": "example_display_name", "type": "dag", "dag_display_name": "Sample DAG with Display Name"}
+        {
+            "name": "example_display_name",
+            "type": "dag",
+            "dag_display_name": "Sample DAG with Display Name",
+        }
     ]
 
 
@@ -331,10 +347,14 @@ def _setup_paused_dag():
     """Pause a DAG so we can test filtering."""
     dag_to_pause = "example_branch_operator"
     with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": True})
+        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update(
+            {"is_paused": True}
+        )
     yield
     with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": False})
+        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update(
+            {"is_paused": False}
+        )
 
 
 @pytest.mark.parametrize(
@@ -761,7 +781,9 @@ def test_failed_success(client_all_dags_edit_tis):
 
 
 def test_paused_post_success(dag_test_client):
-    resp = dag_test_client.post("paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=True)
+    resp = dag_test_client.post(
+        "paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=True
+    )
     check_content_in_response("OK", resp)
 
 
@@ -831,7 +853,9 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
 
 @pytest.fixture(scope="module")
 def user_no_roles(acl_app):
-    with create_user_scope(acl_app, username="no_roles_user", role_name="no_roles_user_role") as user:
+    with create_user_scope(
+        acl_app, username="no_roles_user", role_name="no_roles_user_role"
+    ) as user:
         user.roles = []
         yield user
 
@@ -873,7 +897,12 @@ def client_anonymous(acl_app):
     "client, url, status_code, expected_content",
     [
         ["client_no_roles", "/home", 403, "Your user has no roles and/or permissions!"],
-        ["client_no_permissions", "/home", 403, "Your user has no roles and/or permissions!"],
+        [
+            "client_no_permissions",
+            "/home",
+            403,
+            "Your user has no roles and/or permissions!",
+        ],
         ["client_all_dags", "/home", 200, "DAGs - Airflow"],
         ["client_anonymous", "/home", 200, "Sign In"],
     ],
@@ -924,7 +953,9 @@ def test_success_edit_ti_with_dag_level_access_only(client_dag_level_access_with
         future="false",
         past="false",
     )
-    resp = client_dag_level_access_with_ti_edit.post("/success", data=form, follow_redirects=True)
+    resp = client_dag_level_access_with_ti_edit.post(
+        "/success", data=form, follow_redirects=True
+    )
     check_content_in_response("Marked success on 1 task instances", resp)
 
 
@@ -945,7 +976,9 @@ def user_ti_edit_without_dag_level_access(acl_app):
 
 
 @pytest.fixture
-def client_ti_edit_without_dag_level_access(acl_app, user_ti_edit_without_dag_level_access):
+def client_ti_edit_without_dag_level_access(
+    acl_app, user_ti_edit_without_dag_level_access
+):
     return client_with_login(
         acl_app,
         username="user_ti_edit_without_dag_level_access",
@@ -953,7 +986,9 @@ def client_ti_edit_without_dag_level_access(acl_app, user_ti_edit_without_dag_le
     )
 
 
-def test_failure_edit_ti_without_dag_level_access(client_ti_edit_without_dag_level_access):
+def test_failure_edit_ti_without_dag_level_access(
+    client_ti_edit_without_dag_level_access,
+):
     form = dict(
         task_id="run_this_last",
         dag_id="example_bash_operator",
@@ -963,5 +998,7 @@ def test_failure_edit_ti_without_dag_level_access(client_ti_edit_without_dag_lev
         future="false",
         past="false",
     )
-    resp = client_ti_edit_without_dag_level_access.post("/success", data=form, follow_redirects=True)
+    resp = client_ti_edit_without_dag_level_access.post(
+        "/success", data=form, follow_redirects=True
+    )
     check_content_not_in_response("Marked success on 1 task instances", resp)

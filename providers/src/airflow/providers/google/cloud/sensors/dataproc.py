@@ -79,7 +79,9 @@ class DataprocJobSensor(BaseSensorOperator):
         if self.wait_timeout:
             try:
                 job = hook.get_job(
-                    job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id
+                    job_id=self.dataproc_job_id,
+                    region=self.region,
+                    project_id=self.project_id,
                 )
             except ServerError as err:
                 duration = self._duration()
@@ -90,10 +92,17 @@ class DataprocJobSensor(BaseSensorOperator):
                         f"is not ready after {self.wait_timeout}s"
                     )
                     raise AirflowException(message)
-                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
+                self.log.info(
+                    "Retrying. Dataproc API returned server error when waiting for job: %s",
+                    err,
+                )
                 return False
         else:
-            job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)
+            job = hook.get_job(
+                job_id=self.dataproc_job_id,
+                region=self.region,
+                project_id=self.project_id,
+            )
 
         state = job.status.state
         if state == JobStatus.State.ERROR:
@@ -160,7 +169,9 @@ class DataprocBatchSensor(BaseSensorOperator):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         if self.wait_timeout:
             try:
-                batch = hook.get_batch(batch_id=self.batch_id, region=self.region, project_id=self.project_id)
+                batch = hook.get_batch(
+                    batch_id=self.batch_id, region=self.region, project_id=self.project_id
+                )
             except ServerError as err:
                 duration = self._duration()
                 self.log.info("DURATION RUN: %f", duration)
@@ -169,10 +180,15 @@ class DataprocBatchSensor(BaseSensorOperator):
                     raise AirflowException(
                         f"Timeout: dataproc batch {self.batch_id} is not ready after {self.wait_timeout}s"
                     )
-                self.log.info("Retrying. Dataproc API returned server error when waiting for batch: %s", err)
+                self.log.info(
+                    "Retrying. Dataproc API returned server error when waiting for batch: %s",
+                    err,
+                )
                 return False
         else:
-            batch = hook.get_batch(batch_id=self.batch_id, region=self.region, project_id=self.project_id)
+            batch = hook.get_batch(
+                batch_id=self.batch_id, region=self.region, project_id=self.project_id
+            )
 
         state = batch.state
         if state == Batch.State.FAILED:

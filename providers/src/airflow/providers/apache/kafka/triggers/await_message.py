@@ -88,7 +88,9 @@ class AwaitMessageTrigger(BaseTrigger):
         )
 
     async def run(self):
-        consumer_hook = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
+        consumer_hook = KafkaConsumerHook(
+            topics=self.topics, kafka_config_id=self.kafka_config_id
+        )
 
         async_get_consumer = sync_to_async(consumer_hook.get_consumer)
         consumer = await async_get_consumer()
@@ -97,7 +99,9 @@ class AwaitMessageTrigger(BaseTrigger):
         async_commit = sync_to_async(consumer.commit)
 
         processing_call = import_string(self.apply_function)
-        processing_call = partial(processing_call, *self.apply_function_args, **self.apply_function_kwargs)
+        processing_call = partial(
+            processing_call, *self.apply_function_args, **self.apply_function_kwargs
+        )
         async_message_process = sync_to_async(processing_call)
         while True:
             message = await async_poll(self.poll_timeout)

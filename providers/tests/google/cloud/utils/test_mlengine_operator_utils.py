@@ -29,7 +29,9 @@ from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
+from airflow.providers.google.cloud.utils.mlengine_operator_utils import (
+    create_evaluate_ops,
+)
 
 TASK_PREFIX = "test-task-prefix"
 TASK_PREFIX_PREDICTION = TASK_PREFIX + "-prediction"
@@ -60,7 +62,9 @@ DAG_DEFAULT_ARGS = {
     "version_name": VERSION_NAME,
     "dataflow_default_options": DATAFLOW_OPTIONS,
 }
-TEST_DAG = DAG(dag_id="test-dag-id", start_date=datetime(2000, 1, 1), default_args=DAG_DEFAULT_ARGS)
+TEST_DAG = DAG(
+    dag_id="test-dag-id", start_date=datetime(2000, 1, 1), default_args=DAG_DEFAULT_ARGS
+)
 
 
 def get_metric_fn_and_keys():
@@ -139,7 +143,9 @@ class TestMlengineOperatorUtils:
 
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
-    def test_create_evaluate_ops_model_and_version_name(self, mock_beam_pipeline, mock_python):
+    def test_create_evaluate_ops_model_and_version_name(
+        self, mock_beam_pipeline, mock_python
+    ):
         with pytest.warns(AirflowProviderDeprecationWarning):
             result = create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
@@ -251,13 +257,20 @@ class TestMlengineOperatorUtils:
 
         _, _, evaluate_validation = result
 
-        mock_download.return_value = json.dumps({"err": 0.3, "mse": 0.04, "count": 1100}).encode("utf-8")
+        mock_download.return_value = json.dumps(
+            {"err": 0.3, "mse": 0.04, "count": 1100}
+        ).encode("utf-8")
         templates_dict = {"prediction_path": PREDICTION_PATH}
         with pytest.raises(ValueError) as ctx:
             evaluate_validation.python_callable(templates_dict=templates_dict)
 
-        assert "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}" == str(ctx.value)
-        mock_download.assert_called_once_with("path", "to/output/predictions.json/prediction.summary.json")
+        assert (
+            "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}"
+            == str(ctx.value)
+        )
+        mock_download.assert_called_once_with(
+            "path", "to/output/predictions.json/prediction.summary.json"
+        )
 
         invalid_prediction_paths = ["://path/to/output/predictions.json", "gs://", ""]
 
@@ -268,7 +281,11 @@ class TestMlengineOperatorUtils:
             assert "Wrong format prediction_path:" == str(ctx.value)[:29]
 
     def test_invalid_task_prefix(self):
-        invalid_task_prefix_values = ["test-task-prefix&", "~test-task-prefix", "test-task(-prefix"]
+        invalid_task_prefix_values = [
+            "test-task-prefix&",
+            "~test-task-prefix",
+            "test-task(-prefix",
+        ]
 
         for invalid_task_prefix_value in invalid_task_prefix_values:
             with pytest.raises(AirflowException):

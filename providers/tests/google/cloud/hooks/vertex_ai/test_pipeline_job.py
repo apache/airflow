@@ -70,7 +70,8 @@ def test_pipeline_job_name():
 class TestPipelineJobWithDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = PipelineJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -93,7 +94,9 @@ class TestPipelineJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_service_client"))
     def test_delete_pipeline_job(self, mock_client) -> None:
@@ -154,13 +157,16 @@ class TestPipelineJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestPipelineJobWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = PipelineJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -183,7 +189,9 @@ class TestPipelineJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_service_client"))
     def test_delete_pipeline_job(self, mock_client) -> None:
@@ -244,12 +252,16 @@ class TestPipelineJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestPipelineJobAsyncHook:
     @pytest.mark.asyncio
-    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        PIPELINE_JOB_STRING.format("PipelineJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_get_pipeline_job(
         self, mock_pipeline_service_client, test_async_hook, test_pipeline_job_name
     ):
@@ -329,7 +341,9 @@ class TestPipelineJobAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobAsyncHook.get_pipeline_job"))
-    async def test_wait_for_pipeline_job_raises_exception(self, mock_get_pipeline_job, test_async_hook):
+    async def test_wait_for_pipeline_job_raises_exception(
+        self, mock_get_pipeline_job, test_async_hook
+    ):
         mock_get_pipeline_job.side_effect = mock.AsyncMock(side_effect=Exception())
         with pytest.raises(AirflowException):
             await test_async_hook.wait_for_pipeline_job(

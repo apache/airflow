@@ -45,7 +45,10 @@ from google.cloud.redis_v1 import (
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -153,14 +156,21 @@ class CloudMemorystoreHook(GoogleBaseHook):
         if isinstance(instance, dict):
             instance = Instance(**instance)
         elif not isinstance(instance, Instance):
-            raise AirflowException("instance is not instance of Instance type or python dict")
+            raise AirflowException(
+                "instance is not instance of Instance type or python dict"
+            )
 
         parent = f"projects/{project_id}/locations/{location}"
-        instance_name = f"projects/{project_id}/locations/{location}/instances/{instance_id}"
+        instance_name = (
+            f"projects/{project_id}/locations/{location}/instances/{instance_id}"
+        )
         try:
             self.log.info("Fetching instance: %s", instance_name)
             instance = client.get_instance(
-                request={"name": instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+                request={"name": instance_name},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata or (),
             )
             self.log.info("Instance exists. Skipping creation.")
             return instance
@@ -178,7 +188,10 @@ class CloudMemorystoreHook(GoogleBaseHook):
         result.result()
         self.log.info("Instance created.")
         return client.get_instance(
-            request={"name": instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": instance_name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -472,7 +485,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
         if isinstance(instance, dict):
             instance = Instance(**instance)
         elif not isinstance(instance, Instance):
-            raise AirflowException("instance is not instance of Instance type or python dict")
+            raise AirflowException(
+                "instance is not instance of Instance type or python dict"
+            )
 
         if location and instance_id:
             name = f"projects/{project_id}/locations/{location}/instances/{instance_id}"
@@ -526,7 +541,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         return self._client
 
     @staticmethod
-    def _append_label(instance: cloud_memcache.Instance, key: str, val: str) -> cloud_memcache.Instance:
+    def _append_label(
+        instance: cloud_memcache.Instance, key: str, val: str
+    ) -> cloud_memcache.Instance:
         """
         Append labels to provided Instance type.
 
@@ -629,9 +646,13 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         client = self.get_conn()
         metadata = metadata or ()
         parent = path_template.expand(
-            "projects/{project}/locations/{location}", project=project_id, location=location
+            "projects/{project}/locations/{location}",
+            project=project_id,
+            location=location,
         )
-        instance_name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
+        instance_name = CloudMemcacheClient.instance_path(
+            project_id, location, instance_id
+        )
         try:
             instance = client.get_instance(
                 name=instance_name, retry=retry, timeout=timeout, metadata=metadata
@@ -644,7 +665,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         if isinstance(instance, dict):
             instance = cloud_memcache.Instance(instance)
         elif not isinstance(instance, cloud_memcache.Instance):
-            raise AirflowException("instance is not instance of Instance type or python dict")
+            raise AirflowException(
+                "instance is not instance of Instance type or python dict"
+            )
 
         self._append_label(instance, "airflow-version", "v" + version.version)
 
@@ -738,7 +761,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         client = self.get_conn()
         metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
-        result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata or ())
+        result = client.get_instance(
+            name=name, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
         self.log.info("Fetched Instance: %s", name)
         return result
 
@@ -769,7 +794,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         client = self.get_conn()
         metadata = metadata or ()
         parent = path_template.expand(
-            "projects/{project}/locations/{location}", project=project_id, location=location
+            "projects/{project}/locations/{location}",
+            project=project_id,
+            location=location,
         )
         result = client.list_instances(
             parent=parent,
@@ -823,7 +850,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         if isinstance(instance, dict):
             instance = cloud_memcache.Instance(instance)
         elif not isinstance(instance, cloud_memcache.Instance):
-            raise AirflowException("instance is not instance of Instance type or python dict")
+            raise AirflowException(
+                "instance is not instance of Instance type or python dict"
+            )
 
         if location and instance_id:
             name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
@@ -831,7 +860,11 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
         self.log.info("Updating instances: %s", instance.name)
         result = client.update_instance(
-            update_mask=update_mask, resource=instance, retry=retry, timeout=timeout, metadata=metadata or ()
+            update_mask=update_mask,
+            resource=instance,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         updated_instance = result.result()
         self.log.info("Instance updated: %s", instance.name)
@@ -877,7 +910,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         if isinstance(parameters, dict):
             parameters = cloud_memcache.MemcacheParameters(parameters)
         elif not isinstance(parameters, cloud_memcache.MemcacheParameters):
-            raise AirflowException("instance is not instance of MemcacheParameters type or python dict")
+            raise AirflowException(
+                "instance is not instance of MemcacheParameters type or python dict"
+            )
 
         name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
         self.log.info("Staging update to instance: %s", instance_id)

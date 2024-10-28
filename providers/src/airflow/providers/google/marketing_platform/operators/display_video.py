@@ -30,7 +30,9 @@ from urllib.parse import urlsplit
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
+from airflow.providers.google.marketing_platform.hooks.display_video import (
+    GoogleDisplayVideo360Hook,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -166,7 +168,9 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
             raise AirflowException("Use only one value - `report_name` or `report_id`.")
 
         if not (report_name or report_id):
-            raise AirflowException("Provide one of the values: `report_name` or `report_id`.")
+            raise AirflowException(
+                "Provide one of the values: `report_name` or `report_id`."
+            )
 
     def execute(self, context: Context) -> None:
         hook = GoogleDisplayVideo360Hook(
@@ -180,7 +184,9 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         else:
             reports = hook.list_queries()
             reports_ids_to_delete = [
-                report["queryId"] for report in reports if report["metadata"]["title"] == self.report_name
+                report["queryId"]
+                for report in reports
+                if report["metadata"]["title"] == self.report_name
             ]
 
         for report_id in reports_ids_to_delete:
@@ -282,7 +288,9 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
         resource = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = resource.get("metadata", {}).get("status", {}).get("state")
         if resource and status not in ["DONE", "FAILED"]:
-            raise AirflowException(f"Report {self.report_id} for query {self.query_id} is still running")
+            raise AirflowException(
+                f"Report {self.report_id} for query {self.query_id} is still running"
+            )
 
         # If no custom report_name provided, use DV360 name
         file_url = resource["metadata"]["googleCloudStoragePath"]
@@ -684,10 +692,14 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         )
 
         self.log.info("Retrieving operation...")
-        operation_state = hook.get_sdf_download_operation(operation_name=self.operation_name)
+        operation_state = hook.get_sdf_download_operation(
+            operation_name=self.operation_name
+        )
 
         self.log.info("Creating file for upload...")
-        media = hook.download_media(resource_name=operation_state["response"]["resourceName"])
+        media = hook.download_media(
+            resource_name=operation_state["response"]["resourceName"]
+        )
 
         self.log.info("Sending file to the Google Cloud Storage...")
         with tempfile.NamedTemporaryFile() as temp_file:

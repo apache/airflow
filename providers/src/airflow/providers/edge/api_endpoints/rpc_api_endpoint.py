@@ -92,7 +92,9 @@ def edge_worker_api(body: dict[str, Any]) -> APIResponse:
         if not signed_method or signed_method != body.get("method"):
             raise BadSignature("Invalid method in token authorization.")
     except BadSignature:
-        raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
+        raise PermissionDenied(
+            "Bad Signature. Please use only the tokens provided by the API."
+        )
     except InvalidAudienceError:
         raise PermissionDenied("Invalid audience for the request")
     except InvalidSignatureError:
@@ -115,12 +117,16 @@ def edge_worker_api(body: dict[str, Any]) -> APIResponse:
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
-        return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
+        return log_and_build_error_response(
+            message="Expected jsonrpc 2.0 request.", status=400
+        )
 
     methods_map = _initialize_method_map()
     method_name = body.get("method")
     if method_name not in methods_map:
-        return log_and_build_error_response(message=f"Unrecognized method: {method_name}.", status=400)
+        return log_and_build_error_response(
+            message=f"Unrecognized method: {method_name}.", status=400
+        )
 
     handler = methods_map[method_name]
     params = {}
@@ -129,7 +135,9 @@ def edge_worker_api(body: dict[str, Any]) -> APIResponse:
             params_json = body.get("params")
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception:
-        return log_and_build_error_response(message="Error deserializing parameters.", status=400)
+        return log_and_build_error_response(
+            message="Error deserializing parameters.", status=400
+        )
 
     log.debug("Calling method %s\nparams: %s", method_name, params)
     try:
@@ -139,7 +147,9 @@ def edge_worker_api(body: dict[str, Any]) -> APIResponse:
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
             log.debug("Sending response: %s", response)
-            return Response(response=response, headers={"Content-Type": "application/json"})
+            return Response(
+                response=response, headers={"Content-Type": "application/json"}
+            )
     # In case of AirflowException or other selective known types, transport the exception class back to caller
     except (KeyError, AttributeError, AirflowException) as e:
         exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
@@ -147,4 +157,6 @@ def edge_worker_api(body: dict[str, Any]) -> APIResponse:
         log.debug("Sending exception response: %s", response)
         return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
-        return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)
+        return log_and_build_error_response(
+            message=f"Error executing method '{method_name}'.", status=500
+        )

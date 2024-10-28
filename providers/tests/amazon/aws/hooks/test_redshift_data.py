@@ -212,7 +212,10 @@ class TestRedshiftDataHook:
         secret_arn = "secret_arn"
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": "session_id"}
+        mock_conn.execute_statement.return_value = {
+            "Id": STATEMENT_ID,
+            "SessionId": "session_id",
+        }
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
 
         hook = RedshiftDataHook()
@@ -248,7 +251,10 @@ class TestRedshiftDataHook:
     def test_execute_reuse_session(self, mock_conn):
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": "session_id"}
+        mock_conn.execute_statement.return_value = {
+            "Id": STATEMENT_ID,
+            "SessionId": "session_id",
+        }
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
         hook = RedshiftDataHook()
         session_id = str(uuid4())
@@ -380,7 +386,10 @@ class TestRedshiftDataHook:
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
-        mock_conn.describe_statement.return_value = {"Status": "FINISHED", "ResultRows": 123}
+        mock_conn.describe_statement.return_value = {
+            "Status": "FINISHED",
+            "ResultRows": 123,
+        }
 
         hook = RedshiftDataHook()
         # https://docs.pytest.org/en/stable/how-to/logging.html
@@ -425,16 +434,26 @@ class TestRedshiftDataHook:
             ({"Status": "ABORTED"}, False),
         ],
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn")
-    async def test_is_still_running(self, mock_conn, describe_statement_response, expected_result):
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn"
+    )
+    async def test_is_still_running(
+        self, mock_conn, describe_statement_response, expected_result
+    ):
         hook = RedshiftDataHook()
-        mock_conn.__aenter__.return_value.describe_statement.return_value = describe_statement_response
+        mock_conn.__aenter__.return_value.describe_statement.return_value = (
+            describe_statement_response
+        )
         response = await hook.is_still_running("uuid")
         assert response == expected_result
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running"
+    )
     async def test_check_query_is_finished_async(self, mock_is_still_running, mock_conn):
         hook = RedshiftDataHook()
         mock_is_still_running.return_value = False
@@ -451,19 +470,34 @@ class TestRedshiftDataHook:
         "describe_statement_response, expected_exception",
         (
             (
-                {"Id": "uuid", "Status": "FAILED", "QueryString": "select 1", "Error": "Test error"},
+                {
+                    "Id": "uuid",
+                    "Status": "FAILED",
+                    "QueryString": "select 1",
+                    "Error": "Test error",
+                },
                 RedshiftDataQueryFailedError,
             ),
             ({"Id": "uuid", "Status": "ABORTED"}, RedshiftDataQueryAbortedError),
         ),
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.async_conn"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.is_still_running"
+    )
     async def test_check_query_is_finished_async_exception(
-        self, mock_is_still_running, mock_conn, describe_statement_response, expected_exception
+        self,
+        mock_is_still_running,
+        mock_conn,
+        describe_statement_response,
+        expected_exception,
     ):
         hook = RedshiftDataHook()
         mock_is_still_running.return_value = False
-        mock_conn.__aenter__.return_value.describe_statement.return_value = describe_statement_response
+        mock_conn.__aenter__.return_value.describe_statement.return_value = (
+            describe_statement_response
+        )
         with pytest.raises(expected_exception):
             await hook.check_query_is_finished_async(statement_id="uuid")

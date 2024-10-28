@@ -33,7 +33,12 @@ from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
-from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
+from airflow.utils.db_cleanup import (
+    config_dict,
+    drop_archived_tables,
+    export_archived_records,
+    run_cleanup,
+)
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -61,19 +66,29 @@ def initdb(args):
 def resetdb(args):
     """Reset the metadata database."""
     print(f"DB: {settings.engine.url!r}")
-    if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
+    if not (
+        args.yes
+        or input("This will drop existing tables if they exist. Proceed? (y/n)").upper()
+        == "Y"
+    ):
         raise SystemExit("Cancelled")
     db.resetdb(skip_init=args.skip_init)
 
 
 def upgradedb(args):
     """Upgrades the metadata database."""
-    warnings.warn("`db upgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning, stacklevel=2)
+    warnings.warn(
+        "`db upgrade` is deprecated. Use `db migrate` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     migratedb(args)
 
 
 def _get_version_revision(
-    version: str, recursion_limit: int = 10, revision_heads_map: dict[str, str] | None = None
+    version: str,
+    recursion_limit: int = 10,
+    revision_heads_map: dict[str, str] | None = None,
 ) -> str | None:
     """
     Recursively search for the revision of the given version in revision_heads_map.
@@ -97,7 +112,9 @@ def _get_version_revision(
     return _get_version_revision(new_version, recursion_limit)
 
 
-def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], reserialize_dags: bool = True):
+def run_db_migrate_command(
+    args, command, revision_heads_map: dict[str, str], reserialize_dags: bool = True
+):
     """
     Run the db migrate command.
 
@@ -124,19 +141,31 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], re
         try:
             parse_version(args.from_version)
         except InvalidVersion:
-            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
-        from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
+            raise SystemExit(
+                f"Invalid version {args.from_version!r} supplied as `--from-version`."
+            )
+        from_revision = _get_version_revision(
+            args.from_version, revision_heads_map=revision_heads_map
+        )
         if not from_revision:
-            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+            raise SystemExit(
+                f"Unknown version {args.from_version!r} supplied as `--from-version`."
+            )
 
     if args.to_version:
         try:
             parse_version(args.to_version)
         except InvalidVersion:
-            raise SystemExit(f"Invalid version {args.to_version!r} supplied as `--to-version`.")
-        to_revision = _get_version_revision(args.to_version, revision_heads_map=revision_heads_map)
+            raise SystemExit(
+                f"Invalid version {args.to_version!r} supplied as `--to-version`."
+            )
+        to_revision = _get_version_revision(
+            args.to_version, revision_heads_map=revision_heads_map
+        )
         if not to_revision:
-            raise SystemExit(f"Unknown version {args.to_version!r} supplied as `--to-version`.")
+            raise SystemExit(
+                f"Unknown version {args.to_version!r} supplied as `--to-version`."
+            )
     elif args.to_revision:
         to_revision = args.to_revision
 
@@ -183,19 +212,29 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
+        from_revision = _get_version_revision(
+            args.from_version, revision_heads_map=revision_heads_map
+        )
         if not from_revision:
-            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+            raise SystemExit(
+                f"Unknown version {args.from_version!r} supplied as `--from-version`."
+            )
     if args.to_version:
-        to_revision = _get_version_revision(args.to_version, revision_heads_map=revision_heads_map)
+        to_revision = _get_version_revision(
+            args.to_version, revision_heads_map=revision_heads_map
+        )
         if not to_revision:
-            raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
+            raise SystemExit(
+                f"Downgrading to version {args.to_version} is not supported."
+            )
     elif args.to_revision:
         to_revision = args.to_revision
     if not args.show_sql_only:
         print(f"Performing downgrade with database {settings.engine.url!r}")
     else:
-        print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
+        print(
+            "Generating sql for downgrade -- downgrade commands will *not* be submitted."
+        )
 
     if args.show_sql_only or (
         args.yes
@@ -206,7 +245,11 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
         ).upper()
         == "Y"
     ):
-        command(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+        command(
+            to_revision=to_revision,
+            from_revision=from_revision,
+            show_sql_only=args.show_sql_only,
+        )
         if not args.show_sql_only:
             print("Downgrade complete")
     else:
@@ -221,7 +264,9 @@ def migratedb(args):
         try:
             parsed_version = parse_version(args.from_version)
         except InvalidVersion:
-            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
+            raise SystemExit(
+                f"Invalid version {args.from_version!r} supplied as `--from-version`."
+            )
         if parsed_version < parse_version("2.0.0"):
             raise SystemExit("--from-version must be greater or equal to 2.0.0")
     run_db_migrate_command(args, db.upgradedb, _REVISION_HEADS_MAP, reserialize_dags=True)

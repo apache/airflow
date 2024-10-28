@@ -27,7 +27,11 @@ if TYPE_CHECKING:
 
 
 def expand_mapped_task(
-    mapped: MappedOperator, run_id: str, upstream_task_id: str, length: int, session: Session
+    mapped: MappedOperator,
+    run_id: str,
+    upstream_task_id: str,
+    length: int,
+    session: Session,
 ):
     session.add(
         TaskMap(

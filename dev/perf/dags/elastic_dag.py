@@ -46,7 +46,9 @@ def parse_time_delta(time_str: str):
         )
         raise ValueError(msg)
 
-    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
+    time_params = {
+        name: float(param) for name, param in parts.groupdict().items() if param
+    }
     return timedelta(**time_params)  # type: ignore
 
 
@@ -105,7 +107,9 @@ def chain_as_grid(*tasks: BashOperator):
      t9
     """
     if len(tasks) > 100 * 99 / 2:
-        raise ValueError("Cannot generate grid DAGs with lateral size larger than 100 tasks.")
+        raise ValueError(
+            "Cannot generate grid DAGs with lateral size larger than 100 tasks."
+        )
     grid_size = next(n for n in range(100) if n * (n + 1) / 2 >= len(tasks))
 
     def index(i, j):
@@ -186,7 +190,11 @@ for dag_no in range(1, DAG_COUNT + 1):
     )
 
     elastic_dag_tasks = [
-        BashOperator(task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]), bash_command="echo test", dag=dag)
+        BashOperator(
+            task_id="__".join(["tasks", f"{i}_of_{TASKS_COUNT}"]),
+            bash_command="echo test",
+            dag=dag,
+        )
         for i in range(1, TASKS_COUNT + 1)
     ]
 

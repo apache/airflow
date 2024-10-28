@@ -55,7 +55,9 @@ class EdgeModifier(DependencyMixin):
         return self._upstream
 
     @staticmethod
-    def _make_list(item_or_list: DependencyMixin | Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
+    def _make_list(
+        item_or_list: DependencyMixin | Sequence[DependencyMixin],
+    ) -> Sequence[DependencyMixin]:
         if not isinstance(item_or_list, Sequence):
             return [item_or_list]
         return item_or_list
@@ -109,10 +111,14 @@ class EdgeModifier(DependencyMixin):
             self._upstream = self._convert_stream_to_task_groups(self._upstream)
             self._downstream = self._convert_stream_to_task_groups(self._downstream)
 
-    def _convert_stream_to_task_groups(self, stream: Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
+    def _convert_stream_to_task_groups(
+        self, stream: Sequence[DependencyMixin]
+    ) -> Sequence[DependencyMixin]:
         return [
             node.task_group
-            if isinstance(node, DAGNode) and node.task_group and not node.task_group.is_root
+            if isinstance(node, DAGNode)
+            and node.task_group
+            and not node.task_group.is_root
             else node
             for node in stream
         ]
@@ -152,7 +158,10 @@ class EdgeModifier(DependencyMixin):
             node.set_downstream(other, edge_modifier=self)
 
     def update_relative(
-        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin,
+        upstream: bool = True,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Update relative if we're not the "main" side of a relationship; still run the same logic."""
         if upstream:

@@ -58,7 +58,13 @@ class BashSensor(BaseSensorOperator):
     template_fields: Sequence[str] = ("bash_command", "env")
 
     def __init__(
-        self, *, bash_command, env=None, output_encoding="utf-8", retry_exit_code: int | None = None, **kwargs
+        self,
+        *,
+        bash_command,
+        env=None,
+        output_encoding="utf-8",
+        retry_exit_code: int | None = None,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.bash_command = bash_command
@@ -106,9 +112,13 @@ class BashSensor(BaseSensorOperator):
                         self.log.info("Return code matches retry code, will retry later")
                         return False
                     else:
-                        raise AirflowFailException(f"Command exited with return code {resp.returncode}")
+                        raise AirflowFailException(
+                            f"Command exited with return code {resp.returncode}"
+                        )
 
                 # backwards compatibility: sensor retries no matter the error code
                 else:
-                    self.log.info("Non-zero return code and no retry code set, will retry later")
+                    self.log.info(
+                        "Non-zero return code and no retry code set, will retry later"
+                    )
                     return False

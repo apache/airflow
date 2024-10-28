@@ -76,7 +76,9 @@ class GoogleCalendarHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("calendar", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "calendar", self.api_version, http=http_authorized, cache_discovery=False
+            )
 
         return self._conn
 

@@ -30,9 +30,14 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
+from airflow.providers.google.cloud.transfers.salesforce_to_gcs import (
+    SalesforceToGcsOperator,
+)
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = os.environ.get("GCS_BUCKET", "airflow-salesforce-bucket")
@@ -73,7 +78,10 @@ with DAG(
     # [END howto_operator_salesforce_to_gcs]
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset", dataset_id=DATASET_NAME, project_id=GCP_PROJECT_ID, gcp_conn_id=GCS_CONN_ID
+        task_id="create_dataset",
+        dataset_id=DATASET_NAME,
+        project_id=GCP_PROJECT_ID,
+        gcp_conn_id=GCS_CONN_ID,
     )
 
     create_table = BigQueryCreateEmptyTableOperator(

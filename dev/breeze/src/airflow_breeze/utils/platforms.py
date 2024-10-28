@@ -26,7 +26,11 @@ def get_real_platform(single_platform: str) -> str:
     Replace different platform variants of the platform provided platforms with the two canonical ones we
     are using: amd64 and arm64.
     """
-    return single_platform.replace("x86_64", "amd64").replace("aarch64", "arm64").replace("/", "-")
+    return (
+        single_platform.replace("x86_64", "amd64")
+        .replace("aarch64", "arm64")
+        .replace("/", "-")
+    )
 
 
 def _exists_no_permission_error(p: str) -> bool:
@@ -36,15 +40,23 @@ def _exists_no_permission_error(p: str) -> bool:
         return False
 
 
-def message_on_wsl1_detected(release_name: str | None, kernel_version: tuple[int, ...] | None):
+def message_on_wsl1_detected(
+    release_name: str | None, kernel_version: tuple[int, ...] | None
+):
     from airflow_breeze.utils.console import get_console
 
     get_console().print("[error]You are running WSL1 - Breeze requires WSL2! Quitting.\n")
-    get_console().print("[warning]It can also be that our detection mechanism is wrong:[/]\n\n")
+    get_console().print(
+        "[warning]It can also be that our detection mechanism is wrong:[/]\n\n"
+    )
     if release_name:
-        get_console().print(f"[info]We based our WSL1 detection on the release name: `{release_name}`\n")
+        get_console().print(
+            f"[info]We based our WSL1 detection on the release name: `{release_name}`\n"
+        )
     elif kernel_version:
-        get_console().print(f"[info]We based our WSL1 detection on the kernel version: `{kernel_version}`\n")
+        get_console().print(
+            f"[info]We based our WSL1 detection on the kernel version: `{kernel_version}`\n"
+        )
     get_console().print(
         "[info]If you are running WSL2, please report this issue to the maintainers\n"
         "of Airflow, so we can improve the detection mechanism.\n"

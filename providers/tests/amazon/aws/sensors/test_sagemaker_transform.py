@@ -58,7 +58,10 @@ class TestSageMakerTransformSensor:
     def test_sensor_with_failure(self, mock_describe_job, mock_client):
         mock_describe_job.side_effect = [DESCRIBE_TRANSFORM_FAILED_RESPONSE]
         sensor = SageMakerTransformSensor(
-            task_id="test_task", poke_interval=2, aws_conn_id="aws_test", job_name="test_job_name"
+            task_id="test_task",
+            poke_interval=2,
+            aws_conn_id="aws_test",
+            job_name="test_job_name",
         )
         with pytest.raises(AirflowException):
             sensor.execute(None)
@@ -76,7 +79,10 @@ class TestSageMakerTransformSensor:
             DESCRIBE_TRANSFORM_COMPLETED_RESPONSE,
         ]
         sensor = SageMakerTransformSensor(
-            task_id="test_task", poke_interval=0, aws_conn_id="aws_test", job_name="test_job_name"
+            task_id="test_task",
+            poke_interval=0,
+            aws_conn_id="aws_test",
+            job_name="test_job_name",
         )
 
         sensor.execute(None)

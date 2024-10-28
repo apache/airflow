@@ -120,7 +120,13 @@ class SageMakerTrigger(BaseTrigger):
                 status_message=f"{self.job_type} job not done yet",
                 status_args=[self._get_response_status_key(self.job_type)],
             )
-            yield TriggerEvent({"status": "success", "message": "Job completed.", "job_name": self.job_name})
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "message": "Job completed.",
+                    "job_name": self.job_name,
+                }
+            )
 
 
 class SageMakerPipelineTrigger(BaseTrigger):
@@ -166,29 +172,39 @@ class SageMakerPipelineTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         async with hook.async_conn as conn:
-            waiter = hook.get_waiter(self._waiter_name[self.waiter_type], deferrable=True, client=conn)
+            waiter = hook.get_waiter(
+                self._waiter_name[self.waiter_type], deferrable=True, client=conn
+            )
             for _ in range(self.waiter_max_attempts):
                 try:
                     await waiter.wait(
-                        PipelineExecutionArn=self.pipeline_execution_arn, WaiterConfig={"MaxAttempts": 1}
+                        PipelineExecutionArn=self.pipeline_execution_arn,
+                        WaiterConfig={"MaxAttempts": 1},
                     )
                     # we reach this point only if the waiter met a success criteria
-                    yield TriggerEvent({"status": "success", "value": self.pipeline_execution_arn})
+                    yield TriggerEvent(
+                        {"status": "success", "value": self.pipeline_execution_arn}
+                    )
                     return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
 
                     self.log.info(
-                        "Status of the pipeline execution: %s", error.last_response["PipelineExecutionStatus"]
+                        "Status of the pipeline execution: %s",
+                        error.last_response["PipelineExecutionStatus"],
                     )
 
                     res = await conn.list_pipeline_execution_steps(
                         PipelineExecutionArn=self.pipeline_execution_arn
                     )
-                    count_by_state = Counter(s["StepStatus"] for s in res["PipelineExecutionSteps"])
+                    count_by_state = Counter(
+                        s["StepStatus"] for s in res["PipelineExecutionSteps"]
+                    )
                     running_steps = [
-                        s["StepName"] for s in res["PipelineExecutionSteps"] if s["StepStatus"] == "Executing"
+                        s["StepName"]
+                        for s in res["PipelineExecutionSteps"]
+                        if s["StepStatus"] == "Executing"
                     ]
                     self.log.info("State of the pipeline steps: %s", count_by_state)
                     self.log.info("Steps currently in progress: %s", running_steps)

@@ -89,7 +89,14 @@ class SFTPToS3Operator(BaseOperator):
             with NamedTemporaryFile("w") as f:
                 sftp_client.get(self.sftp_path, f.name)
 
-                s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
+                s3_hook.load_file(
+                    filename=f.name,
+                    key=self.s3_key,
+                    bucket_name=self.s3_bucket,
+                    replace=True,
+                )
         else:
             with sftp_client.file(self.sftp_path, mode="rb") as data:
-                s3_hook.get_conn().upload_fileobj(data, self.s3_bucket, self.s3_key, Callback=self.log.info)
+                s3_hook.get_conn().upload_fileobj(
+                    data, self.s3_bucket, self.s3_key, Callback=self.log.info
+                )

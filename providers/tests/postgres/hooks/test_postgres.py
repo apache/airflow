@@ -33,7 +33,9 @@ from airflow.utils.types import NOTSET
 
 class TestPostgresHookConn:
     def setup_method(self):
-        self.connection = Connection(login="login", password="password", host="host", schema="database")
+        self.connection = Connection(
+            login="login", password="password", host="host", schema="database"
+        )
 
         class UnitTestPostgresHook(PostgresHook):
             conn_name_attr = "test_conn_id"
@@ -87,25 +89,39 @@ class TestPostgresHookConn:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_from_connection(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="database"
+        )
         hook = PostgresHook(connection=conn)
         hook.get_conn()
         mock_connect.assert_called_once_with(
-            user="login-conn", password="password-conn", host="host", dbname="database", port=None
+            user="login-conn",
+            password="password-conn",
+            host="host",
+            dbname="database",
+            port=None,
         )
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_from_connection_with_database(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="database"
+        )
         hook = PostgresHook(connection=conn, database="database-override")
         hook.get_conn()
         mock_connect.assert_called_once_with(
-            user="login-conn", password="password-conn", host="host", dbname="database-override", port=None
+            user="login-conn",
+            password="password-conn",
+            host="host",
+            dbname="database-override",
+            port=None,
         )
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_from_connection_with_options(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
+        conn = Connection(
+            login="login-conn", password="password-conn", host="host", schema="database"
+        )
         hook = PostgresHook(connection=conn, options="-c statement_timeout=3000ms")
         hook.get_conn()
         mock_connect.assert_called_once_with(
@@ -121,7 +137,9 @@ class TestPostgresHookConn:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [65432, 5432, None])
-    def test_get_conn_rds_iam_postgres(self, mock_aws_hook_class, mock_connect, aws_conn_id, port):
+    def test_get_conn_rds_iam_postgres(
+        self, mock_aws_hook_class, mock_connect, aws_conn_id, port
+    ):
         mock_conn_extra = {"iam": True}
         if aws_conn_id is not NOTSET:
             mock_conn_extra["aws_conn_id"] = aws_conn_id
@@ -160,7 +178,12 @@ class TestPostgresHookConn:
         self.connection.extra = '{"connect_timeout": 3}'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
-            user="login", password="password", host="host", dbname="database", port=None, connect_timeout=3
+            user="login",
+            password="password",
+            host="host",
+            dbname="database",
+            port=None,
+            connect_timeout=3,
         )
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
@@ -360,7 +383,9 @@ class TestPostgresHook:
             assert self.conn.close.call_count == 1
             assert self.cur.close.call_count == 1
             assert self.conn.commit.call_count == 1
-            self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
+            self.cur.copy_expert.assert_called_once_with(
+                statement, open_mock.return_value
+            )
             assert open_mock.call_args.args == (filename, "r+")
 
     def test_bulk_load(self, tmp_path):
@@ -425,7 +450,9 @@ class TestPostgresHook:
         ]
         fields = ("id", "value")
 
-        self.db_hook.insert_rows(table, rows, fields, replace=True, replace_index=fields[0])
+        self.db_hook.insert_rows(
+            table, rows, fields, replace=True, replace_index=fields[0]
+        )
 
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
@@ -455,7 +482,9 @@ class TestPostgresHook:
         with pytest.raises(ValueError) as ctx:
             self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
 
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
+        assert (
+            str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
+        )
 
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
@@ -473,7 +502,10 @@ class TestPostgresHook:
         with pytest.raises(ValueError) as ctx:
             self.db_hook.insert_rows(table, rows, fields, replace=True)
 
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
+        assert (
+            str(ctx.value)
+            == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
+        )
 
     def test_insert_rows_replace_all_index(self):
         table = "table"

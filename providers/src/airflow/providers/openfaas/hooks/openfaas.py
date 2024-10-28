@@ -42,7 +42,9 @@ class OpenFaasHook(BaseHook):
     DEPLOY_FUNCTION = "/system/functions"
     UPDATE_FUNCTION = "/system/functions"
 
-    def __init__(self, function_name=None, conn_id: str = "open_faas_default", *args, **kwargs) -> None:
+    def __init__(
+        self, function_name=None, conn_id: str = "open_faas_default", *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.function_name = function_name
         self.conn_id = conn_id
@@ -51,7 +53,9 @@ class OpenFaasHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         return conn
 
-    def deploy_function(self, overwrite_function_if_exist: bool, body: dict[str, Any]) -> None:
+    def deploy_function(
+        self, overwrite_function_if_exist: bool, body: dict[str, Any]
+    ) -> None:
         """Deploy OpenFaaS function."""
         if overwrite_function_if_exist:
             self.log.info("Function already exist %s going to update", self.function_name)
@@ -98,7 +102,9 @@ class OpenFaasHook(BaseHook):
         response = requests.put(url, body)
         if response.status_code != OK_STATUS_CODE:
             self.log.error("Response status %d", response.status_code)
-            self.log.error("Failed to update response %s", response.content.decode("utf-8"))
+            self.log.error(
+                "Failed to update response %s", response.content.decode("utf-8")
+            )
             raise AirflowException("failed to update " + self.function_name)
         else:
             self.log.info("Function was updated")

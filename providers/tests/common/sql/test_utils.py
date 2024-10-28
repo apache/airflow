@@ -40,13 +40,20 @@ def mock_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None):
     conn_params = conn_params or {}
     connection = Connection(
         **{
-            **dict(login="login", password="password", host="host", schema="schema", port=1234),
+            **dict(
+                login="login",
+                password="password",
+                host="host",
+                schema="schema",
+                port=1234,
+            ),
             **conn_params,
         }
     )
 
     cursor = mock.MagicMock(
-        rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
+        rowcount=0,
+        spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"],
     )
     conn = mock.MagicMock()
     conn.cursor.return_value = cursor

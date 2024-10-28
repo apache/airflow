@@ -37,7 +37,9 @@ class TestAzureCosmosSensor:
             document_id=DOCUMENT_ID,
         )
         result = sensor.poke(None)
-        mock_instance.get_document.assert_called_once_with(DOCUMENT_ID, DB_NAME, COLLECTION_NAME)
+        mock_instance.get_document.assert_called_once_with(
+            DOCUMENT_ID, DB_NAME, COLLECTION_NAME
+        )
         assert result is True
 
     @mock.patch("airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDBHook")
@@ -51,5 +53,7 @@ class TestAzureCosmosSensor:
             document_id=DOCUMENT_ID,
         )
         result = sensor.poke(None)
-        mock_instance.get_document.assert_called_once_with(DOCUMENT_ID, DB_NAME, COLLECTION_NAME)
+        mock_instance.get_document.assert_called_once_with(
+            DOCUMENT_ID, DB_NAME, COLLECTION_NAME
+        )
         assert result is False

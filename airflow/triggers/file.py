@@ -76,7 +76,9 @@ class FileTrigger(BaseTrigger):
             for path in glob(self.filepath, recursive=self.recursive):
                 if os.path.isfile(path):
                     mod_time_f = os.path.getmtime(path)
-                    mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime("%Y%m%d%H%M%S")
+                    mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime(
+                        "%Y%m%d%H%M%S"
+                    )
                     self.log.info("Found File %s last modified: %s", path, mod_time)
                     yield TriggerEvent(True)
                     return

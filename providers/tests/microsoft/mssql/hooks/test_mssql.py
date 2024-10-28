@@ -32,10 +32,20 @@ except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
 PYMSSQL_CONN = Connection(
-    conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
+    conn_type="mssql",
+    host="ip",
+    schema="share",
+    login="username",
+    password="password",
+    port=8081,
 )
 PYMSSQL_CONN_ALT = Connection(
-    conn_type="mssql", host="ip", schema="", login="username", password="password", port=8081
+    conn_type="mssql",
+    host="ip",
+    schema="",
+    login="username",
+    password="password",
+    port=8081,
 )
 PYMSSQL_CONN_ALT_1 = Connection(
     conn_type="mssql",
@@ -81,7 +91,9 @@ class TestMsSqlHook:
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
-    def test_set_autocommit_should_invoke_autocommit(self, get_connection, mssql_get_conn):
+    def test_set_autocommit_should_invoke_autocommit(
+        self, get_connection, mssql_get_conn
+    ):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
         autocommit_value = mock.Mock()
@@ -95,7 +107,9 @@ class TestMsSqlHook:
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
-    def test_get_autocommit_should_return_autocommit_state(self, get_connection, mssql_get_conn):
+    def test_get_autocommit_should_return_autocommit_state(
+        self, get_connection, mssql_get_conn
+    ):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
         mssql_get_conn.return_value.autocommit_state = "autocommit_state"
@@ -183,7 +197,10 @@ class TestMsSqlHook:
         hook.get_sqlalchemy_engine()
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
-    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_primary_keys", get_primary_keys)
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_primary_keys",
+        get_primary_keys,
+    )
     def test_generate_insert_sql(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 

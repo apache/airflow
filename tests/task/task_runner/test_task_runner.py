@@ -56,7 +56,13 @@ class TestGetTaskRunner:
         "tests.task.task_runner.test_task_runner.custom_task_runner",
     )
     def test_should_support_custom_legacy_task_runner(self):
-        mock.MagicMock(**{"task_instance.get_template_context.return_value": {"ti": mock.MagicMock()}})
+        mock.MagicMock(
+            **{
+                "task_instance.get_template_context.return_value": {
+                    "ti": mock.MagicMock()
+                }
+            }
+        )
         custom_task_runner.reset_mock()
 
         task_runner = get_task_runner(custom_task_runner)

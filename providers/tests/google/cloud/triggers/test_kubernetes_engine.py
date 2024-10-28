@@ -38,7 +38,9 @@ from airflow.triggers.base import TriggerEvent
 GKE_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine"
 TRIGGER_GKE_POD_PATH = GKE_TRIGGERS_PATH + ".GKEStartPodTrigger"
 TRIGGER_GKE_JOB_PATH = GKE_TRIGGERS_PATH + ".GKEJobTrigger"
-TRIGGER_KUB_POD_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
+TRIGGER_KUB_POD_PATH = (
+    "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
+)
 HOOK_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEPodAsyncHook"
 POD_NAME = "test-pod-name"
 JOB_NAME = "test-job-name"
@@ -237,7 +239,12 @@ class TestGKEStartPodTrigger:
         actual_stack_trace = actual.payload.pop("stack_trace")
         assert (
             TriggerEvent(
-                {"name": POD_NAME, "namespace": NAMESPACE, "status": "error", "message": "Test exception"}
+                {
+                    "name": POD_NAME,
+                    "namespace": NAMESPACE,
+                    "status": "error",
+                    "message": "Test exception",
+                }
             )
             == actual
         )
@@ -264,15 +271,27 @@ class TestGKEStartPodTrigger:
         "container_state, expected_state",
         [
             (
-                {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},
+                {
+                    "running": k8s.V1ContainerStateRunning(),
+                    "terminated": None,
+                    "waiting": None,
+                },
                 ContainerState.RUNNING,
             ),
             (
-                {"running": None, "terminated": k8s.V1ContainerStateTerminated(exit_code=0), "waiting": None},
+                {
+                    "running": None,
+                    "terminated": k8s.V1ContainerStateTerminated(exit_code=0),
+                    "waiting": None,
+                },
                 ContainerState.TERMINATED,
             ),
             (
-                {"running": None, "terminated": None, "waiting": k8s.V1ContainerStateWaiting()},
+                {
+                    "running": None,
+                    "terminated": None,
+                    "waiting": k8s.V1ContainerStateWaiting(),
+                },
                 ContainerState.WAITING,
             ),
         ],
@@ -494,7 +513,9 @@ class TestGKEStartJobTrigger:
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
-        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
+        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(
+            return_value=mock_job
+        )
 
         mock_pod = mock.MagicMock()
         mock_pod.metadata.name = POD_NAME
@@ -532,7 +553,9 @@ class TestGKEStartJobTrigger:
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
-        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
+        mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(
+            return_value=mock_job
+        )
 
         mock_pod = mock.MagicMock()
         mock_pod.metadata.name = POD_NAME

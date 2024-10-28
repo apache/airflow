@@ -62,7 +62,9 @@ class SecretCache:
             # making them run a lot faster because this operation takes ~300ms each time
             cls.__manager = multiprocessing.Manager()
         cls._cache = cls.__manager.dict()
-        ttl_seconds = conf.getint(section="secrets", key="cache_ttl_seconds", fallback=15 * 60)
+        ttl_seconds = conf.getint(
+            section="secrets", key="cache_ttl_seconds", fallback=15 * 60
+        )
         cls._ttl = datetime.timedelta(seconds=ttl_seconds)
 
     @classmethod

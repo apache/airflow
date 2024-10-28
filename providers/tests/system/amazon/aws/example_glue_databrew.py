@@ -64,7 +64,11 @@ def create_dataset(dataset_name: str, bucket_name: str, object_key: str):
 
 @task
 def create_job(
-    dataset_name: str, job_name: str, bucket_output_name: str, object_output_key: str, role_arn: str
+    dataset_name: str,
+    job_name: str,
+    bucket_output_name: str,
+    object_output_key: str,
+    role_arn: str,
 ):
     client = boto3.client("databrew")
     client.create_profile_job(
@@ -91,7 +95,12 @@ def delete_job(job_name: str):
     client.delete_job(Name=job_name)
 
 
-with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False) as dag:
+with DAG(
+    DAG_ID,
+    schedule="@once",
+    start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
+    catchup=False,
+) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
     role_arn = test_context[ROLE_ARN_KEY]
@@ -121,7 +130,9 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
     )
 
     # [START howto_operator_glue_databrew_start]
-    start_job = GlueDataBrewStartJobOperator(task_id="startjob", job_name=job_name, waiter_delay=15)
+    start_job = GlueDataBrewStartJobOperator(
+        task_id="startjob", job_name=job_name, waiter_delay=15
+    )
     # [END howto_operator_glue_databrew_start]
 
     delete_bucket = S3DeleteBucketOperator(

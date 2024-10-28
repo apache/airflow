@@ -29,7 +29,9 @@ from googleapiclient import http
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.providers.google.marketing_platform.hooks.campaign_manager import (
+    GoogleCampaignManagerHook,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -91,7 +93,9 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         if not (report_name or report_id):
             raise AirflowException("Please provide `report_name` or `report_id`.")
         if report_name and report_id:
-            raise AirflowException("Please provide only one parameter `report_name` or `report_id`.")
+            raise AirflowException(
+                "Please provide only one parameter `report_name` or `report_id`."
+            )
 
         self.profile_id = profile_id
         self.report_name = report_name
@@ -225,7 +229,9 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         # Get name of the report
-        report = hook.get_report(file_id=self.file_id, profile_id=self.profile_id, report_id=self.report_id)
+        report = hook.get_report(
+            file_id=self.file_id, profile_id=self.profile_id, report_id=self.report_id
+        )
         report_name = self.report_name or report.get("fileName", str(uuid.uuid4()))
         report_name = self._resolve_file_name(report_name)
 
@@ -235,7 +241,9 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
             profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id
         )
         with tempfile.NamedTemporaryFile() as temp_file:
-            downloader = http.MediaIoBaseDownload(fd=temp_file, request=request, chunksize=self.chunk_size)
+            downloader = http.MediaIoBaseDownload(
+                fd=temp_file, request=request, chunksize=self.chunk_size
+            )
             download_finished = False
             while not download_finished:
                 _, download_finished = downloader.next_chunk()

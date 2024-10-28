@@ -48,13 +48,17 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexGetDataProfileScanResultOperator,
     DataplexRunDataProfileScanOperator,
 )
-from airflow.providers.google.cloud.sensors.dataplex import DataplexDataProfileJobStatusSensor
+from airflow.providers.google.cloud.sensors.dataplex import (
+    DataplexDataProfileJobStatusSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "dataplex_data_profile"
 
@@ -73,7 +77,9 @@ SCHEMA = [
 ]
 
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
-INSERT_ROWS_QUERY = f"INSERT {DATASET}.{TABLE_1} VALUES (1, 'test test2', '{INSERT_DATE}');"
+INSERT_ROWS_QUERY = (
+    f"INSERT {DATASET}.{TABLE_1} VALUES (1, 'test test2', '{INSERT_DATE}');"
+)
 LOCATION = "us"
 
 TRIGGER_SPEC_TYPE = "ON_DEMAND"
@@ -99,16 +105,17 @@ ASSET_ID = f"asset-id-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 # [START howto_dataplex_asset_configuration]
 EXAMPLE_ASSET = {
-    "resource_spec": {"name": f"projects/{PROJECT_ID}/datasets/{DATASET}", "type_": "BIGQUERY_DATASET"},
+    "resource_spec": {
+        "name": f"projects/{PROJECT_ID}/datasets/{DATASET}",
+        "type_": "BIGQUERY_DATASET",
+    },
     "discovery_spec": {"enabled": True},
 }
 # [END howto_dataplex_asset_configuration]
 
 # [START howto_dataplex_data_profile_configuration]
 EXAMPLE_DATA_SCAN = dataplex_v1.DataScan()
-EXAMPLE_DATA_SCAN.data.entity = (
-    f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/entities/{TABLE_1}"
-)
+EXAMPLE_DATA_SCAN.data.entity = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/entities/{TABLE_1}"
 EXAMPLE_DATA_SCAN.data.resource = (
     f"//bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/{DATASET}/tables/{TABLE_1}"
 )
@@ -131,7 +138,9 @@ with DAG(
     schedule="@once",
     tags=["example", "dataplex", "data_profile"],
 ) as dag:
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset", dataset_id=DATASET
+    )
     create_table_1 = BigQueryCreateEmptyTableOperator(
         task_id="create_table_1",
         dataset_id=DATASET,
@@ -156,7 +165,11 @@ with DAG(
         },
     )
     create_lake = DataplexCreateLakeOperator(
-        task_id="create_lake", project_id=PROJECT_ID, region=REGION, body=EXAMPLE_LAKE_BODY, lake_id=LAKE_ID
+        task_id="create_lake",
+        project_id=PROJECT_ID,
+        region=REGION,
+        body=EXAMPLE_LAKE_BODY,
+        lake_id=LAKE_ID,
     )
     # [START howto_dataplex_create_zone_operator]
     create_zone = DataplexCreateZoneOperator(

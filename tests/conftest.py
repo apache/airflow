@@ -27,7 +27,9 @@ from tests_common.test_utils.log_handlers import non_pytest_handlers
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
-assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
+assert (
+    "airflow" not in sys.modules
+), "No airflow module can be imported before these lines"
 
 pytest_plugins = "tests_common.pytest_plugin"
 

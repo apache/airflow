@@ -48,7 +48,9 @@ class TestNeo4jHookConn:
 
         # Use the environment variable mocking to test saving the configuration as a URI and
         # to avoid mocking Airflow models class
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()
+        ):
             neo4j_hook = Neo4jHook()
             uri = neo4j_hook.get_uri(connection)
 
@@ -57,18 +59,26 @@ class TestNeo4jHookConn:
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_with_schema(self, mock_graph_database):
         connection = Connection(
-            conn_type="neo4j", login="login", password="password", host="host", schema="schema"
+            conn_type="neo4j",
+            login="login",
+            password="password",
+            host="host",
+            schema="schema",
         )
         mock_sql = mock.MagicMock(name="sql")
 
         # Use the environment variable mocking to test saving the configuration as a URI and
         # to avoid mocking Airflow models class
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()
+        ):
             neo4j_hook = Neo4jHook()
             op_result = neo4j_hook.run(mock_sql)
             mock_graph_database.assert_has_calls(
                 [
-                    mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
+                    mock.call.driver(
+                        "bolt://host:7687", auth=("login", "password"), encrypted=False
+                    ),
                     mock.call.driver().session(database="schema"),
                     mock.call.driver().session().__enter__(),
                     mock.call.driver().session().__enter__().run(mock_sql),
@@ -82,18 +92,26 @@ class TestNeo4jHookConn:
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_without_schema(self, mock_graph_database):
         connection = Connection(
-            conn_type="neo4j", login="login", password="password", host="host", schema=None
+            conn_type="neo4j",
+            login="login",
+            password="password",
+            host="host",
+            schema=None,
         )
         mock_sql = mock.MagicMock(name="sql")
 
         # Use the environment variable mocking to test saving the configuration as a URI and
         # to avoid mocking Airflow models class
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()
+        ):
             neo4j_hook = Neo4jHook()
             op_result = neo4j_hook.run(mock_sql)
             mock_graph_database.assert_has_calls(
                 [
-                    mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
+                    mock.call.driver(
+                        "bolt://host:7687", auth=("login", "password"), encrypted=False
+                    ),
                     mock.call.driver().session(),
                     mock.call.driver().session().__enter__(),
                     mock.call.driver().session().__enter__().run(mock_sql),
@@ -109,19 +127,55 @@ class TestNeo4jHookConn:
         [
             ({}, True, False),
             ({"neo4j_scheme": False, "encrypted": True}, True, True),
-            ({"certs_self_signed": False, "neo4j_scheme": False, "encrypted": False}, True, False),
-            ({"certs_trusted_ca": False, "neo4j_scheme": False, "encrypted": False}, True, False),
-            ({"certs_self_signed": False, "neo4j_scheme": True, "encrypted": False}, True, False),
-            ({"certs_trusted_ca": False, "neo4j_scheme": True, "encrypted": False}, True, False),
-            ({"certs_self_signed": True, "neo4j_scheme": False, "encrypted": False}, False, None),
-            ({"certs_trusted_ca": True, "neo4j_scheme": False, "encrypted": False}, False, None),
-            ({"certs_self_signed": True, "neo4j_scheme": True, "encrypted": False}, False, None),
-            ({"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False}, False, None),
+            (
+                {"certs_self_signed": False, "neo4j_scheme": False, "encrypted": False},
+                True,
+                False,
+            ),
+            (
+                {"certs_trusted_ca": False, "neo4j_scheme": False, "encrypted": False},
+                True,
+                False,
+            ),
+            (
+                {"certs_self_signed": False, "neo4j_scheme": True, "encrypted": False},
+                True,
+                False,
+            ),
+            (
+                {"certs_trusted_ca": False, "neo4j_scheme": True, "encrypted": False},
+                True,
+                False,
+            ),
+            (
+                {"certs_self_signed": True, "neo4j_scheme": False, "encrypted": False},
+                False,
+                None,
+            ),
+            (
+                {"certs_trusted_ca": True, "neo4j_scheme": False, "encrypted": False},
+                False,
+                None,
+            ),
+            (
+                {"certs_self_signed": True, "neo4j_scheme": True, "encrypted": False},
+                False,
+                None,
+            ),
+            (
+                {"certs_trusted_ca": True, "neo4j_scheme": True, "encrypted": False},
+                False,
+                None,
+            ),
         ],
     )
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase.driver")
     def test_encrypted_provided(
-        self, mock_graph_database, conn_extra, should_provide_encrypted, expected_encrypted
+        self,
+        mock_graph_database,
+        conn_extra,
+        should_provide_encrypted,
+        expected_encrypted,
     ):
         connection = Connection(
             conn_type="neo4j",
@@ -131,11 +185,16 @@ class TestNeo4jHookConn:
             schema="schema",
             extra=conn_extra,
         )
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()
+        ):
             neo4j_hook = Neo4jHook()
             with neo4j_hook.get_conn():
                 if should_provide_encrypted:
                     assert "encrypted" in mock_graph_database.call_args.kwargs
-                    assert mock_graph_database.call_args.kwargs["encrypted"] == expected_encrypted
+                    assert (
+                        mock_graph_database.call_args.kwargs["encrypted"]
+                        == expected_encrypted
+                    )
                 else:
                     assert "encrypted" not in mock_graph_database.call_args.kwargs

@@ -39,13 +39,23 @@ from airflow.providers.google.cloud.operators.dataform import (
 )
 
 HOOK_STR = "airflow.providers.google.cloud.operators.dataform.DataformHook"
-WORKFLOW_INVOCATION_STR = "airflow.providers.google.cloud.operators.dataform.WorkflowInvocation"
-WORKFLOW_INVOCATION_ACTION_STR = "airflow.providers.google.cloud.operators.dataform.WorkflowInvocationAction"
-COMPILATION_RESULT_STR = "airflow.providers.google.cloud.operators.dataform.CompilationResult"
+WORKFLOW_INVOCATION_STR = (
+    "airflow.providers.google.cloud.operators.dataform.WorkflowInvocation"
+)
+WORKFLOW_INVOCATION_ACTION_STR = (
+    "airflow.providers.google.cloud.operators.dataform.WorkflowInvocationAction"
+)
+COMPILATION_RESULT_STR = (
+    "airflow.providers.google.cloud.operators.dataform.CompilationResult"
+)
 REPOSITORY_STR = "airflow.providers.google.cloud.operators.dataform.Repository"
 WORKSPACE_STR = "airflow.providers.google.cloud.operators.dataform.Workspace"
-WRITE_FILE_RESPONSE_STR = "airflow.providers.google.cloud.operators.dataform.WriteFileResponse"
-MAKE_DIRECTORY_RESPONSE_STR = "airflow.providers.google.cloud.operators.dataform.MakeDirectoryResponse"
+WRITE_FILE_RESPONSE_STR = (
+    "airflow.providers.google.cloud.operators.dataform.WriteFileResponse"
+)
+MAKE_DIRECTORY_RESPONSE_STR = (
+    "airflow.providers.google.cloud.operators.dataform.MakeDirectoryResponse"
+)
 INSTALL_NPM_PACKAGES_RESPONSE_STR = (
     "airflow.providers.google.cloud.operators.dataform.InstallNpmPackagesResponse"
 )

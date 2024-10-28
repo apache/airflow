@@ -22,7 +22,11 @@ import boto3
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
+from airflow.providers.amazon.aws.hooks.ecs import (
+    EcsClusterStates,
+    EcsHook,
+    EcsTaskDefinitionStates,
+)
 
 
 class TestCustomECSServiceWaiters:
@@ -50,7 +54,9 @@ class TestCustomECSServiceWaiters:
 
     @staticmethod
     def describe_clusters(
-        status: str | EcsClusterStates, cluster_name: str = "spam-egg", failures: dict | list | None = None
+        status: str | EcsClusterStates,
+        cluster_name: str = "spam-egg",
+        failures: dict | list | None = None,
     ):
         """
         Helper function for generate minimal DescribeClusters response for single job.
@@ -65,7 +71,10 @@ class TestCustomECSServiceWaiters:
         if isinstance(failures, dict):
             failures = [failures]
 
-        return {"clusters": [{"clusterName": cluster_name, "status": status}], "failures": failures}
+        return {
+            "clusters": [{"clusterName": cluster_name, "status": status}],
+            "failures": failures,
+        }
 
     def test_cluster_active(self, mock_describe_clusters):
         """Test cluster reach Active state during creation."""
@@ -86,17 +95,23 @@ class TestCustomECSServiceWaiters:
         ]
         waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_active")
         with pytest.raises(WaiterError, match=f'matched expected path: "{state}"'):
-            waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+            waiter.wait(
+                clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+            )
 
     def test_cluster_active_failure_reasons(self, mock_describe_clusters):
         """Test cluster reach failure state during creation."""
         mock_describe_clusters.side_effect = [
             self.describe_clusters(EcsClusterStates.PROVISIONING),
-            self.describe_clusters(EcsClusterStates.PROVISIONING, failures={"reason": "MISSING"}),
+            self.describe_clusters(
+                EcsClusterStates.PROVISIONING, failures={"reason": "MISSING"}
+            ),
         ]
         waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_active")
         with pytest.raises(WaiterError, match='matched expected path: "MISSING"'):
-            waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+            waiter.wait(
+                clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+            )
 
     def test_cluster_inactive(self, mock_describe_clusters):
         """Test cluster reach Inactive state during deletion."""
@@ -113,13 +128,17 @@ class TestCustomECSServiceWaiters:
         mock_describe_clusters.side_effect = [
             self.describe_clusters(EcsClusterStates.ACTIVE),
             self.describe_clusters(EcsClusterStates.DEPROVISIONING),
-            self.describe_clusters(EcsClusterStates.DEPROVISIONING, failures={"reason": "MISSING"}),
+            self.describe_clusters(
+                EcsClusterStates.DEPROVISIONING, failures={"reason": "MISSING"}
+            ),
         ]
         waiter = EcsHook(aws_conn_id=None).get_waiter("cluster_inactive")
         waiter.wait(clusters=["spam-egg"], WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
 
     @staticmethod
-    def describe_task_definition(status: str | EcsTaskDefinitionStates, task_definition: str = "spam-egg"):
+    def describe_task_definition(
+        status: str | EcsTaskDefinitionStates, task_definition: str = "spam-egg"
+    ):
         """
         Helper function for generate minimal DescribeTaskDefinition response for single job.
         https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeTaskDefinition.html

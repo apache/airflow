@@ -38,7 +38,10 @@ from airflow.providers.teradata.transfers.s3_to_teradata import S3ToTeradataOper
 try:
     from airflow.providers.teradata.operators.teradata import TeradataOperator
 except ImportError:
-    pytest.skip("Teradata provider apache-airflow-provider-teradata not available", allow_module_level=True)
+    pytest.skip(
+        "Teradata provider apache-airflow-provider-teradata not available",
+        allow_module_level=True,
+    )
 
 # [START s3_to_teradata_transfer_operator_howto_guide]
 

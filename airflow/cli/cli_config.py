@@ -144,19 +144,27 @@ def string_lower_type(val):
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
-ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
+ARG_EXECUTION_DATE = Arg(
+    ("execution_date",), help="The execution date of the DAG", type=parsedate
+)
 ARG_EXECUTION_DATE_OPTIONAL = Arg(
-    ("execution_date",), nargs="?", help="The execution date of the DAG (optional)", type=parsedate
+    ("execution_date",),
+    nargs="?",
+    help="The execution date of the DAG (optional)",
+    type=parsedate,
 )
 ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
-    ("execution_date_or_run_id",), help="The execution_date of the DAG or run_id of the DAGRun"
+    ("execution_date_or_run_id",),
+    help="The execution_date of the DAG or run_id of the DAGRun",
 )
 ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
     ("execution_date_or_run_id",),
     nargs="?",
     help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
-ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
+ARG_TASK_REGEX = Arg(
+    ("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)"
+)
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(
@@ -166,8 +174,12 @@ ARG_SUBDIR = Arg(
     ),
     default="[AIRFLOW_HOME]/dags" if BUILD_DOCS else settings.DAGS_FOLDER,
 )
-ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
-ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
+ARG_START_DATE = Arg(
+    ("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate
+)
+ARG_END_DATE = Arg(
+    ("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -184,7 +196,9 @@ ARG_DRY_RUN = Arg(
 )
 ARG_PID = Arg(("--pid",), help="PID file location", nargs="?")
 ARG_DAEMON = Arg(
-    ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
+    ("-D", "--daemon"),
+    help="Daemonize instead of running in the foreground",
+    action="store_true",
 )
 ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
@@ -235,7 +249,9 @@ ARG_SKIP_SERVE_LOGS = Arg(
 
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
-    ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
+    ("--no-backfill",),
+    help="filter all the backfill dagruns given the dag id",
+    action="store_true",
 )
 dagrun_states = tuple(state.value for state in DagRunState)
 ARG_DR_STATE = Arg(
@@ -266,7 +282,9 @@ ARG_NUM_EXECUTIONS = Arg(
 
 # misc
 ARG_MARK_SUCCESS = Arg(
-    ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
+    ("-m", "--mark-success"),
+    help="Mark jobs as succeeded without running them",
+    action="store_true",
 )
 ARG_INCLUDE_DESCRIPTIONS = Arg(
     ("-d", "--include-descriptions"),
@@ -274,13 +292,19 @@ ARG_INCLUDE_DESCRIPTIONS = Arg(
     action="store_true",
 )
 ARG_INCLUDE_EXAMPLES = Arg(
-    ("-e", "--include-examples"), help="Show examples for the configuration variables", action="store_true"
+    ("-e", "--include-examples"),
+    help="Show examples for the configuration variables",
+    action="store_true",
 )
 ARG_INCLUDE_SOURCES = Arg(
-    ("-s", "--include-sources"), help="Show source of the configuration variable", action="store_true"
+    ("-s", "--include-sources"),
+    help="Show source of the configuration variable",
+    action="store_true",
 )
 ARG_INCLUDE_ENV_VARS = Arg(
-    ("-V", "--include-env-vars"), help="Show environment variable for each option", action="store_true"
+    ("-V", "--include-env-vars"),
+    help="Show environment variable for each option",
+    action="store_true",
 )
 ARG_COMMENT_OUT_EVERYTHING = Arg(
     ("-c", "--comment-out-everything"),
@@ -298,15 +322,22 @@ ARG_DEFAULTS = Arg(
     " includes descriptions, examples, variables. Comment out everything.",
     action="store_true",
 )
-ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
-ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
+ARG_VERBOSE = Arg(
+    ("-v", "--verbose"), help="Make logging output more verbose", action="store_true"
+)
+ARG_LOCAL = Arg(
+    ("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true"
+)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag",), help="The dag to backfill.", required=True)
 ARG_BACKFILL_FROM_DATE = Arg(
-    ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
+    ("--from-date",),
+    help="Earliest logical date to backfill.",
+    type=parsedate,
+    required=True,
 )
 ARG_BACKFILL_TO_DATE = Arg(
     ("--to-date",), help="Latest logical date to backfill", type=parsedate, required=True
@@ -386,23 +417,40 @@ ARG_SHUT_DOWN_LOGGING = Arg(
 )
 
 # clear
-ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
-ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
-ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
-ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
+ARG_UPSTREAM = Arg(
+    ("-u", "--upstream"), help="Include upstream tasks", action="store_true"
+)
+ARG_ONLY_FAILED = Arg(
+    ("-f", "--only-failed"), help="Only failed jobs", action="store_true"
+)
+ARG_ONLY_RUNNING = Arg(
+    ("-r", "--only-running"), help="Only running jobs", action="store_true"
+)
+ARG_DOWNSTREAM = Arg(
+    ("-d", "--downstream"), help="Include downstream tasks", action="store_true"
+)
 ARG_DAG_REGEX = Arg(
-    ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
+    ("-R", "--dag-regex"),
+    help="Search dag_id as regex instead of exact string",
+    action="store_true",
 )
 
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
-ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action="store_true")
+ARG_IMGCAT = Arg(
+    ("--imgcat",), help="Displays graph using the imgcat tool.", action="store_true"
+)
 
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
-ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
-ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+ARG_CONF = Arg(
+    ("-c", "--conf"),
+    help="JSON string that gets pickled into the DagRun's conf attribute",
+)
+ARG_EXEC_DATE = Arg(
+    ("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate
+)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
@@ -473,7 +521,9 @@ ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
 ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
 ARG_POOL_INCLUDE_DEFERRED = Arg(
-    ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
+    ("--include-deferred",),
+    help="Include deferred tasks in calculations for Pool",
+    action="store_true",
 )
 ARG_POOL_IMPORT = Arg(
     ("file",),
@@ -497,7 +547,10 @@ ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to J
 ARG_VAR = Arg(("key",), help="Variable key")
 ARG_VAR_VALUE = Arg(("value",), metavar="VALUE", help="Variable value")
 ARG_DEFAULT = Arg(
-    ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
+    ("-d", "--default"),
+    metavar="VAL",
+    default=None,
+    help="Default value returned if variable does not exist",
 )
 ARG_VAR_DESCRIPTION = Arg(
     ("--description",),
@@ -505,8 +558,12 @@ ARG_VAR_DESCRIPTION = Arg(
     required=False,
     help="Variable description, optional when setting a variable",
 )
-ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
-ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
+ARG_DESERIALIZE_JSON = Arg(
+    ("-j", "--json"), help="Deserialize JSON variable", action="store_true"
+)
+ARG_SERIALIZE_JSON = Arg(
+    ("-j", "--json"), help="Serialize JSON variable", action="store_true"
+)
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
 ARG_VAR_EXPORT = Arg(
     ("file",),
@@ -522,9 +579,13 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
-ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab"))
+ARG_KEYTAB = Arg(
+    ("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab")
+)
 ARG_KERBEROS_ONE_TIME_MODE = Arg(
-    ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
+    ("-o", "--one-time"),
+    help="Run airflow kerberos one time instead of forever",
+    action="store_true",
 )
 # run
 ARG_INTERACTIVE = Arg(
@@ -569,13 +630,22 @@ ARG_DEPENDS_ON_PAST = Arg(
     default="check",
 )
 ARG_SHIP_DAG = Arg(
-    ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
+    ("--ship-dag",),
+    help="Pickles (serializes) the DAG and ships it to the worker",
+    action="store_true",
 )
-ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
+ARG_PICKLE = Arg(
+    ("-p", "--pickle"),
+    help="Serialized pickle object of the entire dag (used internally)",
+)
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
-ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
+ARG_CFG_PATH = Arg(
+    ("--cfg-path",), help="Path to config file to use instead of airflow.cfg"
+)
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
-ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true")
+ARG_READ_FROM_DB = Arg(
+    ("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true"
+)
 
 
 # database
@@ -675,7 +745,9 @@ ARG_HOSTNAME = Arg(
     help="Set the hostname on which to run the web server",
 )
 ARG_DEBUG = Arg(
-    ("-d", "--debug"), help="Use the server that ships with Flask in debug mode", action="store_true"
+    ("-d", "--debug"),
+    help="Use the server that ships with Flask in debug mode",
+    action="store_true",
 )
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
@@ -812,9 +884,13 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to the task")
+ARG_TASK_PARAMS = Arg(
+    ("-t", "--task-params"), help="Sends a JSON params dict to the task"
+)
 ARG_POST_MORTEM = Arg(
-    ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
+    ("-m", "--post-mortem"),
+    action="store_true",
+    help="Open debugger on uncaught exception",
 )
 ARG_ENV_VARS = Arg(
     ("--env-vars",),
@@ -823,33 +899,61 @@ ARG_ENV_VARS = Arg(
 )
 
 # connections
-ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
+ARG_CONN_ID = Arg(
+    ("conn_id",),
+    help="Connection id, required to get/add/delete/test a connection",
+    type=str,
+)
 ARG_CONN_ID_FILTER = Arg(
-    ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
+    ("--conn-id",),
+    help="If passed, only items with the specified connection ID will be displayed",
+    type=str,
 )
 ARG_CONN_URI = Arg(
-    ("--conn-uri",), help="Connection URI, required to add a connection without conn_type", type=str
+    ("--conn-uri",),
+    help="Connection URI, required to add a connection without conn_type",
+    type=str,
 )
 ARG_CONN_JSON = Arg(
-    ("--conn-json",), help="Connection JSON, required to add a connection using JSON representation", type=str
+    ("--conn-json",),
+    help="Connection JSON, required to add a connection using JSON representation",
+    type=str,
 )
 ARG_CONN_TYPE = Arg(
-    ("--conn-type",), help="Connection type, required to add a connection without conn_uri", type=str
+    ("--conn-type",),
+    help="Connection type, required to add a connection without conn_uri",
+    type=str,
 )
 ARG_CONN_DESCRIPTION = Arg(
-    ("--conn-description",), help="Connection description, optional when adding a connection", type=str
+    ("--conn-description",),
+    help="Connection description, optional when adding a connection",
+    type=str,
 )
-ARG_CONN_HOST = Arg(("--conn-host",), help="Connection host, optional when adding a connection", type=str)
-ARG_CONN_LOGIN = Arg(("--conn-login",), help="Connection login, optional when adding a connection", type=str)
+ARG_CONN_HOST = Arg(
+    ("--conn-host",), help="Connection host, optional when adding a connection", type=str
+)
+ARG_CONN_LOGIN = Arg(
+    ("--conn-login",),
+    help="Connection login, optional when adding a connection",
+    type=str,
+)
 ARG_CONN_PASSWORD = Arg(
-    ("--conn-password",), help="Connection password, optional when adding a connection", type=str
+    ("--conn-password",),
+    help="Connection password, optional when adding a connection",
+    type=str,
 )
 ARG_CONN_SCHEMA = Arg(
-    ("--conn-schema",), help="Connection schema, optional when adding a connection", type=str
+    ("--conn-schema",),
+    help="Connection schema, optional when adding a connection",
+    type=str,
 )
-ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port, optional when adding a connection", type=str)
+ARG_CONN_PORT = Arg(
+    ("--conn-port",), help="Connection port, optional when adding a connection", type=str
+)
 ARG_CONN_EXTRA = Arg(
-    ("--conn-extra",), help="Connection `Extra` field, optional when adding a connection", type=str
+    ("--conn-extra",),
+    help="Connection `Extra` field, optional when adding a connection",
+    type=str,
 )
 ARG_CONN_EXPORT = Arg(
     ("file",),
@@ -863,7 +967,10 @@ ARG_CONN_EXPORT_FORMAT = Arg(
     choices=["json", "yaml", "env"],
 )
 ARG_CONN_EXPORT_FILE_FORMAT = Arg(
-    ("--file-format",), help="File format for the export", type=str, choices=["json", "yaml", "env"]
+    ("--file-format",),
+    help="File format for the export",
+    type=str,
+    choices=["json", "yaml", "env"],
 )
 ARG_CONN_SERIALIZATION_FORMAT = Arg(
     ("--serialization-format",),
@@ -881,7 +988,9 @@ ARG_CONN_OVERWRITE = Arg(
 
 # providers
 ARG_PROVIDER_NAME = Arg(
-    ("provider_name",), help="Provider name, required to get provider information", type=str
+    ("provider_name",),
+    help="Provider name, required to get provider information",
+    type=str,
 )
 ARG_FULL = Arg(
     ("-f", "--full"),
@@ -897,7 +1006,9 @@ ARG_ANONYMIZE = Arg(
     action="store_true",
 )
 ARG_FILE_IO = Arg(
-    ("--file-io",), help="Send output to file.io service and returns link.", action="store_true"
+    ("--file-io",),
+    help="Send output to file.io service and returns link.",
+    action="store_true",
 )
 
 # config
@@ -1116,7 +1227,14 @@ DAGS_COMMANDS = (
             "treating the `--dag-id` as a regex pattern."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_pause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_TREAT_DAG_ID_AS_REGEX,
+            ARG_YES,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="unpause",
@@ -1127,7 +1245,14 @@ DAGS_COMMANDS = (
             "treating the `--dag-id` as a regex pattern."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_unpause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_TREAT_DAG_ID_AS_REGEX,
+            ARG_YES,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="trigger",
@@ -1310,7 +1435,14 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflow.cli.commands.task_command.task_failed_deps"),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_SUBDIR,
+            ARG_MAP_INDEX,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="render",
@@ -1377,7 +1509,9 @@ TASKS_COMMANDS = (
     ActionCommand(
         name="states-for-dag-run",
         help="Get the status of all task instances in a dag run",
-        func=lazy_load_command("airflow.cli.commands.task_command.task_states_for_dag_run"),
+        func=lazy_load_command(
+            "airflow.cli.commands.task_command.task_states_for_dag_run"
+        ),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
@@ -1443,7 +1577,13 @@ VARIABLES_COMMANDS = (
         name="set",
         help="Set variable",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_set"),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_VAR_DESCRIPTION, ARG_SERIALIZE_JSON, ARG_VERBOSE),
+        args=(
+            ARG_VAR,
+            ARG_VAR_VALUE,
+            ARG_VAR_DESCRIPTION,
+            ARG_SERIALIZE_JSON,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="delete",
@@ -1613,19 +1753,29 @@ CONNECTIONS_COMMANDS = (
     ActionCommand(
         name="list",
         help="List connections",
-        func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
+        func=lazy_load_command(
+            "airflow.cli.commands.connection_command.connections_list"
+        ),
         args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name="add",
         help="Add a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_add"),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA, *ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(
+            ARG_CONN_ID,
+            ARG_CONN_URI,
+            ARG_CONN_JSON,
+            ARG_CONN_EXTRA,
+            *ALTERNATIVE_CONN_SPECS_ARGS,
+        ),
     ),
     ActionCommand(
         name="delete",
         help="Delete a connection",
-        func=lazy_load_command("airflow.cli.commands.connection_command.connections_delete"),
+        func=lazy_load_command(
+            "airflow.cli.commands.connection_command.connections_delete"
+        ),
         args=(ARG_CONN_ID, ARG_COLOR, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1646,7 +1796,9 @@ CONNECTIONS_COMMANDS = (
             "is used to serialize the connection by passing `uri` or `json` with option "
             "`--serialization-format`.\n"
         ),
-        func=lazy_load_command("airflow.cli.commands.connection_command.connections_export"),
+        func=lazy_load_command(
+            "airflow.cli.commands.connection_command.connections_export"
+        ),
         args=(
             ARG_CONN_EXPORT,
             ARG_CONN_EXPORT_FORMAT,
@@ -1662,7 +1814,9 @@ CONNECTIONS_COMMANDS = (
             "Connections can be imported from the output of the export command.\n"
             "The filetype must by json, yaml or env and will be automatically inferred."
         ),
-        func=lazy_load_command("airflow.cli.commands.connection_command.connections_import"),
+        func=lazy_load_command(
+            "airflow.cli.commands.connection_command.connections_import"
+        ),
         args=(
             ARG_CONN_IMPORT,
             ARG_CONN_OVERWRITE,
@@ -1672,13 +1826,17 @@ CONNECTIONS_COMMANDS = (
     ActionCommand(
         name="test",
         help="Test a connection",
-        func=lazy_load_command("airflow.cli.commands.connection_command.connections_test"),
+        func=lazy_load_command(
+            "airflow.cli.commands.connection_command.connections_test"
+        ),
         args=(ARG_CONN_ID, ARG_VERBOSE),
     ),
     ActionCommand(
         name="create-default-connections",
         help="Creates all the default connections from all the providers",
-        func=lazy_load_command("airflow.cli.commands.connection_command.create_default_connections"),
+        func=lazy_load_command(
+            "airflow.cli.commands.connection_command.create_default_connections"
+        ),
         # func=lazy_load_command("airflow.utils.db.create_default_connections"),
         args=(ARG_VERBOSE,),
     ),
@@ -1705,7 +1863,9 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="widgets",
         help="Get information about registered connection form widgets",
-        func=lazy_load_command("airflow.cli.commands.provider_command.connection_form_widget_list"),
+        func=lazy_load_command(
+            "airflow.cli.commands.provider_command.connection_form_widget_list"
+        ),
         args=(
             ARG_OUTPUT,
             ARG_VERBOSE,
@@ -1726,7 +1886,9 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="behaviours",
         help="Get information about registered connection types with custom behaviours",
-        func=lazy_load_command("airflow.cli.commands.provider_command.connection_field_behaviours"),
+        func=lazy_load_command(
+            "airflow.cli.commands.provider_command.connection_field_behaviours"
+        ),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1738,7 +1900,9 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="secrets",
         help="Get information about secrets backends provided",
-        func=lazy_load_command("airflow.cli.commands.provider_command.secrets_backends_list"),
+        func=lazy_load_command(
+            "airflow.cli.commands.provider_command.secrets_backends_list"
+        ),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1756,7 +1920,9 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="notifications",
         help="Get information about notifications provided",
-        func=lazy_load_command("airflow.cli.commands.provider_command.notifications_list"),
+        func=lazy_load_command(
+            "airflow.cli.commands.provider_command.notifications_list"
+        ),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1774,7 +1940,9 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="auth-managers",
         help="Get information about auth managers provided",
-        func=lazy_load_command("airflow.cli.commands.provider_command.auth_managers_list"),
+        func=lazy_load_command(
+            "airflow.cli.commands.provider_command.auth_managers_list"
+        ),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
@@ -1818,14 +1986,18 @@ KUBERNETES_COMMANDS = (
             "(created by KubernetesExecutor/KubernetesPodOperator) "
             "in evicted/failed/succeeded/pending states"
         ),
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
+        func=lazy_load_command(
+            "airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"
+        ),
         args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
+        func=lazy_load_command(
+            "airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"
+        ),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
@@ -1997,7 +2169,9 @@ core_commands: list[CLICommand] = [
     ActionCommand(
         name="dag-processor",
         help="Start a standalone Dag Processor instance",
-        func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor"),
+        func=lazy_load_command(
+            "airflow.cli.commands.dag_processor_command.dag_processor"
+        ),
         args=(
             ARG_PID,
             ARG_DAEMON,
@@ -2034,7 +2208,9 @@ core_commands: list[CLICommand] = [
     ),
     ActionCommand(
         name="rotate-fernet-key",
-        func=lazy_load_command("airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key"),
+        func=lazy_load_command(
+            "airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key"
+        ),
         help="Rotate encrypted connection credentials and variables",
         description=(
             "Rotate all encrypted connection credentials and variables; see "
@@ -2074,7 +2250,9 @@ if _ENABLE_AIP_44:
         ActionCommand(
             name="internal-api",
             help="Start an Airflow Internal API instance",
-            func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+            func=lazy_load_command(
+                "airflow.cli.commands.internal_api_command.internal_api"
+            ),
             args=(
                 ARG_INTERNAL_API_PORT,
                 ARG_INTERNAL_API_WORKERS,
@@ -2116,7 +2294,11 @@ dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name="tasks",
         help="Manage tasks",
-        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ["list", "test", "run"]],
+        subcommands=[
+            _remove_dag_id_opt(sp)
+            for sp in TASKS_COMMANDS
+            if sp.name in ["list", "test", "run"]
+        ],
     ),
 ]
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}

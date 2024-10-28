@@ -141,11 +141,15 @@ def MakeSummary(pcoll, metric_fn, metric_keys):
         pcoll
         | "ApplyMetricFnPerInstance" >> beam.Map(metric_fn)
         | "PairWith1" >> beam.Map(lambda tup: (*tup, 1))
-        | "SumTuple" >> beam.CombineGlobally(beam.combiners.TupleCombineFn(*([sum] * (len(metric_keys) + 1))))
+        | "SumTuple"
+        >> beam.CombineGlobally(
+            beam.combiners.TupleCombineFn(*([sum] * (len(metric_keys) + 1)))
+        )
         | "AverageAndMakeDict"
         >> beam.Map(
             lambda tup: dict(
-                [(name, tup[i] / tup[-1]) for i, name in enumerate(metric_keys)] + [("count", tup[-1])]
+                [(name, tup[i] / tup[-1]) for i, name in enumerate(metric_keys)]
+                + [("count", tup[-1])]
             )
         )
     )
@@ -192,12 +196,17 @@ def run(argv=None):
     metric_keys = known_args.metric_keys.split(",")
 
     with beam.Pipeline(options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
-        prediction_result_pattern = os.path.join(known_args.prediction_path, "prediction.results-*-of-*")
-        prediction_summary_path = os.path.join(known_args.prediction_path, "prediction.summary.json")
+        prediction_result_pattern = os.path.join(
+            known_args.prediction_path, "prediction.results-*-of-*"
+        )
+        prediction_summary_path = os.path.join(
+            known_args.prediction_path, "prediction.summary.json"
+        )
         # This is apache-beam ptransform's convention
         _ = (
             pipe
-            | "ReadPredictionResult" >> beam.io.ReadFromText(prediction_result_pattern, coder=JsonCoder())
+            | "ReadPredictionResult"
+            >> beam.io.ReadFromText(prediction_result_pattern, coder=JsonCoder())
             | "Summary" >> MakeSummary(metric_fn, metric_keys)
             | "Write"
             >> beam.io.WriteToText(

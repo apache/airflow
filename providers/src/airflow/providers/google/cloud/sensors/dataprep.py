@@ -21,7 +21,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook, JobGroupStatuses
+from airflow.providers.google.cloud.hooks.dataprep import (
+    GoogleDataprepHook,
+    JobGroupStatuses,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:

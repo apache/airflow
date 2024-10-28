@@ -48,7 +48,14 @@ class TestLocalExecutor:
 
     @mock.patch("airflow.executors.local_executor.subprocess.check_call")
     def execution_parallelism_subprocess(self, mock_check_call, parallelism=0):
-        success_command = ["airflow", "tasks", "run", "true", "some_parameter", "2020-10-07"]
+        success_command = [
+            "airflow",
+            "tasks",
+            "run",
+            "true",
+            "some_parameter",
+            "2020-10-07",
+        ]
         fail_command = ["airflow", "tasks", "run", "false", "task_id", "2020-10-07"]
 
         def fake_execute_command(command, close_fds=True):
@@ -63,8 +70,22 @@ class TestLocalExecutor:
 
     @mock.patch("airflow.cli.commands.task_command.task_run")
     def execution_parallelism_fork(self, mock_run, parallelism=0):
-        success_command = ["airflow", "tasks", "run", "success", "some_parameter", "2020-10-07"]
-        fail_command = ["airflow", "tasks", "run", "failure", "some_parameter", "2020-10-07"]
+        success_command = [
+            "airflow",
+            "tasks",
+            "run",
+            "success",
+            "some_parameter",
+            "2020-10-07",
+        ]
+        fail_command = [
+            "airflow",
+            "tasks",
+            "run",
+            "failure",
+            "some_parameter",
+            "2020-10-07",
+        ]
 
         def fake_task_run(args):
             if args.dag_id != "success":
@@ -107,14 +128,18 @@ class TestLocalExecutor:
 
     def test_execution_subprocess_unlimited_parallelism(self):
         with mock.patch.object(
-            settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", new_callable=mock.PropertyMock
+            settings,
+            "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER",
+            new_callable=mock.PropertyMock,
         ) as option:
             option.return_value = True
             self.execution_parallelism_subprocess(parallelism=0)
 
     def test_execution_subprocess_limited_parallelism(self):
         with mock.patch.object(
-            settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", new_callable=mock.PropertyMock
+            settings,
+            "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER",
+            new_callable=mock.PropertyMock,
         ) as option:
             option.return_value = True
             self.execution_parallelism_subprocess(parallelism=2)
@@ -130,18 +155,26 @@ class TestLocalExecutor:
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+    def test_gauge_executor_metrics(
+        self, mock_stats_gauge, mock_trigger_tasks, mock_sync
+    ):
         executor = LocalExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "LocalExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "LocalExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "LocalExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "name": "LocalExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)

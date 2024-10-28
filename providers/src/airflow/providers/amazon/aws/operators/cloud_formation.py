@@ -52,7 +52,9 @@ class CloudFormationCreateStackOperator(AwsBaseOperator[CloudFormationHook]):
     """
 
     aws_hook_class = CloudFormationHook
-    template_fields: Sequence[str] = aws_template_fields("stack_name", "cloudformation_parameters")
+    template_fields: Sequence[str] = aws_template_fields(
+        "stack_name", "cloudformation_parameters"
+    )
     ui_color = "#6b9659"
 
     def __init__(self, *, stack_name: str, cloudformation_parameters: dict, **kwargs):

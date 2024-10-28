@@ -23,7 +23,9 @@ import pytest
 
 from airflow.providers.common.sql.hooks.sql import fetch_one_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.triggers.teradata_compute_cluster import TeradataComputeClusterSyncTrigger
+from airflow.providers.teradata.triggers.teradata_compute_cluster import (
+    TeradataComputeClusterSyncTrigger,
+)
 from airflow.providers.teradata.utils.constants import Constants
 from airflow.triggers.base import TriggerEvent
 
@@ -81,7 +83,9 @@ async def test_run_suspend_failure():
     with patch.object(trigger, "get_status") as mock_get_status:
         mock_get_status.return_value = None
         async for event in trigger.run():
-            assert event == TriggerEvent({"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG})
+            assert event == TriggerEvent(
+                {"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG}
+            )
         mock_get_status.assert_called_once()
 
 
@@ -117,7 +121,9 @@ async def test_run_resume_failure():
     with patch.object(trigger, "get_status") as mock_get_status:
         mock_get_status.return_value = None
         async for event in trigger.run():
-            assert event == TriggerEvent({"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG})
+            assert event == TriggerEvent(
+                {"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG}
+            )
         mock_get_status.assert_called_once()
 
 

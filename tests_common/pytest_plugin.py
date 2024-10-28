@@ -70,7 +70,9 @@ if not keep_env_variables:
                 },
             }
         )
-    _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
+    _ENABLED_INTEGRATIONS = {
+        e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")
+    }
     _KEEP_CONFIGS: dict[str, set[str]] = {}
     for keep_settings_key in ("always", *_ENABLED_INTEGRATIONS):
         if keep_settings := _KEEP_CONFIGS_SETTINGS.get(keep_settings_key):
@@ -93,14 +95,19 @@ SUPPORTED_DB_BACKENDS = ("sqlite", "postgres", "mysql")
 # processes and does not pass all args to them (it's done via env variables) so we are doing the
 # same here and detect whether `--skip-db-tests` or `--run-db-tests-only` is passed to pytest
 # and set env variables so the processes spawned by python-xdist can read the status from there
-skip_db_tests = "--skip-db-tests" in sys.argv or os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true"
+skip_db_tests = (
+    "--skip-db-tests" in sys.argv or os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true"
+)
 run_db_tests_only = (
-    "--run-db-tests-only" in sys.argv or os.environ.get("_AIRFLOW_RUN_DB_TESTS_ONLY") == "true"
+    "--run-db-tests-only" in sys.argv
+    or os.environ.get("_AIRFLOW_RUN_DB_TESTS_ONLY") == "true"
 )
 
 if skip_db_tests:
     if run_db_tests_only:
-        raise Exception("You cannot specify both --skip-db-tests and --run-db-tests-only together")
+        raise Exception(
+            "You cannot specify both --skip-db-tests and --run-db-tests-only together"
+        )
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
@@ -122,7 +129,9 @@ os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "plu
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+os.environ["CREDENTIALS_DIR"] = (
+    os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+)
 os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
 
 if platform.system() == "Darwin":
@@ -199,7 +208,9 @@ def set_db_isolation_mode():
 def skip_if_database_isolation_mode(item):
     if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
         for _ in item.iter_markers(name="skip_if_database_isolation_mode"):
-            pytest.skip("This test is skipped because it is not allowed in database isolation mode.")
+            pytest.skip(
+                "This test is skipped because it is not allowed in database isolation mode."
+            )
 
 
 def pytest_addoption(parser: pytest.Parser):
@@ -380,31 +391,48 @@ def pytest_configure(config: pytest.Config) -> None:
                 break
         else:
             # This "desired" path should be the Airflow source directory (repo root)
-            assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
+            assert (
+                AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml"
+            ).exists(), f"Path {desired} is not Airflow root"
             sys.path.append(desired)
 
-        if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
+        if (
+            backend := config.getoption("backend", default=None)
+        ) and backend not in SUPPORTED_DB_BACKENDS:
             msg = (
                 f"Provided DB backend {backend!r} not supported, "
                 f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
             )
             pytest.exit(msg, returncode=6)
 
-    config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
-    config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
+    config.addinivalue_line(
+        "markers", "integration(name): mark test to run with named integration"
+    )
+    config.addinivalue_line(
+        "markers", "backend(name): mark test to run with named backend"
+    )
     config.addinivalue_line("markers", "system(name): mark test to run with named system")
-    config.addinivalue_line("markers", "platform(name): mark test to run with specific platform/environment")
-    config.addinivalue_line("markers", "long_running: mark test that run for a long time (many minutes)")
     config.addinivalue_line(
-        "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
+        "markers", "platform(name): mark test to run with specific platform/environment"
     )
     config.addinivalue_line(
-        "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
+        "markers", "long_running: mark test that run for a long time (many minutes)"
     )
     config.addinivalue_line(
-        "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
+        "markers",
+        "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)",
     )
-    config.addinivalue_line("markers", "want_activate_assets: mark tests that require assets to be activated")
+    config.addinivalue_line(
+        "markers",
+        "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR",
+    )
+    config.addinivalue_line(
+        "markers",
+        "need_serialized_dag: mark tests that require dags in serialized form to be present",
+    )
+    config.addinivalue_line(
+        "markers", "want_activate_assets: mark tests that require assets to be activated"
+    )
     config.addinivalue_line(
         "markers",
         "db_test: mark tests that require database to be present",
@@ -422,7 +450,9 @@ def pytest_configure(config: pytest.Config) -> None:
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
-    config.addinivalue_line("markers", "skip_if_database_isolation_mode: skip if DB isolation is enabled")
+    config.addinivalue_line(
+        "markers", "skip_if_database_isolation_mode: skip if DB isolation is enabled"
+    )
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
@@ -449,7 +479,8 @@ def pytest_configure(config: pytest.Config) -> None:
         from tests_common._internals.capture_warnings import CaptureWarningsPlugin
 
         capture_warnings_plugin = CaptureWarningsPlugin(
-            config=config, output_path=config.getoption("warning_output_path", default=None)
+            config=config,
+            output_path=config.getoption("warning_output_path", default=None),
         )
         config.pluginmanager.register(capture_warnings_plugin)
         config.stash[capture_warnings_key] = capture_warnings_plugin
@@ -491,7 +522,9 @@ def skip_if_not_marked_with_backend(selected_backend, item):
 def skip_if_platform_doesnt_match(marker):
     allowed_platforms = ("linux", "breeze")
     if not (args := marker.args):
-        pytest.fail(f"No platform specified, expected one of: {', '.join(map(repr, allowed_platforms))}")
+        pytest.fail(
+            f"No platform specified, expected one of: {', '.join(map(repr, allowed_platforms))}"
+        )
     elif not all(a in allowed_platforms for a in args):
         pytest.fail(
             f"Allowed platforms {', '.join(map(repr, allowed_platforms))}; "
@@ -501,7 +534,10 @@ def skip_if_platform_doesnt_match(marker):
         if not sys.platform.startswith("linux"):
             pytest.skip("Test expected to run on Linux platform.")
     if "breeze" in args:
-        if not os.path.isfile("/.dockerenv") or os.environ.get("BREEZE", "").lower() != "true":
+        if (
+            not os.path.isfile("/.dockerenv")
+            or os.environ.get("BREEZE", "").lower() != "true"
+        ):
             raise pytest.skip(
                 "Test expected to run into Airflow Breeze container. "
                 "Maybe because it is to dangerous to run it outside."
@@ -615,7 +651,9 @@ def skip_if_wrong_backend(marker: pytest.Mark, item: pytest.Item) -> None:
             f"{', '.join(map(repr, SUPPORTED_DB_BACKENDS))}."
         )
         pytest.fail(reason)
-    elif unsupported_backends := list(filter(lambda b: b not in SUPPORTED_DB_BACKENDS, backend_names)):
+    elif unsupported_backends := list(
+        filter(lambda b: b not in SUPPORTED_DB_BACKENDS, backend_names)
+    ):
         reason = (
             "Airflow Tests supports only the following backends in `pytest.mark.backend` marker: "
             f"{', '.join(map(repr, SUPPORTED_DB_BACKENDS))}, "
@@ -778,7 +816,9 @@ def dag_maker(request):
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
+            self.dagbag = DagBag(
+                os.devnull, include_examples=False, read_dags_from_db=False
+            )
 
         def __enter__(self):
             self.dag.__enter__()
@@ -809,12 +849,20 @@ def dag_maker(request):
             from sqlalchemy import select
 
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-            from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+            from airflow.models.asset import (
+                AssetModel,
+                DagScheduleAssetReference,
+                TaskOutletAssetReference,
+            )
 
             assets = self.session.scalars(
                 select(AssetModel).where(
-                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
-                    | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+                    AssetModel.consuming_dags.any(
+                        DagScheduleAssetReference.dag_id == self.dag.dag_id
+                    )
+                    | AssetModel.producing_tasks.any(
+                        TaskOutletAssetReference.dag_id == self.dag.dag_id
+                    )
                 )
             ).all()
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
@@ -879,7 +927,9 @@ def dag_maker(request):
             if "data_interval" not in kwargs:
                 logical_date = timezone.coerce_datetime(kwargs["execution_date"])
                 if kwargs["run_type"] == DagRunType.MANUAL:
-                    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                    data_interval = dag.timetable.infer_manual_data_interval(
+                        run_after=logical_date
+                    )
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
@@ -968,19 +1018,27 @@ def dag_maker(request):
                     self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
-                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                    self.session.query(TaskInstance).filter(
+                        TaskInstance.dag_id.in_(dag_ids)
+                    ).delete(
                         synchronize_session=False,
                     )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
-                    self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
+                    self.session.query(DagModel).filter(
+                        DagModel.dag_id.in_(dag_ids)
+                    ).delete(
                         synchronize_session=False,
                     )
-                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
+                    self.session.query(TaskMap).filter(
+                        TaskMap.dag_id.in_(dag_ids)
+                    ).delete(
                         synchronize_session=False,
                     )
-                    self.session.query(AssetEvent).filter(AssetEvent.source_dag_id.in_(dag_ids)).delete(
+                    self.session.query(AssetEvent).filter(
+                        AssetEvent.source_dag_id.in_(dag_ids)
+                    ).delete(
                         synchronize_session=False,
                     )
                     self.session.commit()
@@ -1011,7 +1069,9 @@ def create_dummy_dag(dag_maker):
     is not here, please use `default_args` so that the DAG will pass it to the
     Task::
 
-        dag, task = create_dummy_dag(default_args={"start_date": timezone.datetime(2016, 1, 1)})
+        dag, task = create_dummy_dag(
+            default_args={"start_date": timezone.datetime(2016, 1, 1)}
+        )
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
@@ -1133,7 +1193,9 @@ def create_task_instance(dag_maker, create_dummy_dag):
             "execution_date": execution_date,
             "state": dagrun_state,
         }
-        dagrun_kwargs.update({"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {})
+        dagrun_kwargs.update(
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         if run_id is not None:
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:
@@ -1199,7 +1261,9 @@ def create_task_instance_of_operator(dag_maker):
 
 @pytest.fixture
 def create_task_of_operator(dag_maker):
-    def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
+    def _create_task_of_operator(
+        operator_class, *, dag_id, session=None, **operator_kwargs
+    ):
         with dag_maker(dag_id=dag_id, session=session):
             task = operator_class(**operator_kwargs)
         return task
@@ -1242,7 +1306,9 @@ def create_log_template(request):
     session = settings.Session()
 
     def _create_log_template(filename_template, elasticsearch_id=""):
-        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+        log_template = LogTemplate(
+            filename=filename_template, elasticsearch_id=elasticsearch_id
+        )
         session.add(log_template)
         session.commit()
 
@@ -1280,7 +1346,9 @@ def suppress_info_logs_for_dag_and_fab():
     dag_logger.setLevel(logging.WARNING)
 
     if AIRFLOW_V_2_9_PLUS:
-        fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+        fab_logger = logging.getLogger(
+            "airflow.providers.fab.auth_manager.security_manager.override"
+        )
         fab_logger.setLevel(logging.WARNING)
     else:
         fab_logger = logging.getLogger("airflow.www.fab_security")
@@ -1302,7 +1370,9 @@ def _clear_db(request):
     if sql_alchemy_conn.startswith("sqlite"):
         sql_alchemy_file = sql_alchemy_conn.replace("sqlite:///", "")
         if not os.path.exists(sql_alchemy_file):
-            print(f"The sqlite file `{sql_alchemy_file}` does not exist. Attempt to initialize it.")
+            print(
+                f"The sqlite file `{sql_alchemy_file}` does not exist. Attempt to initialize it."
+            )
             initial_db_init()
 
     dist_option = getattr(request.config.option, "dist", "no")
@@ -1316,8 +1386,14 @@ def _clear_db(request):
         exc_module = type(ex).__module__
         if exc_module != "builtins":
             exc_name_parts.insert(0, exc_module)
-        extra_msg = "" if request.config.option.db_init else ", try to run with flag --with-db-init"
-        pytest.exit(f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}")
+        extra_msg = (
+            ""
+            if request.config.option.db_init
+            else ", try to run with flag --with-db-init"
+        )
+        pytest.exit(
+            f"Unable clear test DB{extra_msg}, got error {'.'.join(exc_name_parts)}: {ex}"
+        )
 
 
 @pytest.fixture(autouse=True)

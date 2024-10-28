@@ -37,7 +37,9 @@ class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
     @provide_session
-    def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
+    def get_connection(
+        self, conn_id: str, session: Session = NEW_SESSION
+    ) -> Connection | None:
         return MetastoreBackend._fetch_connection(conn_id, session=session)
 
     @provide_session
@@ -53,10 +55,14 @@ class MetastoreBackend(BaseSecretsBackend):
     @staticmethod
     @internal_api_call
     @provide_session
-    def _fetch_connection(conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
+    def _fetch_connection(
+        conn_id: str, session: Session = NEW_SESSION
+    ) -> Connection | None:
         from airflow.models.connection import Connection
 
-        conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
+        conn = session.scalar(
+            select(Connection).where(Connection.conn_id == conn_id).limit(1)
+        )
         session.expunge_all()
         return conn
 

@@ -39,7 +39,10 @@ from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    AsyncKubernetesHook,
+    KubernetesHook,
+)
 from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
@@ -133,7 +136,9 @@ class GKEHook(GoogleBaseHook):
     def get_cluster_manager_client(self) -> ClusterManagerClient:
         """Create or get a ClusterManagerClient."""
         if self._client is None:
-            self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ClusterManagerClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     # To preserve backward compatibility
@@ -156,7 +161,9 @@ class GKEHook(GoogleBaseHook):
     def get_client(self) -> ClusterManagerClient:
         return self.get_conn()
 
-    def wait_for_operation(self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
+    def wait_for_operation(
+        self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Operation:
         """
         Continuously fetch the status from Google Cloud.
 
@@ -172,12 +179,18 @@ class GKEHook(GoogleBaseHook):
             if operation.status in (Operation.Status.RUNNING, Operation.Status.PENDING):
                 time.sleep(OPERATIONAL_POLL_INTERVAL)
             else:
-                raise exceptions.GoogleCloudError(f"Operation has failed with status: {operation.status}")
+                raise exceptions.GoogleCloudError(
+                    f"Operation has failed with status: {operation.status}"
+                )
             # To update status of operation
-            operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
+            operation = self.get_operation(
+                operation.name, project_id=project_id or self.project_id
+            )
         return operation
 
-    def get_operation(self, operation_name: str, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
+    def get_operation(
+        self, operation_name: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Operation:
         """
         Get an operation from Google Cloud.
 
@@ -238,7 +251,12 @@ class GKEHook(GoogleBaseHook):
             each individual attempt.
         :return: The full url to the delete operation if successful, else None.
         """
-        self.log.info("Deleting (project_id=%s, location=%s, cluster_id=%s)", project_id, self.location, name)
+        self.log.info(
+            "Deleting (project_id=%s, location=%s, cluster_id=%s)",
+            project_id,
+            self.location,
+            name,
+        )
 
         try:
             operation = self.get_cluster_manager_client().delete_cluster(
@@ -289,7 +307,9 @@ class GKEHook(GoogleBaseHook):
         if isinstance(cluster, dict):
             cluster = Cluster.from_json(json.dumps(cluster))
         elif not isinstance(cluster, Cluster):
-            raise AirflowException("cluster is not instance of Cluster proto or python dict")
+            raise AirflowException(
+                "cluster is not instance of Cluster proto or python dict"
+            )
 
         self._append_label(cluster, "airflow-version", "v" + version.version)  # type: ignore
 
@@ -355,7 +375,9 @@ class GKEHook(GoogleBaseHook):
         if isinstance(cluster, Cluster):
             cluster_dict_representation = Cluster.to_dict(cluster)
         elif not isinstance(cluster, dict):
-            raise AirflowException("cluster is not instance of Cluster proto or python dict")
+            raise AirflowException(
+                "cluster is not instance of Cluster proto or python dict"
+            )
         else:
             cluster_dict_representation = cluster
 
@@ -419,7 +441,9 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         """
         project_id = project_id or (await self.get_sync_hook()).project_id
 
-        operation_path = f"projects/{project_id}/locations/{self.location}/operations/{operation_name}"
+        operation_path = (
+            f"projects/{project_id}/locations/{self.location}/operations/{operation_name}"
+        )
         client = await self._get_client()
         return await client.get_operation(
             name=operation_path,
@@ -478,7 +502,9 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
                     self.log.info("Waiting until Deployment will be ready...")
                     time.sleep(polling_period_seconds)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
+                self.log.exception(
+                    "Exception occurred while checking for Deployment status."
+                )
                 raise e
 
             if timeout is not None:

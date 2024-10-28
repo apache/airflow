@@ -24,7 +24,11 @@ from airflow.operators.python import PythonOperator
 
 dag = DAG(
     dag_id="test_dag_xcom_openlineage",
-    default_args={"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)},
+    default_args={
+        "owner": "airflow",
+        "retries": 3,
+        "start_date": datetime.datetime(2022, 1, 1),
+    },
     schedule="0 0 * * *",
     dagrun_timeout=datetime.timedelta(minutes=60),
 )

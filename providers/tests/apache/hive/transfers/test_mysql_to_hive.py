@@ -55,7 +55,9 @@ class TestTransfer:
 
         class Capturer:
             def __enter__(self):
-                self._patch = mock.patch.object(HiveCliHook, "load_file", side_effect=self.capture_file)
+                self._patch = mock.patch.object(
+                    HiveCliHook, "load_file", side_effect=self.capture_file
+                )
                 self.load_file = self._patch.start()
                 return self
 
@@ -197,7 +199,9 @@ class TestTransfer:
         )
         op.execute({})
 
-        spy_on_hive.load_file.assert_called_with(mock.ANY, "test_mysql_to_hive", **expected)
+        spy_on_hive.load_file.assert_called_with(
+            mock.ANY, "test_mysql_to_hive", **expected
+        )
 
         assert spy_on_hive.csv_contents == csv
 

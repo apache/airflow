@@ -22,7 +22,9 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+from airflow.providers.microsoft.azure.hooks.container_volume import (
+    AzureContainerVolumeHook,
+)
 
 
 class TestAzureContainerVolumeHook:
@@ -30,15 +32,23 @@ class TestAzureContainerVolumeHook:
         "mocked_connection",
         [
             Connection(
-                conn_id="azure_container_test_connection", conn_type="wasb", login="login", password="key"
+                conn_id="azure_container_test_connection",
+                conn_type="wasb",
+                login="login",
+                password="key",
             )
         ],
         indirect=True,
     )
     def test_get_file_volume(self, mocked_connection):
-        hook = AzureContainerVolumeHook(azure_container_volume_conn_id=mocked_connection.conn_id)
+        hook = AzureContainerVolumeHook(
+            azure_container_volume_conn_id=mocked_connection.conn_id
+        )
         volume = hook.get_file_volume(
-            mount_name="mount", share_name="share", storage_account_name="storage", read_only=True
+            mount_name="mount",
+            share_name="share",
+            storage_account_name="storage",
+            read_only=True,
         )
         assert volume is not None
         assert volume.name == "mount"
@@ -61,9 +71,14 @@ class TestAzureContainerVolumeHook:
         indirect=True,
     )
     def test_get_file_volume_connection_string(self, mocked_connection):
-        hook = AzureContainerVolumeHook(azure_container_volume_conn_id=mocked_connection.conn_id)
+        hook = AzureContainerVolumeHook(
+            azure_container_volume_conn_id=mocked_connection.conn_id
+        )
         volume = hook.get_file_volume(
-            mount_name="mount", share_name="share", storage_account_name="storage", read_only=True
+            mount_name="mount",
+            share_name="share",
+            storage_account_name="storage",
+            read_only=True,
         )
         assert volume is not None
         assert volume.name == "mount"
@@ -80,13 +95,20 @@ class TestAzureContainerVolumeHook:
                 conn_type="wasb",
                 login="",
                 password="",
-                extra={"subscription_id": "subscription_id", "resource_group": "resource_group"},
+                extra={
+                    "subscription_id": "subscription_id",
+                    "resource_group": "resource_group",
+                },
             )
         ],
         indirect=True,
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.StorageManagementClient")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.get_sync_default_azure_credential")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.container_volume.StorageManagementClient"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.container_volume.get_sync_default_azure_credential"
+    )
     def test_get_file_volume_default_azure_credential(
         self, mocked_default_azure_credential, mocked_client, mocked_connection
     ):
@@ -101,9 +123,14 @@ class TestAzureContainerVolumeHook:
             ]
         }
 
-        hook = AzureContainerVolumeHook(azure_container_volume_conn_id=mocked_connection.conn_id)
+        hook = AzureContainerVolumeHook(
+            azure_container_volume_conn_id=mocked_connection.conn_id
+        )
         volume = hook.get_file_volume(
-            mount_name="mount", share_name="share", storage_account_name="storage", read_only=True
+            mount_name="mount",
+            share_name="share",
+            storage_account_name="storage",
+            read_only=True,
         )
         assert volume is not None
         assert volume.name == "mount"

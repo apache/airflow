@@ -19,7 +19,10 @@ from __future__ import annotations
 from typing import IO, TYPE_CHECKING, Any, AnyStr, Iterable, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook, AzureDataLakeStorageV2Hook
+from airflow.providers.microsoft.azure.hooks.data_lake import (
+    AzureDataLakeHook,
+    AzureDataLakeStorageV2Hook,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -72,9 +75,9 @@ class ADLSCreateObjectOperator(BaseOperator):
     def execute(self, context: Context) -> dict[str, Any]:
         self.log.debug("Uploading %s to %s", self.data, self.file_name)
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.azure_data_lake_conn_id)
-        return hook.create_file(file_system_name=self.file_system_name, file_name=self.file_name).upload_data(
-            data=self.data, length=self.length, overwrite=self.replace
-        )
+        return hook.create_file(
+            file_system_name=self.file_system_name, file_name=self.file_name
+        ).upload_data(data=self.data, length=self.length, overwrite=self.replace)
 
 
 class ADLSDeleteOperator(BaseOperator):
@@ -111,7 +114,11 @@ class ADLSDeleteOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
-        return hook.remove(path=self.path, recursive=self.recursive, ignore_not_found=self.ignore_not_found)
+        return hook.remove(
+            path=self.path,
+            recursive=self.recursive,
+            ignore_not_found=self.ignore_not_found,
+        )
 
 
 class ADLSListOperator(BaseOperator):
@@ -133,7 +140,11 @@ class ADLSListOperator(BaseOperator):
     ui_color = "#901dd2"
 
     def __init__(
-        self, *, path: str, azure_data_lake_conn_id: str = DEFAULT_AZURE_DATA_LAKE_CONN_ID, **kwargs
+        self,
+        *,
+        path: str,
+        azure_data_lake_conn_id: str = DEFAULT_AZURE_DATA_LAKE_CONN_ID,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.path = path

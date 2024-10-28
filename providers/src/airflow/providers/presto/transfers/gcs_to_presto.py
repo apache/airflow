@@ -107,13 +107,17 @@ class GCSToPrestoOperator(BaseOperator):
             self.log.info("Inserting data into %s", self.presto_table)
 
             if self.schema_fields:
-                presto_hook.insert_rows(table=self.presto_table, rows=rows, target_fields=self.schema_fields)
+                presto_hook.insert_rows(
+                    table=self.presto_table, rows=rows, target_fields=self.schema_fields
+                )
             elif self.schema_object:
                 blob = gcs_hook.download(
                     bucket_name=self.source_bucket,
                     object_name=self.schema_object,
                 )
                 schema_fields = json.loads(blob.decode("utf-8"))
-                presto_hook.insert_rows(table=self.presto_table, rows=rows, target_fields=schema_fields)
+                presto_hook.insert_rows(
+                    table=self.presto_table, rows=rows, target_fields=schema_fields
+                )
             else:
                 presto_hook.insert_rows(table=self.presto_table, rows=rows)

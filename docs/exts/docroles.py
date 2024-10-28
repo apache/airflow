@@ -55,7 +55,9 @@ def get_template_field(env, fullname) -> list[str]:
     template_fields = getattr(clazz, "template_fields")
 
     if not template_fields:
-        raise RoleException(f"Could not find the template fields for {classname} class in {modname} module.")
+        raise RoleException(
+            f"Could not find the template fields for {classname} class in {modname} module."
+        )
 
     return list(template_fields)
 

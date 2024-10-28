@@ -58,7 +58,9 @@ class TestConfigmap:
             ("2.1.3", "foo", None, False),
         ],
     )
-    def test_default_airflow_local_settings(self, af_version, secret_key, secret_key_name, expected):
+    def test_default_airflow_local_settings(
+        self, af_version, secret_key, secret_key_name, expected
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": af_version,
@@ -73,7 +75,9 @@ class TestConfigmap:
                 in jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
             )
         else:
-            assert "" == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+            assert (
+                "" == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+            )
 
     def test_airflow_local_settings(self):
         docs = render_chart(
@@ -154,7 +158,10 @@ metadata:
 
     def test_overridedn_flower_url_prefix(self):
         docs = render_chart(
-            values={"executor": "CeleryExecutor", "ingress": {"flower": {"path": "/overridden-path"}}},
+            values={
+                "executor": "CeleryExecutor",
+                "ingress": {"flower": {"path": "/overridden-path"}},
+            },
             show_only=["templates/configmaps/configmap.yaml"],
         )
 
@@ -186,7 +193,10 @@ metadata:
                 "/opt/airflow/dags/custom/repo/mysubPath",
             ),
             (
-                {"mountPath": "/opt/airflow/dags/custom", "persistence": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "persistence": {"enabled": True},
+                },
                 "/opt/airflow/dags/custom",
             ),
         ],

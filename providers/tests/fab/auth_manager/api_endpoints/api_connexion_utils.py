@@ -21,7 +21,9 @@ from contextlib import contextmanager
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        EXISTING_ROLES,
+    )
 
 
 @contextmanager
@@ -30,7 +32,9 @@ def create_test_client(app, user_name, role_name, permissions):
     Helper function to create a client with a temporary user which will be deleted once done
     """
     client = app.test_client()
-    with create_user_scope(app, username=user_name, role_name=role_name, permissions=permissions) as _:
+    with create_user_scope(
+        app, username=user_name, role_name=role_name, permissions=permissions
+    ) as _:
         resp = client.post("/login/", data={"username": user_name, "password": user_name})
         assert resp.status_code == 302
         yield client
@@ -110,7 +114,9 @@ def delete_user(app, username):
     for user in appbuilder.sm.get_all_users():
         if user.username == username:
             _ = [
-                delete_role(app, role.name) for role in user.roles if role and role.name not in EXISTING_ROLES
+                delete_role(app, role.name)
+                for role in user.roles
+                if role and role.name not in EXISTING_ROLES
             ]
             appbuilder.sm.del_register_user(user)
             break

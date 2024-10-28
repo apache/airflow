@@ -186,7 +186,13 @@ class DockerOperator(BaseOperator):
     #  - docs/apache-airflow-providers-docker/decorators/docker.rst
     #  - airflow/decorators/__init__.pyi  (by a separate PR)
 
-    template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
+    template_fields: Sequence[str] = (
+        "image",
+        "command",
+        "environment",
+        "env_file",
+        "container_name",
+    )
     template_fields_renderers = {"env_file": "yaml"}
     template_ext: Sequence[str] = (
         ".sh",
@@ -284,7 +290,9 @@ class DockerOperator(BaseOperator):
         self.cpus = cpus
         self.dns = dns
         self.dns_search = dns_search
-        self.docker_url = docker_url or os.environ.get("DOCKER_HOST") or "unix://var/run/docker.sock"
+        self.docker_url = (
+            docker_url or os.environ.get("DOCKER_HOST") or "unix://var/run/docker.sock"
+        )
         self.environment = environment or {}
         self._private_environment = private_environment or {}
         self.env_file = env_file
@@ -353,7 +361,9 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> DockerHook:
         """Create and return an DockerHook (cached)."""
         return self.hook
@@ -366,10 +376,14 @@ class DockerOperator(BaseOperator):
         """Run a Docker container with the provided image."""
         self.log.info("Starting docker container from image %s", self.image)
         if self.mount_tmp_dir:
-            with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
+            with TemporaryDirectory(
+                prefix="airflowtmp", dir=self.host_tmp_dir
+            ) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
-                    return self._run_image_with_mounts([*self.mounts, tmp_mount], add_tmp_variable=True)
+                    return self._run_image_with_mounts(
+                        [*self.mounts, tmp_mount], add_tmp_variable=True
+                    )
                 except APIError as e:
                     if host_tmp_dir_generated in str(e):
                         self.log.warning(
@@ -378,12 +392,16 @@ class DockerOperator(BaseOperator):
                             "`mount_tmp_dir=False` mode. You can set `mount_tmp_dir` parameter"
                             " to False to disable mounting and remove the warning"
                         )
-                        return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
+                        return self._run_image_with_mounts(
+                            self.mounts, add_tmp_variable=False
+                        )
                     raise
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
+    def _run_image_with_mounts(
+        self, target_mounts, add_tmp_variable: bool
+    ) -> list[str] | str | None:
         if add_tmp_variable:
             self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         else:
@@ -399,7 +417,11 @@ class DockerOperator(BaseOperator):
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
-            environment={**env_file_vars, **self.environment, **self._private_environment},
+            environment={
+                **env_file_vars,
+                **self.environment,
+                **self._private_environment,
+            },
             ports=list(self.port_bindings),
             host_config=self.cli.create_host_config(
                 auto_remove=False,
@@ -426,7 +448,9 @@ class DockerOperator(BaseOperator):
             tty=self.tty,
             hostname=self.hostname,
         )
-        logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(
+            container=self.container["Id"], stdout=True, stderr=True, stream=True
+        )
         try:
             self.cli.start(self.container["Id"])
 
@@ -440,10 +464,13 @@ class DockerOperator(BaseOperator):
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
                 raise DockerContainerFailedSkipException(
-                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.", logs=log_lines
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.",
+                    logs=log_lines,
                 )
             elif result["StatusCode"] != 0:
-                raise DockerContainerFailedException(f"Docker container failed: {result!r}", logs=log_lines)
+                raise DockerContainerFailedException(
+                    f"Docker container failed: {result!r}", logs=log_lines
+                )
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()

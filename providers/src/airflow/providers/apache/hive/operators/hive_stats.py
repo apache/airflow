@@ -163,7 +163,8 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         self.log.info("Pivoting and loading cells into the Airflow db")
         rows = [
-            (self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1]) for r in zip(exprs, row)
+            (self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1])
+            for r in zip(exprs, row)
         ]
         mysql.insert_rows(
             table="hive_stats",

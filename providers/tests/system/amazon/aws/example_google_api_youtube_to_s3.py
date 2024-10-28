@@ -58,7 +58,10 @@ from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -79,7 +82,9 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(SECRET_ARN_KEY).
 
 @task
 def create_connection_gcp(conn_id_name: str, secret_arn: str):
-    json_data = boto3.client("secretsmanager").get_secret_value(SecretId=secret_arn)["SecretString"]
+    json_data = boto3.client("secretsmanager").get_secret_value(SecretId=secret_arn)[
+        "SecretString"
+    ]
     conn = Connection(
         conn_id=conn_id_name,
         conn_type="google_cloud_platform",
@@ -131,7 +136,9 @@ with DAG(
 
     s3_bucket_name = f"{env_id}-bucket"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create-s3-bucket", bucket_name=s3_bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create-s3-bucket", bucket_name=s3_bucket_name
+    )
 
     wait_for_bucket_creation = wait_for_bucket(s3_bucket_name=s3_bucket_name)
 

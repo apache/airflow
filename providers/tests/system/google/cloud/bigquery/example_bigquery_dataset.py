@@ -48,7 +48,9 @@ with DAG(
     tags=["example", "bigquery"],
 ) as dag:
     # [START howto_operator_bigquery_create_dataset]
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset", dataset_id=DATASET_NAME
+    )
     # [END howto_operator_bigquery_create_dataset]
 
     # [START howto_operator_bigquery_update_dataset]
@@ -60,7 +62,9 @@ with DAG(
     # [END howto_operator_bigquery_update_dataset]
 
     # [START howto_operator_bigquery_get_dataset]
-    get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)
+    get_dataset = BigQueryGetDatasetOperator(
+        task_id="get-dataset", dataset_id=DATASET_NAME
+    )
     # [END howto_operator_bigquery_get_dataset]
 
     get_dataset_result = BashOperator(

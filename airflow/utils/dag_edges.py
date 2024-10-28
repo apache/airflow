@@ -67,7 +67,9 @@ def dag_edges(dag: DAG):
             # For every TaskGroup immediately downstream, add edges between downstream_join_id
             # and upstream_join_id. Skip edges between individual tasks of the TaskGroups.
             target_group = task_group_map[target_id]
-            edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id))
+            edges_to_add.add(
+                (task_group.downstream_join_id, target_group.upstream_join_id)
+            )
 
             for child in task_group.get_leaves():
                 edges_to_add.add((child.task_id, task_group.downstream_join_id))

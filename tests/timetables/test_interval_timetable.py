@@ -26,14 +26,19 @@ import time_machine
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.interval import (
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+)
 from airflow.utils.timezone import utc
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
 PREV_DATA_INTERVAL_START = START_DATE
 PREV_DATA_INTERVAL_END = START_DATE + datetime.timedelta(days=1)
-PREV_DATA_INTERVAL = DataInterval(start=PREV_DATA_INTERVAL_START, end=PREV_DATA_INTERVAL_END)
+PREV_DATA_INTERVAL = DataInterval(
+    start=PREV_DATA_INTERVAL_START, end=PREV_DATA_INTERVAL_END
+)
 PREV_DATA_INTERVAL_EXACT = DataInterval.exact(PREV_DATA_INTERVAL_END)
 
 CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
@@ -42,7 +47,9 @@ OLD_INTERVAL = DataInterval(start=YESTERDAY, end=CURRENT_TIME)
 
 HOURLY_CRON_TIMETABLE = CronDataIntervalTimetable("@hourly", utc)
 HOURLY_TIMEDELTA_TIMETABLE = DeltaDataIntervalTimetable(datetime.timedelta(hours=1))
-HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedelta.relativedelta(hours=1))
+HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(
+    dateutil.relativedelta.relativedelta(hours=1)
+)
 
 CRON_TIMETABLE = CronDataIntervalTimetable("30 16 * * *", utc)
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
@@ -50,7 +57,10 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 @pytest.mark.parametrize(
     "last_automated_data_interval",
-    [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL, id="subsequent")],
+    [
+        pytest.param(None, id="first-run"),
+        pytest.param(PREV_DATA_INTERVAL, id="subsequent"),
+    ],
 )
 @time_machine.travel(CURRENT_TIME)
 def test_no_catchup_first_starts_at_current_time(
@@ -62,7 +72,9 @@ def test_no_catchup_first_starts_at_current_time(
         restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
     )
     expected_start = YESTERDAY + DELTA_FROM_MIDNIGHT
-    assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME + DELTA_FROM_MIDNIGHT)
+    assert next_info == DagRunInfo.interval(
+        start=expected_start, end=CURRENT_TIME + DELTA_FROM_MIDNIGHT
+    )
 
 
 @pytest.mark.parametrize(
@@ -98,7 +110,10 @@ def test_new_schedule_next_info_starts_at_new_time(
 )
 @pytest.mark.parametrize(
     "last_automated_data_interval",
-    [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL, id="subsequent")],
+    [
+        pytest.param(None, id="first-run"),
+        pytest.param(PREV_DATA_INTERVAL, id="subsequent"),
+    ],
 )
 @time_machine.travel(CURRENT_TIME)
 def test_no_catchup_next_info_starts_at_current_time(
@@ -129,7 +144,9 @@ def test_catchup_next_info_starts_at_previous_interval_end(timetable: Timetable)
         restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=True),
     )
     expected_end = PREV_DATA_INTERVAL_END + datetime.timedelta(hours=1)
-    assert next_info == DagRunInfo.interval(start=PREV_DATA_INTERVAL_END, end=expected_end)
+    assert next_info == DagRunInfo.interval(
+        start=PREV_DATA_INTERVAL_END, end=expected_end
+    )
 
 
 @pytest.mark.parametrize(
@@ -246,7 +263,9 @@ def test_cron_infer_manual_data_interval_alignment(
         ),
     ],
 )
-def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expected_info: DagRunInfo):
+def test_cron_next_dagrun_info_alignment(
+    last_data_interval: DataInterval, expected_info: DagRunInfo
+):
     timetable = CronDataIntervalTimetable("@daily", utc)
     info = timetable.next_dagrun_info(
         last_automated_data_interval=last_data_interval,
@@ -275,7 +294,9 @@ class TestCronIntervalDst:
         )
 
         # Last run before DST. Interval starts and ends on 2am UTC (local time is +1).
-        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None, restriction=restriction
+        )
         assert next_info
         assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 24, 2, tz=utc),
@@ -314,7 +335,9 @@ class TestCronIntervalDst:
         )
 
         # Last run before DST. Interval starts and ends on 1am UTC (local time is +1).
-        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None, restriction=restriction
+        )
         assert next_info
         assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 24, 1, tz=utc),
@@ -355,7 +378,9 @@ class TestCronIntervalDst:
         )
 
         # Last run in DST. Interval starts and ends on 1am UTC (local time is +2).
-        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None, restriction=restriction
+        )
         assert next_info
         assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 27, 1, tz=utc),
@@ -395,7 +420,9 @@ class TestCronIntervalDst:
 
         # Last run before folding. Interval starts and ends on 0am UTC (local
         # time is +2).
-        next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None, restriction=restriction
+        )
         assert next_info
         assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 27, 0, tz=utc),
@@ -439,7 +466,9 @@ class TestCronIntervalDstNonTrivial:
     """
 
     def test_7_to_8_entering(self):
-        timetable = CronDataIntervalTimetable("0 7-8 * * *", timezone="America/Los_Angeles")
+        timetable = CronDataIntervalTimetable(
+            "0 7-8 * * *", timezone="America/Los_Angeles"
+        )
         restriction = TimeRestriction(
             earliest=pendulum.datetime(2020, 3, 7, tz=utc),
             latest=None,
@@ -480,7 +509,9 @@ class TestCronIntervalDstNonTrivial:
         )
 
     def test_7_and_9_entering(self):
-        timetable = CronDataIntervalTimetable("0 7,9 * * *", timezone="America/Los_Angeles")
+        timetable = CronDataIntervalTimetable(
+            "0 7,9 * * *", timezone="America/Los_Angeles"
+        )
         restriction = TimeRestriction(
             earliest=pendulum.datetime(2020, 3, 7, tz=utc),
             latest=None,

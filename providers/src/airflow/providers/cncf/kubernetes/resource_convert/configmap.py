@@ -26,7 +26,9 @@ def convert_configmap(configmap_name) -> k8s.V1EnvFromSource:
     :param configmap_name: config map name
     :return:
     """
-    return k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap_name))
+    return k8s.V1EnvFromSource(
+        config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap_name)
+    )
 
 
 def convert_configmap_to_volume(

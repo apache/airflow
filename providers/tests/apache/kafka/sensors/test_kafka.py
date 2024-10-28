@@ -24,7 +24,10 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
-from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor, AwaitMessageTriggerFunctionSensor
+from airflow.providers.apache.kafka.sensors.kafka import (
+    AwaitMessageSensor,
+    AwaitMessageTriggerFunctionSensor,
+)
 from airflow.utils import db
 
 pytestmark = pytest.mark.db_test
@@ -48,14 +51,21 @@ class TestSensors:
                 conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "localhost:9092",
+                        "group.id": "test_group",
+                    }
                 ),
             )
         )
 
     def test_await_message_good(self):
         sensor = AwaitMessageSensor(
-            kafka_config_id="kafka_d", topics=["test"], task_id="test", apply_function=_return_true
+            kafka_config_id="kafka_d",
+            topics=["test"],
+            task_id="test",
+            apply_function=_return_true,
         )
 
         # execute marks the task as deferred
@@ -64,7 +74,10 @@ class TestSensors:
 
     def test_await_execute_complete(self):
         sensor = AwaitMessageSensor(
-            kafka_config_id="kafka_d", topics=["test"], task_id="test", apply_function=_return_true
+            kafka_config_id="kafka_d",
+            topics=["test"],
+            task_id="test",
+            apply_function=_return_true,
         )
 
         assert "test" == sensor.execute_complete(context={}, event="test")

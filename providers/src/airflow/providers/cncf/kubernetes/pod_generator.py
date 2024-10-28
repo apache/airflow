@@ -145,7 +145,9 @@ class PodGenerator:
                 "Podgenerator requires either a `pod` or a `pod_template_file` argument"
             )
         if pod_template_file and pod:
-            raise AirflowConfigException("Cannot pass both `pod` and `pod_template_file` arguments")
+            raise AirflowConfigException(
+                "Cannot pass both `pod` and `pod_template_file` arguments"
+            )
 
         if pod_template_file:
             self.ud_pod = self.deserialize_model_file(pod_template_file)
@@ -183,8 +185,12 @@ class PodGenerator:
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaultsDeprecated.VOLUME)
-        pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
-        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaultsDeprecated.VOLUME_MOUNT)
+        pod_cp.spec.containers[0].volume_mounts = (
+            pod_cp.spec.containers[0].volume_mounts or []
+        )
+        pod_cp.spec.containers[0].volume_mounts.insert(
+            0, PodDefaultsDeprecated.VOLUME_MOUNT
+        )
         pod_cp.spec.containers.append(PodDefaultsDeprecated.SIDECAR_CONTAINER)
 
         return pod_cp
@@ -243,7 +249,9 @@ class PodGenerator:
             requests = {
                 "cpu": namespaced.pop("request_cpu", None),
                 "memory": namespaced.pop("request_memory", None),
-                "ephemeral-storage": namespaced.get("ephemeral-storage"),  # We pop this one in limits
+                "ephemeral-storage": namespaced.get(
+                    "ephemeral-storage"
+                ),  # We pop this one in limits
             }
             limits = {
                 "cpu": namespaced.pop("limit_cpu", None),
@@ -277,8 +285,12 @@ class PodGenerator:
             return base_pod
 
         client_pod_cp = copy.deepcopy(client_pod)
-        client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
-        client_pod_cp.metadata = PodGenerator.reconcile_metadata(base_pod.metadata, client_pod_cp.metadata)
+        client_pod_cp.spec = PodGenerator.reconcile_specs(
+            base_pod.spec, client_pod_cp.spec
+        )
+        client_pod_cp.metadata = PodGenerator.reconcile_metadata(
+            base_pod.metadata, client_pod_cp.metadata
+        )
         client_pod_cp = merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp
@@ -299,7 +311,9 @@ class PodGenerator:
             return client_meta
         elif client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
-            client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
+            client_meta.annotations = merge_objects(
+                base_meta.annotations, client_meta.annotations
+            )
             extend_object_field(base_meta, client_meta, "managed_fields")
             extend_object_field(base_meta, client_meta, "finalizers")
             extend_object_field(base_meta, client_meta, "owner_references")
@@ -354,16 +368,24 @@ class PodGenerator:
 
         client_container = client_containers[0]
         base_container = base_containers[0]
-        client_container = extend_object_field(base_container, client_container, "volume_mounts")
+        client_container = extend_object_field(
+            base_container, client_container, "volume_mounts"
+        )
         client_container = extend_object_field(base_container, client_container, "env")
-        client_container = extend_object_field(base_container, client_container, "env_from")
+        client_container = extend_object_field(
+            base_container, client_container, "env_from"
+        )
         client_container = extend_object_field(base_container, client_container, "ports")
-        client_container = extend_object_field(base_container, client_container, "volume_devices")
+        client_container = extend_object_field(
+            base_container, client_container, "volume_devices"
+        )
         client_container = merge_objects(base_container, client_container)
 
         return [
             client_container,
-            *PodGenerator.reconcile_containers(base_containers[1:], client_containers[1:]),
+            *PodGenerator.reconcile_containers(
+                base_containers[1:], client_containers[1:]
+            ),
         ]
 
     @classmethod
@@ -441,7 +463,9 @@ class PodGenerator:
                         name="base",
                         args=args,
                         image=image,
-                        env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
+                        env=[
+                            k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")
+                        ],
                     )
                 ]
             ),
@@ -494,9 +518,13 @@ class PodGenerator:
             airflow_worker=airflow_worker,
             include_version=include_version,
         )
-        label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
+        label_strings = [
+            f"{label_id}={label}" for label_id, label in sorted(labels.items())
+        ]
         selector = ",".join(label_strings)
-        if not airflow_worker:  # this filters out KPO pods even when we don't know the scheduler job id
+        if (
+            not airflow_worker
+        ):  # this filters out KPO pods even when we don't know the scheduler job id
             selector += ",airflow-worker"
         return selector
 

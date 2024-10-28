@@ -33,7 +33,9 @@ class TestKernelHook:
         from airflow.providers.papermill.hooks.kernel import KernelHook
 
         conn = Connection(
-            conn_type="jupyter_kernel", host="test_host", extra='{"shell_port": 60000, "session_key": "key"}'
+            conn_type="jupyter_kernel",
+            host="test_host",
+            extra='{"shell_port": 60000, "session_key": "key"}',
         )
         with patch.object(KernelHook, "get_connection", return_value=conn):
             hook = KernelHook()

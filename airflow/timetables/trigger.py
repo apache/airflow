@@ -77,7 +77,10 @@ class CronTriggerTimetable(CronMixin, Timetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_relativedelta, decode_timezone
+        from airflow.serialization.serialized_objects import (
+            decode_relativedelta,
+            decode_timezone,
+        )
 
         interval: datetime.timedelta | relativedelta
         if isinstance(data["interval"], dict):
@@ -101,7 +104,10 @@ class CronTriggerTimetable(CronMixin, Timetable):
         )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_relativedelta, encode_timezone
+        from airflow.serialization.serialized_objects import (
+            encode_relativedelta,
+            encode_timezone,
+        )
 
         interval: float | dict[str, Any]
         if isinstance(self._interval, datetime.timedelta):
@@ -145,7 +151,9 @@ class CronTriggerTimetable(CronMixin, Timetable):
         else:
             start_time_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
             if last_automated_data_interval is not None:
-                start_time_candidates.append(self._get_next(last_automated_data_interval.end))
+                start_time_candidates.append(
+                    self._get_next(last_automated_data_interval.end)
+                )
             elif restriction.earliest is None:
                 # Run immediately has no effect if there is restriction on earliest
                 start_time_candidates.append(self._calc_first_run())
@@ -179,7 +187,9 @@ class CronTriggerTimetable(CronMixin, Timetable):
         if isinstance(self.run_immediately, datetime.timedelta):
             buffer_between_runs = self.run_immediately
         else:
-            buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
+            buffer_between_runs = max(
+                gap_between_runs / 10, datetime.timedelta(minutes=5)
+            )
         if gap_to_past <= buffer_between_runs:
             return past_run_time
         else:

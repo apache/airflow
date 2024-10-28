@@ -30,7 +30,9 @@ from google.cloud import storage  # type: ignore[attr-defined]
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    get_credentials_and_project_id,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -170,10 +172,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def _add_message(self, msg):
         filename, lineno, func, stackinfo = logger.findCaller()
-        record = logging.LogRecord("", logging.INFO, filename, lineno, msg + "\n", None, None, func=func)
+        record = logging.LogRecord(
+            "", logging.INFO, filename, lineno, msg + "\n", None, None, func=func
+        )
         return self.format(record)
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(
+        self, ti, try_number, metadata=None
+    ) -> tuple[list[str], list[str]]:
         # Explicitly getting log relative path is necessary because this method
         # is called from webserver from TaskLogReader, where we don't call set_context
         # and can read logs for different TIs in each request
@@ -233,8 +239,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         :meta private:
         """
-        if (exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]) or getattr(
-            exc, "resp", {}
-        ).get("status") == "404":
+        if (
+            exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]
+        ) or getattr(exc, "resp", {}).get("status") == "404":
             return True
         return False

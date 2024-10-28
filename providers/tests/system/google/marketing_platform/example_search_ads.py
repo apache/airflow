@@ -99,7 +99,13 @@ with DAG(
     )
     # [END howto_search_ads_list_custom_columns]
 
-    (query_report >> get_field >> search_fields >> get_custom_column >> list_custom_columns)
+    (
+        query_report
+        >> get_field
+        >> search_fields
+        >> get_custom_column
+        >> list_custom_columns
+    )
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

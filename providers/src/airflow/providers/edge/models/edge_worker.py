@@ -164,10 +164,14 @@ class EdgeWorker(BaseModel, LoggingMixin):
         )
 
         Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
-        Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+        Stats.gauge(
+            "edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name}
+        )
 
         Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
-        Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+        Stats.gauge(
+            "edge_worker.concurrency", concurrency, tags={"worker_name": worker_name}
+        )
 
         Stats.gauge(
             f"edge_worker.num_queues.{worker_name}",
@@ -207,7 +211,9 @@ class EdgeWorker(BaseModel, LoggingMixin):
                     f"and the core runs on {airflow_version}. Rejecting access due to difference."
                 )
         else:
-            raise EdgeWorkerVersionException("Edge Worker does not specify the version it is running on.")
+            raise EdgeWorkerVersionException(
+                "Edge Worker does not specify the version it is running on."
+            )
 
         if "edge_provider_version" in sysinfo:
             provider_on_worker = sysinfo["edge_provider_version"]

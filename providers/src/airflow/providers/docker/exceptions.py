@@ -29,7 +29,9 @@ class DockerContainerFailedException(AirflowException):
     :param logs: The log output of the failed Docker container
     """
 
-    def __init__(self, message: str | None = None, logs: list[str | bytes] | None = None) -> None:
+    def __init__(
+        self, message: str | None = None, logs: list[str | bytes] | None = None
+    ) -> None:
         super().__init__(message)
         self.logs = logs
 
@@ -41,6 +43,8 @@ class DockerContainerFailedSkipException(AirflowSkipException):
     :param logs: The log output of the failed Docker container
     """
 
-    def __init__(self, message: str | None = None, logs: list[str | bytes] | None = None) -> None:
+    def __init__(
+        self, message: str | None = None, logs: list[str | bytes] | None = None
+    ) -> None:
         super().__init__(message)
         self.logs = logs

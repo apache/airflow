@@ -66,10 +66,15 @@ def get_extra_links(
     )
 
     if not ti:
-        raise NotFound("DAG Run not found", detail=f'DAG Run with ID = "{dag_run_id}" not found')
+        raise NotFound(
+            "DAG Run not found", detail=f'DAG Run with ID = "{dag_run_id}" not found'
+        )
 
     all_extra_link_pairs = (
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
-    all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
+    all_extra_links = {
+        link_name: link_url or None
+        for link_name, link_url in sorted(all_extra_link_pairs)
+    }
     return all_extra_links

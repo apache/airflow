@@ -20,7 +20,9 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.operators.synapse import AzureSynapseRunSparkBatchOperator
+from airflow.providers.microsoft.azure.operators.synapse import (
+    AzureSynapseRunSparkBatchOperator,
+)
 
 AIRFLOW_HOME = os.getenv("AIRFLOW_HOME", "/usr/local/airflow")
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))

@@ -95,7 +95,9 @@ class TestTableauHook:
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_get_conn_auth_via_password_and_site_in_connection(self, mock_server, mock_tableau_auth):
+    def test_get_conn_auth_via_password_and_site_in_connection(
+        self, mock_server, mock_tableau_auth
+    ):
         """
         Test get conn auth via password
         """
@@ -106,12 +108,16 @@ class TestTableauHook:
                 password=tableau_hook.conn.password,
                 site_id=tableau_hook.conn.extra_dejson["site_id"],
             )
-            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+            mock_server.return_value.auth.sign_in.assert_called_once_with(
+                mock_tableau_auth.return_value
+            )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.PersonalAccessTokenAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")
-    def test_get_conn_auth_via_token_and_site_in_init(self, mock_server, mock_tableau_auth):
+    def test_get_conn_auth_via_token_and_site_in_init(
+        self, mock_server, mock_tableau_auth
+    ):
         """
         Test get conn auth via token
         """
@@ -120,12 +126,16 @@ class TestTableauHook:
                 AirflowProviderDeprecationWarning,
                 match="Authentication via personal access token is deprecated..*",
             ),
-            TableauHook(site_id="test", tableau_conn_id="tableau_test_token") as tableau_hook,
+            TableauHook(
+                site_id="test", tableau_conn_id="tableau_test_token"
+            ) as tableau_hook,
         ):
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_tableau_auth.assert_called_once_with(
                 token_name=tableau_hook.conn.extra_dejson["token_name"],
-                personal_access_token=tableau_hook.conn.extra_dejson["personal_access_token"],
+                personal_access_token=tableau_hook.conn.extra_dejson[
+                    "personal_access_token"
+                ],
                 site_id=tableau_hook.site_id,
             )
             mock_server.return_value.auth.sign_in_with_personal_access_token.assert_called_once_with(
@@ -139,7 +149,9 @@ class TestTableauHook:
         """
         Test get conn with SSL parameters, verify as path
         """
-        with TableauHook(tableau_conn_id="tableau_test_ssl_connection_certificates_path") as tableau_hook:
+        with TableauHook(
+            tableau_conn_id="tableau_test_ssl_connection_certificates_path"
+        ) as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={
@@ -152,7 +164,9 @@ class TestTableauHook:
                 password=tableau_hook.conn.password,
                 site_id="",
             )
-            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+            mock_server.return_value.auth.sign_in.assert_called_once_with(
+                mock_tableau_auth.return_value
+            )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.PersonalAccessTokenAuth")
@@ -166,7 +180,9 @@ class TestTableauHook:
                 AirflowProviderDeprecationWarning,
                 match="Authentication via personal access token is deprecated..*",
             ),
-            TableauHook(tableau_conn_id="tableau_test_ssl_connection_default") as tableau_hook,
+            TableauHook(
+                tableau_conn_id="tableau_test_ssl_connection_default"
+            ) as tableau_hook,
         ):
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
@@ -174,7 +190,9 @@ class TestTableauHook:
             )
             mock_tableau_auth.assert_called_once_with(
                 token_name=tableau_hook.conn.extra_dejson["token_name"],
-                personal_access_token=tableau_hook.conn.extra_dejson["personal_access_token"],
+                personal_access_token=tableau_hook.conn.extra_dejson[
+                    "personal_access_token"
+                ],
                 site_id="",
             )
             mock_server.return_value.auth.sign_in_with_personal_access_token.assert_called_once_with(
@@ -188,7 +206,9 @@ class TestTableauHook:
         """
         Test get conn with default SSL disabled parameters
         """
-        with TableauHook(tableau_conn_id="tableau_test_ssl_false_connection") as tableau_hook:
+        with TableauHook(
+            tableau_conn_id="tableau_test_ssl_false_connection"
+        ) as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={"verify": False, "cert": None}
@@ -198,7 +218,9 @@ class TestTableauHook:
                 password=tableau_hook.conn.password,
                 site_id="",
             )
-            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+            mock_server.return_value.auth.sign_in.assert_called_once_with(
+                mock_tableau_auth.return_value
+            )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
@@ -207,7 +229,9 @@ class TestTableauHook:
         """
         Test get conn with SSL Verify parameter as bool
         """
-        with TableauHook(tableau_conn_id="tableau_test_ssl_bool_param_connection") as tableau_hook:
+        with TableauHook(
+            tableau_conn_id="tableau_test_ssl_bool_param_connection"
+        ) as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={"verify": False, "cert": None}
@@ -217,7 +241,9 @@ class TestTableauHook:
                 password=tableau_hook.conn.password,
                 site_id="",
             )
-            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+            mock_server.return_value.auth.sign_in.assert_called_once_with(
+                mock_tableau_auth.return_value
+            )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")

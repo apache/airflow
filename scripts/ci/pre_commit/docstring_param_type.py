@@ -49,7 +49,9 @@ if __name__ == "__main__":
         if matches:
             error_list.append((file, matches))
     if error_list:
-        error_message = "\n".join([f"{f}: \n{_join_with_newline(m)}" for f, m in error_list])
+        error_message = "\n".join(
+            [f"{f}: \n{_join_with_newline(m)}" for f, m in error_list]
+        )
         console.print(
             f"""
 [red]Found files with types specified in docstring.

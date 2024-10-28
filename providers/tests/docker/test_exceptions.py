@@ -35,7 +35,9 @@ FAILED_LOGS = ["unicode container log 😁   ", b"byte string container log"]
 EXPECTED_MESSAGE = f"Docker container failed: {FAILED_MESSAGE}"
 FAILED_SKIP_MESSAGE = {"StatusCode": 2}
 SKIP_ON_EXIT_CODE = 2
-EXPECTED_SKIP_MESSAGE = f"Docker container returned exit code {[SKIP_ON_EXIT_CODE]}. Skipping."
+EXPECTED_SKIP_MESSAGE = (
+    f"Docker container returned exit code {[SKIP_ON_EXIT_CODE]}. Skipping."
+)
 
 
 @pytest.mark.parametrize(
@@ -61,12 +63,17 @@ class TestDockerContainerExceptions:
 
         docker_api_client_patcher.return_value = self.client_mock
 
-    def test_docker_failed_exception(self, failed_msg, log_line, expected_message, skip_on_exit_code):
+    def test_docker_failed_exception(
+        self, failed_msg, log_line, expected_message, skip_on_exit_code
+    ):
         self.client_mock.attach.return_value = log_line
         self.client_mock.wait.return_value = failed_msg
 
         operator = DockerOperator(
-            image="ubuntu", owner="unittest", task_id="unittest", skip_on_exit_code=skip_on_exit_code
+            image="ubuntu",
+            owner="unittest",
+            task_id="unittest",
+            skip_on_exit_code=skip_on_exit_code,
         )
 
         if skip_on_exit_code:
@@ -77,4 +84,7 @@ class TestDockerContainerExceptions:
                 operator.execute(None)
 
         assert str(raised_exception.value) == expected_message
-        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
+        assert raised_exception.value.logs == [
+            log_line[0].strip(),
+            log_line[1].decode("utf-8"),
+        ]

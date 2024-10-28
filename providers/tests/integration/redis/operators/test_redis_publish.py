@@ -54,7 +54,9 @@ class TestRedisPublishOperator:
 
         operator.execute(self.mock_context)
         context_calls = []
-        assert self.mock_context["ti"].method_calls == context_calls, "context calls should be same"
+        assert (
+            self.mock_context["ti"].method_calls == context_calls
+        ), "context calls should be same"
 
         message = pubsub.get_message()
         assert message["type"] == "subscribe"

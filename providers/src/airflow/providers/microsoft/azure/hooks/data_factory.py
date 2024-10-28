@@ -46,7 +46,9 @@ from azure.identity.aio import (
     DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
 from azure.mgmt.datafactory import DataFactoryManagementClient
-from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
+from azure.mgmt.datafactory.aio import (
+    DataFactoryManagementClient as AsyncDataFactoryManagementClient,
+)
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -98,7 +100,9 @@ def provide_targeted_factory(func: Callable) -> Callable:
                     f"extra__azure_data_factory__{default_key}"
                 )
                 if not default_value:
-                    raise AirflowException("Could not determine the targeted data factory.")
+                    raise AirflowException(
+                        "Could not determine the targeted data factory."
+                    )
 
                 bound_args.arguments[arg] = default_value
 
@@ -167,12 +171,18 @@ class AzureDataFactoryHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
-            "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
+            "tenantId": StringField(
+                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
+            ),
+            "subscriptionId": StringField(
+                lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()
+            ),
             "resource_group_name": StringField(
                 lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
-            "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
+            "factory_name": StringField(
+                lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -202,12 +212,16 @@ class AzureDataFactoryHook(BaseHook):
         try:
             subscription_id = get_field(extras, "subscriptionId", strict=True)
         except KeyError:
-            raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
+            raise ValueError(
+                "A Subscription ID is required to connect to Azure Data Factory."
+            )
 
         credential: Credentials
         if conn.login is not None and conn.password is not None:
             if not tenant:
-                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+                raise ValueError(
+                    "A Tenant ID is required when authenticating with Client ID and Secret."
+                )
 
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
@@ -228,7 +242,9 @@ class AzureDataFactoryHook(BaseHook):
         return self.get_conn()
 
     @provide_targeted_factory
-    def get_factory(self, resource_group_name: str, factory_name: str, **config: Any) -> Factory | None:
+    def get_factory(
+        self, resource_group_name: str, factory_name: str, **config: Any
+    ) -> Factory | None:
         """
         Get the factory.
 
@@ -242,7 +258,10 @@ class AzureDataFactoryHook(BaseHook):
     def _factory_exists(self, resource_group_name, factory_name) -> bool:
         """Return whether or not the factory already exists."""
         factories = {
-            factory.name for factory in self.get_conn().factories.list_by_resource_group(resource_group_name)
+            factory.name
+            for factory in self.get_conn().factories.list_by_resource_group(
+                resource_group_name
+            )
         }
 
         return factory_name in factories
@@ -308,7 +327,9 @@ class AzureDataFactoryHook(BaseHook):
         )
 
     @provide_targeted_factory
-    def delete_factory(self, resource_group_name: str, factory_name: str, **config: Any) -> None:
+    def delete_factory(
+        self, resource_group_name: str, factory_name: str, **config: Any
+    ) -> None:
         """
         Delete the factory.
 
@@ -340,10 +361,16 @@ class AzureDataFactoryHook(BaseHook):
         :return: The linked service.
         """
         return self.get_conn().linked_services.get(
-            resource_group_name, factory_name, linked_service_name, if_none_match, **config
+            resource_group_name,
+            factory_name,
+            linked_service_name,
+            if_none_match,
+            **config,
         )
 
-    def _linked_service_exists(self, resource_group_name, factory_name, linked_service_name) -> bool:
+    def _linked_service_exists(
+        self, resource_group_name, factory_name, linked_service_name
+    ) -> bool:
         """Return whether or not the linked service already exists."""
         linked_services = {
             linked_service.name
@@ -374,11 +401,19 @@ class AzureDataFactoryHook(BaseHook):
         :raise AirflowException: If the linked service does not exist.
         :return: The linked service.
         """
-        if not self._linked_service_exists(resource_group_name, factory_name, linked_service_name):
-            raise AirflowException(f"Linked service {linked_service_name!r} does not exist.")
+        if not self._linked_service_exists(
+            resource_group_name, factory_name, linked_service_name
+        ):
+            raise AirflowException(
+                f"Linked service {linked_service_name!r} does not exist."
+            )
 
         return self.get_conn().linked_services.create_or_update(
-            resource_group_name, factory_name, linked_service_name, linked_service, **config
+            resource_group_name,
+            factory_name,
+            linked_service_name,
+            linked_service,
+            **config,
         )
 
     @provide_targeted_factory
@@ -401,11 +436,19 @@ class AzureDataFactoryHook(BaseHook):
         :raise AirflowException: If the linked service already exists.
         :return: The linked service.
         """
-        if self._linked_service_exists(resource_group_name, factory_name, linked_service_name):
-            raise AirflowException(f"Linked service {linked_service_name!r} already exists.")
+        if self._linked_service_exists(
+            resource_group_name, factory_name, linked_service_name
+        ):
+            raise AirflowException(
+                f"Linked service {linked_service_name!r} already exists."
+            )
 
         return self.get_conn().linked_services.create_or_update(
-            resource_group_name, factory_name, linked_service_name, linked_service, **config
+            resource_group_name,
+            factory_name,
+            linked_service_name,
+            linked_service,
+            **config,
         )
 
     @provide_targeted_factory
@@ -445,13 +488,17 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         :return: The dataset.
         """
-        return self.get_conn().datasets.get(resource_group_name, factory_name, dataset_name, **config)
+        return self.get_conn().datasets.get(
+            resource_group_name, factory_name, dataset_name, **config
+        )
 
     def _dataset_exists(self, resource_group_name, factory_name, dataset_name) -> bool:
         """Return whether or not the dataset already exists."""
         datasets = {
             dataset.name
-            for dataset in self.get_conn().datasets.list_by_factory(resource_group_name, factory_name)
+            for dataset in self.get_conn().datasets.list_by_factory(
+                resource_group_name, factory_name
+            )
         }
 
         return dataset_name in datasets
@@ -526,7 +573,9 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        self.get_conn().datasets.delete(resource_group_name, factory_name, dataset_name, **config)
+        self.get_conn().datasets.delete(
+            resource_group_name, factory_name, dataset_name, **config
+        )
 
     @provide_targeted_factory
     def get_dataflow(
@@ -562,7 +611,9 @@ class AzureDataFactoryHook(BaseHook):
         """Return whether the dataflow already exists."""
         dataflows = {
             dataflow.name
-            for dataflow in self.get_conn().data_flows.list_by_factory(resource_group_name, factory_name)
+            for dataflow in self.get_conn().data_flows.list_by_factory(
+                resource_group_name, factory_name
+            )
         }
 
         return dataflow_name in dataflows
@@ -647,7 +698,9 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        self.get_conn().data_flows.delete(resource_group_name, factory_name, dataflow_name, **config)
+        self.get_conn().data_flows.delete(
+            resource_group_name, factory_name, dataflow_name, **config
+        )
 
     @provide_targeted_factory
     def get_pipeline(
@@ -666,13 +719,17 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         :return: The pipeline.
         """
-        return self.get_conn().pipelines.get(resource_group_name, factory_name, pipeline_name, **config)
+        return self.get_conn().pipelines.get(
+            resource_group_name, factory_name, pipeline_name, **config
+        )
 
     def _pipeline_exists(self, resource_group_name, factory_name, pipeline_name) -> bool:
         """Return whether or not the pipeline already exists."""
         pipelines = {
             pipeline.name
-            for pipeline in self.get_conn().pipelines.list_by_factory(resource_group_name, factory_name)
+            for pipeline in self.get_conn().pipelines.list_by_factory(
+                resource_group_name, factory_name
+            )
         }
 
         return pipeline_name in pipelines
@@ -747,7 +804,9 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        self.get_conn().pipelines.delete(resource_group_name, factory_name, pipeline_name, **config)
+        self.get_conn().pipelines.delete(
+            resource_group_name, factory_name, pipeline_name, **config
+        )
 
     @provide_targeted_factory
     def run_pipeline(
@@ -787,7 +846,9 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         :return: The pipeline run.
         """
-        return self.get_conn().pipeline_runs.get(resource_group_name, factory_name, run_id, **config)
+        return self.get_conn().pipeline_runs.get(
+            resource_group_name, factory_name, run_id, **config
+        )
 
     def get_pipeline_run_status(
         self,
@@ -804,8 +865,12 @@ class AzureDataFactoryHook(BaseHook):
         :return: The status of the pipeline run.
         """
         self.log.info("Getting the status of run ID %s.", run_id)
-        pipeline_run_status = self.get_pipeline_run(run_id, resource_group_name, factory_name).status
-        self.log.info("Current status of pipeline run %s: %s", run_id, pipeline_run_status)
+        pipeline_run_status = self.get_pipeline_run(
+            run_id, resource_group_name, factory_name
+        ).status
+        self.log.info(
+            "Current status of pipeline run %s: %s", run_id, pipeline_run_status
+        )
 
         return pipeline_run_status
 
@@ -830,7 +895,9 @@ class AzureDataFactoryHook(BaseHook):
             status.
         :return: Boolean indicating if the pipeline run has reached the ``expected_status``.
         """
-        pipeline_run_status = self.get_pipeline_run_status(run_id, resource_group_name, factory_name)
+        pipeline_run_status = self.get_pipeline_run_status(
+            run_id, resource_group_name, factory_name
+        )
 
         start_time = time.monotonic()
 
@@ -847,7 +914,9 @@ class AzureDataFactoryHook(BaseHook):
             # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
             time.sleep(check_interval)
 
-            pipeline_run_status = self.get_pipeline_run_status(run_id, resource_group_name, factory_name)
+            pipeline_run_status = self.get_pipeline_run_status(
+                run_id, resource_group_name, factory_name
+            )
 
         return pipeline_run_status in expected_statuses
 
@@ -867,7 +936,9 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        self.get_conn().pipeline_runs.cancel(resource_group_name, factory_name, run_id, **config)
+        self.get_conn().pipeline_runs.cancel(
+            resource_group_name, factory_name, run_id, **config
+        )
 
     @provide_targeted_factory
     def get_trigger(
@@ -886,13 +957,17 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         :return: The trigger.
         """
-        return self.get_conn().triggers.get(resource_group_name, factory_name, trigger_name, **config)
+        return self.get_conn().triggers.get(
+            resource_group_name, factory_name, trigger_name, **config
+        )
 
     def _trigger_exists(self, resource_group_name, factory_name, trigger_name) -> bool:
         """Return whether or not the trigger already exists."""
         triggers = {
             trigger.name
-            for trigger in self.get_conn().triggers.list_by_factory(resource_group_name, factory_name)
+            for trigger in self.get_conn().triggers.list_by_factory(
+                resource_group_name, factory_name
+            )
         }
 
         return trigger_name in triggers
@@ -970,7 +1045,9 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        self.get_conn().triggers.delete(resource_group_name, factory_name, trigger_name, **config)
+        self.get_conn().triggers.delete(
+            resource_group_name, factory_name, trigger_name, **config
+        )
 
     @provide_targeted_factory
     def start_trigger(
@@ -989,7 +1066,9 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         :return: An Azure operation poller.
         """
-        return self.get_conn().triggers.begin_start(resource_group_name, factory_name, trigger_name, **config)
+        return self.get_conn().triggers.begin_start(
+            resource_group_name, factory_name, trigger_name, **config
+        )
 
     @provide_targeted_factory
     def stop_trigger(
@@ -1008,7 +1087,9 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         :return: An Azure operation poller.
         """
-        return self.get_conn().triggers.begin_stop(resource_group_name, factory_name, trigger_name, **config)
+        return self.get_conn().triggers.begin_stop(
+            resource_group_name, factory_name, trigger_name, **config
+        )
 
     @provide_targeted_factory
     def rerun_trigger(
@@ -1050,7 +1131,9 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :param config: Extra parameters for the ADF client.
         """
-        self.get_conn().trigger_runs.cancel(resource_group_name, factory_name, trigger_name, run_id, **config)
+        self.get_conn().trigger_runs.cancel(
+            resource_group_name, factory_name, trigger_name, run_id, **config
+        )
 
     def test_connection(self) -> tuple[bool, str]:
         """Test a configured Azure Data Factory connection."""
@@ -1095,16 +1178,22 @@ def provide_targeted_factory_async(func: T) -> T:
                 default_value = extras.get(default_key) or extras.get(
                     f"extra__azure_data_factory__{default_key}"
                 )
-                if not default_value and extras.get(f"extra__azure_data_factory__{default_key}"):
+                if not default_value and extras.get(
+                    f"extra__azure_data_factory__{default_key}"
+                ):
                     warnings.warn(
                         f"`extra__azure_data_factory__{default_key}` is deprecated in azure connection extra,"
                         f" please use `{default_key}` instead",
                         AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    default_value = extras.get(f"extra__azure_data_factory__{default_key}")
+                    default_value = extras.get(
+                        f"extra__azure_data_factory__{default_key}"
+                    )
                 if not default_value:
-                    raise AirflowException("Could not determine the targeted data factory.")
+                    raise AirflowException(
+                        "Could not determine the targeted data factory."
+                    )
 
                 bound_args.arguments[arg] = default_value
 
@@ -1142,12 +1231,16 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         try:
             subscription_id = get_field(extras, "subscriptionId", strict=True)
         except KeyError:
-            raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
+            raise ValueError(
+                "A Subscription ID is required to connect to Azure Data Factory."
+            )
 
         credential: AsyncCredentials
         if conn.login is not None and conn.password is not None:
             if not tenant:
-                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+                raise ValueError(
+                    "A Tenant ID is required when authenticating with Client ID and Secret."
+                )
 
             credential = AsyncClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
@@ -1188,7 +1281,9 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param config: Extra parameters for the ADF client.
         """
         client = await self.get_async_conn()
-        pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
+        pipeline_run = await client.pipeline_runs.get(
+            resource_group_name, factory_name, run_id
+        )
         return pipeline_run
 
     async def get_adf_pipeline_run_status(
@@ -1201,7 +1296,9 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
         """
-        pipeline_run = await self.get_pipeline_run(run_id, resource_group_name, factory_name)
+        pipeline_run = await self.get_pipeline_run(
+            run_id, resource_group_name, factory_name
+        )
         status: str = cast(str, pipeline_run.status)
         return status
 

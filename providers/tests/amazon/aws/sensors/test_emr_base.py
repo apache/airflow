@@ -106,7 +106,10 @@ class TestEmrBaseSensor:
             poke_interval=2,
         )
         operator.response = {
-            "SomeKey": {"State": FAILED_STATE, "StateChangeReason": {"Code": EXPECTED_CODE}},
+            "SomeKey": {
+                "State": FAILED_STATE,
+                "StateChangeReason": {"Code": EXPECTED_CODE},
+            },
             "ResponseMetadata": {"HTTPStatusCode": GOOD_HTTP_STATUS},
         }
 

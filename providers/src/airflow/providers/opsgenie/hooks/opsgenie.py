@@ -93,7 +93,9 @@ class OpsgenieAlertHook(BaseHook):
             api_response = self.alert_api_instance.create_alert(create_alert_payload)
             return api_response
         except OpenApiException as e:
-            self.log.exception("Exception when sending alert to opsgenie with payload: %s", payload)
+            self.log.exception(
+                "Exception when sending alert to opsgenie with payload: %s", payload
+            )
             raise e
 
     def close_alert(
@@ -127,7 +129,9 @@ class OpsgenieAlertHook(BaseHook):
             )
             return api_response
         except OpenApiException as e:
-            self.log.exception("Exception when closing alert in opsgenie with payload: %s", payload)
+            self.log.exception(
+                "Exception when closing alert in opsgenie with payload: %s", payload
+            )
             raise e
 
     def delete_alert(

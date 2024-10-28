@@ -38,7 +38,10 @@ def init_cache(app):
     webserver_caching_hash_method = conf.get(
         section="webserver", key="CACHING_HASH_METHOD", fallback="md5"
     ).casefold()
-    cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
+    cache_config = {
+        "CACHE_TYPE": "flask_caching.backends.filesystem",
+        "CACHE_DIR": gettempdir(),
+    }
 
     mapped_hash_method = HASH_METHOD_MAPPING.get(webserver_caching_hash_method)
 

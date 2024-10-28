@@ -43,7 +43,9 @@ class TestRdsDbAvailableTrigger:
             region_name=region_name,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbAvailableTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbAvailableTrigger"
+        )
         assert kwargs == {
             "db_identifier": "test_db_identifier",
             "db_type": "instance",
@@ -76,7 +78,9 @@ class TestRdsDbDeletedTrigger:
         )
 
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbDeletedTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbDeletedTrigger"
+        )
         assert kwargs == {
             "db_identifier": "test_db_identifier",
             "db_type": "instance",
@@ -109,7 +113,9 @@ class TestRdsDbStoppedTrigger:
         )
 
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbStoppedTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.rds.RdsDbStoppedTrigger"
+        )
         assert kwargs == {
             "db_identifier": "test_db_identifier",
             "db_type": "instance",

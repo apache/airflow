@@ -35,7 +35,9 @@ try:
     # If you have rich installed, you will have nice colored output of the API responses
     from rich import print
 except ImportError:
-    print("Output will not be colored. Please install rich to get colored output: `pip install rich`")
+    print(
+        "Output will not be colored. Please install rich to get colored output: `pip install rich`"
+    )
     pass
 from airflow_client.client.api import config_api, dag_api, dag_run_api
 from airflow_client.client.model.dag_run import DAGRun

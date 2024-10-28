@@ -227,13 +227,19 @@ class PinotAdminHook(BaseHook):
         env = None
         if self.pinot_admin_system_exit:
             env = os.environ.copy()
-            java_opts = "-Dpinot.admin.system.exit=true " + os.environ.get("JAVA_OPTS", "")
+            java_opts = "-Dpinot.admin.system.exit=true " + os.environ.get(
+                "JAVA_OPTS", ""
+            )
             env.update({"JAVA_OPTS": java_opts})
 
         if verbose:
             self.log.info(" ".join(command))
         with subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True, env=env
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+            env=env,
         ) as sub_process:
             stdout = ""
             if sub_process.stdout:
@@ -297,7 +303,10 @@ class PinotDbApiHook(DbApiHook):
         return f"{conn_type}://{host}/{endpoint}"
 
     def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
+        self,
+        sql: str | list[str],
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        **kwargs,
     ) -> Any:
         """
         Execute the sql and returns a set of records.
@@ -310,7 +319,9 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
+    def get_first(
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any:
         """
         Execute the sql and returns the first resulting row.
 

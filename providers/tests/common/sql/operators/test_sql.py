@@ -87,13 +87,19 @@ class TestBaseSQLOperator:
     def test_templated_fields(self):
         operator = self._construct_operator()
         operator.render_template_fields(
-            {"conn_id": "my_conn_id", "database": "my_database", "hook_params": {"key": "value"}}
+            {
+                "conn_id": "my_conn_id",
+                "database": "my_database",
+                "hook_params": {"key": "value"},
+            }
         )
         assert operator.conn_id == "my_conn_id"
         assert operator.database == "my_database"
         assert operator.hook_params == {"key": "value"}
 
-    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_get_hook_method(self):
+    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_get_hook_method(
+        self,
+    ):
         """
         Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
         for this provider, you should remove the obsolete get_hook method in the BaseSQLOperator operator
@@ -101,7 +107,9 @@ class TestBaseSQLOperator:
         for backward compatibility with Airflow 2.8.x which isn't need anymore once this provider depends on
         Airflow 3.0.0 or higher.
         """
-        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-common-sql")
+        min_airflow_version = get_provider_min_airflow_version(
+            "apache-airflow-providers-common-sql"
+        )
 
         # Check if the current Airflow version is 3.0.0 or higher
         if min_airflow_version[0] >= 3:
@@ -223,7 +231,9 @@ class TestColumnCheckOperator:
         return f"SELECT col_name, check_type, check_result FROM ({sql}) AS check_columns"
 
     def test_check_not_in_column_checks(self, monkeypatch):
-        with pytest.raises(AirflowException, match="Invalid column check: invalid_check_name."):
+        with pytest.raises(
+            AirflowException, match="Invalid column check: invalid_check_name."
+        ):
             self._construct_operator(monkeypatch, self.invalid_column_mapping, ())
 
     def test_pass_all_checks_exact_check(self, monkeypatch):
@@ -234,7 +244,9 @@ class TestColumnCheckOperator:
             ("X", "min", 1),
             ("X", "max", 19),
         ]
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(
+            monkeypatch, self.valid_column_mapping, records
+        )
         operator.execute(context=MagicMock())
         assert [
             operator.column_mapping["X"][check]["success"] is True
@@ -249,11 +261,16 @@ class TestColumnCheckOperator:
             ("X", "min", 1),
             ("X", "max", 21),
         ]
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(
+            monkeypatch, self.valid_column_mapping, records
+        )
         with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
         assert "Check: max" in str(err_ctx.value)
-        assert "{'less_than': 20, 'greater_than': 10, 'result': 21, 'success': False}" in str(err_ctx.value)
+        assert (
+            "{'less_than': 20, 'greater_than': 10, 'result': 21, 'success': False}"
+            in str(err_ctx.value)
+        )
         assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
@@ -264,11 +281,16 @@ class TestColumnCheckOperator:
             ("X", "min", 1),
             ("X", "max", 9),
         ]
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(
+            monkeypatch, self.valid_column_mapping, records
+        )
         with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
         assert "Check: max" in str(err_ctx.value)
-        assert "{'less_than': 20, 'greater_than': 10, 'result': 9, 'success': False}" in str(err_ctx.value)
+        assert (
+            "{'less_than': 20, 'greater_than': 10, 'result': 9, 'success': False}"
+            in str(err_ctx.value)
+        )
         assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
@@ -279,7 +301,9 @@ class TestColumnCheckOperator:
             ("X", "min", 0),
             ("X", "max", 15),
         ]
-        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(
+            monkeypatch, self.valid_column_mapping, records
+        )
         operator.execute(context=MagicMock())
         assert [
             operator.column_mapping["X"][check]["success"] is True
@@ -294,13 +318,17 @@ class TestColumnCheckOperator:
             ("X", "min", -1),
             ("X", "max", 20),
         ]
-        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = operator = self._construct_operator(
+            monkeypatch, self.valid_column_mapping, records
+        )
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
     def test_generate_sql_query_no_partitions(self, monkeypatch):
         checks = self.short_valid_column_mapping["X"]
-        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator = self._construct_operator(
+            monkeypatch, self.short_valid_column_mapping, ()
+        )
         assert (
             operator._generate_sql_query("X", checks).lstrip()
             == self.correct_generate_sql_query_no_partitions.lstrip()
@@ -308,7 +336,9 @@ class TestColumnCheckOperator:
 
     def test_generate_sql_query_with_partitions(self, monkeypatch):
         checks = self.short_valid_column_mapping["X"]
-        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator = self._construct_operator(
+            monkeypatch, self.short_valid_column_mapping, ()
+        )
         operator.partition_clause = "Y > 1"
         assert (
             operator._generate_sql_query("X", checks).lstrip()
@@ -318,7 +348,9 @@ class TestColumnCheckOperator:
     @pytest.mark.db_test
     def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
         checks = self.short_valid_column_mapping["X"]
-        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator = self._construct_operator(
+            monkeypatch, self.short_valid_column_mapping, ()
+        )
         operator.partition_clause = "{{ params.col }} > 1"
         operator.render_template_fields({"params": {"col": "Y"}})
         assert (
@@ -329,7 +361,9 @@ class TestColumnCheckOperator:
     def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
         self.short_valid_column_mapping["X"]["null_check"]["partition_clause"] = "Z < 100"
         checks = self.short_valid_column_mapping["X"]
-        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator = self._construct_operator(
+            monkeypatch, self.short_valid_column_mapping, ()
+        )
         operator.partition_clause = "Y > 1"
         assert (
             operator._generate_sql_query("X", checks).lstrip()
@@ -338,9 +372,13 @@ class TestColumnCheckOperator:
         del self.short_valid_column_mapping["X"]["null_check"]["partition_clause"]
 
     def test_generate_sql_query_with_check_partition(self, monkeypatch):
-        self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"] = "Z < 100"
+        self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"] = (
+            "Z < 100"
+        )
         checks = self.short_valid_column_mapping["X"]
-        operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
+        operator = self._construct_operator(
+            monkeypatch, self.short_valid_column_mapping, ()
+        )
         assert (
             operator._generate_sql_query("X", checks).lstrip()
             == self.correct_generate_sql_query_with_where.lstrip()
@@ -451,7 +489,9 @@ class TestTableCheckOperator:
         def get_records(*arg):
             return records
 
-        operator = SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
+        operator = SQLTableCheckOperator(
+            task_id="test_task", table="test_table", checks=checks
+        )
         monkeypatch.setattr(operator, "get_db_hook", _get_mock_db_hook)
         monkeypatch.setattr(MockHook, "get_records", get_records)
         return operator
@@ -539,7 +579,9 @@ class TestTableCheckOperator:
         records = [("row_count_check", 1), ("column_sum_check", "y")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
-        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
+        assert [
+            operator.checks[check]["success"] is True for check in operator.checks.keys()
+        ]
 
     def test_fail_all_checks_check(self, monkeypatch):
         records = [("row_count_check", 0), ("column_sum_check", "n")]
@@ -550,14 +592,16 @@ class TestTableCheckOperator:
     def test_generate_sql_query_no_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_no_partitions.lstrip()
         )
 
     def test_generate_sql_query_with_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "col_a > 10"
         assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
     @pytest.mark.db_test
@@ -566,7 +610,8 @@ class TestTableCheckOperator:
         operator.partition_clause = "{{ params.col }} > 10"
         operator.render_template_fields({"params": {"col": "col_a"}})
         assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
     @pytest.mark.db_test
@@ -575,7 +620,8 @@ class TestTableCheckOperator:
         operator.table = "{{ params.table }}"
         operator.render_template_fields({"params": {"table": "test_table"}})
         assert (
-            operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_no_partitions.lstrip()
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_no_partitions.lstrip()
         )
 
     def test_generate_sql_query_with_partitions_and_check_partition(self, monkeypatch):
@@ -591,7 +637,10 @@ class TestTableCheckOperator:
     def test_generate_sql_query_with_check_partition(self, monkeypatch):
         self.checks["column_sum_check"]["partition_clause"] = "id = 100"
         operator = self._construct_operator(monkeypatch, self.checks, ())
-        assert operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_where.lstrip()
+        assert (
+            operator._generate_sql_query().lstrip()
+            == self.correct_generate_sql_query_with_where.lstrip()
+        )
         del self.checks["column_sum_check"]["partition_clause"]
 
 
@@ -627,7 +676,9 @@ class TestSQLCheckOperatorDbHook:
     def setup_method(self):
         self.task_id = "test_task"
         self.conn_id = "sql_default"
-        self._operator = SQLCheckOperator(task_id=self.task_id, conn_id=self.conn_id, sql="sql")
+        self._operator = SQLCheckOperator(
+            task_id=self.task_id, conn_id=self.conn_id, sql="sql"
+        )
 
     @pytest.mark.parametrize("database", [None, "test-db"])
     def test_get_hook(self, database):
@@ -645,8 +696,12 @@ class TestSQLCheckOperatorDbHook:
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
             return_value=Connection(conn_id="sql_default", conn_type="postgres"),
         ) as mock_get_conn:
-            mock_get_conn.return_value = Connection(conn_id="sql_default", conn_type="airbyte")
-            with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
+            mock_get_conn.return_value = Connection(
+                conn_id="sql_default", conn_type="airbyte"
+            )
+            with pytest.raises(
+                AirflowException, match=r"You are trying to use `common-sql`"
+            ):
                 self._operator._hook
 
     def test_sql_operator_hook_params_snowflake(self):
@@ -654,7 +709,9 @@ class TestSQLCheckOperatorDbHook:
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
             return_value=Connection(conn_id="sql_default", conn_type="postgres"),
         ) as mock_get_conn:
-            mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
+            mock_get_conn.return_value = Connection(
+                conn_id="snowflake_default", conn_type="snowflake"
+            )
             self._operator.hook_params = {
                 "warehouse": "warehouse",
                 "database": "database",
@@ -687,7 +744,9 @@ class TestSQLCheckOperatorDbHook:
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
             return_value=Connection(conn_id="sql_default", conn_type="postgres"),
         ) as mock_get_conn:
-            mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
+            mock_get_conn.return_value = Connection(
+                conn_id="snowflake_default", conn_type="snowflake"
+            )
             self._operator.hook_params = {"session_parameters": {"query_tag": "{{ ds }}"}}
             logical_date = "2024-04-02"
             self._operator.render_template_fields({"ds": logical_date})
@@ -698,13 +757,17 @@ class TestSQLCheckOperatorDbHook:
 
 class TestCheckOperator:
     def setup_method(self):
-        self._operator = SQLCheckOperator(task_id="test_task", sql="sql", parameters="parameters")
+        self._operator = SQLCheckOperator(
+            task_id="test_task", sql="sql", parameters="parameters"
+        )
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_execute_no_records(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = []
 
-        with pytest.raises(AirflowException, match=r"The following query returned zero rows: sql"):
+        with pytest.raises(
+            AirflowException, match=r"The following query returned zero rows: sql"
+        ):
             self._operator.execute({})
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
@@ -727,7 +790,9 @@ class TestCheckOperator:
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_sqlcheckoperator_parameters(self, mock_get_db_hook):
         self._operator.execute({})
-        mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")
+        mock_get_db_hook.return_value.get_first.assert_called_once_with(
+            "sql", "parameters"
+        )
 
 
 class TestValueCheckOperator:
@@ -936,7 +1001,9 @@ class TestThresholdCheckOperator:
         mock_hook.get_first.return_value = (10,)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator("Select avg(val) from table1 limit 1", "{{ params.min }}", 100)
+        operator = self._construct_operator(
+            "Select avg(val) from table1 limit 1", "{{ params.min }}", 100
+        )
         operator.render_template_fields({"params": {"min": 1}})
         operator.execute(context=MagicMock())
         mock_hook.get_first.assert_called_once_with("Select avg(val) from table1 limit 1")
@@ -947,7 +1014,9 @@ class TestThresholdCheckOperator:
         mock_hook.get_first.return_value = (10,)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator("Select avg(val) from table1 limit 1", 20, 100)
+        operator = self._construct_operator(
+            "Select avg(val) from table1 limit 1", 20, 100
+        )
 
         with pytest.raises(AirflowException, match="10.*20.0.*100.0"):
             operator.execute(context=MagicMock())
@@ -983,7 +1052,9 @@ class TestThresholdCheckOperator:
             ("Select 1", 0, 1),
         ),
     )
-    def test_pass_min_value_max_sql(self, mock_get_db_hook, sql, min_threshold, max_threshold):
+    def test_pass_min_value_max_sql(
+        self, mock_get_db_hook, sql, min_threshold, max_threshold
+    ):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
@@ -1012,7 +1083,9 @@ class TestThresholdCheckOperator:
         sql = "Select val from table1 where val = 'val not in table'"
         operator = self._construct_operator(sql, 20, 100)
 
-        with pytest.raises(AirflowException, match=f"The following query returned zero rows: {sql}"):
+        with pytest.raises(
+            AirflowException, match=f"The following query returned zero rows: {sql}"
+        ):
             operator.execute(context=MagicMock())
 
 
@@ -1113,7 +1186,9 @@ class TestSqlBranch:
             follow_task_ids_if_false="branch_2",
             dag=self.dag,
         )
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        branch_op.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
     @pytest.mark.backend("postgres")
     def test_sql_branch_operator_postgres(self):
@@ -1126,7 +1201,9 @@ class TestSqlBranch:
             follow_task_ids_if_false="branch_2",
             dag=self.dag,
         )
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        branch_op.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
@@ -1143,7 +1220,9 @@ class TestSqlBranch:
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = self.dag.create_dagrun(
             run_id="manual__",
@@ -1186,7 +1265,9 @@ class TestSqlBranch:
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = self.dag.create_dagrun(
             run_id="manual__",
@@ -1230,7 +1311,9 @@ class TestSqlBranch:
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = self.dag.create_dagrun(
             run_id="manual__",
@@ -1275,7 +1358,9 @@ class TestSqlBranch:
         self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
         self.branch_3.set_upstream(branch_op)
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = self.dag.create_dagrun(
             run_id="manual__",
@@ -1317,7 +1402,9 @@ class TestSqlBranch:
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         self.dag.create_dagrun(
             run_id="manual__",
@@ -1350,7 +1437,9 @@ class TestSqlBranch:
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = self.dag.create_dagrun(
             run_id="manual__",
@@ -1392,7 +1481,9 @@ class TestSqlBranch:
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
         self.dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = self.dag.create_dagrun(
             run_id="manual__",
@@ -1441,7 +1532,8 @@ class TestBaseSQLOperatorSubClass:
             super().__init__(conn_id=custom_conn_id_field, **kwargs)
 
     @pytest.mark.parametrize(
-        "operator_class", [NewStyleBaseSQLOperatorSubClass, OldStyleBaseSQLOperatorSubClass]
+        "operator_class",
+        [NewStyleBaseSQLOperatorSubClass, OldStyleBaseSQLOperatorSubClass],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_new_style_subclass(self, mock_get_connection, operator_class):

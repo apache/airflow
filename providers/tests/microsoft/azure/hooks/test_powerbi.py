@@ -58,9 +58,15 @@ DATASET_ID = "dataset_id"
 class TestPowerBIHook:
     @pytest.mark.asyncio
     async def test_get_refresh_history(self, powerbi_hook):
-        response_data = {"value": [{"requestId": "1234", "status": "Completed", "serviceExceptionJson": ""}]}
+        response_data = {
+            "value": [
+                {"requestId": "1234", "status": "Completed", "serviceExceptionJson": ""}
+            ]
+        }
 
-        with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
+        with mock.patch.object(
+            KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock
+        ) as mock_run:
             mock_run.return_value = response_data
             result = await powerbi_hook.get_refresh_history(DATASET_ID, GROUP_ID)
 
@@ -71,10 +77,14 @@ class TestPowerBIHook:
     async def test_get_refresh_history_airflow_exception(self, powerbi_hook):
         """Test handling of AirflowException in get_refresh_history."""
 
-        with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
+        with mock.patch.object(
+            KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock
+        ) as mock_run:
             mock_run.side_effect = AirflowException("Test exception")
 
-            with pytest.raises(PowerBIDatasetRefreshException, match="Failed to retrieve refresh history"):
+            with pytest.raises(
+                PowerBIDatasetRefreshException, match="Failed to retrieve refresh history"
+            ):
                 await powerbi_hook.get_refresh_history(DATASET_ID, GROUP_ID)
 
     @pytest.mark.parametrize(
@@ -89,7 +99,11 @@ class TestPowerBIHook:
                 },
             ),
             (
-                {"requestId": "5678", "status": "Unknown", "serviceExceptionJson": "Some error"},
+                {
+                    "requestId": "5678",
+                    "status": "Unknown",
+                    "serviceExceptionJson": "Some error",
+                },
                 {
                     PowerBIDatasetRefreshFields.REQUEST_ID.value: "5678",
                     PowerBIDatasetRefreshFields.STATUS.value: "In Progress",
@@ -181,27 +195,41 @@ class TestPowerBIHook:
     async def test_trigger_dataset_refresh_success(self, powerbi_hook):
         response_data = {"requestid": "5e2d9921-e91b-491f-b7e1-e7d8db49194c"}
 
-        with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
+        with mock.patch.object(
+            KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock
+        ) as mock_run:
             mock_run.return_value = response_data
-            result = await powerbi_hook.trigger_dataset_refresh(dataset_id=DATASET_ID, group_id=GROUP_ID)
+            result = await powerbi_hook.trigger_dataset_refresh(
+                dataset_id=DATASET_ID, group_id=GROUP_ID
+            )
 
         assert result == "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
     @pytest.mark.asyncio
     async def test_trigger_dataset_refresh_failure(self, powerbi_hook):
         """Test failure to trigger dataset refresh due to AirflowException."""
-        with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
+        with mock.patch.object(
+            KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock
+        ) as mock_run:
             mock_run.side_effect = AirflowException("Test exception")
 
-            with pytest.raises(PowerBIDatasetRefreshException, match="Failed to trigger dataset refresh."):
-                await powerbi_hook.trigger_dataset_refresh(dataset_id=DATASET_ID, group_id=GROUP_ID)
+            with pytest.raises(
+                PowerBIDatasetRefreshException, match="Failed to trigger dataset refresh."
+            ):
+                await powerbi_hook.trigger_dataset_refresh(
+                    dataset_id=DATASET_ID, group_id=GROUP_ID
+                )
 
     @pytest.mark.asyncio
     async def test_cancel_dataset_refresh(self, powerbi_hook):
         dataset_refresh_id = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
-        with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
-            await powerbi_hook.cancel_dataset_refresh(DATASET_ID, GROUP_ID, dataset_refresh_id)
+        with mock.patch.object(
+            KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock
+        ) as mock_run:
+            await powerbi_hook.cancel_dataset_refresh(
+                DATASET_ID, GROUP_ID, dataset_refresh_id
+            )
 
         mock_run.assert_called_once_with(
             url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{dataset_refresh_id}",

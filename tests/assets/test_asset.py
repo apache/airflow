@@ -180,7 +180,9 @@ def test_asset_iter_asset_aliases():
             Asset("2"),
             AssetAlias("example-alias-2"),
             Asset("3"),
-            AssetAll(AssetAlias("example-alias-3"), Asset("4"), AssetAlias("example-alias-4")),
+            AssetAll(
+                AssetAlias("example-alias-3"), Asset("4"), AssetAlias("example-alias-4")
+            ),
         ),
         AssetAll(AssetAlias("example-alias-5"), Asset("5")),
     )
@@ -217,8 +219,14 @@ def test_assset_boolean_condition_evaluate_iter():
     """
     any_condition = AssetAny(asset1, asset2)
     all_condition = AssetAll(asset1, asset2)
-    assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
-    assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
+    assert (
+        any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True})
+        is True
+    )
+    assert (
+        all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False})
+        is False
+    )
 
     # Testing iter_assets indirectly through the subclasses
     assets_any = dict(any_condition.iter_assets())
@@ -250,7 +258,9 @@ def test_assset_boolean_condition_evaluate_iter():
         ((False, False, False), "all", False),
     ],
 )
-def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario, expected):
+def test_asset_logical_conditions_evaluation_and_serialization(
+    inputs, scenario, expected
+):
     class_ = AssetAny if scenario == "any" else AssetAll
     assets = [Asset(uri=f"s3://abc/{i}") for i in range(123, 126)]
     condition = class_(*assets)
@@ -269,10 +279,19 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
 @pytest.mark.parametrize(
     "status_values, expected_evaluation",
     [
-        ((False, True, True), False),  # AssetAll requires all conditions to be True, but d1 is False
+        (
+            (False, True, True),
+            False,
+        ),  # AssetAll requires all conditions to be True, but d1 is False
         ((True, True, True), True),  # All conditions are True
-        ((True, False, True), True),  # d1 is True, and AssetAny condition (d2 or d3 being True) is met
-        ((True, False, False), False),  # d1 is True, but neither d2 nor d3 meet the AssetAny condition
+        (
+            (True, False, True),
+            True,
+        ),  # d1 is True, and AssetAny condition (d2 or d3 being True) is met
+        (
+            (True, False, False),
+            False,
+        ),  # d1 is True, but neither d2 nor d3 meet the AssetAny condition
     ],
 )
 def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
@@ -290,7 +309,9 @@ def test_nested_asset_conditions_with_serialization(status_values, expected_eval
         d3.uri: status_values[2],
     }
 
-    assert nested_condition.evaluate(statuses) == expected_evaluation, "Initial evaluation mismatch"
+    assert (
+        nested_condition.evaluate(statuses) == expected_evaluation
+    ), "Initial evaluation mismatch"
 
     serialized_condition = BaseSerialization.serialize(nested_condition)
     deserialized_condition = BaseSerialization.deserialize(serialized_condition)
@@ -320,7 +341,9 @@ def test_asset_trigger_setup_and_serialization(session, dag_maker, create_test_a
         EmptyOperator(task_id="hello")
 
     # Verify assets are set up correctly
-    assert isinstance(dag.timetable.asset_condition, AssetAny), "DAG assets should be an instance of AssetAny"
+    assert isinstance(
+        dag.timetable.asset_condition, AssetAny
+    ), "DAG assets should be an instance of AssetAny"
 
     # Round-trip the DAG through serialization
     deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
@@ -330,13 +353,16 @@ def test_asset_trigger_setup_and_serialization(session, dag_maker, create_test_a
         deserialized_dag.timetable.asset_condition, AssetAny
     ), "Deserialized assets should maintain type AssetAny"
     assert (
-        deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects
+        deserialized_dag.timetable.asset_condition.objects
+        == dag.timetable.asset_condition.objects
     ), "Deserialized assets should match original"
 
 
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_assets")
-def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create_test_assets):
+def test_asset_dag_run_queue_processing(
+    session, clear_assets, dag_maker, create_test_assets
+):
     assets = create_test_assets
     asset_models = session.query(AssetModel).all()
 
@@ -355,7 +381,9 @@ def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create
         dag_statuses[record.target_dag_id][record.asset.uri] = True
 
     serialized_dags = session.execute(
-        select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
+        select(SerializedDagModel).where(
+            SerializedDagModel.dag_id.in_(dag_statuses.keys())
+        )
     ).fetchall()
 
     for (serialized_dag,) in serialized_dags:
@@ -668,7 +696,9 @@ class TestAssetSubclasses:
         ),
     ),
 )
-def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):
+def test_backward_compat_import_before_airflow_3_2(
+    module_path, attr_name, warning_message
+):
     with pytest.warns() as record:
         import importlib
 

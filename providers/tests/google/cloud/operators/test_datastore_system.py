@@ -44,8 +44,12 @@ class TestGcpDatastoreSystem(GoogleSystemTest):
 
     @provide_gcp_context(GCP_DATASTORE_KEY)
     def test_run_example_dag(self):
-        self.run_dag("example_gcp_datastore", CLOUD_DAG_FOLDER)  # this dag does not exist?
+        self.run_dag(
+            "example_gcp_datastore", CLOUD_DAG_FOLDER
+        )  # this dag does not exist?
 
     @provide_gcp_context(GCP_DATASTORE_KEY)
     def test_run_example_dag_operations(self):
-        self.run_dag("example_gcp_datastore_operations", CLOUD_DAG_FOLDER)  # this dag does not exist?
+        self.run_dag(
+            "example_gcp_datastore_operations", CLOUD_DAG_FOLDER
+        )  # this dag does not exist?

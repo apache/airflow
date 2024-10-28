@@ -31,7 +31,9 @@ from airflow.utils import timezone
 
 DEFAULT_TIMEZONE = "Asia/Singapore"  # UTC+08:00
 DEFAULT_DATE_WO_TZ = datetime(2015, 1, 1)
-DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=timezone.parse_timezone(DEFAULT_TIMEZONE))
+DEFAULT_DATE_WITH_TZ = datetime(
+    2015, 1, 1, tzinfo=timezone.parse_timezone(DEFAULT_TIMEZONE)
+)
 
 
 class TestTimeSensor:
@@ -43,9 +45,13 @@ class TestTimeSensor:
             (DEFAULT_TIMEZONE, DEFAULT_DATE_WO_TZ, False),
         ],
     )
-    @time_machine.travel(timezone.datetime(2020, 1, 1, 23, 0).replace(tzinfo=timezone.utc))
+    @time_machine.travel(
+        timezone.datetime(2020, 1, 1, 23, 0).replace(tzinfo=timezone.utc)
+    )
     def test_timezone(self, default_timezone, start_date, expected, monkeypatch):
-        monkeypatch.setattr("airflow.settings.TIMEZONE", timezone.parse_timezone(default_timezone))
+        monkeypatch.setattr(
+            "airflow.settings.TIMEZONE", timezone.parse_timezone(default_timezone)
+        )
         dag = DAG("test", schedule=None, default_args={"start_date": start_date})
         op = TimeSensor(task_id="test", target_time=time(10, 0), dag=dag)
         assert op.poke(None) == expected
@@ -71,7 +77,11 @@ class TestTimeSensorAsync:
         assert exc_info.value.method_name == "execute_complete"
 
     def test_target_time_aware(self):
-        with DAG("test_target_time_aware", schedule=None, start_date=timezone.datetime(2020, 1, 1, 23, 0)):
+        with DAG(
+            "test_target_time_aware",
+            schedule=None,
+            start_date=timezone.datetime(2020, 1, 1, 23, 0),
+        ):
             aware_time = time(0, 1).replace(tzinfo=pendulum.local_timezone())
             op = TimeSensorAsync(task_id="test", target_time=aware_time)
             assert op.target_datetime.tzinfo == timezone.utc

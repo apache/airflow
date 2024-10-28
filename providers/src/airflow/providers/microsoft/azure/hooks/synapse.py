@@ -25,7 +25,11 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.artifacts import ArtifactsClient
 from azure.synapse.spark import SparkClient
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowTaskTimeout,
+)
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
@@ -79,8 +83,12 @@ class AzureSynapseHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
-            "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
+            "tenantId": StringField(
+                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
+            ),
+            "subscriptionId": StringField(
+                lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -95,7 +103,9 @@ class AzureSynapseHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""):
+    def __init__(
+        self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""
+    ):
         self.job_id: int | None = None
         self._conn: SparkClient | None = None
         self.conn_id = azure_synapse_conn_id
@@ -127,25 +137,35 @@ class AzureSynapseHook(BaseHook):
         credential: Credentials
         if conn.login is not None and conn.password is not None:
             if not tenant:
-                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+                raise ValueError(
+                    "A Tenant ID is required when authenticating with Client ID and Secret."
+                )
 
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            managed_identity_client_id = self._get_field(
+                extras, "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = self._get_field(
+                extras, "workload_identity_tenant_id"
+            )
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
-        self._conn = self._create_client(credential, conn.host, spark_pool, livy_api_version, subscription_id)
+        self._conn = self._create_client(
+            credential, conn.host, spark_pool, livy_api_version, subscription_id
+        )
 
         return self._conn
 
     @staticmethod
-    def _create_client(credential: Credentials, host, spark_pool, livy_api_version, subscription_id: str):
+    def _create_client(
+        credential: Credentials, host, spark_pool, livy_api_version, subscription_id: str
+    ):
         return SparkClient(
             credential=credential,
             endpoint=host,
@@ -169,7 +189,9 @@ class AzureSynapseHook(BaseHook):
 
     def get_job_run_status(self):
         """Get the job run status."""
-        job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=self.job_id).state
+        job_run_status = (
+            self.get_conn().spark_batch.get_spark_batch_job(batch_id=self.job_id).state
+        )
         return job_run_status
 
     def wait_for_job_run_status(
@@ -262,8 +284,12 @@ class BaseAzureSynapseHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
-            "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
+            "tenantId": StringField(
+                lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()
+            ),
+            "subscriptionId": StringField(
+                lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -336,8 +362,12 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
 
         credential: Credentials
         if not conn.login or not conn.password:
-            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            managed_identity_client_id = self._get_field(
+                extras, "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = self._get_field(
+                extras, "workload_identity_tenant_id"
+            )
 
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
@@ -345,13 +375,17 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
             )
         else:
             if not tenant:
-                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+                raise ValueError(
+                    "A Tenant ID is required when authenticating with Client ID and Secret."
+                )
 
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
 
-        self._conn = self._create_client(credential, self.azure_synapse_workspace_dev_endpoint)
+        self._conn = self._create_client(
+            credential, self.azure_synapse_workspace_dev_endpoint
+        )
 
         if self._conn is not None:
             return self._conn

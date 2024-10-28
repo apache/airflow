@@ -43,7 +43,11 @@ class EcrCredentials:
     def __post_init__(self):
         """Initialize the `Ecr` credentials object."""
         mask_secret(self.password)
-        logger.debug("Credentials to Amazon ECR %r expires at %s.", self.proxy_endpoint, self.expires_at)
+        logger.debug(
+            "Credentials to Amazon ECR %r expires at %s.",
+            self.proxy_endpoint,
+            self.expires_at,
+        )
 
     @property
     def registry(self) -> str:
@@ -69,7 +73,9 @@ class EcrHook(AwsBaseHook):
         kwargs["client_type"] = "ecr"
         super().__init__(**kwargs)
 
-    def get_temporary_credentials(self, registry_ids: list[str] | str | None = None) -> list[EcrCredentials]:
+    def get_temporary_credentials(
+        self, registry_ids: list[str] | str | None = None
+    ) -> list[EcrCredentials]:
         """
         Get temporary credentials for Amazon ECR.
 
@@ -93,7 +99,11 @@ class EcrHook(AwsBaseHook):
 
         creds = []
         for auth_data in response["authorizationData"]:
-            username, password = base64.b64decode(auth_data["authorizationToken"]).decode("utf-8").split(":")
+            username, password = (
+                base64.b64decode(auth_data["authorizationToken"])
+                .decode("utf-8")
+                .split(":")
+            )
             creds.append(
                 EcrCredentials(
                     username=username,

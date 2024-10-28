@@ -20,7 +20,9 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.google.cloud.hooks.dataprep import JobGroupStatuses
-from airflow.providers.google.cloud.sensors.dataprep import DataprepJobGroupIsFinishedSensor
+from airflow.providers.google.cloud.sensors.dataprep import (
+    DataprepJobGroupIsFinishedSensor,
+)
 
 JOB_GROUP_ID = 1312
 
@@ -33,7 +35,9 @@ class TestDataprepJobGroupIsFinishedSensor:
             job_group_id=JOB_GROUP_ID,
         )
 
-        hook_mock.return_value.get_job_group_status.return_value = JobGroupStatuses.COMPLETE
+        hook_mock.return_value.get_job_group_status.return_value = (
+            JobGroupStatuses.COMPLETE
+        )
         is_job_group_finished = sensor.poke(context=mock.MagicMock())
 
         assert is_job_group_finished

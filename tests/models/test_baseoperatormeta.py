@@ -25,7 +25,11 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.decorators import task
-from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowRescheduleException,
+    AirflowSkipException,
+)
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
@@ -134,7 +138,9 @@ class TestExecutorSafeguard:
 
             @task(task_id="task_id", dag=dag)
             def say_hello(**context):
-                operator = HelloWorldOperator(task_id="hello_operator", allow_nested_operators=False)
+                operator = HelloWorldOperator(
+                    task_id="hello_operator", allow_nested_operators=False
+                )
                 return operator.execute(context=context)
 
             say_hello()
@@ -174,7 +180,9 @@ class TestExecutorSafeguard:
         with dag_maker() as dag:
 
             def say_hello(**context):
-                operator = HelloWorldOperator(task_id="hello_operator", allow_nested_operators=False)
+                operator = HelloWorldOperator(
+                    task_id="hello_operator", allow_nested_operators=False
+                )
                 return operator.execute(context=context)
 
             PythonOperator(

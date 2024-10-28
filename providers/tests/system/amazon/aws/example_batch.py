@@ -24,7 +24,10 @@ import boto3
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
+from airflow.providers.amazon.aws.operators.batch import (
+    BatchCreateComputeEnvironmentOperator,
+    BatchOperator,
+)
 from airflow.providers.amazon.aws.operators.ecs import EcsDeregisterTaskDefinitionOperator
 from airflow.providers.amazon.aws.sensors.batch import (
     BatchComputeEnvironmentSensor,

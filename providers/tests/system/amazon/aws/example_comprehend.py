@@ -22,7 +22,9 @@ from datetime import datetime
 from airflow import DAG
 from airflow.decorators import task_group
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.comprehend import ComprehendStartPiiEntitiesDetectionJobOperator
+from airflow.providers.amazon.aws.operators.comprehend import (
+    ComprehendStartPiiEntitiesDetectionJobOperator,
+)
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -39,7 +41,9 @@ ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 DAG_ID = "example_comprehend"
-INPUT_S3_KEY_START_PII_ENTITIES_DETECTION_JOB = "start-pii-entities-detection-job/sample_data.txt"
+INPUT_S3_KEY_START_PII_ENTITIES_DETECTION_JOB = (
+    "start-pii-entities-detection-job/sample_data.txt"
+)
 
 SAMPLE_DATA = {
     "username": "bob1234",
@@ -66,8 +70,11 @@ def pii_entities_detection_job_workflow():
     start_pii_entities_detection_job.wait_for_completion = False
 
     # [START howto_sensor_start_pii_entities_detection_job]
-    await_start_pii_entities_detection_job = ComprehendStartPiiEntitiesDetectionJobCompletedSensor(
-        task_id="await_start_pii_entities_detection_job", job_id=start_pii_entities_detection_job.output
+    await_start_pii_entities_detection_job = (
+        ComprehendStartPiiEntitiesDetectionJobCompletedSensor(
+            task_id="await_start_pii_entities_detection_job",
+            job_id=start_pii_entities_detection_job.output,
+        )
     )
     # [END howto_sensor_start_pii_entities_detection_job]
 

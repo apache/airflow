@@ -57,7 +57,10 @@ def test_delete_pool_anonymous_user_no_role(anonymous_client, pool_factory):
     pool = pool_factory()
     resp = anonymous_client.post(f"pool/delete/{pool.id}")
     assert 302 == resp.status_code
-    assert f"/login/?next={quote_plus(f'http://localhost/pool/delete/{pool.id}')}" == resp.headers["Location"]
+    assert (
+        f"/login/?next={quote_plus(f'http://localhost/pool/delete/{pool.id}')}"
+        == resp.headers["Location"]
+    )
 
 
 def test_delete_pool_anonymous_user_as_admin(anonymous_client_as_admin, pool_factory):

@@ -21,7 +21,11 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 from airflow.models.dag import DAG
-from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.providers.apache.hive.hooks.hive import (
+    HiveCliHook,
+    HiveMetastoreHook,
+    HiveServer2Hook,
+)
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 DEFAULT_DATE = datetime(2015, 1, 1)

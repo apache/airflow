@@ -81,7 +81,9 @@ def write_python_script(
     template_loader = FileSystemLoader(searchpath=os.path.dirname(__file__))
     template_env: Environment
     if render_template_as_native_obj:
-        template_env = NativeEnvironment(loader=template_loader, undefined=StrictUndefined)
+        template_env = NativeEnvironment(
+            loader=template_loader, undefined=StrictUndefined
+        )
     else:
         template_env = Environment(
             loader=template_loader,

@@ -146,8 +146,14 @@ with DAG(
             "hideAvatar": "0",
             "btnOrientation": "0",
             "btns": [
-                {"title": "Airflow Documentation", "actionURL": "https://airflow.apache.org"},
-                {"title": "Airflow GitHub", "actionURL": "https://github.com/apache/airflow"},
+                {
+                    "title": "Airflow Documentation",
+                    "actionURL": "https://airflow.apache.org",
+                },
+                {
+                    "title": "Airflow GitHub",
+                    "actionURL": "https://github.com/apache/airflow",
+                },
             ],
         },
     )

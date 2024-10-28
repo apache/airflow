@@ -29,7 +29,9 @@ def convert_secret(secret_name: str) -> k8s.V1EnvFromSource:
     return k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_name))
 
 
-def convert_image_pull_secrets(image_pull_secrets: str) -> list[k8s.V1LocalObjectReference]:
+def convert_image_pull_secrets(
+    image_pull_secrets: str,
+) -> list[k8s.V1LocalObjectReference]:
     """
     Convert an image pull secret name into k8s local object reference.
 

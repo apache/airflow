@@ -127,9 +127,7 @@ class AwsBatchExecutor(BaseExecutor):
                 self.IS_BOTO_CONNECTION_HEALTHY = True
                 self.log.info(msg_prefix, status)
             else:
-                msg_error_suffix = (
-                    "The Batch executor will not be able to run Airflow tasks until the issue is addressed."
-                )
+                msg_error_suffix = "The Batch executor will not be able to run Airflow tasks until the issue is addressed."
                 raise AirflowException(msg_prefix % status + msg_error_suffix)
 
     def start(self):
@@ -145,7 +143,9 @@ class AwsBatchExecutor(BaseExecutor):
         try:
             self.check_health()
         except AirflowException:
-            self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
+            self.log.error(
+                "Stopping the Airflow Scheduler from starting until the issue is resolved."
+            )
             raise
 
     def load_batch_connection(self, check_connection: bool = True):
@@ -155,8 +155,12 @@ class AwsBatchExecutor(BaseExecutor):
             AllBatchConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME, fallback=None)
-        self.batch = BatchClientHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        region_name = conf.get(
+            CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME, fallback=None
+        )
+        self.batch = BatchClientHook(
+            aws_conn_id=aws_conn_id, region_name=region_name
+        ).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
 
@@ -182,7 +186,8 @@ class AwsBatchExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection",
+                    error,
                 )
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
@@ -307,8 +312,8 @@ class AwsBatchExecutor(BaseExecutor):
                     )
                     self.fail(key=key)
                 else:
-                    batch_job.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
-                        attempt_number
+                    batch_job.next_attempt_time = (
+                        timezone.utcnow() + calculate_next_attempt_delay(attempt_number)
                     )
                     batch_job.attempt_number += 1
                     self.pending_jobs.append(batch_job)
@@ -337,11 +342,15 @@ class AwsBatchExecutor(BaseExecutor):
                 continue
             boto_describe_tasks = self.batch.describe_jobs(jobs=batched_job_ids)
 
-            describe_tasks_response = BatchDescribeJobsResponseSchema().load(boto_describe_tasks)
+            describe_tasks_response = BatchDescribeJobsResponseSchema().load(
+                boto_describe_tasks
+            )
             all_jobs.extend(describe_tasks_response["jobs"])
         return all_jobs
 
-    def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
+    def execute_async(
+        self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None
+    ):
         """Save the task to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
@@ -358,7 +367,11 @@ class AwsBatchExecutor(BaseExecutor):
         )
 
     def _submit_job(
-        self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self,
+        key: TaskInstanceKey,
+        cmd: CommandType,
+        queue: str,
+        exec_config: ExecutorConfigType,
     ) -> str:
         """
         Override the submit_job_kwargs, and calls the boto3 API submit_job endpoint.
@@ -373,7 +386,11 @@ class AwsBatchExecutor(BaseExecutor):
         return submit_job_response
 
     def _submit_job_kwargs(
-        self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self,
+        key: TaskInstanceKey,
+        cmd: CommandType,
+        queue: str,
+        exec_config: ExecutorConfigType,
     ) -> dict:
         """
         Override the Airflow command to update the container overrides so kwargs are specific to this task.
@@ -408,7 +425,9 @@ class AwsBatchExecutor(BaseExecutor):
         """Kill all Batch Jobs by calling Boto3's TerminateJob API."""
         try:
             for job_id in self.active_workers.get_all_jobs():
-                self.batch.terminate_job(jobId=job_id, reason="Airflow Executor received a SIGTERM")
+                self.batch.terminate_job(
+                    jobId=job_id, reason="Airflow Executor received a SIGTERM"
+                )
             self.end()
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
@@ -417,18 +436,25 @@ class AwsBatchExecutor(BaseExecutor):
 
     @staticmethod
     def _load_submit_kwargs() -> dict:
-        from airflow.providers.amazon.aws.executors.batch.batch_executor_config import build_submit_kwargs
+        from airflow.providers.amazon.aws.executors.batch.batch_executor_config import (
+            build_submit_kwargs,
+        )
 
         submit_kwargs = build_submit_kwargs()
 
-        if "containerOverrides" not in submit_kwargs or "command" not in submit_kwargs["containerOverrides"]:
+        if (
+            "containerOverrides" not in submit_kwargs
+            or "command" not in submit_kwargs["containerOverrides"]
+        ):
             raise KeyError(
                 'SubmitJob API needs kwargs["containerOverrides"]["command"] field,'
                 " and value should be NULL or empty."
             )
         return submit_kwargs
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         """
         Adopt task instances which have an external_executor_id (the Batch job ID).
 
@@ -437,11 +463,15 @@ class AwsBatchExecutor(BaseExecutor):
         with Stats.timer("batch_executor.adopt_task_instances.duration"):
             adopted_tis: list[TaskInstance] = []
 
-            if job_ids := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+            if job_ids := [
+                ti.external_executor_id for ti in tis if ti.external_executor_id
+            ]:
                 batch_jobs = self._describe_jobs(job_ids)
 
                 for batch_job in batch_jobs:
-                    ti = next(ti for ti in tis if ti.external_executor_id == batch_job.job_id)
+                    ti = next(
+                        ti for ti in tis if ti.external_executor_id == batch_job.job_id
+                    )
                     self.active_workers.add_job(
                         job_id=batch_job.job_id,
                         airflow_task_key=ti.key,

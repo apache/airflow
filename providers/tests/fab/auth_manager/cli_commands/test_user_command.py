@@ -31,7 +31,9 @@ from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import user_command
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+    from airflow.providers.fab.auth_manager.cli_commands.utils import (
+        get_application_builder,
+    )
 
 pytestmark = pytest.mark.db_test
 
@@ -249,7 +251,9 @@ class TestCliUsers:
             assert f"user{i}" in stdout
 
     def test_cli_list_users_with_args(self):
-        user_command.users_list(self.parser.parse_args(["users", "list", "--output", "json"]))
+        user_command.users_list(
+            self.parser.parse_args(["users", "list", "--output", "json"])
+        )
 
     def test_cli_import_users(self):
         def assert_user_in_roles(email, roles):
@@ -384,7 +388,9 @@ class TestCliUsers:
             appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"
         ), "User should not yet be a member of role 'Op'"
 
-        args = self.parser.parse_args(["users", "add-role", "--username", "test4", "--role", "Op"])
+        args = self.parser.parse_args(
+            ["users", "add-role", "--username", "test4", "--role", "Op"]
+        )
         with redirect_stdout(StringIO()) as stdout:
             user_command.users_manage_role(args, remove=False)
         assert 'User "test4" added to role "Op"' in stdout.getvalue()
@@ -398,7 +404,9 @@ class TestCliUsers:
             appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Viewer"
         ), "User should have been created with role 'Viewer'"
 
-        args = self.parser.parse_args(["users", "remove-role", "--username", "test4", "--role", "Viewer"])
+        args = self.parser.parse_args(
+            ["users", "remove-role", "--username", "test4", "--role", "Viewer"]
+        )
         with redirect_stdout(StringIO()) as stdout:
             user_command.users_manage_role(args, remove=True)
         assert 'User "test4" removed from role "Viewer"' in stdout.getvalue()
@@ -415,7 +423,9 @@ class TestCliUsers:
         ],
     )
     def test_cli_manage_add_role_exceptions(self, create_user_test4, role, message):
-        args = self.parser.parse_args(["users", "add-role", "--username", "test4", "--role", role])
+        args = self.parser.parse_args(
+            ["users", "add-role", "--username", "test4", "--role", role]
+        )
         with pytest.raises(SystemExit, match=message):
             user_command.add_role(args)
 
@@ -427,7 +437,9 @@ class TestCliUsers:
         ],
     )
     def test_cli_manage_remove_role_exceptions(self, create_user_test4, role, message):
-        args = self.parser.parse_args(["users", "remove-role", "--username", "test4", "--role", role])
+        args = self.parser.parse_args(
+            ["users", "remove-role", "--username", "test4", "--role", role]
+        )
         with pytest.raises(SystemExit, match=message):
             user_command.remove_role(args)
 
@@ -478,7 +490,12 @@ class TestCliUsers:
                 "\t_schema: ['Invalid input type.']",
             ],
         ],
-        ids=["Incorrect roles", "Empty roles", "Required field is missing", "Wrong input"],
+        ids=[
+            "Incorrect roles",
+            "Empty roles",
+            "Required field is missing",
+            "Wrong input",
+        ],
     )
     def test_cli_import_users_exceptions(self, user, message):
         with pytest.raises(SystemExit, match=re.escape(message)):
@@ -530,7 +547,14 @@ class TestCliUsers:
         )
         user_command.users_create(args)
         args = self.parser.parse_args(
-            ["users", "reset-password", "--email", "jdoe@example.com", "--password", "s3cr3t"]
+            [
+                "users",
+                "reset-password",
+                "--email",
+                "jdoe@example.com",
+                "--password",
+                "s3cr3t",
+            ]
         )
         with redirect_stdout(StringIO()) as stdout:
             user_command.user_reset_password(args)

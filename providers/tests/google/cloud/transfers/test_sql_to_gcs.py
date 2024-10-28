@@ -36,7 +36,11 @@ SCHEMA = [
     {"name": "column_c", "type": "10"},
 ]
 COLUMNS = ["column_a", "column_b", "column_c"]
-ROW = ["convert_type_return_value", "convert_type_return_value", "convert_type_return_value"]
+ROW = [
+    "convert_type_return_value",
+    "convert_type_return_value",
+    "convert_type_return_value",
+]
 CURSOR_DESCRIPTION = [
     ("column_a", "3", 0, 0, 0, 0, False),
     ("column_b", "253", 0, 0, 0, 0, False),
@@ -91,7 +95,9 @@ class TestBaseSQLToGCSOperator:
     @mock.patch.object(GCSHook, "upload")
     @mock.patch.object(DummySQLToGCSOperator, "query")
     @mock.patch.object(DummySQLToGCSOperator, "convert_type")
-    def test_exec(self, mock_convert_type, mock_query, mock_upload, mock_writer, mock_tempfile):
+    def test_exec(
+        self, mock_convert_type, mock_query, mock_upload, mock_writer, mock_tempfile
+    ):
         cursor_mock = Mock()
         cursor_mock.description = CURSOR_DESCRIPTION
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -123,9 +129,21 @@ class TestBaseSQLToGCSOperator:
             "total_row_count": 3,
             "total_files": 3,
             "files": [
-                {"file_name": "test_results_0.csv", "file_mime_type": "text/csv", "file_row_count": 1},
-                {"file_name": "test_results_1.csv", "file_mime_type": "text/csv", "file_row_count": 1},
-                {"file_name": "test_results_2.csv", "file_mime_type": "text/csv", "file_row_count": 1},
+                {
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "text/csv",
+                    "file_row_count": 1,
+                },
+                {
+                    "file_name": "test_results_1.csv",
+                    "file_mime_type": "text/csv",
+                    "file_row_count": 1,
+                },
+                {
+                    "file_name": "test_results_2.csv",
+                    "file_mime_type": "text/csv",
+                    "file_row_count": 1,
+                },
             ],
         }
 
@@ -139,7 +157,9 @@ class TestBaseSQLToGCSOperator:
             mock.call(ROW),
             mock.call(COLUMNS),
         ]
-        mock_file.flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
+        mock_file.flush.assert_has_calls(
+            [mock.call(), mock.call(), mock.call(), mock.call()]
+        )
         csv_calls = []
         for i in range(3):
             csv_calls.append(
@@ -153,11 +173,18 @@ class TestBaseSQLToGCSOperator:
                 )
             )
         json_call = mock.call(
-            BUCKET, SCHEMA_FILE, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
+            BUCKET,
+            SCHEMA_FILE,
+            TMP_FILE_NAME,
+            mime_type=APP_JSON,
+            gzip=False,
+            metadata=None,
         )
         upload_calls = [json_call, csv_calls[0], csv_calls[1], csv_calls[2]]
         mock_upload.assert_has_calls(upload_calls)
-        mock_file.close.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
+        mock_file.close.assert_has_calls(
+            [mock.call(), mock.call(), mock.call(), mock.call()]
+        )
 
         mock_query.reset_mock()
         mock_file.flush.reset_mock()
@@ -169,7 +196,12 @@ class TestBaseSQLToGCSOperator:
 
         # Test JSON
         operator = DummySQLToGCSOperator(
-            sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="json", schema=SCHEMA
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            export_format="json",
+            schema=SCHEMA,
         )
         result = operator.execute(context=dict())
 
@@ -178,7 +210,11 @@ class TestBaseSQLToGCSOperator:
             "total_row_count": 3,
             "total_files": 1,
             "files": [
-                {"file_name": "test_results_0.csv", "file_mime_type": "application/json", "file_row_count": 3}
+                {
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "application/json",
+                    "file_row_count": 3,
+                }
             ],
         }
 
@@ -192,7 +228,12 @@ class TestBaseSQLToGCSOperator:
             mock.call(b"\n"),
         ]
         mock_upload.assert_called_once_with(
-            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
+            BUCKET,
+            FILENAME.format(0),
+            TMP_FILE_NAME,
+            mime_type=APP_JSON,
+            gzip=False,
+            metadata=None,
         )
         mock_file.close.assert_called_once()
 
@@ -222,7 +263,11 @@ class TestBaseSQLToGCSOperator:
             "total_row_count": 3,
             "total_files": 1,
             "files": [
-                {"file_name": "test_results_0.csv", "file_mime_type": "application/json", "file_row_count": 3}
+                {
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "application/json",
+                    "file_row_count": 3,
+                }
             ],
         }
 
@@ -257,7 +302,12 @@ class TestBaseSQLToGCSOperator:
 
         # Test parquet
         operator = DummySQLToGCSOperator(
-            sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="parquet", schema=SCHEMA
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            export_format="parquet",
+            schema=SCHEMA,
         )
         result = operator.execute(context=dict())
 
@@ -372,7 +422,13 @@ class TestBaseSQLToGCSOperator:
             "bucket": "TEST-BUCKET-1",
             "total_row_count": 3,
             "total_files": 1,
-            "files": [{"file_name": "test_results_0.csv", "file_mime_type": "text/csv", "file_row_count": 3}],
+            "files": [
+                {
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "text/csv",
+                    "file_row_count": 3,
+                }
+            ],
         }
 
         mock_writer.return_value.writerow.assert_has_calls(
@@ -468,7 +524,9 @@ class TestBaseSQLToGCSOperator:
             parquet_row_group_size=8,
         )
         input_data = INPUT_DATA * 10
-        output_df = pd.DataFrame([["convert_type_return_value"] * 3] * 30, columns=COLUMNS)
+        output_df = pd.DataFrame(
+            [["convert_type_return_value"] * 3] * 30, columns=COLUMNS
+        )
 
         cursor = MagicMock()
         cursor.__iter__.return_value = input_data
@@ -480,11 +538,16 @@ class TestBaseSQLToGCSOperator:
         df = pd.read_parquet(file.name)
         assert df.equals(output_df)
         parquet_file = pq.ParquetFile(file.name)
-        assert parquet_file.num_row_groups == math.ceil((len(INPUT_DATA) * 10) / op.parquet_row_group_size)
+        assert parquet_file.num_row_groups == math.ceil(
+            (len(INPUT_DATA) * 10) / op.parquet_row_group_size
+        )
         tolerance = 1
         for i in range(parquet_file.num_row_groups):
             row_group_size = parquet_file.metadata.row_group(i).num_rows
-            assert row_group_size == op.parquet_row_group_size or (tolerance := tolerance - 1) >= 0
+            assert (
+                row_group_size == op.parquet_row_group_size
+                or (tolerance := tolerance - 1) >= 0
+            )
 
     def test__write_local_data_files_json_with_exclude_columns(self):
         op = DummySQLToGCSOperator(

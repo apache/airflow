@@ -48,7 +48,11 @@ class TestAirbyteJobSensor:
 
     def setup_method(self):
         db.merge_conn(
-            Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="http://test-airbyte")
+            Connection(
+                conn_id=self.airbyte_conn_id,
+                conn_type="airbyte",
+                host="http://test-airbyte",
+            )
         )
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")

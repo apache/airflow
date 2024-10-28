@@ -49,7 +49,9 @@ with DAG(
         class_name="org.apache.spark.examples.SparkPi",
     )
 
-    livy_python_task = LivyOperator(task_id="pi_python_task", file="/pi.py", polling_interval=60)
+    livy_python_task = LivyOperator(
+        task_id="pi_python_task", file="/pi.py", polling_interval=60
+    )
 
     livy_java_task >> livy_python_task
     # [END create_livy]
@@ -67,7 +69,10 @@ with DAG(
     )
 
     livy_python_task_deferrable = LivyOperator(
-        task_id="livy_python_task_deferrable", file="/pi.py", polling_interval=60, deferrable=True
+        task_id="livy_python_task_deferrable",
+        file="/pi.py",
+        polling_interval=60,
+        deferrable=True,
     )
 
     livy_java_task_deferrable >> livy_python_task_deferrable

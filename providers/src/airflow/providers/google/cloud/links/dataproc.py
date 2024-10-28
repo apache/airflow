@@ -52,23 +52,33 @@ def __getattr__(name: str) -> Any:
 
 
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
-DATAPROC_JOB_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
+DATAPROC_JOB_LINK = (
+    DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
+)
 
 DATAPROC_CLUSTER_LINK = (
-    DATAPROC_BASE_LINK + "/clusters/{cluster_id}/monitoring?region={region}&project={project_id}"
+    DATAPROC_BASE_LINK
+    + "/clusters/{cluster_id}/monitoring?region={region}&project={project_id}"
 )
 DATAPROC_WORKFLOW_TEMPLATE_LINK = (
-    DATAPROC_BASE_LINK + "/workflows/templates/{region}/{workflow_template_id}?project={project_id}"
+    DATAPROC_BASE_LINK
+    + "/workflows/templates/{region}/{workflow_template_id}?project={project_id}"
 )
 DATAPROC_WORKFLOW_LINK = (
-    DATAPROC_BASE_LINK + "/workflows/instances/{region}/{workflow_id}?project={project_id}"
+    DATAPROC_BASE_LINK
+    + "/workflows/instances/{region}/{workflow_id}?project={project_id}"
 )
 
-DATAPROC_BATCH_LINK = DATAPROC_BASE_LINK + "/batches/{region}/{batch_id}/monitoring?project={project_id}"
+DATAPROC_BATCH_LINK = (
+    DATAPROC_BASE_LINK + "/batches/{region}/{batch_id}/monitoring?project={project_id}"
+)
 DATAPROC_BATCHES_LINK = DATAPROC_BASE_LINK + "/batches?project={project_id}"
-DATAPROC_JOB_LINK_DEPRECATED = DATAPROC_BASE_LINK + "/jobs/{resource}?region={region}&project={project_id}"
+DATAPROC_JOB_LINK_DEPRECATED = (
+    DATAPROC_BASE_LINK + "/jobs/{resource}?region={region}&project={project_id}"
+)
 DATAPROC_CLUSTER_LINK_DEPRECATED = (
-    DATAPROC_BASE_LINK + "/clusters/{resource}/monitoring?region={region}&project={project_id}"
+    DATAPROC_BASE_LINK
+    + "/clusters/{resource}/monitoring?region={region}&project={project_id}"
 )
 
 
@@ -111,7 +121,9 @@ class DataprocLink(BaseOperatorLink):
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             conf["url"].format(
-                region=conf["region"], project_id=conf["project_id"], resource=conf["resource"]
+                region=conf["region"],
+                project_id=conf["project_id"],
+                resource=conf["resource"],
             )
             if conf
             else ""
@@ -229,11 +241,21 @@ class DataprocWorkflowLink(BaseGoogleLink):
     format_str = DATAPROC_WORKFLOW_LINK
 
     @staticmethod
-    def persist(context: Context, operator: BaseOperator, workflow_id: str, project_id: str, region: str):
+    def persist(
+        context: Context,
+        operator: BaseOperator,
+        workflow_id: str,
+        project_id: str,
+        region: str,
+    ):
         operator.xcom_push(
             context,
             key=DataprocWorkflowLink.key,
-            value={"workflow_id": workflow_id, "region": region, "project_id": project_id},
+            value={
+                "workflow_id": workflow_id,
+                "region": region,
+                "project_id": project_id,
+            },
         )
 
 
@@ -255,7 +277,11 @@ class DataprocWorkflowTemplateLink(BaseGoogleLink):
         operator.xcom_push(
             context,
             key=DataprocWorkflowTemplateLink.key,
-            value={"workflow_template_id": workflow_template_id, "region": region, "project_id": project_id},
+            value={
+                "workflow_template_id": workflow_template_id,
+                "region": region,
+                "project_id": project_id,
+            },
         )
 
 

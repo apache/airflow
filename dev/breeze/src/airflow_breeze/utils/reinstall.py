@@ -41,7 +41,9 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
         # run pre-commit checks via breeze!)
         os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
         os.execl(sys.executable, sys.executable, *sys.argv)
-    get_console().print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
+    get_console().print(
+        f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n"
+    )
     sys.exit(0)
 
 

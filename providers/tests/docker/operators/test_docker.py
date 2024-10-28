@@ -26,14 +26,20 @@ from docker import APIClient
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+)
 from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 TEST_CONN_ID = "docker_test_connection"
 TEST_DOCKER_URL = "unix://var/run/docker.test.sock"
-TEST_API_VERSION = "1.19"  # Keep it as low version might prevent call non-mocked docker api
+TEST_API_VERSION = (
+    "1.19"  # Keep it as low version might prevent call non-mocked docker api
+)
 TEST_IMAGE = "apache/airflow:latest"
 TEST_CONTAINER_HOSTNAME = "test.container.host"
 TEST_HOST_TEMP_DIRECTORY = "/tmp/host/dir"
@@ -43,7 +49,9 @@ TEST_ENTRYPOINT = '["sh", "-c"]'
 TEMPDIR_MOCK_RETURN_VALUE = "/mkdtemp"
 
 
-@pytest.mark.parametrize("docker_conn_id", [pytest.param(None, id="empty-conn-id"), TEST_CONN_ID])
+@pytest.mark.parametrize(
+    "docker_conn_id", [pytest.param(None, id="empty-conn-id"), TEST_CONN_ID]
+)
 @pytest.mark.parametrize(
     "tls_params",
     [
@@ -83,7 +91,9 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         **tls_params,
     )
     hook = op.hook
-    with pytest.warns(AirflowProviderDeprecationWarning, match="use `hook` property instead"):
+    with pytest.warns(
+        AirflowProviderDeprecationWarning, match="use `hook` property instead"
+    ):
         assert hook is op.get_hook()
 
     docker_hook_patcher.assert_called_once_with(
@@ -93,7 +103,9 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         tls="MOCK-TLS-VALUE",
         timeout=42,
     )
-    docker_hook_patcher.construct_tls_config.assert_called_once_with(**expected_tls_call_args)
+    docker_hook_patcher.construct_tls_config.assert_called_once_with(
+        **expected_tls_call_args
+    )
 
     # Check that ``DockerOperator.cli`` property return the same object as ``hook.api_client``.
     assert op.cli is hook.api_client
@@ -102,7 +114,9 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
 @pytest.mark.parametrize(
     "env_str, expected",
     [
-        pytest.param("FOO=BAR\nSPAM=EGG", {"FOO": "BAR", "SPAM": "EGG"}, id="parsable-string"),
+        pytest.param(
+            "FOO=BAR\nSPAM=EGG", {"FOO": "BAR", "SPAM": "EGG"}, id="parsable-string"
+        ),
         pytest.param("", {}, id="empty-string"),
     ],
 )
@@ -113,7 +127,9 @@ def test_unpack_environment_variables(env_str, expected):
 @pytest.mark.parametrize("container_exists", [True, False])
 def test_on_kill_client_created(docker_api_client_patcher, container_exists):
     """Test operator on_kill method if APIClient created."""
-    op = DockerOperator(image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill")
+    op = DockerOperator(
+        image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill"
+    )
     op.container = {"Id": "some_id"} if container_exists else None
 
     op.hook.get_conn()  # Try to create APIClient
@@ -129,7 +145,9 @@ def test_on_kill_client_not_created(docker_api_client_patcher):
     docker_api_client_patcher.side_effect = APIError("Fake Client Error")
     mock_container = mock.MagicMock()
 
-    op = DockerOperator(image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill")
+    op = DockerOperator(
+        image=TEST_IMAGE, hostname=TEST_DOCKER_URL, task_id="test_on_kill"
+    )
     op.container = mock_container
 
     with pytest.raises(APIError, match="Fake Client Error"):
@@ -142,7 +160,9 @@ def test_on_kill_client_not_created(docker_api_client_patcher):
 class TestDockerOperator:
     @pytest.fixture(autouse=True)
     def setup_patchers(self, docker_api_client_patcher):
-        self.tempdir_patcher = mock.patch("airflow.providers.docker.operators.docker.TemporaryDirectory")
+        self.tempdir_patcher = mock.patch(
+            "airflow.providers.docker.operators.docker.TemporaryDirectory"
+        )
         self.tempdir_mock = self.tempdir_patcher.start()
         self.tempdir_mock.return_value.__enter__.return_value = TEMPDIR_MOCK_RETURN_VALUE
 
@@ -172,7 +192,9 @@ class TestDockerOperator:
                 env_dict[key] = val
             return env_dict
 
-        self.dotenv_patcher = mock.patch("airflow.providers.docker.operators.docker.dotenv_values")
+        self.dotenv_patcher = mock.patch(
+            "airflow.providers.docker.operators.docker.dotenv_values"
+        )
         self.dotenv_mock = self.dotenv_patcher.start()
         self.dotenv_mock.side_effect = dotenv_mock_return_value
 
@@ -182,7 +204,9 @@ class TestDockerOperator:
         self.dotenv_patcher.stop()
 
     def test_execute(self):
-        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_patcher = mock.patch(
+            "airflow.providers.docker.operators.docker.StringIO"
+        )
         stringio_mock = stringio_patcher.start()
         stringio_mock.side_effect = lambda *args: args[0]
 
@@ -251,20 +275,29 @@ class TestDockerOperator:
             port_bindings={},
             ulimits=[],
         )
-        self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
+        self.tempdir_mock.assert_called_once_with(
+            dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp"
+        )
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
         self.client_mock.attach.assert_called_once_with(
             container="some_id", stdout=True, stderr=True, stream=True
         )
-        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
+        self.client_mock.pull.assert_called_once_with(
+            TEST_IMAGE, stream=True, decode=True
+        )
         self.client_mock.wait.assert_called_once_with("some_id")
-        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
+        assert (
+            operator.cli.pull(TEST_IMAGE, stream=True, decode=True)
+            == self.client_mock.pull.return_value
+        )
         stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
     def test_execute_no_temp_dir(self):
-        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_patcher = mock.patch(
+            "airflow.providers.docker.operators.docker.StringIO"
+        )
         stringio_mock = stringio_patcher.start()
         stringio_mock.side_effect = lambda *args: args[0]
 
@@ -293,7 +326,12 @@ class TestDockerOperator:
         self.client_mock.create_container.assert_called_once_with(
             command="env",
             name="test_container",
-            environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
+            environment={
+                "UNIT": "TEST",
+                "PRIVATE": "MESSAGE",
+                "ENV": "FILE",
+                "VAR": "VALUE",
+            },
             host_config=self.client_mock.create_host_config.return_value,
             image=TEST_IMAGE,
             user=None,
@@ -328,9 +366,14 @@ class TestDockerOperator:
         self.client_mock.attach.assert_called_once_with(
             container="some_id", stdout=True, stderr=True, stream=True
         )
-        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
+        self.client_mock.pull.assert_called_once_with(
+            TEST_IMAGE, stream=True, decode=True
+        )
         self.client_mock.wait.assert_called_once_with("some_id")
-        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
+        assert (
+            operator.cli.pull(TEST_IMAGE, stream=True, decode=True)
+            == self.client_mock.pull.return_value
+        )
         stringio_mock.assert_called_once_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
@@ -341,7 +384,9 @@ class TestDockerOperator:
             {"Id": "some_id"},
         ]
 
-        stringio_patcher = mock.patch("airflow.providers.docker.operators.docker.StringIO")
+        stringio_patcher = mock.patch(
+            "airflow.providers.docker.operators.docker.StringIO"
+        )
         stringio_mock = stringio_patcher.start()
         stringio_mock.side_effect = lambda *args: args[0]
 
@@ -399,7 +444,12 @@ class TestDockerOperator:
                 call(
                     command="env",
                     name="test_container",
-                    environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
+                    environment={
+                        "UNIT": "TEST",
+                        "PRIVATE": "MESSAGE",
+                        "ENV": "FILE",
+                        "VAR": "VALUE",
+                    },
                     host_config=self.client_mock.create_host_config.return_value,
                     image=TEST_IMAGE,
                     user=None,
@@ -416,7 +466,11 @@ class TestDockerOperator:
                 call(
                     mounts=[
                         Mount(source="/host/path", target="/container/path", type="bind"),
-                        Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
+                        Mount(
+                            source="/mkdtemp",
+                            target=TEST_AIRFLOW_TEMP_DIRECTORY,
+                            type="bind",
+                        ),
                     ],
                     network_mode="bridge",
                     shm_size=1000,
@@ -456,21 +510,30 @@ class TestDockerOperator:
                 ),
             ]
         )
-        self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
+        self.tempdir_mock.assert_called_once_with(
+            dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp"
+        )
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
         self.client_mock.attach.assert_called_once_with(
             container="some_id", stdout=True, stderr=True, stream=True
         )
-        self.client_mock.pull.assert_called_once_with(TEST_IMAGE, stream=True, decode=True)
+        self.client_mock.pull.assert_called_once_with(
+            TEST_IMAGE, stream=True, decode=True
+        )
         self.client_mock.wait.assert_called_once_with("some_id")
-        assert operator.cli.pull(TEST_IMAGE, stream=True, decode=True) == self.client_mock.pull.return_value
+        assert (
+            operator.cli.pull(TEST_IMAGE, stream=True, decode=True)
+            == self.client_mock.pull.return_value
+        )
         stringio_mock.assert_called_with("ENV=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_with(stream="ENV=FILE\nVAR=VALUE")
         stringio_patcher.stop()
 
     def test_private_environment_is_private(self):
         operator = DockerOperator(
-            private_environment={"PRIVATE": "MESSAGE"}, image=TEST_IMAGE, task_id="unittest"
+            private_environment={"PRIVATE": "MESSAGE"},
+            image=TEST_IMAGE,
+            task_id="unittest",
         )
         assert operator._private_environment == {
             "PRIVATE": "MESSAGE"
@@ -513,7 +576,9 @@ class TestDockerOperator:
             ports=[],
         )
         stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
-        self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
+        self.dotenv_mock.assert_called_once_with(
+            stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE"
+        )
 
     def test_execute_unicode_logs(self):
         self.client_mock.attach.return_value = ["unicode container log 😁"]
@@ -554,7 +619,9 @@ class TestDockerOperator:
         msg = {"StatusCode": actual_exit_code}
         self.client_mock.wait.return_value = msg
 
-        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest", **kwargs)
+        operator = DockerOperator(
+            image="ubuntu", owner="unittest", task_id="unittest", **kwargs
+        )
 
         if expected_exc is None:
             operator.execute({})
@@ -577,11 +644,16 @@ class TestDockerOperator:
         assert str(raised_exception.value) == expected_message.format(
             failed_msg=failed_msg,
         )
-        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
+        assert raised_exception.value.logs == [
+            log_line[0].strip(),
+            log_line[1].decode("utf-8"),
+        ]
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
-        operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest", auto_remove="success")
+        operator = DockerOperator(
+            image="ubuntu", owner="unittest", task_id="unittest", auto_remove="success"
+        )
         operator.container = {"Id": "some_id"}
         with pytest.raises(AirflowException):
             operator.execute(None)
@@ -622,7 +694,9 @@ class TestDockerOperator:
     def test_execute_xcom_behavior_bytes(self):
         self.log_messages = [b"container log 1 ", b"container log 2"]
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
-        self.client_mock.attach.return_value = iter([b"container log 1 ", b"container log 2"])
+        self.client_mock.attach.return_value = iter(
+            [b"container log 1 ", b"container log 2"]
+        )
         # Make sure the logs side effect is updated after the change
         self.client_mock.attach.side_effect = (
             lambda **kwargs: iter(self.log_messages[-kwargs["tail"] :])
@@ -701,7 +775,10 @@ class TestDockerOperator:
         self.client_mock.create_container.assert_called_once()
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "extra_hosts" in self.client_mock.create_host_config.call_args.kwargs
-        assert hosts_obj is self.client_mock.create_host_config.call_args.kwargs["extra_hosts"]
+        assert (
+            hosts_obj
+            is self.client_mock.create_host_config.call_args.kwargs["extra_hosts"]
+        )
 
     def test_privileged(self):
         privileged = mock.Mock()
@@ -710,16 +787,24 @@ class TestDockerOperator:
         self.client_mock.create_container.assert_called_once()
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "privileged" in self.client_mock.create_host_config.call_args.kwargs
-        assert privileged is self.client_mock.create_host_config.call_args.kwargs["privileged"]
+        assert (
+            privileged
+            is self.client_mock.create_host_config.call_args.kwargs["privileged"]
+        )
 
     def test_port_bindings(self):
         port_bindings = {8000: 8080}
-        operator = DockerOperator(task_id="test", image="test", port_bindings=port_bindings)
+        operator = DockerOperator(
+            task_id="test", image="test", port_bindings=port_bindings
+        )
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
-        assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]
+        assert (
+            port_bindings
+            == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]
+        )
 
     def test_ulimits(self):
         ulimits = [Ulimit(name="nofile", soft=1024, hard=2048)]
@@ -738,13 +823,21 @@ class TestDockerOperator:
         ],
     )
     def test_bool_auto_remove_fallback(self, auto_remove, expected):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="bool value for `auto_remove`"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match="bool value for `auto_remove`"
+        ):
             op = DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
         assert op.auto_remove == expected
 
     @pytest.mark.parametrize(
         "auto_remove",
-        ["True", "false", pytest.param(None, id="none"), pytest.param(None, id="empty"), "here-and-now"],
+        [
+            "True",
+            "false",
+            pytest.param(None, id="none"),
+            pytest.param(None, id="empty"),
+            "here-and-now",
+        ],
     )
     def test_auto_remove_invalid(self, auto_remove):
         with pytest.raises(ValueError, match="Invalid `auto_remove` value"):
@@ -758,7 +851,9 @@ class TestDockerOperator:
         ],
     )
     def test_skip_exit_code_fallback(self, skip_exit_code, skip_on_exit_code, expected):
-        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
+        warning_match = (
+            "`skip_exit_code` is deprecated and will be removed in the future."
+        )
 
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
             op = DockerOperator(
@@ -777,12 +872,19 @@ class TestDockerOperator:
         ],
     )
     def test_skip_exit_code_invalid(self, skip_exit_code, skip_on_exit_code):
-        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
+        warning_match = (
+            "`skip_exit_code` is deprecated and will be removed in the future."
+        )
         error_match = "Conflicting `skip_on_exit_code` provided"
 
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
             with pytest.raises(ValueError, match=error_match):
-                DockerOperator(task_id="test", image="test", skip_exit_code=103, skip_on_exit_code=104)
+                DockerOperator(
+                    task_id="test",
+                    image="test",
+                    skip_exit_code=103,
+                    skip_on_exit_code=104,
+                )
 
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
             with pytest.raises(ValueError, match=error_match):
@@ -848,7 +950,9 @@ class TestDockerOperator:
     def test_partial_deprecated_skip_exit_code_ambiguous(
         self, skip_exit_code, skip_on_exit_code, dag_maker, session
     ):
-        with dag_maker("test_partial_deprecated_skip_exit_code_ambiguous", session=session):
+        with dag_maker(
+            "test_partial_deprecated_skip_exit_code_ambiguous", session=session
+        ):
             DockerOperator.partial(
                 task_id="fake-task-id",
                 skip_exit_code=skip_exit_code,
@@ -862,6 +966,8 @@ class TestDockerOperator:
             for ti in tis:
                 with (
                     pytest.warns(AirflowProviderDeprecationWarning, match=warning_match),
-                    pytest.raises(ValueError, match="Conflicting `skip_on_exit_code` provided"),
+                    pytest.raises(
+                        ValueError, match="Conflicting `skip_on_exit_code` provided"
+                    ),
                 ):
                     ti.render_templates()

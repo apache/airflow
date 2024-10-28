@@ -138,7 +138,9 @@ class VaultHook(BaseHook):
         if not kv_engine_version:
             conn_version = self.connection.extra_dejson.get("kv_engine_version")
             try:
-                kv_engine_version = int(conn_version) if conn_version else DEFAULT_KV_ENGINE_VERSION
+                kv_engine_version = (
+                    int(conn_version) if conn_version else DEFAULT_KV_ENGINE_VERSION
+                )
             except ValueError:
                 raise VaultError(f"The version is not an int: {conn_version}. ")
 
@@ -181,7 +183,9 @@ class VaultHook(BaseHook):
             else (None, None, None)
         )
         kubernetes_jwt_path, kubernetes_role = (
-            self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role)
+            self._get_kubernetes_parameters_from_connection(
+                kubernetes_jwt_path, kubernetes_role
+            )
             if auth_type == "kubernetes"
             else (None, None)
         )
@@ -206,7 +210,9 @@ class VaultHook(BaseHook):
             elif self.connection.conn_type == "https":
                 conn_protocol = "https"
             else:
-                raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
+                raise VaultError(
+                    "The url schema must be one of ['http', 'https', 'vault', 'vaults' ]"
+                )
 
         url = f"{conn_protocol}://{self.connection.host}"
         if self.connection.port:
@@ -263,7 +269,9 @@ class VaultHook(BaseHook):
         if not gcp_key_path:
             gcp_key_path = self.connection.extra_dejson.get("gcp_key_path")
         string_keyfile_dict = self.connection.extra_dejson.get("gcp_keyfile_dict")
-        gcp_keyfile_dict = json.loads(string_keyfile_dict) if string_keyfile_dict else None
+        gcp_keyfile_dict = (
+            json.loads(string_keyfile_dict) if string_keyfile_dict else None
+        )
         return gcp_key_path, gcp_keyfile_dict, gcp_scopes
 
     def _get_azure_parameters_from_connection(
@@ -297,7 +305,9 @@ class VaultHook(BaseHook):
         """
         return self.vault_client.client
 
-    def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
+    def get_secret(
+        self, secret_path: str, secret_version: int | None = None
+    ) -> dict | None:
         """
         Get secret value from the engine.
 
@@ -310,7 +320,9 @@ class VaultHook(BaseHook):
         :param secret_path: Path of the secret
         :return: secret stored in the vault as a dictionary
         """
-        return self.vault_client.get_secret(secret_path=secret_path, secret_version=secret_version)
+        return self.vault_client.get_secret(
+            secret_path=secret_path, secret_version=secret_version
+        )
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
@@ -343,7 +355,11 @@ class VaultHook(BaseHook):
         )
 
     def create_or_update_secret(
-        self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
+        self,
+        secret_path: str,
+        secret: dict,
+        method: str | None = None,
+        cas: int | None = None,
     ) -> Response:
         """
         Create or updates secret.
@@ -376,8 +392,12 @@ class VaultHook(BaseHook):
         from wtforms.validators import NumberRange, Optional, any_of
 
         return {
-            "auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
-            "auth_mount_point": StringField(lazy_gettext("Auth mount point"), widget=BS3TextFieldWidget()),
+            "auth_type": StringField(
+                lazy_gettext("Auth type"), widget=BS3TextFieldWidget()
+            ),
+            "auth_mount_point": StringField(
+                lazy_gettext("Auth mount point"), widget=BS3TextFieldWidget()
+            ),
             "kv_engine_version": IntegerField(
                 lazy_gettext("KV engine version"),
                 validators=[any_of([1, 2])],
@@ -385,17 +405,33 @@ class VaultHook(BaseHook):
                 description="Must be 1 or 2.",
                 default=DEFAULT_KV_ENGINE_VERSION,
             ),
-            "role_id": StringField(lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()),
-            "kubernetes_role": StringField(lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()),
+            "role_id": StringField(
+                lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()
+            ),
+            "kubernetes_role": StringField(
+                lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()
+            ),
             "kubernetes_jwt_path": StringField(
                 lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
             ),
-            "token_path": StringField(lazy_gettext("Token path"), widget=BS3TextFieldWidget()),
-            "gcp_key_path": StringField(lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()),
-            "gcp_scopes": StringField(lazy_gettext("GCP scopes"), widget=BS3TextFieldWidget()),
-            "azure_tenant_id": StringField(lazy_gettext("Azure tenant ID"), widget=BS3TextFieldWidget()),
-            "azure_resource": StringField(lazy_gettext("Azure resource"), widget=BS3TextFieldWidget()),
-            "radius_host": StringField(lazy_gettext("Radius host"), widget=BS3TextFieldWidget()),
+            "token_path": StringField(
+                lazy_gettext("Token path"), widget=BS3TextFieldWidget()
+            ),
+            "gcp_key_path": StringField(
+                lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()
+            ),
+            "gcp_scopes": StringField(
+                lazy_gettext("GCP scopes"), widget=BS3TextFieldWidget()
+            ),
+            "azure_tenant_id": StringField(
+                lazy_gettext("Azure tenant ID"), widget=BS3TextFieldWidget()
+            ),
+            "azure_resource": StringField(
+                lazy_gettext("Azure resource"), widget=BS3TextFieldWidget()
+            ),
+            "radius_host": StringField(
+                lazy_gettext("Radius host"), widget=BS3TextFieldWidget()
+            ),
             "radius_port": IntegerField(
                 lazy_gettext("Radius port"),
                 widget=BS3TextFieldWidget(),

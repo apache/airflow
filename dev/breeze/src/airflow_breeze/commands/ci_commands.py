@@ -32,7 +32,10 @@ from typing import Any, NamedTuple
 
 import click
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import (
+    AIRFLOW_BRANCH,
+    DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+)
 from airflow_breeze.commands.common_options import (
     option_answer,
     option_dry_run,
@@ -60,7 +63,11 @@ from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, AIRFLOW_SOURCES_RO
 from airflow_breeze.utils.run_utils import run_command
 
 
-@click.group(cls=BreezeGroup, name="ci", help="Tools that CI workflows use to cleanup/manage CI environment")
+@click.group(
+    cls=BreezeGroup,
+    name="ci",
+    help="Tools that CI workflows use to cleanup/manage CI environment",
+)
 def ci_group():
     pass
 
@@ -89,7 +96,9 @@ def free_space():
         run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
 
 
-@ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
+@ci_group.command(
+    name="resource-check", help="Check if available docker resources are enough."
+)
 @option_verbose
 @option_dry_run
 def resource_check():
@@ -117,7 +126,9 @@ def fix_ownership_for_file(file: Path):
         stderr=subprocess.STDOUT,
     )
     if result.returncode != 0:
-        get_console().print(f"[warning]Could not fix ownership for {file}: {result.stdout}")
+        get_console().print(
+            f"[warning]Could not fix ownership for {file}: {result.stdout}"
+        )
 
 
 def fix_ownership_for_path(path: Path):
@@ -135,7 +146,9 @@ def fix_ownership_without_docker():
         fix_ownership_for_path(directory_to_fix)
 
 
-@ci_group.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
+@ci_group.command(
+    name="fix-ownership", help="Fix ownership of source files to be same as host user."
+)
 @click.option(
     "--use-sudo",
     is_flag=True,
@@ -187,7 +200,8 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
 
 
 @ci_group.command(
-    name="selective-check", help="Checks what kind of tests should be run for an incoming commit."
+    name="selective-check",
+    help="Checks what kind of tests should be run for an incoming commit.",
 )
 @click.option(
     "--commit-ref",
@@ -293,11 +307,15 @@ class WorkflowInfo(NamedTuple):
         yield get_ga_output(name="pr_labels", value=str(self.pull_request_labels))
         yield get_ga_output(name="target_repo", value=self.target_repo)
         yield get_ga_output(name="head_repo", value=self.head_repo)
-        yield get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else "")
+        yield get_ga_output(
+            name="pr_number", value=str(self.pr_number) if self.pr_number else ""
+        )
         yield get_ga_output(name="event_name", value=str(self.event_name))
         yield get_ga_output(name="runs-on", value=self.get_runs_on())
         yield get_ga_output(name="in-workflow-build", value=self.in_workflow_build())
-        yield get_ga_output(name="build-job-description", value=self.get_build_job_description())
+        yield get_ga_output(
+            name="build-job-description", value=self.get_build_job_description()
+        )
         yield get_ga_output(name="canary-run", value=self.is_canary_run())
         yield get_ga_output(name="run-coverage", value=self.run_coverage())
 
@@ -315,7 +333,10 @@ class WorkflowInfo(NamedTuple):
         return RUNS_ON_SELF_HOSTED_RUNNER
 
     def in_workflow_build(self) -> str:
-        if self.event_name == GithubEvents.PUSH.value or self.head_repo == self.target_repo:
+        if (
+            self.event_name == GithubEvents.PUSH.value
+            or self.head_repo == self.target_repo
+        ):
             return "true"
         return "false"
 
@@ -410,7 +431,9 @@ def workflow_info(context: str) -> WorkflowInfo:
     help="Retrieve information about current workflow in the CI"
     "and produce github actions output extracted from it.",
 )
-@click.option("--github-context", help="JSON-formatted github context", envvar="GITHUB_CONTEXT")
+@click.option(
+    "--github-context", help="JSON-formatted github context", envvar="GITHUB_CONTEXT"
+)
 @click.option(
     "--github-context-input",
     help="file input (might be `-`) with JSON-formatted github context",

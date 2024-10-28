@@ -71,7 +71,9 @@ class ZendeskHook(BaseHook):
             dot_splitted_string = conn.host.rsplit(".", 2)
             subdomain = dot_splitted_string[0]
             domain = ".".join(dot_splitted_string[1:])
-        return Zenpy(domain=domain, subdomain=subdomain, email=conn.login, password=conn.password), url
+        return Zenpy(
+            domain=domain, subdomain=subdomain, email=conn.login, password=conn.password
+        ), url
 
     def get_conn(self) -> Zenpy:
         """
@@ -98,7 +100,9 @@ class ZendeskHook(BaseHook):
         """
         return self.zenpy_client.search(type="ticket", **kwargs)
 
-    def create_tickets(self, tickets: Ticket | list[Ticket], **kwargs) -> TicketAudit | JobStatus:
+    def create_tickets(
+        self, tickets: Ticket | list[Ticket], **kwargs
+    ) -> TicketAudit | JobStatus:
         """
         Create tickets.
 
@@ -109,7 +113,9 @@ class ZendeskHook(BaseHook):
         """
         return self.zenpy_client.tickets.create(tickets, **kwargs)
 
-    def update_tickets(self, tickets: Ticket | list[Ticket], **kwargs) -> TicketAudit | JobStatus:
+    def update_tickets(
+        self, tickets: Ticket | list[Ticket], **kwargs
+    ) -> TicketAudit | JobStatus:
         """
         Update tickets.
 

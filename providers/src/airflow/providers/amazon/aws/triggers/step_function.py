@@ -46,7 +46,10 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
         **kwargs,
     ) -> None:
         super().__init__(
-            serialized_fields={"execution_arn": execution_arn, "region_name": region_name},
+            serialized_fields={
+                "execution_arn": execution_arn,
+                "region_name": region_name,
+            },
             waiter_name="step_function_succeeded",
             waiter_args={"executionArn": execution_arn},
             failure_message="Step function failed",

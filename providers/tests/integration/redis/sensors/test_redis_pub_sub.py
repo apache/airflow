@@ -41,7 +41,10 @@ class TestRedisPubSubSensor:
 
     def test_poke_true(self):
         sensor = RedisPubSubSensor(
-            task_id="test_task", dag=self.dag, channels="test", redis_conn_id="redis_default"
+            task_id="test_task",
+            dag=self.dag,
+            channels="test",
+            redis_conn_id="redis_default",
         )
 
         hook = RedisHook(redis_conn_id="redis_default")
@@ -60,16 +63,26 @@ class TestRedisPubSubSensor:
         context_calls = [
             call.xcom_push(
                 key="message",
-                value={"type": "message", "pattern": None, "channel": b"test", "data": b"message"},
+                value={
+                    "type": "message",
+                    "pattern": None,
+                    "channel": b"test",
+                    "data": b"message",
+                },
             )
         ]
-        assert self.mock_context["ti"].method_calls == context_calls, "context calls should be same"
+        assert (
+            self.mock_context["ti"].method_calls == context_calls
+        ), "context calls should be same"
         result = sensor.poke(self.mock_context)
         assert not result
 
     def test_poke_false(self):
         sensor = RedisPubSubSensor(
-            task_id="test_task", dag=self.dag, channels="test", redis_conn_id="redis_default"
+            task_id="test_task",
+            dag=self.dag,
+            channels="test",
+            redis_conn_id="redis_default",
         )
 
         result = sensor.poke(self.mock_context)

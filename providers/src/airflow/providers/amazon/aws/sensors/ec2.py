@@ -57,7 +57,9 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         instance_id: str,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         if target_state not in self.valid_states:
@@ -93,7 +95,9 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         self.log.info("instance state: %s", instance_state)
         return instance_state == self.target_state
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":

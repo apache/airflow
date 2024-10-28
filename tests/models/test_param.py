@@ -40,7 +40,9 @@ class TestParam:
 
     def test_null_param(self):
         p = Param()
-        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
+        with pytest.raises(
+            ParamValidationError, match="No value passed and Param has no default value"
+        ):
             p.resolve()
         assert p.resolve(None) is None
         assert p.dump()["value"] is None
@@ -73,7 +75,9 @@ class TestParam:
         p = Param(type="string")
         with pytest.raises(ParamValidationError):
             p.resolve(None)
-        with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
+        with pytest.raises(
+            ParamValidationError, match="No value passed and Param has no default value"
+        ):
             p.resolve()
 
     @pytest.mark.parametrize(
@@ -273,7 +277,9 @@ class TestParamsDict:
         pd3.validate()
 
         # Update the ParamsDict
-        with pytest.raises(ParamValidationError, match=r"Invalid input for param key: 1 is not"):
+        with pytest.raises(
+            ParamValidationError, match=r"Invalid input for param key: 1 is not"
+        ):
             pd3["key"] = 1
 
         # Should not raise an error as suppress_exception is True
@@ -286,7 +292,9 @@ class TestParamsDict:
         pd.update({"key": "a"})
         internal_value = pd.get_param("key")
         assert isinstance(internal_value, Param)
-        with pytest.raises(ParamValidationError, match=r"Invalid input for param key: 1 is not"):
+        with pytest.raises(
+            ParamValidationError, match=r"Invalid input for param key: 1 is not"
+        ):
             pd.update({"key": 1})
 
     def test_repr(self):
@@ -372,7 +380,9 @@ class TestDagParamRuntime:
 
             xcom_arg = return_num(value)
 
-        dr = dag_maker.create_dagrun(run_id=DagRunType.MANUAL.value, start_date=timezone.utcnow())
+        dr = dag_maker.create_dagrun(
+            run_id=DagRunType.MANUAL.value, start_date=timezone.utcnow()
+        )
 
         xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
@@ -385,16 +395,26 @@ class TestDagParamRuntime:
         [
             pytest.param({0, 1, 2}, True, id="default-non-JSON-serializable"),
             pytest.param(None, False, id="default-None"),  # Param init should not warn
-            pytest.param({"b": 1}, False, id="default-JSON-serializable"),  # Param init should not warn
+            pytest.param(
+                {"b": 1}, False, id="default-JSON-serializable"
+            ),  # Param init should not warn
         ],
     )
     def test_param_json_validation(self, default, should_raise):
         exception_msg = "All provided parameters must be json-serializable"
-        cm = pytest.raises(ParamValidationError, match=exception_msg) if should_raise else nullcontext()
+        cm = (
+            pytest.raises(ParamValidationError, match=exception_msg)
+            if should_raise
+            else nullcontext()
+        )
         with cm:
             p = Param(default=default)
         if not should_raise:
             p.resolve()  # when resolved with NOTSET, should not warn.
-            p.resolve(value={"a": 1})  # when resolved with JSON-serializable, should not warn.
+            p.resolve(
+                value={"a": 1}
+            )  # when resolved with JSON-serializable, should not warn.
             with pytest.raises(ParamValidationError, match=exception_msg):
-                p.resolve(value={1, 2, 3})  # when resolved with not JSON-serializable, should warn.
+                p.resolve(
+                    value={1, 2, 3}
+                )  # when resolved with not JSON-serializable, should warn.

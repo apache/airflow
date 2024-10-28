@@ -62,7 +62,8 @@ class StepFunctionHook(AwsBaseHook):
         if is_redrive_execution:
             if not name:
                 raise AirflowFailException(
-                    "Execution name is required to start RedriveExecution for %s.", state_machine_arn
+                    "Execution name is required to start RedriveExecution for %s.",
+                    state_machine_arn,
                 )
             elements = state_machine_arn.split(":stateMachine:")
             execution_arn = f"{elements[0]}:execution:{elements[1]}:{name}"

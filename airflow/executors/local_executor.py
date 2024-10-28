@@ -166,7 +166,10 @@ class LocalWorker(LocalWorkerBase):
     """
 
     def __init__(
-        self, result_queue: Queue[TaskInstanceStateType], key: TaskInstanceKey, command: CommandType
+        self,
+        result_queue: Queue[TaskInstanceStateType],
+        key: TaskInstanceKey,
+        command: CommandType,
     ):
         super().__init__(result_queue)
         self.key: TaskInstanceKey = key
@@ -188,7 +191,11 @@ class QueuedLocalWorker(LocalWorkerBase):
     :param result_queue: queue where worker puts results after finishing tasks
     """
 
-    def __init__(self, task_queue: Queue[ExecutorWorkType], result_queue: Queue[TaskInstanceStateType]):
+    def __init__(
+        self,
+        task_queue: Queue[ExecutorWorkType],
+        result_queue: Queue[TaskInstanceStateType],
+    ):
         super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
@@ -236,7 +243,9 @@ class LocalExecutor(BaseExecutor):
         self.workers: list[QueuedLocalWorker] = []
         self.workers_used: int = 0
         self.workers_active: int = 0
-        self.impl: None | (LocalExecutor.UnlimitedParallelism | LocalExecutor.LimitedParallelism) = None
+        self.impl: None | (
+            LocalExecutor.UnlimitedParallelism | LocalExecutor.LimitedParallelism
+        ) = None
 
     class UnlimitedParallelism:
         """
@@ -280,7 +289,9 @@ class LocalExecutor(BaseExecutor):
                 span.set_attribute("try_number", key.try_number)
                 span.set_attribute("commands_to_run", str(command))
 
-            local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)
+            local_worker = LocalWorker(
+                self.executor.result_queue, key=key, command=command
+            )
             self.executor.workers_used += 1
             self.executor.workers_active += 1
             local_worker.start()
@@ -405,7 +416,9 @@ class LocalExecutor(BaseExecutor):
 
         self.validate_airflow_tasks_run_command(command)
 
-        self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+        self.impl.execute_async(
+            key=key, command=command, queue=queue, executor_config=executor_config
+        )
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""

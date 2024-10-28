@@ -66,7 +66,10 @@ TEST_TRANSFER_OPERATION_NAME = "transfer-operation"
 TEST_TRANSFER_JOB = {NAME: TEST_TRANSFER_JOB_NAME}
 TEST_TRANSFER_OPERATION = {NAME: TEST_TRANSFER_OPERATION_NAME}
 
-TEST_TRANSFER_JOB_FILTER = {FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [TEST_TRANSFER_JOB_NAME]}
+TEST_TRANSFER_JOB_FILTER = {
+    FILTER_PROJECT_ID: TEST_PROJECT_ID,
+    FILTER_JOB_NAMES: [TEST_TRANSFER_JOB_NAME],
+}
 TEST_TRANSFER_OPERATION_FILTER = {
     FILTER_PROJECT_ID: TEST_PROJECT_ID,
     FILTER_JOB_NAMES: [TEST_TRANSFER_JOB_NAME],
@@ -160,7 +163,9 @@ class TestGCPTransferServiceHookWithPassedName:
 class TestJobNames:
     re_suffix = re.compile("^[0-9]{10}$")
 
-    @pytest.mark.parametrize("job_name", ["jobNames/new_job", "jobNames/new_job_h", "jobNames/newJob"])
+    @pytest.mark.parametrize(
+        "job_name", ["jobNames/new_job", "jobNames/new_job_h", "jobNames/newJob"]
+    )
     def test_new_suffix(self, job_name):
         assert self.re_suffix.match(gen_job_name(job_name).split("_")[-1]) is not None
 
@@ -177,11 +182,16 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
         ".CloudDataTransferServiceHook._authorize"
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.build")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.build"
+    )
     def test_gct_client_creation(self, mock_build, mock_authorize):
         result = self.gct_hook.get_conn()
         mock_build.assert_called_once_with(
-            "storagetransfer", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "storagetransfer",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         assert mock_build.return_value == result
         assert self.gct_hook._conn == result
@@ -212,10 +222,14 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         get_method = get_conn.return_value.transferJobs.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
-        res = self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
+        res = self.gct_hook.get_transfer_job(
+            job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID
+        )
         assert res is not None
         assert TEST_TRANSFER_JOB_NAME == res[NAME]
-        get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId=TEST_PROJECT_ID)
+        get_method.assert_called_once_with(
+            jobName=TEST_TRANSFER_JOB_NAME, projectId=TEST_PROJECT_ID
+        )
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
@@ -276,7 +290,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         update_method = get_conn.return_value.transferJobs.return_value.patch
         execute_method = update_method.return_value.execute
 
-        self.gct_hook.delete_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
+        self.gct_hook.delete_transfer_job(
+            job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID
+        )
 
         update_method.assert_called_once_with(
             jobName=TEST_TRANSFER_JOB_NAME,
@@ -297,7 +313,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         execute_method = run_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_OPERATION
 
-        res = self.gct_hook.run_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
+        res = self.gct_hook.run_transfer_job(
+            job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID
+        )
         assert res == TEST_TRANSFER_OPERATION
         run_method.assert_called_once_with(
             jobName=TEST_TRANSFER_JOB_NAME,
@@ -315,7 +333,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         cancel_method = get_conn.return_value.transferOperations.return_value.cancel
         execute_method = cancel_method.return_value.execute
 
-        self.gct_hook.cancel_transfer_operation(operation_name=TEST_TRANSFER_OPERATION_NAME)
+        self.gct_hook.cancel_transfer_operation(
+            operation_name=TEST_TRANSFER_OPERATION_NAME
+        )
         cancel_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -327,7 +347,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         get_method = get_conn.return_value.transferOperations.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_OPERATION
-        res = self.gct_hook.get_transfer_operation(operation_name=TEST_TRANSFER_OPERATION_NAME)
+        res = self.gct_hook.get_transfer_operation(
+            operation_name=TEST_TRANSFER_OPERATION_NAME
+        )
         assert res == TEST_TRANSFER_OPERATION
         get_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
@@ -349,7 +371,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         list_next = get_conn.return_value.transferOperations.return_value.list_next
         list_next.return_value = None
 
-        res = self.gct_hook.list_transfer_operations(request_filter=TEST_TRANSFER_OPERATION_FILTER)
+        res = self.gct_hook.list_transfer_operations(
+            request_filter=TEST_TRANSFER_OPERATION_FILTER
+        )
         assert res is not None
         assert res == [TEST_TRANSFER_OPERATION]
         list_method.assert_called_once_with(filter=mock.ANY, name="transferOperations")
@@ -368,7 +392,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         pause_method = get_conn.return_value.transferOperations.return_value.pause
         execute_method = pause_method.return_value.execute
 
-        self.gct_hook.pause_transfer_operation(operation_name=TEST_TRANSFER_OPERATION_NAME)
+        self.gct_hook.pause_transfer_operation(
+            operation_name=TEST_TRANSFER_OPERATION_NAME
+        )
         pause_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -380,7 +406,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         resume_method = get_conn.return_value.transferOperations.return_value.resume
         execute_method = resume_method.return_value.execute
 
-        self.gct_hook.resume_transfer_operation(operation_name=TEST_TRANSFER_OPERATION_NAME)
+        self.gct_hook.resume_transfer_operation(
+            operation_name=TEST_TRANSFER_OPERATION_NAME
+        )
         resume_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -389,7 +417,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         new_callable=PropertyMock,
         return_value=None,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service."
         "CloudDataTransferServiceHook.list_transfer_operations"
@@ -417,11 +447,23 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         ]
 
         job_name = "transferJobs/test-job"
-        self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, "name": job_name})
+        self.gct_hook.wait_for_transfer_job(
+            {PROJECT_ID: TEST_PROJECT_ID, "name": job_name}
+        )
 
         calls = [
-            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
-            mock.call(request_filter={FILTER_PROJECT_ID: TEST_PROJECT_ID, FILTER_JOB_NAMES: [job_name]}),
+            mock.call(
+                request_filter={
+                    FILTER_PROJECT_ID: TEST_PROJECT_ID,
+                    FILTER_JOB_NAMES: [job_name],
+                }
+            ),
+            mock.call(
+                request_filter={
+                    FILTER_PROJECT_ID: TEST_PROJECT_ID,
+                    FILTER_JOB_NAMES: [job_name],
+                }
+            ),
         ]
         mock_list.assert_has_calls(calls, any_order=True)
 
@@ -432,12 +474,16 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         new_callable=PropertyMock,
         return_value=None,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
         ".CloudDataTransferServiceHook.get_conn"
     )
-    def test_wait_for_transfer_job_failed(self, mock_get_conn, mock_sleep, mock_project_id):
+    def test_wait_for_transfer_job_failed(
+        self, mock_get_conn, mock_sleep, mock_project_id
+    ):
         list_method = mock_get_conn.return_value.transferOperations.return_value.list
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
@@ -455,7 +501,9 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         mock_get_conn.return_value.transferOperations.return_value.list_next.return_value = None
 
         with pytest.raises(AirflowException):
-            self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, NAME: "transferJobs/test-job"})
+            self.gct_hook.wait_for_transfer_job(
+                {PROJECT_ID: TEST_PROJECT_ID, NAME: "transferJobs/test-job"}
+            )
         assert list_method.called
 
     @mock.patch(
@@ -463,12 +511,16 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         new_callable=PropertyMock,
         return_value=None,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.time.sleep"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
         ".CloudDataTransferServiceHook.get_conn"
     )
-    def test_wait_for_transfer_job_expect_failed(self, get_conn, mock_sleep, mock_project_id):
+    def test_wait_for_transfer_job_expect_failed(
+        self, get_conn, mock_sleep, mock_project_id
+    ):
         list_method = get_conn.return_value.transferOperations.return_value.list
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
@@ -483,9 +535,12 @@ class TestGCPTransferServiceHookWithPassedProjectId:
             ]
         }
 
-        get_conn.return_value.transferOperations.return_value.list_next.return_value = None
+        get_conn.return_value.transferOperations.return_value.list_next.return_value = (
+            None
+        )
         with pytest.raises(
-            AirflowException, match="An unexpected operation status was encountered. Expected: SUCCESS"
+            AirflowException,
+            match="An unexpected operation status was encountered. Expected: SUCCESS",
         ):
             self.gct_hook.wait_for_transfer_job(
                 job={PROJECT_ID: "test-project", NAME: "transferJobs/test-job"},
@@ -495,7 +550,10 @@ class TestGCPTransferServiceHookWithPassedProjectId:
     @pytest.mark.parametrize(
         "statuses, expected_statuses",
         [
-            ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
+            (
+                [GcpTransferOperationStatus.ABORTED],
+                (GcpTransferOperationStatus.IN_PROGRESS,),
+            ),
             (
                 [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],
                 (GcpTransferOperationStatus.IN_PROGRESS,),
@@ -506,8 +564,13 @@ class TestGCPTransferServiceHookWithPassedProjectId:
             ),
         ],
     )
-    def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
-        operations = [{NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status}} for status in statuses]
+    def test_operations_contain_expected_statuses_red_path(
+        self, statuses, expected_statuses
+    ):
+        operations = [
+            {NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status}}
+            for status in statuses
+        ]
 
         with pytest.raises(
             AirflowException,
@@ -540,9 +603,14 @@ class TestGCPTransferServiceHookWithPassedProjectId:
             ),
         ],
     )
-    def test_operations_contain_expected_statuses_green_path(self, statuses, expected_statuses):
+    def test_operations_contain_expected_statuses_green_path(
+        self, statuses, expected_statuses
+    ):
         operations = [
-            {NAME: TEST_TRANSFER_OPERATION_NAME, METADATA: {STATUS: status, COUNTERS: TEST_COUNTERS}}
+            {
+                NAME: TEST_TRANSFER_OPERATION_NAME,
+                METADATA: {STATUS: status, COUNTERS: TEST_COUNTERS},
+            }
             for status in statuses
         ]
 
@@ -565,11 +633,16 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
         ".CloudDataTransferServiceHook._authorize"
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.build")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.build"
+    )
     def test_gct_client_creation(self, mock_build, mock_authorize):
         result = self.gct_hook.get_conn()
         mock_build.assert_called_once_with(
-            "storagetransfer", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "storagetransfer",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         assert mock_build.return_value == result
         assert self.gct_hook._conn == result
@@ -589,7 +662,9 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         execute_method.return_value = deepcopy(TEST_TRANSFER_JOB)
         res = self.gct_hook.create_transfer_job(body=self._without_project_id(TEST_BODY))
         assert res == TEST_TRANSFER_JOB
-        create_method.assert_called_once_with(body=self._with_project_id(TEST_BODY, "example-project"))
+        create_method.assert_called_once_with(
+            body=self._with_project_id(TEST_BODY, "example-project")
+        )
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
@@ -608,7 +683,9 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         res = self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
         assert res is not None
         assert TEST_TRANSFER_JOB_NAME == res[NAME]
-        get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId="example-project")
+        get_method.assert_called_once_with(
+            jobName=TEST_TRANSFER_JOB_NAME, projectId="example-project"
+        )
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
@@ -656,7 +733,8 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         execute_method = update_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
         res = self.gct_hook.update_transfer_job(
-            job_name=TEST_TRANSFER_JOB_NAME, body=self._without_project_id(TEST_UPDATE_TRANSFER_JOB_BODY)
+            job_name=TEST_TRANSFER_JOB_NAME,
+            body=self._without_project_id(TEST_UPDATE_TRANSFER_JOB_BODY),
         )
         assert res is not None
         update_method.assert_called_once_with(
@@ -673,7 +751,9 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         update_method = get_conn.return_value.transferJobs.return_value.patch
         execute_method = update_method.return_value.execute
 
-        self.gct_hook.delete_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
+        self.gct_hook.delete_transfer_job(
+            job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID
+        )
 
         update_method.assert_called_once_with(
             jobName=TEST_TRANSFER_JOB_NAME,
@@ -693,7 +773,9 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         cancel_method = get_conn.return_value.transferOperations.return_value.cancel
         execute_method = cancel_method.return_value.execute
 
-        self.gct_hook.cancel_transfer_operation(operation_name=TEST_TRANSFER_OPERATION_NAME)
+        self.gct_hook.cancel_transfer_operation(
+            operation_name=TEST_TRANSFER_OPERATION_NAME
+        )
         cancel_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -705,7 +787,9 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         get_method = get_conn.return_value.transferOperations.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_OPERATION
-        res = self.gct_hook.get_transfer_operation(operation_name=TEST_TRANSFER_OPERATION_NAME)
+        res = self.gct_hook.get_transfer_operation(
+            operation_name=TEST_TRANSFER_OPERATION_NAME
+        )
         assert res == TEST_TRANSFER_OPERATION
         get_method.assert_called_once_with(name=TEST_TRANSFER_OPERATION_NAME)
         execute_method.assert_called_once_with(num_retries=5)
@@ -766,11 +850,16 @@ class TestGCPTransferServiceHookWithoutProjectId:
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
         ".CloudDataTransferServiceHook._authorize"
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.build")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.build"
+    )
     def test_gct_client_creation(self, mock_build, mock_authorize):
         result = self.gct_hook.get_conn()
         mock_build.assert_called_once_with(
-            "storagetransfer", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "storagetransfer",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
         )
         assert mock_build.return_value == result
         assert self.gct_hook._conn == result
@@ -794,7 +883,8 @@ class TestGCPTransferServiceHookWithoutProjectId:
         assert (
             "The project id must be passed either as `projectId` key in `body` "
             "parameter or as project_id "
-            "extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            "extra in Google Cloud connection definition. Both are not set!"
+            == str(ctx.value)
         )
 
     @mock.patch(
@@ -842,7 +932,8 @@ class TestGCPTransferServiceHookWithoutProjectId:
 
         assert (
             "The project id must be passed either as `project_id` key in `filter` parameter or as "
-            "project_id extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            "project_id extra in Google Cloud connection definition. Both are not set!"
+            == str(ctx.value)
         )
 
     @mock.patch(
@@ -856,15 +947,23 @@ class TestGCPTransferServiceHookWithoutProjectId:
     )
     def test_list_transfer_operation_multiple_page(self, get_conn, mock_project_id):
         pages_requests = [
-            mock.Mock(**{"execute.return_value": {"operations": [TEST_TRANSFER_OPERATION]}}) for _ in range(4)
+            mock.Mock(
+                **{"execute.return_value": {"operations": [TEST_TRANSFER_OPERATION]}}
+            )
+            for _ in range(4)
         ]
         transfer_operation_mock = mock.Mock(
-            **{"list.return_value": pages_requests[1], "list_next.side_effect": pages_requests[1:] + [None]}
+            **{
+                "list.return_value": pages_requests[1],
+                "list_next.side_effect": pages_requests[1:] + [None],
+            }
         )
 
         get_conn.return_value.transferOperations.return_value = transfer_operation_mock
 
-        res = self.gct_hook.list_transfer_operations(request_filter=TEST_TRANSFER_OPERATION_FILTER)
+        res = self.gct_hook.list_transfer_operations(
+            request_filter=TEST_TRANSFER_OPERATION_FILTER
+        )
         assert res == [TEST_TRANSFER_OPERATION] * 4
 
     @mock.patch(
@@ -882,12 +981,14 @@ class TestGCPTransferServiceHookWithoutProjectId:
         execute_method.return_value = TEST_TRANSFER_JOB
         with pytest.raises(AirflowException) as ctx:
             self.gct_hook.update_transfer_job(
-                job_name=TEST_TRANSFER_JOB_NAME, body=_without_key(TEST_UPDATE_TRANSFER_JOB_BODY, PROJECT_ID)
+                job_name=TEST_TRANSFER_JOB_NAME,
+                body=_without_key(TEST_UPDATE_TRANSFER_JOB_BODY, PROJECT_ID),
             )
 
         assert (
             "The project id must be passed either as `projectId` key in `body` parameter or as project_id "
-            "extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            "extra in Google Cloud connection definition. Both are not set!"
+            == str(ctx.value)
         )
 
     @mock.patch(
@@ -927,10 +1028,13 @@ class TestGCPTransferServiceHookWithoutProjectId:
 
         with pytest.raises(AirflowException) as ctx:
             self.gct_hook.list_transfer_operations(
-                request_filter=_without_key(TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID)
+                request_filter=_without_key(
+                    TEST_TRANSFER_OPERATION_FILTER, FILTER_PROJECT_ID
+                )
             )
 
         assert (
             "The project id must be passed either as `project_id` key in `filter` parameter or as project_id "
-            "extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            "extra in Google Cloud connection definition. Both are not set!"
+            == str(ctx.value)
         )

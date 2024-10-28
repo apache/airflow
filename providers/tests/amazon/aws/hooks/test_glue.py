@@ -69,7 +69,10 @@ class TestGlueJobHook:
         assert iam_role is not None
         assert "Role" in iam_role
         assert "Arn" in iam_role["Role"]
-        assert iam_role["Role"]["Arn"] == f"arn:aws:iam::123456789012:role{role_path}{expected_role}"
+        assert (
+            iam_role["Role"]["Arn"]
+            == f"arn:aws:iam::123456789012:role{role_path}{expected_role}"
+        )
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "conn")
@@ -78,7 +81,9 @@ class TestGlueJobHook:
             Role={"RoleName": "my_test_role_name", "RoleArn": "my_test_role"}
         )
 
-        with pytest.raises(ValueError, match="Cannot set iam_role_arn and iam_role_name simultaneously"):
+        with pytest.raises(
+            ValueError, match="Cannot set iam_role_arn and iam_role_name simultaneously"
+        ):
             GlueJobHook(
                 job_name="aws_test_glue_job",
                 desc="This is test case job from Airflow",
@@ -130,7 +135,9 @@ class TestGlueJobHook:
 
         mock_conn.exceptions.EntityNotFoundException = JobNotFoundException
         mock_conn.get_job.side_effect = JobNotFoundException()
-        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
+        mock_get_iam_execution_role.return_value = {
+            "Role": {"RoleName": role_name, "Arn": role_name_arn}
+        }
 
         hook = GlueJobHook(
             s3_bucket=some_s3_bucket,
@@ -163,7 +170,9 @@ class TestGlueJobHook:
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_create_or_update_glue_job_create_new_job(self, mock_conn, mock_get_iam_execution_role):
+    def test_create_or_update_glue_job_create_new_job(
+        self, mock_conn, mock_get_iam_execution_role
+    ):
         """
         Calls 'create_or_update_glue_job' with no existing job.
         Should create a new job.
@@ -180,7 +189,9 @@ class TestGlueJobHook:
 
         mock_conn.exceptions.EntityNotFoundException = JobNotFoundException
         mock_conn.get_job.side_effect = JobNotFoundException()
-        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
+        mock_get_iam_execution_role.return_value = {
+            "Role": {"RoleName": role_name, "Arn": role_name_arn}
+        }
 
         hook = GlueJobHook(
             s3_bucket=some_s3_bucket,
@@ -231,7 +242,9 @@ class TestGlueJobHook:
 
         mock_conn.exceptions.EntityNotFoundException = JobNotFoundException
         mock_conn.get_job.side_effect = JobNotFoundException()
-        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
+        mock_get_iam_execution_role.return_value = {
+            "Role": {"RoleName": role_name, "Arn": role_name_arn}
+        }
 
         hook = GlueJobHook(
             job_name=expected_job_name,
@@ -262,7 +275,9 @@ class TestGlueJobHook:
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_create_or_update_glue_job_update_existing_job(self, mock_conn, mock_get_iam_execution_role):
+    def test_create_or_update_glue_job_update_existing_job(
+        self, mock_conn, mock_get_iam_execution_role
+    ):
         """
         Calls 'create_or_update_glue_job' with a existing job.
         Should update existing job configurations.
@@ -281,7 +296,9 @@ class TestGlueJobHook:
                 "Role": role_name_arn,
             }
         }
-        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": "test_role"}}
+        mock_get_iam_execution_role.return_value = {
+            "Role": {"RoleName": role_name, "Arn": "test_role"}
+        }
 
         hook = GlueJobHook(
             job_name=job_name,
@@ -313,7 +330,9 @@ class TestGlueJobHook:
     @mock_aws
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     def test_create_or_update_glue_job_worker_type(self, mock_get_iam_execution_role):
-        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": "my_test_role", "Arn": "test_role"}}
+        mock_get_iam_execution_role.return_value = {
+            "Role": {"RoleName": "my_test_role", "Arn": "test_role"}
+        }
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
         expected_job_name = "aws_test_glue_job_worker_type"
@@ -336,11 +355,15 @@ class TestGlueJobHook:
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "conn")
     def test_init_worker_type_value_error(self, mock_conn, mock_get_iam_execution_role):
-        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={"RoleName": "my_test_role"})
+        mock_get_iam_execution_role.return_value = mock.MagicMock(
+            Role={"RoleName": "my_test_role"}
+        )
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        with pytest.raises(ValueError, match="Cannot specify num_of_dpus with custom WorkerType"):
+        with pytest.raises(
+            ValueError, match="Cannot specify num_of_dpus with custom WorkerType"
+        ):
             GlueJobHook(
                 job_name="aws_test_glue_job",
                 desc="This is test case job from Airflow",
@@ -374,15 +397,23 @@ class TestGlueJobHook:
             region_name=self.some_aws_region,
             update_config=False,
         )
-        glue_job_run = glue_job_hook.initialize_job(some_script_arguments, some_run_kwargs)
-        glue_job_run_state = glue_job_hook.get_job_state(glue_job_run["JobName"], glue_job_run["JobRunId"])
+        glue_job_run = glue_job_hook.initialize_job(
+            some_script_arguments, some_run_kwargs
+        )
+        glue_job_run_state = glue_job_hook.get_job_state(
+            glue_job_run["JobName"], glue_job_run["JobRunId"]
+        )
         assert glue_job_run_state == mock_job_run_state, "Mocks but be equal"
 
     @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, log_client_mock: MagicMock, caplog):
+    def test_print_job_logs_returns_token(
+        self, conn_mock: MagicMock, log_client_mock: MagicMock, caplog
+    ):
         hook = GlueJobHook(job_name="test")
-        conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
+        conn_mock().get_job_run.return_value = {
+            "JobRun": {"LogGroupName": "my_log_group"}
+        }
         log_client_mock().get_paginator().paginate.return_value = [
             # first response : 2 log lines
             {
@@ -395,7 +426,11 @@ class TestGlueJobHook:
                 "ResponseMetadata": {"HTTPStatusCode": 200},
             },
             # second response, reached end of stream
-            {"events": [], "searchedLogStreams": [], "ResponseMetadata": {"HTTPStatusCode": 200}},
+            {
+                "events": [],
+                "searchedLogStreams": [],
+                "ResponseMetadata": {"HTTPStatusCode": 200},
+            },
         ]
 
         tokens = GlueJobHook.LogContinuationTokens()
@@ -407,9 +442,13 @@ class TestGlueJobHook:
 
     @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_print_job_logs_no_stream_yet(self, conn_mock: MagicMock, client_mock: MagicMock):
+    def test_print_job_logs_no_stream_yet(
+        self, conn_mock: MagicMock, client_mock: MagicMock
+    ):
         hook = GlueJobHook()
-        conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
+        conn_mock().get_job_run.return_value = {
+            "JobRun": {"LogGroupName": "my_log_group"}
+        }
         client_mock().get_paginator().paginate.side_effect = ClientError(
             {"Error": {"Code": "ResourceNotFoundException"}}, "op"
         )
@@ -505,13 +544,17 @@ class TestGlueDataQualityHook:
         result = self.glue.has_data_quality_ruleset(name=self.RULE_SET_NAME)
 
         assert result is True
-        mock_conn.get_data_quality_ruleset.assert_called_once_with(Name=self.RULE_SET_NAME)
+        mock_conn.get_data_quality_ruleset.assert_called_once_with(
+            Name=self.RULE_SET_NAME
+        )
 
     @mock.patch.object(GlueDataQualityHook, "conn")
     def test_quality_ruleset_doesnt_exists(self, mock_conn):
         error_message = f"Cannot find Data Quality Ruleset in account 1234567 with name {self.RULE_SET_NAME}"
 
-        err_response = {"Error": {"Code": "EntityNotFoundException", "Message": error_message}}
+        err_response = {
+            "Error": {"Code": "EntityNotFoundException", "Message": error_message}
+        }
 
         exception = boto3.client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
@@ -522,7 +565,9 @@ class TestGlueDataQualityHook:
         result = self.glue.has_data_quality_ruleset(name=self.RULE_SET_NAME)
 
         assert result is False
-        mock_conn.get_data_quality_ruleset.assert_called_once_with(Name=self.RULE_SET_NAME)
+        mock_conn.get_data_quality_ruleset.assert_called_once_with(
+            Name=self.RULE_SET_NAME
+        )
 
     @mock.patch.object(AwsBaseHook, "conn")
     def test_validate_evaluation_results(self, mock_conn, caplog):
@@ -546,15 +591,21 @@ class TestGlueDataQualityHook:
                 }
             ],
         }
-        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = response_evaluation_run
+        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = (
+            response_evaluation_run
+        )
 
         mock_conn.batch_get_data_quality_result.return_value = response_batch_result
 
         with caplog.at_level(logging.INFO, logger=self.glue.log.name):
             caplog.clear()
-            self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=False)
+            self.glue.validate_evaluation_run_results(
+                evaluation_run_id=self.RUN_ID, show_results=False
+            )
 
-        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId=self.RUN_ID)
+        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(
+            RunId=self.RUN_ID
+        )
         mock_conn.batch_get_data_quality_result.assert_called_once_with(
             ResultIds=response_evaluation_run["ResultIds"]
         )
@@ -564,7 +615,9 @@ class TestGlueDataQualityHook:
         ]
 
     @mock.patch.object(AwsBaseHook, "conn")
-    def test_validate_evaluation_results_should_fail_when_any_rules_failed(self, mock_conn, caplog):
+    def test_validate_evaluation_results_should_fail_when_any_rules_failed(
+        self, mock_conn, caplog
+    ):
         response_batch_result = {
             "RunId": self.RUN_ID,
             "ResultIds": ["resultId1"],
@@ -596,7 +649,9 @@ class TestGlueDataQualityHook:
 
         response_evaluation_run = {"RunId": self.RUN_ID, "ResultIds": ["resultId1"]}
 
-        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = response_evaluation_run
+        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = (
+            response_evaluation_run
+        )
 
         mock_conn.batch_get_data_quality_result.return_value = response_batch_result
 
@@ -607,9 +662,13 @@ class TestGlueDataQualityHook:
                 AirflowException,
                 match="AWS Glue data quality ruleset evaluation run failed for one or more rules",
             ):
-                self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=False)
+                self.glue.validate_evaluation_run_results(
+                    evaluation_run_id=self.RUN_ID, show_results=False
+                )
 
-            mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId=self.RUN_ID)
+            mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(
+                RunId=self.RUN_ID
+            )
             mock_conn.batch_get_data_quality_result.assert_called_once_with(
                 ResultIds=response_evaluation_run["ResultIds"]
             )
@@ -627,7 +686,9 @@ class TestGlueDataQualityHook:
                     """
         glue_data_quality_hook_mock_conn.get_data_quality_rule_recommendation_run.return_value = {
             "RunId": self.RUN_ID,
-            "DataSource": {"GlueTable": {"DatabaseName": "TestDB", "TableName": "TestTable"}},
+            "DataSource": {
+                "GlueTable": {"DatabaseName": "TestDB", "TableName": "TestTable"}
+            },
             "RecommendedRuleset": rules,
         }
 

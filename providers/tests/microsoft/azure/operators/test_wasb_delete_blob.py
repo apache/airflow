@@ -21,7 +21,9 @@ import datetime
 from unittest import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
+from airflow.providers.microsoft.azure.operators.wasb_delete_blob import (
+    WasbDeleteBlobOperator,
+)
 
 
 class TestWasbDeleteBlobOperator:
@@ -35,23 +37,36 @@ class TestWasbDeleteBlobOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
-        operator = WasbDeleteBlobOperator(task_id="wasb_operator_1", dag=self.dag, **self._config)
+        operator = WasbDeleteBlobOperator(
+            task_id="wasb_operator_1", dag=self.dag, **self._config
+        )
         assert operator.container_name == self._config["container_name"]
         assert operator.blob_name == self._config["blob_name"]
         assert operator.is_prefix is False
         assert operator.ignore_if_missing is False
 
         operator = WasbDeleteBlobOperator(
-            task_id="wasb_operator_2", dag=self.dag, is_prefix=True, ignore_if_missing=True, **self._config
+            task_id="wasb_operator_2",
+            dag=self.dag,
+            is_prefix=True,
+            ignore_if_missing=True,
+            **self._config,
         )
         assert operator.is_prefix is True
         assert operator.ignore_if_missing is True
 
-    @mock.patch("airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbHook", autospec=True)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbHook",
+        autospec=True,
+    )
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
         operator = WasbDeleteBlobOperator(
-            task_id="wasb_operator", dag=self.dag, is_prefix=True, ignore_if_missing=True, **self._config
+            task_id="wasb_operator",
+            dag=self.dag,
+            is_prefix=True,
+            ignore_if_missing=True,
+            **self._config,
         )
         operator.execute(None)
         mock_instance.delete_file.assert_called_once_with("container", "blob", True, True)

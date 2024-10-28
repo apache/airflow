@@ -75,12 +75,16 @@ def test_get_table_schemas():
     assert table_schemas == (
         [
             Dataset(
-                namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="FOOD_DELIVERY.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             )
         ],
         [
             Dataset(
-                namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="FOOD_DELIVERY.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             )
         ],
     )
@@ -138,10 +142,14 @@ def test_get_table_schemas_with_mixed_databases():
     assert table_schemas == (
         [
             Dataset(
-                namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="FOOD_DELIVERY.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             ),
             Dataset(
-                namespace="bigquery", name="ANOTHER_DB.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="ANOTHER_DB.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             ),
         ],
         [],
@@ -179,7 +187,9 @@ def test_get_table_schemas_with_mixed_schemas():
     assert table_schemas == (
         [
             Dataset(
-                namespace="bigquery", name="FOOD_DELIVERY.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="FOOD_DELIVERY.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             ),
             Dataset(
                 namespace="bigquery",
@@ -238,12 +248,16 @@ def test_get_table_schemas_with_other_database():
     assert table_schemas == (
         [
             Dataset(
-                namespace="bigquery", name="ANOTHER_DB.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="ANOTHER_DB.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             ),
         ],
         [
             Dataset(
-                namespace="bigquery", name="ANOTHER_DB.PUBLIC.DISCOUNTS", facets={"schema": SCHEMA_FACET}
+                namespace="bigquery",
+                name="ANOTHER_DB.PUBLIC.DISCOUNTS",
+                facets={"schema": SCHEMA_FACET},
             ),
         ],
     )
@@ -252,7 +266,10 @@ def test_get_table_schemas_with_other_database():
 @pytest.mark.parametrize(
     "schema_mapping, expected",
     [
-        pytest.param({None: {None: ["C1", "C2"]}}, "information_schema.columns.table_name IN ('C1', 'C2')"),
+        pytest.param(
+            {None: {None: ["C1", "C2"]}},
+            "information_schema.columns.table_name IN ('C1', 'C2')",
+        ),
         pytest.param(
             {None: {"Schema1": ["Table1"], "Schema2": ["Table2"]}},
             "information_schema.columns.table_schema = 'Schema1' AND "
@@ -272,7 +289,12 @@ def test_get_table_schemas_with_other_database():
             "AND information_schema.columns.table_name IN ('Table1', 'Table2')",
         ),
         pytest.param(
-            {"Database1": {"Schema1": ["Table1", "Table2"], "Schema2": ["Table3", "Table4"]}},
+            {
+                "Database1": {
+                    "Schema1": ["Table1", "Table2"],
+                    "Schema2": ["Table3", "Table4"],
+                }
+            },
             "information_schema.columns.table_database = 'Database1' "
             "AND (information_schema.columns.table_schema = 'Schema1' "
             "AND information_schema.columns.table_name IN ('Table1', 'Table2') "
@@ -280,7 +302,10 @@ def test_get_table_schemas_with_other_database():
             "AND information_schema.columns.table_name IN ('Table3', 'Table4'))",
         ),
         pytest.param(
-            {"Database1": {"Schema1": ["Table1", "Table2"]}, "Database2": {"Schema2": ["Table3", "Table4"]}},
+            {
+                "Database1": {"Schema1": ["Table1", "Table2"]},
+                "Database2": {"Schema2": ["Table3", "Table4"]},
+            },
             "information_schema.columns.table_database = 'Database1' "
             "AND information_schema.columns.table_schema = 'Schema1' "
             "AND information_schema.columns.table_name IN ('Table1', 'Table2') OR "
@@ -347,7 +372,10 @@ def test_create_create_information_schema_query_cross_db():
         create_information_schema_query(
             columns=columns,
             information_schema_table_name="information_schema.columns",
-            tables_hierarchy={"db": {"schema1": ["table1"]}, "db2": {"schema1": ["table2"]}},
+            tables_hierarchy={
+                "db": {"schema1": ["table1"]},
+                "db2": {"schema1": ["table2"]},
+            },
         )
         == "SELECT db.information_schema.columns.table_schema, db.information_schema.columns.table_name, "
         "db.information_schema.columns.column_name, db.information_schema.columns.ordinal_position, "

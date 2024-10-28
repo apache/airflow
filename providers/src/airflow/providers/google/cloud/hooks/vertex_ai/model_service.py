@@ -53,12 +53,16 @@ class ModelServiceHook(GoogleBaseHook):
     def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
         """Return ModelServiceClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return ModelServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=self.client_info,
+            client_options=client_options,
         )
 
     @staticmethod

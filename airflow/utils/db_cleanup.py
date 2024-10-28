@@ -80,7 +80,9 @@ class _TableConfig:
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
         self.orm_model: Base = table(
-            self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
+            self.table_name,
+            *[column(x) for x in self.extra_columns or []],
+            self.recency_column,
         )
 
     def __lt__(self, other):
@@ -92,7 +94,9 @@ class _TableConfig:
             "table": self.orm_model.name,
             "recency_column": str(self.recency_column),
             "keep_last": self.keep_last,
-            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters]
+            if self.keep_last_filters
+            else None,
             "keep_last_group_by": str(self.keep_last_group_by),
         }
 
@@ -142,7 +146,9 @@ def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
     return num_entities
 
 
-def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str, session: Session) -> None:
+def _dump_table_to_file(
+    *, target_table: str, file_path: str, export_format: str, session: Session
+) -> None:
     if export_format == "csv":
         with open(file_path, "w") as f:
             csv_writer = csv.writer(f)
@@ -153,7 +159,9 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
         raise AirflowException(f"Export format {export_format} is not supported.")
 
 
-def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Session) -> None:
+def _do_delete(
+    *, query: Query, orm_model: Base, skip_archive: bool, session: Session
+) -> None:
     import re2
 
     print("Performing Delete...")
@@ -187,11 +195,18 @@ def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Se
     if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
-            tuple_(*pk_cols).in_(select(*[target_table.c[x.name] for x in source_table.primary_key.columns]))
+            tuple_(*pk_cols).in_(
+                select(
+                    *[target_table.c[x.name] for x in source_table.primary_key.columns]
+                )
+            )
         )
     else:
         delete = source_table.delete().where(
-            and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+            and_(
+                col == target_table.c[col.name]
+                for col in source_table.primary_key.columns
+            )
         )
     logger.debug("delete statement:\n%s", delete.compile())
     session.execute(delete)
@@ -204,7 +219,12 @@ def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Se
 
 
 def _subquery_keep_last(
-    *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
+    *,
+    recency_column,
+    keep_last_filters,
+    group_by_columns,
+    max_date_colname,
+    session: Session,
 ) -> Query:
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
@@ -302,7 +322,9 @@ def _cleanup_table(
     num_rows = _check_for_rows(query=query, print_rows=False)
 
     if num_rows and not dry_run:
-        _do_delete(query=query, orm_model=orm_model, skip_archive=skip_archive, session=session)
+        _do_delete(
+            query=query, orm_model=orm_model, skip_archive=skip_archive, session=session
+        )
 
     session.commit()
 
@@ -365,23 +387,34 @@ def _suppress_with_logging(table: str, session: Session):
             session.rollback()
 
 
-def _effective_table_names(*, table_names: list[str] | None) -> tuple[set[str], dict[str, _TableConfig]]:
+def _effective_table_names(
+    *, table_names: list[str] | None
+) -> tuple[set[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in desired_table_names}
+    effective_config_dict = {
+        k: v for k, v in config_dict.items() if k in desired_table_names
+    }
     effective_table_names = set(effective_config_dict)
     if desired_table_names != effective_table_names:
         outliers = desired_table_names - effective_table_names
         logger.warning(
-            "The following table(s) are not valid choices and will be skipped: %s", sorted(outliers)
+            "The following table(s) are not valid choices and will be skipped: %s",
+            sorted(outliers),
         )
     if not effective_table_names:
-        raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
+        raise SystemExit(
+            "No tables selected for db cleanup. Please choose valid table names."
+        )
     return effective_table_names, effective_config_dict
 
 
-def _get_archived_table_names(table_names: list[str] | None, session: Session) -> list[str]:
+def _get_archived_table_names(
+    table_names: list[str] | None, session: Session
+) -> list[str]:
     inspector = inspect(session.bind)
-    db_table_names = [x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)]
+    db_table_names = [
+        x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)
+    ]
     effective_table_names, _ = _effective_table_names(table_names=table_names)
     # Filter out tables that don't start with the archive prefix
     archived_table_names = [
@@ -423,7 +456,9 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
-    effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
+    effective_table_names, effective_config_dict = _effective_table_names(
+        table_names=table_names
+    )
     if dry_run:
         print("Performing dry run for db cleanup.")
         print(
@@ -480,7 +515,9 @@ def export_archived_records(
             logger.info("Dropping archived table %s", table_name)
             session.execute(text(f"DROP TABLE {table_name}"))
             dropped_count += 1
-    logger.info("Total exported tables: %s, Total dropped tables: %s", export_count, dropped_count)
+    logger.info(
+        "Total exported tables: %s, Total dropped tables: %s", export_count, dropped_count
+    )
 
 
 @provide_session

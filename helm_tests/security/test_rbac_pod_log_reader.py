@@ -28,7 +28,11 @@ class TestPodReader:
     @pytest.mark.parametrize(
         "triggerer, webserver, expected",
         [
-            (True, True, ["release-name-airflow-webserver", "release-name-airflow-triggerer"]),
+            (
+                True,
+                True,
+                ["release-name-airflow-webserver", "release-name-airflow-triggerer"],
+            ),
             (True, False, ["release-name-airflow-triggerer"]),
             (False, True, ["release-name-airflow-webserver"]),
             (False, False, []),
@@ -93,7 +97,10 @@ class TestPodReader:
     ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={
+                "webserver": {"allowPodLogReading": True},
+                "multiNamespaceMode": multiNamespaceMode,
+            },
             show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
         )
 
@@ -120,10 +127,15 @@ class TestPodReader:
             (False, "namespace", "release-name-pod-log-reader-role"),
         ],
     )
-    def test_pod_log_reader_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
+    def test_pod_log_reader_role_multi_namespace(
+        self, multiNamespaceMode, namespace, expectedRole
+    ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={
+                "webserver": {"allowPodLogReading": True},
+                "multiNamespaceMode": multiNamespaceMode,
+            },
             show_only=["templates/rbac/pod-log-reader-role.yaml"],
         )
 

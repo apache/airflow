@@ -94,7 +94,9 @@ class TestSalesforceBulkOperator:
 
         operator.execute(context={})
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).insert.assert_called_once_with(
+        mock_get_conn.return_value.bulk.__getattr__(
+            object_name
+        ).insert.assert_called_once_with(
             data=payload,
             batch_size=batch_size,
             use_serial=use_serial,
@@ -127,7 +129,9 @@ class TestSalesforceBulkOperator:
 
         operator.execute(context={})
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).update.assert_called_once_with(
+        mock_get_conn.return_value.bulk.__getattr__(
+            object_name
+        ).update.assert_called_once_with(
             data=payload,
             batch_size=batch_size,
             use_serial=use_serial,
@@ -162,7 +166,9 @@ class TestSalesforceBulkOperator:
 
         operator.execute(context={})
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).upsert.assert_called_once_with(
+        mock_get_conn.return_value.bulk.__getattr__(
+            object_name
+        ).upsert.assert_called_once_with(
             data=payload,
             external_id_field=external_id_field,
             batch_size=batch_size,
@@ -196,7 +202,9 @@ class TestSalesforceBulkOperator:
 
         operator.execute(context={})
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).delete.assert_called_once_with(
+        mock_get_conn.return_value.bulk.__getattr__(
+            object_name
+        ).delete.assert_called_once_with(
             data=payload,
             batch_size=batch_size,
             use_serial=use_serial,
@@ -229,7 +237,9 @@ class TestSalesforceBulkOperator:
 
         operator.execute(context={})
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete.assert_called_once_with(
+        mock_get_conn.return_value.bulk.__getattr__(
+            object_name
+        ).hard_delete.assert_called_once_with(
             data=payload,
             batch_size=batch_size,
             use_serial=use_serial,

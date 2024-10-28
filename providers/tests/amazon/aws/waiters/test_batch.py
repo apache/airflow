@@ -74,5 +74,9 @@ class TestCustomBatchServiceWaiters:
         ]
         waiter = BatchClientHook(aws_conn_id=None).get_waiter("batch_job_complete")
 
-        with pytest.raises(WaiterError, match="Waiter encountered a terminal failure state"):
-            waiter.wait(jobs=[self.JOB_ID], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
+        with pytest.raises(
+            WaiterError, match="Waiter encountered a terminal failure state"
+        ):
+            waiter.wait(
+                jobs=[self.JOB_ID], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2}
+            )

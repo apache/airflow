@@ -40,7 +40,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "datacatalog_tag_templates"
 
@@ -161,7 +163,10 @@ with DAG(
 
     # [START howto_operator_gcp_datacatalog_delete_tag_template]
     delete_tag_template = CloudDataCatalogDeleteTagTemplateOperator(
-        task_id="delete_tag_template", location=LOCATION, tag_template=TEMPLATE_ID, force=True
+        task_id="delete_tag_template",
+        location=LOCATION,
+        tag_template=TEMPLATE_ID,
+        force=True,
     )
     # [END howto_operator_gcp_datacatalog_delete_tag_template]
     delete_tag_template.trigger_rule = TriggerRule.ALL_DONE

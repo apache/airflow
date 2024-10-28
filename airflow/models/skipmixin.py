@@ -76,7 +76,9 @@ class SkipMixin(LoggingMixin):
                     .where(
                         TaskInstance.dag_id == dag_run.dag_id,
                         TaskInstance.run_id == dag_run.run_id,
-                        tuple_in_condition((TaskInstance.task_id, TaskInstance.map_index), tasks),
+                        tuple_in_condition(
+                            (TaskInstance.task_id, TaskInstance.map_index), tasks
+                        ),
                     )
                     .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
                     .execution_options(synchronize_session=False)
@@ -102,7 +104,9 @@ class SkipMixin(LoggingMixin):
         """Facade for compatibility for call to internal API."""
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         task_id: str | None = getattr(self, "task_id", None)
-        SkipMixin._skip(dag_run=dag_run, task_id=task_id, tasks=tasks, map_index=map_index)
+        SkipMixin._skip(
+            dag_run=dag_run, task_id=task_id, tasks=tasks, map_index=map_index
+        )
 
     @staticmethod
     @internal_api_call
@@ -179,13 +183,17 @@ class SkipMixin(LoggingMixin):
         branch_task_ids is stored to XCom so that NotPreviouslySkippedDep knows skipped tasks or
         newly added tasks should be skipped when they are cleared.
         """
-        log = cls().log  # Note: need to catch logger form instance, static logger breaks pytest
+        log = (
+            cls().log
+        )  # Note: need to catch logger form instance, static logger breaks pytest
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
             branch_task_id_set = set(branch_task_ids)
             invalid_task_ids_type = {
-                (bti, type(bti).__name__) for bti in branch_task_id_set if not isinstance(bti, str)
+                (bti, type(bti).__name__)
+                for bti in branch_task_id_set
+                if not isinstance(bti, str)
             }
             if invalid_task_ids_type:
                 raise AirflowException(
@@ -234,7 +242,9 @@ class SkipMixin(LoggingMixin):
             #       task1
             #
             for branch_task_id in list(branch_task_id_set):
-                branch_task_id_set.update(dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False))
+                branch_task_id_set.update(
+                    dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False)
+                )
 
             skip_tasks = [
                 (t.task_id, downstream_ti.map_index)
@@ -247,9 +257,13 @@ class SkipMixin(LoggingMixin):
                 and t.task_id not in branch_task_id_set
             ]
 
-            follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
+            follow_task_ids = [
+                t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set
+            ]
             log.info("Skipping tasks %s", skip_tasks)
             SkipMixin._set_state_to_skipped(dag_run, skip_tasks, session=session)
             ti.xcom_push(
-                key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
+                key=XCOM_SKIPMIXIN_KEY,
+                value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids},
+                session=session,
             )

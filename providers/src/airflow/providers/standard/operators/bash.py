@@ -26,7 +26,11 @@ from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
+from airflow.providers.standard.hooks.subprocess import (
+    SubprocessHook,
+    SubprocessResult,
+    working_directory,
+)
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.types import ArgNotSet
 
@@ -169,7 +173,9 @@ class BashOperator(BaseOperator):
         self.output_encoding = output_encoding
         if skip_exit_code is not None:
             warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
+                "skip_exit_code is deprecated. Please use skip_on_exit_code",
+                DeprecationWarning,
+                stacklevel=2,
             )
             skip_on_exit_code = skip_exit_code
         self.skip_on_exit_code = (
@@ -247,11 +253,15 @@ class BashOperator(BaseOperator):
         # Both will ensure the correct Bash command is executed and that the Rendered Template view in the UI
         # displays the executed command (otherwise it will display as an ArgNotSet type).
         if self._init_bash_command_not_set:
-            is_inline_command = self._is_inline_command(bash_command=cast(str, self.bash_command))
+            is_inline_command = self._is_inline_command(
+                bash_command=cast(str, self.bash_command)
+            )
             ti = cast("TaskInstance", context["ti"])
             self.refresh_bash_command(ti)
         else:
-            is_inline_command = self._is_inline_command(bash_command=cast(str, self._unrendered_bash_command))
+            is_inline_command = self._is_inline_command(
+                bash_command=cast(str, self._unrendered_bash_command)
+            )
 
         if is_inline_command:
             result = self._run_inline_command(bash_path=bash_path, env=env)
@@ -259,7 +269,9 @@ class BashOperator(BaseOperator):
             result = self._run_rendered_script_file(bash_path=bash_path, env=env)
 
         if result.exit_code in self.skip_on_exit_code:
-            raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
+            raise AirflowSkipException(
+                f"Bash command returned exit code {result.exit_code}. Skipping."
+            )
         elif result.exit_code != 0:
             raise AirflowException(
                 f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."

@@ -37,7 +37,9 @@ from airflow.providers.google.cloud.links.mlengine import (
     MLEngineModelVersionDetailsLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
+from airflow.providers.google.cloud.triggers.mlengine import (
+    MLEngineStartTrainingJobTrigger,
+)
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -225,7 +227,9 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         if not self.project_id:
             raise AirflowException("Google Cloud project id is required.")
         if not self.job_id:
-            raise AirflowException("An unique job id is required for Google MLEngine prediction job.")
+            raise AirflowException(
+                "An unique job id is required for Google MLEngine prediction job."
+            )
 
         if self.uri:
             if self.model_name or self.version_name:
@@ -268,27 +272,40 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
                 )
 
         if self._max_worker_count:
-            prediction_request["predictionInput"]["maxWorkerCount"] = self._max_worker_count
+            prediction_request["predictionInput"]["maxWorkerCount"] = (
+                self._max_worker_count
+            )
 
         if self._runtime_version:
-            prediction_request["predictionInput"]["runtimeVersion"] = self._runtime_version
+            prediction_request["predictionInput"]["runtimeVersion"] = (
+                self._runtime_version
+            )
 
         if self._signature_name:
             prediction_request["predictionInput"]["signatureName"] = self._signature_name
 
-        hook = MLEngineHook(gcp_conn_id=self._gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
         # Helper method to check if the existing job's prediction input is the
         # same as the request we get here.
         def check_existing_job(existing_job):
-            return existing_job.get("predictionInput") == prediction_request["predictionInput"]
+            return (
+                existing_job.get("predictionInput")
+                == prediction_request["predictionInput"]
+            )
 
         finished_prediction_job = hook.create_job(
-            project_id=self.project_id, job=prediction_request, use_existing_job_fn=check_existing_job
+            project_id=self.project_id,
+            job=prediction_request,
+            use_existing_job_fn=check_existing_job,
         )
 
         if finished_prediction_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine batch prediction job failed: %s", finished_prediction_job)
+            self.log.error(
+                "MLEngine batch prediction job failed: %s", finished_prediction_job
+            )
             raise RuntimeError(finished_prediction_job["errorMessage"])
 
         return finished_prediction_job["predictionOutput"]
@@ -362,7 +379,9 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         if self._operation == "create":
             return hook.create_model(project_id=self.project_id, model=self.model)
         elif self._operation == "get":
-            return hook.get_model(project_id=self.project_id, model_name=self.model["name"])
+            return hook.get_model(
+                project_id=self.project_id, model_name=self.model["name"]
+            )
         else:
             raise ValueError(f"Unknown operation: {self._operation}")
 
@@ -591,7 +610,9 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
             )
 
         return hook.delete_model(
-            project_id=self.project_id, model_name=self.model_name, delete_contents=self._delete_contents
+            project_id=self.project_id,
+            model_name=self.model_name,
+            delete_contents=self._delete_contents,
         )
 
 
@@ -694,19 +715,29 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
 
         if self._operation == "create":
             if not self.version:
-                raise ValueError(f"version attribute of {self.__class__.__name__} could not be empty")
+                raise ValueError(
+                    f"version attribute of {self.__class__.__name__} could not be empty"
+                )
             return hook.create_version(
-                project_id=self.project_id, model_name=self.model_name, version_spec=self.version
+                project_id=self.project_id,
+                model_name=self.model_name,
+                version_spec=self.version,
             )
         elif self._operation == "set_default":
             return hook.set_default_version(
-                project_id=self.project_id, model_name=self.model_name, version_name=self.version["name"]
+                project_id=self.project_id,
+                model_name=self.model_name,
+                version_name=self.version["name"],
             )
         elif self._operation == "list":
-            return hook.list_versions(project_id=self.project_id, model_name=self.model_name)
+            return hook.list_versions(
+                project_id=self.project_id, model_name=self.model_name
+            )
         elif self._operation == "delete":
             return hook.delete_version(
-                project_id=self.project_id, model_name=self.model_name, version_name=self.version["name"]
+                project_id=self.project_id,
+                model_name=self.model_name,
+                version_name=self.version["name"],
             )
         else:
             raise ValueError(f"Unknown operation: {self._operation}")
@@ -797,7 +828,9 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
             )
 
         return hook.create_version(
-            project_id=self.project_id, model_name=self.model_name, version_spec=self.version
+            project_id=self.project_id,
+            model_name=self.model_name,
+            version_spec=self.version,
         )
 
 
@@ -888,7 +921,9 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
             )
 
         return hook.set_default_version(
-            project_id=self.project_id, model_name=self.model_name, version_name=self.version_name
+            project_id=self.project_id,
+            model_name=self.model_name,
+            version_name=self.version_name,
         )
 
 
@@ -1062,7 +1097,9 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
             )
 
         return hook.delete_version(
-            project_id=self.project_id, model_name=self.model_name, version_name=self.version_name
+            project_id=self.project_id,
+            model_name=self.model_name,
+            version_name=self.version_name,
         )
 
 
@@ -1180,7 +1217,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         hyperparameters: dict | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
@@ -1214,19 +1253,25 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         custom = self.scale_tier is not None and self.scale_tier.upper() == "CUSTOM"
         custom_image = (
-            custom and self.master_config is not None and self.master_config.get("imageUri", None) is not None
+            custom
+            and self.master_config is not None
+            and self.master_config.get("imageUri", None) is not None
         )
 
         if not self.project_id:
             raise AirflowException("Google Cloud project id is required.")
         if not self.job_id:
-            raise AirflowException("An unique job id is required for Google MLEngine training job.")
+            raise AirflowException(
+                "An unique job id is required for Google MLEngine training job."
+            )
         if not self.region:
             raise AirflowException("Google Compute Engine region is required.")
         if custom and not self.master_type:
             raise AirflowException("master_type must be set when scale_tier is CUSTOM")
         if self.master_config and not self.master_type:
-            raise AirflowException("master_type must be set when master_config is provided")
+            raise AirflowException(
+                "master_type must be set when master_config is provided"
+            )
         if not (self.package_uris and self.training_python_module) and not custom_image:
             raise AirflowException(
                 "Either a Python package with a Python module or a custom Docker image should be provided."
@@ -1249,7 +1294,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
             training_request["trainingInput"]["packageUris"] = self.package_uris
 
         if self.training_python_module:
-            training_request["trainingInput"]["pythonModule"] = self.training_python_module
+            training_request["trainingInput"]["pythonModule"] = (
+                self.training_python_module
+            )
 
         if self.training_args:
             training_request["trainingInput"]["args"] = self.training_args
@@ -1400,7 +1447,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)  # type: ignore[union-attr]
         else:
-            self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.job_id)
+            self.log.info(
+                "Skipping to cancel job: %s:%s.%s", self.project_id, self.job_id
+            )
 
 
 @deprecated(
@@ -1501,4 +1550,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
             )
 
-        hook.cancel_job(project_id=self.project_id, job_id=_normalize_mlengine_job_id(self.job_id))
+        hook.cancel_job(
+            project_id=self.project_id, job_id=_normalize_mlengine_job_id(self.job_id)
+        )

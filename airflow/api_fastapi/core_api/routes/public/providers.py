@@ -21,7 +21,10 @@ import re2
 
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.providers import ProviderCollectionResponse, ProviderResponse
+from airflow.api_fastapi.core_api.serializers.providers import (
+    ProviderCollectionResponse,
+    ProviderResponse,
+)
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 
 providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")
@@ -46,7 +49,8 @@ async def get_providers(
 ) -> ProviderCollectionResponse:
     """Get providers."""
     providers = sorted(
-        [_provider_mapper(d) for d in ProvidersManager().providers.values()], key=lambda x: x.package_name
+        [_provider_mapper(d) for d in ProvidersManager().providers.values()],
+        key=lambda x: x.package_name,
     )
     total_entries = len(providers)
 

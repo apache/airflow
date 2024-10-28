@@ -87,11 +87,15 @@ if __name__ == "__main__":
     errors = False
     top_level_files = [file for file in files if MATCH_TOP_LEVEL_TEST_FILES.match(file)]
     if top_level_files:
-        console.print("[red]There should be no test files directly in the top-level of `tests` folder:[/]")
+        console.print(
+            "[red]There should be no test files directly in the top-level of `tests` folder:[/]"
+        )
         console.print(top_level_files)
         errors = True
     for file in files:
-        if not any(file.startswith(f"tests/{folder}/") for folder in POSSIBLE_TEST_FOLDERS):
+        if not any(
+            file.startswith(f"tests/{folder}/") for folder in POSSIBLE_TEST_FOLDERS
+        ):
             console.print(
                 "[red]The file is in a wrong folder. Make sure to move it to the right folder "
                 "listed in `./script/ci/pre_commit/check_tests_in_right_folders.py` "

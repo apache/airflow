@@ -76,9 +76,15 @@ def replace_match(file: Path, line: str) -> str | None:
                 console.print(f"[yellow] Removing from {file}[/]\n{line.strip()}")
                 return None
             else:
-                new_line = re.sub(EXAMPLE_DAGS_URL_MATCHER, r"\1" + proper_system_tests_url + r"\5", line)
+                new_line = re.sub(
+                    EXAMPLE_DAGS_URL_MATCHER,
+                    r"\1" + proper_system_tests_url + r"\5",
+                    line,
+                )
                 if new_line != line:
-                    console.print(f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}")
+                    console.print(
+                        f"[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}"
+                    )
                 return new_line
     return line
 

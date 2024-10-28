@@ -32,7 +32,9 @@ class TestSecretsManagerHook:
         assert hook.get_conn() is not None
 
     def test_get_secret_string(self):
-        secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        secret_name = (
+            "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        )
         secret_value = "test"
         hook = SecretsManagerHook(aws_conn_id="aws_default")
 
@@ -47,7 +49,9 @@ class TestSecretsManagerHook:
         assert secret == secret_value
 
     def test_get_secret_dict(self):
-        secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        secret_name = (
+            "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        )
         secret_value = '{"user": "test"}'
         hook = SecretsManagerHook(aws_conn_id="aws_default")
 
@@ -62,7 +66,9 @@ class TestSecretsManagerHook:
         assert secret == json.loads(secret_value)
 
     def test_get_secret_binary(self):
-        secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        secret_name = (
+            "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
+        )
         secret_value_binary = base64.b64encode(b'{"username": "test"}')
         hook = SecretsManagerHook(aws_conn_id="aws_default")
         create_param = {"Name": secret_name, "SecretBinary": secret_value_binary}

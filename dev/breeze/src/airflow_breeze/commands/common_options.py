@@ -177,7 +177,10 @@ option_dry_run = click.option(
     callback=_set_default_from_parent,
 )
 option_forward_credentials = click.option(
-    "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
+    "-f",
+    "--forward-credentials",
+    help="Forward local credentials to container when running.",
+    is_flag=True,
 )
 option_excluded_providers = click.option(
     "--excluded-providers",
@@ -237,7 +240,9 @@ option_integration = click.option(
     multiple=True,
 )
 option_image_name = click.option(
-    "-n", "--image-name", help="Name of the image to verify (overrides --python and --image-tag)."
+    "-n",
+    "--image-name",
+    help="Name of the image to verify (overrides --python and --image-tag).",
 )
 option_image_tag_for_running = click.option(
     "--image-tag",

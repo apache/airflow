@@ -103,7 +103,9 @@ class OracleStoredProcedureOperator(BaseOperator):
         self.log.info("Executing: %s", self.procedure)
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         try:
-            return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
+            return hook.callproc(
+                self.procedure, autocommit=True, parameters=self.parameters
+            )
         except oracledb.DatabaseError as e:
             if not self.do_xcom_push or not context:
                 raise

@@ -169,9 +169,13 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         return_code = None
         try:
             self.task_runner.start()
-            local_task_job_heartbeat_sec = conf.getint("scheduler", "local_task_job_heartbeat_sec")
+            local_task_job_heartbeat_sec = conf.getint(
+                "scheduler", "local_task_job_heartbeat_sec"
+            )
             if local_task_job_heartbeat_sec < 1:
-                heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+                heartbeat_time_limit = conf.getint(
+                    "scheduler", "scheduler_zombie_task_threshold"
+                )
             else:
                 heartbeat_time_limit = local_task_job_heartbeat_sec
 
@@ -196,9 +200,14 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                         min(
                             (
                                 heartbeat_time_limit
-                                - (timezone.utcnow() - self.job.latest_heartbeat).total_seconds() * 0.75
+                                - (
+                                    timezone.utcnow() - self.job.latest_heartbeat
+                                ).total_seconds()
+                                * 0.75
                             ),
-                            self.job.heartrate if self.job.heartrate is not None else heartbeat_time_limit,
+                            self.job.heartrate
+                            if self.job.heartrate is not None
+                            else heartbeat_time_limit,
                         ),
                     )
                     return_code = self.task_runner.return_code(timeout=max_wait_time)
@@ -210,7 +219,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                         span.add_event(name="perform_heartbeat")
                     try:
                         perform_heartbeat(
-                            job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
+                            job=self.job,
+                            heartbeat_callback=self.heartbeat_callback,
+                            only_if_necessary=False,
                         )
                     except Exception as e:
                         # Failing the heartbeat should never kill the localtaskjob
@@ -266,8 +277,12 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info(message)
 
         if not (self.task_instance.test_mode or is_deferral):
-            if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
-                self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
+            if conf.getboolean(
+                "scheduler", "schedule_after_task_execution", fallback=True
+            ):
+                self.task_instance.schedule_downstream_tasks(
+                    max_tis_per_query=self.job.max_tis_per_query
+                )
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -316,11 +331,17 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
             if recorded_pid is not None and not same_process and not IS_WINDOWS:
                 self.log.warning(
-                    "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
+                    "Recorded pid %s does not match the current pid %s",
+                    recorded_pid,
+                    current_pid,
                 )
                 raise AirflowException("PID of job runner does not match")
-        elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
-            self._overtime = (timezone.utcnow() - (ti.end_date or timezone.utcnow())).total_seconds()
+        elif self.task_runner.return_code() is None and hasattr(
+            self.task_runner, "process"
+        ):
+            self._overtime = (
+                timezone.utcnow() - (ti.end_date or timezone.utcnow())
+            ).total_seconds()
             if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
@@ -344,7 +365,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             # let's do a throttle here, if the above case is true, the handle_task_exit will handle it
             if self._state_change_checks >= 1:  # defer to next round of heartbeat
                 self.log.warning(
-                    "State of this instance has been externally set to %s. Terminating instance.", ti.state
+                    "State of this instance has been externally set to %s. Terminating instance.",
+                    ti.state,
                 )
                 self.terminating = True
             self._state_change_checks += 1

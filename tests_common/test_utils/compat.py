@@ -175,4 +175,7 @@ def ignore_provider_compatibility_error(minimum_version: str, module_name: str):
         else:
             raise
     except AirflowOptionalProviderFeatureException as e:
-        pytest.skip(reason=f"Skip test as optional feature is not available {e}.", allow_module_level=True)
+        pytest.skip(
+            reason=f"Skip test as optional feature is not available {e}.",
+            allow_module_level=True,
+        )

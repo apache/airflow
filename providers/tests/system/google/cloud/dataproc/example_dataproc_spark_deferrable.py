@@ -39,7 +39,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_spark_deferrable"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
@@ -92,7 +94,11 @@ with DAG(
     )
 
     spark_task = DataprocSubmitJobOperator(
-        task_id="spark_task", job=SPARK_JOB, region=REGION, project_id=PROJECT_ID, deferrable=True
+        task_id="spark_task",
+        job=SPARK_JOB,
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
     )
 
     delete_cluster = DataprocDeleteClusterOperator(

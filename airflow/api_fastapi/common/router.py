@@ -58,7 +58,9 @@ class AirflowRouter(APIRouter):
         name: str | None = None,
         callbacks: list[BaseRoute] | None = None,
         openapi_extra: dict[str, Any] | None = None,
-        generate_unique_id_function: Callable[[APIRoute], str] = Default(generate_unique_id),
+        generate_unique_id_function: Callable[[APIRoute], str] = Default(
+            generate_unique_id
+        ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_route(

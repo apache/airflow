@@ -70,7 +70,9 @@ def create_avp_policy_store(env_id):
     schema_path = (
         Path(__file__)
         .parents[6]
-        .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json")
+        .joinpath(
+            "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        )
         .resolve()
     )
     with open(schema_path) as schema_file:
@@ -186,7 +188,8 @@ class TestAwsAuthManager:
             for page in pages
             for store in page["policyStores"]
             if "description" in store
-            and f"Created by system test TestAwsAuthManager: {env_id_cache}" in store["description"]
+            and f"Created by system test TestAwsAuthManager: {env_id_cache}"
+            in store["description"]
         ]
 
         for policy_store_id in policy_store_ids:
@@ -195,7 +198,9 @@ class TestAwsAuthManager:
     def test_login_no_permissions(self, client_no_permissions):
         with client_no_permissions.test_client() as client:
             response = client.get("/login_callback", follow_redirects=True)
-            check_content_in_response("Your user has no roles and/or permissions!", response, 403)
+            check_content_in_response(
+                "Your user has no roles and/or permissions!", response, 403
+            )
 
     def test_login_admin(self, client_admin_permissions):
         with client_admin_permissions.test_client() as client:

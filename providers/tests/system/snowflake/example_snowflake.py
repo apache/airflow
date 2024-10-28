@@ -32,9 +32,7 @@ SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 SNOWFLAKE_SAMPLE_TABLE = "sample_table"
 
 # SQL commands
-CREATE_TABLE_SQL_STRING = (
-    f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
-)
+CREATE_TABLE_SQL_STRING = f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
 SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
 SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(10)]
 SQL_MULTIPLE_STMTS = "; ".join(SQL_LIST)
@@ -61,7 +59,9 @@ with DAG(
         parameters={"id": 56},
     )
 
-    snowflake_op_sql_list = SQLExecuteQueryOperator(task_id="snowflake_op_sql_list", sql=SQL_LIST)
+    snowflake_op_sql_list = SQLExecuteQueryOperator(
+        task_id="snowflake_op_sql_list", sql=SQL_LIST
+    )
 
     snowflake_op_sql_multiple_stmts = SQLExecuteQueryOperator(
         task_id="snowflake_op_sql_multiple_stmts",

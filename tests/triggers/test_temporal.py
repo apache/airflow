@@ -34,7 +34,9 @@ def test_input_validation():
     """
     Tests that the DateTimeTrigger validates input to moment arg, it should only accept datetime.
     """
-    with pytest.raises(TypeError, match="Expected datetime.datetime type for moment. Got <class 'str'>"):
+    with pytest.raises(
+        TypeError, match="Expected datetime.datetime type for moment. Got <class 'str'>"
+    ):
         DateTimeTrigger("2012-01-01T03:03:03+00:00")
 
 
@@ -89,8 +91,12 @@ async def test_datetime_trigger_timing(tz, end_from_trigger):
     Tests that the DateTimeTrigger only goes off on or after the appropriate
     time.
     """
-    past_moment = pendulum.instance((timezone.utcnow() - datetime.timedelta(seconds=60)).astimezone(tz))
-    future_moment = pendulum.instance((timezone.utcnow() + datetime.timedelta(seconds=60)).astimezone(tz))
+    past_moment = pendulum.instance(
+        (timezone.utcnow() - datetime.timedelta(seconds=60)).astimezone(tz)
+    )
+    future_moment = pendulum.instance(
+        (timezone.utcnow() + datetime.timedelta(seconds=60)).astimezone(tz)
+    )
 
     # Create a task that runs the trigger for a short time then cancels it
     trigger = DateTimeTrigger(future_moment, end_from_trigger=end_from_trigger)

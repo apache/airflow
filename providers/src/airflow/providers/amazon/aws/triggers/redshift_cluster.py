@@ -251,7 +251,9 @@ class RedshiftClusterTrigger(BaseTrigger):
             while True:
                 status = await hook.cluster_status_async(self.cluster_identifier)
                 if status == self.target_status:
-                    yield TriggerEvent({"status": "success", "message": "target state met"})
+                    yield TriggerEvent(
+                        {"status": "success", "message": "target state met"}
+                    )
                     return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:

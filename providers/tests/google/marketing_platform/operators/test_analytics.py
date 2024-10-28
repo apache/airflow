@@ -43,7 +43,9 @@ BUCKET_OBJECT_NAME = "file.csv"
 
 
 class TestGoogleAnalyticsListAccountsOperator:
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook"
+    )
     def test_execute(self, hook_mock):
         with pytest.warns(AirflowProviderDeprecationWarning):
             op = GoogleAnalyticsListAccountsOperator(
@@ -58,7 +60,9 @@ class TestGoogleAnalyticsListAccountsOperator:
 
 
 class TestGoogleAnalyticsRetrieveAdsLinksListOperator:
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook"
+    )
     def test_execute(self, hook_mock):
         with pytest.warns(AirflowProviderDeprecationWarning):
             op = GoogleAnalyticsRetrieveAdsLinksListOperator(
@@ -83,7 +87,9 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator:
 
 
 class TestGoogleAnalyticsGetAdsLinkOperator:
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook"
+    )
     def test_execute(self, hook_mock):
         with pytest.warns(AirflowProviderDeprecationWarning):
             op = GoogleAnalyticsGetAdsLinkOperator(
@@ -111,9 +117,13 @@ class TestGoogleAnalyticsGetAdsLinkOperator:
 
 
 class TestGoogleAnalyticsDataImportUploadOperator:
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook"
+    )
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GCSHook")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile"
+    )
     def test_execute(self, mock_tempfile, gcs_hook_mock, ga_hook_mock):
         filename = "file/"
         mock_tempfile.return_value.__enter__.return_value.name = filename
@@ -154,7 +164,9 @@ class TestGoogleAnalyticsDataImportUploadOperator:
 
 
 class TestGoogleAnalyticsDeletePreviousDataUploadsOperator:
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook"
+    )
     def test_execute(self, mock_hook):
         mock_hook.return_value.list_uploads.return_value = [
             {"id": 1},
@@ -240,7 +252,9 @@ how_to_make_doughnuts,2
         "airflow.providers.google.marketing_platform.operators."
         "analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator._modify_column_headers"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.analytics.NamedTemporaryFile"
+    )
     def test_execute(self, mock_tempfile, mock_modify, mock_hook):
         mapping = {"a": "b"}
         filename = "file/"
@@ -270,4 +284,6 @@ how_to_make_doughnuts,2
             tmp_file_location=filename, custom_dimension_header_mapping=mapping
         )
 
-        mock_hook.return_value.upload(bucket_name=BUCKET, object_name=BUCKET_OBJECT_NAME, filename=filename)
+        mock_hook.return_value.upload(
+            bucket_name=BUCKET, object_name=BUCKET_OBJECT_NAME, filename=filename
+        )

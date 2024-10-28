@@ -83,7 +83,11 @@ class ForbiddenWarningsPlugin:
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int):
         """Save set of test node ids in the session finish on xdist worker node."""
         yield
-        if self.is_worker_node and self.detected_cases and hasattr(self.config, "workeroutput"):
+        if (
+            self.is_worker_node
+            and self.detected_cases
+            and hasattr(self.config, "workeroutput")
+        ):
             self.config.workeroutput[self.node_key] = frozenset(self.detected_cases)
 
     @pytest.hookimpl(optionalhook=True)
@@ -98,7 +102,9 @@ class ForbiddenWarningsPlugin:
 
         self.detected_cases |= node_detected_cases
 
-    def pytest_exception_interact(self, node: pytest.Item, call: pytest.CallInfo, report: pytest.TestReport):
+    def pytest_exception_interact(
+        self, node: pytest.Item, call: pytest.CallInfo, report: pytest.TestReport
+    ):
         if not call.excinfo or call.when not in ["setup", "call", "teardown"]:
             # Skip analyze exception if there is no exception exists
             # or exception happens outside of tests or fixtures
@@ -112,16 +118,24 @@ class ForbiddenWarningsPlugin:
             self.detected_cases.add(node.nodeid)
 
     @pytest.hookimpl(hookwrapper=True, tryfirst=True)
-    def pytest_terminal_summary(self, terminalreporter, exitstatus: int, config: pytest.Config):
+    def pytest_terminal_summary(
+        self, terminalreporter, exitstatus: int, config: pytest.Config
+    ):
         yield
-        if not self.detected_cases or self.is_worker_node:  # No need to print report on worker node
+        if (
+            not self.detected_cases or self.is_worker_node
+        ):  # No need to print report on worker node
             return
 
         total_cases = len(self.detected_cases)
         uniq_tests_cases = len(set(map(self.prune_params_node_id, self.detected_cases)))
-        terminalreporter.section(f"{total_cases:,} prohibited warning(s) detected", red=True, bold=True)
+        terminalreporter.section(
+            f"{total_cases:,} prohibited warning(s) detected", red=True, bold=True
+        )
 
-        report_message = "By default selected warnings are prohibited during tests runs:\n * "
+        report_message = (
+            "By default selected warnings are prohibited during tests runs:\n * "
+        )
         report_message += "\n * ".join(self.forbidden_warnings)
         report_message += "\n\n"
         report_message += (

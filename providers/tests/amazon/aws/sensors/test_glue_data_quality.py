@@ -82,7 +82,10 @@ SAMPLE_RESPONSE_GET_DATA_RULE_RECOMMENDATION_RUN_SUCCEEDED = {
     "RecommendedRuleset": RULES,
 }
 
-SAMPLE_RESPONSE_DATA_RULE_RECOMMENDATION_RUN_RUNNING = {"RunId": "12345", "Status": "RUNNING"}
+SAMPLE_RESPONSE_DATA_RULE_RECOMMENDATION_RUN_RUNNING = {
+    "RunId": "12345",
+    "Status": "RUNNING",
+}
 
 
 class TestGlueDataQualityRuleSetEvaluationRunSensor:
@@ -150,7 +153,9 @@ class TestGlueDataQualityRuleSetEvaluationRunSensor:
         with pytest.raises(AirflowException, match=message):
             sensor.poke({})
 
-        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId="12345")
+        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(
+            RunId="12345"
+        )
 
     def test_sensor_defer(self):
         """Test the execute method raise TaskDeferred if running sensor in deferrable mode"""
@@ -166,8 +171,12 @@ class TestGlueDataQualityRuleSetEvaluationRunSensor:
             sensor.execute(context=None)
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_execute_complete_succeeds_if_status_in_succeeded_states(self, mock_conn, caplog):
-        mock_conn.get_evaluation_run_results.return_value = SAMPLE_RESPONSE_GET_DATA_QUALITY_RESULT
+    def test_execute_complete_succeeds_if_status_in_succeeded_states(
+        self, mock_conn, caplog
+    ):
+        mock_conn.get_evaluation_run_results.return_value = (
+            SAMPLE_RESPONSE_GET_DATA_QUALITY_RESULT
+        )
 
         op = GlueDataQualityRuleSetEvaluationRunSensor(
             task_id="test_data_quality_ruleset_evaluation_run_sensor",
@@ -179,7 +188,9 @@ class TestGlueDataQualityRuleSetEvaluationRunSensor:
         event = {"status": "success", "evaluation_run_id": "12345"}
         op.execute_complete(context={}, event=event)
 
-        assert "AWS Glue data quality ruleset evaluation run completed." in caplog.messages
+        assert (
+            "AWS Glue data quality ruleset evaluation run completed." in caplog.messages
+        )
 
     def test_execute_complete_fails_if_status_in_failure_states(self):
         op = GlueDataQualityRuleSetEvaluationRunSensor(
@@ -251,14 +262,14 @@ class TestGlueDataQualityRuleRecommendationRunSensor:
 
         sensor = self.SENSOR(**self.default_args, aws_conn_id=None)
 
-        message = (
-            f"Error: AWS Glue data quality recommendation run RunId: 12345 Run Status: {state}: unknown error"
-        )
+        message = f"Error: AWS Glue data quality recommendation run RunId: 12345 Run Status: {state}: unknown error"
 
         with pytest.raises(AirflowException, match=message):
             sensor.poke({})
 
-        mock_conn.get_data_quality_rule_recommendation_run.assert_called_once_with(RunId="12345")
+        mock_conn.get_data_quality_rule_recommendation_run.assert_called_once_with(
+            RunId="12345"
+        )
 
     def test_sensor_defer(self):
         """Test the execute method raise TaskDeferred if running sensor in deferrable mode"""
@@ -274,7 +285,9 @@ class TestGlueDataQualityRuleRecommendationRunSensor:
             sensor.execute(context=None)
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_execute_complete_succeeds_if_status_in_succeeded_states(self, mock_conn, caplog):
+    def test_execute_complete_succeeds_if_status_in_succeeded_states(
+        self, mock_conn, caplog
+    ):
         mock_conn.get_data_quality_rule_recommendation_run.return_value = (
             SAMPLE_RESPONSE_GET_DATA_RULE_RECOMMENDATION_RUN_SUCCEEDED
         )

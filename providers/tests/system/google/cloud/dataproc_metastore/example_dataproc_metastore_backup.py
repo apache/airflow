@@ -40,7 +40,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dataproc_metastore_backup"
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 SERVICE_ID = f"{DAG_ID}-service-{ENV_ID}".replace("_", "-")
@@ -124,7 +126,14 @@ with DAG(
         timeout=TIMEOUT,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-    (create_service >> backup_service >> list_backups >> restore_service >> delete_backup >> delete_service)
+    (
+        create_service
+        >> backup_service
+        >> list_backups
+        >> restore_service
+        >> delete_backup
+        >> delete_service
+    )
 
     from tests_common.test_utils.watcher import watcher
 

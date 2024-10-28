@@ -67,7 +67,9 @@ class EcsClusterStateSensor(EcsBaseSensor):
          Success State. (Default: "FAILED" or "INACTIVE")
     """
 
-    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name", "target_state", "failure_states"
+    )
 
     def __init__(
         self,
@@ -80,12 +82,19 @@ class EcsClusterStateSensor(EcsBaseSensor):
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.target_state = target_state
-        self.failure_states = failure_states or {EcsClusterStates.FAILED, EcsClusterStates.INACTIVE}
+        self.failure_states = failure_states or {
+            EcsClusterStates.FAILED,
+            EcsClusterStates.INACTIVE,
+        }
 
     def poke(self, context: Context):
-        cluster_state = EcsClusterStates(self.hook.get_cluster_state(cluster_name=self.cluster_name))
+        cluster_state = EcsClusterStates(
+            self.hook.get_cluster_state(cluster_name=self.cluster_name)
+        )
 
-        self.log.info("Cluster state: %s, waiting for: %s", cluster_state, self.target_state)
+        self.log.info(
+            "Cluster state: %s, waiting for: %s", cluster_state, self.target_state
+        )
         _check_failed(cluster_state, self.target_state, self.failure_states)
 
         return cluster_state == self.target_state
@@ -105,7 +114,9 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     :param target_state: Success state to watch for. (Default: "ACTIVE")
     """
 
-    template_fields: Sequence[str] = aws_template_fields("task_definition", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields(
+        "task_definition", "target_state", "failure_states"
+    )
 
     def __init__(
         self,
@@ -131,7 +142,11 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
             self.hook.get_task_definition_state(task_definition=self.task_definition)
         )
 
-        self.log.info("Task Definition state: %s, waiting for: %s", task_definition_state, self.target_state)
+        self.log.info(
+            "Task Definition state: %s, waiting for: %s",
+            task_definition_state,
+            self.target_state,
+        )
         _check_failed(task_definition_state, self.target_state, [self.failure_states])
         return task_definition_state == self.target_state
 
@@ -151,7 +166,9 @@ class EcsTaskStateSensor(EcsBaseSensor):
          the Success State. (Default: "STOPPED")
     """
 
-    template_fields: Sequence[str] = aws_template_fields("cluster", "task", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster", "task", "target_state", "failure_states"
+    )
 
     def __init__(
         self,
@@ -169,7 +186,9 @@ class EcsTaskStateSensor(EcsBaseSensor):
         self.failure_states = failure_states or {EcsTaskStates.STOPPED}
 
     def poke(self, context: Context):
-        task_state = EcsTaskStates(self.hook.get_task_state(cluster=self.cluster, task=self.task))
+        task_state = EcsTaskStates(
+            self.hook.get_task_state(cluster=self.cluster, task=self.task)
+        )
 
         self.log.info("Task state: %s, waiting for: %s", task_state, self.target_state)
         _check_failed(task_state, self.target_state, self.failure_states)

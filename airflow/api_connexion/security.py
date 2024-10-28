@@ -53,7 +53,9 @@ def check_authentication() -> None:
     raise Unauthenticated(headers=response.headers)
 
 
-def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs) -> bool:
+def _requires_access(
+    *, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs
+) -> bool:
     """
     Define the behavior whether the user is authorized to access the resource.
 
@@ -145,7 +147,9 @@ def requires_access_dag(
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            dag_id: str | None = kwargs.get("dag_id") if kwargs.get("dag_id") != "~" else None
+            dag_id: str | None = (
+                kwargs.get("dag_id") if kwargs.get("dag_id") != "~" else None
+            )
             return _requires_access(
                 is_authorized_callback=_is_authorized_callback(dag_id),
                 func=func,
@@ -220,7 +224,9 @@ def requires_access_view(access_view: AccessView) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_view(access_view=access_view),
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
+                    access_view=access_view
+                ),
                 func=func,
                 args=args,
                 kwargs=kwargs,

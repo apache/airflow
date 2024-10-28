@@ -39,7 +39,9 @@ class SampleConn:
         self.conn_id = conn_id
         self.var_name = "AIRFLOW_CONN_" + self.conn_id.upper()
         self.host = f"host_{variation}.com"
-        self.conn_uri = "mysql://user:pw@" + self.host + "/schema?extra1=val%2B1&extra2=val%2B2"
+        self.conn_uri = (
+            "mysql://user:pw@" + self.host + "/schema?extra1=val%2B1&extra2=val%2B2"
+        )
         self.conn = Connection(conn_id=self.conn_id, uri=self.conn_uri)
 
 

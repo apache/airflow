@@ -129,7 +129,9 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
             )
             create_response = json.dumps(create_instance_snap, default=str)
             if self.wait_for_completion:
-                self.hook.wait_for_db_snapshot_state(self.db_snapshot_identifier, target_state="available")
+                self.hook.wait_for_db_snapshot_state(
+                    self.db_snapshot_identifier, target_state="available"
+                )
         else:
             create_cluster_snap = self.hook.conn.create_db_cluster_snapshot(
                 DBClusterIdentifier=self.db_identifier,
@@ -286,7 +288,9 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
             )
             delete_response = json.dumps(delete_instance_snap, default=str)
             if self.wait_for_completion:
-                self.hook.wait_for_db_snapshot_state(self.db_snapshot_identifier, target_state="deleted")
+                self.hook.wait_for_db_snapshot_state(
+                    self.db_snapshot_identifier, target_state="deleted"
+                )
         else:
             delete_cluster_snap = self.hook.conn.delete_db_cluster_snapshot(
                 DBClusterSnapshotIdentifier=self.db_snapshot_identifier,
@@ -359,7 +363,11 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
-        self.log.info("Starting export task %s for snapshot %s", self.export_task_identifier, self.source_arn)
+        self.log.info(
+            "Starting export task %s for snapshot %s",
+            self.export_task_identifier,
+            self.source_arn,
+        )
 
         start_export = self.hook.conn.start_export_task(
             ExportTaskIdentifier=self.export_task_identifier,
@@ -485,7 +493,11 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> str:
-        self.log.info("Creating event subscription '%s' to '%s'", self.subscription_name, self.sns_topic_arn)
+        self.log.info(
+            "Creating event subscription '%s' to '%s'",
+            self.subscription_name,
+            self.sns_topic_arn,
+        )
 
         formatted_tags = format_tags(self.tags)
         create_subscription = self.hook.conn.create_event_subscription(
@@ -499,7 +511,9 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self.hook.wait_for_event_subscription_state(self.subscription_name, target_state="active")
+            self.hook.wait_for_event_subscription_state(
+                self.subscription_name, target_state="active"
+            )
         return json.dumps(create_subscription, default=str)
 
 
@@ -561,7 +575,12 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         (default: False)
     """
 
-    template_fields = ("db_instance_identifier", "db_instance_class", "engine", "rds_kwargs")
+    template_fields = (
+        "db_instance_identifier",
+        "db_instance_class",
+        "engine",
+        "rds_kwargs",
+    )
 
     def __init__(
         self,
@@ -571,7 +590,9 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         engine: str,
         rds_kwargs: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         **kwargs,
@@ -625,7 +646,9 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
             )
         return json.dumps(create_db_instance, default=str)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -661,7 +684,9 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         db_instance_identifier: str,
         rds_kwargs: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         **kwargs,
@@ -710,7 +735,9 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
             )
         return json.dumps(delete_db_instance, default=str)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -746,7 +773,9 @@ class RdsStartDbOperator(RdsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -777,7 +806,9 @@ class RdsStartDbOperator(RdsBaseOperator):
             self._wait_until_db_available()
         return json.dumps(start_db_response, default=str)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -792,7 +823,9 @@ class RdsStartDbOperator(RdsBaseOperator):
                 DBInstanceIdentifier=self.db_identifier,
             )
         else:
-            response = self.hook.conn.start_db_cluster(DBClusterIdentifier=self.db_identifier)
+            response = self.hook.conn.start_db_cluster(
+                DBClusterIdentifier=self.db_identifier
+            )
         return response
 
     def _wait_until_db_available(self):
@@ -844,7 +877,9 @@ class RdsStopDbOperator(RdsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -875,7 +910,9 @@ class RdsStopDbOperator(RdsBaseOperator):
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter(f"db_{self.db_type.value}_stopped")
             waiter_key = (
-                "DBInstanceIdentifier" if self.db_type == RdsDbType.INSTANCE else "DBClusterIdentifier"
+                "DBInstanceIdentifier"
+                if self.db_type == RdsDbType.INSTANCE
+                else "DBClusterIdentifier"
             )
             kwargs = {waiter_key: self.db_identifier}
             waiter.wait(
@@ -889,7 +926,9 @@ class RdsStopDbOperator(RdsBaseOperator):
             )
         return json.dumps(stop_db_response, default=str)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -912,7 +951,9 @@ class RdsStopDbOperator(RdsBaseOperator):
                     "'db_snapshot_identifier' does not apply to db clusters. "
                     "Remove it to silence this warning."
                 )
-            response = self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.db_identifier)
+            response = self.hook.conn.stop_db_cluster(
+                DBClusterIdentifier=self.db_identifier
+            )
         return response
 
 

@@ -37,7 +37,11 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
@@ -126,7 +130,9 @@ class TestGetAssetEndpoint(TestAssetEndpoint):
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_asset(session)
-        response = self.client.get(f"/api/v1/assets/{urllib.parse.quote('s3://bucket/key', safe='')}")
+        response = self.client.get(
+            f"/api/v1/assets/{urllib.parse.quote('s3://bucket/key', safe='')}"
+        )
         assert_401(response)
 
 
@@ -147,7 +153,9 @@ class TestGetAssets(TestAssetEndpoint):
         assert session.query(AssetModel).count() == 2
 
         with assert_queries_count(10):
-            response = self.client.get("/api/v1/assets", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(
+                "/api/v1/assets", environ_overrides={"REMOTE_USER": "test"}
+            )
 
         assert response.status_code == 200
         response_data = response.json
@@ -221,7 +229,10 @@ class TestGetAssets(TestAssetEndpoint):
         "url, expected_assets",
         [
             ("api/v1/assets?uri_pattern=s3", {"s3://folder/key"}),
-            ("api/v1/assets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
+            (
+                "api/v1/assets?uri_pattern=bucket",
+                {"gcp://bucket/key", "wasb://some_asset_bucket_/key"},
+            ),
             (
                 "api/v1/assets?uri_pattern=asset",
                 {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
@@ -250,7 +261,9 @@ class TestGetAssets(TestAssetEndpoint):
         asset_urls = {asset["uri"] for asset in response.json["assets"]}
         assert expected_assets == asset_urls
 
-    @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @pytest.mark.parametrize(
+        "dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)]
+    )
     @provide_session
     def test_filter_assets_by_dag_ids_works(self, dag_ids, expected_num, session):
         session.query(DagModel).delete()
@@ -264,7 +277,9 @@ class TestGetAssets(TestAssetEndpoint):
         dag_ref1 = DagScheduleAssetReference(dag_id="dag1", asset=asset1)
         dag_ref2 = DagScheduleAssetReference(dag_id="dag2", asset=asset2)
         task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3)
-        session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
+        session.add_all(
+            [asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1]
+        )
         session.commit()
         response = self.client.get(
             f"/api/v1/assets?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
@@ -291,7 +306,9 @@ class TestGetAssets(TestAssetEndpoint):
         dag_ref1 = DagScheduleAssetReference(dag_id="dag1", asset=asset1)
         dag_ref2 = DagScheduleAssetReference(dag_id="dag2", asset=asset2)
         task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3)
-        session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
+        session.add_all(
+            [asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1]
+        )
         session.commit()
         response = self.client.get(
             f"/api/v1/assets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
@@ -313,7 +330,10 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
             ("/api/v1/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
             ("/api/v1/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
             # Limit and offset test data
-            ("/api/v1/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
+            (
+                "/api/v1/assets?offset=3&limit=3",
+                [f"s3://bucket/key/{i}" for i in [4, 5, 6]],
+            ),
         ],
     )
     @provide_session
@@ -349,7 +369,9 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
         session.add_all(assets)
         session.commit()
 
-        response = self.client.get("/api/v1/assets", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/assets", environ_overrides={"REMOTE_USER": "test"}
+        )
 
         assert response.status_code == 200
         assert len(response.json["assets"]) == 100
@@ -368,7 +390,9 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
         session.add_all(assets)
         session.commit()
 
-        response = self.client.get("/api/v1/assets?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/assets?limit=180", environ_overrides={"REMOTE_USER": "test"}
+        )
 
         assert response.status_code == 200
         assert len(response.json["assets"]) == 150
@@ -387,12 +411,17 @@ class TestGetAssetEvents(TestAssetEndpoint):
             "created_dagruns": [],
         }
 
-        events = [AssetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [
+            AssetEvent(id=i, timestamp=timezone.parse(self.default_time), **common)
+            for i in [1, 2]
+        ]
         session.add_all(events)
         session.commit()
         assert session.query(AssetEvent).count() == 2
 
-        response = self.client.get("/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"}
+        )
 
         assert response.status_code == 200
         response_data = response.json
@@ -455,7 +484,8 @@ class TestGetAssetEvents(TestAssetEndpoint):
         assert session.query(AssetEvent).count() == 3
 
         response = self.client.get(
-            f"/api/v1/assets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/assets/events?{attr}={value}",
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
@@ -497,7 +527,8 @@ class TestGetAssetEvents(TestAssetEndpoint):
         assert session.query(AssetEvent).count() == 2
 
         response = self.client.get(
-            "/api/v1/assets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events?order_by=fake",
+            environ_overrides={"REMOTE_USER": "test"},
         )  # missing attr
 
         assert response.status_code == 400
@@ -534,7 +565,9 @@ class TestGetAssetEvents(TestAssetEndpoint):
         event.created_dagruns.append(dagrun)
         session.commit()
 
-        response = self.client.get("/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"}
+        )
 
         assert response.status_code == 200
         response_data = response.json
@@ -583,7 +616,9 @@ class TestPostAssetEvents(TestAssetEndpoint):
         self._create_asset(session)
         event_payload = {"asset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
         response = self.client.post(
-            "/api/v1/assets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events",
+            json=event_payload,
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
@@ -613,7 +648,9 @@ class TestPostAssetEvents(TestAssetEndpoint):
         self._create_asset(session)
         event_payload = {"asset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
         response = self.client.post(
-            "/api/v1/assets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events",
+            json=event_payload,
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
@@ -628,15 +665,23 @@ class TestPostAssetEvents(TestAssetEndpoint):
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_asset(session)
-        event_invalid_payload = {"asset_uri": "TEST_ASSET_URI", "extra": {"foo": "bar"}, "fake": {}}
+        event_invalid_payload = {
+            "asset_uri": "TEST_ASSET_URI",
+            "extra": {"foo": "bar"},
+            "fake": {},
+        }
         response = self.client.post(
-            "/api/v1/assets/events", json=event_invalid_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events",
+            json=event_invalid_payload,
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_asset(session)
-        response = self.client.post("/api/v1/assets/events", json={"asset_uri": "TEST_ASSET_URI"})
+        response = self.client.post(
+            "/api/v1/assets/events", json={"asset_uri": "TEST_ASSET_URI"}
+        )
         assert_401(response)
 
 
@@ -705,7 +750,9 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get("/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"}
+        )
 
         assert response.status_code == 200
         assert len(response.json["asset_events"]) == 100
@@ -757,7 +804,9 @@ class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
         dag_id = "dummy"
         asset_uri = "dummy"
 
-        response = self.client.get(f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}")
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}"
+        )
 
         assert_401(response)
 
@@ -777,7 +826,9 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
     def test_should_raises_401_unauthenticated(self, session):
         dag_id = "dummy"
         asset_uri = "dummy"
-        response = self.client.delete(f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}")
+        response = self.client.delete(
+            f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}"
+        )
         assert_401(response)
 
     def test_should_raise_403_forbidden(self, session):

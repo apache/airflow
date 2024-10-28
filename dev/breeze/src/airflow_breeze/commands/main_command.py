@@ -243,7 +243,9 @@ def cleanup(all: bool):
             "and remove locally downloaded images[/]"
         )
     else:
-        get_console().print("[info]Removing cache of parameters, and cleans up docker cache[/]")
+        get_console().print(
+            "[info]Removing cache of parameters, and cleans up docker cache[/]"
+        )
     if all:
         docker_images_command_to_execute = [
             "docker",
@@ -253,8 +255,14 @@ def cleanup(all: bool):
             "--format",
             "{{.Repository}}:{{.Tag}}",
         ]
-        command_result = run_command(docker_images_command_to_execute, text=True, capture_output=True)
-        images = command_result.stdout.splitlines() if command_result and command_result.stdout else []
+        command_result = run_command(
+            docker_images_command_to_execute, text=True, capture_output=True
+        )
+        images = (
+            command_result.stdout.splitlines()
+            if command_result and command_result.stdout
+            else []
+        )
         if images:
             get_console().print("[info]Removing images:[/]")
             for image in images:
@@ -274,7 +282,9 @@ def cleanup(all: bool):
         else:
             get_console().print("[info]No locally downloaded images to remove[/]\n")
     get_console().print("Removing unused networks")
-    given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
+    given_answer = user_confirm(
+        "Are you sure with the removal of unused docker networks?"
+    )
     if given_answer == Answer.YES:
         remove_docker_networks()
     get_console().print("Pruning docker images")

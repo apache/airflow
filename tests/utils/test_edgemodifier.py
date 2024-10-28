@@ -45,7 +45,9 @@ def test_dag():
         return f"OP:{task_id}"
 
     with DAG(dag_id="test_xcom_dag", schedule=None, default_args=DEFAULT_ARGS) as dag:
-        operators = [PythonOperator(python_callable=f, task_id=f"test_op_{i}") for i in range(4)]
+        operators = [
+            PythonOperator(python_callable=f, task_id=f"test_op_{i}") for i in range(4)
+        ]
         return dag, operators
 
 
@@ -116,7 +118,9 @@ def test_multiple_taskgroups_dag():
     def f(task_id):
         return f"OP:{task_id}"
 
-    with DAG(dag_id="test_multiple_task_group_dag", schedule=None, default_args=DEFAULT_ARGS) as dag:
+    with DAG(
+        dag_id="test_multiple_task_group_dag", schedule=None, default_args=DEFAULT_ARGS
+    ) as dag:
         with TaskGroup("group1") as group1:
             group1_emp1 = EmptyOperator(task_id="group1_empty1")
             group1_emp2 = EmptyOperator(task_id="group1_empty2")
@@ -182,7 +186,11 @@ def simple_dag_expected_edges():
         {"source_id": "group_1.test_op_3", "target_id": "group_1.downstream_join_id"},
         {"source_id": "group_1.upstream_join_id", "target_id": "group_1.test_op_2"},
         {"source_id": "group_1.upstream_join_id", "target_id": "group_1.test_op_3"},
-        {"label": "Label", "source_id": "test_op_1", "target_id": "group_1.upstream_join_id"},
+        {
+            "label": "Label",
+            "source_id": "test_op_1",
+            "target_id": "group_1.upstream_join_id",
+        },
     ]
 
 
@@ -323,15 +331,37 @@ def multiple_taskgroups_dag_expected_edges():
             "source_id": "group2.group3.downstream_join_id",
             "target_id": "op_out1",
         },
-        {"source_id": "group2.group3.group3_empty1", "target_id": "group2.group3.downstream_join_id"},
-        {"source_id": "group2.group3.group3_empty2", "target_id": "group2.group3.downstream_join_id"},
-        {"source_id": "group2.group3.group3_empty3", "target_id": "group2.group3.downstream_join_id"},
-        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_empty1"},
-        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_empty2"},
-        {"source_id": "group2.group3.upstream_join_id", "target_id": "group2.group3.group3_empty3"},
+        {
+            "source_id": "group2.group3.group3_empty1",
+            "target_id": "group2.group3.downstream_join_id",
+        },
+        {
+            "source_id": "group2.group3.group3_empty2",
+            "target_id": "group2.group3.downstream_join_id",
+        },
+        {
+            "source_id": "group2.group3.group3_empty3",
+            "target_id": "group2.group3.downstream_join_id",
+        },
+        {
+            "source_id": "group2.group3.upstream_join_id",
+            "target_id": "group2.group3.group3_empty1",
+        },
+        {
+            "source_id": "group2.group3.upstream_join_id",
+            "target_id": "group2.group3.group3_empty2",
+        },
+        {
+            "source_id": "group2.group3.upstream_join_id",
+            "target_id": "group2.group3.group3_empty3",
+        },
         {"source_id": "group2.upstream_join_id", "target_id": "group2.group2_empty1"},
         {"source_id": "group2.upstream_join_id", "target_id": "group2.group2_op1"},
-        {"label": "label op_in1 <=> group1", "source_id": "op_in1", "target_id": "group1.upstream_join_id"},
+        {
+            "label": "label op_in1 <=> group1",
+            "source_id": "op_in1",
+            "target_id": "group1.upstream_join_id",
+        },
     ]
 
 
@@ -491,7 +521,9 @@ class TestEdgeModifierBuilding:
 
         compare_dag_edges(dag_edges(dag), complex_dag_expected_edges)
 
-    def test_complex_reversed_dag(self, test_complex_taskgroup_dag, complex_dag_expected_edges):
+    def test_complex_reversed_dag(
+        self, test_complex_taskgroup_dag, complex_dag_expected_edges
+    ):
         """Tests the complex reversed dag with a TaskGroup and a Label"""
         (
             dag,
@@ -561,7 +593,11 @@ class TestEdgeModifierBuilding:
             ),
         ) = test_multiple_taskgroups_dag
 
-        group1_emp1 >> Label("label group1.group1_emp1 <=> group1.group1_emp2") >> group1_emp3
+        (
+            group1_emp1
+            >> Label("label group1.group1_emp1 <=> group1.group1_emp2")
+            >> group1_emp3
+        )
 
         emp_in1 >> group1
         emp_in2 >> Label("label emp_in2 <=> group1") >> group1
@@ -585,7 +621,11 @@ class TestEdgeModifierBuilding:
             >> Label("label group2.group2_op1 <=> group2.group2_op2")
             >> XComArg(group2_op2, "test_key")
         )
-        XComArg(group2_op2, "test_key") >> Label("label group2.group2_op2 <=> group3") >> group3
+        (
+            XComArg(group2_op2, "test_key")
+            >> Label("label group2.group2_op2 <=> group3")
+            >> group3
+        )
 
         group3 >> emp_out1
         group3 >> Label("label group3 <=> emp_out2") >> emp_out2
@@ -630,7 +670,11 @@ class TestEdgeModifierBuilding:
             ),
         ) = test_multiple_taskgroups_dag
 
-        group1_emp3 << Label("label group1.group1_emp1 <=> group1.group1_emp2") << group1_emp1
+        (
+            group1_emp3
+            << Label("label group1.group1_emp1 <=> group1.group1_emp2")
+            << group1_emp1
+        )
 
         group1 << emp_in1
         group1 << Label("label emp_in2 <=> group1") << emp_in2
@@ -654,7 +698,11 @@ class TestEdgeModifierBuilding:
             << Label("label group2.group2_op1 <=> group2.group2_op2")
             << XComArg(group2_op1, "test_key")
         )
-        group3 << Label("label group2.group2_op2 <=> group3") << XComArg(group2_op2, "test_key")
+        (
+            group3
+            << Label("label group2.group2_op2 <=> group3")
+            << XComArg(group2_op2, "test_key")
+        )
 
         emp_out1 << group3
         emp_out2 << Label("label group3 <=> emp_out2") << group3

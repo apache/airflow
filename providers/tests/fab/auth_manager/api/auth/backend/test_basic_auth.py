@@ -22,7 +22,9 @@ import pytest
 from flask import Response
 from flask_appbuilder.const import AUTH_LDAP
 
-from airflow.providers.fab.auth_manager.api.auth.backend.basic_auth import requires_authentication
+from airflow.providers.fab.auth_manager.api.auth.backend.basic_auth import (
+    requires_authentication,
+)
 from airflow.www import app as application
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
@@ -78,10 +80,18 @@ class TestBasicAuth:
         assert type(result) is Response
         assert result.status_code == 401
 
-    @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_auth_manager"
+    )
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.login_user")
     def test_requires_authentication_with_ldap(
-        self, mock_login_user, mock_get_auth_manager, app, mock_sm, mock_auth_manager, mock_authorization
+        self,
+        mock_login_user,
+        mock_get_auth_manager,
+        app,
+        mock_sm,
+        mock_auth_manager,
+        mock_authorization,
     ):
         mock_sm.auth_type = AUTH_LDAP
         mock_get_auth_manager.return_value = mock_auth_manager
@@ -98,10 +108,18 @@ class TestBasicAuth:
         mock_login_user.assert_called_once_with(user, remember=False)
         mock_call.assert_called_once()
 
-    @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.get_auth_manager"
+    )
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.basic_auth.login_user")
     def test_requires_authentication_with_db(
-        self, mock_login_user, mock_get_auth_manager, app, mock_sm, mock_auth_manager, mock_authorization
+        self,
+        mock_login_user,
+        mock_get_auth_manager,
+        app,
+        mock_sm,
+        mock_auth_manager,
+        mock_authorization,
     ):
         mock_get_auth_manager.return_value = mock_auth_manager
         user = Mock()
@@ -111,6 +129,8 @@ class TestBasicAuth:
             mock_context.request.authorization = mock_authorization
             function_decorated()
 
-        mock_sm.auth_user_db.assert_called_once_with(mock_authorization.username, mock_authorization.password)
+        mock_sm.auth_user_db.assert_called_once_with(
+            mock_authorization.username, mock_authorization.password
+        )
         mock_login_user.assert_called_once_with(user, remember=False)
         mock_call.assert_called_once()

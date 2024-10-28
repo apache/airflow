@@ -30,10 +30,16 @@ DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "migrations" / "versions"
 
 PROVIDERS_SRC = PROJECT_SOURCE_ROOT_DIR / "providers" / "src"
-FAB_DB_FILE = PROVIDERS_SRC / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
-FAB_MIGRATION_PATH = PROVIDERS_SRC / "airflow" / "providers" / "fab" / "migrations" / "versions"
+FAB_DB_FILE = (
+    PROVIDERS_SRC / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
+)
+FAB_MIGRATION_PATH = (
+    PROVIDERS_SRC / "airflow" / "providers" / "fab" / "migrations" / "versions"
+)
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is importable
 
 
 def revision_heads_map(migration_path):
@@ -90,7 +96,9 @@ if __name__ == "__main__":
         if updated_revision_heads_map == "_REVISION_HEADS_MAP: dict[str, str] = {\n}":
             updated_revision_heads_map = "_REVISION_HEADS_MAP: dict[str, str] = {}"
         if existing_revision_heads_map != updated_revision_heads_map:
-            new_content = content.replace(existing_revision_heads_map, updated_revision_heads_map)
+            new_content = content.replace(
+                existing_revision_heads_map, updated_revision_heads_map
+            )
 
             with open(dbfile, "w") as file:
                 file.write(new_content)

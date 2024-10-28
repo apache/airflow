@@ -32,8 +32,12 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
 if TYPE_CHECKING:
-    from google.ads.googleads.v17.services.services.customer_service import CustomerServiceClient
-    from google.ads.googleads.v17.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v17.services.services.customer_service import (
+        CustomerServiceClient,
+    )
+    from google.ads.googleads.v17.services.services.google_ads_service import (
+        GoogleAdsServiceClient,
+    )
     from google.ads.googleads.v17.services.types.google_ads_service import GoogleAdsRow
     from google.api_core.page_iterator import GRPCIterator
 
@@ -114,7 +118,9 @@ class GoogleAdsHook(BaseHook):
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
         self.google_ads_config: dict[str, Any] = {}
-        self.authentication_method: Literal["service_account", "developer_token"] = "service_account"
+        self.authentication_method: Literal["service_account", "developer_token"] = (
+            "service_account"
+        )
 
     def search(
         self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
@@ -236,9 +242,9 @@ class GoogleAdsHook(BaseHook):
 
     def _determine_authentication_method(self) -> None:
         """Determine authentication method based on google_ads_config."""
-        if self.google_ads_config.get("json_key_file_path") and self.google_ads_config.get(
-            "impersonated_email"
-        ):
+        if self.google_ads_config.get(
+            "json_key_file_path"
+        ) and self.google_ads_config.get("impersonated_email"):
             self.authentication_method = "service_account"
         elif (
             self.google_ads_config.get("refresh_token")

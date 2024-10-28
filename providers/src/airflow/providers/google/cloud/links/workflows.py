@@ -28,7 +28,10 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 WORKFLOWS_BASE_LINK = "/workflows"
-WORKFLOW_LINK = WORKFLOWS_BASE_LINK + "/workflow/{location_id}/{workflow_id}/executions?project={project_id}"
+WORKFLOW_LINK = (
+    WORKFLOWS_BASE_LINK
+    + "/workflow/{location_id}/{workflow_id}/executions?project={project_id}"
+)
 WORKFLOWS_LINK = WORKFLOWS_BASE_LINK + "?project={project_id}"
 EXECUTION_LINK = (
     WORKFLOWS_BASE_LINK
@@ -54,7 +57,11 @@ class WorkflowsWorkflowDetailsLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=WorkflowsWorkflowDetailsLink.key,
-            value={"location_id": location_id, "workflow_id": workflow_id, "project_id": project_id},
+            value={
+                "location_id": location_id,
+                "workflow_id": workflow_id,
+                "project_id": project_id,
+            },
         )
 
 

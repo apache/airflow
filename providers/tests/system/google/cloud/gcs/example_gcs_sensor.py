@@ -26,7 +26,10 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
     GCSObjectExistenceSensor,
@@ -40,7 +43,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcs_sensor"
 
@@ -78,7 +83,9 @@ with DAG(
     tags=["gcs", "example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=DESTINATION_BUCKET_NAME, project_id=PROJECT_ID
+        task_id="create_bucket",
+        bucket_name=DESTINATION_BUCKET_NAME,
+        project_id=PROJECT_ID,
     )
 
     workaround_in_debug_executor(GCSUploadSessionCompleteSensor)
@@ -152,7 +159,10 @@ with DAG(
 
     # [START howto_sensor_object_exists_task_defered]
     gcs_object_exists_defered = GCSObjectExistenceSensor(
-        bucket=DESTINATION_BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_exists_defered", deferrable=True
+        bucket=DESTINATION_BUCKET_NAME,
+        object=FILE_NAME,
+        task_id="gcs_object_exists_defered",
+        deferrable=True,
     )
     # [END howto_sensor_object_exists_task_defered]
 
@@ -174,7 +184,9 @@ with DAG(
     # [END howto_sensor_object_with_prefix_exists_task_async]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DESTINATION_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DESTINATION_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

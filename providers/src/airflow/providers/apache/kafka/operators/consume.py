@@ -127,7 +127,9 @@ class ConsumeFromTopicOperator(BaseOperator):
             )
 
     def execute(self, context) -> Any:
-        consumer = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id).get_consumer()
+        consumer = KafkaConsumerHook(
+            topics=self.topics, kafka_config_id=self.kafka_config_id
+        ).get_consumer()
 
         if isinstance(self.apply_function, str):
             self.apply_function = import_string(self.apply_function)
@@ -151,11 +153,15 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         messages_left = self.max_messages
 
-        while self.read_to_end or (
-            messages_left > 0
+        while (
+            self.read_to_end or (messages_left > 0)
         ):  # bool(True > 0) == True in the case where self.max_messages isn't set by the user
             if not isinstance(messages_left, bool):
-                batch_size = self.max_batch_size if messages_left > self.max_batch_size else messages_left
+                batch_size = (
+                    self.max_batch_size
+                    if messages_left > self.max_batch_size
+                    else messages_left
+                )
             else:
                 batch_size = self.max_batch_size
 

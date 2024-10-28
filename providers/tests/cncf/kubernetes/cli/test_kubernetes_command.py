@@ -43,7 +43,10 @@ class TestGenerateDagYamlCommand:
             cls.parser = cli_parser.get_parser()
 
     def test_generate_dag_yaml(self, tmp_path):
-        path = tmp_path / "miscellaneous_test_dag_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
+        path = (
+            tmp_path
+            / "miscellaneous_test_dag_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
+        )
         kubernetes_command.generate_pod_yaml(
             self.parser.parse_args(
                 [
@@ -74,16 +77,24 @@ class TestCleanUpPodsCommand:
             cls.parser = cli_parser.get_parser()
 
     @mock.patch("kubernetes.client.CoreV1Api.delete_namespaced_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config"
+    )
     def test_delete_pod(self, load_incluster_config, delete_namespaced_pod):
         kubernetes_command._delete_pod("dummy", "awesome-namespace")
-        delete_namespaced_pod.assert_called_with(body=mock.ANY, name="dummy", namespace="awesome-namespace")
+        delete_namespaced_pod.assert_called_with(
+            body=mock.ANY, name="dummy", namespace="awesome-namespace"
+        )
         load_incluster_config.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
-    def test_running_pods_are_not_cleaned(self, load_incluster_config, list_namespaced_pod, delete_pod):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config"
+    )
+    def test_running_pods_are_not_cleaned(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy"
         pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
@@ -94,7 +105,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -104,8 +117,12 @@ class TestCleanUpPodsCommand:
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
-    def test_cleanup_succeeded_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config"
+    )
+    def test_cleanup_succeeded_pods(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy"
         pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
@@ -116,7 +133,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -141,7 +160,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -166,7 +187,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -177,7 +200,9 @@ class TestCleanUpPodsCommand:
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
     @mock.patch("kubernetes.config.load_incluster_config")
-    def test_cleanup_evicted_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+    def test_cleanup_evicted_pods(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy4"
         pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
@@ -189,7 +214,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -200,7 +227,9 @@ class TestCleanUpPodsCommand:
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
     @mock.patch("kubernetes.config.load_incluster_config")
-    def test_cleanup_pending_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+    def test_cleanup_pending_pods(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy5"
         pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
@@ -211,7 +240,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -222,7 +253,9 @@ class TestCleanUpPodsCommand:
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
     @mock.patch("kubernetes.config.load_incluster_config")
-    def test_cleanup_api_exception_continue(self, load_incluster_config, list_namespaced_pod, delete_pod):
+    def test_cleanup_api_exception_continue(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
         delete_pod.side_effect = kubernetes.client.rest.ApiException(status=0)
         pod1 = MagicMock()
         pod1.metadata.name = "dummy"
@@ -234,7 +267,9 @@ class TestCleanUpPodsCommand:
         pods.items = [pod1]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
@@ -244,7 +279,9 @@ class TestCleanUpPodsCommand:
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
     @mock.patch("kubernetes.config.load_incluster_config")
-    def test_list_pod_with_continue_token(self, load_incluster_config, list_namespaced_pod, delete_pod):
+    def test_list_pod_with_continue_token(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy"
         pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
@@ -258,10 +295,16 @@ class TestCleanUpPodsCommand:
         next_pods.items = [pod1]
         list_namespaced_pod.side_effect = [pods, next_pods]
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                ["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"]
+            )
         )
         calls = [
-            call.first(namespace="awesome-namespace", limit=500, label_selector=self.label_selector),
+            call.first(
+                namespace="awesome-namespace",
+                limit=500,
+                label_selector=self.label_selector,
+            ),
             call.second(
                 namespace="awesome-namespace",
                 limit=500,

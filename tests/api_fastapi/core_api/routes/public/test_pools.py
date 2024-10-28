@@ -38,8 +38,12 @@ POOL2_DESCRIPTION = "Some Description"
 
 @provide_session
 def _create_pools(session) -> None:
-    pool1 = Pool(pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED)
-    pool2 = Pool(pool=POOL2_NAME, slots=POOL2_SLOT, include_deferred=POOL2_INCLUDE_DEFERRED)
+    pool1 = Pool(
+        pool=POOL1_NAME, slots=POOL1_SLOT, include_deferred=POOL1_INCLUDE_DEFERRED
+    )
+    pool2 = Pool(
+        pool=POOL2_NAME, slots=POOL2_SLOT, include_deferred=POOL2_INCLUDE_DEFERRED
+    )
     session.add_all([pool1, pool2])
 
 
@@ -138,14 +142,18 @@ class TestPatchPool(TestPoolsEndpoint):
                 {},
                 {},
                 400,
-                {"detail": "Only slots and included_deferred can be modified on Default Pool"},
+                {
+                    "detail": "Only slots and included_deferred can be modified on Default Pool"
+                },
             ),
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["description"]},
                 {},
                 400,
-                {"detail": "Only slots and included_deferred can be modified on Default Pool"},
+                {
+                    "detail": "Only slots and included_deferred can be modified on Default Pool"
+                },
             ),
             (
                 "unknown_pool",
@@ -267,10 +275,19 @@ class TestPatchPool(TestPoolsEndpoint):
         ],
     )
     def test_should_respond_200(
-        self, test_client, session, pool_name, query_params, body, expected_status_code, expected_response
+        self,
+        test_client,
+        session,
+        pool_name,
+        query_params,
+        body,
+        expected_status_code,
+        expected_response,
     ):
         self.create_pools()
-        response = test_client.patch(f"/public/pools/{pool_name}", params=query_params, json=body)
+        response = test_client.patch(
+            f"/public/pools/{pool_name}", params=query_params, json=body
+        )
         assert response.status_code == expected_status_code
 
         body = response.json()
@@ -304,7 +321,12 @@ class TestPostPool(TestPoolsEndpoint):
                 },
             ),
             (
-                {"name": "my_pool", "slots": 11, "include_deferred": True, "description": "Some description"},
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "include_deferred": True,
+                    "description": "Some description",
+                },
                 201,
                 {
                     "name": "my_pool",
@@ -321,7 +343,9 @@ class TestPostPool(TestPoolsEndpoint):
             ),
         ],
     )
-    def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
+    def test_should_respond_200(
+        self, test_client, session, body, expected_status_code, expected_response
+    ):
         self.create_pools()
         n_pools = session.query(Pool).count()
         response = test_client.post("/public/pools/", json=body)

@@ -49,7 +49,13 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
             after_decorator = after_decorator[1:]
         return before_decorator + after_decorator
 
-    decorators = ["@setup", "@teardown", "@task.skip_if", "@task.run_if", task_decorator_name]
+    decorators = [
+        "@setup",
+        "@teardown",
+        "@task.skip_if",
+        "@task.run_if",
+        task_decorator_name,
+    ]
     for decorator in decorators:
         python_source = _remove_task_decorator(python_source, decorator)
     return python_source

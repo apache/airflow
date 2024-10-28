@@ -137,7 +137,9 @@ class DagBag(LoggingMixin):
             else conf.getboolean("core", "LOAD_EXAMPLES")
         )
         safe_mode = (
-            safe_mode if isinstance(safe_mode, bool) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
+            safe_mode
+            if isinstance(safe_mode, bool)
+            else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
         )
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
@@ -154,8 +156,12 @@ class DagBag(LoggingMixin):
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
 
-        self.dagbag_import_error_tracebacks = conf.getboolean("core", "dagbag_import_error_tracebacks")
-        self.dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+        self.dagbag_import_error_tracebacks = conf.getboolean(
+            "core", "dagbag_import_error_tracebacks"
+        )
+        self.dagbag_import_error_traceback_depth = conf.getint(
+            "core", "dagbag_import_error_traceback_depth"
+        )
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
@@ -205,10 +211,13 @@ class DagBag(LoggingMixin):
             # 3. if (2) is yes, fetch the Serialized DAG.
             # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
             # if it exists and return None.
-            min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
+            min_serialized_dag_fetch_secs = timedelta(
+                seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL
+            )
             if (
                 dag_id in self.dags_last_fetched
-                and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
+                and timezone.utcnow()
+                > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
                 sd_latest_version_and_updated_datetime = (
                     SerializedDagModel.get_latest_version_hash_and_updated_datetime(
@@ -222,7 +231,9 @@ class DagBag(LoggingMixin):
                     del self.dags_hash[dag_id]
                     return None
 
-                sd_latest_version, sd_last_updated_datetime = sd_latest_version_and_updated_datetime
+                sd_latest_version, sd_last_updated_datetime = (
+                    sd_latest_version_and_updated_datetime
+                )
 
                 if (
                     sd_last_updated_datetime > self.dags_last_fetched[dag_id]
@@ -245,7 +256,9 @@ class DagBag(LoggingMixin):
 
         # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
-        is_expired = orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired
+        is_expired = (
+            orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired
+        )
         if is_expired:
             # Remove associated dags so we can re-add them.
             self.dags = {key: dag for key, dag in self.dags.items()}
@@ -317,7 +330,9 @@ class DagBag(LoggingMixin):
                 category = msg.category.__name__
                 if (module := msg.category.__module__) != "builtins":
                     category = f"{module}.{category}"
-                formatted_warnings.append(f"{msg.filename}:{msg.lineno}: {category}: {msg.message}")
+                formatted_warnings.append(
+                    f"{msg.filename}:{msg.lineno}: {category}: {msg.message}"
+                )
             self.captured_warnings[filepath] = tuple(formatted_warnings)
 
         found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
@@ -402,7 +417,9 @@ class DagBag(LoggingMixin):
                     if not self.has_logged:
                         self.has_logged = True
                         self.log.info(
-                            "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
+                            "File %s:%s assumed to contain no DAGs. Skipping.",
+                            filepath,
+                            zip_info.filename,
                         )
                     continue
 
@@ -433,7 +450,9 @@ class DagBag(LoggingMixin):
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG, DagContext  # Avoid circular import
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
+        top_level_dags = {
+            (o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)
+        }
 
         top_level_dags.update(DagContext.autoregistered_dags)
 
@@ -475,7 +494,10 @@ class DagBag(LoggingMixin):
 
             for task in dag.tasks:
                 # The listeners are not supported when ending a task via a trigger on asynchronous operators.
-                if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
+                if (
+                    getattr(task, "end_from_trigger", False)
+                    and get_listener_manager().has_listeners
+                ):
                     raise AirflowException(
                         "Listeners are not supported with end_from_trigger=True for deferrable operators. "
                         "Task %s in DAG %s has end_from_trigger=True with listeners from plugins. "
@@ -542,7 +564,9 @@ class DagBag(LoggingMixin):
         ):
             try:
                 file_parse_start_dttm = timezone.utcnow()
-                found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
+                found_dags = self.process_file(
+                    filepath, only_if_updated=only_if_updated, safe_mode=safe_mode
+                )
 
                 file_parse_end_dttm = timezone.utcnow()
                 stats.append(
@@ -631,7 +655,12 @@ class DagBag(LoggingMixin):
                 dagbag_import_error_traceback_depth = conf.getint(
                     "core", "dagbag_import_error_traceback_depth"
                 )
-                return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
+                return [
+                    (
+                        dag.fileloc,
+                        traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
+                    )
+                ]
 
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
         # of any Operational Errors
@@ -650,10 +679,14 @@ class DagBag(LoggingMixin):
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in dags.values():
                         serialize_errors.extend(
-                            _serialize_dag_capturing_errors(dag, session, processor_subdir)
+                            _serialize_dag_capturing_errors(
+                                dag, session, processor_subdir
+                            )
                         )
 
-                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
+                    DAG.bulk_write_to_db(
+                        dags.values(), processor_subdir=processor_subdir, session=session
+                    )
                 except OperationalError:
                     session.rollback()
                     raise
@@ -664,8 +697,12 @@ class DagBag(LoggingMixin):
         return import_errors
 
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session: Session = NEW_SESSION):
-        import_errors = DagBag._sync_to_db(dags=self.dags, processor_subdir=processor_subdir, session=session)
+    def sync_to_db(
+        self, processor_subdir: str | None = None, session: Session = NEW_SESSION
+    ):
+        import_errors = DagBag._sync_to_db(
+            dags=self.dags, processor_subdir=processor_subdir, session=session
+        )
         self.import_errors.update(import_errors)
 
     @classmethod
@@ -694,7 +731,12 @@ class DagPriorityParsingRequest(Base):
     # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
     # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
-    id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
+    id = Column(
+        String(32),
+        primary_key=True,
+        default=generate_md5_hash,
+        onupdate=generate_md5_hash,
+    )
 
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a

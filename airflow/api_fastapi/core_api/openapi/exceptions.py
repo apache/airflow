@@ -38,4 +38,7 @@ def create_openapi_http_exception_doc(responses_status_code: list[int]) -> dict:
     """
     responses_status_code = sorted(responses_status_code)
 
-    return {status_code: {"model": HTTPExceptionResponse} for status_code in responses_status_code}
+    return {
+        status_code: {"model": HTTPExceptionResponse}
+        for status_code in responses_status_code
+    }

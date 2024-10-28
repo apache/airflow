@@ -30,7 +30,12 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.memcache_v1beta2.types import cloud_memcache
-from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
+from google.cloud.redis_v1 import (
+    FailoverInstanceRequest,
+    InputConfig,
+    Instance,
+    OutputConfig,
+)
 
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,

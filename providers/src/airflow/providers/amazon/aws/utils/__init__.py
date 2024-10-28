@@ -80,7 +80,9 @@ def get_botocore_version() -> tuple[int, ...]:
     return tuple(map(int, metadata.version("botocore").split(".")[:3]))
 
 
-def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+def validate_execute_complete_event(
+    event: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if event is None:
         err_msg = "Trigger error: event is None"
         log.error(err_msg)

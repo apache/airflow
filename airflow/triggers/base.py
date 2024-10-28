@@ -143,7 +143,9 @@ class TriggerEvent:
         return False
 
     @provide_session
-    def handle_submit(self, *, task_instance: TaskInstance, session: Session = NEW_SESSION) -> None:
+    def handle_submit(
+        self, *, task_instance: TaskInstance, session: Session = NEW_SESSION
+    ) -> None:
         """
         Handle the submit event for a given task instance.
 
@@ -192,7 +194,9 @@ class BaseTaskEndEvent(TriggerEvent):
         self.xcoms = xcoms
 
     @provide_session
-    def handle_submit(self, *, task_instance: TaskInstance, session: Session = NEW_SESSION) -> None:
+    def handle_submit(
+        self, *, task_instance: TaskInstance, session: Session = NEW_SESSION
+    ) -> None:
         """
         Submit event for the given task instance.
 
@@ -207,9 +211,14 @@ class BaseTaskEndEvent(TriggerEvent):
         self._submit_callback_if_necessary(task_instance=task_instance, session=session)
         self._push_xcoms_if_necessary(task_instance=task_instance)
 
-    def _submit_callback_if_necessary(self, *, task_instance: TaskInstance, session) -> None:
+    def _submit_callback_if_necessary(
+        self, *, task_instance: TaskInstance, session
+    ) -> None:
         """Submit a callback request if the task state is SUCCESS or FAILED."""
-        if self.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+        if self.task_instance_state in (
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+        ):
             request = TaskCallbackRequest(
                 full_filepath=task_instance.dag_model.fileloc,
                 simple_task_instance=SimpleTaskInstance.from_ti(task_instance),

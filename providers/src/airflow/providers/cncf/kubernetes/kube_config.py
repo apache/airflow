@@ -34,25 +34,40 @@ class KubeConfig:
         self.airflow_home = AIRFLOW_HOME
         self.dags_folder = conf.get(self.core_section, "dags_folder")
         self.parallelism = conf.getint(self.core_section, "parallelism")
-        self.pod_template_file = conf.get(self.kubernetes_section, "pod_template_file", fallback=None)
+        self.pod_template_file = conf.get(
+            self.kubernetes_section, "pod_template_file", fallback=None
+        )
 
-        self.delete_worker_pods = conf.getboolean(self.kubernetes_section, "delete_worker_pods")
+        self.delete_worker_pods = conf.getboolean(
+            self.kubernetes_section, "delete_worker_pods"
+        )
         self.delete_worker_pods_on_failure = conf.getboolean(
             self.kubernetes_section, "delete_worker_pods_on_failure"
         )
         self.worker_pod_pending_fatal_container_state_reasons = []
-        if conf.get(self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons", fallback=""):
+        if conf.get(
+            self.kubernetes_section,
+            "worker_pod_pending_fatal_container_state_reasons",
+            fallback="",
+        ):
             self.worker_pod_pending_fatal_container_state_reasons = conf.get(
-                self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons"
+                self.kubernetes_section,
+                "worker_pod_pending_fatal_container_state_reasons",
             ).split(",")
 
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, "worker_pods_creation_batch_size"
         )
-        self.worker_container_repository = conf.get(self.kubernetes_section, "worker_container_repository")
-        self.worker_container_tag = conf.get(self.kubernetes_section, "worker_container_tag")
+        self.worker_container_repository = conf.get(
+            self.kubernetes_section, "worker_container_repository"
+        )
+        self.worker_container_tag = conf.get(
+            self.kubernetes_section, "worker_container_tag"
+        )
         if self.worker_container_repository and self.worker_container_tag:
-            self.kube_image = f"{self.worker_container_repository}:{self.worker_container_tag}"
+            self.kube_image = (
+                f"{self.worker_container_repository}:{self.worker_container_tag}"
+            )
         else:
             self.kube_image = None
 
@@ -61,7 +76,9 @@ class KubeConfig:
         # cluster has RBAC enabled, your scheduler may need service account permissions to
         # create, watch, get, and delete pods in this namespace.
         self.kube_namespace = conf.get(self.kubernetes_section, "namespace")
-        self.multi_namespace_mode = conf.getboolean(self.kubernetes_section, "multi_namespace_mode")
+        self.multi_namespace_mode = conf.getboolean(
+            self.kubernetes_section, "multi_namespace_mode"
+        )
         if self.multi_namespace_mode and conf.get(
             self.kubernetes_section, "multi_namespace_mode_namespace_list"
         ):
@@ -95,7 +112,9 @@ class KubeConfig:
                 self.kube_client_request_args["_request_timeout"] = tuple(
                     self.kube_client_request_args["_request_timeout"]
                 )
-        self.delete_option_kwargs = conf.getjson(self.kubernetes_section, "delete_option_kwargs", fallback={})
+        self.delete_option_kwargs = conf.getjson(
+            self.kubernetes_section, "delete_option_kwargs", fallback={}
+        )
         if not isinstance(self.delete_option_kwargs, dict):
             raise AirflowConfigException(
                 f"[{self.kubernetes_section}] 'delete_option_kwargs' expected a JSON dict, got "

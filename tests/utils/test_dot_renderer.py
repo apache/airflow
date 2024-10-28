@@ -47,10 +47,16 @@ class TestDotRenderer:
 
     def test_should_render_dag_dependencies(self):
         dag_dep_1 = DagDependency(
-            source="dag_one", target="dag_two", dependency_type="Sensor", dependency_id="task_1"
+            source="dag_one",
+            target="dag_two",
+            dependency_type="Sensor",
+            dependency_id="task_1",
         )
         dag_dep_2 = DagDependency(
-            source="dag_two", target="dag_three", dependency_type="Sensor", dependency_id="task_2"
+            source="dag_two",
+            target="dag_three",
+            dependency_type="Sensor",
+            dependency_id="task_2",
         )
 
         dag_dependency_list = []
@@ -68,9 +74,15 @@ class TestDotRenderer:
 
     def test_should_render_dag(self):
         with DAG(dag_id="DAG_ID", schedule=None) as dag:
-            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
-            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
-            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
+            task_1 = BashOperator(
+                start_date=START_DATE, task_id="first", bash_command="echo 1"
+            )
+            task_2 = BashOperator(
+                start_date=START_DATE, task_id="second", bash_command="echo 1"
+            )
+            task_3 = PythonOperator(
+                start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
+            )
             task_1 >> task_2
             task_1 >> task_3
 
@@ -88,13 +100,22 @@ class TestDotRenderer:
 
     def test_should_render_dag_with_task_instances(self, session, dag_maker):
         with dag_maker(dag_id="DAG_ID", session=session) as dag:
-            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
-            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
-            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
+            task_1 = BashOperator(
+                start_date=START_DATE, task_id="first", bash_command="echo 1"
+            )
+            task_2 = BashOperator(
+                start_date=START_DATE, task_id="second", bash_command="echo 1"
+            )
+            task_3 = PythonOperator(
+                start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
+            )
             task_1 >> task_2
             task_1 >> task_3
 
-        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun(execution_date=START_DATE).task_instances}
+        tis = {
+            ti.task_id: ti
+            for ti in dag_maker.create_dagrun(execution_date=START_DATE).task_instances
+        }
         tis["first"].state = State.SCHEDULED
         tis["second"].state = State.SUCCESS
         tis["third"].state = State.RUNNING
@@ -104,14 +125,16 @@ class TestDotRenderer:
         # Should render DAG title
         assert "label=DAG_ID" in source
         assert (
-            'first [color=black fillcolor=tan label=first shape=rectangle style="filled,rounded"]' in source
+            'first [color=black fillcolor=tan label=first shape=rectangle style="filled,rounded"]'
+            in source
         )
         assert (
             'second [color=white fillcolor=green label=second shape=rectangle style="filled,rounded"]'
             in source
         )
         assert (
-            'third [color=black fillcolor=lime label=third shape=rectangle style="filled,rounded"]' in source
+            'third [color=black fillcolor=lime label=third shape=rectangle style="filled,rounded"]'
+            in source
         )
 
     def test_should_render_dag_with_mapped_operator(self, session, dag_maker):
@@ -132,9 +155,15 @@ class TestDotRenderer:
     def test_should_render_dag_orientation(self, session, dag_maker):
         orientation = "TB"
         with dag_maker(dag_id="DAG_ID", orientation=orientation, session=session) as dag:
-            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
-            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
-            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
+            task_1 = BashOperator(
+                start_date=START_DATE, task_id="first", bash_command="echo 1"
+            )
+            task_2 = BashOperator(
+                start_date=START_DATE, task_id="second", bash_command="echo 1"
+            )
+            task_3 = PythonOperator(
+                start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
+            )
             task_1 >> task_2
             task_1 >> task_3
 
@@ -159,7 +188,9 @@ class TestDotRenderer:
         assert f"label=DAG_ID labelloc=t rankdir={orientation}" in source
 
     def test_render_task_group(self):
-        with DAG(dag_id="example_task_group", schedule=None, start_date=START_DATE) as dag:
+        with DAG(
+            dag_id="example_task_group", schedule=None, start_date=START_DATE
+        ) as dag:
             start = EmptyOperator(task_id="start")
 
             with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:

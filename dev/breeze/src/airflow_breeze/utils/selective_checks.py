@@ -27,7 +27,10 @@ from functools import cache, cached_property
 from pathlib import Path
 from typing import Any, TypeVar
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import (
+    AIRFLOW_BRANCH,
+    DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+)
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -96,7 +99,9 @@ ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
     "API Always BranchExternalPython BranchPythonVenv CLI Core "
     "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
 )
-ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
+    "Providers[-amazon,google] Providers[amazon] Providers[google]"
+)
 
 
 class FileGroupForCi(Enum):
@@ -323,7 +328,11 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
+    for provider_root in (
+        TESTS_PROVIDERS_ROOT,
+        SYSTEM_TESTS_PROVIDERS_ROOT,
+        AIRFLOW_PROVIDERS_NS_PACKAGE,
+    ):
         try:
             file_path.relative_to(provider_root)
             relative_base_path = provider_root
@@ -335,7 +344,11 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
             try:
                 relative_path = file_path.relative_to(DOCS_DIR)
                 if relative_path.parts[0].startswith("apache-airflow-providers-"):
-                    return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
+                    return (
+                        relative_path.parts[0]
+                        .replace("apache-airflow-providers-", "")
+                        .replace("-", ".")
+                    )
             except ValueError:
                 pass
         return None
@@ -345,7 +358,9 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
             break
         relative_path = parent_dir_path.relative_to(relative_base_path)
         if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
-            return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
+            return str(parent_dir_path.relative_to(relative_base_path)).replace(
+                os.sep, "."
+            )
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"
 
@@ -365,7 +380,10 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
 
 @cache
 def _matching_files(
-    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+    files: tuple[str, ...],
+    match_group: FileGroupForCi,
+    match_dict: HashableDict,
+    exclude_dict: HashableDict,
 ) -> list[str]:
     matched_files: list[str] = []
     match_regexps = match_dict[match_group]
@@ -383,7 +401,13 @@ def _matching_files(
 
 
 class SelectiveChecks:
-    __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
+    __HASHABLE_FIELDS = {
+        "_files",
+        "_default_branch",
+        "_commit_ref",
+        "_pr_labels",
+        "_github_event",
+    }
 
     def __init__(
         self,
@@ -459,14 +483,24 @@ class SelectiveChecks:
         return self._default_constraints_branch
 
     def _should_run_all_tests_and_versions(self) -> bool:
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
-            get_console().print(f"[warning]Running everything because event is {self._github_event}[/]")
+        if self._github_event in [
+            GithubEvents.PUSH,
+            GithubEvents.SCHEDULE,
+            GithubEvents.WORKFLOW_DISPATCH,
+        ]:
+            get_console().print(
+                f"[warning]Running everything because event is {self._github_event}[/]"
+            )
             return True
         if not self._commit_ref:
-            get_console().print("[warning]Running everything in all versions as commit is missing[/]")
+            get_console().print(
+                "[warning]Running everything in all versions as commit is missing[/]"
+            )
             return True
         if self.hatch_build_changed:
-            get_console().print("[warning]Running everything with all versions: hatch_build.py changed[/]")
+            get_console().print(
+                "[warning]Running everything with all versions: hatch_build.py changed[/]"
+            )
             return True
         if self.pyproject_toml_changed and self.build_system_changed_in_pyproject_toml:
             get_console().print(
@@ -501,14 +535,18 @@ class SelectiveChecks:
             CI_FILE_GROUP_MATCHES,
             CI_FILE_GROUP_EXCLUDES,
         ):
-            get_console().print("[warning]Running full set of tests because env files changed[/]")
+            get_console().print(
+                "[warning]Running full set of tests because env files changed[/]"
+            )
             return True
         if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
             CI_FILE_GROUP_MATCHES,
             CI_FILE_GROUP_EXCLUDES,
         ):
-            get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
+            get_console().print(
+                "[warning]Running full set of tests because tests/utils changed[/]"
+            )
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
@@ -616,22 +654,31 @@ class SelectiveChecks:
     @cached_property
     def kubernetes_combos_list_as_string(self) -> str:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
-        kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
+        kubernetes_version_array: list[str] = (
+            self.kubernetes_versions_list_as_string.split(" ")
+        )
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
         return " ".join(short_combo_titles)
 
     def _matching_files(
-        self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+        self,
+        match_group: FileGroupForCi,
+        match_dict: HashableDict,
+        exclude_dict: HashableDict,
     ) -> list[str]:
         return _matching_files(self._files, match_group, match_dict, exclude_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
-            get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
+            get_console().print(
+                f"[warning]{source_area} enabled because we are running everything[/]"
+            )
             return True
-        matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+        matched_files = self._matching_files(
+            source_area, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
         if matched_files:
             get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
@@ -648,34 +695,46 @@ class SelectiveChecks:
         checks_to_run: list[str] = []
         if (
             self._matching_files(
-                FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-airflow")
         if (
             self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
             checks_to_run.append("mypy-providers")
         if (
             self._matching_files(
-                FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_DOCS_PYTHON_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-docs")
         if (
             self._matching_files(
-                FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_DEV_PYTHON_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-dev")
         if (
-            self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            self._matching_files(
+                FileGroupForCi.TASK_SDK_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
+            )
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-task-sdk")
@@ -732,7 +791,10 @@ class SelectiveChecks:
 
     @cached_property
     def needs_helm_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
+        return (
+            self._should_be_run(FileGroupForCi.HELM_FILES)
+            and self._default_branch == "main"
+        )
 
     @cached_property
     def run_tests(self) -> bool:
@@ -759,11 +821,15 @@ class SelectiveChecks:
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
     ) -> list[str]:
-        matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES, TEST_TYPE_EXCLUDES)
+        matched_files = self._matching_files(
+            test_type, TEST_TYPE_MATCHES, TEST_TYPE_EXCLUDES
+        )
         count = len(matched_files)
         if count > 0:
             test_types.add(test_type.value)
-            get_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
+            get_console().print(
+                f"[warning]{test_type} added because it matched {count} files[/]"
+            )
         return matched_files
 
     def _are_all_providers_affected(self) -> bool:
@@ -774,7 +840,9 @@ class SelectiveChecks:
     def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
 
-    def _get_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
+    def _get_test_types_to_run(
+        self, split_to_individual_providers: bool = False
+    ) -> list[str]:
         if self.full_tests_needed:
             return list(all_selective_test_types())
 
@@ -787,19 +855,25 @@ class SelectiveChecks:
                 SelectiveUnitTestTypes.OTHER,
                 SelectiveUnitTestTypes.PLAIN_ASSERTS,
             ]:
-                matched_files.update(self._select_test_type_if_matching(candidate_test_types, test_type))
+                matched_files.update(
+                    self._select_test_type_if_matching(candidate_test_types, test_type)
+                )
 
         kubernetes_files = self._matching_files(
             FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
         system_test_files = self._matching_files(
-            FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            FileGroupForCi.SYSTEM_TEST_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
         )
         all_source_files = self._matching_files(
             FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
         test_always_files = self._matching_files(
-            FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            FileGroupForCi.ALWAYS_TESTS_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
         )
         remaining_files = (
             set(all_source_files)
@@ -808,7 +882,9 @@ class SelectiveChecks:
             - set(system_test_files)
             - set(test_always_files)
         )
-        get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
+        get_console().print(
+            f"[warning]Remaining non test/always files: {len(remaining_files)}[/]"
+        )
         count_remaining_files = len(remaining_files)
 
         for file in self._files:
@@ -831,14 +907,21 @@ class SelectiveChecks:
                 affected_providers = self._find_all_providers_affected(
                     include_docs=False,
                 )
-                if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
+                if (
+                    affected_providers != "ALL_PROVIDERS"
+                    and affected_providers is not None
+                ):
                     candidate_test_types.discard("Providers")
                     if split_to_individual_providers:
                         for provider in affected_providers:
                             candidate_test_types.add(f"Providers[{provider}]")
                     else:
-                        candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-                elif split_to_individual_providers and "Providers" in candidate_test_types:
+                        candidate_test_types.add(
+                            f"Providers[{','.join(sorted(affected_providers))}]"
+                        )
+                elif (
+                    split_to_individual_providers and "Providers" in candidate_test_types
+                ):
                     candidate_test_types.discard("Providers")
                     for provider in get_available_packages():
                         candidate_test_types.add(f"Providers[{provider}]")
@@ -871,7 +954,9 @@ class SelectiveChecks:
                 current_test_types.add(f"Providers[-{','.join(long_tests)}]")
             elif original_test_type.startswith("Providers["):
                 provider_tests_to_run = (
-                    original_test_type.replace("Providers[", "").replace("]", "").split(",")
+                    original_test_type.replace("Providers[", "")
+                    .replace("]", "")
+                    .split(",")
                 )
                 if any(long_test in provider_tests_to_run for long_test in long_tests):
                     current_test_types.remove(original_test_type)
@@ -879,7 +964,9 @@ class SelectiveChecks:
                         if long_test in provider_tests_to_run:
                             current_test_types.add(f"Providers[{long_test}]")
                             provider_tests_to_run.remove(long_test)
-                    current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
+                    current_test_types.add(
+                        f"Providers[{','.join(provider_tests_to_run)}]"
+                    )
 
     @cached_property
     def parallel_test_types_list_as_string(self) -> str | None:
@@ -906,22 +993,31 @@ class SelectiveChecks:
         if all_test_types is None:
             return None
         return " ".join(
-            test_type for test_type in all_test_types.split(" ") if test_type.startswith("Providers")
+            test_type
+            for test_type in all_test_types.split(" ")
+            if test_type.startswith("Providers")
         )
 
     @cached_property
     def separate_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
+        current_test_types = set(
+            self._get_test_types_to_run(split_to_individual_providers=True)
+        )
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
             current_test_types.update(
-                {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
+                {
+                    f"Providers[{provider}]"
+                    for provider in get_available_packages(include_not_ready=True)
+                }
             )
         if self.skip_provider_tests:
             current_test_types = {
-                test_type for test_type in current_test_types if not test_type.startswith("Providers")
+                test_type
+                for test_type in current_test_types
+                if not test_type.startswith("Providers")
             }
         return " ".join(sorted(current_test_types))
 
@@ -937,7 +1033,11 @@ class SelectiveChecks:
 
     @staticmethod
     def _print_diff(old_lines: list[str], new_lines: list[str]):
-        diff = "\n".join(line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?")
+        diff = "\n".join(
+            line
+            for line in difflib.ndiff(old_lines, new_lines)
+            if line and line[0] in "+-?"
+        )
         get_console().print(diff)
 
     @cached_property
@@ -951,7 +1051,9 @@ class SelectiveChecks:
     @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
-            get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
+            get_console().print(
+                "[warning]Cannot determine pyproject.toml changes as commit is missing[/]"
+            )
             return False
         if "pyproject.toml" not in self._files:
             return False
@@ -1013,15 +1115,21 @@ class SelectiveChecks:
         if (
             len(
                 self._matching_files(
-                    FileGroupForCi.DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                    FileGroupForCi.DEPENDENCY_FILES,
+                    CI_FILE_GROUP_MATCHES,
+                    CI_FILE_GROUP_EXCLUDES,
                 )
             )
             > 0
         ):
-            get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
+            get_console().print(
+                "[warning]Upgrade to newer dependencies: Dependency files changed[/]"
+            )
             return True
         if self.hatch_build_changed:
-            get_console().print("[warning]Upgrade to newer dependencies: hatch_build.py changed[/]")
+            get_console().print(
+                "[warning]Upgrade to newer dependencies: hatch_build.py changed[/]"
+            )
             return True
         if self.build_system_changed_in_pyproject_toml:
             get_console().print(
@@ -1029,7 +1137,9 @@ class SelectiveChecks:
             )
             return True
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
-            get_console().print("[warning]Upgrade to newer dependencies: Push or Schedule event[/]")
+            get_console().print(
+                "[warning]Upgrade to newer dependencies: Push or Schedule event[/]"
+            )
             return True
         if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
             get_console().print(
@@ -1059,7 +1169,9 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
+        if any(
+            file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files
+        ):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
             packages.append("apache-airflow-providers")
@@ -1106,7 +1218,9 @@ class SelectiveChecks:
             FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
-        if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+        if not self._matching_files(
+            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
@@ -1120,10 +1234,14 @@ class SelectiveChecks:
             pre_commits_to_skip.add("lint-helm-chart")
         if not (
             self._matching_files(
-                FileGroupForCi.ALL_PROVIDER_YAML_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_PROVIDER_YAML_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             or self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
         ):
             # only skip provider validation if none of the provider.yaml and provider
@@ -1137,7 +1255,10 @@ class SelectiveChecks:
             return True
         if self.full_tests_needed:
             return False
-        if any(test_type.startswith("Providers") for test_type in self._get_test_types_to_run()):
+        if any(
+            test_type.startswith("Providers")
+            for test_type in self._get_test_types_to_run()
+        ):
             return False
         return True
 
@@ -1145,7 +1266,10 @@ class SelectiveChecks:
     def docker_cache(self) -> str:
         return (
             "disabled"
-            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
+            if (
+                self._github_event == GithubEvents.SCHEDULE
+                or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels
+            )
             else "registry"
         )
 
@@ -1184,15 +1308,22 @@ class SelectiveChecks:
                 # Forced public runners
                 return RUNS_ON_PUBLIC_RUNNER
             actor = self._github_actor
-            if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
+            if self._github_event in (
+                GithubEvents.PULL_REQUEST,
+                GithubEvents.PULL_REQUEST_TARGET,
+            ):
                 try:
-                    actor = self._github_context_dict["event"]["pull_request"]["user"]["login"]
+                    actor = self._github_context_dict["event"]["pull_request"]["user"][
+                        "login"
+                    ]
                     get_console().print(
                         f"[warning]The actor: {actor} retrieved from GITHUB_CONTEXT's"
                         f" event.pull_request.user.login[/]"
                     )
                 except Exception as e:
-                    get_console().print(f"[warning]Exception when reading user login: {e}[/]")
+                    get_console().print(
+                        f"[warning]Exception when reading user login: {e}[/]"
+                    )
                     get_console().print(
                         f"[info]Could not find the actor from pull request, "
                         f"falling back to the actor who triggered the PR: {actor}[/]"
@@ -1251,7 +1382,11 @@ class SelectiveChecks:
         # TODO: when we have it properly set-up with labels we should just check for
         #       "airflow-runner" presence in runs_on
         runs_on_array = json.loads(self.runs_on_as_json_default)
-        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
+        return (
+            "Linux" in runs_on_array
+            and "X64" in runs_on_array
+            and "self-hosted" in runs_on_array
+        )
 
     @cached_property
     def is_amd_runner(self) -> bool:
@@ -1333,7 +1468,9 @@ class SelectiveChecks:
                 for python_version in provider_info["excluded-python-versions"]:
                     providers_to_exclude[python_version].append(provider)
         sorted_providers_to_exclude = dict(
-            sorted(providers_to_exclude.items(), key=lambda item: int(item[0].split(".")[1]))
+            sorted(
+                providers_to_exclude.items(), key=lambda item: int(item[0].split(".")[1])
+            )
         )  # ^ sort by Python minor version
         return json.dumps(sorted_providers_to_exclude)
 
@@ -1402,7 +1539,9 @@ class SelectiveChecks:
             return None
         for provider in list(all_providers):
             all_providers.update(
-                get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+                get_related_providers(
+                    provider, upstream_dependencies=True, downstream_dependencies=True
+                )
             )
         return sorted(all_providers)
 
@@ -1424,7 +1563,9 @@ class SelectiveChecks:
 
         if (
             self._matching_files(
-                FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.LEGACY_API_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             and LEGACY_API_LABEL not in self._pr_labels
         ):
@@ -1435,7 +1576,9 @@ class SelectiveChecks:
             sys.exit(1)
         elif (
             self._matching_files(
-                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.LEGACY_WWW_FILES,
+                CI_FILE_GROUP_MATCHES,
+                CI_FILE_GROUP_EXCLUDES,
             )
             and LEGACY_UI_LABEL not in self._pr_labels
         ):

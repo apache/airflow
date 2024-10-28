@@ -42,7 +42,10 @@ class TestEC2StateSensorTrigger:
         )
 
         class_path, args = test_ec2_state_sensor.serialize()
-        assert class_path == "airflow.providers.amazon.aws.triggers.ec2.EC2StateSensorTrigger"
+        assert (
+            class_path
+            == "airflow.providers.amazon.aws.triggers.ec2.EC2StateSensorTrigger"
+        )
         assert args["instance_id"] == TEST_INSTANCE_ID
         assert args["target_state"] == TEST_TARGET_STATE
         assert args["aws_conn_id"] == TEST_CONN_ID
@@ -52,7 +55,9 @@ class TestEC2StateSensorTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
     @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
-    async def test_ec2_state_sensor_run(self, mock_async_conn, mock_get_instance_state_async):
+    async def test_ec2_state_sensor_run(
+        self, mock_async_conn, mock_get_instance_state_async
+    ):
         mock = AsyncMock()
         mock_async_conn.__aenter__.return_value = mock
         mock_get_instance_state_async.return_value = TEST_TARGET_STATE
@@ -68,7 +73,9 @@ class TestEC2StateSensorTrigger:
         generator = test_ec2_state_sensor.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "message": "target state met"})
+        assert response == TriggerEvent(
+            {"status": "success", "message": "target state met"}
+        )
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
@@ -95,4 +102,6 @@ class TestEC2StateSensorTrigger:
 
         assert mock_get_instance_state_async.call_count == 2
 
-        assert response == TriggerEvent({"status": "success", "message": "target state met"})
+        assert response == TriggerEvent(
+            {"status": "success", "message": "target state met"}
+        )

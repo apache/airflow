@@ -127,7 +127,9 @@ def test_parent_skip_branch(session, dag_maker):
 
     tis = {
         ti.task_id: ti
-        for ti in dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
+        for ti in dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL, state=State.RUNNING
+        ).task_instances
     }
     tis["op1"].run()
 

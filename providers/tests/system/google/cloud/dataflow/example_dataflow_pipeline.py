@@ -66,7 +66,9 @@ with DAG(
     catchup=False,
     tags=["example", "dataflow", "pipelines"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     move_files_to_bucket = GCSSynchronizeBucketsOperator(
         task_id="move_files_to_bucket",
@@ -122,7 +124,9 @@ with DAG(
     # [END howto_operator_delete_dataflow_pipeline]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

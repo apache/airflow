@@ -63,7 +63,9 @@ class PowerBITrigger(BaseTrigger):
         wait_for_termination: bool = True,
     ):
         super().__init__()
-        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
+        self.hook = PowerBIHook(
+            conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout
+        )
         self.dataset_id = dataset_id
         self.timeout = timeout
         self.group_id = group_id

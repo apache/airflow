@@ -31,7 +31,13 @@ class TestOutletEventAccessor:
         (
             (
                 AssetAlias("test_alias"),
-                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_uri="test_uri",
+                        extra={},
+                    )
+                ],
             ),
             (Asset("test_uri"), []),
         ),
@@ -47,11 +53,23 @@ class TestOutletEventAccessor:
         (
             (
                 AssetAlias("test_alias"),
-                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_uri="test_uri",
+                        extra={},
+                    )
+                ],
             ),
             (
                 "test_alias",
-                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_uri="test_uri",
+                        extra={},
+                    )
+                ],
             ),
             (Asset("test_uri"), []),
         ),

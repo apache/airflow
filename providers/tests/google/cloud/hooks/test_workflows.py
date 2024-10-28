@@ -29,8 +29,14 @@ WORKFLOW_ID = "workflow_id"
 EXECUTION_ID = "execution_id"
 WORKFLOW = {"aa": "bb"}
 EXECUTION = {"ccc": "ddd"}
-EXECUTION_NESTED = {"argument": {"project_id": "project_id", "location": "us-east1"}, "test": 1}
-EXECUTION_NESTED_OUTPUT = {"argument": "{'project_id': 'project_id', 'location': 'us-east1'}", "test": 1}
+EXECUTION_NESTED = {
+    "argument": {"project_id": "project_id", "location": "us-east1"},
+    "test": 1,
+}
+EXECUTION_NESTED_OUTPUT = {
+    "argument": "{'project_id': 'project_id', 'location': 'us-east1'}",
+    "test": 1,
+}
 PROJECT_ID = "airflow-testing"
 METADATA = ()
 TIMEOUT = None
@@ -42,9 +48,7 @@ UPDATE_MASK = "aaa,bbb"
 WORKFLOW_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}"
 WORKFLOW_NAME = f"projects/{PROJECT_ID}/locations/{LOCATION}/workflows/{WORKFLOW_ID}"
 EXECUTION_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/workflows/{WORKFLOW_ID}"
-EXECUTION_NAME = (
-    f"projects/{PROJECT_ID}/locations/{LOCATION}/workflows/{WORKFLOW_ID}/executions/{EXECUTION_ID}"
-)
+EXECUTION_NAME = f"projects/{PROJECT_ID}/locations/{LOCATION}/workflows/{WORKFLOW_ID}/executions/{EXECUTION_ID}"
 
 
 def mock_init(*args, **kwargs):
@@ -92,7 +96,9 @@ class TestWorkflowsHook:
 
         assert mock_client.return_value.create_workflow.return_value == result
         mock_client.return_value.create_workflow.assert_called_once_with(
-            request=dict(workflow=WORKFLOW, workflow_id=WORKFLOW_ID, parent=WORKFLOW_PARENT),
+            request=dict(
+                workflow=WORKFLOW, workflow_id=WORKFLOW_ID, parent=WORKFLOW_PARENT
+            ),
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

@@ -71,8 +71,12 @@ class TestClient:
             (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30),
             (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6),
         ]
-        expected_http_connection_options = HTTPConnection.default_socket_options + socket_options
-        expected_https_connection_options = HTTPSConnection.default_socket_options + socket_options
+        expected_http_connection_options = (
+            HTTPConnection.default_socket_options + socket_options
+        )
+        expected_https_connection_options = (
+            HTTPSConnection.default_socket_options + socket_options
+        )
 
         _enable_tcp_keepalive()
 
@@ -94,7 +98,12 @@ class TestClient:
 
     @mock.patch("kubernetes.config.incluster_config.InClusterConfigLoader")
     @conf_vars(
-        {("kubernetes_executor", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'}
+        {
+            (
+                "kubernetes_executor",
+                "api_client_retry_configuration",
+            ): '{"total": 3, "backoff_factor": 0.5}'
+        }
     )
     def test_api_client_retry_configuration_correct_values(self, mock_in_cluster_loader):
         get_kube_client(in_cluster=True)

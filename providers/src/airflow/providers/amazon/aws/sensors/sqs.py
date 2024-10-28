@@ -103,7 +103,9 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
         message_filtering_match_values: Any = None,
         message_filtering_config: Any = None,
         delete_message_on_reception: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -124,7 +126,9 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
 
         if self.message_filtering == "literal":
             if self.message_filtering_match_values is None:
-                raise TypeError("message_filtering_match_values must be specified for literal matching")
+                raise TypeError(
+                    "message_filtering_match_values must be specified for literal matching"
+                )
 
         self.message_filtering_config = message_filtering_config
         self.deferrable = deferrable
@@ -209,13 +213,20 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
                 self.log.info("Deleting %d messages", len(messages))
 
                 entries = [
-                    {"Id": message["MessageId"], "ReceiptHandle": message["ReceiptHandle"]}
+                    {
+                        "Id": message["MessageId"],
+                        "ReceiptHandle": message["ReceiptHandle"],
+                    }
                     for message in messages
                 ]
-                response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
+                response = self.hook.conn.delete_message_batch(
+                    QueueUrl=self.sqs_queue, Entries=entries
+                )
 
                 if "Successful" not in response:
-                    raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
+                    raise AirflowException(
+                        f"Delete SQS Messages failed {response} for messages {messages}"
+                    )
         if message_batch:
             context["ti"].xcom_push(key="messages", value=message_batch)
             return True

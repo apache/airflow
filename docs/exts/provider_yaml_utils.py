@@ -43,7 +43,11 @@ def _filepath_to_module(filepath: str):
 
 def _filepath_to_system_tests(filepath: str):
     return str(
-        ROOT_DIR / "providers" / "tests" / "system" / Path(filepath).relative_to(AIRFLOW_PROVIDERS_NS_PACKAGE)
+        ROOT_DIR
+        / "providers"
+        / "tests"
+        / "system"
+        / Path(filepath).relative_to(AIRFLOW_PROVIDERS_NS_PACKAGE)
     )
 
 

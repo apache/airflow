@@ -38,7 +38,9 @@ class CeleryQueueSensor(BaseSensorOperator):
     :param target_task_id: Task id for checking
     """
 
-    def __init__(self, *, celery_queue: str, target_task_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self, *, celery_queue: str, target_task_id: str | None = None, **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id

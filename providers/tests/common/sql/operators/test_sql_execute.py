@@ -134,7 +134,9 @@ class Row2(NamedTuple):
         ),
     ],
 )
-def test_exec_success(sql, return_last, split_statement, hook_results, hook_descriptions, expected_results):
+def test_exec_success(
+    sql, return_last, split_statement, hook_results, hook_descriptions, expected_results
+):
     """
     Test the execute function in case where SQL query was successful.
     """
@@ -178,7 +180,10 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             True,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            ),
             id="Scalar: Single SQL statement, return_last, split statement",
         ),
         pytest.param(
@@ -187,7 +192,10 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             True,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            ),
             id="Scalar: Multiple SQL statements, return_last, split statement",
         ),
         pytest.param(
@@ -196,7 +204,10 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             False,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            ),
             id="Scalar: Single SQL statements, no return_last (doesn't matter), no split statement",
         ),
         pytest.param(
@@ -205,7 +216,10 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             False,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            (
+                [("id",), ("value",)],
+                [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            ),
             id="Scalar: Single SQL statements, return_last (doesn't matter), no split statement",
         ),
         pytest.param(
@@ -214,7 +228,12 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             False,
             [[Row(id="1", value="value1"), Row(id="2", value="value2")]],
             [[("id",), ("value",)]],
-            [([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")])],
+            [
+                (
+                    [("id",), ("value",)],
+                    [Row(id="1", value="value1"), Row(id="2", value="value2")],
+                )
+            ],
             id="Non-Scalar: Single SQL statements in list, no return_last, no split statement",
         ),
         pytest.param(
@@ -227,8 +246,14 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             ],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
-                ([("id2",), ("value2",)], [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")]),
+                (
+                    [("id",), ("value",)],
+                    [Row(id="1", value="value1"), Row(id="2", value="value2")],
+                ),
+                (
+                    [("id2",), ("value2",)],
+                    [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")],
+                ),
             ],
             id="Non-Scalar: Multiple SQL statements in list, no return_last (no matter), no split statement",
         ),
@@ -242,8 +267,14 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             ],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
-                ([("id2",), ("value2",)], [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")]),
+                (
+                    [("id",), ("value",)],
+                    [Row(id="1", value="value1"), Row(id="2", value="value2")],
+                ),
+                (
+                    [("id2",), ("value2",)],
+                    [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")],
+                ),
             ],
             id="Non-Scalar: Multiple SQL statements in list, return_last (no matter), no split statement",
         ),
@@ -306,7 +337,9 @@ def test_execute_openlineage_events(connection_port, default_port, expected_port
 
             return DatabaseInfo(
                 scheme="sqlscheme",
-                authority=DbApiHook.get_openlineage_authority_part(connection, default_port=default_port),
+                authority=DbApiHook.get_openlineage_authority_part(
+                    connection, default_port=default_port
+                ),
             )
 
         def get_openlineage_database_specific_lineage(self, task_instance):
@@ -345,8 +378,12 @@ FORGOT TO COMMENT"""
             facets={
                 "schema": SchemaDatasetFacet(
                     fields=[
-                        SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                        SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                        SchemaDatasetFacetFields(
+                            name="order_day_of_week", type="varchar"
+                        ),
+                        SchemaDatasetFacetFields(
+                            name="order_placed_on", type="timestamp"
+                        ),
                         SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                     ]
                 )
@@ -378,7 +415,9 @@ def test_with_no_openlineage_provider():
     def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
         if level == 0 and name.startswith("airflow.providers.openlineage"):
             raise ImportError("No provider 'apache-airflow-providers-openlineage'")
-        return importlib.__import__(name, globals=globals_, locals=locals_, fromlist=fromlist, level=level)
+        return importlib.__import__(
+            name, globals=globals_, locals=locals_, fromlist=fromlist, level=level
+        )
 
     with mock.patch("builtins.__import__", side_effect=mock__import__):
         op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1;")

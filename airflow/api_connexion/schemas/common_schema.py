@@ -101,12 +101,16 @@ class WeightRuleField(fields.String):
     """Schema for WeightRule."""
 
     def _serialize(self, value, attr, obj, **kwargs):
-        from airflow.serialization.serialized_objects import encode_priority_weight_strategy
+        from airflow.serialization.serialized_objects import (
+            encode_priority_weight_strategy,
+        )
 
         return encode_priority_weight_strategy(value)
 
     def _deserialize(self, value, attr, data, **kwargs):
-        from airflow.serialization.serialized_objects import decode_priority_weight_strategy
+        from airflow.serialization.serialized_objects import (
+            decode_priority_weight_strategy,
+        )
 
         return decode_priority_weight_strategy(value)
 

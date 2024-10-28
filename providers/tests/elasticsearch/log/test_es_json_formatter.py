@@ -79,7 +79,9 @@ class TestElasticsearchJSONFormatter:
         es_json_formatter.extras = self.EXTRA_FIELDS
         formatted = es_json_formatter.format(log_record)
         data = json.loads(formatted)
-        assert all((key in self.JSON_FIELDS or key in self.EXTRA_FIELDS) for key in data.keys())
+        assert all(
+            (key in self.JSON_FIELDS or key in self.EXTRA_FIELDS) for key in data.keys()
+        )
         assert data["filename"] == "test_file.txt"
         assert data["lineno"] == 1
         assert data["levelname"] == "INFO"

@@ -126,12 +126,18 @@ class BigQueryToBigQueryOperator(BaseOperator):
                 var_name="source_project_dataset_table",
             )
             source_project_dataset_tables_fixup.append(
-                {"projectId": source_project, "datasetId": source_dataset, "tableId": source_table}
+                {
+                    "projectId": source_project,
+                    "datasetId": source_dataset,
+                    "tableId": source_table,
+                }
             )
 
-        destination_project, destination_dataset, destination_table = self.hook.split_tablename(
-            table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id,
+        destination_project, destination_dataset, destination_table = (
+            self.hook.split_tablename(
+                table_input=self.destination_project_dataset_table,
+                default_project_id=self.hook.project_id,
+            )
         )
         configuration = {
             "copy": {
@@ -150,7 +156,9 @@ class BigQueryToBigQueryOperator(BaseOperator):
             configuration["labels"] = self.labels
 
         if self.encryption_configuration:
-            configuration["copy"]["destinationEncryptionConfiguration"] = self.encryption_configuration
+            configuration["copy"]["destinationEncryptionConfiguration"] = (
+                self.encryption_configuration
+            )
 
         return configuration
 

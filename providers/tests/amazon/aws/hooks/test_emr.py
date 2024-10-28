@@ -55,7 +55,9 @@ class TestEmrHook:
     def test_create_job_flow_uses_the_emr_config_to_create_a_cluster(self):
         client = boto3.client("emr", region_name="us-east-1")
 
-        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        hook = EmrHook(
+            aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1"
+        )
         cluster = hook.create_job_flow(
             {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
         )
@@ -65,7 +67,9 @@ class TestEmrHook:
     @mock_aws
     @pytest.mark.parametrize("num_steps", [1, 2, 3, 4])
     def test_add_job_flow_steps_one_step(self, num_steps):
-        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        hook = EmrHook(
+            aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1"
+        )
         cluster = hook.create_job_flow(
             {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
         )
@@ -88,7 +92,9 @@ class TestEmrHook:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn")
     def test_add_job_flow_steps_wait_for_completion(self, mock_conn):
-        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        hook = EmrHook(
+            aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1"
+        )
         mock_conn.run_job_flow.return_value = {
             "JobFlowId": "job_flow_id",
             "ClusterArn": "cluster_arn",
@@ -100,7 +106,9 @@ class TestEmrHook:
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
 
-        hook.create_job_flow({"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}})
+        hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
+        )
 
         steps = [
             {
@@ -113,14 +121,20 @@ class TestEmrHook:
             }
         ]
 
-        hook.add_job_flow_steps(job_flow_id="job_flow_id", steps=steps, wait_for_completion=True)
+        hook.add_job_flow_steps(
+            job_flow_id="job_flow_id", steps=steps, wait_for_completion=True
+        )
 
         mock_conn.get_waiter.assert_called_once_with("step_complete")
 
     @mock.patch("time.sleep", return_value=True)
     @mock.patch.object(EmrHook, "conn")
-    def test_add_job_flow_steps_raises_exception_on_failure(self, mock_conn, mock_sleep, caplog):
-        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+    def test_add_job_flow_steps_raises_exception_on_failure(
+        self, mock_conn, mock_sleep, caplog
+    ):
+        hook = EmrHook(
+            aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1"
+        )
         mock_conn.describe_step.return_value = {
             "Step": {
                 "Status": {
@@ -145,12 +159,18 @@ class TestEmrHook:
                 "Name": "step_1",
             }
         ]
-        waiter_error = WaiterError(name="test_error", reason="test_reason", last_response={})
-        waiter_error_failure = WaiterError(name="test_error", reason="terminal failure", last_response={})
+        waiter_error = WaiterError(
+            name="test_error", reason="test_reason", last_response={}
+        )
+        waiter_error_failure = WaiterError(
+            name="test_error", reason="terminal failure", last_response={}
+        )
         mock_conn.get_waiter().wait.side_effect = [waiter_error, waiter_error_failure]
 
         with pytest.raises(AirflowException):
-            hook.add_job_flow_steps(job_flow_id="job_flow_id", steps=steps, wait_for_completion=True)
+            hook.add_job_flow_steps(
+                job_flow_id="job_flow_id", steps=steps, wait_for_completion=True
+            )
         assert "test failure details" in caplog.messages[-1]
         mock_conn.get_waiter.assert_called_with("step_complete")
 
@@ -174,9 +194,16 @@ class TestEmrHook:
             warnings.simplefilter("error")
             if sys.version_info >= (3, 12):
                 # Botocore generates deprecation warning on Python 3.12 connected with utcnow use
-                warnings.filterwarnings("ignore", message=r".*datetime.utcnow.*", category=DeprecationWarning)
+                warnings.filterwarnings(
+                    "ignore", message=r".*datetime.utcnow.*", category=DeprecationWarning
+                )
             cluster = hook.create_job_flow(
-                {"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2", "Instances": {}}
+                {
+                    "Name": "test_cluster",
+                    "ReleaseLabel": "",
+                    "AmiVersion": "3.2",
+                    "Instances": {},
+                }
             )
         cluster = client.describe_cluster(ClusterId=cluster["JobFlowId"])["Cluster"]
 
@@ -232,7 +259,9 @@ class TestEmrHook:
         hook = EmrHook(aws_conn_id=aws_conn_id, emr_conn_id=emr_conn_id)
         result, message = hook.test_connection()
         assert not result
-        assert message.startswith("'Amazon Elastic MapReduce' Airflow Connection cannot be tested")
+        assert message.startswith(
+            "'Amazon Elastic MapReduce' Airflow Connection cannot be tested"
+        )
 
     @mock_aws
     def test_get_cluster_id_by_name(self):
@@ -247,11 +276,15 @@ class TestEmrHook:
 
         job_flow_id = job_flow["JobFlowId"]
 
-        matching_cluster = hook.get_cluster_id_by_name("test_cluster", ["RUNNING", "WAITING"])
+        matching_cluster = hook.get_cluster_id_by_name(
+            "test_cluster", ["RUNNING", "WAITING"]
+        )
 
         assert matching_cluster == job_flow_id
 
-        no_match = hook.get_cluster_id_by_name("foo", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
+        no_match = hook.get_cluster_id_by_name(
+            "foo", ["RUNNING", "WAITING", "BOOTSTRAPPING"]
+        )
 
         assert no_match is None
 
@@ -262,12 +295,18 @@ class TestEmrHook:
         """
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
-        hook.create_job_flow({"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}})
+        hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+        )
 
-        hook.create_job_flow({"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}})
+        hook.create_job_flow(
+            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+        )
 
         with pytest.raises(AirflowException):
-            hook.get_cluster_id_by_name("test_cluster", ["RUNNING", "WAITING", "BOOTSTRAPPING"])
+            hook.get_cluster_id_by_name(
+                "test_cluster", ["RUNNING", "WAITING", "BOOTSTRAPPING"]
+            )
 
     @mock_aws
     def test_get_cluster_id_by_name_pagination(self):
@@ -280,14 +319,17 @@ class TestEmrHook:
         # Create enough clusters to trigger pagination
         for index in range(51):
             hook.create_job_flow(
-                {"Name": f"test_cluster_{index}", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
+                {
+                    "Name": f"test_cluster_{index}",
+                    "Instances": {"KeepJobFlowAliveWhenNoSteps": True},
+                }
             )
 
         # Fetch a cluster from the second page using the boto API
         client = boto3.client("emr", region_name="us-east-1")
-        response_marker = client.list_clusters(ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"])[
-            "Marker"
-        ]
+        response_marker = client.list_clusters(
+            ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"]
+        )["Marker"]
         second_page_cluster = client.list_clusters(
             ClusterStates=["RUNNING", "WAITING", "BOOTSTRAPPING"], Marker=response_marker
         )["Clusters"][0]
@@ -336,14 +378,20 @@ class TestEmrHook:
         hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=step)
         mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
 
-        hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=step, execution_role_arn=None)
-        mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
-
-        hook.add_job_flow_steps(job_flow_id=job_flow_id, steps=step, execution_role_arn="")
+        hook.add_job_flow_steps(
+            job_flow_id=job_flow_id, steps=step, execution_role_arn=None
+        )
         mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
 
         hook.add_job_flow_steps(
-            job_flow_id=job_flow_id, steps=step, execution_role_arn="test-execution-role-arn"
+            job_flow_id=job_flow_id, steps=step, execution_role_arn=""
+        )
+        mock_conn.add_job_flow_steps.assert_called_with(JobFlowId=job_flow_id, Steps=step)
+
+        hook.add_job_flow_steps(
+            job_flow_id=job_flow_id,
+            steps=step,
+            execution_role_arn="test-execution-role-arn",
         )
         mock_conn.add_job_flow_steps.assert_called_with(
             JobFlowId=job_flow_id, Steps=step, ExecutionRoleArn="test-execution-role-arn"

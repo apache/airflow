@@ -23,7 +23,10 @@ from copy import copy
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceAsyncClient, DataTransferServiceClient
+from google.cloud.bigquery_datatransfer_v1 import (
+    DataTransferServiceAsyncClient,
+    DataTransferServiceClient,
+)
 from google.cloud.bigquery_datatransfer_v1.types import (
     StartManualTransferRunsResponse,
     TransferConfig,
@@ -88,11 +91,17 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         :param config: Data transfer configuration to create.
         """
-        config = TransferConfig.to_dict(config) if isinstance(config, TransferConfig) else config
+        config = (
+            TransferConfig.to_dict(config)
+            if isinstance(config, TransferConfig)
+            else config
+        )
         new_config = copy(config)
         schedule_options = new_config.get("schedule_options")
         if schedule_options:
-            disable_auto_scheduling = schedule_options.get("disable_auto_scheduling", None)
+            disable_auto_scheduling = schedule_options.get(
+                "disable_auto_scheduling", None
+            )
             if disable_auto_scheduling is None:
                 schedule_options["disable_auto_scheduling"] = True
         else:
@@ -306,7 +315,9 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
     async def _get_conn(self) -> DataTransferServiceAsyncClient:
         if not self._conn:
             credentials = (await self.get_sync_hook()).get_credentials()
-            self._conn = DataTransferServiceAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
+            self._conn = DataTransferServiceAsyncClient(
+                credentials=credentials, client_info=CLIENT_INFO
+            )
         return self._conn
 
     async def _get_project_id(self) -> str:

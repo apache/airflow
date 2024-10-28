@@ -79,12 +79,17 @@ class TestWasbTaskHandler:
     def test_hook_warns(self):
         handler = self.wasb_task_handler
         with mock.patch.object(handler.log, "exception") as mock_exc:
-            with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
+            with mock.patch(
+                "airflow.providers.microsoft.azure.hooks.wasb.WasbHook"
+            ) as mock_hook:
                 mock_hook.side_effect = AzureHttpError("failed to connect", 404)
                 # Initialize the hook
                 handler.hook
 
-        assert "Could not create a WasbHook with connection id '%s'" in mock_exc.call_args.args[0]
+        assert (
+            "Could not create a WasbHook with connection id '%s'"
+            in mock_exc.call_args.args[0]
+        )
 
     def test_set_context_raw(self, ti):
         ti.raw = True
@@ -127,7 +132,9 @@ class TestWasbTaskHandler:
 
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
-        **{"return_value.read_file.side_effect": AzureHttpError("failed to connect", 404)},
+        **{
+            "return_value.read_file.side_effect": AzureHttpError("failed to connect", 404)
+        },
     )
     def test_wasb_read_raises(self, mock_hook):
         handler = self.wasb_task_handler
@@ -170,8 +177,12 @@ class TestWasbTaskHandler:
     def test_write_raises(self):
         handler = self.wasb_task_handler
         with mock.patch.object(handler.log, "error") as mock_error:
-            with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook") as mock_hook:
-                mock_hook.return_value.load_string.side_effect = AzureHttpError("failed to connect", 404)
+            with mock.patch(
+                "airflow.providers.microsoft.azure.hooks.wasb.WasbHook"
+            ) as mock_hook:
+                mock_hook.return_value.load_string.side_effect = AzureHttpError(
+                    "failed to connect", 404
+                )
 
                 handler.wasb_write("text", self.remote_log_location, append=False)
 
@@ -183,7 +194,9 @@ class TestWasbTaskHandler:
         "delete_local_copy, expected_existence_of_local_copy",
         [(True, False), (False, True)],
     )
-    @mock.patch("airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler.wasb_write")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler.wasb_write"
+    )
     def test_close_with_delete_local_logs_conf(
         self,
         wasb_write_mock,
@@ -204,7 +217,10 @@ class TestWasbTaskHandler:
         assert handler.upload_on_close
 
         handler.close()
-        assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+        assert (
+            os.path.exists(handler.handler.baseFilename)
+            == expected_existence_of_local_copy
+        )
 
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2

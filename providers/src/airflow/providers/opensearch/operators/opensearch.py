@@ -58,7 +58,8 @@ class OpenSearchQueryOperator(BaseOperator):
         search_object: Any | None = None,
         index_name: str | None = None,
         opensearch_conn_id: str = "opensearch_default",
-        opensearch_conn_class: type[OpenSearchConnectionClass] | None = RequestsHttpConnection,
+        opensearch_conn_class: type[OpenSearchConnectionClass]
+        | None = RequestsHttpConnection,
         log_query: bool = True,
         **kwargs,
     ) -> None:
@@ -85,9 +86,13 @@ class OpenSearchQueryOperator(BaseOperator):
 
         if self.query is not None:
             if not self.query.get("query"):
-                raise AirflowException("Query input is missing required field Query in dictionary")
+                raise AirflowException(
+                    "Query input is missing required field Query in dictionary"
+                )
             if self.index_name is None:
-                raise AirflowException("Index name is required when using the query input.")
+                raise AirflowException(
+                    "Index name is required when using the query input."
+                )
             try:
                 result = self.hook.search(index_name=self.index_name, query=self.query)
             except OpenSearchException as e:
@@ -134,7 +139,9 @@ class OpenSearchCreateIndexOperator(BaseOperator):
     @cached_property
     def hook(self) -> OpenSearchHook:
         """Get an instance of an OpenSearchHook."""
-        return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
+        return OpenSearchHook(
+            open_search_conn_id=self.opensearch_conn_id, log_query=False
+        )
 
     def execute(self, context: Context) -> Any:
         """Create an index on an OpenSearch cluster."""
@@ -179,7 +186,9 @@ class OpenSearchAddDocumentOperator(BaseOperator):
     @cached_property
     def hook(self) -> OpenSearchHook:
         """Get an instance of an OpenSearchHook."""
-        return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
+        return OpenSearchHook(
+            open_search_conn_id=self.opensearch_conn_id, log_query=False
+        )
 
     def execute(self, context: Context) -> Any:
         """Save a document to a given index on an OpenSearch cluster."""
@@ -189,7 +198,11 @@ class OpenSearchAddDocumentOperator(BaseOperator):
                 result = doc.save(using=self.hook.client)
             except OpenSearchException as e:
                 raise AirflowException(e)
-        elif self.index_name is not None and self.document is not None and self.doc_id is not None:
+        elif (
+            self.index_name is not None
+            and self.document is not None
+            and self.doc_id is not None
+        ):
             try:
                 result = self.hook.index(
                     index_name=self.index_name, document=self.document, doc_id=self.doc_id

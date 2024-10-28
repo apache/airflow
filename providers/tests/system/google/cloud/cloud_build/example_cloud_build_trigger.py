@@ -45,7 +45,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcp_cloud_build_trigger"
 
@@ -87,7 +89,9 @@ update_build_trigger_body = {
 
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body: dict[str, Any] = {
-    "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
+    "source": {
+        "repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}
+    },
     "steps": [{"name": "ubuntu", "args": ["echo", "Hello world", "sleep 200"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
@@ -119,7 +123,9 @@ with DAG(
 ) as dag:
     # [START howto_operator_create_build_trigger]
     create_build_trigger = CloudBuildCreateBuildTriggerOperator(
-        task_id="create_build_trigger", project_id=PROJECT_ID, trigger=create_build_trigger_body
+        task_id="create_build_trigger",
+        project_id=PROJECT_ID,
+        trigger=create_build_trigger_body,
     )
     # [END howto_operator_create_build_trigger]
 

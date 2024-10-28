@@ -121,7 +121,9 @@ def test_config_path_do_not_fail_if_conf_option_missing():
 def test_disable_source_code(var_string, expected):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): var_string}):
         result = is_source_enabled()
-        assert result is not expected  # conf is disabled_... and func is enabled_... hence the `not` here
+        assert (
+            result is not expected
+        )  # conf is disabled_... and func is enabled_... hence the `not` here
 
 
 @env_vars({_VAR_DISABLE_SOURCE_CODE: "true"})
@@ -195,12 +197,20 @@ def test_selective_enable_do_not_fail_if_conf_option_missing():
         ("path.to.Operator  ;", {"path.to.Operator"}),
         ("  ;  path.to.Operator  ;", {"path.to.Operator"}),
         ("path.to.Operator", {"path.to.Operator"}),
-        ("path.to.Operator  ;   path.to.second.Operator ; ", {"path.to.Operator", "path.to.second.Operator"}),
-        ("path.to.Operator;path.to.second.Operator", {"path.to.Operator", "path.to.second.Operator"}),
+        (
+            "path.to.Operator  ;   path.to.second.Operator ; ",
+            {"path.to.Operator", "path.to.second.Operator"},
+        ),
+        (
+            "path.to.Operator;path.to.second.Operator",
+            {"path.to.Operator", "path.to.second.Operator"},
+        ),
     ),
 )
 def test_disabled_for_operators(var_string, expected):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLED_FOR_OPERATORS): var_string}):
+    with conf_vars(
+        {(_CONFIG_SECTION, _CONFIG_OPTION_DISABLED_FOR_OPERATORS): var_string}
+    ):
         result = disabled_operators()
         assert isinstance(result, set)
         assert sorted(result) == sorted(expected)
@@ -240,7 +250,10 @@ def test_extractors_conf_option_has_precedence_over_legacy_env_var():
             "path.to.Extractor  ;   path.to.second.Extractor ; ",
             {"path.to.Extractor", "path.to.second.Extractor"},
         ),
-        ("path.to.Extractor;path.to.second.Extractor", {"path.to.Extractor", "path.to.second.Extractor"}),
+        (
+            "path.to.Extractor;path.to.second.Extractor",
+            {"path.to.Extractor", "path.to.second.Extractor"},
+        ),
     ),
 )
 def test_extractors(var_string, expected):
@@ -414,7 +427,9 @@ def test_is_disabled_conf_option_is_enough_to_disable():
     assert is_disabled() is True
 
 
-@mock.patch.dict(os.environ, {_VAR_URL: "https://test.com", _VAR_DISABLED: "true"}, clear=True)
+@mock.patch.dict(
+    os.environ, {_VAR_URL: "https://test.com", _VAR_DISABLED: "true"}, clear=True
+)
 @conf_vars(
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "some/path.yml",
@@ -494,7 +509,9 @@ def test_is_disabled_do_not_fail_if_conf_option_missing():
     ),
 )
 def test_dag_state_change_process_pool_size(var_string, expected):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
+    with conf_vars(
+        {(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}
+    ):
         result = dag_state_change_process_pool_size()
         assert result == expected
 
@@ -512,7 +529,9 @@ def test_dag_state_change_process_pool_size(var_string, expected):
     ),
 )
 def test_dag_state_change_process_pool_size_invalid_value_raise_error(var_string):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
+    with conf_vars(
+        {(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}
+    ):
         with pytest.raises(AirflowConfigException):
             dag_state_change_process_pool_size()
 
@@ -555,7 +574,9 @@ def test_execution_timeout_invalid_value_raise_error(var_string):
     _BOOL_PARAMS,
 )
 def test_include_full_task_info(var_string, expected):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}):
+    with conf_vars(
+        {(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}
+    ):
         result = include_full_task_info()
         assert result is expected
 
@@ -572,7 +593,9 @@ def test_include_full_task_info(var_string, expected):
     ),
 )
 def test_include_full_task_info_invalid_value_raise_error(var_string):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}):
+    with conf_vars(
+        {(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}
+    ):
         with pytest.raises(AirflowConfigException):
             include_full_task_info()
 

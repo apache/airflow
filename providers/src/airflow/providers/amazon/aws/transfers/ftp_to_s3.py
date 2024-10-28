@@ -61,7 +61,13 @@ class FTPToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ("ftp_path", "s3_bucket", "s3_key", "ftp_filenames", "s3_filenames")
+    template_fields: Sequence[str] = (
+        "ftp_path",
+        "s3_bucket",
+        "s3_key",
+        "ftp_filenames",
+        "s3_filenames",
+    )
 
     def __init__(
         self,
@@ -97,7 +103,8 @@ class FTPToS3Operator(BaseOperator):
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
             self.ftp_hook.retrieve_file(
-                remote_full_path=remote_filename, local_full_path_or_buffer=local_tmp_file.name
+                remote_full_path=remote_filename,
+                local_full_path_or_buffer=local_tmp_file.name,
             )
 
             self.s3_hook.load_file(
@@ -143,9 +150,13 @@ class FTPToS3Operator(BaseOperator):
             else:
                 if self.s3_filenames:
                     for ftp_file, s3_file in zip(self.ftp_filenames, self.s3_filenames):
-                        self.__upload_to_s3_from_ftp(self.ftp_path + ftp_file, self.s3_key + s3_file)
+                        self.__upload_to_s3_from_ftp(
+                            self.ftp_path + ftp_file, self.s3_key + s3_file
+                        )
                 else:
                     for ftp_file in self.ftp_filenames:
-                        self.__upload_to_s3_from_ftp(self.ftp_path + ftp_file, self.s3_key + ftp_file)
+                        self.__upload_to_s3_from_ftp(
+                            self.ftp_path + ftp_file, self.s3_key + ftp_file
+                        )
         else:
             self.__upload_to_s3_from_ftp(self.ftp_path, self.s3_key)

@@ -33,15 +33,21 @@ if TYPE_CHECKING:
 class BranchMixIn(SkipMixin):
     """Utility helper which handles the branching as one-liner."""
 
-    def do_branch(self, context: Context, branches_to_execute: str | Iterable[str]) -> str | Iterable[str]:
+    def do_branch(
+        self, context: Context, branches_to_execute: str | Iterable[str]
+    ) -> str | Iterable[str]:
         """Implement the handling of branching including logging."""
         self.log.info("Branch into %s", branches_to_execute)
-        branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
+        branch_task_ids = self._expand_task_group_roots(
+            context["ti"], branches_to_execute
+        )
         self.skip_all_except(context["ti"], branch_task_ids)
         return branches_to_execute
 
     def _expand_task_group_roots(
-        self, ti: TaskInstance | TaskInstancePydantic, branches_to_execute: str | Iterable[str]
+        self,
+        ti: TaskInstance | TaskInstancePydantic,
+        branches_to_execute: str | Iterable[str],
     ) -> Iterable[str]:
         """Expand any task group into its root task ids."""
         if TYPE_CHECKING:
@@ -54,7 +60,9 @@ class BranchMixIn(SkipMixin):
 
         if branches_to_execute is None:
             return
-        elif isinstance(branches_to_execute, str) or not isinstance(branches_to_execute, Iterable):
+        elif isinstance(branches_to_execute, str) or not isinstance(
+            branches_to_execute, Iterable
+        ):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:

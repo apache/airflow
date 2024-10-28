@@ -156,7 +156,9 @@ option_install_mysql_client_type = click.option(
 option_platform_multiple = click.option(
     "--platform",
     help="Platform for Airflow image.",
-    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else ALLOWED_PLATFORMS[0],
+    default=DOCKER_DEFAULT_PLATFORM
+    if not generating_command_images()
+    else ALLOWED_PLATFORMS[0],
     envvar="PLATFORM",
     type=BetterChoice(ALLOWED_PLATFORMS),
 )

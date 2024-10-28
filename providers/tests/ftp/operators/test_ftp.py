@@ -45,8 +45,12 @@ class TestFTPFileTransmitOperator:
         self.test_remote_filename = "test_remote_file"
         self.test_local_filepath = f"{self.test_local_dir}/{self.test_local_filename}"
         self.test_remote_filepath = f"{self.test_remote_dir}/{self.test_remote_filename}"
-        self.test_local_filepath_int_dir = f"{self.test_local_dir}/{self.test_local_filename}"
-        self.test_remote_filepath_int_dir = f"{self.test_remote_dir_int}/{self.test_remote_filename}"
+        self.test_local_filepath_int_dir = (
+            f"{self.test_local_dir}/{self.test_local_filename}"
+        )
+        self.test_remote_filepath_int_dir = (
+            f"{self.test_remote_dir_int}/{self.test_remote_filename}"
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
@@ -60,7 +64,9 @@ class TestFTPFileTransmitOperator:
         )
         ftp_op.execute(None)
         assert not mock_create_dir.called
-        mock_put.assert_called_once_with(self.test_remote_filepath, self.test_local_filepath)
+        mock_put.assert_called_once_with(
+            self.test_remote_filepath, self.test_local_filepath
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.create_directory")
@@ -75,7 +81,9 @@ class TestFTPFileTransmitOperator:
         )
         ftp_op.execute(None)
         mock_create_dir.assert_called_with(self.test_remote_dir_int)
-        mock_put.assert_called_once_with(self.test_remote_filepath_int_dir, self.test_local_filepath)
+        mock_put.assert_called_once_with(
+            self.test_remote_filepath_int_dir, self.test_local_filepath
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file")
     def test_file_transfer_get(self, mock_get):
@@ -87,7 +95,9 @@ class TestFTPFileTransmitOperator:
             operation=FTPOperation.GET,
         )
         ftp_op.execute(None)
-        mock_get.assert_called_once_with(self.test_remote_filepath, self.test_local_filepath)
+        mock_get.assert_called_once_with(
+            self.test_remote_filepath, self.test_local_filepath
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file")
     def test_file_transfer_with_intermediate_dir_get(self, mock_get, tmp_path):
@@ -164,7 +174,9 @@ class TestFTPFileTransmitOperator:
             operation="invalid_operation",
             dag=dag,
         )
-        with pytest.raises(TypeError, match="Unsupported operation value invalid_operation, "):
+        with pytest.raises(
+            TypeError, match="Unsupported operation value invalid_operation, "
+        ):
             task_1.execute(None)
 
     def test_unequal_local_remote_file_paths(self):
@@ -194,8 +206,12 @@ class TestFTPSFileTransmitOperator:
         self.test_remote_filename = "test_remote_file"
         self.test_local_filepath = f"{self.test_local_dir}/{self.test_local_filename}"
         self.test_remote_filepath = f"{self.test_remote_dir}/{self.test_remote_filename}"
-        self.test_local_filepath_int_dir = f"{self.test_local_dir}/{self.test_local_filename}"
-        self.test_remote_filepath_int_dir = f"{self.test_remote_dir_int}/{self.test_remote_filename}"
+        self.test_local_filepath_int_dir = (
+            f"{self.test_local_dir}/{self.test_local_filename}"
+        )
+        self.test_remote_filepath_int_dir = (
+            f"{self.test_remote_dir_int}/{self.test_remote_filename}"
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPSHook.store_file")
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPSHook.create_directory")
@@ -209,7 +225,9 @@ class TestFTPSFileTransmitOperator:
         )
         ftps_op.execute(None)
         assert not mock_create_dir.called
-        mock_put.assert_called_once_with(self.test_remote_filepath, self.test_local_filepath)
+        mock_put.assert_called_once_with(
+            self.test_remote_filepath, self.test_local_filepath
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPSHook.store_file")
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPSHook.create_directory")
@@ -224,7 +242,9 @@ class TestFTPSFileTransmitOperator:
         )
         ftps_op.execute(None)
         mock_create_dir.assert_called_with(self.test_remote_dir_int)
-        mock_put.assert_called_once_with(self.test_remote_filepath_int_dir, self.test_local_filepath)
+        mock_put.assert_called_once_with(
+            self.test_remote_filepath_int_dir, self.test_local_filepath
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPSHook.retrieve_file")
     def test_file_transfer_get(self, mock_get):
@@ -236,7 +256,9 @@ class TestFTPSFileTransmitOperator:
             operation=FTPOperation.GET,
         )
         ftps_op.execute(None)
-        mock_get.assert_called_once_with(self.test_remote_filepath, self.test_local_filepath)
+        mock_get.assert_called_once_with(
+            self.test_remote_filepath, self.test_local_filepath
+        )
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.retrieve_file")
     def test_file_transfer_with_intermediate_dir_get(self, mock_get, tmp_path):
@@ -309,10 +331,13 @@ class TestFTPSFileTransmitOperator:
         )
         lineage = task.get_openlineage_facets_on_start()
 
-        assert lineage.inputs == [Dataset(namespace="file://remotehost:21", name="/path/to/remote")]
+        assert lineage.inputs == [
+            Dataset(namespace="file://remotehost:21", name="/path/to/remote")
+        ]
         assert lineage.outputs == [
             Dataset(
-                namespace=f"file://{socket.gethostbyname(socket.gethostname())}:21", name="/path/to/local"
+                namespace=f"file://{socket.gethostbyname(socket.gethostname())}:21",
+                name="/path/to/local",
             )
         ]
 
@@ -341,7 +366,10 @@ class TestFTPSFileTransmitOperator:
 
         assert lineage.inputs == [
             Dataset(
-                namespace=f"file://{socket.gethostbyname(socket.gethostname())}:21", name="/path/to/local"
+                namespace=f"file://{socket.gethostbyname(socket.gethostname())}:21",
+                name="/path/to/local",
             )
         ]
-        assert lineage.outputs == [Dataset(namespace="file://remotehost:21", name="/path/to/remote")]
+        assert lineage.outputs == [
+            Dataset(namespace="file://remotehost:21", name="/path/to/remote")
+        ]

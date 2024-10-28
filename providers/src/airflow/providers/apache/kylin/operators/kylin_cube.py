@@ -134,7 +134,9 @@ class KylinCubeOperator(BaseOperator):
         self.jobs_error_status = [stat.upper() for stat in eager_error_status]
 
     def execute(self, context: Context):
-        _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
+        _hook = KylinHook(
+            kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn
+        )
 
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command
         if not self.command:
@@ -145,8 +147,12 @@ class KylinCubeOperator(BaseOperator):
             )
 
         kylinpy_params = {
-            "start": datetime.fromtimestamp(int(self.start_time) / 1000) if self.start_time else None,
-            "end": datetime.fromtimestamp(int(self.end_time) / 1000) if self.end_time else None,
+            "start": datetime.fromtimestamp(int(self.start_time) / 1000)
+            if self.start_time
+            else None,
+            "end": datetime.fromtimestamp(int(self.end_time) / 1000)
+            if self.end_time
+            else None,
             "name": self.segment_name,
             "offset_start": int(self.offset_start) if self.offset_start else None,
             "offset_end": int(self.offset_end) if self.offset_end else None,
@@ -168,7 +174,9 @@ class KylinCubeOperator(BaseOperator):
                 job_status = _hook.get_job_status(job_id)
                 self.log.info("Kylin job status is %s ", job_status)
                 if job_status in self.jobs_error_status:
-                    raise AirflowException(f"Kylin job {job_id} status {job_status} is error ")
+                    raise AirflowException(
+                        f"Kylin job {job_id} status {job_status} is error "
+                    )
 
         if self.do_xcom_push:
             return rsp_data

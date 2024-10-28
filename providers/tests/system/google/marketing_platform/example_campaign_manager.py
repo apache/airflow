@@ -40,8 +40,13 @@ from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.hooks.secret_manager import (
+    GoogleCloudSecretManagerHook,
+)
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
     GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -59,7 +64,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 CM360_IMPERSONATION_CHAIN = os.environ.get("IMPERSONATION_CHAIN", None)
 
 DAG_ID = "campaign_manager"
@@ -75,7 +82,9 @@ ACCOUNT_ID = "{{ task_instance.xcom_pull('get_account_id') }}"
 DCLID = "{{ task_instance.xcom_pull('get_dclid') }}"
 ENCRYPTION_ENTITY_ID = "{{ task_instance.xcom_pull('get_encryption_entity_id') }}"
 FLOODLIGHT_ACTIVITY_ID = "{{ task_instance.xcom_pull('get_floodlight_activity_id') }}"
-FLOODLIGHT_CONFIGURATION_ID = "{{ task_instance.xcom_pull('get_floodlight_configuration_id') }}"
+FLOODLIGHT_CONFIGURATION_ID = (
+    "{{ task_instance.xcom_pull('get_floodlight_configuration_id') }}"
+)
 USER_PROFILE_ID = "{{ task_instance.xcom_pull('get_user_profile_id') }}"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -261,7 +270,9 @@ with DAG(
     # [END howto_campaign_manager_delete_report_operator]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_campaign_manager_insert_conversions]

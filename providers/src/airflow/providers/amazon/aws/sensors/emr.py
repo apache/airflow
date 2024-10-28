@@ -25,8 +25,16 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
 )
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.providers.amazon.aws.hooks.emr import (
+    EmrContainerHook,
+    EmrHook,
+    EmrServerlessHook,
+)
+from airflow.providers.amazon.aws.links.emr import (
+    EmrClusterLink,
+    EmrLogsLink,
+    get_log_uri,
+)
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrContainerTrigger,
     EmrStepSensorTrigger,
@@ -83,7 +91,9 @@ class EmrBaseSensor(BaseSensorOperator):
             return True
 
         if state in self.failed_states:
-            raise AirflowException(f"EMR job failed: {self.failure_message_from_response(response)}")
+            raise AirflowException(
+                f"EMR job failed: {self.failure_message_from_response(response)}"
+            )
 
         return False
 
@@ -113,7 +123,9 @@ class EmrBaseSensor(BaseSensorOperator):
         :param response: response from AWS API
         :return: failure message
         """
-        raise NotImplementedError("Please implement failure_message_from_response() in subclass")
+        raise NotImplementedError(
+            "Please implement failure_message_from_response() in subclass"
+        )
 
 
 class EmrServerlessJobSensor(BaseSensorOperator):
@@ -155,7 +167,9 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
+        response = self.hook.conn.get_job_run(
+            applicationId=self.application_id, jobRunId=self.job_run_id
+        )
 
         state = response["jobRun"]["state"]
 
@@ -205,7 +219,9 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         self,
         *,
         application_id: str,
-        target_states: set | frozenset = frozenset(EmrServerlessHook.APPLICATION_SUCCESS_STATES),
+        target_states: set | frozenset = frozenset(
+            EmrServerlessHook.APPLICATION_SUCCESS_STATES
+        ),
         aws_conn_id: str | None = "aws_default",
         **kwargs: Any,
     ) -> None:
@@ -287,7 +303,9 @@ class EmrContainerSensor(BaseSensorOperator):
         max_retries: int | None = None,
         aws_conn_id: str | None = "aws_default",
         poll_interval: int = 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -300,7 +318,9 @@ class EmrContainerSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrContainerHook:
-        return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
+        return EmrContainerHook(
+            self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id
+        )
 
     def poke(self, context: Context) -> bool:
         state = self.hook.poll_query_status(
@@ -344,7 +364,9 @@ class EmrContainerSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -389,7 +411,9 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
         emr_client = self.hook.conn
         self.log.info("Poking notebook %s", self.notebook_execution_id)
 
-        return emr_client.describe_notebook_execution(NotebookExecutionId=self.notebook_execution_id)
+        return emr_client.describe_notebook_execution(
+            NotebookExecutionId=self.notebook_execution_id
+        )
 
     @staticmethod
     def state_from_response(response: dict[str, Any]) -> str:
@@ -451,7 +475,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -533,7 +559,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -562,7 +590,12 @@ class EmrStepSensor(EmrBaseSensor):
     :param deferrable: Run sensor in the deferrable mode.
     """
 
-    template_fields: Sequence[str] = ("job_flow_id", "step_id", "target_states", "failed_states")
+    template_fields: Sequence[str] = (
+        "job_flow_id",
+        "step_id",
+        "target_states",
+        "failed_states",
+    )
     template_ext: Sequence[str] = ()
     operator_extra_links = (
         EmrClusterLink(),
@@ -577,7 +610,9 @@ class EmrStepSensor(EmrBaseSensor):
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -600,7 +635,9 @@ class EmrStepSensor(EmrBaseSensor):
         emr_client = self.hook.conn
 
         self.log.info("Poking step %s on cluster %s", self.step_id, self.job_flow_id)
-        response = emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
+        response = emr_client.describe_step(
+            ClusterId=self.job_flow_id, StepId=self.step_id
+        )
 
         EmrClusterLink.persist(
             context=context,
@@ -662,7 +699,9 @@ class EmrStepSensor(EmrBaseSensor):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":

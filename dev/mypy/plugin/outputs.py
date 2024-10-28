@@ -59,9 +59,15 @@ class OperatorOutputPlugin(Plugin):
     @staticmethod
     def _treat_as_any(context: AttributeContext | MethodContext) -> Type:
         """Pretend *XComArg* is actually *typing.Any*."""
-        return AnyType(TypeOfAny.special_form, line=context.context.line, column=context.context.column)
+        return AnyType(
+            TypeOfAny.special_form,
+            line=context.context.line,
+            column=context.context.column,
+        )
 
-    def get_attribute_hook(self, fullname: str) -> Callable[[AttributeContext], Type] | None:
+    def get_attribute_hook(
+        self, fullname: str
+    ) -> Callable[[AttributeContext], Type] | None:
         if fullname not in OUTPUT_PROPERTIES:
             return None
         return self._treat_as_any

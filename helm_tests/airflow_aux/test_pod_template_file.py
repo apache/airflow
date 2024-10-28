@@ -105,8 +105,14 @@ class TestPodTemplateFile:
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {
+                    "name": "GIT_SYNC_REPO",
+                    "value": "https://github.com/apache/airflow.git",
+                },
+                {
+                    "name": "GITSYNC_REPO",
+                    "value": "https://github.com/apache/airflow.git",
+                },
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
                 {"name": "GITSYNC_DEPTH", "value": "1"},
                 {"name": "GIT_SYNC_ROOT", "value": "/git"},
@@ -179,7 +185,9 @@ class TestPodTemplateFile:
         )
 
         assert expected_volume in jmespath.search("spec.volumes", docs[0])
-        assert expected_volume_mount in jmespath.search("spec.containers[0].volumeMounts", docs[0])
+        assert expected_volume_mount in jmespath.search(
+            "spec.containers[0].volumeMounts", docs[0]
+        )
 
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
@@ -198,12 +206,14 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
+        assert {
+            "name": "GIT_SSH_KEY_FILE",
+            "value": "/etc/git-secret/ssh",
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {
+            "name": "GITSYNC_SSH_KEY_FILE",
+            "value": "/etc/git-secret/ssh",
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
@@ -274,42 +284,60 @@ class TestPodTemplateFile:
 
         assert {
             "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}
+            },
         } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
             "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}
+            },
         } in jmespath.search("spec.initContainers[0].env", docs[0])
 
         # Testing git-sync v4
         assert {
             "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}
+            },
         } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
             "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+            "valueFrom": {
+                "secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}
+            },
         } in jmespath.search("spec.initContainers[0].env", docs[0])
 
-    def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
+    def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(
+        self,
+    ):
         docs = render_chart(
-            values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
+            values={
+                "dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}} in jmespath.search(
-            "spec.volumes", docs[0]
-        )
+        assert {
+            "name": "dags",
+            "persistentVolumeClaim": {"claimName": "test-claim"},
+        } in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
         "dags_gitsync_values, expected",
         [
             ({"enabled": True}, {"emptyDir": {}}),
-            ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
+            (
+                {"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
         ],
     )
-    def test_should_use_empty_dir_for_gitsync_without_persistence(self, dags_gitsync_values, expected):
+    def test_should_use_empty_dir_for_gitsync_without_persistence(
+        self, dags_gitsync_values, expected
+    ):
         docs = render_chart(
             values={"dags": {"gitSync": dags_gitsync_values}},
             show_only=["templates/pod-template-file.yaml"],
@@ -322,7 +350,10 @@ class TestPodTemplateFile:
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {
+                    "persistence": {"enabled": False},
+                    "emptyDirConfig": {"sizeLimit": "10Gi"},
+                },
                 {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
             (
@@ -348,7 +379,11 @@ class TestPodTemplateFile:
         docs = render_chart(
             values={
                 "images": {
-                    "pod_template": {"repository": "dummy_image", "tag": "latest", "pullPolicy": "Always"}
+                    "pod_template": {
+                        "repository": "dummy_image",
+                        "tag": "latest",
+                        "pullPolicy": "Always",
+                    }
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -356,7 +391,9 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert "dummy_image:latest" == jmespath.search("spec.containers[0].image", docs[0])
+        assert "dummy_image:latest" == jmespath.search(
+            "spec.containers[0].image", docs[0]
+        )
         assert "Always" == jmespath.search("spec.containers[0].imagePullPolicy", docs[0])
         assert "base" == jmespath.search("spec.containers[0].name", docs[0])
 
@@ -368,9 +405,10 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {"configMap": {"name": "release-name-config"}, "name": "config"} in jmespath.search(
-            "spec.volumes", docs[0]
-        )
+        assert {
+            "configMap": {"name": "release-name-config"},
+            "name": "config",
+        } in jmespath.search("spec.volumes", docs[0])
         assert {
             "name": "config",
             "mountPath": "/opt/airflow/airflow.cfg",
@@ -388,7 +426,11 @@ class TestPodTemplateFile:
                             "nodeSelectorTerms": [
                                 {
                                     "matchExpressions": [
-                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "foo",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 }
                             ]
@@ -396,7 +438,12 @@ class TestPodTemplateFile:
                     }
                 },
                 "tolerations": [
-                    {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "dynamic-pods",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "nodeSelector": {"diskType": "ssd"},
             },
@@ -422,7 +469,9 @@ class TestPodTemplateFile:
             docs[0],
         )
 
-    def test_should_create_valid_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
+    def test_should_create_valid_affinity_tolerations_topology_spread_constraints_and_node_selector(
+        self,
+    ):
         docs = render_chart(
             values={
                 "executor": "KubernetesExecutor",
@@ -433,7 +482,11 @@ class TestPodTemplateFile:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -441,7 +494,12 @@ class TestPodTemplateFile:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "topologySpreadConstraints": [
                         {
@@ -480,7 +538,9 @@ class TestPodTemplateFile:
             docs[0],
         )
 
-    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(
+        self,
+    ):
         """When given both global and worker affinity etc, worker affinity etc is used."""
         expected_affinity = {
             "nodeAffinity": {
@@ -506,7 +566,12 @@ class TestPodTemplateFile:
                 "workers": {
                     "affinity": expected_affinity,
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
@@ -518,7 +583,11 @@ class TestPodTemplateFile:
                                 "weight": 1,
                                 "preference": {
                                     "matchExpressions": [
-                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "not-me",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 },
                             }
@@ -526,7 +595,12 @@ class TestPodTemplateFile:
                     }
                 },
                 "tolerations": [
-                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "not-me",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "topologySpreadConstraints": [
                     {
@@ -567,7 +641,9 @@ class TestPodTemplateFile:
         )
 
     def test_should_not_create_default_affinity(self):
-        docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir
+        )
 
         assert {} == jmespath.search("spec.affinity", docs[0])
 
@@ -584,9 +660,14 @@ class TestPodTemplateFile:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                     "extraVolumeMounts": [
-                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                        {
+                            "name": "test-volume-{{ .Chart.Name }}",
+                            "mountPath": "/opt/test",
+                        }
                     ],
                 }
             },
@@ -617,7 +698,9 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {"name": "FOO", "value": "bar"} in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
@@ -660,7 +743,9 @@ class TestPodTemplateFile:
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert annotations == {
-            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
+            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+            if safe_to_evict
+            else "false"
         }
 
     def test_safe_to_evict_annotation_other_services(self):
@@ -682,7 +767,10 @@ class TestPodTemplateFile:
         )
         for doc in docs:
             annotations = jmespath.search("spec.template.metadata.annotations", doc)
-            assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
+            assert (
+                annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict")
+                == "true"
+            )
 
     def test_workers_pod_annotations(self):
         docs = render_chart(
@@ -713,7 +801,10 @@ class TestPodTemplateFile:
             values={
                 "workers": {
                     "extraInitContainers": [
-                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "test-init-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -730,7 +821,9 @@ class TestPodTemplateFile:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                    "extraInitContainers": [
+                        {"name": "{{ .Release.Name }}-test-init-container"}
+                    ],
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -746,7 +839,10 @@ class TestPodTemplateFile:
             values={
                 "workers": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -797,11 +893,18 @@ class TestPodTemplateFile:
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
                             "name": "TEST_ENV_2",
-                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "my-secret", "key": "my-key"}
+                            },
                         },
                         {
                             "name": "TEST_ENV_3",
-                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "my-config-map",
+                                    "key": "my-key",
+                                }
+                            },
                         },
                     ]
                 }
@@ -835,7 +938,10 @@ class TestPodTemplateFile:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_add_resources(self):
         docs = render_chart(
@@ -882,7 +988,9 @@ class TestPodTemplateFile:
         )
 
         assert "127.0.0.2" == jmespath.search("spec.hostAliases[0].ip", docs[0])
-        assert "test.hostname" == jmespath.search("spec.hostAliases[0].hostnames[0]", docs[0])
+        assert "test.hostname" == jmespath.search(
+            "spec.hostAliases[0].hostnames[0]", docs[0]
+        )
 
     def test_workers_priority_class_name(self):
         docs = render_chart(
@@ -897,7 +1005,9 @@ class TestPodTemplateFile:
 
         assert "test-priority" == jmespath.search("spec.priorityClassName", docs[0])
 
-    def test_workers_container_lifecycle_webhooks_are_configurable(self, hook_type="preStop"):
+    def test_workers_container_lifecycle_webhooks_are_configurable(
+        self, hook_type="preStop"
+    ):
         lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
         lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
         docs = render_chart(
@@ -1037,7 +1147,10 @@ class TestPodTemplateFile:
     )
     def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
         docs = render_chart(
-            values={"workers": workers_values, "webserver": {"webserverConfigConfigMapName": "config"}},
+            values={
+                "workers": workers_values,
+                "webserver": {"webserverConfigConfigMapName": "config"},
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1053,7 +1166,10 @@ class TestPodTemplateFile:
 
     @pytest.mark.parametrize(
         "workers_values",
-        [{"kerberosSidecar": {"enabled": True}}, {"kerberosInitContainer": {"enabled": True}}],
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"kerberosInitContainer": {"enabled": True}},
+        ],
     )
     def test_base_contains_kerberos_env(self, workers_values):
         docs = render_chart(

@@ -38,7 +38,9 @@ from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.bedrock import (
@@ -49,7 +51,10 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockRaGOperator,
     BedrockRetrieveOperator,
 )
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockIngestionJobSensor,
     BedrockKnowledgeBaseActiveSensor,
@@ -94,7 +99,9 @@ def external_sources_rag_group():
         sources=[
             {
                 "sourceType": "S3",
-                "s3Location": {"uri": f"s3://{bucket_name}/AMZN-2022-Shareholder-Letter.pdf"},
+                "s3Location": {
+                    "uri": f"s3://{bucket_name}/AMZN-2022-Shareholder-Letter.pdf"
+                },
             }
         ],
     )
@@ -103,17 +110,27 @@ def external_sources_rag_group():
     @task.branch
     def run_or_skip():
         log.info("Found botocore version %s.", botocore_version := get_botocore_version())
-        return end_workflow.task_id if botocore_version < (1, 34, 90) else external_sources_rag.task_id
+        return (
+            end_workflow.task_id
+            if botocore_version < (1, 34, 90)
+            else external_sources_rag.task_id
+        )
 
     run_or_skip = run_or_skip()
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    end_workflow = EmptyOperator(
+        task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
 
-    chain(run_or_skip, Label("Boto version does not support External Sources"), end_workflow)
+    chain(
+        run_or_skip, Label("Boto version does not support External Sources"), end_workflow
+    )
     chain(run_or_skip, external_sources_rag, end_workflow)
 
 
 @task
-def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, policy_name_suffix: str) -> None:
+def create_opensearch_policies(
+    bedrock_role_arn: str, collection_name: str, policy_name_suffix: str
+) -> None:
     """
     Create security, network and data access policies within Amazon OpenSearch Serverless.
 
@@ -128,7 +145,9 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
 
     def _create_security_policy(name, policy_type, policy):
         try:
-            aoss_client.create_security_policy(name=name, policy=json.dumps(policy), type=policy_type)
+            aoss_client.create_security_policy(
+                name=name, policy=json.dumps(policy), type=policy_type
+            )
         except ClientError as e:
             if e.response["Error"]["Code"] == "ConflictException":
                 log.info("OpenSearch security policy %s already exists.", name)
@@ -136,7 +155,9 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
 
     def _create_access_policy(name, policy_type, policy):
         try:
-            aoss_client.create_access_policy(name=name, policy=json.dumps(policy), type=policy_type)
+            aoss_client.create_access_policy(
+                name=name, policy=json.dumps(policy), type=policy_type
+            )
         except ClientError as e:
             if e.response["Error"]["Code"] == "ConflictException":
                 log.info("OpenSearch data access policy %s already exists.", name)
@@ -146,7 +167,12 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
         name=encryption_policy_name,
         policy_type="encryption",
         policy={
-            "Rules": [{"Resource": [f"collection/{collection_name}"], "ResourceType": "collection"}],
+            "Rules": [
+                {
+                    "Resource": [f"collection/{collection_name}"],
+                    "ResourceType": "collection",
+                }
+            ],
             "AWSOwnedKey": True,
         },
     )
@@ -156,7 +182,12 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
         policy_type="network",
         policy=[
             {
-                "Rules": [{"Resource": [f"collection/{collection_name}"], "ResourceType": "collection"}],
+                "Rules": [
+                    {
+                        "Resource": [f"collection/{collection_name}"],
+                        "ResourceType": "collection",
+                    }
+                ],
                 "AllowFromPublic": True,
             }
         ],
@@ -191,7 +222,10 @@ def create_opensearch_policies(bedrock_role_arn: str, collection_name: str, poli
                         "ResourceType": "index",
                     },
                 ],
-                "Principal": [(StsHook().conn.get_caller_identity()["Arn"]), bedrock_role_arn],
+                "Principal": [
+                    (StsHook().conn.get_caller_identity()["Arn"]),
+                    bedrock_role_arn,
+                ],
             }
         ],
     )
@@ -205,9 +239,9 @@ def create_collection(collection_name: str):
     :param collection_name: The name of the Collection to create.
     """
     log.info("\nCreating collection: %s.", collection_name)
-    return aoss_client.create_collection(name=collection_name, type="VECTORSEARCH")["createCollectionDetail"][
-        "id"
-    ]
+    return aoss_client.create_collection(name=collection_name, type="VECTORSEARCH")[
+        "createCollectionDetail"
+    ]["id"]
 
 
 @task
@@ -251,7 +285,9 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
     retries = 35
     while retries > 0:
         try:
-            response = oss_client.indices.create(index=index_name, body=json.dumps(index_config))
+            response = oss_client.indices.create(
+                index=index_name, body=json.dumps(index_config)
+            )
             log.info("Creating index: %s.", response)
             break
         except AuthorizationException as e:
@@ -300,7 +336,9 @@ def copy_data_to_s3(bucket: str):
         with tempfile.NamedTemporaryFile(mode="w", prefix="") as data_file:
             urlretrieve(source, data_file.name)
             S3Hook().conn.upload_file(
-                Filename=data_file.name, Bucket=bucket, Key=os.path.basename(data_file.name)
+                Filename=data_file.name,
+                Bucket=bucket,
+                Key=os.path.basename(data_file.name),
             )
 
     # Revert the monkey patch.
@@ -339,8 +377,14 @@ def delete_data_source(knowledge_base_id: str, data_source_id: str):
     :param knowledge_base_id: The unique identifier of the knowledge base which the data source is attached to.
     :param data_source_id: The unique identifier of the data source to delete.
     """
-    log.info("Deleting data source %s from Knowledge Base %s.", data_source_id, knowledge_base_id)
-    bedrock_agent_client.delete_data_source(dataSourceId=data_source_id, knowledgeBaseId=knowledge_base_id)
+    log.info(
+        "Deleting data source %s from Knowledge Base %s.",
+        data_source_id,
+        knowledge_base_id,
+    )
+    bedrock_agent_client.delete_data_source(
+        dataSourceId=data_source_id, knowledgeBaseId=knowledge_base_id
+    )
 
 
 # [END howto_operator_bedrock_delete_data_source]
@@ -424,9 +468,19 @@ def delete_opensearch_policies(collection_name: str):
         )["securityPolicySummaries"]
         if not policies:
             raise Exception("No security policies found?")
-        log.info("Found %s security policies for %s: %s", policy_type, collection_name, policies)
+        log.info(
+            "Found %s security policies for %s: %s",
+            policy_type,
+            collection_name,
+            policies,
+        )
         for policy in policies:
-            log.info("Deleting %s security policy for %s: %s", policy_type, collection_name, policy["name"])
+            log.info(
+                "Deleting %s security policy for %s: %s",
+                policy_type,
+                collection_name,
+                policy["name"],
+            )
             aoss_client.delete_security_policy(name=policy["name"], type=policy_type)
 
 
@@ -452,7 +506,9 @@ with DAG(
     vector_store_name = f"{naming_prefix}{env_id}"
     data_source_name = f"{naming_prefix}ds-{env_id}"
 
-    create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
+    create_bucket = S3CreateBucketOperator(
+        task_id="create_bucket", bucket_name=bucket_name
+    )
 
     opensearch_policies = create_opensearch_policies(
         bedrock_role_arn=test_context[ROLE_ARN_KEY],
@@ -474,7 +530,10 @@ with DAG(
     invoke_claude_completions = BedrockInvokeModelOperator(
         task_id="invoke_claude_completions",
         model_id=CLAUDE_MODEL_ID,
-        input_data={"max_tokens_to_sample": 4000, "prompt": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
+        input_data={
+            "max_tokens_to_sample": 4000,
+            "prompt": f"\n\nHuman: {PROMPT}\n\nAssistant:",
+        },
     )
     # [END howto_operator_invoke_claude_model]
 
@@ -570,7 +629,9 @@ with DAG(
         opensearch_policies,
         collection,
         await_collection,
-        create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
+        create_vector_index(
+            index_name=index_name, collection_id=collection, region=region_name
+        ),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
         invoke_claude_completions,

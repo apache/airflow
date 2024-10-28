@@ -100,7 +100,9 @@ class TestDagBag:
         """
         test that retrieving a non existing dag id returns None without crashing
         """
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
+        dagbag = DagBag(
+            dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True
+        )
 
         non_existing_dag_id = "non_existing_dag_id"
         assert dagbag.get_dag(non_existing_dag_id) is None
@@ -168,7 +170,10 @@ class TestDagBag:
 
             my_dag = my_flow()  # noqa: F841
 
-        source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
+        source_lines = [
+            line[12:]
+            for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]
+        ]
         path1 = tmp_path / "testfile1"
         path2 = tmp_path / "testfile2"
         path1.write_text("".join(source_lines))
@@ -261,7 +266,8 @@ class TestDagBag:
 
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
         with pytest.raises(
-            TypeError, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
+            TypeError,
+            match=r"Value \(1\) from get_dagbag_import_timeout must be int or float",
         ):
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
 
@@ -270,13 +276,17 @@ class TestDagBag:
         return os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
 
     @pytest.fixture
-    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> str:
+    def invalid_cron_zipped_dag(
+        self, invalid_cron_dag: str, tmp_path: pathlib.Path
+    ) -> str:
         zipped = tmp_path / "test_zip_invalid_cron.zip"
         with zipfile.ZipFile(zipped, "w") as zf:
             zf.write(invalid_cron_dag, os.path.basename(invalid_cron_dag))
         return os.fspath(zipped)
 
-    @pytest.mark.parametrize("invalid_dag_name", ["invalid_cron_dag", "invalid_cron_zipped_dag"])
+    @pytest.mark.parametrize(
+        "invalid_dag_name", ["invalid_cron_dag", "invalid_cron_zipped_dag"]
+    )
     def test_process_file_cron_validity_check(
         self, request: pytest.FixtureRequest, invalid_dag_name: str, tmp_path
     ):
@@ -362,7 +372,9 @@ class TestDagBag:
             ),
             pytest.param(
                 pathlib.Path(example_dags_folder) / "example_bash_operator.py",
-                {"example_bash_operator": "airflow/example_dags/example_bash_operator.py"},
+                {
+                    "example_bash_operator": "airflow/example_dags/example_bash_operator.py"
+                },
                 id="example_bash_operator",
             ),
         ),
@@ -406,7 +418,9 @@ class TestDagBag:
         fileloc = str(example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(
+            tzinfo=timezone.utc
+        )
         mock_dagmodel.return_value.fileloc = fileloc
 
         class _TestDagBag(DagBag):
@@ -431,10 +445,14 @@ class TestDagBag:
         Test that we can refresh a packaged DAG
         """
         dag_id = "test_zip_dag"
-        fileloc = os.path.realpath(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip/test_zip.py"))
+        fileloc = os.path.realpath(
+            os.path.join(TEST_DAGS_FOLDER, "test_zip.zip/test_zip.py")
+        )
 
         mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(
+            tzinfo=timezone.utc
+        )
         mock_dagmodel.return_value.fileloc = fileloc
 
         class _TestDagBag(DagBag):
@@ -445,7 +463,9 @@ class TestDagBag:
                     _TestDagBag.process_file_calls += 1
                 return super().process_file(filepath, only_if_updated, safe_mode)
 
-        dagbag = _TestDagBag(dag_folder=os.path.realpath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = _TestDagBag(
+            dag_folder=os.path.realpath(TEST_DAGS_FOLDER), include_examples=False
+        )
 
         assert 1 == dagbag.process_file_calls
         dag = dagbag.get_dag(dag_id)
@@ -468,7 +488,9 @@ class TestDagBag:
         ) as dag:
             EmptyOperator(task_id="task_1")
         dag_maker.create_dagrun()
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
+        dagbag = DagBag(
+            dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True
+        )
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
         dagbag.dags_hash = {dag.dag_id: mock.ANY}
@@ -485,7 +507,9 @@ class TestDagBag:
         Helper method to process a file generated from the input create_dag function.
         """
         # write source to file
-        source = textwrap.dedent("".join(inspect.getsource(create_dag).splitlines(True)[1:-1]))
+        source = textwrap.dedent(
+            "".join(inspect.getsource(create_dag).splitlines(True)[1:-1])
+        )
         path = tmp_path / "testfile"
         path.write_text(source)
 
@@ -493,7 +517,9 @@ class TestDagBag:
         found_dags = dagbag.process_file(os.fspath(path))
         return dagbag, found_dags, os.fspath(path)
 
-    def validate_dags(self, expected_dag, actual_found_dags, actual_dagbag, should_be_found=True):
+    def validate_dags(
+        self, expected_dag, actual_found_dags, actual_dagbag, should_be_found=True
+    ):
         actual_found_dag_ids = [dag.dag_id for dag in actual_found_dags]
         dag_id = expected_dag.dag_id
         actual_dagbag.log.info("validating %s", dag_id)
@@ -520,7 +546,10 @@ class TestDagBag:
             from airflow.operators.empty import EmptyOperator
 
             dag_name = "cycle_dag"
-            default_args = {"owner": "owner1", "start_date": datetime.datetime(2016, 1, 1)}
+            default_args = {
+                "owner": "owner1",
+                "start_date": datetime.datetime(2016, 1, 1),
+            }
             dag = DAG(dag_name, schedule=timedelta(days=1), default_args=default_args)
 
             # A -> A
@@ -570,7 +599,9 @@ class TestDagBag:
 
         # clean up
         with create_session() as session:
-            session.query(DagModel).filter(DagModel.dag_id == "test_deactivate_unknown_dags").delete()
+            session.query(DagModel).filter(
+                DagModel.dag_id == "test_deactivate_unknown_dags"
+            ).delete()
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dags_are_written_to_db_on_sync(self):
@@ -579,18 +610,24 @@ class TestDagBag:
         even when dagbag.read_dags_from_db is False
         """
         with create_session() as session:
-            serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            serialized_dags_count = session.query(
+                func.count(SerializedDagModel.dag_id)
+            ).scalar()
             assert serialized_dags_count == 0
 
             dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                dag_folder=os.path.join(
+                    TEST_DAGS_FOLDER, "test_example_bash_operator.py"
+                ),
                 include_examples=False,
             )
             dagbag.sync_to_db()
 
             assert not dagbag.read_dags_from_db
 
-            new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            new_serialized_dags_count = session.query(
+                func.count(SerializedDagModel.dag_id)
+            ).scalar()
             assert new_serialized_dags_count == 1
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -663,7 +700,9 @@ with airflow.DAG(
     @patch("airflow.models.dagbag.DagBag.collect_dags")
     @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
     @patch("airflow.models.dag.DAG.bulk_write_to_db")
-    def test_sync_to_db_is_retried(self, mock_bulk_write_to_db, mock_s10n_write_dag, mock_collect_dags):
+    def test_sync_to_db_is_retried(
+        self, mock_bulk_write_to_db, mock_s10n_write_dag, mock_collect_dags
+    ):
         """Test that dagbag.sync_to_db is retried on OperationalError"""
 
         dagbag = DagBag("/dev/null")
@@ -696,7 +735,10 @@ with airflow.DAG(
         mock_s10n_write_dag.assert_has_calls(
             [
                 mock.call(
-                    mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session
+                    mock_dag,
+                    min_update_interval=mock.ANY,
+                    processor_subdir=None,
+                    session=mock_session,
                 ),
             ]
         )
@@ -711,9 +753,13 @@ with airflow.DAG(
         """
         db_clean_up()
         session = settings.Session()
-        with time_machine.travel(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False) as frozen_time:
+        with time_machine.travel(
+            tz.datetime(2020, 1, 5, 0, 0, 0), tick=False
+        ) as frozen_time:
             dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                dag_folder=os.path.join(
+                    TEST_DAGS_FOLDER, "test_example_bash_operator.py"
+                ),
                 include_examples=False,
             )
 
@@ -748,7 +794,9 @@ with airflow.DAG(
             mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
 
             dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                dag_folder=os.path.join(
+                    TEST_DAGS_FOLDER, "test_example_bash_operator.py"
+                ),
                 include_examples=False,
             )
             dag = dagbag.dags["test_example_bash_operator"]
@@ -759,11 +807,15 @@ with airflow.DAG(
 
             # perms dont exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
+            mock_sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
 
             # perms now exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
+            mock_sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
 
             # Always sync if we have access_control
             dag.access_control = {"Public": {"can_read"}}
@@ -785,7 +837,9 @@ with airflow.DAG(
             mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
 
             dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                dag_folder=os.path.join(
+                    TEST_DAGS_FOLDER, "test_example_bash_operator.py"
+                ),
                 include_examples=False,
             )
             dag = dagbag.dags["test_example_bash_operator"]
@@ -796,17 +850,24 @@ with airflow.DAG(
 
             # perms dont exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
+            mock_sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
 
             # perms now exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
+            mock_sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
 
             # Always sync if we have access_control
-            dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
+            dag.access_control = {
+                "Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}
+            }
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
+                "test_example_bash_operator",
+                {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}},
             )
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -819,7 +880,9 @@ with airflow.DAG(
         """
 
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
-            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag = DagBag(include_examples=True).dags.get(
+                "example_bash_operator"
+            )
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
             dag_bag = DagBag(read_dags_from_db=True)
@@ -832,7 +895,10 @@ with airflow.DAG(
         # from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 4)), tick=False):
             with assert_queries_count(0):
-                assert dag_bag.get_dag("example_bash_operator").tags == {"example", "example2"}
+                assert dag_bag.get_dag("example_bash_operator").tags == {
+                    "example",
+                    "example2",
+                }
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
@@ -844,7 +910,9 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 8)), tick=False):
             with assert_queries_count(2):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched[
+                    "example_bash_operator"
+                ]
 
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
@@ -860,7 +928,9 @@ with airflow.DAG(
 
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
-            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag = DagBag(include_examples=True).dags.get(
+                "example_bash_operator"
+            )
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # deserialize the DAG
@@ -893,7 +963,9 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 30)), tick=False):
             with assert_queries_count(2):
                 updated_ser_dag = dag_bag.get_dag("example_bash_operator")
-                updated_ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+                updated_ser_dag_update_time = dag_bag.dags_last_fetched[
+                    "example_bash_operator"
+                ]
 
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
@@ -946,7 +1018,9 @@ with airflow.DAG(
         test that file processing results in import error when task does not
         obey cluster policy and has owner whose type is not string.
         """
-        TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name("dags_corrupted")
+        TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name(
+            "dags_corrupted"
+        )
         dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
         dag_id = "test_nonstring_owner"
         err_cls_name = "AirflowClusterPolicyViolation"
@@ -984,7 +1058,9 @@ with airflow.DAG(
         assert "has no tags" in dagbag.import_errors[dag_file]
 
     def test_dagbag_dag_collection(self):
-        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False)
+        dagbag = DagBag(
+            dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False
+        )
         # since collect_dags is False, dagbag.dags should be empty
         assert not dagbag.dags
 
@@ -1000,27 +1076,39 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, collect_dags=False)
         assert dag_file not in dagbag.captured_warnings
 
-        dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+        dagbag.collect_dags(
+            dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False
+        )
         assert len(dagbag.dag_ids) == 1
         assert dag_file in dagbag.captured_warnings
         captured_warnings = dagbag.captured_warnings[dag_file]
         assert len(captured_warnings) == 2
         assert dagbag.dagbag_stats[0].warning_num == 2
 
-        assert captured_warnings[0] == (f"{dag_file}:47: DeprecationWarning: Deprecated Parameter")
+        assert captured_warnings[0] == (
+            f"{dag_file}:47: DeprecationWarning: Deprecated Parameter"
+        )
         assert captured_warnings[1] == f"{dag_file}:49: UserWarning: Some Warning"
 
         with warnings.catch_warnings():
             # Disable capture DeprecationWarning, and it should be reflected in captured warnings
             warnings.simplefilter("ignore", DeprecationWarning)
-            dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+            dagbag.collect_dags(
+                dag_folder=dagbag.dag_folder,
+                include_examples=False,
+                only_if_updated=False,
+            )
             assert dag_file in dagbag.captured_warnings
             assert len(dagbag.captured_warnings[dag_file]) == 1
             assert dagbag.dagbag_stats[0].warning_num == 1
 
             # Disable all warnings, no captured warnings expected
             warnings.simplefilter("ignore")
-            dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+            dagbag.collect_dags(
+                dag_folder=dagbag.dag_folder,
+                include_examples=False,
+                only_if_updated=False,
+            )
             assert dag_file not in dagbag.captured_warnings
             assert dagbag.dagbag_stats[0].warning_num == 0
 
@@ -1032,5 +1120,7 @@ with airflow.DAG(
         assert dag_file in dagbag.captured_warnings
         captured_warnings = dagbag.captured_warnings[dag_file]
         assert len(captured_warnings) == 2
-        assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
+        assert captured_warnings[0] == (
+            f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter"
+        )
         assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"

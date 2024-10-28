@@ -67,7 +67,9 @@ class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
 
     def __init__(
         self,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -149,7 +151,9 @@ class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor[BedrockHook]):
             super().execute(context=context)
 
     def get_state(self) -> str:
-        return self.hook.conn.get_model_customization_job(jobIdentifier=self.job_name)["status"]
+        return self.hook.conn.get_model_customization_job(jobIdentifier=self.job_name)[
+            "status"
+        ]
 
 
 class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor[BedrockHook]):
@@ -202,7 +206,9 @@ class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor[BedrockHo
         self.model_id = model_id
 
     def get_state(self) -> str:
-        return self.hook.conn.get_provisioned_model_throughput(provisionedModelId=self.model_id)["status"]
+        return self.hook.conn.get_provisioned_model_throughput(
+            provisionedModelId=self.model_id
+        )["status"]
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:
@@ -269,9 +275,9 @@ class BedrockKnowledgeBaseActiveSensor(BedrockBaseSensor[BedrockAgentHook]):
         self.knowledge_base_id = knowledge_base_id
 
     def get_state(self) -> str:
-        return self.hook.conn.get_knowledge_base(knowledgeBaseId=self.knowledge_base_id)["knowledgeBase"][
-            "status"
-        ]
+        return self.hook.conn.get_knowledge_base(knowledgeBaseId=self.knowledge_base_id)[
+            "knowledgeBase"
+        ]["status"]
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:

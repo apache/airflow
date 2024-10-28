@@ -23,9 +23,13 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
+from airflow.providers.google.cloud.sensors.dataproc_metastore import (
+    MetastoreHivePartitionSensor,
+)
 
-DATAPROC_METASTORE_SENSOR_PATH = "airflow.providers.google.cloud.sensors.dataproc_metastore.{}"
+DATAPROC_METASTORE_SENSOR_PATH = (
+    "airflow.providers.google.cloud.sensors.dataproc_metastore.{}"
+)
 TEST_TASK_ID = "test-task"
 PARTITION_1 = "column=value"
 PARTITION_2 = "column1=value1/column2=value2"
@@ -39,7 +43,10 @@ MANIFEST_SUCCESS = {
     },
     "filenames": [],
 }
-MANIFEST_FAIL = {"status": {"code": 1, "message": "Bad things happened", "details": []}, "filenames": []}
+MANIFEST_FAIL = {
+    "status": {"code": 1, "message": "Bad things happened", "details": []},
+    "filenames": [],
+}
 RESULT_FILE_CONTENT: dict[str, Any] = {"rows": [], "metadata": {}}
 ROW_1 = []
 ROW_2 = []
@@ -67,9 +74,21 @@ class TestMetastoreHivePartitionSensor:
             ([PARTITION_1, PARTITION_2], [(RESULT_FILE_NAME_1, [ROW_1, ROW_2])], True),
             ([PARTITION_1, PARTITION_1], [(RESULT_FILE_NAME_1, [])], False),
             ([PARTITION_1, PARTITION_1], [(RESULT_FILE_NAME_1, [ROW_1])], True),
-            ([PARTITION_1, PARTITION_2], [(RESULT_FILE_NAME_1, []), (RESULT_FILE_NAME_2, [])], False),
-            ([PARTITION_1, PARTITION_2], [(RESULT_FILE_NAME_1, [ROW_1]), (RESULT_FILE_NAME_2, [])], False),
-            ([PARTITION_1, PARTITION_2], [(RESULT_FILE_NAME_1, []), (RESULT_FILE_NAME_2, [ROW_2])], False),
+            (
+                [PARTITION_1, PARTITION_2],
+                [(RESULT_FILE_NAME_1, []), (RESULT_FILE_NAME_2, [])],
+                False,
+            ),
+            (
+                [PARTITION_1, PARTITION_2],
+                [(RESULT_FILE_NAME_1, [ROW_1]), (RESULT_FILE_NAME_2, [])],
+                False,
+            ),
+            (
+                [PARTITION_1, PARTITION_2],
+                [(RESULT_FILE_NAME_1, []), (RESULT_FILE_NAME_2, [ROW_2])],
+                False,
+            ),
             (
                 [PARTITION_1, PARTITION_2],
                 [(RESULT_FILE_NAME_1, [ROW_1]), (RESULT_FILE_NAME_2, [ROW_2])],
@@ -95,7 +114,10 @@ class TestMetastoreHivePartitionSensor:
             file["rows"] = rows
             parse_json_from_gcs_side_effect.append(file)
 
-        mock_parse_json_from_gcs.side_effect = [manifest, *parse_json_from_gcs_side_effect]
+        mock_parse_json_from_gcs.side_effect = [
+            manifest,
+            *parse_json_from_gcs_side_effect,
+        ]
 
         sensor = MetastoreHivePartitionSensor(
             task_id=TEST_TASK_ID,
@@ -110,7 +132,9 @@ class TestMetastoreHivePartitionSensor:
     @pytest.mark.parametrize("empty_manifest", [dict(), list(), tuple(), None, ""])
     @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("DataprocMetastoreHook"))
     @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("parse_json_from_gcs"))
-    def test_poke_empty_manifest(self, mock_parse_json_from_gcs, mock_hook, empty_manifest):
+    def test_poke_empty_manifest(
+        self, mock_parse_json_from_gcs, mock_hook, empty_manifest
+    ):
         mock_parse_json_from_gcs.return_value = empty_manifest
 
         sensor = MetastoreHivePartitionSensor(

@@ -21,7 +21,9 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Response
 
-from airflow.providers.fab.auth_manager.api.auth.backend.session import requires_authentication
+from airflow.providers.fab.auth_manager.api.auth.backend.session import (
+    requires_authentication,
+)
 from airflow.www import app as application
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
@@ -50,7 +52,9 @@ class TestSessionAuth:
         mock_call.reset_mock()
 
     @patch("airflow.providers.fab.auth_manager.api.auth.backend.session.get_auth_manager")
-    def test_requires_authentication_when_not_authenticated(self, mock_get_auth_manager, app):
+    def test_requires_authentication_when_not_authenticated(
+        self, mock_get_auth_manager, app
+    ):
         auth_manager = Mock()
         auth_manager.is_logged_in.return_value = False
         mock_get_auth_manager.return_value = auth_manager

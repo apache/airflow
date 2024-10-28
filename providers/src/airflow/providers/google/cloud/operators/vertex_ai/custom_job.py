@@ -127,7 +127,9 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.model_serving_container_health_route = model_serving_container_health_route
         self.model_serving_container_command = model_serving_container_command
         self.model_serving_container_args = model_serving_container_args
-        self.model_serving_container_environment_variables = model_serving_container_environment_variables
+        self.model_serving_container_environment_variables = (
+            model_serving_container_environment_variables
+        )
         self.model_serving_container_ports = model_serving_container_ports
         self.model_description = model_description
         self.model_instance_schema_uri = model_instance_schema_uri
@@ -180,17 +182,23 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
             stacklevel=2,
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any]
+    ) -> dict[str, Any] | None:
         if event["status"] == "error":
             raise AirflowException(event["message"])
         training_pipeline = event["job"]
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(training_pipeline)
+        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(
+            training_pipeline
+        )
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         try:
             model = training_pipeline["model_to_upload"]
             model_id = self.hook.extract_model_id(model)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
             return model
         except KeyError:
             self.log.warning(
@@ -514,7 +522,9 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 60,
         **kwargs,
     ) -> None:
@@ -539,70 +549,76 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         if self.deferrable:
             self.invoke_defer(context=context)
 
-        model, training_id, custom_job_id = self.hook.create_custom_container_training_job(
-            project_id=self.project_id,
-            region=self.region,
-            display_name=self.display_name,
-            container_uri=self.container_uri,
-            command=self.command,
-            model_serving_container_image_uri=self.model_serving_container_image_uri,
-            model_serving_container_predict_route=self.model_serving_container_predict_route,
-            model_serving_container_health_route=self.model_serving_container_health_route,
-            model_serving_container_command=self.model_serving_container_command,
-            model_serving_container_args=self.model_serving_container_args,
-            model_serving_container_environment_variables=self.model_serving_container_environment_variables,
-            model_serving_container_ports=self.model_serving_container_ports,
-            model_description=self.model_description,
-            model_instance_schema_uri=self.model_instance_schema_uri,
-            model_parameters_schema_uri=self.model_parameters_schema_uri,
-            model_prediction_schema_uri=self.model_prediction_schema_uri,
-            parent_model=self.parent_model,
-            is_default_version=self.is_default_version,
-            model_version_aliases=self.model_version_aliases,
-            model_version_description=self.model_version_description,
-            labels=self.labels,
-            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
-            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
-            staging_bucket=self.staging_bucket,
-            # RUN
-            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
-            annotation_schema_uri=self.annotation_schema_uri,
-            model_display_name=self.model_display_name,
-            model_labels=self.model_labels,
-            base_output_dir=self.base_output_dir,
-            service_account=self.service_account,
-            network=self.network,
-            bigquery_destination=self.bigquery_destination,
-            args=self.args,
-            environment_variables=self.environment_variables,
-            replica_count=self.replica_count,
-            machine_type=self.machine_type,
-            accelerator_type=self.accelerator_type,
-            accelerator_count=self.accelerator_count,
-            boot_disk_type=self.boot_disk_type,
-            boot_disk_size_gb=self.boot_disk_size_gb,
-            training_fraction_split=self.training_fraction_split,
-            validation_fraction_split=self.validation_fraction_split,
-            test_fraction_split=self.test_fraction_split,
-            training_filter_split=self.training_filter_split,
-            validation_filter_split=self.validation_filter_split,
-            test_filter_split=self.test_filter_split,
-            predefined_split_column_name=self.predefined_split_column_name,
-            timestamp_split_column_name=self.timestamp_split_column_name,
-            tensorboard=self.tensorboard,
-            sync=True,
+        model, training_id, custom_job_id = (
+            self.hook.create_custom_container_training_job(
+                project_id=self.project_id,
+                region=self.region,
+                display_name=self.display_name,
+                container_uri=self.container_uri,
+                command=self.command,
+                model_serving_container_image_uri=self.model_serving_container_image_uri,
+                model_serving_container_predict_route=self.model_serving_container_predict_route,
+                model_serving_container_health_route=self.model_serving_container_health_route,
+                model_serving_container_command=self.model_serving_container_command,
+                model_serving_container_args=self.model_serving_container_args,
+                model_serving_container_environment_variables=self.model_serving_container_environment_variables,
+                model_serving_container_ports=self.model_serving_container_ports,
+                model_description=self.model_description,
+                model_instance_schema_uri=self.model_instance_schema_uri,
+                model_parameters_schema_uri=self.model_parameters_schema_uri,
+                model_prediction_schema_uri=self.model_prediction_schema_uri,
+                parent_model=self.parent_model,
+                is_default_version=self.is_default_version,
+                model_version_aliases=self.model_version_aliases,
+                model_version_description=self.model_version_description,
+                labels=self.labels,
+                training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+                model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+                staging_bucket=self.staging_bucket,
+                # RUN
+                dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
+                annotation_schema_uri=self.annotation_schema_uri,
+                model_display_name=self.model_display_name,
+                model_labels=self.model_labels,
+                base_output_dir=self.base_output_dir,
+                service_account=self.service_account,
+                network=self.network,
+                bigquery_destination=self.bigquery_destination,
+                args=self.args,
+                environment_variables=self.environment_variables,
+                replica_count=self.replica_count,
+                machine_type=self.machine_type,
+                accelerator_type=self.accelerator_type,
+                accelerator_count=self.accelerator_count,
+                boot_disk_type=self.boot_disk_type,
+                boot_disk_size_gb=self.boot_disk_size_gb,
+                training_fraction_split=self.training_fraction_split,
+                validation_fraction_split=self.validation_fraction_split,
+                test_fraction_split=self.test_fraction_split,
+                training_filter_split=self.training_filter_split,
+                validation_filter_split=self.validation_filter_split,
+                test_filter_split=self.test_filter_split,
+                predefined_split_column_name=self.predefined_split_column_name,
+                timestamp_split_column_name=self.timestamp_split_column_name,
+                tensorboard=self.tensorboard,
+                sync=True,
+            )
         )
 
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
     def invoke_defer(self, context: Context) -> None:
@@ -661,7 +677,9 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         custom_container_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_container_training_job_obj.name
         self.xcom_push(context, key="training_id", value=training_pipeline_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_pipeline_id
+        )
         self.defer(
             trigger=CustomContainerTrainingJobTrigger(
                 conn_id=self.gcp_conn_id,
@@ -971,7 +989,9 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 60,
         **kwargs,
     ) -> None:
@@ -997,71 +1017,77 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         if self.deferrable:
             self.invoke_defer(context=context)
 
-        model, training_id, custom_job_id = self.hook.create_custom_python_package_training_job(
-            project_id=self.project_id,
-            region=self.region,
-            display_name=self.display_name,
-            python_package_gcs_uri=self.python_package_gcs_uri,
-            python_module_name=self.python_module_name,
-            container_uri=self.container_uri,
-            model_serving_container_image_uri=self.model_serving_container_image_uri,
-            model_serving_container_predict_route=self.model_serving_container_predict_route,
-            model_serving_container_health_route=self.model_serving_container_health_route,
-            model_serving_container_command=self.model_serving_container_command,
-            model_serving_container_args=self.model_serving_container_args,
-            model_serving_container_environment_variables=self.model_serving_container_environment_variables,
-            model_serving_container_ports=self.model_serving_container_ports,
-            model_description=self.model_description,
-            model_instance_schema_uri=self.model_instance_schema_uri,
-            model_parameters_schema_uri=self.model_parameters_schema_uri,
-            model_prediction_schema_uri=self.model_prediction_schema_uri,
-            parent_model=self.parent_model,
-            is_default_version=self.is_default_version,
-            model_version_aliases=self.model_version_aliases,
-            model_version_description=self.model_version_description,
-            labels=self.labels,
-            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
-            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
-            staging_bucket=self.staging_bucket,
-            # RUN
-            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
-            annotation_schema_uri=self.annotation_schema_uri,
-            model_display_name=self.model_display_name,
-            model_labels=self.model_labels,
-            base_output_dir=self.base_output_dir,
-            service_account=self.service_account,
-            network=self.network,
-            bigquery_destination=self.bigquery_destination,
-            args=self.args,
-            environment_variables=self.environment_variables,
-            replica_count=self.replica_count,
-            machine_type=self.machine_type,
-            accelerator_type=self.accelerator_type,
-            accelerator_count=self.accelerator_count,
-            boot_disk_type=self.boot_disk_type,
-            boot_disk_size_gb=self.boot_disk_size_gb,
-            training_fraction_split=self.training_fraction_split,
-            validation_fraction_split=self.validation_fraction_split,
-            test_fraction_split=self.test_fraction_split,
-            training_filter_split=self.training_filter_split,
-            validation_filter_split=self.validation_filter_split,
-            test_filter_split=self.test_filter_split,
-            predefined_split_column_name=self.predefined_split_column_name,
-            timestamp_split_column_name=self.timestamp_split_column_name,
-            tensorboard=self.tensorboard,
-            sync=True,
+        model, training_id, custom_job_id = (
+            self.hook.create_custom_python_package_training_job(
+                project_id=self.project_id,
+                region=self.region,
+                display_name=self.display_name,
+                python_package_gcs_uri=self.python_package_gcs_uri,
+                python_module_name=self.python_module_name,
+                container_uri=self.container_uri,
+                model_serving_container_image_uri=self.model_serving_container_image_uri,
+                model_serving_container_predict_route=self.model_serving_container_predict_route,
+                model_serving_container_health_route=self.model_serving_container_health_route,
+                model_serving_container_command=self.model_serving_container_command,
+                model_serving_container_args=self.model_serving_container_args,
+                model_serving_container_environment_variables=self.model_serving_container_environment_variables,
+                model_serving_container_ports=self.model_serving_container_ports,
+                model_description=self.model_description,
+                model_instance_schema_uri=self.model_instance_schema_uri,
+                model_parameters_schema_uri=self.model_parameters_schema_uri,
+                model_prediction_schema_uri=self.model_prediction_schema_uri,
+                parent_model=self.parent_model,
+                is_default_version=self.is_default_version,
+                model_version_aliases=self.model_version_aliases,
+                model_version_description=self.model_version_description,
+                labels=self.labels,
+                training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+                model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+                staging_bucket=self.staging_bucket,
+                # RUN
+                dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
+                annotation_schema_uri=self.annotation_schema_uri,
+                model_display_name=self.model_display_name,
+                model_labels=self.model_labels,
+                base_output_dir=self.base_output_dir,
+                service_account=self.service_account,
+                network=self.network,
+                bigquery_destination=self.bigquery_destination,
+                args=self.args,
+                environment_variables=self.environment_variables,
+                replica_count=self.replica_count,
+                machine_type=self.machine_type,
+                accelerator_type=self.accelerator_type,
+                accelerator_count=self.accelerator_count,
+                boot_disk_type=self.boot_disk_type,
+                boot_disk_size_gb=self.boot_disk_size_gb,
+                training_fraction_split=self.training_fraction_split,
+                validation_fraction_split=self.validation_fraction_split,
+                test_fraction_split=self.test_fraction_split,
+                training_filter_split=self.training_filter_split,
+                validation_filter_split=self.validation_filter_split,
+                test_filter_split=self.test_filter_split,
+                predefined_split_column_name=self.predefined_split_column_name,
+                timestamp_split_column_name=self.timestamp_split_column_name,
+                tensorboard=self.tensorboard,
+                sync=True,
+            )
         )
 
         if model:
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
     def invoke_defer(self, context: Context) -> None:
@@ -1121,7 +1147,9 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         custom_python_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_python_training_job_obj.name
         self.xcom_push(context, key="training_id", value=training_pipeline_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_pipeline_id
+        )
         self.defer(
             trigger=CustomPythonPackageTrainingJobTrigger(
                 conn_id=self.gcp_conn_id,
@@ -1436,7 +1464,9 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 60,
         **kwargs,
     ) -> None:
@@ -1521,12 +1551,16 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             result = Model.to_dict(model)
             model_id = self.hook.extract_model_id(result)
             self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=model_id
+            )
         else:
             result = model  # type: ignore
         self.xcom_push(context, key="training_id", value=training_id)
         self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_id
+        )
         return result
 
     def invoke_defer(self, context: Context) -> None:
@@ -1586,7 +1620,9 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         custom_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_training_job_obj.name
         self.xcom_push(context, key="training_id", value=training_pipeline_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        VertexAITrainingLink.persist(
+            context=context, task_instance=self, training_id=training_pipeline_id
+        )
         self.defer(
             trigger=CustomTrainingJobTrigger(
                 conn_id=self.gcp_conn_id,
@@ -1622,7 +1658,13 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("training_pipeline_id", "custom_job_id", "region", "project_id", "impersonation_chain")
+    template_fields = (
+        "training_pipeline_id",
+        "custom_job_id",
+        "region",
+        "project_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -1675,7 +1717,9 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline_id)
+            self.log.info(
+                "Deleting custom training pipeline: %s", self.training_pipeline_id
+            )
             training_pipeline_operation = hook.delete_training_pipeline(
                 training_pipeline=self.training_pipeline_id,
                 region=self.region,
@@ -1684,10 +1728,14 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
+            hook.wait_for_operation(
+                timeout=self.timeout, operation=training_pipeline_operation
+            )
             self.log.info("Training pipeline was deleted.")
         except NotFound:
-            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline_id)
+            self.log.info(
+                "The Training Pipeline ID %s does not exist.", self.training_pipeline_id
+            )
         try:
             self.log.info("Deleting custom job: %s", self.custom_job_id)
             custom_job_operation = hook.delete_custom_job(

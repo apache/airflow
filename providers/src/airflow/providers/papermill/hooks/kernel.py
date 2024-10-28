@@ -81,8 +81,12 @@ class KernelHook(BaseHook):
         kernel_connection.control_port = self.kernel_conn.extra_dejson.get(
             "control_port", JUPYTER_KERNEL_CONTROL_PORT
         )
-        kernel_connection.hb_port = self.kernel_conn.extra_dejson.get("hb_port", JUPYTER_KERNEL_HB_PORT)
-        kernel_connection.session_key = self.kernel_conn.extra_dejson.get("session_key", "")
+        kernel_connection.hb_port = self.kernel_conn.extra_dejson.get(
+            "hb_port", JUPYTER_KERNEL_HB_PORT
+        )
+        kernel_connection.session_key = self.kernel_conn.extra_dejson.get(
+            "session_key", ""
+        )
         return kernel_connection
 
 

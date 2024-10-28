@@ -26,7 +26,9 @@ from kubernetes_tests.test_base import (
 )
 
 
-@pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
+@pytest.mark.skipif(
+    EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor"
+)
 class TestKubernetesExecutor(BaseK8STest):
     @pytest.mark.execution_timeout(300)
     def test_integration_run_dag(self):
@@ -89,4 +91,6 @@ class TestKubernetesExecutor(BaseK8STest):
             timeout=300,
         )
 
-        assert self._num_pods_in_namespace("test-namespace") == 0, "failed to delete pods in other namespace"
+        assert (
+            self._num_pods_in_namespace("test-namespace") == 0
+        ), "failed to delete pods in other namespace"

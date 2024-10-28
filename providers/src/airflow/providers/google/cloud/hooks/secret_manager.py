@@ -32,14 +32,21 @@ from google.cloud.secretmanager_v1 import (
 )
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
+from airflow.providers.google.cloud._internal_client.secret_manager_client import (
+    _SecretManagerClient,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.secretmanager_v1.services.secret_manager_service.pagers import ListSecretsPager
+    from google.cloud.secretmanager_v1.services.secret_manager_service.pagers import (
+        ListSecretsPager,
+    )
 
 
 @deprecated(
@@ -94,7 +101,10 @@ class SecretsManagerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_secret(
-        self, secret_id: str, secret_version: str = "latest", project_id: str = PROVIDE_PROJECT_ID
+        self,
+        secret_id: str,
+        secret_version: str = "latest",
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> str | None:
         """
         Get secret value from the Secret Manager.
@@ -124,7 +134,9 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
 
         :return: Secret Manager client.
         """
-        return SecretManagerServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return SecretManagerServiceClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO
+        )
 
     def get_conn(self) -> SecretManagerServiceClient:
         """
@@ -266,7 +278,9 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         """
         secret_filter = f"name:{secret_id}"
         secret_name = self.client.secret_path(project_id, secret_id)
-        for secret in self.list_secrets(project_id=project_id, page_size=100, secret_filter=secret_filter):
+        for secret in self.list_secrets(
+            project_id=project_id, page_size=100, secret_filter=secret_filter
+        ):
             if secret.name.split("/")[-1] == secret_id:
                 self.log.info("Secret %s exists.", secret_name)
                 return True
@@ -301,7 +315,9 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         """
         response = self.client.access_secret_version(
             request={
-                "name": self.client.secret_version_path(project_id, secret_id, secret_version),
+                "name": self.client.secret_version_path(
+                    project_id, secret_id, secret_version
+                ),
             },
             retry=retry,
             timeout=timeout,

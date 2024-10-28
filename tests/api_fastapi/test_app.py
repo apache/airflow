@@ -24,7 +24,11 @@ from unittest import mock
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
 def test_core_api_app(
-    mock_create_task_exec_api, mock_init_plugins, mock_init_views, mock_init_dag_bag, client
+    mock_create_task_exec_api,
+    mock_init_plugins,
+    mock_init_views,
+    mock_init_dag_bag,
+    client,
 ):
     test_app = client(apps="core").app
 
@@ -42,7 +46,11 @@ def test_core_api_app(
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
 def test_execution_api_app(
-    mock_create_task_exec_api, mock_init_plugins, mock_init_views, mock_init_dag_bag, client
+    mock_create_task_exec_api,
+    mock_init_plugins,
+    mock_init_views,
+    mock_init_dag_bag,
+    client,
 ):
     test_app = client(apps="execution").app
 
@@ -59,7 +67,13 @@ def test_execution_api_app(
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views, mock_init_dag_bag, client):
+def test_all_apps(
+    mock_create_task_exec_api,
+    mock_init_plugins,
+    mock_init_views,
+    mock_init_dag_bag,
+    client,
+):
     test_app = client(apps="all").app
 
     # Assert that core-related functions were called

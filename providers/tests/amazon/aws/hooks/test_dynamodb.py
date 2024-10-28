@@ -47,7 +47,10 @@ class TestDynamoDBHook:
     @mock_aws
     def test_insert_batch_items_dynamodb_table(self):
         hook = DynamoDBHook(
-            aws_conn_id="aws_default", table_name="test_airflow", table_keys=["id"], region_name="us-east-1"
+            aws_conn_id="aws_default",
+            table_name="test_airflow",
+            table_keys=["id"],
+            region_name="us-east-1",
         )
 
         # this table needs to be created in production
@@ -73,13 +76,18 @@ class TestDynamoDBHook:
     def test_waiter_path_generated_from_resource_type(self, _):
         hook = DynamoDBHook(aws_conn_id="aws_default")
         path = hook.waiter_path
-        assert path.as_uri().endswith("/airflow/providers/amazon/aws/waiters/dynamodb.json")
+        assert path.as_uri().endswith(
+            "/airflow/providers/amazon/aws/waiters/dynamodb.json"
+        )
 
     @pytest.mark.parametrize(
         "response, status, error",
         [
             pytest.param(
-                {"ImportTableDescription": {"ImportStatus": "COMPLETED"}}, "COMPLETED", False, id="complete"
+                {"ImportTableDescription": {"ImportStatus": "COMPLETED"}},
+                "COMPLETED",
+                False,
+                id="complete",
             ),
             pytest.param(
                 {
@@ -106,7 +114,9 @@ class TestDynamoDBHook:
         mock_make_api_call.return_value = response
         hook = DynamoDBHook(aws_conn_id="aws_default")
         sta, code, msg = hook.get_import_status(import_arn=TEST_IMPORT_ARN)
-        mock_make_api_call.assert_called_once_with("DescribeImport", {"ImportArn": TEST_IMPORT_ARN})
+        mock_make_api_call.assert_called_once_with(
+            "DescribeImport", {"ImportArn": TEST_IMPORT_ARN}
+        )
         assert sta == status
         if error:
             assert code == "Failure1"
@@ -120,7 +130,9 @@ class TestDynamoDBHook:
         [
             pytest.param(
                 ClientError(
-                    error_response={"Error": {"Message": "Error message", "Code": "GeneralException"}},
+                    error_response={
+                        "Error": {"Message": "Error message", "Code": "GeneralException"}
+                    },
                     operation_name="UnitTest",
                 ),
                 ClientError,
@@ -128,7 +140,12 @@ class TestDynamoDBHook:
             ),
             pytest.param(
                 ClientError(
-                    error_response={"Error": {"Message": "Error message", "Code": "ImportNotFoundException"}},
+                    error_response={
+                        "Error": {
+                            "Message": "Error message",
+                            "Code": "ImportNotFoundException",
+                        }
+                    },
                     operation_name="UnitTest",
                 ),
                 AirflowException,

@@ -25,8 +25,13 @@ from datetime import datetime
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.calendar_to_gcs import GoogleCalendarToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.transfers.calendar_to_gcs import (
+    GoogleCalendarToGCSOperator,
+)
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -101,7 +106,9 @@ with DAG(
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

@@ -22,7 +22,10 @@ from typing import Any, Sequence
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 
 class GoogleDeploymentManagerHook(GoogleBaseHook):
@@ -51,7 +54,9 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
     def get_conn(self) -> Resource:
         """Return a Google Deployment Manager service object."""
         http_authorized = self._authorize()
-        return build("deploymentmanager", "v2", http=http_authorized, cache_discovery=False)
+        return build(
+            "deploymentmanager", "v2", http=http_authorized, cache_discovery=False
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
@@ -70,18 +75,25 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         deployments: list[dict] = []
         conn = self.get_conn()
 
-        request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
+        request = conn.deployments().list(
+            project=project_id, filter=deployment_filter, orderBy=order_by
+        )
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             deployments.extend(response.get("deployments", []))
-            request = conn.deployments().list_next(previous_request=request, previous_response=response)
+            request = conn.deployments().list_next(
+                previous_request=request, previous_response=response
+            )
 
         return deployments
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_deployment(
-        self, project_id: str | None, deployment: str | None = None, delete_policy: str | None = None
+        self,
+        project_id: str | None,
+        deployment: str | None = None,
+        delete_policy: str | None = None,
     ) -> None:
         """
         Delete a deployment and all associated resources in a google cloud project.
@@ -98,5 +110,6 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
         resp = request.execute()
         if "error" in resp.keys():
             raise AirflowException(
-                "Errors deleting deployment: ", ", ".join(err["message"] for err in resp["error"]["errors"])
+                "Errors deleting deployment: ",
+                ", ".join(err["message"] for err in resp["error"]["errors"]),
             )

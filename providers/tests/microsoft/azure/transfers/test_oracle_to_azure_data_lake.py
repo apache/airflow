@@ -28,7 +28,9 @@ from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake impor
 
 
 class TestOracleToAzureDataLakeTransfer:
-    mock_module_path = "airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake"
+    mock_module_path = (
+        "airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake"
+    )
 
     def test_write_temp_file(self, tmp_path):
         csv_path = tmp_path / "testfile.csv"
@@ -112,4 +114,6 @@ class TestOracleToAzureDataLakeTransfer:
         op.execute(None)
 
         mock_oracle_hook.assert_called_once_with(oracle_conn_id=oracle_conn_id)
-        mock_data_lake_hook.assert_called_once_with(azure_data_lake_conn_id=azure_data_lake_conn_id)
+        mock_data_lake_hook.assert_called_once_with(
+            azure_data_lake_conn_id=azure_data_lake_conn_id
+        )

@@ -25,7 +25,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
+from airflow.providers.google.cloud.triggers.cloud_batch import (
+    CloudBatchJobFinishedTrigger,
+)
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -57,7 +59,13 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+    )
 
     def __init__(
         self,
@@ -69,7 +77,9 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,7 +97,10 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
         job = hook.submit_batch_job(
-            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+            job_name=self.job_name,
+            job=self.job,
+            region=self.region,
+            project_id=self.project_id,
         )
 
         if not self.deferrable:
@@ -116,11 +129,15 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict):
         job_status = event["status"]
         if job_status == "success":
-            hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
+            hook: CloudBatchHook = CloudBatchHook(
+                self.gcp_conn_id, self.impersonation_chain
+            )
             job = hook.get_job(job_name=event["job_name"])
             return Job.to_dict(job)
         else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+            raise AirflowException(
+                f"Unexpected error in the operation: {event['message']}"
+            )
 
 
 class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
@@ -143,7 +160,13 @@ class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+    )
 
     def __init__(
         self,
@@ -166,7 +189,9 @@ class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
-        operation = hook.delete_job(job_name=self.job_name, region=self.region, project_id=self.project_id)
+        operation = hook.delete_job(
+            job_name=self.job_name, region=self.region, project_id=self.project_id
+        )
 
         self._wait_for_operation(operation)
 
@@ -224,13 +249,18 @@ class CloudBatchListJobsOperator(GoogleCloudBaseOperator):
         self.filter = filter
         self.limit = limit
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero"
+            )
 
     def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
         jobs_list = hook.list_jobs(
-            region=self.region, project_id=self.project_id, filter=self.filter, limit=self.limit
+            region=self.region,
+            project_id=self.project_id,
+            filter=self.filter,
+            limit=self.limit,
         )
 
         return [Job.to_dict(job) for job in jobs_list]
@@ -259,7 +289,14 @@ class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
 
     """
 
-    template_fields = ("project_id", "region", "job_name", "gcp_conn_id", "impersonation_chain", "group_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "job_name",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "group_name",
+    )
 
     def __init__(
         self,
@@ -283,7 +320,9 @@ class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
         self.filter = filter
         self.limit = limit
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero"
+            )
 
     def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)

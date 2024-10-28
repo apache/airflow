@@ -23,7 +23,10 @@ from typing import TYPE_CHECKING, Sequence
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
-from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
+from google.cloud.orchestration.airflow.service_v1.types import (
+    Environment,
+    ExecuteAirflowCommandResponse,
+)
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -44,7 +47,8 @@ if TYPE_CHECKING:
 
 CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
 CLOUD_COMPOSER_DETAILS_LINK = (
-    CLOUD_COMPOSER_BASE_LINK + "/detail/{region}/{environment_id}/monitoring?project={project_id}"
+    CLOUD_COMPOSER_BASE_LINK
+    + "/detail/{region}/{environment_id}/monitoring?project={project_id}"
 )
 CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + "?project={project_id}"
 
@@ -84,7 +88,9 @@ class CloudComposerEnvironmentsLink(BaseGoogleLink):
     format_str = CLOUD_COMPOSER_ENVIRONMENTS_LINK
 
     @staticmethod
-    def persist(operator_instance: CloudComposerListEnvironmentsOperator, context: Context) -> None:
+    def persist(
+        operator_instance: CloudComposerListEnvironmentsOperator, context: Context
+    ) -> None:
         operator_instance.xcom_push(
             context,
             key=CloudComposerEnvironmentsLink.key,
@@ -141,7 +147,9 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -164,7 +172,9 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        name = hook.get_environment_name(self.project_id, self.region, self.environment_id)
+        name = hook.get_environment_name(
+            self.project_id, self.region, self.environment_id
+        )
         if isinstance(self.environment, Environment):
             self.environment.name = name
         else:
@@ -183,7 +193,9 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             context["ti"].xcom_push(key="operation_id", value=result.operation.name)
 
             if not self.deferrable:
-                environment = hook.wait_for_operation(timeout=self.timeout, operation=result)
+                environment = hook.wait_for_operation(
+                    timeout=self.timeout, operation=result
+                )
                 return Environment.to_dict(environment)
             else:
                 self.defer(
@@ -225,7 +237,9 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             )
             return Environment.to_dict(env)
         else:
-            raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
+            raise AirflowException(
+                f"Unexpected error in the operation: {event['operation_name']}"
+            )
 
 
 class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
@@ -270,7 +284,9 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -515,7 +531,9 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -584,7 +602,9 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
             )
             return Environment.to_dict(env)
         else:
-            raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
+            raise AirflowException(
+                f"Unexpected error in the operation: {event['operation_name']}"
+            )
 
 
 class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
@@ -702,7 +722,9 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -739,9 +761,14 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        execution_cmd_info_dict = ExecuteAirflowCommandResponse.to_dict(execution_cmd_info)
+        execution_cmd_info_dict = ExecuteAirflowCommandResponse.to_dict(
+            execution_cmd_info
+        )
 
-        self.log.info("Command has been started. execution_id=%s", execution_cmd_info_dict["execution_id"])
+        self.log.info(
+            "Command has been started. execution_id=%s",
+            execution_cmd_info_dict["execution_id"],
+        )
 
         if self.deferrable:
             self.defer(

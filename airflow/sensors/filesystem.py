@@ -77,7 +77,9 @@ class FileSensor(BaseSensorOperator):
         filepath,
         fs_conn_id="fs_default",
         recursive=False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         start_from_trigger: bool = False,
         trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
@@ -109,7 +111,9 @@ class FileSensor(BaseSensorOperator):
         self.log.info("Poking for file %s", self.path)
         for path in glob(self.path, recursive=self.recursive):
             if os.path.isfile(path):
-                mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d%H%M%S")
+                mod_time = datetime.datetime.fromtimestamp(
+                    os.path.getmtime(path)
+                ).strftime("%Y%m%d%H%M%S")
                 self.log.info("Found File %s last modified: %s", path, mod_time)
                 return True
 
@@ -134,5 +138,9 @@ class FileSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: bool | None = None) -> None:
         if not event:
-            raise AirflowException("%s task failed as %s not found.", self.task_id, self.filepath)
-        self.log.info("%s completed successfully as %s found.", self.task_id, self.filepath)
+            raise AirflowException(
+                "%s task failed as %s not found.", self.task_id, self.filepath
+            )
+        self.log.info(
+            "%s completed successfully as %s found.", self.task_id, self.filepath
+        )

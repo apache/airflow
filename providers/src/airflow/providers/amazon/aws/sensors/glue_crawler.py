@@ -68,7 +68,9 @@ class GlueCrawlerSensor(AwsBaseSensor[GlueCrawlerHook]):
         crawler_state = self.hook.get_crawler(self.crawler_name)["State"]
         if crawler_state == "READY":
             self.log.info("State: %s", crawler_state)
-            crawler_status = self.hook.get_crawler(self.crawler_name)["LastCrawl"]["Status"]
+            crawler_status = self.hook.get_crawler(self.crawler_name)["LastCrawl"][
+                "Status"
+            ]
             if crawler_status == self.success_statuses:
                 self.log.info("Status: %s", crawler_status)
                 return True

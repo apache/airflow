@@ -108,7 +108,10 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                 )
             object_paths = [self.dst]
         else:  # directory is provided
-            object_paths = [os.path.join(self.dst, os.path.basename(filepath)) for filepath in filepaths]
+            object_paths = [
+                os.path.join(self.dst, os.path.basename(filepath))
+                for filepath in filepaths
+            ]
 
         for filepath, object_path in zip(filepaths, object_paths):
             hook.upload(

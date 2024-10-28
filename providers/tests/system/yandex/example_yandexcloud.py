@@ -43,7 +43,9 @@ YC_S3_BUCKET_NAME = ""  # Fill to use S3 instead of HFDS
 YC_FOLDER_ID = None  # Fill to override default YC folder from connection data
 YC_ZONE_NAME = "ru-central1-b"
 YC_SUBNET_ID = None  # Fill if you have more than one VPC subnet in given folder and zone
-YC_SERVICE_ACCOUNT_ID = None  # Fill if you have more than one YC service account in given folder
+YC_SERVICE_ACCOUNT_ID = (
+    None  # Fill if you have more than one YC service account in given folder
+)
 
 
 def create_cluster_request(
@@ -63,7 +65,10 @@ def create_cluster_request(
         bucket=YC_S3_BUCKET_NAME,
         config_spec=cluster_service_pb.CreateClusterConfigSpec(
             hadoop=cluster_pb.HadoopConfig(
-                services=(cluster_pb.HadoopConfig.Service.SPARK, cluster_pb.HadoopConfig.Service.YARN),
+                services=(
+                    cluster_pb.HadoopConfig.Service.SPARK,
+                    cluster_pb.HadoopConfig.Service.YARN,
+                ),
                 ssh_public_keys=[ssh_public_key],
             ),
             subclusters_spec=[
@@ -105,8 +110,12 @@ def create_cluster(
     folder_id = folder_id or hook.default_folder_id
     if subnet_id is None:
         network_id = network_id or hook.sdk.helpers.find_network_id(folder_id)
-        subnet_id = hook.sdk.helpers.find_subnet_id(folder_id=folder_id, zone_id=zone, network_id=network_id)
-    service_account_id = service_account_id or hook.sdk.helpers.find_service_account_id(folder_id=folder_id)
+        subnet_id = hook.sdk.helpers.find_subnet_id(
+            folder_id=folder_id, zone_id=zone, network_id=network_id
+        )
+    service_account_id = service_account_id or hook.sdk.helpers.find_service_account_id(
+        folder_id=folder_id
+    )
     ssh_public_key = ssh_public_key or hook.default_public_ssh_key
 
     dag_id = dag and dag.dag_id or "dag"
@@ -124,9 +133,13 @@ def create_cluster(
             disk_type_id="network-ssd",
         ),
     )
-    operation = hook.sdk.client(cluster_service_grpc_pb.ClusterServiceStub).Create(request)
+    operation = hook.sdk.client(cluster_service_grpc_pb.ClusterServiceStub).Create(
+        request
+    )
     operation_result = hook.sdk.wait_operation_and_get_result(
-        operation, response_type=cluster_pb.Cluster, meta_type=cluster_service_pb.CreateClusterMetadata
+        operation,
+        response_type=cluster_pb.Cluster,
+        meta_type=cluster_service_pb.CreateClusterMetadata,
     )
     if isinstance(operation_result, OperationError):
         raise ValueError("Cluster creation error")
@@ -161,7 +174,11 @@ def run_spark_job(
     if isinstance(operation_result, OperationError):
         raise ValueError("Run spark task error")
 
-    return MessageToDict(operation_result.response) if operation_result.response is not None else None
+    return (
+        MessageToDict(operation_result.response)
+        if operation_result.response is not None
+        else None
+    )
 
 
 @task(trigger_rule="all_done")

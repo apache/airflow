@@ -56,7 +56,12 @@ class TestAirflowSecurityManagerV2:
         "action_name, resource_name, auth_manager_methods, expected",
         [
             (ACTION_CAN_READ, RESOURCE_VARIABLE, {"is_authorized_variable": True}, True),
-            (ACTION_CAN_READ, RESOURCE_VARIABLE, {"is_authorized_variable": False}, False),
+            (
+                ACTION_CAN_READ,
+                RESOURCE_VARIABLE,
+                {"is_authorized_variable": False},
+                False,
+            ),
             (ACTION_CAN_READ, RESOURCE_DOCS_MENU, {"is_authorized_view": True}, True),
             (ACTION_CAN_READ, RESOURCE_DOCS_MENU, {"is_authorized_view": False}, False),
             (
@@ -152,7 +157,9 @@ class TestAirflowSecurityManagerV2:
         instead uses the session already available through the appbuilder
         object that is attached to it.
         """
-        with mock.patch.object(security_manager.appbuilder, "session") as mock_appbuilder_session:
+        with mock.patch.object(
+            security_manager.appbuilder, "session"
+        ) as mock_appbuilder_session:
             action_name = ACTION_CAN_READ
             resource_pk = "PK"
             user = Mock()

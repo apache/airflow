@@ -31,7 +31,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform_v1.services.endpoint_service.pagers import ListEndpointsPager
+    from google.cloud.aiplatform_v1.services.endpoint_service.pagers import (
+        ListEndpointsPager,
+    )
     from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint
     from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -47,15 +49,21 @@ class EndpointServiceHook(GoogleBaseHook):
             )
         super().__init__(**kwargs)
 
-    def get_endpoint_service_client(self, region: str | None = None) -> EndpointServiceClient:
+    def get_endpoint_service_client(
+        self, region: str | None = None
+    ) -> EndpointServiceClient:
         """Return EndpointServiceClient."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
 
         return EndpointServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=self.client_info,
+            client_options=client_options,
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):

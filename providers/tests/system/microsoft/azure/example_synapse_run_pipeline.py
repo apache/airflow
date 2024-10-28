@@ -21,7 +21,9 @@ from datetime import datetime
 
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.microsoft.azure.operators.synapse import AzureSynapseRunPipelineOperator
+from airflow.providers.microsoft.azure.operators.synapse import (
+    AzureSynapseRunPipelineOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 

@@ -50,7 +50,10 @@ class TestBranchDateTimeOperator:
             session.query(TI).delete()
 
     targets = [
-        (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
+        (
+            datetime.datetime(2020, 7, 7, 10, 0, 0),
+            datetime.datetime(2020, 7, 7, 11, 0, 0),
+        ),
         (datetime.time(10, 0, 0), datetime.time(11, 0, 0)),
         (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.time(11, 0, 0)),
         (datetime.time(10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
@@ -79,7 +82,9 @@ class TestBranchDateTimeOperator:
             self.branch_1.set_upstream(self.branch_op)
             self.branch_2.set_upstream(self.branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         self.dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=DEFAULT_DATE,
@@ -103,8 +108,8 @@ class TestBranchDateTimeOperator:
             except KeyError:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
-                assert (ti.state) == (
-                    expected_state
+                assert (
+                    (ti.state) == (expected_state)
                 ), f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
 
     def test_no_target_time(self):
@@ -124,7 +129,9 @@ class TestBranchDateTimeOperator:
         targets,
     )
     @time_machine.travel("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_falls_within_range(self, target_lower, target_upper):
+    def test_branch_datetime_operator_falls_within_range(
+        self, target_lower, target_upper
+    ):
         """Check BranchDateTimeOperator branch operation"""
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = target_upper
@@ -142,7 +149,9 @@ class TestBranchDateTimeOperator:
         "target_lower,target_upper",
         targets,
     )
-    def test_branch_datetime_operator_falls_outside_range(self, target_lower, target_upper):
+    def test_branch_datetime_operator_falls_outside_range(
+        self, target_lower, target_upper
+    ):
         """Check BranchDateTimeOperator branch operation"""
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
@@ -164,7 +173,9 @@ class TestBranchDateTimeOperator:
                     }
                 )
 
-    @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
+    @pytest.mark.parametrize(
+        "target_upper", [target_upper for (_, target_upper) in targets]
+    )
     @time_machine.travel("2020-07-07 10:54:05")
     def test_branch_datetime_operator_upper_comparison_within_range(self, target_upper):
         """Check BranchDateTimeOperator branch operation"""
@@ -181,7 +192,9 @@ class TestBranchDateTimeOperator:
             }
         )
 
-    @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
+    @pytest.mark.parametrize(
+        "target_lower", [target_lower for (target_lower, _) in targets]
+    )
     @time_machine.travel("2020-07-07 10:54:05")
     def test_branch_datetime_operator_lower_comparison_within_range(self, target_lower):
         """Check BranchDateTimeOperator branch operation"""
@@ -198,7 +211,9 @@ class TestBranchDateTimeOperator:
             }
         )
 
-    @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
+    @pytest.mark.parametrize(
+        "target_upper", [target_upper for (_, target_upper) in targets]
+    )
     @time_machine.travel("2020-07-07 12:00:00")
     def test_branch_datetime_operator_upper_comparison_outside_range(self, target_upper):
         """Check BranchDateTimeOperator branch operation"""
@@ -215,7 +230,9 @@ class TestBranchDateTimeOperator:
             }
         )
 
-    @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
+    @pytest.mark.parametrize(
+        "target_lower", [target_lower for (target_lower, _) in targets]
+    )
     @time_machine.travel("2020-07-07 09:00:00")
     def test_branch_datetime_operator_lower_comparison_outside_range(self, target_lower):
         """Check BranchDateTimeOperator branch operation"""
@@ -237,11 +254,15 @@ class TestBranchDateTimeOperator:
         targets,
     )
     @time_machine.travel("2020-12-01 09:00:00")
-    def test_branch_datetime_operator_use_task_logical_date(self, dag_maker, target_lower, target_upper):
+    def test_branch_datetime_operator_use_task_logical_date(
+        self, dag_maker, target_lower, target_upper
+    ):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
         self.branch_op.use_task_logical_date = True
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         self.dr = dag_maker.create_dagrun(
             run_id="manual_exec_date__",
             start_date=in_between_date,

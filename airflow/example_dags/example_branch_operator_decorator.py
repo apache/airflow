@@ -66,7 +66,9 @@ if is_venv_installed():
 
         run_this_first >> random_choice_instance
 
-        join = EmptyOperator(task_id="join", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        join = EmptyOperator(
+            task_id="join", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+        )
 
         for option in options:
 
@@ -101,7 +103,9 @@ if is_venv_installed():
 
         for option in options:
 
-            @task.external_python(task_id=f"ext_py_{option}", python=PATH_TO_PYTHON_BINARY)
+            @task.external_python(
+                task_id=f"ext_py_{option}", python=PATH_TO_PYTHON_BINARY
+            )
             def some_ext_py_task():
                 print("doing something in external Python")
 
@@ -117,7 +121,9 @@ if is_venv_installed():
         #       Run the example a second time and see that it re-uses it and is faster.
         VENV_CACHE_PATH = tempfile.gettempdir()
 
-        @task.branch_virtualenv(requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH)
+        @task.branch_virtualenv(
+            requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH
+        )
         def branching_virtualenv(choices) -> str:
             import random
 
@@ -132,12 +138,16 @@ if is_venv_installed():
 
         join_ext_py >> random_choice_venv
 
-        join_venv = EmptyOperator(task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        join_venv = EmptyOperator(
+            task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+        )
 
         for option in options:
 
             @task.virtualenv(
-                task_id=f"venv_{option}", requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH
+                task_id=f"venv_{option}",
+                requirements=["numpy~=1.24.4"],
+                venv_cache_path=VENV_CACHE_PATH,
             )
             def some_venv_task():
                 import numpy as np

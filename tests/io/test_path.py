@@ -173,7 +173,14 @@ class TestFs:
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
-            ("checksum", {}, "checksum", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),
+            (
+                "checksum",
+                {},
+                "checksum",
+                FOO,
+                FakeLocalFileSystem._strip_protocol(BAR),
+                {},
+            ),
             ("size", {}, "size", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),
             (
                 "sign",
@@ -247,7 +254,9 @@ class TestFs:
 
         e.unlink()
 
-    @pytest.mark.skipif(sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9")
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9"
+    )
     def test_is_relative_to(self):
         uuid_dir = f"/tmp/{str(uuid.uuid4())}"
         o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")
@@ -339,7 +348,9 @@ class TestFs:
         _to.rmdir(recursive=True)
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 1
-        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(uri=str(_from_file))
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
+            uri=str(_from_file)
+        )
 
         # Empty file - shutil.copyfileobj does nothing
         assert len(hook_lineage_collector.collected_assets.outputs) == 0
@@ -429,7 +440,9 @@ class TestFs:
         assert o.fs is not None
         assert o._fs_cached
 
-    @pytest.mark.parametrize("input_str", ("file:///tmp/foo", "s3://conn_id@bucket/test.txt"))
+    @pytest.mark.parametrize(
+        "input_str", ("file:///tmp/foo", "s3://conn_id@bucket/test.txt")
+    )
     def test_str(self, input_str):
         o = ObjectStoragePath(input_str)
         assert str(o) == input_str

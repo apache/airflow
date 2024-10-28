@@ -85,7 +85,9 @@ class AthenaSensor(AwsBaseSensor[AthenaHook]):
         self.max_retries = max_retries
 
     def poke(self, context: Context) -> bool:
-        state = self.hook.poll_query_status(self.query_execution_id, self.max_retries, self.sleep_time)
+        state = self.hook.poll_query_status(
+            self.query_execution_id, self.max_retries, self.sleep_time
+        )
 
         if state in self.FAILURE_STATES:
             raise AirflowException("Athena sensor failed")

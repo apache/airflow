@@ -29,13 +29,19 @@ class TestIngressFlower:
 
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
-            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
+            values={
+                "flower": {"enabled": True},
+                "ingress": {"flower": {"enabled": True}},
+            },
             show_only=["templates/flower/flower-ingress.yaml"],
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
         render_chart(
-            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
+            values={
+                "flower": {"enabled": True},
+                "ingress": {"flower": {"enabled": True}},
+            },
             show_only=["templates/flower/flower-ingress.yaml"],
             kubernetes_version="1.16.0",
         )  # checks that no validation exception is raised
@@ -43,12 +49,17 @@ class TestIngressFlower:
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
             values={
-                "ingress": {"flower": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}},
+                "ingress": {
+                    "flower": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}
+                },
                 "flower": {"enabled": True},
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
-        assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
+        assert jmespath.search("metadata.annotations", docs[0]) == {
+            "aa": "bb",
+            "cc": "dd",
+        }
 
     def test_should_set_ingress_class_name(self):
         docs = render_chart(
@@ -69,10 +80,22 @@ class TestIngressFlower:
                         "enabled": True,
                         "tls": {"enabled": True, "secretName": "oldsecret"},
                         "hosts": [
-                            {"name": "*.a-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
-                            {"name": "b-host", "tls": {"enabled": True, "secretName": "newsecret2"}},
-                            {"name": "c-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
-                            {"name": "d-host", "tls": {"enabled": False, "secretName": ""}},
+                            {
+                                "name": "*.a-host",
+                                "tls": {"enabled": True, "secretName": "newsecret1"},
+                            },
+                            {
+                                "name": "b-host",
+                                "tls": {"enabled": True, "secretName": "newsecret2"},
+                            },
+                            {
+                                "name": "c-host",
+                                "tls": {"enabled": True, "secretName": "newsecret1"},
+                            },
+                            {
+                                "name": "d-host",
+                                "tls": {"enabled": False, "secretName": ""},
+                            },
                             {"name": "e-host"},
                         ],
                         "host": "old-host",
@@ -106,7 +129,9 @@ class TestIngressFlower:
             show_only=["templates/flower/flower-ingress.yaml"],
         )
 
-        assert ["*.a-host", "b-host", "c-host", "d-host"] == jmespath.search("spec.rules[*].host", docs[0])
+        assert ["*.a-host", "b-host", "c-host", "d-host"] == jmespath.search(
+            "spec.rules[*].host", docs[0]
+        )
         assert [
             {"hosts": ["*.a-host", "b-host", "c-host", "d-host"], "secretName": "secret"}
         ] == jmespath.search("spec.tls[*]", docs[0])
@@ -128,12 +153,19 @@ class TestIngressFlower:
         assert (
             ["old-host"]
             == jmespath.search("spec.rules[*].host", docs[0])
-            == list(itertools.chain.from_iterable(jmespath.search("spec.tls[*].hosts", docs[0])))
+            == list(
+                itertools.chain.from_iterable(
+                    jmespath.search("spec.tls[*].hosts", docs[0])
+                )
+            )
         )
 
     def test_should_ingress_host_entry_not_exist(self):
         docs = render_chart(
-            values={"flower": {"enabled": True}, "ingress": {"flower": {"enabled": True}}},
+            values={
+                "flower": {"enabled": True},
+                "ingress": {"flower": {"enabled": True}},
+            },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
         assert not jmespath.search("spec.rules[*].host", docs[0])
@@ -158,7 +190,9 @@ class TestIngressFlower:
             values["ingress"]["flower"] = {"enabled": flower_value}
         if values["ingress"] == {}:
             del values["ingress"]
-        docs = render_chart(values=values, show_only=["templates/flower/flower-ingress.yaml"])
+        docs = render_chart(
+            values=values, show_only=["templates/flower/flower-ingress.yaml"]
+        )
         assert expected == (1 == len(docs))
 
     def test_ingress_not_created_flower_disabled(self):
@@ -185,7 +219,10 @@ class TestIngressFlower:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_can_ingress_hosts_be_templated(self):
         docs = render_chart(

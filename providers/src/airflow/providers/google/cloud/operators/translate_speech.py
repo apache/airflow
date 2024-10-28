@@ -153,7 +153,9 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)
+        recognize_result = speech_to_text_hook.recognize_speech(
+            config=self.config, audio=self.audio
+        )
         recognize_dict = MessageToDict(recognize_result._pb)
 
         self.log.info("Recognition operation finished")

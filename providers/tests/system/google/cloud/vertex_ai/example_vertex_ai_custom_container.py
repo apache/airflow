@@ -62,13 +62,21 @@ def TABULAR_DATASET(bucket_name):
         "display_name": f"tabular-dataset-{ENV_ID}",
         "metadata_schema_uri": schema.dataset.metadata.tabular,
         "metadata": ParseDict(
-            {"input_config": {"gcs_source": {"uri": [f"gs://{bucket_name}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}}},
+            {
+                "input_config": {
+                    "gcs_source": {
+                        "uri": [f"gs://{bucket_name}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]
+                    }
+                }
+            },
             Value(),
         ),
     }
 
 
-CUSTOM_CONTAINER_URI = "us-central1-docker.pkg.dev/airflow-system-tests-resources/system-tests/housing"
+CUSTOM_CONTAINER_URI = (
+    "us-central1-docker.pkg.dev/airflow-system-tests-resources/system-tests/housing"
+)
 MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
 MACHINE_TYPE = "n1-standard-4"
@@ -134,26 +142,28 @@ with DAG(
     # [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
 
     # [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
-    create_custom_container_training_job_deferrable = CreateCustomContainerTrainingJobOperator(
-        task_id="custom_container_task_deferrable",
-        staging_bucket=f"gs://{CUSTOM_CONTAINER_GCS_BUCKET_NAME}",
-        display_name=f"{CONTAINER_DISPLAY_NAME}-def",
-        container_uri=CUSTOM_CONTAINER_URI,
-        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
-        # run params
-        dataset_id=tabular_dataset_id,
-        command=["python3", "task.py"],
-        model_display_name=f"{MODEL_DISPLAY_NAME}-def",
-        replica_count=REPLICA_COUNT,
-        machine_type=MACHINE_TYPE,
-        accelerator_type=ACCELERATOR_TYPE,
-        accelerator_count=ACCELERATOR_COUNT,
-        training_fraction_split=TRAINING_FRACTION_SPLIT,
-        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
-        test_fraction_split=TEST_FRACTION_SPLIT,
-        region=REGION,
-        project_id=PROJECT_ID,
-        deferrable=True,
+    create_custom_container_training_job_deferrable = (
+        CreateCustomContainerTrainingJobOperator(
+            task_id="custom_container_task_deferrable",
+            staging_bucket=f"gs://{CUSTOM_CONTAINER_GCS_BUCKET_NAME}",
+            display_name=f"{CONTAINER_DISPLAY_NAME}-def",
+            container_uri=CUSTOM_CONTAINER_URI,
+            model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+            # run params
+            dataset_id=tabular_dataset_id,
+            command=["python3", "task.py"],
+            model_display_name=f"{MODEL_DISPLAY_NAME}-def",
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=REGION,
+            project_id=PROJECT_ID,
+            deferrable=True,
+        )
     )
     # [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
 
@@ -198,7 +208,10 @@ with DAG(
         >> move_data_files
         >> create_tabular_dataset
         # TEST BODY
-        >> [create_custom_container_training_job, create_custom_container_training_job_deferrable]
+        >> [
+            create_custom_container_training_job,
+            create_custom_container_training_job_deferrable,
+        ]
         # TEST TEARDOWN
         >> delete_custom_training_job
         >> delete_custom_training_job_deferrable

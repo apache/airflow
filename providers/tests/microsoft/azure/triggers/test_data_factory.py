@@ -58,7 +58,10 @@ class TestADFPipelineRunStatusSensorTrigger:
         """
 
         classpath, kwargs = self.TRIGGER.serialize()
-        assert classpath == f"{MODULE}.triggers.data_factory.ADFPipelineRunStatusSensorTrigger"
+        assert (
+            classpath
+            == f"{MODULE}.triggers.data_factory.ADFPipelineRunStatusSensorTrigger"
+        )
         assert kwargs == {
             "run_id": RUN_ID,
             "azure_data_factory_conn_id": AZURE_DATA_FACTORY_CONN_ID,
@@ -74,8 +77,12 @@ class TestADFPipelineRunStatusSensorTrigger:
             "Queued",
         ],
     )
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_adf_pipeline_run_status_sensors_trigger_run_queued(self, mock_data_factory, mock_status):
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
+    async def test_adf_pipeline_run_status_sensors_trigger_run_queued(
+        self, mock_data_factory, mock_status
+    ):
         """
         Test if the task is run is in trigger successfully.
         """
@@ -95,7 +102,9 @@ class TestADFPipelineRunStatusSensorTrigger:
             "InProgress",
         ],
     )
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_adf_pipeline_run_status_sensors_trigger_run_inprogress(
         self, mock_data_factory, mock_status
     ):
@@ -116,8 +125,12 @@ class TestADFPipelineRunStatusSensorTrigger:
         "mock_status",
         ["Succeeded"],
     )
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_adf_pipeline_run_status_sensors_trigger_completed(self, mock_data_factory, mock_status):
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
+    async def test_adf_pipeline_run_status_sensors_trigger_completed(
+        self, mock_data_factory, mock_status
+    ):
         """Test if the task pipeline status is in succeeded status."""
         mock_data_factory.return_value = mock_status
 
@@ -133,7 +146,9 @@ class TestADFPipelineRunStatusSensorTrigger:
             ("Failed", f"Pipeline run {RUN_ID} has Failed."),
         ],
     )
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_adf_pipeline_run_status_sensors_trigger_failed(
         self, mock_data_factory, mock_status, mock_message
     ):
@@ -151,7 +166,9 @@ class TestADFPipelineRunStatusSensorTrigger:
             ("Cancelled", f"Pipeline run {RUN_ID} has been Cancelled."),
         ],
     )
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_adf_pipeline_run_status_sensors_trigger_cancelled(
         self, mock_data_factory, mock_status, mock_message
     ):
@@ -164,7 +181,9 @@ class TestADFPipelineRunStatusSensorTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.refresh_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_adf_pipeline_run_status_sensors_trigger_exception(
         self, mock_data_factory, mock_refresh_token
     ):
@@ -202,10 +221,16 @@ class TestAzureDataFactoryTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_azure_data_factory_trigger_run_without_wait(self, mock_pipeline_run_status):
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
+    async def test_azure_data_factory_trigger_run_without_wait(
+        self, mock_pipeline_run_status
+    ):
         """Assert that run trigger without waiting if wait_for_termination is set to false"""
-        mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        mock_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        )
         trigger = AzureDataFactoryTrigger(
             run_id=AZ_PIPELINE_RUN_ID,
             resource_group_name=AZ_RESOURCE_GROUP_NAME,
@@ -227,7 +252,9 @@ class TestAzureDataFactoryTrigger:
         assert actual == expected
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_azure_data_factory_trigger_run_queued(self, mock_pipeline_run_status):
         """Assert that run wait if pipeline run is in queued state"""
         mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
@@ -240,10 +267,16 @@ class TestAzureDataFactoryTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_azure_data_factory_trigger_run_inprogress(self, mock_pipeline_run_status):
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
+    async def test_azure_data_factory_trigger_run_inprogress(
+        self, mock_pipeline_run_status
+    ):
         """Assert that run wait if pipeline run is in progress state"""
-        mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.IN_PROGRESS
+        mock_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.IN_PROGRESS
+        )
 
         task = asyncio.create_task(self.TRIGGER.run().__anext__())
         await asyncio.sleep(0.5)
@@ -253,10 +286,16 @@ class TestAzureDataFactoryTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_azure_data_factory_trigger_run_canceling(self, mock_pipeline_run_status):
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
+    async def test_azure_data_factory_trigger_run_canceling(
+        self, mock_pipeline_run_status
+    ):
         """Assert that run wait if pipeline run is in canceling state"""
-        mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.CANCELING
+        mock_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.CANCELING
+        )
 
         task = asyncio.create_task(self.TRIGGER.run().__anext__())
         await asyncio.sleep(0.5)
@@ -266,10 +305,14 @@ class TestAzureDataFactoryTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_azure_data_factory_trigger_run_success(self, mock_pipeline_run_status):
         """Assert that the trigger generates success event in case of pipeline success"""
-        mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        mock_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        )
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
@@ -284,7 +327,9 @@ class TestAzureDataFactoryTrigger:
         assert expected == actual
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_azure_data_factory_trigger_run_failed(self, mock_pipeline_run_status):
         """Assert that run trigger error message in case of pipeline fail"""
         mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.FAILED
@@ -302,10 +347,16 @@ class TestAzureDataFactoryTrigger:
         assert expected == actual
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_azure_data_factory_trigger_run_cancelled(self, mock_pipeline_run_status):
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
+    async def test_azure_data_factory_trigger_run_cancelled(
+        self, mock_pipeline_run_status
+    ):
         """Assert that run trigger error message in case of pipeline fail"""
-        mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.CANCELLED
+        mock_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.CANCELLED
+        )
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
@@ -320,8 +371,12 @@ class TestAzureDataFactoryTrigger:
         assert expected == actual
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.cancel_pipeline_run")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.cancel_pipeline_run"
+    )
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_azure_data_factory_trigger_run_exception(
         self, mock_pipeline_run_status, mock_cancel_pipeline_run
     ):
@@ -341,7 +396,9 @@ class TestAzureDataFactoryTrigger:
         mock_cancel_pipeline_run.assert_called_once()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
+    @mock.patch(
+        f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status"
+    )
     async def test_azure_data_factory_trigger_run_timeout(self, mock_pipeline_run_status):
         """Assert that pipeline run times out after end_time elapses"""
         mock_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED

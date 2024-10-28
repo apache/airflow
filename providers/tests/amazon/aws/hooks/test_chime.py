@@ -75,9 +75,7 @@ class TestChimeWebhookHook:
         # Given
         conn_id = "default-chime-webhook"
         hook = ChimeWebhookHook(chime_conn_id=conn_id)
-        expected_webhook_endpoint = (
-            "https://hooks.chime.aws/incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken111"
-        )
+        expected_webhook_endpoint = "https://hooks.chime.aws/incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken111"
 
         # When
         webhook_endpoint = hook._get_webhook_endpoint(conn_id)

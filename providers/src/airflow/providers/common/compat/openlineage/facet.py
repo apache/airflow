@@ -44,10 +44,15 @@ if TYPE_CHECKING:
         Fields,
         InputField,
     )
-    from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
+    from openlineage.client.generated.documentation_dataset import (
+        DocumentationDatasetFacet,
+    )
     from openlineage.client.generated.error_message_run import ErrorMessageRunFacet
     from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-    from openlineage.client.generated.extraction_error_run import Error, ExtractionErrorRunFacet
+    from openlineage.client.generated.extraction_error_run import (
+        Error,
+        ExtractionErrorRunFacet,
+    )
     from openlineage.client.generated.lifecycle_state_change_dataset import (
         LifecycleStateChange,
         LifecycleStateChangeDatasetFacet,
@@ -56,9 +61,15 @@ if TYPE_CHECKING:
     from openlineage.client.generated.output_statistics_output_dataset import (
         OutputStatisticsOutputDatasetFacet,
     )
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+    from openlineage.client.generated.schema_dataset import (
+        SchemaDatasetFacet,
+        SchemaDatasetFacetFields,
+    )
     from openlineage.client.generated.sql_job import SQLJobFacet
-    from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
+    from openlineage.client.generated.symlinks_dataset import (
+        Identifier,
+        SymlinksDatasetFacet,
+    )
 else:
     try:
         try:
@@ -75,10 +86,19 @@ else:
                 Fields,
                 InputField,
             )
-            from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-            from openlineage.client.generated.error_message_run import ErrorMessageRunFacet
-            from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-            from openlineage.client.generated.extraction_error_run import Error, ExtractionErrorRunFacet
+            from openlineage.client.generated.documentation_dataset import (
+                DocumentationDatasetFacet,
+            )
+            from openlineage.client.generated.error_message_run import (
+                ErrorMessageRunFacet,
+            )
+            from openlineage.client.generated.external_query_run import (
+                ExternalQueryRunFacet,
+            )
+            from openlineage.client.generated.extraction_error_run import (
+                Error,
+                ExtractionErrorRunFacet,
+            )
             from openlineage.client.generated.lifecycle_state_change_dataset import (
                 LifecycleStateChange,
                 LifecycleStateChangeDatasetFacet,
@@ -92,7 +112,10 @@ else:
                 SchemaDatasetFacetFields,
             )
             from openlineage.client.generated.sql_job import SQLJobFacet
-            from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
+            from openlineage.client.generated.symlinks_dataset import (
+                Identifier,
+                SymlinksDatasetFacet,
+            )
         except ImportError:
             from openlineage.client.facet import (
                 BaseFacet,
@@ -123,13 +146,15 @@ else:
         # (which shouldn't be the case anyway).
         BaseFacet = Dataset = DatasetFacet = InputDataset = OutputDataset = RunFacet = (
             ColumnLineageDatasetFacet
-        ) = Fields = InputField = DocumentationDatasetFacet = ErrorMessageRunFacet = ExternalQueryRunFacet = (
-            Error
-        ) = ExtractionErrorRunFacet = LifecycleStateChange = LifecycleStateChangeDatasetFacet = (
-            PreviousIdentifier
-        ) = OutputStatisticsOutputDatasetFacet = SchemaDatasetFacet = SchemaDatasetFacetFields = (
-            SQLJobFacet
-        ) = Identifier = SymlinksDatasetFacet = create_no_op
+        ) = Fields = InputField = DocumentationDatasetFacet = ErrorMessageRunFacet = (
+            ExternalQueryRunFacet
+        ) = Error = ExtractionErrorRunFacet = LifecycleStateChange = (
+            LifecycleStateChangeDatasetFacet
+        ) = PreviousIdentifier = OutputStatisticsOutputDatasetFacet = (
+            SchemaDatasetFacet
+        ) = SchemaDatasetFacetFields = SQLJobFacet = Identifier = SymlinksDatasetFacet = (
+            create_no_op
+        )
 
 __all__ = [
     "BaseFacet",

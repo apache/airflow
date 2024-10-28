@@ -108,7 +108,10 @@ def action_cli(func=None, check_db=True):
                 # Check and run migrations if necessary
                 if check_db and not InternalApiConfig.get_use_internal_api():
                     from airflow.configuration import conf
-                    from airflow.utils.db import check_and_run_migrations, synchronize_log_template
+                    from airflow.utils.db import (
+                        check_and_run_migrations,
+                        synchronize_log_template,
+                    )
 
                     if conf.getboolean("database", "check_migrations"):
                         check_and_run_migrations()
@@ -246,9 +249,16 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
         dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
     if not dag:
         if from_db:
-            raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
+            raise AirflowException(
+                f"Dag {dag_id!r} could not be found in DagBag read from database."
+            )
         fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
-        logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
+        logger.warning(
+            "Dag %r not found in path %s; trying path %s",
+            dag_id,
+            first_path,
+            fallback_path,
+        )
         dagbag = DagBag(dag_folder=fallback_path)
         dag = dagbag.get_dag(dag_id)
         if not dag:
@@ -279,9 +289,13 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
-    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id).limit(1))
+    dag_pickle = session.scalar(
+        select(DagPickle).where(DagPickle.id == pickle_id).limit(1)
+    )
     if not dag_pickle:
-        raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
+        raise AirflowException(
+            f"pickle_id could not be found in DagPickle.id list: {pickle_id}"
+        )
     pickle_dag = dag_pickle.pickle
     return pickle_dag
 

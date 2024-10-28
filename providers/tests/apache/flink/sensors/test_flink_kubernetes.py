@@ -859,15 +859,22 @@ TEST_POD_LOG_RESULT = (
 )
 
 TASK_MANAGER_POD = V1Pod(
-    api_version="V1", metadata=V1ObjectMeta(namespace="default", name="basic-example-taskmanager-1-1")
+    api_version="V1",
+    metadata=V1ObjectMeta(namespace="default", name="basic-example-taskmanager-1-1"),
 )
-TASK_MANAGER_POD_LIST = V1PodList(api_version="v1", items=[TASK_MANAGER_POD], kind="PodList")
+TASK_MANAGER_POD_LIST = V1PodList(
+    api_version="v1", items=[TASK_MANAGER_POD], kind="PodList"
+)
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
 class TestFlinkKubernetesSensor:
     def setup_method(self):
-        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
+        db.merge_conn(
+            Connection(
+                conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})
+            )
+        )
         db.merge_conn(
             Connection(
                 conn_id="kubernetes_default",
@@ -946,7 +953,9 @@ class TestFlinkKubernetesSensor:
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_DEPLOYED_NOT_READY_CLUSTER,
     )
-    def test_deployed_not_ready_cluster(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+    def test_deployed_not_ready_cluster(
+        self, mock_get_namespaced_crd, mock_kubernetes_hook
+    ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
         )
@@ -1023,7 +1032,9 @@ class TestFlinkKubernetesSensor:
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_READY_CLUSTER,
     )
-    def test_api_group_and_version_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+    def test_api_group_and_version_from_sensor(
+        self, mock_get_namespaced_crd, mock_kubernetes_hook
+    ):
         api_group = "flink.apache.org"
         api_version = "v1beta1"
         sensor = FlinkKubernetesSensor(
@@ -1048,7 +1059,9 @@ class TestFlinkKubernetesSensor:
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_READY_CLUSTER,
     )
-    def test_namespace_from_connection(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+    def test_namespace_from_connection(
+        self, mock_get_namespaced_crd, mock_kubernetes_hook
+    ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
             dag=self.dag,
@@ -1079,7 +1092,12 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_failure(
-        self, mock_namespaced_pod_list, mock_pod_logs, error_log_call, mock_namespaced_crd, mock_kube_conn
+        self,
+        mock_namespaced_pod_list,
+        mock_pod_logs,
+        error_log_call,
+        mock_namespaced_crd,
+        mock_kube_conn,
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
@@ -1090,9 +1108,13 @@ class TestFlinkKubernetesSensor:
         with pytest.raises(AirflowException):
             sensor.poke(None)
         mock_namespaced_pod_list.assert_called_once_with(
-            namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
+            namespace="default",
+            watch=False,
+            label_selector="component=taskmanager,app=flink-stream-example",
         )
-        mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
+        mock_pod_logs.assert_called_once_with(
+            "basic-example-taskmanager-1-1", namespace="default"
+        )
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
         mock_namespaced_crd.assert_called_once_with(
             group="flink.apache.org",
@@ -1116,7 +1138,12 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_completed(
-        self, mock_namespaced_pod_list, mock_pod_logs, info_log_call, mock_namespaced_crd, mock_kube_conn
+        self,
+        mock_namespaced_pod_list,
+        mock_pod_logs,
+        info_log_call,
+        mock_namespaced_crd,
+        mock_kube_conn,
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
@@ -1127,9 +1154,13 @@ class TestFlinkKubernetesSensor:
         sensor.poke(None)
 
         mock_namespaced_pod_list.assert_called_once_with(
-            namespace="default", watch=False, label_selector="component=taskmanager,app=flink-stream-example"
+            namespace="default",
+            watch=False,
+            label_selector="component=taskmanager,app=flink-stream-example",
         )
-        mock_pod_logs.assert_called_once_with("basic-example-taskmanager-1-1", namespace="default")
+        mock_pod_logs.assert_called_once_with(
+            "basic-example-taskmanager-1-1", namespace="default"
+        )
         log_info_call = info_log_call.mock_calls[4]
         log_value = log_info_call[1][0]
 
@@ -1157,7 +1188,12 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_error(
-        self, mock_namespaced_pod_list, mock_pod_logs, warn_log_call, mock_namespaced_crd, mock_kube_conn
+        self,
+        mock_namespaced_pod_list,
+        mock_pod_logs,
+        warn_log_call,
+        mock_namespaced_crd,
+        mock_kube_conn,
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",
@@ -1182,7 +1218,12 @@ class TestFlinkKubernetesSensor:
         return_value=TASK_MANAGER_POD_LIST,
     )
     def test_driver_logging_error_missing_state(
-        self, mock_namespaced_pod_list, mock_pod_logs, warn_log_call, mock_namespaced_crd, mock_kube_conn
+        self,
+        mock_namespaced_pod_list,
+        mock_pod_logs,
+        warn_log_call,
+        mock_namespaced_crd,
+        mock_kube_conn,
     ):
         sensor = FlinkKubernetesSensor(
             application_name="flink-stream-example",

@@ -45,7 +45,11 @@ class TestEdgeExecutor:
         with pytest.raises(ValueError):
             executor.execute_async(
                 TaskInstanceKey(
-                    dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    map_index=-1,
+                    try_number=1,
                 ),
                 command=["hello", "world"],
             )
@@ -54,7 +58,11 @@ class TestEdgeExecutor:
         executor = EdgeExecutor()
         executor.execute_async(
             TaskInstanceKey(
-                dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="test_task",
+                map_index=-1,
+                try_number=1,
             ),
             command=["airflow", "tasks", "run", "hello", "world"],
         )
@@ -98,7 +106,11 @@ class TestEdgeExecutor:
                     )
                 )
                 key = TaskInstanceKey(
-                    dag_id="test_dag", run_id="test_run", task_id=task_id, map_index=-1, try_number=1
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id=task_id,
+                    map_index=-1,
+                    try_number=1,
                 )
                 executor.running.add(key)
                 session.commit()
@@ -133,7 +145,11 @@ class TestEdgeExecutor:
                 )
             )
             key = TaskInstanceKey(
-                dag_id="test_dag", run_id="test_run", task_id=task_id, map_index=-1, try_number=1
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id=task_id,
+                map_index=-1,
+                try_number=1,
             )
             executor.running.add(key)
             session.commit()
@@ -166,7 +182,11 @@ class TestEdgeExecutor:
                     EdgeWorkerState.IDLE,
                     datetime(2023, 1, 1, 0, 59, 0, tzinfo=timezone.utc),
                 ),
-                ("active_worker", EdgeWorkerState.IDLE, datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc)),
+                (
+                    "active_worker",
+                    EdgeWorkerState.IDLE,
+                    datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc),
+                ),
                 (
                     "offline_worker",
                     EdgeWorkerState.OFFLINE,
@@ -185,7 +205,8 @@ class TestEdgeExecutor:
                 session.commit()
 
         with patch(
-            "airflow.utils.timezone.utcnow", return_value=datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+            "airflow.utils.timezone.utcnow",
+            return_value=datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
         ):
             with conf_vars({("edge", "heartbeat_interval"): "10"}):
                 executor.sync()

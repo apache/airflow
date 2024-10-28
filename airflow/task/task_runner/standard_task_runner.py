@@ -104,7 +104,9 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Running: %s", self._command)
             self.log.info("Job %s: Subtask %s", job_id, self._task_instance.task_id)
 
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
+            proc_title = (
+                "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
+            )
             if job_id is not None:
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
@@ -214,5 +216,7 @@ class StandardTaskRunner(BaseTaskRunner):
                     Stats.gauge(f"task.cpu_usage.{dag_id}.{task_id}", cpu_usage)
                     time.sleep(5)
         except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
-            self.log.info("Process not found (most likely exited), stop collecting metrics")
+            self.log.info(
+                "Process not found (most likely exited), stop collecting metrics"
+            )
             return

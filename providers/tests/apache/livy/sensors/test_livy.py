@@ -36,25 +36,44 @@ class TestLivySensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
-        db.merge_conn(Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"))
+        db.merge_conn(
+            Connection(
+                conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"
+            )
+        )
 
     @pytest.mark.parametrize(
-        "batch_state", [pytest.param(bs, id=bs.name) for bs in BatchState if bs in LivyHook.TERMINAL_STATES]
+        "batch_state",
+        [
+            pytest.param(bs, id=bs.name)
+            for bs in BatchState
+            if bs in LivyHook.TERMINAL_STATES
+        ],
     )
     def test_poke_on_terminal_state(self, batch_state):
         sensor = LivySensor(
-            livy_conn_id="livyunittest", task_id="livy_sensor_test", dag=self.dag, batch_id=100
+            livy_conn_id="livyunittest",
+            task_id="livy_sensor_test",
+            dag=self.dag,
+            batch_id=100,
         )
         with patch.object(LivyHook, "get_batch_state", return_value=batch_state):
             assert sensor.poke({})
 
     @pytest.mark.parametrize(
         "batch_state",
-        [pytest.param(bs, id=bs.name) for bs in BatchState if bs not in LivyHook.TERMINAL_STATES],
+        [
+            pytest.param(bs, id=bs.name)
+            for bs in BatchState
+            if bs not in LivyHook.TERMINAL_STATES
+        ],
     )
     def test_poke_on_non_terminal_state(self, batch_state):
         sensor = LivySensor(
-            livy_conn_id="livyunittest", task_id="livy_sensor_test", dag=self.dag, batch_id=100
+            livy_conn_id="livyunittest",
+            task_id="livy_sensor_test",
+            dag=self.dag,
+            batch_id=100,
         )
         with patch.object(LivyHook, "get_batch_state", return_value=batch_state):
             assert not sensor.poke({})

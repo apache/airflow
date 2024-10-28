@@ -90,7 +90,10 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 def dag_with_runs(dag_without_runs):
     date = dag_without_runs.dag.start_date
     run_1 = dag_without_runs.create_dagrun(
-        run_id="run_1", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+        run_id="run_1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        execution_date=date,
     )
     run_2 = dag_without_runs.create_dagrun(
         run_id="run_2",
@@ -169,7 +172,11 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
     for uri_params, expected_run_types, expected_run_states in [
         ("run_state=success&run_state=queued", ["scheduled"], ["success"]),
         ("run_state=running&run_state=failed", ["scheduled"], ["running"]),
-        ("run_type=scheduled&run_type=manual", ["scheduled", "scheduled"], ["success", "running"]),
+        (
+            "run_type=scheduled&run_type=manual",
+            ["scheduled", "scheduled"],
+            ["success", "running"],
+        ),
         ("run_type=backfill&run_type=manual", [], []),
         ("run_state=running&run_type=failed&run_type=backfill&run_type=manual", [], []),
         (
@@ -178,7 +185,9 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
             ["running"],
         ),
     ]:
-        resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True)
+        resp = admin_client.get(
+            f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True
+        )
         assert resp.status_code == 200, resp.json
         actual_run_types = list(map(lambda x: x["run_type"], resp.json["dag_runs"]))
         actual_run_states = list(map(lambda x: x["state"], resp.json["dag_runs"]))
@@ -210,11 +219,15 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
         elif ti.task_id == "group.mapped":
             if ti.map_index == 0:
                 ti.state = TaskInstanceState.SUCCESS
-                ti.start_date = pendulum.DateTime(2021, 7, 1, 1, 0, 0, tzinfo=pendulum.UTC)
+                ti.start_date = pendulum.DateTime(
+                    2021, 7, 1, 1, 0, 0, tzinfo=pendulum.UTC
+                )
                 ti.end_date = pendulum.DateTime(2021, 7, 1, 1, 2, 3, tzinfo=pendulum.UTC)
             elif ti.map_index == 1:
                 ti.state = TaskInstanceState.RUNNING
-                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.start_date = pendulum.DateTime(
+                    2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC
+                )
                 ti.end_date = None
 
     session.flush()
@@ -368,7 +381,11 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 },
                                 {
                                     "run_id": "run_2",
-                                    "mapped_states": {"no_status": 2, "running": 1, "success": 1},
+                                    "mapped_states": {
+                                        "no_status": 2,
+                                        "running": 1,
+                                        "success": 1,
+                                    },
                                     "queued_dttm": None,
                                     "start_date": "2021-07-01T01:00:00+00:00",
                                     "end_date": "2021-07-01T01:02:03+00:00",
@@ -435,7 +452,9 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
             EmptyOperator(task_id="task4", outlets=[Asset("foo")])
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
-        resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
+        resp = admin_client.get(
+            f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True
+        )
 
     def _expected_task_details(task_id, has_outlet_assets):
         return {
@@ -481,7 +500,9 @@ def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
         asset1_id = session.query(AssetModel.id).filter_by(uri=assets[0].uri).scalar()
         asset2_id = session.query(AssetModel.id).filter_by(uri=assets[1].uri).scalar()
         adrq = AssetDagRunQueue(
-            target_dag_id=DAG_ID, asset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+            target_dag_id=DAG_ID,
+            asset_id=asset1_id,
+            created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC),
         )
         session.add(adrq)
         asset_events = [
@@ -504,13 +525,19 @@ def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
         session.add_all(asset_events)
         session.commit()
 
-        resp = admin_client.get(f"/object/next_run_assets/{DAG_ID}", follow_redirects=True)
+        resp = admin_client.get(
+            f"/object/next_run_assets/{DAG_ID}", follow_redirects=True
+        )
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
         "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
-            {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
+            {
+                "id": asset1_id,
+                "uri": "s3://bucket/key/1",
+                "lastUpdate": "2022-08-02T02:00:00+00:00",
+            },
             {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
         ],
     }

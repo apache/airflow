@@ -101,14 +101,18 @@ class TestJob:
         "job_runner, job_type,job_heartbeat_sec",
         [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
     )
-    def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
+    def test_heart_rate_after_fetched_from_db(
+        self, job_runner, job_type, job_heartbeat_sec
+    ):
         """Ensure heartrate is set correctly after jobs are queried from the DB"""
         if job_type == "scheduler":
             config_name = "scheduler_heartbeat_sec"
         else:
             config_name = "job_heartbeat_sec"
 
-        with create_session() as session, conf_vars({(job_type.lower(), config_name): job_heartbeat_sec}):
+        with create_session() as session, conf_vars(
+            {(job_type.lower(), config_name): job_heartbeat_sec}
+        ):
             job = Job()
             job_runner(job=job)
             session.add(job)
@@ -123,7 +127,9 @@ class TestJob:
         "job_runner, job_type,job_heartbeat_sec",
         [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
     )
-    def test_heart_rate_via_constructor_persists(self, job_runner, job_type, job_heartbeat_sec):
+    def test_heart_rate_via_constructor_persists(
+        self, job_runner, job_type, job_heartbeat_sec
+    ):
         """Ensure heartrate passed via constructor is set correctly"""
         with conf_vars({(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}):
             job = Job(heartrate=12)
@@ -148,14 +154,18 @@ class TestJob:
         with create_session() as session:
             old_job = Job(heartrate=10)
             MockJobRunner(job=old_job)
-            old_job.latest_heartbeat = old_job.latest_heartbeat - datetime.timedelta(seconds=20)
+            old_job.latest_heartbeat = old_job.latest_heartbeat - datetime.timedelta(
+                seconds=20
+            )
             job = Job(heartrate=10)
             MockJobRunner(job=job)
             session.add(job)
             session.add(old_job)
             session.commit()
 
-            self._compare_jobs(most_recent_job(MockJobRunner.job_type, session=session), job)
+            self._compare_jobs(
+                most_recent_job(MockJobRunner.job_type, session=session), job
+            )
             self._compare_jobs(old_job.most_recent_job(session=session), job)
 
             session.rollback()
@@ -180,7 +190,8 @@ class TestJob:
             session.commit()
 
             self._compare_jobs(
-                most_recent_job(MockJobRunner.job_type, session=session), old_running_state_job
+                most_recent_job(MockJobRunner.job_type, session=session),
+                old_running_state_job,
             )
 
             session.rollback()
@@ -202,7 +213,9 @@ class TestJob:
 
         job.state = State.SUCCESS
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
-        assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
+        assert (
+            job.is_alive() is False
+        ), "Completed jobs even with recent heartbeat should not be alive"
 
     @pytest.mark.parametrize("job_type", ["SchedulerJob", "TriggererJob"])
     def test_is_alive_scheduler(self, job_type):
@@ -226,7 +239,9 @@ class TestJob:
 
         job.state = State.SUCCESS
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
-        assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
+        assert (
+            job.is_alive() is False
+        ), "Completed jobs even with recent heartbeat should not be alive"
 
     @pytest.mark.skip_if_database_isolation_mode
     def test_heartbeat_failed(self, caplog):
@@ -250,7 +265,9 @@ class TestJob:
     @patch("airflow.jobs.job.ExecutorLoader.init_executors")
     @patch("airflow.jobs.job.get_hostname")
     @patch("airflow.jobs.job.getuser")
-    def test_essential_attr(self, mock_getuser, mock_hostname, mock_init_executors, mock_default_executor):
+    def test_essential_attr(
+        self, mock_getuser, mock_hostname, mock_init_executors, mock_default_executor
+    ):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"
         mock_getuser.return_value = "testuser"
@@ -283,5 +300,7 @@ class TestJob:
             hb_callback.assert_called_once_with(ANY)
 
             hb_callback.reset_mock()
-            perform_heartbeat(job=job, heartbeat_callback=hb_callback, only_if_necessary=True)
+            perform_heartbeat(
+                job=job, heartbeat_callback=hb_callback, only_if_necessary=True
+            )
             assert hb_callback.called is False

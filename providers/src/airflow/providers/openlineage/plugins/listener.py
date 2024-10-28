@@ -151,11 +151,19 @@ class OpenLineageListener:
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
 
-            start_date = task_instance.start_date if task_instance.start_date else timezone.utcnow()
-            data_interval_start = (
-                dagrun.data_interval_start.isoformat() if dagrun.data_interval_start else None
+            start_date = (
+                task_instance.start_date
+                if task_instance.start_date
+                else timezone.utcnow()
             )
-            data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
+            data_interval_start = (
+                dagrun.data_interval_start.isoformat()
+                if dagrun.data_interval_start
+                else None
+            )
+            data_interval_end = (
+                dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
+            )
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
@@ -169,7 +177,9 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
+                    **get_user_provided_run_facets(
+                        task_instance, TaskInstanceState.RUNNING
+                    ),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **debug_facet,
@@ -184,9 +194,14 @@ class OpenLineageListener:
 
     @hookimpl
     def on_task_instance_success(
-        self, previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session
+        self,
+        previous_state: TaskInstanceState,
+        task_instance: TaskInstance,
+        session: Session,
     ) -> None:
-        self.log.debug("OpenLineage listener got notification about task instance success")
+        self.log.debug(
+            "OpenLineage listener got notification about task instance success"
+        )
 
         dagrun = task_instance.dag_run
         task = task_instance.task
@@ -232,7 +247,9 @@ class OpenLineageListener:
                     dagrun, task, complete=True, task_instance=task_instance
                 )
 
-            end_date = task_instance.end_date if task_instance.end_date else timezone.utcnow()
+            end_date = (
+                task_instance.end_date if task_instance.end_date else timezone.utcnow()
+            )
 
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
@@ -242,7 +259,9 @@ class OpenLineageListener:
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 run_facets={
-                    **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                    **get_user_provided_run_facets(
+                        task_instance, TaskInstanceState.SUCCESS
+                    ),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
                 },
@@ -265,17 +284,26 @@ class OpenLineageListener:
             session: Session,
         ) -> None:
             self._on_task_instance_failed(
-                previous_state=previous_state, task_instance=task_instance, error=error, session=session
+                previous_state=previous_state,
+                task_instance=task_instance,
+                error=error,
+                session=session,
             )
 
     else:
 
         @hookimpl
         def on_task_instance_failed(
-            self, previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: TaskInstance,
+            session: Session,
         ) -> None:
             self._on_task_instance_failed(
-                previous_state=previous_state, task_instance=task_instance, error=None, session=session
+                previous_state=previous_state,
+                task_instance=task_instance,
+                error=None,
+                session=session,
             )
 
     def _on_task_instance_failed(
@@ -285,7 +313,9 @@ class OpenLineageListener:
         session: Session,
         error: None | str | BaseException = None,
     ) -> None:
-        self.log.debug("OpenLineage listener got notification about task instance failure")
+        self.log.debug(
+            "OpenLineage listener got notification about task instance failure"
+        )
 
         dagrun = task_instance.dag_run
         task = task_instance.task
@@ -331,7 +361,9 @@ class OpenLineageListener:
                     dagrun, task, complete=True, task_instance=task_instance
                 )
 
-            end_date = task_instance.end_date if task_instance.end_date else timezone.utcnow()
+            end_date = (
+                task_instance.end_date if task_instance.end_date else timezone.utcnow()
+            )
 
             redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
@@ -342,7 +374,9 @@ class OpenLineageListener:
                 task=task_metadata,
                 error=error,
                 run_facets={
-                    **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
+                    **get_user_provided_run_facets(
+                        task_instance, TaskInstanceState.FAILED
+                    ),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                     **get_airflow_debug_facet(),
                 },
@@ -379,7 +413,8 @@ class OpenLineageListener:
                 process.wait(conf.execution_timeout())
             except psutil.TimeoutExpired:
                 self.log.warning(
-                    "OpenLineage process %s expired. This should not affect process execution.", pid
+                    "OpenLineage process %s expired. This should not affect process execution.",
+                    pid,
                 )
                 self._terminate_with_wait(process)
             except BaseException:
@@ -389,7 +424,9 @@ class OpenLineageListener:
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
             configure_orm(disable_connection_pool=True)
-            self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
+            self.log.debug(
+                "Executing OpenLineage process - %s - pid %s", callable_name, os.getpid()
+            )
             callable()
             self.log.debug("Process with current pid finishes after %s", callable_name)
             os._exit(0)
@@ -430,9 +467,15 @@ class OpenLineageListener:
                 return
 
             data_interval_start = (
-                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
+                dag_run.data_interval_start.isoformat()
+                if dag_run.data_interval_start
+                else None
             )
-            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
+            data_interval_end = (
+                dag_run.data_interval_end.isoformat()
+                if dag_run.data_interval_end
+                else None
+            )
 
             run_facets = {**get_airflow_dag_run_facet(dag_run)}
 
@@ -444,14 +487,18 @@ class OpenLineageListener:
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
                 run_facets=run_facets,
-                owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
+                owners=[x.strip() for x in dag_run.dag.owner.split(",")]
+                if dag_run.dag
+                else None,
                 description=dag_run.dag.description if dag_run.dag else None,
                 # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
                 # as it causes lack of some TaskGroup attributes and crashes event emission.
                 job_facets=get_airflow_job_facet(dag_run=dag_run),
             )
         except BaseException as e:
-            self.log.warning("OpenLineage received exception in method on_dag_run_running", exc_info=e)
+            self.log.warning(
+                "OpenLineage received exception in method on_dag_run_running", exc_info=e
+            )
 
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str) -> None:
@@ -472,7 +519,9 @@ class OpenLineageListener:
             if IS_AIRFLOW_2_10_OR_HIGHER:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
-                task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+                task_ids = (
+                    dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+                )
             self.submit_callable(
                 self.adapter.dag_success,
                 dag_id=dag_run.dag_id,
@@ -483,7 +532,9 @@ class OpenLineageListener:
                 dag_run_state=dag_run.get_state(),
             )
         except BaseException as e:
-            self.log.warning("OpenLineage received exception in method on_dag_run_success", exc_info=e)
+            self.log.warning(
+                "OpenLineage received exception in method on_dag_run_success", exc_info=e
+            )
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str) -> None:
@@ -504,7 +555,9 @@ class OpenLineageListener:
             if IS_AIRFLOW_2_10_OR_HIGHER:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
-                task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+                task_ids = (
+                    dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+                )
             self.submit_callable(
                 self.adapter.dag_failed,
                 dag_id=dag_run.dag_id,
@@ -516,7 +569,9 @@ class OpenLineageListener:
                 msg=msg,
             )
         except BaseException as e:
-            self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
+            self.log.warning(
+                "OpenLineage received exception in method on_dag_run_failed", exc_info=e
+            )
 
     def submit_callable(self, callable, *args, **kwargs):
         fut = self.executor.submit(callable, *args, **kwargs)
@@ -525,7 +580,9 @@ class OpenLineageListener:
 
     def log_submit_error(self, fut):
         if fut.exception():
-            self.log.warning("Failed to submit method to executor", exc_info=fut.exception())
+            self.log.warning(
+                "Failed to submit method to executor", exc_info=fut.exception()
+            )
         else:
             self.log.debug("Successfully submitted method to executor")
 

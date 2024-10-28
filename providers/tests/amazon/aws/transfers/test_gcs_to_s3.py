@@ -33,7 +33,9 @@ PREFIX = "TEST"
 S3_BUCKET = "s3://bucket/"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 S3_ACL_POLICY = "private-read"
-deprecated_call_match = "Usage of 'delimiter' is deprecated, please use 'match_glob' instead"
+deprecated_call_match = (
+    "Usage of 'delimiter' is deprecated, please use 'match_glob' instead"
+)
 
 
 def _create_test_bucket():
@@ -133,8 +135,12 @@ class TestGCSToS3Operator:
     )
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_without_replace_with_folder_structure(self, mock_hook, dest_s3_url):
-        mock_files_gcs = [f"test{idx}/{mock_file}" for idx, mock_file in enumerate(MOCK_FILES)]
-        mock_files_s3 = [f"test/test{idx}/{mock_file}" for idx, mock_file in enumerate(MOCK_FILES)]
+        mock_files_gcs = [
+            f"test{idx}/{mock_file}" for idx, mock_file in enumerate(MOCK_FILES)
+        ]
+        mock_files_s3 = [
+            f"test/test{idx}/{mock_file}" for idx, mock_file in enumerate(MOCK_FILES)
+        ]
         mock_hook.return_value.list.return_value = mock_files_gcs
 
         hook, bucket = _create_test_bucket()
@@ -159,7 +165,9 @@ class TestGCSToS3Operator:
             uploaded_files = operator.execute(None)
 
             assert [] == uploaded_files
-            assert sorted(mock_files_s3) == sorted(hook.list_keys("bucket", prefix="test/"))
+            assert sorted(mock_files_s3) == sorted(
+                hook.list_keys("bucket", prefix="test/")
+            )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute(self, mock_hook):
@@ -239,7 +247,9 @@ class TestGCSToS3Operator:
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.S3Hook")
-    def test_execute_should_handle_with_default_dest_s3_extra_args(self, s3_mock_hook, mock_hook):
+    def test_execute_should_handle_with_default_dest_s3_extra_args(
+        self, s3_mock_hook, mock_hook
+    ):
         mock_hook.return_value.list.return_value = MOCK_FILES
         mock_hook.return_value.download.return_value = b"testing"
         s3_mock_hook.return_value = mock.Mock()
@@ -254,11 +264,15 @@ class TestGCSToS3Operator:
             replace=True,
         )
         operator.execute(None)
-        s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", extra_args={}, verify=None)
+        s3_mock_hook.assert_called_once_with(
+            aws_conn_id="aws_default", extra_args={}, verify=None
+        )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.S3Hook")
-    def test_execute_should_pass_dest_s3_extra_args_to_s3_hook(self, s3_mock_hook, mock_hook):
+    def test_execute_should_pass_dest_s3_extra_args_to_s3_hook(
+        self, s3_mock_hook, mock_hook
+    ):
         mock_hook.return_value.list.return_value = MOCK_FILES
         with NamedTemporaryFile() as f:
             gcs_provide_file = mock_hook.return_value.provide_file
@@ -279,7 +293,9 @@ class TestGCSToS3Operator:
             )
             operator.execute(None)
             s3_mock_hook.assert_called_once_with(
-                aws_conn_id="aws_default", extra_args={"ContentLanguage": "value"}, verify=None
+                aws_conn_id="aws_default",
+                extra_args={"ContentLanguage": "value"},
+                verify=None,
             )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
@@ -328,4 +344,9 @@ class TestGCSToS3Operator:
             # and all the MOCK_FILES to be present at the S3 bucket
             uploaded_files = operator.execute(None)
             assert sorted(MOCK_FILES) == sorted(uploaded_files)
-            assert hook.check_for_prefix(bucket_name="bucket", prefix=PREFIX + "/", delimiter="/") is True
+            assert (
+                hook.check_for_prefix(
+                    bucket_name="bucket", prefix=PREFIX + "/", delimiter="/"
+                )
+                is True
+            )

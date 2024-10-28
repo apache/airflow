@@ -155,9 +155,14 @@ def async_get_operation():
 
 @pytest.mark.db_test
 class TestDataprocClusterTrigger:
-    def test_async_cluster_trigger_serialization_should_execute_successfully(self, cluster_trigger):
+    def test_async_cluster_trigger_serialization_should_execute_successfully(
+        self, cluster_trigger
+    ):
         classpath, kwargs = cluster_trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger"
+        )
         assert kwargs == {
             "cluster_name": TEST_CLUSTER_NAME,
             "project_id": TEST_PROJECT_ID,
@@ -169,7 +174,9 @@ class TestDataprocClusterTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster"
+    )
     async def test_async_cluster_triggers_on_success_should_execute_successfully(
         self, mock_hook, cluster_trigger, async_get_cluster
     ):
@@ -193,14 +200,22 @@ class TestDataprocClusterTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster"
+    )
     @mock.patch(
         "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster",
         return_value=asyncio.Future(),
     )
     @mock.patch("google.auth.default")
     async def test_async_cluster_trigger_run_returns_error_event(
-        self, mock_auth, mock_delete_cluster, mock_get_cluster, cluster_trigger, async_get_cluster, caplog
+        self,
+        mock_auth,
+        mock_delete_cluster,
+        mock_get_cluster,
+        cluster_trigger,
+        async_get_cluster,
+        caplog,
     ):
         mock_credentials = mock.MagicMock()
         mock_credentials.universe_domain = "googleapis.com"
@@ -227,7 +242,9 @@ class TestDataprocClusterTrigger:
         assert trigger_event.payload["cluster_state"] == ClusterStatus.State.DELETING
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster"
+    )
     async def test_cluster_run_loop_is_still_running(
         self, mock_hook, cluster_trigger, caplog, async_get_cluster
     ):
@@ -248,8 +265,12 @@ class TestDataprocClusterTrigger:
         assert f"Sleeping for {TEST_POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook"
+    )
     async def test_cluster_trigger_cancellation_handling(
         self, mock_get_sync_hook, mock_get_async_hook, caplog
     ):
@@ -293,17 +314,25 @@ class TestDataprocClusterTrigger:
             pytest.fail(f"Unexpected exception raised: {e}")
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster")
-    async def test_fetch_cluster_status(self, mock_get_cluster, cluster_trigger, async_get_cluster):
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_cluster"
+    )
+    async def test_fetch_cluster_status(
+        self, mock_get_cluster, cluster_trigger, async_get_cluster
+    ):
         mock_get_cluster.return_value = async_get_cluster(
             status=ClusterStatus(state=ClusterStatus.State.RUNNING)
         )
         cluster = await cluster_trigger.fetch_cluster()
 
-        assert cluster.status.state == ClusterStatus.State.RUNNING, "The cluster state should be RUNNING"
+        assert (
+            cluster.status.state == ClusterStatus.State.RUNNING
+        ), "The cluster state should be RUNNING"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.delete_cluster"
+    )
     async def test_delete_when_error_occurred(self, mock_delete_cluster, cluster_trigger):
         mock_cluster = mock.MagicMock(spec=Cluster)
         type(mock_cluster).status = mock.PropertyMock(
@@ -332,11 +361,21 @@ class TestDataprocClusterTrigger:
         mock_delete_cluster.assert_not_called()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.safe_to_cancel")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.safe_to_cancel"
+    )
     async def test_cluster_trigger_run_cancelled_not_safe_to_cancel(
-        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, cluster_trigger
+        self,
+        mock_safe_to_cancel,
+        mock_get_sync_hook,
+        mock_get_async_hook,
+        cluster_trigger,
     ):
         """Test the trigger's cancellation behavior when it is not safe to cancel."""
         mock_safe_to_cancel.return_value = False
@@ -366,14 +405,19 @@ class TestDataprocClusterTrigger:
 
 @pytest.mark.db_test
 class TestDataprocBatchTrigger:
-    def test_async_create_batch_trigger_serialization_should_execute_successfully(self, batch_trigger):
+    def test_async_create_batch_trigger_serialization_should_execute_successfully(
+        self, batch_trigger
+    ):
         """
         Asserts that the DataprocBatchTrigger correctly serializes its arguments
         and classpath.
         """
 
         classpath, kwargs = batch_trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger"
+        )
         assert kwargs == {
             "batch_id": TEST_BATCH_ID,
             "project_id": TEST_PROJECT_ID,
@@ -384,7 +428,9 @@ class TestDataprocBatchTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch"
+    )
     async def test_async_create_batch_trigger_triggers_on_success_should_execute_successfully(
         self, mock_hook, batch_trigger, async_get_batch
     ):
@@ -393,7 +439,9 @@ class TestDataprocBatchTrigger:
         """
 
         mock_hook.return_value = async_get_batch(
-            state=Batch.State.SUCCEEDED, batch_id=TEST_BATCH_ID, state_message=TEST_BATCH_STATE_MESSAGE
+            state=Batch.State.SUCCEEDED,
+            batch_id=TEST_BATCH_ID,
+            state_message=TEST_BATCH_STATE_MESSAGE,
         )
 
         expected_event = TriggerEvent(
@@ -409,12 +457,16 @@ class TestDataprocBatchTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch"
+    )
     async def test_async_create_batch_trigger_run_returns_failed_event(
         self, mock_hook, batch_trigger, async_get_batch
     ):
         mock_hook.return_value = async_get_batch(
-            state=Batch.State.FAILED, batch_id=TEST_BATCH_ID, state_message=TEST_BATCH_STATE_MESSAGE
+            state=Batch.State.FAILED,
+            batch_id=TEST_BATCH_ID,
+            state_message=TEST_BATCH_STATE_MESSAGE,
         )
 
         expected_event = TriggerEvent(
@@ -430,10 +482,16 @@ class TestDataprocBatchTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
-    async def test_create_batch_run_returns_cancelled_event(self, mock_hook, batch_trigger, async_get_batch):
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch"
+    )
+    async def test_create_batch_run_returns_cancelled_event(
+        self, mock_hook, batch_trigger, async_get_batch
+    ):
         mock_hook.return_value = async_get_batch(
-            state=Batch.State.CANCELLED, batch_id=TEST_BATCH_ID, state_message=TEST_BATCH_STATE_MESSAGE
+            state=Batch.State.CANCELLED,
+            batch_id=TEST_BATCH_ID,
+            state_message=TEST_BATCH_STATE_MESSAGE,
         )
 
         expected_event = TriggerEvent(
@@ -449,7 +507,9 @@ class TestDataprocBatchTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch"
+    )
     async def test_create_batch_run_loop_is_still_running(
         self, mock_hook, batch_trigger, caplog, async_get_batch
     ):
@@ -466,9 +526,14 @@ class TestDataprocBatchTrigger:
 
 
 class TestDataprocOperationTrigger:
-    def test_async_cluster_trigger_serialization_should_execute_successfully(self, operation_trigger):
+    def test_async_cluster_trigger_serialization_should_execute_successfully(
+        self, operation_trigger
+    ):
         classpath, kwargs = operation_trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocOperationTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.dataproc.DataprocOperationTrigger"
+        )
         assert kwargs == {
             "name": TEST_OPERATION_NAME,
             "project_id": TEST_PROJECT_ID,
@@ -480,7 +545,9 @@ class TestDataprocOperationTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook"
+    )
     async def test_async_operation_triggers_on_success_should_execute_successfully(
         self, mock_hook, operation_trigger, async_get_operation
     ):
@@ -500,7 +567,9 @@ class TestDataprocOperationTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook"
+    )
     async def test_async_diagnose_operation_triggers_on_success_should_execute_successfully(
         self, mock_hook, diagnose_operation_trigger, async_get_operation
     ):
@@ -523,10 +592,17 @@ class TestDataprocOperationTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook")
-    async def test_async_operation_triggers_on_error(self, mock_hook, operation_trigger, async_get_operation):
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger.get_async_hook"
+    )
+    async def test_async_operation_triggers_on_error(
+        self, mock_hook, operation_trigger, async_get_operation
+    ):
         mock_hook.return_value.get_operation.return_value = async_get_operation(
-            name=TEST_OPERATION_NAME, done=True, response={}, error=Status(message="test_error")
+            name=TEST_OPERATION_NAME,
+            done=True,
+            response={},
+            error=Status(message="test_error"),
         )
 
         expected_event = TriggerEvent(
@@ -546,7 +622,10 @@ class TestDataprocSubmitTrigger:
     def test_submit_trigger_serialization(self, submit_trigger):
         """Test that the trigger serializes its configuration correctly."""
         classpath, kwargs = submit_trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger"
+        )
         assert kwargs == {
             "job_id": TEST_JOB_ID,
             "project_id": TEST_PROJECT_ID,
@@ -558,7 +637,9 @@ class TestDataprocSubmitTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook"
+    )
     async def test_submit_trigger_run_success(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles a job completion."""
         mock_hook = mock_get_async_hook.return_value
@@ -569,33 +650,56 @@ class TestDataprocSubmitTrigger:
         async_gen = submit_trigger.run()
         event = await async_gen.asend(None)
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.DONE, "job": mock_hook.get_job.return_value}
+            {
+                "job_id": TEST_JOB_ID,
+                "job_state": JobStatus.State.DONE,
+                "job": mock_hook.get_job.return_value,
+            }
         )
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook"
+    )
     async def test_submit_trigger_run_error(self, mock_get_async_hook, submit_trigger):
         """Test the trigger correctly handles a job error."""
         mock_hook = mock_get_async_hook.return_value
         mock_hook.get_job = mock.AsyncMock(
-            return_value=mock.AsyncMock(status=mock.AsyncMock(state=JobStatus.State.ERROR))
+            return_value=mock.AsyncMock(
+                status=mock.AsyncMock(state=JobStatus.State.ERROR)
+            )
         )
 
         async_gen = submit_trigger.run()
         event = await async_gen.asend(None)
         expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.ERROR, "job": mock_hook.get_job.return_value}
+            {
+                "job_id": TEST_JOB_ID,
+                "job_state": JobStatus.State.ERROR,
+                "job": mock_hook.get_job.return_value,
+            }
         )
         assert event.payload == expected_event.payload
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.safe_to_cancel")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.safe_to_cancel"
+    )
     async def test_submit_trigger_run_cancelled(
-        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, submit_trigger, is_safe_to_cancel
+        self,
+        mock_safe_to_cancel,
+        mock_get_sync_hook,
+        mock_get_async_hook,
+        submit_trigger,
+        is_safe_to_cancel,
     ):
         """Test the trigger correctly handles an asyncio.CancelledError."""
         mock_safe_to_cancel.return_value = is_safe_to_cancel

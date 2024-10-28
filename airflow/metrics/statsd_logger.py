@@ -180,8 +180,12 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
         ipv6=conf.getboolean("metrics", "statsd_ipv6", fallback=False),
     )
 
-    influxdb_tags_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
+    influxdb_tags_enabled = conf.getboolean(
+        "metrics", "statsd_influxdb_enabled", fallback=False
+    )
     metric_tags_validator = PatternBlockListValidator(
         conf.get("metrics", "statsd_disabled_tags", fallback=None)
     )
-    return SafeStatsdLogger(statsd, get_validator(), influxdb_tags_enabled, metric_tags_validator)
+    return SafeStatsdLogger(
+        statsd, get_validator(), influxdb_tags_enabled, metric_tags_validator
+    )

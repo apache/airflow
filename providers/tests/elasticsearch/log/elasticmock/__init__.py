@@ -43,7 +43,9 @@ from functools import wraps
 from unittest.mock import patch
 from urllib.parse import unquote, urlparse
 
-from providers.tests.elasticsearch.log.elasticmock.fake_elasticsearch import FakeElasticsearch
+from providers.tests.elasticsearch.log.elasticmock.fake_elasticsearch import (
+    FakeElasticsearch,
+)
 
 ELASTIC_INSTANCES: dict[str, FakeElasticsearch] = {}
 
@@ -76,7 +78,9 @@ def _normalize_hosts(hosts):
             h["use_ssl"] = True
 
         if parsed_url.username or parsed_url.password:
-            h["http_auth"] = f"{unquote(parsed_url.username)}:{unquote(parsed_url.password)}"
+            h["http_auth"] = (
+                f"{unquote(parsed_url.username)}:{unquote(parsed_url.password)}"
+            )
 
         if parsed_url.path and parsed_url.path != "/":
             h["url_prefix"] = parsed_url.path

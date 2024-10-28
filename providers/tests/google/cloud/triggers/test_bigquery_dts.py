@@ -24,7 +24,9 @@ from unittest import mock
 import pytest
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
-from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
+from airflow.providers.google.cloud.triggers.bigquery_dts import (
+    BigQueryDataTransferRunTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 PROJECT_ID = "test-project-id"
@@ -82,7 +84,9 @@ class TestBigQueryDataTransferRunTrigger:
         assert actual_value == expected_value
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
+    @mock.patch(
+        f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run"
+    )
     async def test_run_returns_success_event(self, mock_hook, trigger):
         mock_hook.return_value = mock.MagicMock(state=TransferState.SUCCEEDED)
         expected_event = TriggerEvent(
@@ -98,7 +102,9 @@ class TestBigQueryDataTransferRunTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
+    @mock.patch(
+        f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run"
+    )
     async def test_run_returns_failed_event(self, mock_hook, trigger):
         mock_hook.return_value = mock.MagicMock(state=TransferState.FAILED)
         expected_event = TriggerEvent(
@@ -113,7 +119,9 @@ class TestBigQueryDataTransferRunTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
+    @mock.patch(
+        f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run"
+    )
     async def test_run_returns_exception_event(self, mock_hook, trigger):
         error_msg = "test error msg"
         mock_hook.side_effect = Exception(error_msg)
@@ -128,7 +136,9 @@ class TestBigQueryDataTransferRunTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
+    @mock.patch(
+        f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run"
+    )
     async def test_run_returns_cancelled_event(self, mock_hook, trigger):
         mock_hook.return_value = mock.MagicMock(state=TransferState.CANCELLED)
         expected_event = TriggerEvent(
@@ -143,7 +153,9 @@ class TestBigQueryDataTransferRunTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
+    @mock.patch(
+        f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run"
+    )
     async def test_run_loop_is_still_running(self, mock_hook, trigger, caplog):
         mock_hook.return_value = mock.MagicMock(state=TransferState.RUNNING)
 

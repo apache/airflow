@@ -88,7 +88,12 @@ def parse_traceparent(traceparent_str: str | None = None) -> dict:
     tokens = traceparent_str.split("-")
     if len(tokens) != 4:
         raise ValueError("The traceparent string does not have the correct format.")
-    return {"version": tokens[0], "trace_id": tokens[1], "parent_id": tokens[2], "flags": tokens[3]}
+    return {
+        "version": tokens[0],
+        "trace_id": tokens[1],
+        "parent_id": tokens[2],
+        "flags": tokens[3],
+    }
 
 
 def parse_tracestate(tracestate_str: str | None = None) -> dict:

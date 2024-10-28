@@ -54,12 +54,16 @@ def display_commands_index():
             table.add_column(width=46)
             table.add_column()
             for action_command in sorted(actions, key=lambda d: d.name):
-                table.add_row(" ".join([*prefix, action_command.name]), action_command.help)
+                table.add_row(
+                    " ".join([*prefix, action_command.name]), action_command.help
+                )
             console.print(table)
 
         if groups:
             for group_command in sorted(groups, key=lambda d: d.name):
                 group_prefix = [*prefix, group_command.name]
-                display_recursive(group_prefix, group_command.subcommands, group_command.help)
+                display_recursive(
+                    group_prefix, group_command.subcommands, group_command.help
+                )
 
     display_recursive(["airflow"], airflow_commands)

@@ -19,7 +19,9 @@ from __future__ import annotations
 
 
 def validate_template_fields(operator):
-    template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+    template_fields = list(operator.template_fields) + list(
+        operator.template_fields_renderers.keys()
+    )
 
     class_fields = operator.__dict__
 

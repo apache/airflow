@@ -56,7 +56,11 @@ TABULAR_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/tabular-dataset.csv"]}
+                "gcs_source": {
+                    "uri": [
+                        f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/tabular-dataset.csv"
+                    ]
+                }
             }
         },
         Value(),

@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+)
 
 if TYPE_CHECKING:
     from flask_session import Session

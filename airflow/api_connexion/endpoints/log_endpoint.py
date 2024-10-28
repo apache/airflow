@@ -62,7 +62,9 @@ def get_log(
         try:
             metadata = URLSafeSerializer(key).loads(token)
         except BadSignature:
-            raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
+            raise BadRequest(
+                "Bad Signature. Please use only the tokens provided by the API."
+            )
 
     if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True

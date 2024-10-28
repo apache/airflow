@@ -127,7 +127,9 @@ class TestVariable:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
-    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog, session):
+    def test_variable_set_with_extra_secret_backend(
+        self, mock_ensure_secrets, caplog, session
+    ):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         mock_backend = mock.Mock()
         mock_backend.get_variable.return_value = "secret_val"
@@ -163,7 +165,9 @@ class TestVariable:
                 Variable.update(key="key", value="new-value", session=session)
 
     def test_variable_update_preserves_description(self, session):
-        Variable.set(key="key", value="value", description="a test variable", session=session)
+        Variable.set(
+            key="key", value="value", description="a test variable", session=session
+        )
         assert Variable.get("key") == "value"
         Variable.update("key", "value2")
         test_var = session.query(Variable).filter(Variable.key == "key").one()
@@ -171,7 +175,9 @@ class TestVariable:
         assert test_var.description == "a test variable"
 
     def test_set_variable_sets_description(self, session):
-        Variable.set(key="key", value="value", description="a test variable", session=session)
+        Variable.set(
+            key="key", value="value", description="a test variable", session=session
+        )
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert test_var.description == "a test variable"
         assert test_var.val == "value"
@@ -185,7 +191,9 @@ class TestVariable:
 
     def test_get_non_existing_var_should_return_default(self):
         default_value = "some default val"
-        assert default_value == Variable.get("thisIdDoesNotExist", default_var=default_value)
+        assert default_value == Variable.get(
+            "thisIdDoesNotExist", default_var=default_value
+        )
 
     def test_get_non_existing_var_should_raise_key_error(self):
         with pytest.raises(KeyError):
@@ -311,7 +319,9 @@ class TestVariable:
         ('{"api_key": "s3cr3t", "another_secret": "123456"}', True, ["s3cr3t", "123456"]),
     ],
 )
-def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values, session):
+def test_masking_only_secret_values(
+    variable_value, deserialize_json, expected_masked_values, session
+):
     from airflow.utils.log.secrets_masker import _secrets_masker
 
     SecretCache.reset()

@@ -29,7 +29,11 @@ from subprocess import Popen
 from time import sleep
 
 import psutil
-from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
+from lockfile.pidlockfile import (
+    read_pid_from_pidfile,
+    remove_existing_pidfile,
+    write_pid_to_pidfile,
+)
 
 from airflow import __version__ as airflow_version, settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
@@ -71,7 +75,9 @@ def force_use_internal_api_on_edge_worker():
     if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
         api_url = conf.get("edge", "api_url")
         if not api_url:
-            raise SystemExit("Error: API URL is not configured, please correct configuration.")
+            raise SystemExit(
+                "Error: API URL is not configured, please correct configuration."
+            )
         logger.info("Starting worker with API endpoint %s", api_url)
         # export Edge API to be used for internal API
         os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
@@ -158,7 +164,9 @@ class _EdgeWorkerCli:
 
     @staticmethod
     def signal_handler(sig, frame):
-        logger.info("Request to show down Edge Worker received, waiting for jobs to complete.")
+        logger.info(
+            "Request to show down Edge Worker received, waiting for jobs to complete."
+        )
         _EdgeWorkerCli.drain = True
 
     def _get_sysinfo(self) -> dict:
@@ -177,7 +185,9 @@ class _EdgeWorkerCli:
             ).last_update
         except AirflowException as e:
             if "404:NOT FOUND" in str(e):
-                raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
+                raise SystemExit(
+                    "Error: API endpoint is not ready, please set [edge] api_enabled=True."
+                )
             raise SystemExit(str(e))
         _write_pid_to_pidfile(self.pid_file_path)
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
@@ -186,7 +196,9 @@ class _EdgeWorkerCli:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
-            EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            EdgeWorker.set_state(
+                self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo()
+            )
         finally:
             remove_existing_pidfile(self.pid_file_path)
 
@@ -197,7 +209,10 @@ class _EdgeWorkerCli:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
-        if _EdgeWorkerCli.drain or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval:
+        if (
+            _EdgeWorkerCli.drain
+            or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
+        ):
             self.heartbeat()
             self.last_hb = datetime.now()
 
@@ -220,7 +235,10 @@ class _EdgeWorkerCli:
             EdgeJob.set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
-        logger.info("No new job to process%s", f", {len(self.jobs)} still running" if self.jobs else "")
+        logger.info(
+            "No new job to process%s",
+            f", {len(self.jobs)} still running" if self.jobs else "",
+        )
         return False
 
     def check_running_jobs(self) -> None:
@@ -254,7 +272,11 @@ class _EdgeWorkerCli:
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""
         state = (
-            (EdgeWorkerState.TERMINATING if _EdgeWorkerCli.drain else EdgeWorkerState.RUNNING)
+            (
+                EdgeWorkerState.TERMINATING
+                if _EdgeWorkerCli.drain
+                else EdgeWorkerState.RUNNING
+            )
             if self.jobs
             else EdgeWorkerState.IDLE
         )

@@ -31,10 +31,16 @@ from airflow.providers.amazon.aws.sensors.glue import (
 
 class TestGlueDataQualityCustomWaiters:
     def test_evaluation_run_waiters(self):
-        assert "data_quality_ruleset_evaluation_run_complete" in GlueDataQualityHook().list_waiters()
+        assert (
+            "data_quality_ruleset_evaluation_run_complete"
+            in GlueDataQualityHook().list_waiters()
+        )
 
     def test_recommendation_run_waiters(self):
-        assert "data_quality_rule_recommendation_run_complete" in GlueDataQualityHook().list_waiters()
+        assert (
+            "data_quality_rule_recommendation_run_complete"
+            in GlueDataQualityHook().list_waiters()
+        )
 
 
 class TestGlueDataQualityCustomWaitersBase:
@@ -44,21 +50,29 @@ class TestGlueDataQualityCustomWaitersBase:
         monkeypatch.setattr(GlueDataQualityHook, "conn", self.client)
 
 
-class TestGlueDataQualityRuleSetEvaluationRunCompleteWaiter(TestGlueDataQualityCustomWaitersBase):
+class TestGlueDataQualityRuleSetEvaluationRunCompleteWaiter(
+    TestGlueDataQualityCustomWaitersBase
+):
     WAITER_NAME = "data_quality_ruleset_evaluation_run_complete"
 
     @pytest.fixture
     def mock_get_job(self):
-        with mock.patch.object(self.client, "get_data_quality_ruleset_evaluation_run") as mock_getter:
+        with mock.patch.object(
+            self.client, "get_data_quality_ruleset_evaluation_run"
+        ) as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", GlueDataQualityRuleSetEvaluationRunSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", GlueDataQualityRuleSetEvaluationRunSensor.SUCCESS_STATES
+    )
     def test_data_quality_ruleset_evaluation_run_complete(self, state, mock_get_job):
         mock_get_job.return_value = {"Status": state}
 
         GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(RunId="run_id")
 
-    @pytest.mark.parametrize("state", GlueDataQualityRuleSetEvaluationRunSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", GlueDataQualityRuleSetEvaluationRunSensor.FAILURE_STATES
+    )
     def test_data_quality_ruleset_evaluation_run_failed(self, state, mock_get_job):
         mock_get_job.return_value = {"Status": state}
 
@@ -75,21 +89,29 @@ class TestGlueDataQualityRuleSetEvaluationRunCompleteWaiter(TestGlueDataQualityC
         )
 
 
-class TestGlueDataQualityRuleRecommendationRunCompleteWaiter(TestGlueDataQualityCustomWaitersBase):
+class TestGlueDataQualityRuleRecommendationRunCompleteWaiter(
+    TestGlueDataQualityCustomWaitersBase
+):
     WAITER_NAME = "data_quality_rule_recommendation_run_complete"
 
     @pytest.fixture
     def mock_get_job(self):
-        with mock.patch.object(self.client, "get_data_quality_rule_recommendation_run") as mock_getter:
+        with mock.patch.object(
+            self.client, "get_data_quality_rule_recommendation_run"
+        ) as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", GlueDataQualityRuleRecommendationRunSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", GlueDataQualityRuleRecommendationRunSensor.SUCCESS_STATES
+    )
     def test_data_quality_rule_recommendation_run_complete(self, state, mock_get_job):
         mock_get_job.return_value = {"Status": state}
 
         GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(RunId="run_id")
 
-    @pytest.mark.parametrize("state", GlueDataQualityRuleRecommendationRunSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", GlueDataQualityRuleRecommendationRunSensor.FAILURE_STATES
+    )
     def test_data_quality_rule_recommendation_run_failed(self, state, mock_get_job):
         mock_get_job.return_value = {"Status": state}
 

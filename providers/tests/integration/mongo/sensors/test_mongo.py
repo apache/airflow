@@ -33,7 +33,13 @@ def mongo_connections():
     """Create MongoDB connections which use for testing purpose."""
     connections = [
         Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
-        Connection(conn_id="mongo_test", conn_type="mongo", host="mongo", port=27017, schema="test"),
+        Connection(
+            conn_id="mongo_test",
+            conn_type="mongo",
+            host="mongo",
+            port=27017,
+            schema="test",
+        ),
     ]
 
     with pytest.MonkeyPatch.context() as mp:

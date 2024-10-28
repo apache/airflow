@@ -90,8 +90,12 @@ class TestPigCliHook:
         PigCliHook()
 
     @mock.patch("airflow.providers.apache.pig.hooks.pig.PigCliHook.get_connection")
-    def test_runtime_exception_when_properties_passed_by_connection(self, mock_get_connection):
-        mock_get_connection.return_value.extra_dejson = {"pig_properties": "one two three"}
+    def test_runtime_exception_when_properties_passed_by_connection(
+        self, mock_get_connection
+    ):
+        mock_get_connection.return_value.extra_dejson = {
+            "pig_properties": "one two three"
+        }
         with pytest.raises(RuntimeError):
             PigCliHook()
 

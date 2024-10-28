@@ -109,13 +109,17 @@ class GCSToTrinoOperator(BaseOperator):
             rows = (tuple(row) for row in data)
             self.log.info("Inserting data into %s", self.trino_table)
             if self.schema_fields:
-                trino_hook.insert_rows(table=self.trino_table, rows=rows, target_fields=self.schema_fields)
+                trino_hook.insert_rows(
+                    table=self.trino_table, rows=rows, target_fields=self.schema_fields
+                )
             elif self.schema_object:
                 blob = gcs_hook.download(
                     bucket_name=self.source_bucket,
                     object_name=self.schema_object,
                 )
                 schema_fields = json.loads(blob.decode("utf-8"))
-                trino_hook.insert_rows(table=self.trino_table, rows=rows, target_fields=schema_fields)
+                trino_hook.insert_rows(
+                    table=self.trino_table, rows=rows, target_fields=schema_fields
+                )
             else:
                 trino_hook.insert_rows(table=self.trino_table, rows=rows)

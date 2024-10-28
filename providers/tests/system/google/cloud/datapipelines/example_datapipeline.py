@@ -26,7 +26,9 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.dataflow import DataflowDeletePipelineOperator
+from airflow.providers.google.cloud.operators.dataflow import (
+    DataflowDeletePipelineOperator,
+)
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
@@ -42,7 +44,10 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "datapipeline"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+    or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 GCP_LOCATION = "us-central1"
 
 PIPELINE_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
@@ -67,7 +72,9 @@ with DAG(
     catchup=False,
     tags=["example", "datapipeline"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     move_files_to_bucket = GCSSynchronizeBucketsOperator(
         task_id="move_files_to_bucket",
@@ -123,7 +130,9 @@ with DAG(
     # [END howto_operator_delete_dataflow_pipeline]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

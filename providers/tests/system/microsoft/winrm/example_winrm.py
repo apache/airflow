@@ -59,7 +59,9 @@ with DAG(
 
     t2 = WinRMOperator(task_id="wintask2", command="sleep 60", winrm_hook=winRMHook)
 
-    t3 = WinRMOperator(task_id="wintask3", command="echo 'luke test' ", winrm_hook=winRMHook)
+    t3 = WinRMOperator(
+        task_id="wintask3", command="echo 'luke test' ", winrm_hook=winRMHook
+    )
     # [END run_operator]
 
     [t1, t2, t3] >> run_this_last

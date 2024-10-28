@@ -25,12 +25,16 @@ from in_container_utils import console
 if __name__ == "__main__":
     excluded_providers = json.loads(os.environ.get("EXCLUDED_PROVIDERS", "{}"))
     extra = os.environ["EXTRA"]
-    console.print(f"[bright_blue]Check if provider {extra} is excluded in {excluded_providers}")
+    console.print(
+        f"[bright_blue]Check if provider {extra} is excluded in {excluded_providers}"
+    )
     python_version = os.environ["PYTHON_MAJOR_MINOR_VERSION"]
     for provider in excluded_providers.get(python_version, []):
         provider_extra = "[" + provider.replace(".", "-") + "]"
         console.print(f"[bright_blue]Checking {provider_extra}.")
         if provider_extra == extra:
-            console.print(f"[yellow]Provider {provider} is excluded for Python {python_version}")
+            console.print(
+                f"[yellow]Provider {provider} is excluded for Python {python_version}"
+            )
             exit(1)
     console.print(f"[green]Provider {extra} is not excluded.")

@@ -25,7 +25,10 @@ from typing import Any
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
-from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
+from airflow.dag_processing.manager import (
+    DagFileProcessorManager,
+    reload_configuration_for_dag_processing,
+)
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
@@ -70,6 +73,8 @@ def dag_processor(args):
     run_command_with_daemon_option(
         args=args,
         process_name="dag-processor",
-        callback=lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
+        callback=lambda: run_job(
+            job=job_runner.job, execute_callable=job_runner._execute
+        ),
         should_setup_logging=True,
     )

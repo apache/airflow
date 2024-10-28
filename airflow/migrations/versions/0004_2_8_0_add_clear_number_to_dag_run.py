@@ -44,7 +44,9 @@ def upgrade():
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("dag_run") as batch_op:
             batch_op.add_column(sa.Column("clear_number", sa.Integer, default=0))
-            batch_op.alter_column("clear_number", existing_type=sa.Integer, nullable=False)
+            batch_op.alter_column(
+                "clear_number", existing_type=sa.Integer, nullable=False
+            )
     else:
         with op.batch_alter_table("dag_run") as batch_op:
             batch_op.add_column(

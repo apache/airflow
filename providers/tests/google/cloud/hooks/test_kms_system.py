@@ -25,12 +25,17 @@ import pytest
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
 
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_KMS_KEY
-from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
+from tests_common.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+)
 
 # To prevent resource name collisions, key ring and key resources CANNOT be deleted, so
 # to avoid cluttering the project, we only create the key once during project initialization.
 # See: https://cloud.google.com/kms/docs/faq#cannot_delete
-GCP_KMS_KEYRING_NAME = os.environ.get("GCP_KMS_KEYRING_NAME", "test-airflow-system-tests-keyring")
+GCP_KMS_KEYRING_NAME = os.environ.get(
+    "GCP_KMS_KEYRING_NAME", "test-airflow-system-tests-keyring"
+)
 GCP_KMS_KEY_NAME = os.environ.get("GCP_KMS_KEY_NAME", "test-airflow-system-tests-key")
 
 

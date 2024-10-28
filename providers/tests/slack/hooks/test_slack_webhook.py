@@ -26,12 +26,18 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
+from slack_sdk.http_retry.builtin_handlers import (
+    ConnectionErrorRetryHandler,
+    RateLimitErrorRetryHandler,
+)
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook, check_webhook_response
+from airflow.providers.slack.hooks.slack_webhook import (
+    SlackWebhookHook,
+    check_webhook_response,
+)
 
 TEST_TOKEN = "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
 TEST_WEBHOOK_URL = f"https://hooks.slack.com/services/{TEST_TOKEN}"
@@ -42,7 +48,9 @@ TEST_CONN_ID = SlackWebhookHook.default_conn_name
 CONN_TYPE = "slackwebhook"
 TEST_CONN_ERROR_RETRY_HANDLER = ConnectionErrorRetryHandler(max_retry_count=42)
 TEST_RATE_LIMIT_RETRY_HANDLER = RateLimitErrorRetryHandler()
-MOCK_WEBHOOK_RESPONSE = WebhookResponse(url="foo://bar", status_code=200, body="ok", headers={})
+MOCK_WEBHOOK_RESPONSE = WebhookResponse(
+    url="foo://bar", status_code=200, body="ok", headers={}
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -124,7 +132,9 @@ def slack_webhook_connections():
             host="some.netloc",
         ),
         # Not supported anymore
-        Connection(conn_id="conn_token_in_host_1", conn_type=CONN_TYPE, host=TEST_WEBHOOK_URL),
+        Connection(
+            conn_id="conn_token_in_host_1", conn_type=CONN_TYPE, host=TEST_WEBHOOK_URL
+        ),
         Connection(
             conn_id="conn_token_in_host_2",
             conn_type=CONN_TYPE,
@@ -161,7 +171,9 @@ class TestCheckWebhookResponseDecorator:
     )
     def test_error_response(self, status_code, body):
         """Test error response."""
-        test_response = WebhookResponse(url="foo://bar", status_code=status_code, body=body, headers={})
+        test_response = WebhookResponse(
+            url="foo://bar", status_code=status_code, body=body, headers={}
+        )
 
         @check_webhook_response
         def decorated():
@@ -196,9 +208,12 @@ class TestSlackWebhookHook:
     def test_ignore_webhook_token(self):
         """Test that we only use token from Slack API Connection ID."""
         with pytest.warns(
-            UserWarning, match="Provide `webhook_token` as part of .* parameters is disallowed"
+            UserWarning,
+            match="Provide `webhook_token` as part of .* parameters is disallowed",
         ):
-            hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, webhook_token="foo-bar")
+            hook = SlackWebhookHook(
+                slack_webhook_conn_id=TEST_CONN_ID, webhook_token="foo-bar"
+            )
             assert "webhook_token" not in hook.extra_client_args
             assert hook._get_conn_params()["url"] == TEST_WEBHOOK_URL
 
@@ -210,7 +225,8 @@ class TestSlackWebhookHook:
             hook._get_conn_params()
 
     @pytest.mark.parametrize(
-        "conn_id", ["conn_custom_endpoint_1", "conn_custom_endpoint_2", "conn_custom_endpoint_3"]
+        "conn_id",
+        ["conn_custom_endpoint_1", "conn_custom_endpoint_2", "conn_custom_endpoint_3"],
     )
     def test_construct_webhook_url_with_non_default_host(self, conn_id):
         """Test valid connections with endpoint != https://hooks.slack.com/hooks."""
@@ -230,7 +246,9 @@ class TestSlackWebhookHook:
     def test_no_password_in_connection_field(self, conn_id):
         """Test connection which missing password field in connection."""
         hook = SlackWebhookHook(slack_webhook_conn_id=conn_id)
-        error_message = r"Connection ID .* does not contain password \(Slack Webhook Token\)"
+        error_message = (
+            r"Connection ID .* does not contain password \(Slack Webhook Token\)"
+        )
         with pytest.raises(AirflowNotFoundException, match=error_message):
             hook._get_conn_params()
 
@@ -241,13 +259,19 @@ class TestSlackWebhookHook:
                 {
                     "timeout": 42,
                     "proxy": "https://hook-proxy:1234",
-                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER, TEST_RATE_LIMIT_RETRY_HANDLER],
+                    "retry_handlers": [
+                        TEST_CONN_ERROR_RETRY_HANDLER,
+                        TEST_RATE_LIMIT_RETRY_HANDLER,
+                    ],
                 },
                 {},
                 {
                     "timeout": 42,
                     "proxy": "https://hook-proxy:1234",
-                    "retry_handlers": [TEST_CONN_ERROR_RETRY_HANDLER, TEST_RATE_LIMIT_RETRY_HANDLER],
+                    "retry_handlers": [
+                        TEST_CONN_ERROR_RETRY_HANDLER,
+                        TEST_RATE_LIMIT_RETRY_HANDLER,
+                    ],
                 },
             ),
             (  # Test Case: connection config
@@ -332,7 +356,9 @@ class TestSlackWebhookHook:
         mock_webhook_client = mock_webhook_client_cls.return_value
 
         with mock.patch.dict("os.environ", values={test_conn_env: test_conn.get_uri()}):
-            hook = SlackWebhookHook(slack_webhook_conn_id=test_conn.conn_id, **hook_config)
+            hook = SlackWebhookHook(
+                slack_webhook_conn_id=test_conn.conn_id, **hook_config
+            )
             expected["logger"] = hook.log
             conn_params = hook._get_conn_params()
             assert conn_params == expected
@@ -349,7 +375,12 @@ class TestSlackWebhookHook:
         [
             {"text": "Test Text"},
             {"text": "Fallback Text", "blocks": ["Dummy Block"]},
-            {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+            {
+                "text": "Fallback Text",
+                "blocks": ["Dummy Block"],
+                "unfurl_media": True,
+                "unfurl_links": True,
+            },
         ],
     )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
@@ -382,9 +413,13 @@ class TestSlackWebhookHook:
             hook.send_dict(body=send_body)
         assert mock_webhook_client_send_dict.assert_not_called
 
-    @pytest.mark.parametrize("json_string", ["{'text': 'Single quotes'}", '{"text": "Missing }"'])
+    @pytest.mark.parametrize(
+        "json_string", ["{'text': 'Single quotes'}", '{"text": "Missing }"']
+    )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
-    def test_hook_send_dict_invalid_json_string(self, mock_webhook_client_cls, json_string):
+    def test_hook_send_dict_invalid_json_string(
+        self, mock_webhook_client_cls, json_string
+    ):
         """Test invalid JSON-string passed to `SlackWebhookHook.send_dict` method."""
         mock_webhook_client = mock_webhook_client_cls.return_value
         mock_webhook_client_send_dict = mock_webhook_client.send_dict
@@ -406,7 +441,9 @@ class TestSlackWebhookHook:
         ],
     )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
-    def test_hook_send_dict_legacy_slack_integration(self, mock_webhook_client_cls, legacy_attr):
+    def test_hook_send_dict_legacy_slack_integration(
+        self, mock_webhook_client_cls, legacy_attr
+    ):
         """Test `SlackWebhookHook.send_dict` warn users about Legacy Slack Integrations."""
         mock_webhook_client = mock_webhook_client_cls.return_value
         mock_webhook_client_send_dict = mock_webhook_client.send_dict
@@ -423,7 +460,9 @@ class TestSlackWebhookHook:
         )
         with pytest.warns(UserWarning, match=warning_message):
             hook.send_dict(body=legacy_slack_integration_body)
-        mock_webhook_client_send_dict.assert_called_once_with(legacy_slack_integration_body, headers=None)
+        mock_webhook_client_send_dict.assert_called_once_with(
+            legacy_slack_integration_body, headers=None
+        )
 
     @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
     @pytest.mark.parametrize(
@@ -431,7 +470,12 @@ class TestSlackWebhookHook:
         [
             {"text": "Test Text"},
             {"text": "Fallback Text", "blocks": ["Dummy Block"]},
-            {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+            {
+                "text": "Fallback Text",
+                "blocks": ["Dummy Block"],
+                "unfurl_media": True,
+                "unfurl_links": True,
+            },
         ],
     )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook.send_dict")
@@ -448,9 +492,17 @@ class TestSlackWebhookHook:
     def test_hook_send_text(self, mock_hook_send, headers, unfurl_links, unfurl_media):
         """Test `SlackWebhookHook.send_text` method."""
         hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
-        hook.send_text("Test Text", headers=headers, unfurl_links=unfurl_links, unfurl_media=unfurl_media)
+        hook.send_text(
+            "Test Text",
+            headers=headers,
+            unfurl_links=unfurl_links,
+            unfurl_media=unfurl_media,
+        )
         mock_hook_send.assert_called_once_with(
-            text="Test Text", headers=headers, unfurl_links=unfurl_links, unfurl_media=unfurl_media
+            text="Test Text",
+            headers=headers,
+            unfurl_links=unfurl_links,
+            unfurl_media=unfurl_media,
         )
 
     @pytest.mark.parametrize(

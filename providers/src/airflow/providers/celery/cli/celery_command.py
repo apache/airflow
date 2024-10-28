@@ -56,7 +56,9 @@ def _run_command_with_daemon_option(*args, **kwargs):
 def _providers_configuration_loaded(func):
     def wrapper(*args, **kwargs):
         try:
-            from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+            from airflow.utils.providers_configuration_loader import (
+                providers_configuration_loaded,
+            )
 
             providers_configuration_loaded(func)(*args, **kwargs)
         except ImportError as e:

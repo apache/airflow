@@ -39,7 +39,10 @@ from google.cloud.dataplex_v1.types import Asset, DataScan, DataScanJob, Lake, T
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
+from airflow.providers.google.cloud.hooks.dataplex import (
+    AirflowDataQualityScanException,
+    DataplexHook,
+)
 from airflow.providers.google.cloud.links.dataplex import (
     DataplexLakeLink,
     DataplexTaskLink,
@@ -144,7 +147,9 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             if not self.asynchronous:
-                self.log.info("Waiting for Dataplex task %s to be created", self.dataplex_task_id)
+                self.log.info(
+                    "Waiting for Dataplex task %s to be created", self.dataplex_task_id
+                )
                 task = hook.wait_for_operation(timeout=self.timeout, operation=operation)
                 self.log.info("Task %s created successfully", self.dataplex_task_id)
             else:
@@ -698,9 +703,13 @@ class DataplexCreateOrUpdateDataQualityScanOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            self.log.info("Dataplex Data Quality scan %s created successfully!", self.data_scan_id)
+            self.log.info(
+                "Dataplex Data Quality scan %s created successfully!", self.data_scan_id
+            )
         except AlreadyExists:
-            self.log.info("Dataplex Data Quality scan already exists: %s", {self.data_scan_id})
+            self.log.info(
+                "Dataplex Data Quality scan already exists: %s", {self.data_scan_id}
+            )
 
             operation = hook.update_data_scan(
                 project_id=self.project_id,
@@ -713,9 +722,13 @@ class DataplexCreateOrUpdateDataQualityScanOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            self.log.info("Dataplex Data Quality scan %s updated successfully!", self.data_scan_id)
+            self.log.info(
+                "Dataplex Data Quality scan %s updated successfully!", self.data_scan_id
+            )
         except GoogleAPICallError as e:
-            raise AirflowException(f"Error creating Data Quality scan {self.data_scan_id}", e)
+            raise AirflowException(
+                f"Error creating Data Quality scan {self.data_scan_id}", e
+            )
 
         return self.data_scan_id
 
@@ -780,7 +793,9 @@ class DataplexGetDataQualityScanOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info("Retrieving the details of Dataplex Data Quality scan %s", self.data_scan_id)
+        self.log.info(
+            "Retrieving the details of Dataplex Data Quality scan %s", self.data_scan_id
+        )
         data_quality_scan = hook.get_data_scan(
             project_id=self.project_id,
             region=self.region,
@@ -864,7 +879,9 @@ class DataplexDeleteDataQualityScanOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
-        self.log.info("Dataplex Data Quality scan %s deleted successfully!", self.data_scan_id)
+        self.log.info(
+            "Dataplex Data Quality scan %s deleted successfully!", self.data_scan_id
+        )
 
 
 class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
@@ -921,7 +938,9 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         asynchronous: bool = False,
         fail_on_dq_failure: bool = False,
         result_timeout: float = 60.0 * 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         polling_interval_seconds: int = 10,
         *args,
         **kwargs,
@@ -997,7 +1016,9 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
                 else:
                     self.log.info("Data Quality job executed successfully.")
             else:
-                self.log.info("Data Quality job execution returned status: %s", job.status)
+                self.log.info(
+                    "Data Quality job execution returned status: %s", job.status
+                )
 
         return job_id
 
@@ -1084,7 +1105,9 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         fail_on_dq_failure: bool = False,
         wait_for_results: bool = True,
         result_timeout: float = 60.0 * 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         polling_interval_seconds: int = 10,
         *args,
         **kwargs,
@@ -1286,9 +1309,13 @@ class DataplexCreateOrUpdateDataProfileScanOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            self.log.info("Dataplex Data Profile scan %s created successfully!", self.data_scan_id)
+            self.log.info(
+                "Dataplex Data Profile scan %s created successfully!", self.data_scan_id
+            )
         except AlreadyExists:
-            self.log.info("Dataplex Data Profile scan already exists: %s", {self.data_scan_id})
+            self.log.info(
+                "Dataplex Data Profile scan already exists: %s", {self.data_scan_id}
+            )
 
             operation = hook.update_data_scan(
                 project_id=self.project_id,
@@ -1301,9 +1328,13 @@ class DataplexCreateOrUpdateDataProfileScanOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            self.log.info("Dataplex Data Profile scan %s updated successfully!", self.data_scan_id)
+            self.log.info(
+                "Dataplex Data Profile scan %s updated successfully!", self.data_scan_id
+            )
         except GoogleAPICallError as e:
-            raise AirflowException(f"Error creating Data Profile scan {self.data_scan_id}", e)
+            raise AirflowException(
+                f"Error creating Data Profile scan {self.data_scan_id}", e
+            )
 
         return self.data_scan_id
 
@@ -1368,7 +1399,9 @@ class DataplexGetDataProfileScanOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info("Retrieving the details of Dataplex Data Profile scan %s", self.data_scan_id)
+        self.log.info(
+            "Retrieving the details of Dataplex Data Profile scan %s", self.data_scan_id
+        )
         data_profile_scan = hook.get_data_scan(
             project_id=self.project_id,
             region=self.region,
@@ -1451,7 +1484,9 @@ class DataplexDeleteDataProfileScanOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
-        self.log.info("Dataplex Data Profile scan %s deleted successfully!", self.data_scan_id)
+        self.log.info(
+            "Dataplex Data Profile scan %s deleted successfully!", self.data_scan_id
+        )
 
 
 class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
@@ -1504,7 +1539,9 @@ class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         result_timeout: float = 60.0 * 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         polling_interval_seconds: int = 10,
         *args,
         **kwargs,
@@ -1572,7 +1609,9 @@ class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
             if job.state == DataScanJob.State.SUCCEEDED:
                 self.log.info("Data Profile job executed successfully.")
             else:
-                self.log.info("Data Profile job execution returned status: %s", job.status)
+                self.log.info(
+                    "Data Profile job execution returned status: %s", job.status
+                )
 
         return job_id
 
@@ -1997,7 +2036,9 @@ class DataplexCreateAssetOperator(GoogleCloudBaseOperator):
             )
             result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
         except GoogleAPICallError as e:
-            raise AirflowException(f"Error occurred when creating asset {self.asset_id}", e)
+            raise AirflowException(
+                f"Error occurred when creating asset {self.asset_id}", e
+            )
 
         self.log.info("Dataplex asset %s created successfully!", self.asset_id)
         return Asset.to_dict(result)

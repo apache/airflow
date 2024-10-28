@@ -39,7 +39,11 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+from providers.tests.system.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    prune_logs,
+)
 
 DAG_ID = "example_sagemaker_endpoint"
 
@@ -60,7 +64,9 @@ KNN_IMAGES_BY_REGION = {
 
 # For an example of how to obtain the following train and test data, please see
 # https://github.com/apache/airflow/blob/main/providers/tests/system/amazon/aws/example_sagemaker.py
-TRAIN_DATA = "0,4.9,2.5,4.5,1.7\n1,7.0,3.2,4.7,1.4\n0,7.3,2.9,6.3,1.8\n2,5.1,3.5,1.4,0.2\n"
+TRAIN_DATA = (
+    "0,4.9,2.5,4.5,1.7\n1,7.0,3.2,4.7,1.4\n0,7.3,2.9,6.3,1.8\n2,5.1,3.5,1.4,0.2\n"
+)
 SAMPLE_TEST_DATA = "6.4,3.2,4.5,1.5"
 
 
@@ -81,7 +87,9 @@ def call_endpoint(endpoint_name):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_endpoint_config(endpoint_config_job_name):
-    boto3.client("sagemaker").delete_endpoint_config(EndpointConfigName=endpoint_config_job_name)
+    boto3.client("sagemaker").delete_endpoint_config(
+        EndpointConfigName=endpoint_config_job_name
+    )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -91,7 +99,9 @@ def delete_endpoint(endpoint_name):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def archive_logs(log_group_name):
-    boto3.client("logs").put_retention_policy(logGroupName=log_group_name, retentionInDays=1)
+    boto3.client("logs").put_retention_policy(
+        logGroupName=log_group_name, retentionInDays=1
+    )
 
 
 @task
@@ -142,7 +152,9 @@ def set_up(env_id, role_arn, ti=None):
                 },
             }
         ],
-        "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"},
+        "OutputDataConfig": {
+            "S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}/"
+        },
         "ResourceConfig": {
             "InstanceCount": 1,
             "InstanceType": "ml.m5.large",

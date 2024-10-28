@@ -45,7 +45,9 @@ def upgrade():
     # This index may have been created in 2.7 but we've since removed it from migrations
 
     with suppress(sa.exc.DatabaseError):  # mysql does not support drop if exists index
-        op.drop_index("ti_state_incl_start_date", table_name="task_instance", if_exists=True)
+        op.drop_index(
+            "ti_state_incl_start_date", table_name="task_instance", if_exists=True
+        )
 
 
 def downgrade():

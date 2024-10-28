@@ -25,7 +25,9 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
+from airflow.providers.google.cloud.sensors.bigtable import (
+    BigtableTableReplicationCompletedSensor,
+)
 
 PROJECT_ID = "test_project_id"
 INSTANCE_ID = "test-instance-id"
@@ -43,7 +45,9 @@ class BigtableWaitForTableReplicationTest:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
-    def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
+    def test_empty_attribute(
+        self, missing_attribute, project_id, instance_id, table_id, mock_hook
+    ):
         with pytest.raises(AirflowException) as ctx:
             BigtableTableReplicationCompletedSensor(
                 project_id=project_id,
@@ -99,7 +103,9 @@ class BigtableWaitForTableReplicationTest:
     @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_wait_not_ready(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        mock_hook.return_value.get_cluster_states_for_table.return_value = {"cl-id": ClusterState(0)}
+        mock_hook.return_value.get_cluster_states_for_table.return_value = {
+            "cl-id": ClusterState(0)
+        }
         op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
@@ -117,7 +123,9 @@ class BigtableWaitForTableReplicationTest:
     @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_wait_ready(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        mock_hook.return_value.get_cluster_states_for_table.return_value = {"cl-id": ClusterState(4)}
+        mock_hook.return_value.get_cluster_states_for_table.return_value = {
+            "cl-id": ClusterState(4)
+        }
         op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,

@@ -38,7 +38,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcs_transform_timespan"
 
@@ -98,10 +100,14 @@ with DAG(
     # [END howto_operator_gcs_timespan_file_transform_operator_Task]
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_bucket_dst = GCSDeleteBucketOperator(
-        task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_dst",
+        bucket_name=BUCKET_NAME_DST,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

@@ -87,7 +87,9 @@ class ExampleInclude(SphinxDirective):
     def run(self):
         document = self.state.document
         if not document.settings.file_insertion_enabled:
-            return [document.reporter.warning("File insertion disabled", line=self.lineno)]
+            return [
+                document.reporter.warning("File insertion disabled", line=self.lineno)
+            ]
         # convert options['diff'] to absolute a_path
         if "diff" in self.options:
             _, a_path = self.env.relfn2path(self.options["diff"])
@@ -108,7 +110,9 @@ class ExampleInclude(SphinxDirective):
             elif "language" in self.options:
                 retnode["language"] = self.options["language"]
             retnode["linenos"] = (
-                "linenos" in self.options or "lineno-start" in self.options or "lineno-match" in self.options
+                "linenos" in self.options
+                or "lineno-start" in self.options
+                or "lineno-match" in self.options
             )
             retnode["classes"] += self.options.get("class", [])
             extra_args = retnode["highlight_args"] = {}
@@ -116,7 +120,9 @@ class ExampleInclude(SphinxDirective):
                 hl_lines = parselinenos(self.options["emphasize-lines"], lines)
                 if any(i >= lines for i in hl_lines):
                     logger.warning(
-                        "line number spec is out of range(1-%d): %r", lines, self.options["emphasize-lines"]
+                        "line number spec is out of range(1-%d): %r",
+                        lines,
+                        self.options["emphasize-lines"],
                     )
                 extra_args["hl_lines"] = [x + 1 for x in hl_lines if x < lines]
             extra_args["linenostart"] = reader.lineno_start
@@ -151,7 +157,9 @@ def register_source(app, env, modname):
             analyzer = ModuleAnalyzer.for_module(modname)
         except Exception as ex:
             logger.info(
-                'Module "%s" could not be loaded. Full source will not be available. "%s"', modname, ex
+                'Module "%s" could not be loaded. Full source will not be available. "%s"',
+                modname,
+                ex,
             )
             # We cannot use regular warnings or exception methods because those warnings are interpreted
             # by running python process and converted into "real" warnings, so we need to print the
@@ -239,7 +247,8 @@ def doctree_read(app, doctree):
     for objnode in doctree.traverse(ExampleHeader):
         filepath = objnode.get("filename")
         relative_path = os.path.relpath(
-            filepath, os.path.commonprefix([app.config.exampleinclude_sourceroot, filepath])
+            filepath,
+            os.path.commonprefix([app.config.exampleinclude_sourceroot, filepath]),
         )
         modname = relative_path.replace("/", ".")[:-3]
         show_button = register_source(app, env, modname)

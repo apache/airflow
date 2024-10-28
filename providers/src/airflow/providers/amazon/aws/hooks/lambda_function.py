@@ -161,9 +161,13 @@ class LambdaHook(AwsBaseHook):
         """
         if package_type == "Zip":
             if handler is None:
-                raise TypeError("Parameter 'handler' is required if 'package_type' is 'Zip'")
+                raise TypeError(
+                    "Parameter 'handler' is required if 'package_type' is 'Zip'"
+                )
             if runtime is None:
-                raise TypeError("Parameter 'runtime' is required if 'package_type' is 'Zip'")
+                raise TypeError(
+                    "Parameter 'runtime' is required if 'package_type' is 'Zip'"
+                )
 
         """Create a Lambda Function"""
         create_function_args = {
@@ -196,7 +200,9 @@ class LambdaHook(AwsBaseHook):
 
     @staticmethod
     @return_on_error(None)
-    def encode_log_result(log_result: str, *, keep_empty_lines: bool = True) -> list[str] | None:
+    def encode_log_result(
+        log_result: str, *, keep_empty_lines: bool = True
+    ) -> list[str] | None:
         """
         Encode execution log from the response and return list of log records.
 
@@ -206,4 +212,8 @@ class LambdaHook(AwsBaseHook):
         :param keep_empty_lines: Whether or not keep empty lines.
         """
         encoded_log_result = base64.b64decode(log_result.encode("ascii")).decode()
-        return [log_row for log_row in encoded_log_result.splitlines() if keep_empty_lines or log_row]
+        return [
+            log_row
+            for log_row in encoded_log_result.splitlines()
+            if keep_empty_lines or log_row
+        ]

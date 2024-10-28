@@ -28,13 +28,16 @@ class StateMachineDetailsLink(BaseAwsLink):
     name = "State Machine Details"
     key = "_state_machine_details"
     format_str = (
-        BASE_AWS_CONSOLE_LINK + "/states/home?region={region_name}#/statemachines/view/{state_machine_arn}"
+        BASE_AWS_CONSOLE_LINK
+        + "/states/home?region={region_name}#/statemachines/view/{state_machine_arn}"
     )
 
     def format_link(self, *, state_machine_arn: str | None = None, **kwargs) -> str:
         if not state_machine_arn:
             return ""
-        return super().format_link(state_machine_arn=quote_plus(state_machine_arn), **kwargs)
+        return super().format_link(
+            state_machine_arn=quote_plus(state_machine_arn), **kwargs
+        )
 
 
 class StateMachineExecutionsDetailsLink(BaseAwsLink):
@@ -43,7 +46,8 @@ class StateMachineExecutionsDetailsLink(BaseAwsLink):
     name = "State Machine Executions Details"
     key = "_state_machine_executions_details"
     format_str = (
-        BASE_AWS_CONSOLE_LINK + "/states/home?region={region_name}#/v2/executions/details/{execution_arn}"
+        BASE_AWS_CONSOLE_LINK
+        + "/states/home?region={region_name}#/v2/executions/details/{execution_arn}"
     )
 
     def format_link(self, *, execution_arn: str | None = None, **kwargs) -> str:

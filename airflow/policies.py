@@ -205,7 +205,11 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
         if local_sig.parameters.keys() != policy_sig.parameters.keys():
             policy = _make_shim_fn(name, policy_sig, target=policy)
 
-        setattr(AirflowLocalSettingsPolicy, name, staticmethod(hookimpl(policy, specname=name)))
+        setattr(
+            AirflowLocalSettingsPolicy,
+            name,
+            staticmethod(hookimpl(policy, specname=name)),
+        )
         hook_methods.add(name)
 
     if hook_methods:

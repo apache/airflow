@@ -52,7 +52,9 @@ class TestEmrStartNotebookExecutionOperator:
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(EmrHook, "conn")
     @mock.patch.object(Waiter, "wait")
-    def test_start_notebook_execution_wait_for_completion(self, mock_waiter, mock_conn, _):
+    def test_start_notebook_execution_wait_for_completion(
+        self, mock_waiter, mock_conn, _
+    ):
         test_execution_id = "test-execution-id"
         mock_conn.start_notebook_execution.return_value = {
             "NotebookExecutionId": test_execution_id,
@@ -70,7 +72,9 @@ class TestEmrStartNotebookExecutionOperator:
             notebook_execution_name=PARAMS["NotebookExecutionName"],
             notebook_params=PARAMS["NotebookParams"],
             notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
-            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"][
+                "MasterInstanceSecurityGroupId"
+            ],
             tags=PARAMS["Tags"],
             wait_for_completion=True,
         )
@@ -102,7 +106,9 @@ class TestEmrStartNotebookExecutionOperator:
             notebook_execution_name=PARAMS["NotebookExecutionName"],
             notebook_params=PARAMS["NotebookParams"],
             notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
-            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"][
+                "MasterInstanceSecurityGroupId"
+            ],
             tags=PARAMS["Tags"],
         )
         op_response = op.execute(None)
@@ -130,10 +136,14 @@ class TestEmrStartNotebookExecutionOperator:
             notebook_execution_name=PARAMS["NotebookExecutionName"],
             notebook_params=PARAMS["NotebookParams"],
             notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
-            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"][
+                "MasterInstanceSecurityGroupId"
+            ],
             tags=PARAMS["Tags"],
         )
-        with pytest.raises(AirflowException, match=r"Starting notebook execution failed:"):
+        with pytest.raises(
+            AirflowException, match=r"Starting notebook execution failed:"
+        ):
             op.execute(None)
 
         mock_conn.start_notebook_execution.assert_called_once_with(**PARAMS)
@@ -142,7 +152,9 @@ class TestEmrStartNotebookExecutionOperator:
     @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(EmrHook, "conn")
     @mock.patch.object(Waiter, "wait")
-    def test_start_notebook_execution_wait_for_completion_multiple_attempts(self, mock_waiter, mock_conn, *_):
+    def test_start_notebook_execution_wait_for_completion_multiple_attempts(
+        self, mock_waiter, mock_conn, *_
+    ):
         test_execution_id = "test-execution-id"
         mock_conn.start_notebook_execution.return_value = {
             "NotebookExecutionId": test_execution_id,
@@ -160,7 +172,9 @@ class TestEmrStartNotebookExecutionOperator:
             notebook_execution_name=PARAMS["NotebookExecutionName"],
             notebook_params=PARAMS["NotebookParams"],
             notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
-            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"][
+                "MasterInstanceSecurityGroupId"
+            ],
             tags=PARAMS["Tags"],
             wait_for_completion=True,
         )
@@ -176,7 +190,9 @@ class TestEmrStartNotebookExecutionOperator:
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(EmrHook, "conn")
     @mock.patch.object(Waiter, "wait")
-    def test_start_notebook_execution_wait_for_completion_fail_state(self, mock_waiter, mock_conn, _):
+    def test_start_notebook_execution_wait_for_completion_fail_state(
+        self, mock_waiter, mock_conn, _
+    ):
         test_execution_id = "test-execution-id"
         mock_conn.start_notebook_execution.return_value = {
             "NotebookExecutionId": test_execution_id,
@@ -184,7 +200,9 @@ class TestEmrStartNotebookExecutionOperator:
                 "HTTPStatusCode": 200,
             },
         }
-        mock_conn.describe_notebook_execution.return_value = {"NotebookExecution": {"Status": "FAILED"}}
+        mock_conn.describe_notebook_execution.return_value = {
+            "NotebookExecution": {"Status": "FAILED"}
+        }
 
         op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
@@ -195,12 +213,16 @@ class TestEmrStartNotebookExecutionOperator:
             notebook_execution_name=PARAMS["NotebookExecutionName"],
             notebook_params=PARAMS["NotebookParams"],
             notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
-            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"][
+                "MasterInstanceSecurityGroupId"
+            ],
             tags=PARAMS["Tags"],
             wait_for_completion=True,
         )
 
-        with pytest.raises(AirflowException, match=r"Notebook Execution reached failure state FAILED\."):
+        with pytest.raises(
+            AirflowException, match=r"Notebook Execution reached failure state FAILED\."
+        ):
             op.execute(None)
 
         mock_waiter.assert_called_once_with(
@@ -223,7 +245,9 @@ class TestStopEmrNotebookExecutionOperator:
 
         op.execute(None)
 
-        mock_conn.stop_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
+        mock_conn.stop_notebook_execution.assert_called_once_with(
+            NotebookExecutionId=test_execution_id
+        )
         assert not mock_conn.describe_notebook_execution.called
 
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
@@ -234,11 +258,15 @@ class TestStopEmrNotebookExecutionOperator:
         test_execution_id = "test-execution-id"
 
         op = EmrStopNotebookExecutionOperator(
-            task_id="test-id", notebook_execution_id=test_execution_id, wait_for_completion=True
+            task_id="test-id",
+            notebook_execution_id=test_execution_id,
+            wait_for_completion=True,
         )
 
         op.execute(None)
-        mock_conn.stop_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
+        mock_conn.stop_notebook_execution.assert_called_once_with(
+            NotebookExecutionId=test_execution_id
+        )
         mock_waiter.assert_called_once_with(
             mock.ANY, NotebookExecutionId=test_execution_id, WaiterConfig=mock.ANY
         )
@@ -247,16 +275,22 @@ class TestStopEmrNotebookExecutionOperator:
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(EmrHook, "conn")
     @mock.patch.object(Waiter, "wait")
-    def test_stop_notebook_execution_wait_for_completion_fail_state(self, mock_waiter, mock_conn, _):
+    def test_stop_notebook_execution_wait_for_completion_fail_state(
+        self, mock_waiter, mock_conn, _
+    ):
         mock_conn.stop_notebook_execution.return_value = None
         test_execution_id = "test-execution-id"
 
         op = EmrStopNotebookExecutionOperator(
-            task_id="test-id", notebook_execution_id=test_execution_id, wait_for_completion=True
+            task_id="test-id",
+            notebook_execution_id=test_execution_id,
+            wait_for_completion=True,
         )
 
         op.execute(None)
-        mock_conn.stop_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
+        mock_conn.stop_notebook_execution.assert_called_once_with(
+            NotebookExecutionId=test_execution_id
+        )
         mock_waiter.assert_called_once_with(
             mock.ANY, NotebookExecutionId=test_execution_id, WaiterConfig=mock.ANY
         )
@@ -266,16 +300,22 @@ class TestStopEmrNotebookExecutionOperator:
     @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EmrHook, "conn")
-    def test_stop_notebook_execution_wait_for_completion_multiple_attempts(self, mock_conn, mock_waiter, *_):
+    def test_stop_notebook_execution_wait_for_completion_multiple_attempts(
+        self, mock_conn, mock_waiter, *_
+    ):
         mock_conn.stop_notebook_execution.return_value = None
         test_execution_id = "test-execution-id"
 
         op = EmrStopNotebookExecutionOperator(
-            task_id="test-id", notebook_execution_id=test_execution_id, wait_for_completion=True
+            task_id="test-id",
+            notebook_execution_id=test_execution_id,
+            wait_for_completion=True,
         )
 
         op.execute(None)
-        mock_conn.stop_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
+        mock_conn.stop_notebook_execution.assert_called_once_with(
+            NotebookExecutionId=test_execution_id
+        )
         mock_waiter.assert_called_once_with(
             mock.ANY, NotebookExecutionId=test_execution_id, WaiterConfig=mock.ANY
         )
@@ -298,7 +338,9 @@ class TestStopEmrNotebookExecutionOperator:
         )
 
         op.execute(None)
-        mock_conn.stop_notebook_execution.assert_called_once_with(NotebookExecutionId=test_execution_id)
+        mock_conn.stop_notebook_execution.assert_called_once_with(
+            NotebookExecutionId=test_execution_id
+        )
         mock_waiter.assert_called_once_with(
             mock.ANY,
             NotebookExecutionId=test_execution_id,
@@ -316,7 +358,9 @@ class TestStopEmrNotebookExecutionOperator:
             notebook_execution_name=PARAMS["NotebookExecutionName"],
             notebook_params=PARAMS["NotebookParams"],
             notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
-            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"][
+                "MasterInstanceSecurityGroupId"
+            ],
             tags=PARAMS["Tags"],
             wait_for_completion=True,
         )

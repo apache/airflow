@@ -37,7 +37,9 @@ DEFAULT_ARGS = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
 @pytest.fixture
 def mocked_hook_client():
-    with mock.patch("airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook.conn") as m:
+    with mock.patch(
+        "airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook.conn"
+    ) as m:
         yield m
 
 
@@ -79,7 +81,10 @@ class TestCloudFormationCreateStackOperator:
         operator = CloudFormationCreateStackOperator(
             task_id="test_task",
             stack_name=stack_name,
-            cloudformation_parameters={"TimeoutInMinutes": timeout, "TemplateBody": template_body},
+            cloudformation_parameters={
+                "TimeoutInMinutes": timeout,
+                "TemplateBody": template_body,
+            },
             dag=DAG("test_dag_id", schedule=None, default_args=DEFAULT_ARGS),
         )
 
@@ -123,7 +128,9 @@ class TestCloudFormationDeleteStackOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-        op = CloudFormationDeleteStackOperator(task_id="cf_delete_stack_init", stack_name="fake-stack")
+        op = CloudFormationDeleteStackOperator(
+            task_id="cf_delete_stack_init", stack_name="fake-stack"
+        )
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
         assert op.hook._verify is None

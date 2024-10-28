@@ -188,7 +188,9 @@ class TestHttpSensor:
             mock_log.error.assert_has_calls(calls)
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_response_error_codes_allowlist(self, mock_session_send, create_task_of_operator):
+    def test_response_error_codes_allowlist(
+        self, mock_session_send, create_task_of_operator
+    ):
         allowed_error_response_gen = iter(
             [
                 (503, "Service Unavailable"),
@@ -249,7 +251,9 @@ class FakeSession:
 
     def prepare_request(self, request):
         if "date" in request.params:
-            self.response._content += ("/" + request.params["date"]).encode("ascii", "ignore")
+            self.response._content += ("/" + request.params["date"]).encode(
+                "ascii", "ignore"
+            )
         return self.response
 
     def merge_environment_settings(self, _url, **kwargs):
@@ -298,7 +302,8 @@ class TestHttpOpSensor:
             endpoint="/search",
             request_params={"client": "ubuntu", "q": "airflow", "date": "{{ds}}"},
             headers={},
-            response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}" in response.text,
+            response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}"
+            in response.text,
             poke_interval=5,
             timeout=15,
             dag=self.dag,
@@ -341,11 +346,15 @@ class TestHttpSensorAsync:
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
 
-        assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
+        assert isinstance(
+            exc.value.trigger, HttpSensorTrigger
+        ), "Trigger is not a HttpTrigger"
 
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
     @mock.patch("airflow.sensors.base.BaseSensorOperator.execute")
-    def test_execute_not_defer_when_response_check_is_not_none(self, mock_execute, mock_defer):
+    def test_execute_not_defer_when_response_check_is_not_none(
+        self, mock_execute, mock_defer
+    ):
         task = HttpSensor(
             task_id="run_now",
             endpoint="test-endpoint",

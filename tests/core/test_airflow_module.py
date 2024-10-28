@@ -36,7 +36,9 @@ TEST_CASES = {
 
 @pytest.mark.parametrize("py_attr, expected", TEST_CASES.items())
 def test_lazy_load_py_versions(py_attr, expected):
-    with pytest.warns(DeprecationWarning, match=f"Python version constraint '{py_attr}' is deprecated"):
+    with pytest.warns(
+        DeprecationWarning, match=f"Python version constraint '{py_attr}' is deprecated"
+    ):
         # If there is no warning, then most possible it imported somewhere else.
         assert getattr(airflow, py_attr) is expected
 
@@ -48,7 +50,9 @@ def test_wrong_py_version(py_attr):
 
 
 def test_deprecated_exception():
-    warning_pattern = "Import 'AirflowException' directly from the airflow module is deprecated"
+    warning_pattern = (
+        "Import 'AirflowException' directly from the airflow module is deprecated"
+    )
     with pytest.warns(DeprecationWarning, match=warning_pattern):
         # If there is no warning, then most possible it imported somewhere else.
         assert getattr(airflow, "AirflowException") is AirflowException

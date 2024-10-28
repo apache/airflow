@@ -71,7 +71,9 @@ class TestLineage:
             op2 = EmptyOperator(task_id="leave2")
             op3 = EmptyOperator(task_id="upstream_level_1", inlets=AUTO, outlets=file3)
             op4 = EmptyOperator(task_id="upstream_level_2")
-            op5 = EmptyOperator(task_id="upstream_level_3", inlets=["leave1", "upstream_level_1"])
+            op5 = EmptyOperator(
+                task_id="upstream_level_3", inlets=["leave1", "upstream_level_1"]
+            )
 
             op1.set_downstream(op3)
             op2.set_downstream(op3)
@@ -198,7 +200,9 @@ class TestLineage:
         backend = get_backend()
         assert backend is None
 
-    @conf_vars({("lineage", "backend"): "tests.lineage.test_lineage.CustomLineageBackend"})
+    @conf_vars(
+        {("lineage", "backend"): "tests.lineage.test_lineage.CustomLineageBackend"}
+    )
     def test_resolve_lineage_class(self):
         backend = get_backend()
         assert issubclass(backend.__class__, LineageBackend)

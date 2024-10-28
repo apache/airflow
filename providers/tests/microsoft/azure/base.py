@@ -41,8 +41,13 @@ class Base:
     @contextmanager
     def patch_hook_and_request_adapter(self, response):
         with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response,
+            patch(
+                "airflow.hooks.base.BaseHook.get_connection",
+                side_effect=get_airflow_connection,
+            ),
+            patch.object(
+                HttpxRequestAdapter, "get_http_response_message"
+            ) as mock_get_http_response,
         ):
             if isinstance(response, Exception):
                 mock_get_http_response.side_effect = response

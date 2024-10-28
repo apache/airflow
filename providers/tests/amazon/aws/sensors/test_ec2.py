@@ -62,7 +62,9 @@ class TestEC2InstanceStateSensor:
 
         # We need existed AMI Image ID otherwise `moto` will raise DeprecationWarning.
         images = ec2_client.describe_images()["Images"]
-        response = ec2_client.run_instances(MaxCount=1, MinCount=1, ImageId=images[0]["ImageId"])
+        response = ec2_client.run_instances(
+            MaxCount=1, MinCount=1, ImageId=images[0]["ImageId"]
+        )
         return response["Instances"][0]["InstanceId"]
 
     @mock_aws

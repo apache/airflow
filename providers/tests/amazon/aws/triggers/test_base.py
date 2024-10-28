@@ -63,7 +63,9 @@ class TestAwsBaseWaiterTrigger:
         assert "region_name" in args
         assert args["region_name"] == "my_region"
 
-    @pytest.mark.parametrize("verify", [True, False, pytest.param("/foo/bar.pem", id="path")])
+    @pytest.mark.parametrize(
+        "verify", [True, False, pytest.param("/foo/bar.pem", id="path")]
+    )
     def test_verify_serialized(self, verify):
         self.trigger.verify = verify
         _, args = self.trigger.serialize()
@@ -74,7 +76,10 @@ class TestAwsBaseWaiterTrigger:
     @pytest.mark.parametrize(
         "botocore_config",
         [
-            pytest.param({"read_timeout": 10, "connect_timeout": 42, "keepalive": True}, id="non-empty-dict"),
+            pytest.param(
+                {"read_timeout": 10, "connect_timeout": 42, "keepalive": True},
+                id="non-empty-dict",
+            ),
             pytest.param({}, id="empty-dict"),
         ],
     )

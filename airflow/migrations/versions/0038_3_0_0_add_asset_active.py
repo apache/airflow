@@ -74,7 +74,13 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("is_orphaned", sa.Boolean, default=False, nullable=False, server_default="0")
+            sa.Column(
+                "is_orphaned",
+                sa.Boolean,
+                default=False,
+                nullable=False,
+                server_default="0",
+            )
         )
     with Session(bind=op.get_bind()) as session:
         session.execute(

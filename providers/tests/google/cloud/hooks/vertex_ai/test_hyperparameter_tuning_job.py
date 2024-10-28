@@ -53,7 +53,9 @@ TEST_METRIC_SPECS = {
     "accuracy": "maximize",
 }
 TEST_PARAM_SPECS = {
-    "learning_rate": aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0.01, max=1, scale="log"),
+    "learning_rate": aiplatform.hyperparameter_tuning.DoubleParameterSpec(
+        min=0.01, max=1, scale="log"
+    ),
 }
 TEST_MAX_TRIAL_COUNT = 3
 TEST_PARALLEL_TRIAL_COUNT = 3
@@ -133,11 +135,14 @@ HYPERPARAMETER_TUNING_JOB_ASYNC_HOOK_STRING = (
 class TestHyperparameterTuningJobWithDefaultProjectIdHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            HyperparameterTuningJobHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
+            HyperparameterTuningJobHook(
+                gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to"
+            )
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = HyperparameterTuningJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -204,13 +209,16 @@ class TestHyperparameterTuningJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestHyperparameterTuningJobWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = HyperparameterTuningJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -277,17 +285,24 @@ class TestHyperparameterTuningJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestHyperparameterTuningJobHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = HyperparameterTuningJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_hyperparameter_tuning_job_object"))
+    @mock.patch(
+        HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format(
+            "get_hyperparameter_tuning_job_object"
+        )
+    )
     @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_custom_job_object"))
     def test_create_hyperparameter_tuning_job(
         self,
@@ -296,7 +311,9 @@ class TestHyperparameterTuningJobHook:
     ):
         mock_custom_job = mock_get_custom_job_object.return_value
 
-        result = self.hook.create_hyperparameter_tuning_job(**TEST_CREATE_HYPERPARAMETER_TUNING_JOB_PARAMS)
+        result = self.hook.create_hyperparameter_tuning_job(
+            **TEST_CREATE_HYPERPARAMETER_TUNING_JOB_PARAMS
+        )
 
         mock_get_custom_job_object.assert_called_once_with(
             project=TEST_PROJECT_ID,
@@ -336,7 +353,11 @@ class TestHyperparameterTuningJobHook:
         self.hook._hyperparameter_tuning_job._wait_for_resource_creation.assert_not_called()
         assert result == self.hook._hyperparameter_tuning_job
 
-    @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_hyperparameter_tuning_job_object"))
+    @mock.patch(
+        HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format(
+            "get_hyperparameter_tuning_job_object"
+        )
+    )
     @mock.patch(HYPERPARAMETER_TUNING_JOB_HOOK_STRING.format("get_custom_job_object"))
     def test_create_hyperparameter_tuning_job_no_wait(self, _, __):
         params = dict(TEST_CREATE_HYPERPARAMETER_TUNING_JOB_PARAMS)
@@ -352,19 +373,24 @@ class TestHyperparameterTuningJobHook:
 class TestHyperparameterTuningJobAsyncHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = HyperparameterTuningJobAsyncHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @pytest.mark.asyncio
-    @mock.patch(HYPERPARAMETER_TUNING_JOB_ASYNC_HOOK_STRING.format("get_job_service_client"))
+    @mock.patch(
+        HYPERPARAMETER_TUNING_JOB_ASYNC_HOOK_STRING.format("get_job_service_client")
+    )
     async def test_get_hyperparameter_tuning_job(self, mock_get_job_service_client):
         mock_client = mock.MagicMock()
         mock_get_job_service_client.side_effect = mock.AsyncMock(return_value=mock_client)
         mock_job_name = mock_client.hyperparameter_tuning_job_path.return_value
         mock_job = mock.MagicMock()
         mock_async_get_hyperparameter_tuning_job = mock.AsyncMock(return_value=mock_job)
-        mock_client.get_hyperparameter_tuning_job.side_effect = mock_async_get_hyperparameter_tuning_job
+        mock_client.get_hyperparameter_tuning_job.side_effect = (
+            mock_async_get_hyperparameter_tuning_job
+        )
 
         result = await self.hook.get_hyperparameter_tuning_job(
             project_id=TEST_PROJECT_ID,
@@ -411,7 +437,9 @@ class TestHyperparameterTuningJobAsyncHook:
             timeout=None,
             metadata=(),
         )
-        with mock.patch.object(self.hook, "get_hyperparameter_tuning_job", mock_get_hpt_job):
+        with mock.patch.object(
+            self.hook, "get_hyperparameter_tuning_job", mock_get_hpt_job
+        ):
             result = await self.hook.wait_hyperparameter_tuning_job(**await_kwargs)
 
         mock_async_get_hpt_job.assert_awaited_once_with(**await_kwargs)
@@ -436,7 +464,9 @@ class TestHyperparameterTuningJobAsyncHook:
     async def test_wait_hyperparameter_tuning_job_waited(self, mock_sleep, state):
         mock_job_incomplete = mock.MagicMock(state=state)
         mock_job_complete = mock.MagicMock(state=JobState.JOB_STATE_SUCCEEDED)
-        mock_async_get_ht_job = mock.AsyncMock(side_effect=[mock_job_incomplete, mock_job_complete])
+        mock_async_get_ht_job = mock.AsyncMock(
+            side_effect=[mock_job_incomplete, mock_job_complete]
+        )
         mock_get_ht_job = mock.MagicMock(side_effect=mock_async_get_ht_job)
 
         await_kwargs = dict(
@@ -448,7 +478,9 @@ class TestHyperparameterTuningJobAsyncHook:
             metadata=(),
         )
 
-        with mock.patch.object(self.hook, "get_hyperparameter_tuning_job", mock_get_ht_job):
+        with mock.patch.object(
+            self.hook, "get_hyperparameter_tuning_job", mock_get_ht_job
+        ):
             result = await self.hook.wait_hyperparameter_tuning_job(**await_kwargs)
 
         mock_async_get_ht_job.assert_has_awaits(
@@ -463,7 +495,9 @@ class TestHyperparameterTuningJobAsyncHook:
     @pytest.mark.asyncio
     async def test_wait_hyperparameter_tuning_job_exception(self):
         mock_get_ht_job = mock.MagicMock(side_effect=Exception)
-        with mock.patch.object(self.hook, "get_hyperparameter_tuning_job", mock_get_ht_job):
+        with mock.patch.object(
+            self.hook, "get_hyperparameter_tuning_job", mock_get_ht_job
+        ):
             with pytest.raises(AirflowException):
                 await self.hook.wait_hyperparameter_tuning_job(
                     project_id=TEST_PROJECT_ID,

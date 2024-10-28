@@ -42,10 +42,16 @@ def upgrade():
     """Apply Make connection login/password TEXT."""
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
-            "login", existing_type=sa.VARCHAR(length=500), type_=sa.Text(), existing_nullable=True
+            "login",
+            existing_type=sa.VARCHAR(length=500),
+            type_=sa.Text(),
+            existing_nullable=True,
         )
         batch_op.alter_column(
-            "password", existing_type=sa.VARCHAR(length=5000), type_=sa.Text(), existing_nullable=True
+            "password",
+            existing_type=sa.VARCHAR(length=5000),
+            type_=sa.Text(),
+            existing_nullable=True,
         )
 
 
@@ -53,8 +59,14 @@ def downgrade():
     """Unapply Make connection login/password TEXT."""
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column(
-            "password", existing_type=sa.Text(), type_=sa.VARCHAR(length=5000), existing_nullable=True
+            "password",
+            existing_type=sa.Text(),
+            type_=sa.VARCHAR(length=5000),
+            existing_nullable=True,
         )
         batch_op.alter_column(
-            "login", existing_type=sa.Text(), type_=sa.VARCHAR(length=500), existing_nullable=True
+            "login",
+            existing_type=sa.Text(),
+            type_=sa.VARCHAR(length=500),
+            existing_nullable=True,
         )

@@ -89,7 +89,10 @@ class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
                 f"No `materialization_id` was returned for model: {self.model}, view: {self.view}."
             )
 
-        self.log.info("PDT materialization job submitted successfully. Job id: %s.", self.materialization_id)
+        self.log.info(
+            "PDT materialization job submitted successfully. Job id: %s.",
+            self.materialization_id,
+        )
 
         if not self.asynchronous:
             self.hook.wait_for_job(

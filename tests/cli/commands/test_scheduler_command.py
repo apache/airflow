@@ -81,7 +81,9 @@ class TestSchedulerCommand:
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
-    def test_skip_serve_logs(self, mock_process, mock_scheduler_job, mock_validate, executor):
+    def test_skip_serve_logs(
+        self, mock_process, mock_scheduler_job, mock_validate, executor
+    ):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler", "--skip-serve-logs"])
         with conf_vars({("core", "executor"): executor}):
@@ -99,7 +101,12 @@ class TestSchedulerCommand:
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_check_migrations_is_false(
-        self, mock_process, mock_scheduler_job, mock_log, mock_run_migration, mock_validate
+        self,
+        mock_process,
+        mock_scheduler_job,
+        mock_log,
+        mock_run_migration,
+        mock_validate,
     ):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
@@ -117,7 +124,12 @@ class TestSchedulerCommand:
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_check_migrations_is_true(
-        self, mock_process, mock_scheduler_job, mock_log, mock_run_migration, mock_validate
+        self,
+        mock_process,
+        mock_scheduler_job,
+        mock_log,
+        mock_run_migration,
+        mock_validate,
     ):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
@@ -133,12 +145,16 @@ class TestSchedulerCommand:
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
-    def test_graceful_shutdown(self, mock_process, mock_scheduler_job, mock_validate, executor):
+    def test_graceful_shutdown(
+        self, mock_process, mock_scheduler_job, mock_validate, executor
+    ):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("core", "executor"): executor}):
             reload(executor_loader)
-            mock_scheduler_job.run.side_effect = Exception("Mock exception to trigger runtime error")
+            mock_scheduler_job.run.side_effect = Exception(
+                "Mock exception to trigger runtime error"
+            )
             try:
                 scheduler_command.scheduler(args)
             finally:
@@ -190,11 +206,16 @@ class TestSchedulerCommand:
         with conf_vars(
             {
                 ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST"): health_check_host,
-                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT"): str(health_check_port),
+                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT"): str(
+                    health_check_port
+                ),
             }
         ):
             serve_health_check()
-        assert http_server_mock.call_args.args[0] == (health_check_host, health_check_port)
+        assert http_server_mock.call_args.args[0] == (
+            health_check_host,
+            health_check_port,
+        )
 
     @mock.patch(
         "airflow.cli.commands.scheduler_command.ExecutorLoader.validate_database_executor_compatibility",
@@ -202,7 +223,10 @@ class TestSchedulerCommand:
     )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    @mock.patch("airflow.cli.commands.scheduler_command.run_job", side_effect=Exception("run_job failed"))
+    @mock.patch(
+        "airflow.cli.commands.scheduler_command.run_job",
+        side_effect=Exception("run_job failed"),
+    )
     def test_run_job_exception_handling(
         self,
         mock_run_job,

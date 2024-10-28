@@ -23,10 +23,16 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from deprecated import deprecated
 from typing_extensions import Literal
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+)
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
-from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
+from airflow.providers.slack.transfers.sql_to_slack_webhook import (
+    SqlToSlackWebhookOperator,
+)
 from airflow.providers.slack.utils import parse_filename
 
 if TYPE_CHECKING:
@@ -96,7 +102,11 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         **kwargs,
     ):
         super().__init__(
-            sql=sql, sql_conn_id=sql_conn_id, sql_hook_params=sql_hook_params, parameters=parameters, **kwargs
+            sql=sql,
+            sql_conn_id=sql_conn_id,
+            sql_hook_params=sql_hook_params,
+            parameters=parameters,
+            **kwargs,
         )
         self.slack_conn_id = slack_conn_id
         self.slack_filename = slack_filename
@@ -149,7 +159,9 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
                 elif self.action_on_empty_df == "error":
                     raise ValueError("SQL output df must be non-empty. Failing.")
                 elif self.action_on_empty_df != "send":
-                    raise ValueError(f"Invalid `action_on_empty_df` value {self.action_on_empty_df!r}")
+                    raise ValueError(
+                        f"Invalid `action_on_empty_df` value {self.action_on_empty_df!r}"
+                    )
             if output_file_format == "CSV":
                 df_result.to_csv(output_file_name, **self.df_kwargs)
             elif output_file_format == "JSON":
@@ -159,7 +171,9 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             else:
                 # Not expected that this error happen. This only possible
                 # if SUPPORTED_FILE_FORMATS extended and no actual implementation for specific format.
-                raise AirflowException(f"Unexpected output file format: {output_file_format}")
+                raise AirflowException(
+                    f"Unexpected output file format: {output_file_format}"
+                )
 
             self._method_resolver(
                 channels=self.slack_channels,

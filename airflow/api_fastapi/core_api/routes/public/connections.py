@@ -24,7 +24,9 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.openapi.exceptions import (
+    create_openapi_http_exception_doc,
+)
 from airflow.api_fastapi.core_api.serializers.connections import (
     ConnectionCollectionResponse,
     ConnectionResponse,
@@ -47,7 +49,9 @@ async def delete_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            404, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     session.delete(connection)
 
@@ -64,7 +68,9 @@ async def get_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            404, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     return ConnectionResponse.model_validate(connection, from_attributes=True)
 
@@ -80,7 +86,8 @@ async def get_connections(
         SortParam,
         Depends(
             SortParam(
-                ["connection_id", "conn_type", "description", "host", "port", "id"], Connection
+                ["connection_id", "conn_type", "description", "host", "port", "id"],
+                Connection,
             ).dynamic_depends()
         ),
     ],
@@ -100,7 +107,8 @@ async def get_connections(
 
     return ConnectionCollectionResponse(
         connections=[
-            ConnectionResponse.model_validate(connection, from_attributes=True) for connection in connections
+            ConnectionResponse.model_validate(connection, from_attributes=True)
+            for connection in connections
         ],
         total_entries=total_entries,
     )

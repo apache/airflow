@@ -67,9 +67,13 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
         :return: True if it COMPLETED and False if not.
         """
         self.log.info("Poking for Amazon QuickSight Ingestion ID: %s", self.ingestion_id)
-        quicksight_ingestion_state = self.hook.get_status(None, self.data_set_id, self.ingestion_id)
+        quicksight_ingestion_state = self.hook.get_status(
+            None, self.data_set_id, self.ingestion_id
+        )
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
             error = self.hook.get_error_info(None, self.data_set_id, self.ingestion_id)
-            raise AirflowException(f"The QuickSight Ingestion failed. Error info: {error}")
+            raise AirflowException(
+                f"The QuickSight Ingestion failed. Error info: {error}"
+            )
         return quicksight_ingestion_state == self.success_status

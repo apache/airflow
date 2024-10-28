@@ -83,14 +83,20 @@ class TestCassandraHook:
                 load_balancing_policy=mock.ANY,
             )
 
-            assert isinstance(mock_cluster_ctor.call_args.kwargs["load_balancing_policy"], TokenAwarePolicy)
+            assert isinstance(
+                mock_cluster_ctor.call_args.kwargs["load_balancing_policy"],
+                TokenAwarePolicy,
+            )
 
     def test_get_lb_policy_with_no_args(self):
         # test LB policies with no args
         self._assert_get_lb_policy("RoundRobinPolicy", {}, RoundRobinPolicy)
         self._assert_get_lb_policy("DCAwareRoundRobinPolicy", {}, DCAwareRoundRobinPolicy)
         self._assert_get_lb_policy(
-            "TokenAwarePolicy", {}, TokenAwarePolicy, expected_child_policy_type=RoundRobinPolicy
+            "TokenAwarePolicy",
+            {},
+            TokenAwarePolicy,
+            expected_child_policy_type=RoundRobinPolicy,
         )
 
     def test_get_lb_policy_with_args(self):
@@ -103,11 +109,19 @@ class TestCassandraHook:
 
         # test WhiteListRoundRobinPolicy with args
         fake_addr_info = [
-            ["family", "sockettype", "proto", "canonname", ("2606:2800:220:1:248:1893:25c8:1946", 80, 0, 0)]
+            [
+                "family",
+                "sockettype",
+                "proto",
+                "canonname",
+                ("2606:2800:220:1:248:1893:25c8:1946", 80, 0, 0),
+            ]
         ]
         with mock.patch("socket.getaddrinfo", return_value=fake_addr_info):
             self._assert_get_lb_policy(
-                "WhiteListRoundRobinPolicy", {"hosts": ["host1", "host2"]}, WhiteListRoundRobinPolicy
+                "WhiteListRoundRobinPolicy",
+                {"hosts": ["host1", "host2"]},
+                WhiteListRoundRobinPolicy,
             )
 
         # test TokenAwarePolicy with args
@@ -128,7 +142,10 @@ class TestCassandraHook:
 
         # test invalid child policy name should default child policy to RoundRobinPolicy
         self._assert_get_lb_policy(
-            "TokenAwarePolicy", {}, TokenAwarePolicy, expected_child_policy_type=RoundRobinPolicy
+            "TokenAwarePolicy",
+            {},
+            TokenAwarePolicy,
+            expected_child_policy_type=RoundRobinPolicy,
         )
         self._assert_get_lb_policy(
             "TokenAwarePolicy",
@@ -247,5 +264,9 @@ class TestCassandraHook:
 
         assert hook.record_exists("t", {"pk1": "foo", "pk2": "bar"})
         assert not hook.record_exists("tt", {"pk1": "foo", "pk2": "bar"})
-        with pytest.raises(ValueError, match=re.escape("Invalid input: t; DROP TABLE t; SELECT * FROM t")):
-            hook.record_exists("t; DROP TABLE t; SELECT * FROM t", {"pk1": "foo", "pk2": "baz"})
+        with pytest.raises(
+            ValueError, match=re.escape("Invalid input: t; DROP TABLE t; SELECT * FROM t")
+        ):
+            hook.record_exists(
+                "t; DROP TABLE t; SELECT * FROM t", {"pk1": "foo", "pk2": "baz"}
+            )

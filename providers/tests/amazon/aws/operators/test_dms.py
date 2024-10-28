@@ -95,13 +95,17 @@ class TestDmsCreateTaskOperator:
     @mock.patch.object(DmsHook, "get_task_status", side_effect=("ready",))
     @mock.patch.object(DmsHook, "create_replication_task", return_value=TASK_ARN)
     @mock.patch.object(DmsHook, "get_conn")
-    def test_create_task(self, mock_conn, mock_create_replication_task, mock_get_task_status):
+    def test_create_task(
+        self, mock_conn, mock_create_replication_task, mock_get_task_status
+    ):
         dms_hook = DmsHook()
 
         create_task = DmsCreateTaskOperator(task_id="create_task", **self.TASK_DATA)
         create_task.execute(None)
 
-        mock_create_replication_task.assert_called_once_with(**self.TASK_DATA, migration_type="full-load")
+        mock_create_replication_task.assert_called_once_with(
+            **self.TASK_DATA, migration_type="full-load"
+        )
 
         assert dms_hook.get_task_status(TASK_ARN) == "ready"
 
@@ -119,7 +123,9 @@ class TestDmsCreateTaskOperator:
         )
         create_task.execute(None)
 
-        mock_create_replication_task.assert_called_once_with(**self.TASK_DATA, migration_type=migration_type)
+        mock_create_replication_task.assert_called_once_with(
+            **self.TASK_DATA, migration_type=migration_type
+        )
 
         assert dms_hook.get_task_status(TASK_ARN) == "ready"
 
@@ -165,7 +171,9 @@ class TestDmsDeleteTaskOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-        op = DmsDeleteTaskOperator(task_id="describe_tasks", replication_task_arn=TASK_ARN)
+        op = DmsDeleteTaskOperator(
+            task_id="describe_tasks", replication_task_arn=TASK_ARN
+        )
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
         assert op.hook._verify is None
@@ -176,15 +184,23 @@ class TestDmsDeleteTaskOperator:
     @mock.patch.object(DmsHook, "create_replication_task", return_value=TASK_ARN)
     @mock.patch.object(DmsHook, "get_conn")
     def test_delete_task(
-        self, mock_conn, mock_create_replication_task, mock_delete_replication_task, mock_get_task_status
+        self,
+        mock_conn,
+        mock_create_replication_task,
+        mock_delete_replication_task,
+        mock_get_task_status,
     ):
         dms_hook = DmsHook()
         task = dms_hook.create_replication_task(**self.TASK_DATA)
 
-        delete_task = DmsDeleteTaskOperator(task_id="delete_task", replication_task_arn=task)
+        delete_task = DmsDeleteTaskOperator(
+            task_id="delete_task", replication_task_arn=task
+        )
         delete_task.execute(None)
 
-        mock_delete_replication_task.assert_called_once_with(replication_task_arn=TASK_ARN)
+        mock_delete_replication_task.assert_called_once_with(
+            replication_task_arn=TASK_ARN
+        )
 
         assert dms_hook.get_task_status(TASK_ARN) == "deleting"
 
@@ -260,7 +276,9 @@ class TestDmsDescribeTasksOperator:
         assert op.hook._verify is None
         assert op.hook._config is None
 
-    @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
+    @mock.patch.object(
+        DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE)
+    )
     @mock.patch.object(DmsHook, "get_conn")
     def test_describe_tasks(self, mock_conn, mock_describe_replication_tasks):
         describe_tasks_kwargs = {"Filters": [self.FILTER]}
@@ -272,11 +290,17 @@ class TestDmsDescribeTasksOperator:
         mock_describe_replication_tasks.assert_called_once_with(**describe_tasks_kwargs)
 
     @pytest.mark.db_test
-    @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
+    @mock.patch.object(
+        DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE)
+    )
     @mock.patch.object(DmsHook, "get_conn")
-    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
+    def test_describe_tasks_return_value(
+        self, mock_conn, mock_describe_replication_tasks, session
+    ):
         describe_task = DmsDescribeTasksOperator(
-            task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
+            task_id="describe_tasks",
+            dag=self.dag,
+            describe_tasks_kwargs={"Filters": [self.FILTER]},
         )
 
         dag_run = DagRun(
@@ -348,7 +372,11 @@ class TestDmsStartTaskOperator:
     @mock.patch.object(DmsHook, "create_replication_task", return_value=TASK_ARN)
     @mock.patch.object(DmsHook, "get_conn")
     def test_start_task(
-        self, mock_conn, mock_create_replication_task, mock_start_replication_task, mock_get_task_status
+        self,
+        mock_conn,
+        mock_create_replication_task,
+        mock_start_replication_task,
+        mock_get_task_status,
     ):
         dms_hook = DmsHook()
         task = dms_hook.create_replication_task(**self.TASK_DATA)
@@ -417,7 +445,11 @@ class TestDmsStopTaskOperator:
     @mock.patch.object(DmsHook, "create_replication_task", return_value=TASK_ARN)
     @mock.patch.object(DmsHook, "get_conn")
     def test_stop_task(
-        self, mock_conn, mock_create_replication_task, mock_stop_replication_task, mock_get_task_status
+        self,
+        mock_conn,
+        mock_create_replication_task,
+        mock_stop_replication_task,
+        mock_get_task_status,
     ):
         dms_hook = DmsHook()
         task = dms_hook.create_replication_task(**self.TASK_DATA)

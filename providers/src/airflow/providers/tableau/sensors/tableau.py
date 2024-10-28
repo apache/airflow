@@ -65,7 +65,9 @@ class TableauJobStatusSensor(BaseSensorOperator):
         """
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
             finish_code = tableau_hook.get_job_status(job_id=self.job_id)
-            self.log.info("Current finishCode is %s (%s)", finish_code.name, finish_code.value)
+            self.log.info(
+                "Current finishCode is %s (%s)", finish_code.name, finish_code.value
+            )
 
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
                 message = "The Tableau Refresh Workbook Job failed!"

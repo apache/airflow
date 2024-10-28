@@ -71,7 +71,11 @@ def read_metadata_from_google_spreadsheet(sheets: Resource):
         "[info]Reading metadata from Google Spreadsheet: "
         f"https://docs.google.com/spreadsheets/d/{METADATA_SPREADSHEET_ID}"
     )
-    range = sheets.values().get(spreadsheetId=METADATA_SPREADSHEET_ID, range=METADATA_RANGE_NAME).execute()
+    range = (
+        sheets.values()
+        .get(spreadsheetId=METADATA_SPREADSHEET_ID, range=METADATA_RANGE_NAME)
+        .execute()
+    )
     metadata_types: list[MetadataFromSpreadsheet] = []
     for metadata_field in range["values"][0]:
         metadata_types.append(MetadataFromSpreadsheet[metadata_field])
@@ -84,7 +88,9 @@ def read_metadata_from_google_spreadsheet(sheets: Resource):
     get_console().print("[success]Metadata read from Google Spreadsheet.")
 
 
-def authorize_google_spreadsheets(json_credentials_file: Path, token_path: Path) -> Resource:
+def authorize_google_spreadsheets(
+    json_credentials_file: Path, token_path: Path
+) -> Resource:
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
@@ -98,7 +104,9 @@ def authorize_google_spreadsheets(json_credentials_file: Path, token_path: Path)
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(json_credentials_file.as_posix(), SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(
+                json_credentials_file.as_posix(), SCOPES
+            )
             creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
         token_path.write_text(creds.to_json())
@@ -128,7 +136,9 @@ def write_sbom_information_to_google_spreadsheet(
         if fieldname in INTERESTING_OPSF_SCORES or not fieldname.startswith("OPSF-")
     ]
 
-    num_rows = update_field_values(all_dependencies, cell_field_names, google_spreadsheet_id, sheets)
+    num_rows = update_field_values(
+        all_dependencies, cell_field_names, google_spreadsheet_id, sheets
+    )
     if include_opsf_scorecard:
         get_console().print("[info]Updating OPSF detailed comments.")
         update_opsf_detailed_comments(
@@ -160,7 +170,9 @@ def update_opsf_detailed_comments(
     )
     get_console().print("[info]Adding notes to all cells.")
     for dependency in all_dependencies:
-        note_row = convert_sbom_dict_to_spreadsheet_data(opsf_details_field_names, dependency)
+        note_row = convert_sbom_dict_to_spreadsheet_data(
+            opsf_details_field_names, dependency
+        )
         opsf_details.append({"values": [{"note": note} for note in note_row]})
     notes = {
         "updateCells": {
@@ -176,14 +188,18 @@ def update_opsf_detailed_comments(
     }
     update_note_body = {"requests": [notes]}
     get_console().print("[info]Updating notes in google spreadsheet.")
-    sheets.batchUpdate(spreadsheetId=google_spreadsheet_id, body=update_note_body).execute()
+    sheets.batchUpdate(
+        spreadsheetId=google_spreadsheet_id, body=update_note_body
+    ).execute()
 
 
 def calculate_range(num_columns: int, row: int) -> str:
     # Generate column letters
     columns = list(string.ascii_uppercase)
     if num_columns > 26:
-        columns += [f"{a}{b}" for a in string.ascii_uppercase for b in string.ascii_uppercase]
+        columns += [
+            f"{a}{b}" for a in string.ascii_uppercase for b in string.ascii_uppercase
+        ]
 
     # Calculate the range
     end_column = columns[num_columns - 1]
@@ -200,7 +216,9 @@ def update_field_values(
     google_spreadsheet_id: str,
     sheets: Resource,
 ) -> int:
-    get_console().print(f"[info]Updating {len(all_dependencies)} dependencies in the Google spreadsheet.")
+    get_console().print(
+        f"[info]Updating {len(all_dependencies)} dependencies in the Google spreadsheet."
+    )
     num_fields = len(cell_field_names)
     data = []
     top_header = []
@@ -217,20 +235,32 @@ def update_field_values(
         else:
             top_header.append("")
 
-    simplified_cell_field_names = [simplify_field_names(field) for field in cell_field_names]
+    simplified_cell_field_names = [
+        simplify_field_names(field) for field in cell_field_names
+    ]
     get_console().print("[info]Adding top header.")
     data.append({"range": calculate_range(num_fields, 1), "values": [top_header]})
     get_console().print("[info]Adding second header.")
-    data.append({"range": calculate_range(num_fields, 2), "values": [simplified_cell_field_names]})
+    data.append(
+        {"range": calculate_range(num_fields, 2), "values": [simplified_cell_field_names]}
+    )
     row = 3
     get_console().print("[info]Adding all rows.")
     for dependency in all_dependencies:
-        spreadsheet_row = convert_sbom_dict_to_spreadsheet_data(cell_field_names, dependency)
-        data.append({"range": calculate_range(num_fields, row), "values": [spreadsheet_row]})
+        spreadsheet_row = convert_sbom_dict_to_spreadsheet_data(
+            cell_field_names, dependency
+        )
+        data.append(
+            {"range": calculate_range(num_fields, row), "values": [spreadsheet_row]}
+        )
         row += 1
     get_console().print("[info]Writing data.")
     body = {"valueInputOption": "RAW", "data": data}
-    result = sheets.values().batchUpdate(spreadsheetId=google_spreadsheet_id, body=body).execute()
+    result = (
+        sheets.values()
+        .batchUpdate(spreadsheetId=google_spreadsheet_id, body=body)
+        .execute()
+    )
     get_console().print(
         f"[info]Updated {result.get('totalUpdatedCells')} cells values in the Google spreadsheet."
     )

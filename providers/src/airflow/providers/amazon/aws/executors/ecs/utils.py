@@ -178,7 +178,9 @@ class EcsTaskCollection:
         self.tasks[arn] = task
         self.key_to_arn[airflow_task_key] = arn
         self.arn_to_key[arn] = airflow_task_key
-        self.key_to_task_info[airflow_task_key] = EcsTaskInfo(airflow_cmd, queue, exec_config)
+        self.key_to_task_info[airflow_task_key] = EcsTaskInfo(
+            airflow_cmd, queue, exec_config
+        )
         self.key_to_failure_counts[airflow_task_key] = attempt_number
 
     def update_task(self, task: EcsExecutorTask):

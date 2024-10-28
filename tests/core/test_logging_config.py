@@ -101,7 +101,9 @@ def reset_logging():
     manager = logging.root.manager
     manager.disabled = logging.NOTSET
     airflow_loggers = [
-        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith("airflow")
+        logger
+        for logger_name, logger in manager.loggerDict.items()
+        if logger_name.startswith("airflow")
     ]
     for logger in airflow_loggers:
         if isinstance(logger, logging.Logger):
@@ -149,7 +151,9 @@ def settings_context(content, directory=None, name="LOGGING_CONFIG"):
             open(os.path.join(basedir, "__init__.py"), "w").close()
 
             # Replace slashes by dots
-            module = directory.replace("/", ".") + "." + SETTINGS_DEFAULT_NAME + "." + name
+            module = (
+                directory.replace("/", ".") + "." + SETTINGS_DEFAULT_NAME + "." + name
+            )
             settings_file = os.path.join(dir_path, filename)
         else:
             module = SETTINGS_DEFAULT_NAME + "." + name
@@ -243,7 +247,9 @@ class TestLoggingSettings:
         with conf_vars({("logging", "logging_config_class"): None}):
             with patch.object(logging_config.log, "debug") as mock_debug:
                 logging_config.configure_logging()
-                mock_debug.assert_any_call("Could not find key logging_config_class in config")
+                mock_debug.assert_any_call(
+                    "Could not find key logging_config_class in config"
+                )
 
     # Just default
     def test_loading_local_settings_without_logging_config(self):
@@ -251,7 +257,9 @@ class TestLoggingSettings:
 
         with patch.object(log, "debug") as mock_info:
             configure_logging()
-            mock_info.assert_called_once_with("Unable to load custom logging, using default config instead")
+            mock_info.assert_called_once_with(
+                "Unable to load custom logging, using default config instead"
+            )
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
@@ -264,11 +272,14 @@ class TestLoggingSettings:
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
         pytest.importorskip(
-            "airflow.providers.microsoft.azure", reason="'microsoft.azure' provider not installed"
+            "airflow.providers.microsoft.azure",
+            reason="'microsoft.azure' provider not installed",
         )
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
-        from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler
+        from airflow.providers.microsoft.azure.log.wasb_task_handler import (
+            WasbTaskHandler,
+        )
 
         with conf_vars(
             {
@@ -317,13 +328,17 @@ class TestLoggingSettings:
             importlib.reload(airflow_local_settings)
             configure_logging()
             assert (
-                airflow_local_settings.DEFAULT_LOGGING_CONFIG["handlers"]["task"]["log_group_arn"]
+                airflow_local_settings.DEFAULT_LOGGING_CONFIG["handlers"]["task"][
+                    "log_group_arn"
+                ]
                 == log_group_arn
             )
 
     def test_loading_remote_logging_with_kwargs(self):
         """Test if logging can be configured successfully with kwargs"""
-        pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
+        pytest.importorskip(
+            "airflow.providers.amazon", reason="'amazon' provider not installed"
+        )
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
         from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler

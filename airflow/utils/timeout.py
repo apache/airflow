@@ -73,13 +73,17 @@ class TimeoutPosix(_timeout, LoggingMixin):
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.setitimer(signal.ITIMER_REAL, self.seconds)
         except ValueError:
-            self.log.warning("timeout can't be used in the current context", exc_info=True)
+            self.log.warning(
+                "timeout can't be used in the current context", exc_info=True
+            )
 
     def __exit__(self, type_, value, traceback):
         try:
             signal.setitimer(signal.ITIMER_REAL, 0)
         except ValueError:
-            self.log.warning("timeout can't be used in the current context", exc_info=True)
+            self.log.warning(
+                "timeout can't be used in the current context", exc_info=True
+            )
 
 
 if IS_WINDOWS:

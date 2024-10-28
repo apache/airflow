@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow_breeze.global_constants import DEFAULT_UV_HTTP_TIMEOUT, DEFAULT_WSL2_HTTP_TIMEOUT
+from airflow_breeze.global_constants import (
+    DEFAULT_UV_HTTP_TIMEOUT,
+    DEFAULT_WSL2_HTTP_TIMEOUT,
+)
 
 if TYPE_CHECKING:
     from airflow_breeze.params.common_build_params import CommonBuildParams

@@ -62,7 +62,9 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
     class ConfiguredSentry(DummySentry):
         """Configure Sentry SDK."""
 
-        SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "execution_date"))
+        SCOPE_DAG_RUN_TAGS = frozenset(
+            ("data_interval_end", "data_interval_start", "execution_date")
+        )
         SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
@@ -102,15 +104,21 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 # supported backward compatibility with old way dsn option
                 dsn = old_way_dsn or new_way_dsn
 
-                unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts.keys())
+                unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(
+                    sentry_config_opts.keys()
+                )
                 if unsupported_options:
                     log.warning(
                         "There are unsupported options in [sentry] section: %s",
                         ", ".join(unsupported_options),
                     )
 
-                sentry_config_opts["before_send"] = conf.getimport("sentry", "before_send", fallback=None)
-                sentry_config_opts["transport"] = conf.getimport("sentry", "transport", fallback=None)
+                sentry_config_opts["before_send"] = conf.getimport(
+                    "sentry", "before_send", fallback=None
+                )
+                sentry_config_opts["transport"] = conf.getimport(
+                    "sentry", "transport", fallback=None
+                )
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
@@ -153,7 +161,9 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 for crumb_tag in self.SCOPE_CRUMBS:
                     data[crumb_tag] = getattr(ti, crumb_tag)
 
-                sentry_sdk.add_breadcrumb(category="completed_tasks", data=data, level="info")
+                sentry_sdk.add_breadcrumb(
+                    category="completed_tasks", data=data, level="info"
+                )
 
         def enrich_errors(self, func):
             """

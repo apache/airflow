@@ -54,7 +54,9 @@ DOC_ONLY_CHANGES_FILE = "doc-only-changes.txt"
 EXCLUDED_CHANGES_FILE = "excluded-changes.txt"
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
+@click.group(
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500}
+)
 def cli(): ...
 
 
@@ -216,14 +218,20 @@ def get_change_from_line(line: str) -> Change:
         short_hash=split_line[1],
         date=split_line[2],
         message=message,
-        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace("&amp;", "&"),
+        message_without_backticks=message.replace("`", "'")
+        .replace("&#39;", "'")
+        .replace("&amp;", "&"),
         pr=int(pr) if pr else None,
     )
 
 
-def get_changes(verbose: bool, previous_release: str, current_release: str) -> list[Change]:
+def get_changes(
+    verbose: bool, previous_release: str, current_release: str
+) -> list[Change]:
     change_strings = subprocess.check_output(
-        get_git_log_command(verbose, from_commit=previous_release, to_commit=current_release),
+        get_git_log_command(
+            verbose, from_commit=previous_release, to_commit=current_release
+        ),
         cwd=SOURCE_DIR_PATH,
         text=True,
     )
@@ -268,14 +276,20 @@ def assign_prs(
     repo = g.get_repo("apache/airflow")
 
     if output_folder and not print_summary:
-        console.print("\n[yellow]Implying --print-summary as output folder is enabled[/]\n")
+        console.print(
+            "\n[yellow]Implying --print-summary as output folder is enabled[/]\n"
+        )
         print_summary = True
     if print_summary and not skip_assigned:
-        console.print("\n[yellow]Implying --skip-assigned as summary report is enabled[/]\n")
+        console.print(
+            "\n[yellow]Implying --skip-assigned as summary report is enabled[/]\n"
+        )
         skip_assigned = True
     milestone = repo.get_milestone(milestone_number)
     count_prs = limit_pr_count or len(changes)
-    console.print(f"\n[green]Applying Milestone: {milestone.title} to {count_prs} merged PRs[/]\n")
+    console.print(
+        f"\n[green]Applying Milestone: {milestone.title} to {count_prs} merged PRs[/]\n"
+    )
     if dry_run:
         console.print("[yellow]Dry run mode![/]\n")
     else:
@@ -355,7 +369,9 @@ def assign_prs(
             if skip_assigned:
                 doc_only_changes.append(change)
         elif chosen_option in ("exclude", "e"):
-            console.print(f"Applying the label {changelog_skip_label} the PR #{pr_number}")
+            console.print(
+                f"Applying the label {changelog_skip_label} the PR #{pr_number}"
+            )
             if not dry_run:
                 pr.add_to_labels(changelog_skip_label)
                 update_milestone(repo, pr, milestone)
@@ -379,12 +395,20 @@ def assign_prs(
     if output_folder:
 
         def write_commits(type: str, path: Path, changes_to_write: list[Change]):
-            path.write_text("".join(f"{change.short_hash}\n" for change in changes_to_write))
+            path.write_text(
+                "".join(f"{change.short_hash}\n" for change in changes_to_write)
+            )
             console.print(f"\n{type} commits written in {path}")
 
-        write_commits("Changelog", Path(output_folder) / CHANGELOG_CHANGES_FILE, changelog_changes)
-        write_commits("Doc only", Path(output_folder) / DOC_ONLY_CHANGES_FILE, doc_only_changes)
-        write_commits("Excluded", Path(output_folder) / EXCLUDED_CHANGES_FILE, excluded_changes)
+        write_commits(
+            "Changelog", Path(output_folder) / CHANGELOG_CHANGES_FILE, changelog_changes
+        )
+        write_commits(
+            "Doc only", Path(output_folder) / DOC_ONLY_CHANGES_FILE, doc_only_changes
+        )
+        write_commits(
+            "Excluded", Path(output_folder) / EXCLUDED_CHANGES_FILE, excluded_changes
+        )
         console.print("\n")
 
 

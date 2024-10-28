@@ -32,7 +32,11 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_rendered_ti_fields,
+)
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -69,7 +73,10 @@ class TestBashDecorator:
 
     @staticmethod
     def validate_bash_command_rtif(ti, expected_command):
-        assert RenderedTaskInstanceFields.get_templated_fields(ti)["bash_command"] == expected_command
+        assert (
+            RenderedTaskInstanceFields.get_templated_fields(ti)["bash_command"]
+            == expected_command
+        )
 
     def test_bash_decorator_init(self):
         """Test the initialization of the @task.bash decorator."""
@@ -94,9 +101,14 @@ class TestBashDecorator:
     @pytest.mark.parametrize(
         argnames=["command", "expected_command", "expected_return_val"],
         argvalues=[
-            pytest.param("echo hello world", "echo hello world", "hello world", id="not_templated"),
             pytest.param(
-                "echo {{ ds }}", f"echo {DEFAULT_DATE.date()}", str(DEFAULT_DATE.date()), id="templated"
+                "echo hello world", "echo hello world", "hello world", id="not_templated"
+            ),
+            pytest.param(
+                "echo {{ ds }}",
+                f"echo {DEFAULT_DATE.date()}",
+                str(DEFAULT_DATE.date()),
+                id="templated",
             ),
         ],
     )
@@ -175,7 +187,9 @@ class TestBashDecorator:
             pytest.param(True, {"var": "value"}, "path/to/airflow/home", id="append_env"),
         ],
     )
-    def test_env_variables(self, append_env, user_defined_env, expected_airflow_home, caplog):
+    def test_env_variables(
+        self, append_env, user_defined_env, expected_airflow_home, caplog
+    ):
         """Test env variables exist appropriately depending on if the existing env variables are allowed."""
         with self.dag:
 
@@ -194,7 +208,9 @@ class TestBashDecorator:
         assert "var=value" in caplog.text
         assert f"AIRFLOW_HOME={expected_airflow_home}" in caplog.text
 
-        self.validate_bash_command_rtif(ti, "echo var=$var; echo AIRFLOW_HOME=$AIRFLOW_HOME;")
+        self.validate_bash_command_rtif(
+            ti, "echo var=$var; echo AIRFLOW_HOME=$AIRFLOW_HOME;"
+        )
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
@@ -227,15 +243,25 @@ class TestBashDecorator:
     @pytest.mark.parametrize(
         argnames=["skip_on_exit_code", "exit_code", "expected"],
         argvalues=[
-            pytest.param(None, 99, pytest.raises(AirflowSkipException), id="default_skip_exit_99"),
-            pytest.param(None, 1, pytest.raises(AirflowException), id="default_skip_exit_1"),
+            pytest.param(
+                None, 99, pytest.raises(AirflowSkipException), id="default_skip_exit_99"
+            ),
+            pytest.param(
+                None, 1, pytest.raises(AirflowException), id="default_skip_exit_1"
+            ),
             pytest.param(None, 0, no_raise(), id="default_skip_exit_0"),
             pytest.param({"skip_on_exit_code": 86}, 0, no_raise(), id="skip_86_exit_0"),
             pytest.param(
-                {"skip_on_exit_code": 100}, 42, pytest.raises(AirflowException), id="skip_100_exit_42"
+                {"skip_on_exit_code": 100},
+                42,
+                pytest.raises(AirflowException),
+                id="skip_100_exit_42",
             ),
             pytest.param(
-                {"skip_on_exit_code": 100}, 100, pytest.raises(AirflowSkipException), id="skip_100_exit_100"
+                {"skip_on_exit_code": 100},
+                100,
+                pytest.raises(AirflowSkipException),
+                id="skip_100_exit_100",
             ),
             pytest.param(
                 {"skip_on_exit_code": [100, 101]},
@@ -279,10 +305,18 @@ class TestBashDecorator:
         ],
         argvalues=[
             pytest.param(
-                {"razz": "matazz"}, True, "matazz", "path/to/airflow/home", id="user_defined_env_and_append"
+                {"razz": "matazz"},
+                True,
+                "matazz",
+                "path/to/airflow/home",
+                id="user_defined_env_and_append",
             ),
-            pytest.param({"razz": "matazz"}, False, "matazz", "", id="user_defined_env_no_append"),
-            pytest.param({}, True, "", "path/to/airflow/home", id="no_user_defined_env_and_append"),
+            pytest.param(
+                {"razz": "matazz"}, False, "matazz", "", id="user_defined_env_no_append"
+            ),
+            pytest.param(
+                {}, True, "", "path/to/airflow/home", id="no_user_defined_env_and_append"
+            ),
             pytest.param({}, False, "", "", id="no_user_defined_env_no_append"),
         ],
     )
@@ -297,7 +331,9 @@ class TestBashDecorator:
     ):
         """Test the behavior of user-defined env vars when using an external file with a Bash command."""
         cmd_file = tmp_path / "test_file.sh"
-        cmd_file.write_text("#!/usr/bin/env bash\necho AIRFLOW_HOME=$AIRFLOW_HOME\necho razz=$razz\n")
+        cmd_file.write_text(
+            "#!/usr/bin/env bash\necho AIRFLOW_HOME=$AIRFLOW_HOME\necho razz=$razz\n"
+        )
         cmd_file.chmod(stat.S_IEXEC)
 
         with self.dag:
@@ -379,7 +415,9 @@ class TestBashDecorator:
 
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
-        with pytest.raises(AirflowException, match=f"The cwd {cwd_file} must be a directory"):
+        with pytest.raises(
+            AirflowException, match=f"The cwd {cwd_file} must be a directory"
+        ):
             ti.run()
         assert ti.task.bash_command == "echo"
 
@@ -400,7 +438,8 @@ class TestBashDecorator:
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
+            AirflowException,
+            match="Bash command failed\\. The command returned a non-zero exit code 127\\.",
         ):
             ti.run()
         assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
@@ -416,7 +455,8 @@ class TestBashDecorator:
                 return "echo"
 
             with pytest.warns(
-                UserWarning, match="`multiple_outputs=True` is not supported in @task.bash tasks. Ignoring."
+                UserWarning,
+                match="`multiple_outputs=True` is not supported in @task.bash tasks. Ignoring.",
             ):
                 bash_task = bash()
 
@@ -429,7 +469,8 @@ class TestBashDecorator:
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
-        "multiple_outputs", [False, pytest.param(None, id="none"), pytest.param(NOTSET, id="not-set")]
+        "multiple_outputs",
+        [False, pytest.param(None, id="none"), pytest.param(NOTSET, id="not-set")],
     )
     def test_multiple_outputs(self, multiple_outputs):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
@@ -465,8 +506,12 @@ class TestBashDecorator:
             pytest.param(NOTSET, pytest.raises(TypeError), id="return_notset_typeerror"),
             pytest.param(True, pytest.raises(TypeError), id="return_boolean_typeerror"),
             pytest.param("", pytest.raises(TypeError), id="return_empty_string_typerror"),
-            pytest.param("  ", pytest.raises(TypeError), id="return_spaces_string_typerror"),
-            pytest.param(["echo;", "exit 99;"], pytest.raises(TypeError), id="return_list_typerror"),
+            pytest.param(
+                "  ", pytest.raises(TypeError), id="return_spaces_string_typerror"
+            ),
+            pytest.param(
+                ["echo;", "exit 99;"], pytest.raises(TypeError), id="return_list_typerror"
+            ),
             pytest.param("echo", no_raise(), id="return_string_no_error"),
         ],
     )
@@ -518,7 +563,9 @@ class TestBashDecorator:
         path.write_text('echo "{{ ti.task_id }}"')
 
         with dag_maker(
-            dag_id="test_templated_bash_script", session=session, template_searchpath=os.fspath(path.parent)
+            dag_id="test_templated_bash_script",
+            session=session,
+            template_searchpath=os.fspath(path.parent),
         ):
 
             @task.bash

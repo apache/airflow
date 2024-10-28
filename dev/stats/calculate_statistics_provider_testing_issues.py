@@ -43,7 +43,9 @@ MY_DIR_PATH = Path(os.path.dirname(__file__))
 SOURCE_DIR_PATH = MY_DIR_PATH / os.pardir / os.pardir
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
+@click.group(
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500}
+)
 def cli(): ...
 
 
@@ -188,7 +190,9 @@ def stats_to_rows(stats_list: list[Stats]) -> list[tuple]:
 def provide_stats(github_token: str, table: bool):
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
-    issues = repo.get_issues(labels=[PROVIDER_TESTING_LABEL], state="closed", sort="created", direction="asc")
+    issues = repo.get_issues(
+        labels=[PROVIDER_TESTING_LABEL], state="closed", sort="created", direction="asc"
+    )
     stats_list: list[Stats] = []
     for issue in issues:
         stat = get_stats(issue)

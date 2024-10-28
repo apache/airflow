@@ -35,12 +35,17 @@ class TestSFTPDecoratorSensor:
         ["/path/to/file/2021-09-09.txt", "/path/to/file/{{ ds }}.txt"],
     )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_decorator_with_file_path_with_template(self, sftp_hook_mock, file_path, dag_maker):
+    def test_decorator_with_file_path_with_template(
+        self, sftp_hook_mock, file_path, dag_maker
+    ):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         file_path_templated = file_path
         file_path = "/path/to/file/2021-09-09.txt"
         decorated_func_return = "decorated_func_returns"
-        expected_xcom_return = {"files_found": [file_path], "decorator_return_value": decorated_func_return}
+        expected_xcom_return = {
+            "files_found": [file_path],
+            "decorator_return_value": decorated_func_return,
+        }
 
         @task.sftp_sensor(path=file_path_templated)
         def f():
@@ -60,8 +65,14 @@ class TestSFTPDecoratorSensor:
         file_path = "/path/to/file/1970-01-01.txt"
         op_args = ["op_args_1"]
         op_kwargs = {"key": "value"}
-        decorated_func_return = {"args": op_args, "kwargs": {**op_kwargs, "files_found": [file_path]}}
-        expected_xcom_return = {"files_found": [file_path], "decorator_return_value": decorated_func_return}
+        decorated_func_return = {
+            "args": op_args,
+            "kwargs": {**op_kwargs, "files_found": [file_path]},
+        }
+        expected_xcom_return = {
+            "files_found": [file_path],
+            "decorator_return_value": decorated_func_return,
+        }
 
         @task.sftp_sensor(path=file_path)
         def f(*args, **kwargs):
@@ -78,7 +89,10 @@ class TestSFTPDecoratorSensor:
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_decorator_with_file_pattern(self, sftp_hook_mock, dag_maker):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
-        file_path_list = ["/path/to/file/text_file.txt", "/path/to/file/another_text_file.txt"]
+        file_path_list = [
+            "/path/to/file/text_file.txt",
+            "/path/to/file/another_text_file.txt",
+        ]
         sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
             "text_file.txt",
             "another_text_file.txt",
@@ -104,14 +118,20 @@ class TestSFTPDecoratorSensor:
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_decorator_with_file_pattern_with_args(self, sftp_hook_mock, dag_maker):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
-        file_path_list = ["/path/to/file/text_file.txt", "/path/to/file/another_text_file.txt"]
+        file_path_list = [
+            "/path/to/file/text_file.txt",
+            "/path/to/file/another_text_file.txt",
+        ]
         op_args = ["op_args_1"]
         op_kwargs = {"key": "value"}
         sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
             "text_file.txt",
             "another_text_file.txt",
         ]
-        decorated_func_return = {"args": op_args, "kwargs": {**op_kwargs, "files_found": file_path_list}}
+        decorated_func_return = {
+            "args": op_args,
+            "kwargs": {**op_kwargs, "files_found": file_path_list},
+        }
         expected_xcom_return = {
             "files_found": file_path_list,
             "decorator_return_value": decorated_func_return,

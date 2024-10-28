@@ -54,7 +54,9 @@ def use_config(config: str):
 
 
 @contextmanager
-def set_deprecated_options(deprecated_options: dict[tuple[str, str], tuple[str, str, str]]):
+def set_deprecated_options(
+    deprecated_options: dict[tuple[str, str], tuple[str, str, str]],
+):
     """
     Temporary replaces deprecated options with the ones provided.
     """

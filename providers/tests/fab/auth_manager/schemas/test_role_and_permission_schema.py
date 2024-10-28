@@ -25,7 +25,10 @@ from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema impor
 )
 from airflow.security import permissions
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_role,
+    delete_role,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -51,18 +54,24 @@ class TestRoleCollectionItemSchema:
         deserialized_role = role_schema.dump(self.role)
         assert deserialized_role == {
             "name": "Test",
-            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            "actions": [
+                {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+            ],
         }
 
     def test_deserialize(self):
         role = {
             "name": "Test",
-            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            "actions": [
+                {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+            ],
         }
         role_obj = role_schema.load(role)
         assert role_obj == {
             "name": "Test",
-            "permissions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            "permissions": [
+                {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+            ],
         }
 
 
@@ -96,11 +105,18 @@ class TestRoleCollectionSchema:
             "roles": [
                 {
                     "name": "Test1",
-                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_create"},
+                        }
+                    ],
                 },
                 {
                     "name": "Test2",
-                    "actions": [{"resource": {"name": "DAGs"}, "action": {"name": "can_edit"}}],
+                    "actions": [
+                        {"resource": {"name": "DAGs"}, "action": {"name": "can_edit"}}
+                    ],
                 },
             ],
             "total_entries": 2,

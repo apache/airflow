@@ -42,14 +42,23 @@ def main():
         source_file = Path(arg).resolve()
         checksum = _get_file_hash(source_file)
         hash_file = source_file.with_suffix(".md5sum")
-        if not hash_file.exists() or not hash_file.read_text().strip() == str(checksum).strip():
-            console.print(f"[bright_blue]Changes in {source_file}. Regenerating the image.")
+        if (
+            not hash_file.exists()
+            or not hash_file.read_text().strip() == str(checksum).strip()
+        ):
+            console.print(
+                f"[bright_blue]Changes in {source_file}. Regenerating the image."
+            )
             subprocess.run(
-                [sys.executable, source_file.resolve().as_posix()], check=True, cwd=source_file.parent
+                [sys.executable, source_file.resolve().as_posix()],
+                check=True,
+                cwd=source_file.parent,
             )
             hash_file.write_text(str(checksum) + "\n")
         else:
-            console.print(f"[bright_blue]No changes in {source_file}. Not regenerating the image.")
+            console.print(
+                f"[bright_blue]No changes in {source_file}. Not regenerating the image."
+            )
 
 
 if __name__ == "__main__":

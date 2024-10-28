@@ -20,7 +20,9 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
@@ -82,12 +84,16 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
         collection_name: str | None = None,
         poke_interval: int = 10,
         max_retries: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         if not exactly_one(collection_id is None, collection_name is None):
-            raise AttributeError("Either collection_ids or collection_names must be provided, not both.")
+            raise AttributeError(
+                "Either collection_ids or collection_names must be provided, not both."
+            )
         self.collection_id = collection_id
         self.collection_name = collection_name
 
@@ -101,7 +107,9 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
             if self.collection_id
             else {"names": [str(self.collection_name)]}
         )
-        state = self.hook.conn.batch_get_collection(**call_args)["collectionDetails"][0]["status"]
+        state = self.hook.conn.batch_get_collection(**call_args)["collectionDetails"][0][
+            "status"
+        ]
 
         if state in self.FAILURE_STATES:
             raise AirflowException(self.FAILURE_MESSAGE)

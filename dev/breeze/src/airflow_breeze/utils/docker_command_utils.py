@@ -29,7 +29,11 @@ from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.cache import read_from_cache_file
-from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.host_info_utils import (
+    get_host_group_id,
+    get_host_os,
+    get_host_user_id,
+)
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     SCRIPTS_DOCKER_DIR,
@@ -37,7 +41,12 @@ from airflow_breeze.utils.path_utils import (
     create_mypy_volume_if_needed,
 )
 from airflow_breeze.utils.shared_options import get_verbose
-from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
+from airflow_breeze.utils.visuals import (
+    ASCIIART,
+    ASCIIART_STYLE,
+    CHEATSHEET,
+    CHEATSHEET_STYLE,
+)
 
 try:
     from packaging import version
@@ -151,7 +160,10 @@ def check_docker_permission_denied() -> bool:
     )
     if command_result.returncode != 0:
         permission_denied = True
-        if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
+        if (
+            command_result.stdout
+            and "Got permission denied while trying to connect" in command_result.stdout
+        ):
             get_console().print(
                 "ERROR: You have `permission denied` error when trying to communicate with docker."
             )
@@ -219,7 +231,9 @@ def check_docker_version(quiet: bool = False):
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
                 if not quiet:
-                    get_console().print(f"[success]Good version of Docker: {docker_version}.[/]")
+                    get_console().print(
+                        f"[success]Good version of Docker: {docker_version}.[/]"
+                    )
             else:
                 get_console().print(
                     f"""
@@ -304,7 +318,9 @@ def check_docker_compose_version(quiet: bool = False):
         version_extracted = version_pattern.search(docker_compose_version)
         if version_extracted is not None:
             docker_compose_version = ".".join(version_extracted.groups())
-            good_version = compare_version(docker_compose_version, MIN_DOCKER_COMPOSE_VERSION)
+            good_version = compare_version(
+                docker_compose_version, MIN_DOCKER_COMPOSE_VERSION
+            )
             if good_version:
                 if not quiet:
                     get_console().print(
@@ -345,18 +361,31 @@ def prepare_docker_build_cache_command(
     final_command = []
     final_command.extend(["docker"])
     final_command.extend(
-        ["buildx", "build", "--builder", get_and_use_docker_context(image_params.builder), "--progress=auto"]
+        [
+            "buildx",
+            "build",
+            "--builder",
+            get_and_use_docker_context(image_params.builder),
+            "--progress=auto",
+        ]
     )
     final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
     final_command.extend(image_params.prepare_arguments_for_docker_build_command())
     final_command.extend(["--target", "main", "."])
     final_command.extend(
-        ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
+        [
+            "-f",
+            "Dockerfile"
+            if isinstance(image_params, BuildProdParams)
+            else "Dockerfile.ci",
+        ]
     )
     final_command.extend(["--platform", image_params.platform])
     final_command.extend(
-        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"]
+        [
+            f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"
+        ]
     )
     return final_command
 
@@ -417,9 +446,16 @@ def prepare_docker_build_command(
     final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
     final_command.extend(image_params.prepare_arguments_for_docker_build_command())
-    final_command.extend(["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."])
     final_command.extend(
-        ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
+        ["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."]
+    )
+    final_command.extend(
+        [
+            "-f",
+            "Dockerfile"
+            if isinstance(image_params, BuildProdParams)
+            else "Dockerfile.ci",
+        ]
     )
     final_command.extend(["--platform", image_params.platform])
     return final_command
@@ -436,8 +472,12 @@ def construct_docker_push_command(
     return ["docker", "push", image_params.airflow_image_name_with_tag]
 
 
-def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
-    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
+def build_cache(
+    image_params: CommonBuildParams, output: Output | None
+) -> RunCommandResult:
+    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(
+        args=[], returncode=0
+    )
     for platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -459,7 +499,9 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
 def make_sure_builder_configured(params: CommonBuildParams):
     if params.builder != "autodetect":
         cmd = ["docker", "buildx", "inspect", params.builder]
-        buildx_command_result = run_command(cmd, text=True, check=False, dry_run_override=False)
+        buildx_command_result = run_command(
+            cmd, text=True, check=False, dry_run_override=False
+        )
         if buildx_command_result and buildx_command_result.returncode != 0:
             next_cmd = ["docker", "buildx", "create", "--name", params.builder]
             run_command(next_cmd, text=True, check=False, dry_run_override=False)
@@ -483,7 +525,10 @@ def prepare_broker_url(params, env_variables):
         ALLOWED_CELERY_BROKERS[0]: urls[0],
         ALLOWED_CELERY_BROKERS[1]: urls[1],
     }
-    if getattr(params, "celery_broker", None) and params.celery_broker in params.celery_broker in url_map:
+    if (
+        getattr(params, "celery_broker", None)
+        and params.celery_broker in params.celery_broker in url_map
+    ):
         env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
@@ -493,7 +538,9 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     for entrypoint in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
         if get_verbose() and not quiet:
-            get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
+            get_console().print(
+                f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]"
+            )
         if not os.access(entrypoint.as_posix(), os.X_OK):
             get_console().print(
                 f"[error]You do not have executable permissions on {entrypoint}[/]\n"
@@ -532,7 +579,9 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
         if docker_context == "default":
             return
         docker_syntax = get_docker_syntax_version()
-        get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
+        get_console().print(
+            f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}"
+        )
         warm_up_image_param = copy.deepcopy(image_params_list[0])
         warm_up_image_param.image_tag = "warmup"
         warm_up_image_param.push = False
@@ -640,7 +689,9 @@ def autodetect_docker_context():
         if isinstance(context_dicts, dict):
             context_dicts = [context_dicts]
     except json.decoder.JSONDecodeError:
-        context_dicts = (json.loads(line) for line in result.stdout.splitlines() if line.strip())
+        context_dicts = (
+            json.loads(line) for line in result.stdout.splitlines() if line.strip()
+        )
     known_contexts = {info["Name"]: info for info in context_dicts}
     if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
@@ -667,9 +718,13 @@ def get_and_use_docker_context(context: str):
     if context == "autodetect":
         context = autodetect_docker_context()
     run_command(["docker", "context", "create", context], check=False)
-    output = run_command(["docker", "context", "use", context], check=False, stdout=DEVNULL, stderr=DEVNULL)
+    output = run_command(
+        ["docker", "context", "use", context], check=False, stdout=DEVNULL, stderr=DEVNULL
+    )
     if output.returncode:
-        get_console().print(f"[warning]Could no use context {context!r}. Continuing with current context[/]")
+        get_console().print(
+            f"[warning]Could no use context {context!r}. Continuing with current context[/]"
+        )
     return context
 
 
@@ -698,7 +753,10 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
 
 
 def execute_command_in_shell(
-    shell_params: ShellParams, project_name: str, command: str | None = None, output: Output | None = None
+    shell_params: ShellParams,
+    project_name: str,
+    command: str | None = None,
+    output: Output | None = None,
 ) -> RunCommandResult:
     """Executes command in shell.
 
@@ -731,7 +789,9 @@ def execute_command_in_shell(
     shell_params.skip_environment_initialization = True
     shell_params.skip_image_upgrade_check = True
     if get_verbose():
-        get_console().print(f"[warning]Backend forced to: sqlite and {SEQUENTIAL_EXECUTOR}[/]")
+        get_console().print(
+            f"[warning]Backend forced to: sqlite and {SEQUENTIAL_EXECUTOR}[/]"
+        )
         get_console().print("[warning]Sqlite DB is cleaned[/]")
         get_console().print(f"[warning]Executor forced to {SEQUENTIAL_EXECUTOR}[/]")
         get_console().print("[warning]Disabled port forwarding[/]")
@@ -746,7 +806,9 @@ def execute_command_in_shell(
     return enter_shell(shell_params, output=output)
 
 
-def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunCommandResult:
+def enter_shell(
+    shell_params: ShellParams, output: Output | None = None
+) -> RunCommandResult:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -803,10 +865,16 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+            get_console().print(
+                "\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n"
+            )
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
-        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+        if shell_params.backend != "postgres" or shell_params.postgres_version not in [
+            "12",
+            "13",
+            "14",
+        ]:
             get_console().print(
                 "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
                 "as a backend with OpenLineage integration via Breeze[/]\n"

@@ -32,7 +32,9 @@ errors: list[str] = []
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 HATCH_BUILD_PATH = AIRFLOW_ROOT_PATH / "hatch_build.py"
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import check_list_sorted
 
 sys.path.insert(0, str(AIRFLOW_ROOT_PATH))  # make sure airflow root is imported
@@ -43,7 +45,9 @@ if __name__ == "__main__":
 
     for extra_dict, description in ALL_DYNAMIC_EXTRA_DICTS:
         for extra, extra_list in extra_dict.items():
-            check_list_sorted(extra_list, f"Order of extra: {description}:{extra}", errors)
+            check_list_sorted(
+                extra_list, f"Order of extra: {description}:{extra}", errors
+            )
     print()
     for error in errors:
         print(error)

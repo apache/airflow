@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.verified_permissions import VerifiedPermissionsHook
+from airflow.providers.amazon.aws.hooks.verified_permissions import (
+    VerifiedPermissionsHook,
+)
 
 
 class TestVerifiedPermissionsHook:

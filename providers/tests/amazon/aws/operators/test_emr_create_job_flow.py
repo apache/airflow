@@ -43,7 +43,10 @@ TEST_DAG_ID = "test_dag_id"
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 JOB_FLOW_ID = "j-8989898989"
-RUN_JOB_FLOW_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "JobFlowId": JOB_FLOW_ID}
+RUN_JOB_FLOW_SUCCESS_RETURN = {
+    "ResponseMetadata": {"HTTPStatusCode": 200},
+    "JobFlowId": JOB_FLOW_ID,
+}
 
 TEMPLATE_SEARCHPATH = Path(__file__).parents[1].joinpath("config_templates").as_posix()
 
@@ -65,7 +68,11 @@ class TestEmrCreateJobFlowOperator:
                 "ActionOnFailure": "CONTINUE",
                 "HadoopJarStep": {
                     "Jar": "command-runner.jar",
-                    "Args": ["/usr/lib/spark/bin/run-example", "{{ macros.ds_add(ds, -1) }}", "{{ ds }}"],
+                    "Args": [
+                        "/usr/lib/spark/bin/run-example",
+                        "{{ macros.ds_add(ds, -1) }}",
+                        "{{ ds }}",
+                    ],
                 },
             }
         ],
@@ -130,7 +137,9 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_and_dagruns
+    ):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
@@ -185,7 +194,9 @@ class TestEmrCreateJobFlowOperator:
         self.operator.wait_for_completion = True
 
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
-        mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
+        mock_waiter.assert_called_once_with(
+            mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY
+        )
         assert_expected_waiter_type(mock_waiter, "job_flow_waiting")
 
     def test_create_job_flow_deferrable(self, mocked_hook_client):

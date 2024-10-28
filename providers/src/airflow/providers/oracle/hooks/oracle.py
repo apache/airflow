@@ -136,7 +136,11 @@ class OracleHook(DbApiHook):
 
         .. code-block:: python
 
-           {"dsn": ("(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=host)(PORT=1521))(CONNECT_DATA=(SID=sid)))")}
+           {
+               "dsn": (
+                   "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=host)(PORT=1521))(CONNECT_DATA=(SID=sid)))"
+               )
+           }
 
         see more param detail in `oracledb.connect
         <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_
@@ -162,7 +166,9 @@ class OracleHook(DbApiHook):
                         f"got {type(self.thick_mode_lib_dir).__name__}"
                     )
             if self.thick_mode_config_dir is None:
-                self.thick_mode_config_dir = conn.extra_dejson.get("thick_mode_config_dir")
+                self.thick_mode_config_dir = conn.extra_dejson.get(
+                    "thick_mode_config_dir"
+                )
                 if not isinstance(self.thick_mode_config_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_config_dir expected str or None, "
@@ -174,7 +180,9 @@ class OracleHook(DbApiHook):
 
         # Set oracledb Defaults Attributes if provided
         # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
-        fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get("fetch_decimals"))
+        fetch_decimals = _get_first_bool(
+            self.fetch_decimals, conn.extra_dejson.get("fetch_decimals")
+        )
         if isinstance(fetch_decimals, bool):
             oracledb.defaults.fetch_decimals = fetch_decimals
 
@@ -188,7 +196,9 @@ class OracleHook(DbApiHook):
         if conn.host and sid and not service_name:
             conn_config["dsn"] = oracledb.makedsn(conn.host, port, sid)
         elif conn.host and service_name and not sid:
-            conn_config["dsn"] = oracledb.makedsn(conn.host, port, service_name=service_name)
+            conn_config["dsn"] = oracledb.makedsn(
+                conn.host, port, service_name=service_name
+            )
         else:
             dsn = conn.extra_dejson.get("dsn")
             if dsn is None:
@@ -303,12 +313,16 @@ class OracleHook(DbApiHook):
             for cell in row:
                 if isinstance(cell, str):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
-                elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
+                elif (
+                    cell is None or isinstance(cell, float) and math.isnan(cell)
+                ):  # coerce numpy NaN to NULL
                     lst.append("NULL")
                 elif np and isinstance(cell, np.datetime64):
                     lst.append(f"'{cell}'")
                 elif isinstance(cell, datetime):
-                    lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
+                    lst.append(
+                        f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')"
+                    )
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
@@ -367,7 +381,8 @@ class OracleHook(DbApiHook):
                 if target_fields
                 else f"({sequence_column})",
                 values=", ".join(
-                    [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
+                    [f"{sequence_name}.NEXTVAL"]
+                    + [f":{i}" for i in range(1, len(values_base) + 1)]
                 ),
             )
         else:
@@ -422,7 +437,11 @@ class OracleHook(DbApiHook):
 
         args = ",".join(
             f":{name}"
-            for name in (parameters if isinstance(parameters, dict) else range(1, len(parameters) + 1))
+            for name in (
+                parameters
+                if isinstance(parameters, dict)
+                else range(1, len(parameters) + 1)
+            )
         )
 
         sql = f"BEGIN {identifier}({args}); END;"

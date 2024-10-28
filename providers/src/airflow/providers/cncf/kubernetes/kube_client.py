@@ -87,8 +87,12 @@ def _enable_tcp_keepalive() -> None:
     else:
         log.debug("Unable to set TCP_KEEPCNT on this platform")
 
-    HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options
-    HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
+    HTTPSConnection.default_socket_options = (
+        HTTPSConnection.default_socket_options + socket_options
+    )
+    HTTPConnection.default_socket_options = (
+        HTTPConnection.default_socket_options + socket_options
+    )
 
 
 def get_kube_client(
@@ -129,11 +133,15 @@ def get_kube_client(
         config.load_incluster_config(client_configuration=configuration)
     else:
         if cluster_context is None:
-            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
+            cluster_context = conf.get(
+                "kubernetes_executor", "cluster_context", fallback=None
+            )
         if config_file is None:
             config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
         config.load_kube_config(
-            config_file=config_file, context=cluster_context, client_configuration=configuration
+            config_file=config_file,
+            context=cluster_context,
+            client_configuration=configuration,
         )
 
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):

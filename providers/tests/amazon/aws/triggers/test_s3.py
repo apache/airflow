@@ -33,7 +33,9 @@ class TestS3KeyTrigger:
         and classpath.
         """
         trigger = S3KeyTrigger(
-            bucket_key="s3://test_bucket/file", bucket_name="test_bucket", wildcard_match=True
+            bucket_key="s3://test_bucket/file",
+            bucket_name="test_bucket",
+            wildcard_match=True,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.s3.S3KeyTrigger"
@@ -55,7 +57,9 @@ class TestS3KeyTrigger:
         Test if the task is run is in triggerr successfully.
         """
         mock_client.return_value.check_key.return_value = True
-        trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
+        trigger = S3KeyTrigger(
+            bucket_key="s3://test_bucket/file", bucket_name="test_bucket"
+        )
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
@@ -70,7 +74,9 @@ class TestS3KeyTrigger:
         Test if the task is run is in trigger successfully and set check_key to return false.
         """
         mock_check_key_async.return_value = False
-        trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
+        trigger = S3KeyTrigger(
+            bucket_key="s3://test_bucket/file", bucket_name="test_bucket"
+        )
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
@@ -93,7 +99,9 @@ class TestS3KeysUnchangedTrigger:
             previous_objects=None,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.s3.S3KeysUnchangedTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.s3.S3KeysUnchangedTrigger"
+        )
         assert kwargs == {
             "bucket_name": "test_bucket",
             "prefix": "test",
@@ -127,11 +135,15 @@ class TestS3KeysUnchangedTrigger:
         Test if the S3KeysUnchangedTrigger raises Value error for negative inactivity_period.
         """
         with pytest.raises(ValueError):
-            S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test", inactivity_period=-100)
+            S3KeysUnchangedTrigger(
+                bucket_name="test_bucket", prefix="test", inactivity_period=-100
+            )
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async"
+    )
     async def test_run_success(self, mock_is_keys_unchanged, mock_client):
         """
         Test if the task is run in triggerer successfully.
@@ -144,10 +156,15 @@ class TestS3KeysUnchangedTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async"
+    )
     async def test_run_pending(self, mock_is_keys_unchanged, mock_client):
         """Test if the task is run in triggerer successfully."""
-        mock_is_keys_unchanged.return_value = {"status": "pending", "last_activity_time": datetime.now()}
+        mock_is_keys_unchanged.return_value = {
+            "status": "pending",
+            "last_activity_time": datetime.now(),
+        }
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)

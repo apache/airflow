@@ -28,9 +28,12 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 SPANNER_BASE_LINK = "/spanner/instances"
-SPANNER_INSTANCE_LINK = SPANNER_BASE_LINK + "/{instance_id}/details/databases?project={project_id}"
+SPANNER_INSTANCE_LINK = (
+    SPANNER_BASE_LINK + "/{instance_id}/details/databases?project={project_id}"
+)
 SPANNER_DATABASE_LINK = (
-    SPANNER_BASE_LINK + "/{instance_id}/databases/{database_id}/details/tables?project={project_id}"
+    SPANNER_BASE_LINK
+    + "/{instance_id}/databases/{database_id}/details/tables?project={project_id}"
 )
 
 
@@ -73,5 +76,9 @@ class SpannerDatabaseLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=SpannerDatabaseLink.key,
-            value={"instance_id": instance_id, "database_id": database_id, "project_id": project_id},
+            value={
+                "instance_id": instance_id,
+                "database_id": database_id,
+                "project_id": project_id,
+            },
         )

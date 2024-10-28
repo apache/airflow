@@ -107,7 +107,9 @@ class DbtCloudRunJobTrigger(BaseTrigger):
                     }
                 )
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
+            yield TriggerEvent(
+                {"status": "error", "message": str(e), "run_id": self.run_id}
+            )
 
     async def is_still_running(self, hook: DbtCloudHook) -> bool:
         """Check whether the submitted job is running."""

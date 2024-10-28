@@ -80,7 +80,9 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^dagrun\.schedule_delay\.(?P<dag_id>.*)$",
     r"^dagrun\.(?P<dag_id>.*)\.first_task_scheduling_delay$",
 }
-BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
+BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {
+    re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS
+}
 
 OTEL_NAME_MAX_LENGTH = 63
 DEFAULT_VALIDATOR_TYPE = "allow"
@@ -92,8 +94,12 @@ def get_validator() -> ListValidator:
         "block": PatternBlockListValidator,
     }
     metric_lists = {
-        "allow": (metric_allow_list := conf.get("metrics", "metrics_allow_list", fallback=None)),
-        "block": (metric_block_list := conf.get("metrics", "metrics_block_list", fallback=None)),
+        "allow": (
+            metric_allow_list := conf.get("metrics", "metrics_allow_list", fallback=None)
+        ),
+        "block": (
+            metric_block_list := conf.get("metrics", "metrics_block_list", fallback=None)
+        ),
     }
 
     if metric_allow_list:
@@ -174,7 +180,9 @@ def stat_name_otel_handler(
     # provided value is not valid or returns the value if it is.  We don't
     # need the return value but will make use of the validation checks. If
     # no exception is thrown, then the proposed name meets OTel requirements.
-    stat_name_default_handler(proposed_stat_name, max_length=999 if name_length_exemption else max_length)
+    stat_name_default_handler(
+        proposed_stat_name, max_length=999 if name_length_exemption else max_length
+    )
 
     # This warning is down here instead of up above because the exemption only
     # applies to the length and a name may still be invalid for other reasons.
@@ -192,7 +200,9 @@ def stat_name_otel_handler(
 
 
 def stat_name_default_handler(
-    stat_name: str, max_length: int = 250, allowed_chars: Iterable[str] = ALLOWED_CHARACTERS
+    stat_name: str,
+    max_length: int = 250,
+    allowed_chars: Iterable[str] = ALLOWED_CHARACTERS,
 ) -> str:
     """
     Validate the metric stat name.
@@ -218,7 +228,9 @@ def get_current_handler_stat_name_func() -> Callable[[str], str]:
     handler = conf.getimport("metrics", "stat_name_handler")
     if handler is None:
         if conf.get("metrics", "statsd_influxdb_enabled", fallback=False):
-            handler = partial(stat_name_default_handler, allowed_chars={*ALLOWED_CHARACTERS, ",", "="})
+            handler = partial(
+                stat_name_default_handler, allowed_chars={*ALLOWED_CHARACTERS, ",", "="}
+            )
         else:
             handler = stat_name_default_handler
     return handler
@@ -233,7 +245,9 @@ class ListValidator(metaclass=abc.ABCMeta):
 
     def __init__(self, validate_list: str | None = None) -> None:
         self.validate_list: tuple[str, ...] | None = (
-            tuple(item.strip().lower() for item in validate_list.split(",")) if validate_list else None
+            tuple(item.strip().lower() for item in validate_list.split(","))
+            if validate_list
+            else None
         )
 
     @classmethod

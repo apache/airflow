@@ -172,19 +172,32 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
 
         >>> method = CopyFromExternalStageToSnowflakeOperator._extract_openlineage_unique_dataset_paths
 
-        >>> results = [{"file": "azure://my_account.blob.core.windows.net/azure_container/dir3/file.csv"}]
+        >>> results = [
+        ...     {
+        ...         "file": "azure://my_account.blob.core.windows.net/azure_container/dir3/file.csv"
+        ...     }
+        ... ]
         >>> method(results)
         ([('wasbs://azure_container@my_account', 'dir3')], [])
 
-        >>> results = [{"file": "azure://my_account.blob.core.windows.net/azure_container"}]
+        >>> results = [
+        ...     {"file": "azure://my_account.blob.core.windows.net/azure_container"}
+        ... ]
         >>> method(results)
         ([('wasbs://azure_container@my_account', '/')], [])
 
-        >>> results = [{"file": "s3://bucket"}, {"file": "gcs://bucket/"}, {"file": "s3://bucket/a.csv"}]
+        >>> results = [
+        ...     {"file": "s3://bucket"},
+        ...     {"file": "gcs://bucket/"},
+        ...     {"file": "s3://bucket/a.csv"},
+        ... ]
         >>> method(results)
         ([('gcs://bucket', '/'), ('s3://bucket', '/')], [])
 
-        >>> results = [{"file": "s3://bucket/dir/file.csv"}, {"file": "gcs://bucket/dir/dir2/a.txt"}]
+        >>> results = [
+        ...     {"file": "s3://bucket/dir/file.csv"},
+        ...     {"file": "gcs://bucket/dir/dir2/a.txt"},
+        ... ]
         >>> method(results)
         ([('gcs://bucket', 'dir/dir2'), ('s3://bucket', 'dir')], [])
 
@@ -245,10 +258,13 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         # If no files were uploaded we get [{"status": "0 files were uploaded..."}]
         if len(query_results) == 1 and query_results[0].get("status"):
             query_results = []
-        unique_dataset_paths, extraction_error_files = self._extract_openlineage_unique_dataset_paths(
-            query_results
+        unique_dataset_paths, extraction_error_files = (
+            self._extract_openlineage_unique_dataset_paths(query_results)
         )
-        input_datasets = [Dataset(namespace=namespace, name=name) for namespace, name in unique_dataset_paths]
+        input_datasets = [
+            Dataset(namespace=namespace, name=name)
+            for namespace, name in unique_dataset_paths
+        ]
 
         run_facets = {}
         if extraction_error_files:
@@ -270,7 +286,9 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
                 ],
             )
 
-        connection = self.hook.get_connection(getattr(self.hook, str(self.hook.conn_name_attr)))
+        connection = self.hook.get_connection(
+            getattr(self.hook, str(self.hook.conn_name_attr))
+        )
         database_info = self.hook.get_openlineage_database_info(connection)
 
         dest_name = self.table

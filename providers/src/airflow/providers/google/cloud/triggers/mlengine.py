@@ -95,7 +95,9 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         try:
             while True:
                 # Poll for job execution status
-                response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
+                response_from_hook = await hook.get_job_status(
+                    job_id=self.job_id, project_id=self.project_id
+                )
                 if response_from_hook == "success":
                     yield TriggerEvent(
                         {

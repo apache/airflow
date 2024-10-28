@@ -123,7 +123,10 @@ class TestStats:
         with conf_vars(
             {
                 ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
+                (
+                    "metrics",
+                    "statsd_custom_client_path",
+                ): f"{__name__}.InvalidCustomStatsd",
             }
         ):
             importlib.reload(airflow.stats)
@@ -143,8 +146,13 @@ class TestStats:
             }
         ):
             importlib.reload(airflow.stats)
-            assert type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
-            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+            assert (
+                type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
+            )
+            assert airflow.stats.Stats.metrics_validator.validate_list == (
+                "name1",
+                "name2",
+            )
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
@@ -156,8 +164,13 @@ class TestStats:
             }
         ):
             importlib.reload(airflow.stats)
-            assert type(airflow.stats.Stats.metrics_validator) is PatternBlockListValidator
-            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+            assert (
+                type(airflow.stats.Stats.metrics_validator) is PatternBlockListValidator
+            )
+            assert airflow.stats.Stats.metrics_validator.validate_list == (
+                "name1",
+                "name2",
+            )
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
@@ -170,8 +183,13 @@ class TestStats:
             }
         ):
             importlib.reload(airflow.stats)
-            assert type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
-            assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
+            assert (
+                type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
+            )
+            assert airflow.stats.Stats.metrics_validator.validate_list == (
+                "name1",
+                "name2",
+            )
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
@@ -253,16 +271,22 @@ class TestDogStats:
         datadog_logger.metrics_consistency_on = metrics_consistency_on
 
         self.dogstatsd.timing("empty_timer", 123)
-        self.dogstatsd_client.timing.assert_called_once_with(metric="empty_timer", value=123, tags=[])
+        self.dogstatsd_client.timing.assert_called_once_with(
+            metric="empty_timer", value=123, tags=[]
+        )
 
         self.dogstatsd.timing("empty_timer", datetime.timedelta(seconds=123))
         self.dogstatsd_client.timing.assert_called_with(
-            metric="empty_timer", value=123000.0 if metrics_consistency_on else 123.0, tags=[]
+            metric="empty_timer",
+            value=123000.0 if metrics_consistency_on else 123.0,
+            tags=[],
         )
 
     def test_gauge(self):
         self.dogstatsd.gauge("empty", 123)
-        self.dogstatsd_client.gauge.assert_called_once_with(metric="empty", sample_rate=1, value=123, tags=[])
+        self.dogstatsd_client.gauge.assert_called_once_with(
+            metric="empty", sample_rate=1, value=123, tags=[]
+        )
 
     def test_decr(self):
         self.dogstatsd.decr("empty")
@@ -395,7 +419,10 @@ class TestPatternValidatorConfigOption:
         importlib.reload(airflow.stats)
 
         assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-        assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
+        assert (
+            type(airflow.stats.Stats.instance.metrics_validator)
+            is PatternAllowListValidator
+        )
         with caplog.at_level(logging.WARNING):
             assert "Ignoring metrics_block_list" in caplog.text
 
@@ -438,7 +465,10 @@ class TestDogStatsWithMetricsTags:
     def test_does_send_stats_using_dogstatsd_with_tags(self):
         self.dogstatsd.incr("empty_key", 1, 1, tags={"key1": "value1", "key2": "value2"})
         self.dogstatsd_client.increment.assert_called_once_with(
-            metric="empty_key", sample_rate=1, tags=["key1:value1", "key2:value2"], value=1
+            metric="empty_key",
+            sample_rate=1,
+            tags=["key1:value1", "key2:value2"],
+            value=1,
         )
 
 
@@ -487,14 +517,18 @@ class TestStatsWithInfluxDBEnabled:
             "test_stats_run.delay",
             tags={"key0": 0, "key1": "val1", "key2": "val2"},
         )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
+        self.statsd_client.incr.assert_called_once_with(
+            "test_stats_run.delay,key0=0,key1=val1", 1, 1
+        )
 
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(
             "test_stats_run.delay",
             tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
         )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
+        self.statsd_client.incr.assert_called_once_with(
+            "test_stats_run.delay,key1=val1", 1, 1
+        )
 
 
 def always_invalid(stat_name):
@@ -513,7 +547,9 @@ class TestCustomStatsName:
         }
     )
     @mock.patch("statsd.StatsClient")
-    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
+    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(
+        self, mock_statsd
+    ):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("empty_key")
         mock_statsd.return_value.assert_not_called()
@@ -525,7 +561,9 @@ class TestCustomStatsName:
         }
     )
     @mock.patch("datadog.DogStatsd")
-    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
+    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(
+        self, mock_dogstatsd
+    ):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("empty_key")
         mock_dogstatsd.return_value.assert_not_called()

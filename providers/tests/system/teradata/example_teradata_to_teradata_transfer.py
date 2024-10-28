@@ -36,9 +36,14 @@ from airflow import DAG
 
 try:
     from airflow.providers.teradata.operators.teradata import TeradataOperator
-    from airflow.providers.teradata.transfers.teradata_to_teradata import TeradataToTeradataOperator
+    from airflow.providers.teradata.transfers.teradata_to_teradata import (
+        TeradataToTeradataOperator,
+    )
 except ImportError:
-    pytest.skip("Teradata provider apache-airflow-provider-teradata not available", allow_module_level=True)
+    pytest.skip(
+        "Teradata provider apache-airflow-provider-teradata not available",
+        allow_module_level=True,
+    )
 
 # [START teradata_to_teradata_transfer_operator_howto_guide]
 

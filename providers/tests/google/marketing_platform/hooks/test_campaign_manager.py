@@ -19,9 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.providers.google.marketing_platform.hooks.campaign_manager import (
+    GoogleCampaignManagerHook,
+)
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
@@ -39,13 +43,17 @@ class TestGoogleCampaignManagerHook:
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.hook = GoogleCampaignManagerHook(gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION)
+            self.hook = GoogleCampaignManagerHook(
+                gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION
+            )
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
         "campaign_manager.GoogleCampaignManagerHook._authorize"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.hooks.campaign_manager.build")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.campaign_manager.build"
+    )
     def test_gen_conn(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -62,9 +70,7 @@ class TestGoogleCampaignManagerHook:
     )
     def test_delete_report(self, get_conn_mock):
         return_value = "TEST"
-        get_conn_mock.return_value.reports.return_value.delete.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.reports.return_value.delete.return_value.execute.return_value = return_value
 
         result = self.hook.delete_report(profile_id=PROFILE_ID, report_id=REPORT_ID)
 
@@ -87,7 +93,9 @@ class TestGoogleCampaignManagerHook:
             get.return_value.execute.return_value = return_value
         # fmt: on
 
-        result = self.hook.get_report(profile_id=PROFILE_ID, report_id=REPORT_ID, file_id=file_id)
+        result = self.hook.get_report(
+            profile_id=PROFILE_ID, report_id=REPORT_ID, file_id=file_id
+        )
 
         get_conn_mock.return_value.reports.return_value.files.return_value.get.assert_called_once_with(
             profileId=PROFILE_ID, reportId=REPORT_ID, fileId=file_id
@@ -103,11 +111,11 @@ class TestGoogleCampaignManagerHook:
         file_id = "FILE_ID"
 
         return_value = "TEST"
-        get_conn_mock.return_value.reports.return_value.files.return_value.get_media.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.reports.return_value.files.return_value.get_media.return_value = return_value
 
-        result = self.hook.get_report_file(profile_id=PROFILE_ID, report_id=REPORT_ID, file_id=file_id)
+        result = self.hook.get_report_file(
+            profile_id=PROFILE_ID, report_id=REPORT_ID, file_id=file_id
+        )
 
         get_conn_mock.return_value.reports.return_value.files.return_value.get_media.assert_called_once_with(
             profileId=PROFILE_ID, reportId=REPORT_ID, fileId=file_id
@@ -123,9 +131,7 @@ class TestGoogleCampaignManagerHook:
         report = {"body": "test"}
 
         return_value = "TEST"
-        get_conn_mock.return_value.reports.return_value.insert.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.reports.return_value.insert.return_value.execute.return_value = return_value
 
         result = self.hook.insert_report(profile_id=PROFILE_ID, report=report)
 
@@ -186,7 +192,9 @@ class TestGoogleCampaignManagerHook:
         return_value = "TEST"
         get_conn_mock.return_value.reports.return_value.patch.return_value.execute.return_value = return_value
 
-        result = self.hook.patch_report(profile_id=PROFILE_ID, report_id=REPORT_ID, update_mask=update_mask)
+        result = self.hook.patch_report(
+            profile_id=PROFILE_ID, report_id=REPORT_ID, update_mask=update_mask
+        )
 
         get_conn_mock.return_value.reports.return_value.patch.assert_called_once_with(
             profileId=PROFILE_ID, reportId=REPORT_ID, body=update_mask
@@ -204,7 +212,9 @@ class TestGoogleCampaignManagerHook:
         return_value = "TEST"
         get_conn_mock.return_value.reports.return_value.run.return_value.execute.return_value = return_value
 
-        result = self.hook.run_report(profile_id=PROFILE_ID, report_id=REPORT_ID, synchronous=synchronous)
+        result = self.hook.run_report(
+            profile_id=PROFILE_ID, report_id=REPORT_ID, synchronous=synchronous
+        )
 
         get_conn_mock.return_value.reports.return_value.run.assert_called_once_with(
             profileId=PROFILE_ID, reportId=REPORT_ID, synchronous=synchronous
@@ -218,9 +228,7 @@ class TestGoogleCampaignManagerHook:
     )
     def test_update_report(self, get_conn_mock):
         return_value = "TEST"
-        get_conn_mock.return_value.reports.return_value.update.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.reports.return_value.update.return_value.execute.return_value = return_value
 
         result = self.hook.update_report(profile_id=PROFILE_ID, report_id=REPORT_ID)
 
@@ -242,9 +250,7 @@ class TestGoogleCampaignManagerHook:
         conversions = [{"conversions1": "value"}, {"conversions2": "value"}]
 
         return_value = {"hasFailures": False}
-        get_conn_mock.return_value.conversions.return_value.batchinsert.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.conversions.return_value.batchinsert.return_value.execute.return_value = return_value
 
         batch_request_mock.return_value = "batch_request_mock"
 
@@ -281,9 +287,7 @@ class TestGoogleCampaignManagerHook:
         conversions = [{"conversions1": "value"}, {"conversions2": "value"}]
 
         return_value = {"hasFailures": False}
-        get_conn_mock.return_value.conversions.return_value.batchupdate.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.conversions.return_value.batchupdate.return_value.execute.return_value = return_value
 
         batch_request_mock.return_value = "batch_request_mock"
 

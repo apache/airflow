@@ -76,7 +76,9 @@ class JenkinsHook(BaseHook):
         return self.jenkins_server
 
     def get_latest_build_number(self, job_name) -> int:
-        self.log.info("Build number not specified, getting latest build info from Jenkins")
+        self.log.info(
+            "Build number not specified, getting latest build info from Jenkins"
+        )
         job_info = self.jenkins_server.get_job_info(job_name)
         return job_info["lastBuild"]["number"]
 
@@ -90,7 +92,9 @@ class JenkinsHook(BaseHook):
         else:
             build_number_to_check = build_number
 
-        self.log.info("Getting build info for %s build number: #%s", job_name, build_number_to_check)
+        self.log.info(
+            "Getting build info for %s build number: #%s", job_name, build_number_to_check
+        )
         build_info = self.jenkins_server.get_build_info(job_name, build_number_to_check)
         building = build_info["building"]
         return building

@@ -61,7 +61,14 @@ class OpsgenieCreateAlertOperator(BaseOperator):
     :param note: Additional note that will be added while creating the alert. (templated)
     """
 
-    template_fields: Sequence[str] = ("message", "alias", "description", "entity", "priority", "note")
+    template_fields: Sequence[str] = (
+        "message",
+        "alias",
+        "description",
+        "entity",
+        "priority",
+        "note",
+    )
 
     def __init__(
         self,

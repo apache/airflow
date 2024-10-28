@@ -91,7 +91,9 @@ class GCSBlobTrigger(BaseTrigger):
     def _get_async_hook(self) -> GCSAsyncHook:
         return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
 
-    async def _object_exists(self, hook: GCSAsyncHook, bucket_name: str, object_name: str) -> str:
+    async def _object_exists(
+        self, hook: GCSAsyncHook, bucket_name: str, object_name: str
+    ) -> str:
         """
         Check for the existence of a file in Google Cloud Storage.
 
@@ -178,7 +180,11 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
 
     async def _is_blob_updated_after(
-        self, hook: GCSAsyncHook, bucket_name: str, object_name: str, target_date: datetime
+        self,
+        hook: GCSAsyncHook,
+        bucket_name: str,
+        object_name: str,
+        target_date: datetime,
     ) -> tuple[bool, dict[str, Any]]:
         """
         Check if the object in the bucket is updated.
@@ -201,7 +207,9 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
                 return True, res
 
             blob_updated_date = blob.updated  # type: ignore[attr-defined]
-            blob_updated_time = datetime.strptime(blob_updated_date, "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+            blob_updated_time = datetime.strptime(
+                blob_updated_date, "%Y-%m-%dT%H:%M:%S.%fZ"
+            ).replace(
                 tzinfo=timezone.utc
             )  # Blob updated time is in string format so converting the string format
             # to datetime object to compare the last updated time
@@ -209,7 +217,9 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
             if blob_updated_time is not None:
                 if not target_date.tzinfo:
                     target_date = target_date.replace(tzinfo=timezone.utc)
-                self.log.info("Verify object date: %s > %s", blob_updated_time, target_date)
+                self.log.info(
+                    "Verify object date: %s > %s", blob_updated_time, target_date
+                )
                 if blob_updated_time > target_date:
                     return True, {"status": "success", "message": "success"}
             return False, {"status": "pending", "message": "pending"}
@@ -266,21 +276,29 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
             hook = self._get_async_hook()
             while True:
                 self.log.info(
-                    "Checking for existence of blobs with prefix  %s in bucket %s", self.prefix, self.bucket
+                    "Checking for existence of blobs with prefix  %s in bucket %s",
+                    self.prefix,
+                    self.bucket,
                 )
                 res = await self._list_blobs_with_prefix(
                     hook=hook, bucket_name=self.bucket, prefix=self.prefix
                 )
                 if len(res) > 0:
                     yield TriggerEvent(
-                        {"status": "success", "message": "Successfully completed", "matches": res}
+                        {
+                            "status": "success",
+                            "message": "Successfully completed",
+                            "matches": res,
+                        }
                     )
                     return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
-    async def _list_blobs_with_prefix(self, hook: GCSAsyncHook, bucket_name: str, prefix: str) -> list[str]:
+    async def _list_blobs_with_prefix(
+        self, hook: GCSAsyncHook, bucket_name: str, prefix: str
+    ) -> list[str]:
         """
         Return names of blobs which match the given prefix for a given bucket.
 
@@ -398,7 +416,9 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                 "New objects found at %s resetting last_activity_time.",
                 os.path.join(self.bucket, self.prefix),
             )
-            self.log.debug("New objects: %s", "\n".join(current_objects - self.previous_objects))
+            self.log.debug(
+                "New objects: %s", "\n".join(current_objects - self.previous_objects)
+            )
             self.last_activity_time = self._get_time()
             self.inactivity_seconds = 0
             self.previous_objects = current_objects
@@ -420,7 +440,9 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                 "message": "Illegal behavior: objects were deleted in between check intervals",
             }
         if self.last_activity_time:
-            self.inactivity_seconds = (self._get_time() - self.last_activity_time).total_seconds()
+            self.inactivity_seconds = (
+                self._get_time() - self.last_activity_time
+            ).total_seconds()
         else:
             # Handles the first check where last inactivity time is None.
             self.last_activity_time = self._get_time()
@@ -434,13 +456,18 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                     "SUCCESS: Sensor found %s objects at %s. Waited at least %s "
                     "seconds, with no new objects dropped."
                 )
-                self.log.info(success_message, current_num_objects, path, self.inactivity_seconds)
+                self.log.info(
+                    success_message, current_num_objects, path, self.inactivity_seconds
+                )
                 return {
                     "status": "success",
-                    "message": success_message % (current_num_objects, path, self.inactivity_seconds),
+                    "message": success_message
+                    % (current_num_objects, path, self.inactivity_seconds),
                 }
 
-            error_message = "FAILURE: Inactivity Period passed, not enough objects found in %s"
+            error_message = (
+                "FAILURE: Inactivity Period passed, not enough objects found in %s"
+            )
             self.log.error(error_message, path)
             return {"status": "error", "message": error_message % path}
         return {"status": "pending"}

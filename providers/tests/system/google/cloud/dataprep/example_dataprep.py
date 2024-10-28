@@ -43,8 +43,13 @@ from airflow.providers.google.cloud.operators.dataprep import (
     DataprepRunFlowOperator,
     DataprepRunJobGroupOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.sensors.dataprep import DataprepJobGroupIsFinishedSensor
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.sensors.dataprep import (
+    DataprepJobGroupIsFinishedSensor,
+)
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -55,7 +60,9 @@ DAG_ID = "dataprep"
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATAPREP_TOKEN = os.environ.get("SYSTEM_TESTS_DATAPREP_TOKEN", "")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 GCS_BUCKET_NAME = f"dataprep-bucket-{DAG_ID}-{ENV_ID}"
 GCS_BUCKET_PATH = f"gs://{GCS_BUCKET_NAME}/task_results/"
 
@@ -151,7 +158,9 @@ with models.DAG(
         )
         return response
 
-    create_wrangled_dataset_task = create_wrangled_dataset(create_flow_task, create_imported_dataset_task)
+    create_wrangled_dataset_task = create_wrangled_dataset(
+        create_flow_task, create_imported_dataset_task
+    )
 
     @task
     def create_output(wrangled_dataset):

@@ -27,7 +27,9 @@ class PgVectorHook(PostgresHook):
         """Initialize a PgVectorHook."""
         super().__init__(*args, **kwargs)
 
-    def create_table(self, table_name: str, columns: list[str], if_not_exists: bool = True) -> None:
+    def create_table(
+        self, table_name: str, columns: list[str], if_not_exists: bool = True
+    ) -> None:
         """
         Create a table in the Postgres database.
 

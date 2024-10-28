@@ -163,19 +163,27 @@ class RedshiftToS3Operator(BaseOperator):
         self.select_query = self.select_query or self.default_select_query
 
         if self.select_query is None:
-            raise ValueError("Please specify either a table or `select_query` to fetch the data.")
+            raise ValueError(
+                "Please specify either a table or `select_query` to fetch the data."
+            )
 
-        if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
+        if self.include_header and "HEADER" not in [
+            uo.upper().strip() for uo in self.unload_options
+        ]:
             self.unload_options = [*self.unload_options, "HEADER"]
 
         if self.use_redshift_data:
             redshift_data_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
             for arg in ["sql", "parameters"]:
                 if arg in self.redshift_data_api_kwargs:
-                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
+                    raise AirflowException(
+                        f"Cannot include param '{arg}' in Redshift Data API kwargs"
+                    )
         else:
             redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-        conn = S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
+        conn = (
+            S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
+        )
         if conn and conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
@@ -192,10 +200,14 @@ class RedshiftToS3Operator(BaseOperator):
         self.log.info("Executing UNLOAD command...")
         if self.use_redshift_data:
             redshift_data_hook.execute_query(
-                sql=unload_query, parameters=self.parameters, **self.redshift_data_api_kwargs
+                sql=unload_query,
+                parameters=self.parameters,
+                **self.redshift_data_api_kwargs,
             )
         else:
-            redshift_sql_hook.run(unload_query, self.autocommit, parameters=self.parameters)
+            redshift_sql_hook.run(
+                unload_query, self.autocommit, parameters=self.parameters
+            )
         self.log.info("UNLOAD command complete...")
 
     def get_openlineage_facets_on_complete(self, task_instance):
@@ -227,12 +239,17 @@ class RedshiftToS3Operator(BaseOperator):
         else:
             redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
             database = redshift_sql_hook.conn.schema
-            authority = redshift_sql_hook.get_openlineage_database_info(redshift_sql_hook.conn).authority
+            authority = redshift_sql_hook.get_openlineage_database_info(
+                redshift_sql_hook.conn
+            ).authority
 
         if self.select_query == self.default_select_query:
             if self.use_redshift_data:
                 input_dataset_facets = get_facets_from_redshift_table(
-                    redshift_data_hook, self.table, self.redshift_data_api_kwargs, self.schema
+                    redshift_data_hook,
+                    self.table,
+                    self.redshift_data_api_kwargs,
+                    self.schema,
                 )
             else:
                 input_dataset_facets = get_facets_from_redshift_table(
@@ -241,7 +258,9 @@ class RedshiftToS3Operator(BaseOperator):
 
             input_dataset = Dataset(
                 namespace=f"redshift://{authority}",
-                name=f"{database}.{self.schema}.{self.table}" if database else f"{self.schema}.{self.table}",
+                name=f"{database}.{self.schema}.{self.table}"
+                if database
+                else f"{self.schema}.{self.table}",
                 facets=input_dataset_facets,
             )
 
@@ -249,7 +268,9 @@ class RedshiftToS3Operator(BaseOperator):
             output_dataset.facets = {
                 "schema": input_dataset_facets["schema"],
                 "columnLineage": get_identity_column_lineage_facet(
-                    field_names=[field.name for field in input_dataset_facets["schema"].fields],
+                    field_names=[
+                        field.name for field in input_dataset_facets["schema"].fields
+                    ],
                     input_datasets=[input_dataset],
                 ),
             }
@@ -262,7 +283,9 @@ class RedshiftToS3Operator(BaseOperator):
             return OperatorLineage(outputs=[output_dataset])
 
         run_facets = {}
-        parse_result = SQLParser(dialect="redshift", default_schema=self.schema).parse(self.select_query)
+        parse_result = SQLParser(dialect="redshift", default_schema=self.schema).parse(
+            self.select_query
+        )
         if parse_result.errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=1,
@@ -287,9 +310,13 @@ class RedshiftToS3Operator(BaseOperator):
                     redshift_data_hook, table, self.redshift_data_api_kwargs, schema
                 )
             else:
-                input_dataset_facets = get_facets_from_redshift_table(redshift_sql_hook, table, {}, schema)
+                input_dataset_facets = get_facets_from_redshift_table(
+                    redshift_sql_hook, table, {}, schema
+                )
 
             ds.facets = input_dataset_facets
             input_datasets.append(ds)
 
-        return OperatorLineage(inputs=input_datasets, outputs=[output_dataset], run_facets=run_facets)
+        return OperatorLineage(
+            inputs=input_datasets, outputs=[output_dataset], run_facets=run_facets
+        )

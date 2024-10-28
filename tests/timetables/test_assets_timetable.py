@@ -48,7 +48,9 @@ class MockTimetable(Timetable):
         self._now = DateTime.now()
 
     def next_dagrun_info(
-        self, last_automated_data_interval: DataInterval | None, restriction: TimeRestriction
+        self,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         """
         Calculates the next DagRun information based on the provided interval and restrictions.
@@ -109,7 +111,9 @@ def test_assets() -> list[Asset]:
 
 
 @pytest.fixture
-def asset_timetable(test_timetable: MockTimetable, test_assets: list[Asset]) -> AssetOrTimeSchedule:
+def asset_timetable(
+    test_timetable: MockTimetable, test_assets: list[Asset]
+) -> AssetOrTimeSchedule:
     """
     Pytest fixture for creating an AssetOrTimeSchedule object.
 
@@ -127,7 +131,8 @@ def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
     monkeypatch.setattr(
-        "airflow.serialization.serialized_objects.encode_timetable", lambda x: "mock_serialized_timetable"
+        "airflow.serialization.serialized_objects.encode_timetable",
+        lambda x: "mock_serialized_timetable",
     )
     serialized = asset_timetable.serialize()
     assert serialized == {
@@ -146,7 +151,8 @@ def test_deserialization(monkeypatch: Any) -> None:
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
     monkeypatch.setattr(
-        "airflow.serialization.serialized_objects.decode_timetable", lambda x: MockTimetable()
+        "airflow.serialization.serialized_objects.decode_timetable",
+        lambda x: MockTimetable(),
     )
     mock_serialized_data = {
         "timetable": "mock_serialized_timetable",
@@ -191,7 +197,10 @@ def test_generate_run_id(asset_timetable: AssetOrTimeSchedule) -> None:
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
     run_id = asset_timetable.generate_run_id(
-        run_type=DagRunType.MANUAL, extra_args="test", logical_date=DateTime.now(), data_interval=None
+        run_type=DagRunType.MANUAL,
+        extra_args="test",
+        logical_date=DateTime.now(),
+        data_interval=None,
     )
     assert isinstance(run_id, str)
 
@@ -232,7 +241,9 @@ def test_data_interval_for_events(
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     :param asset_events: A list of mock AssetEvent instances.
     """
-    data_interval = asset_timetable.data_interval_for_events(logical_date=DateTime.now(), events=asset_events)
+    data_interval = asset_timetable.data_interval_for_events(
+        logical_date=DateTime.now(), events=asset_events
+    )
     assert data_interval.start == min(
         event.timestamp for event in asset_events
     ), "Data interval start does not match"
@@ -251,7 +262,9 @@ def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
         asset_timetable, "run_ordering"
     ), "AssetOrTimeSchedule should have 'run_ordering' attribute"
     parent_run_ordering = getattr(AssetTriggeredTimetable, "run_ordering", None)
-    assert asset_timetable.run_ordering == parent_run_ordering, "run_ordering does not match the parent class"
+    assert (
+        asset_timetable.run_ordering == parent_run_ordering
+    ), "run_ordering does not match the parent class"
 
 
 @pytest.mark.db_test

@@ -46,7 +46,10 @@ def _filepath_to_module(filepath: str):
 
 
 def _filepath_to_system_tests(filepath: str):
-    return str(SYSTEM_TESTS_PROVIDERS_ROOT / Path(filepath).relative_to(AIRFLOW_PROVIDERS_NS_PACKAGE))
+    return str(
+        SYSTEM_TESTS_PROVIDERS_ROOT
+        / Path(filepath).relative_to(AIRFLOW_PROVIDERS_NS_PACKAGE)
+    )
 
 
 def get_provider_yaml_paths():
@@ -62,7 +65,9 @@ def pretty_format_path(path: str, start: str) -> str:
     return f"{start}/{relpath}"
 
 
-def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
+def prepare_code_snippet(
+    file_path: str, line_no: int, context_lines_count: int = 5
+) -> str:
     """
     Prepare code snippet with line numbers and  a specific line marked.
 

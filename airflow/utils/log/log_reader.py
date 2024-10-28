@@ -65,7 +65,9 @@ class TaskLogReader:
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
+    def read_log_stream(
+        self, ti: TaskInstance, try_number: int | None, metadata: dict
+    ) -> Iterator[str]:
         """
         Continuously read log to the end.
 
@@ -89,7 +91,8 @@ class TaskLogReader:
                     yield "\n".join([host or "", log]) + "\n"
                 if "end_of_log" not in metadata or (
                     not metadata["end_of_log"]
-                    and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+                    and ti.state
+                    not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
                 ):
                     if not logs[0]:
                         # we did not receive any logs in this loop

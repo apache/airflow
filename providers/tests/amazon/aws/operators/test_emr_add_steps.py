@@ -36,7 +36,10 @@ from providers.tests.amazon.aws.utils.test_template_fields import validate_templ
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
-ADD_STEPS_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "StepIds": ["s-2LH3R5GW3A53T"]}
+ADD_STEPS_SUCCESS_RETURN = {
+    "ResponseMetadata": {"HTTPStatusCode": 200},
+    "StepIds": ["s-2LH3R5GW3A53T"],
+}
 
 TEMPLATE_SEARCHPATH = Path(__file__).parents[1].joinpath("config_templates").as_posix()
 
@@ -55,7 +58,11 @@ class TestEmrAddStepsOperator:
             "ActionOnFailure": "CONTINUE",
             "HadoopJarStep": {
                 "Jar": "command-runner.jar",
-                "Args": ["/usr/lib/spark/bin/run-example", "{{ macros.ds_add(ds, -1) }}", "{{ ds }}"],
+                "Args": [
+                    "/usr/lib/spark/bin/run-example",
+                    "{{ macros.ds_add(ds, -1) }}",
+                    "{{ ds }}",
+                ],
             },
         }
     ]
@@ -128,7 +135,9 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_and_dagruns
+    ):
         dag = DAG(
             dag_id="test_file",
             schedule=None,
@@ -141,7 +150,10 @@ class TestEmrAddStepsOperator:
             {
                 "Name": "test_step1",
                 "ActionOnFailure": "CONTINUE",
-                "HadoopJarStep": {"Jar": "command-runner.jar", "Args": ["/usr/lib/spark/bin/run-example1"]},
+                "HadoopJarStep": {
+                    "Jar": "command-runner.jar",
+                    "Args": ["/usr/lib/spark/bin/run-example1"],
+                },
             }
         ]
 
@@ -156,7 +168,10 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=timezone.utcnow(), run_id="test", run_type=DagRunType.MANUAL
+            dag_id=dag.dag_id,
+            execution_date=timezone.utcnow(),
+            run_id="test",
+            run_type=DagRunType.MANUAL,
         )
         ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run
@@ -198,7 +213,9 @@ class TestEmrAddStepsOperator:
             operator.execute(mock_context)
 
         mocked_ti = mock_context["ti"]
-        mocked_ti.assert_has_calls(calls=[call.xcom_push(key="job_flow_id", value=expected_job_flow_id)])
+        mocked_ti.assert_has_calls(
+            calls=[call.xcom_push(key="job_flow_id", value=expected_job_flow_id)]
+        )
 
     def test_init_with_nonexistent_cluster_name(self):
         cluster_name = "test_cluster"
@@ -211,7 +228,8 @@ class TestEmrAddStepsOperator:
         )
 
         with patch(
-            "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name", return_value=None
+            "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name",
+            return_value=None,
         ):
             error_match = rf"No cluster found for name: {cluster_name}"
             with pytest.raises(AirflowException, match=error_match):
@@ -272,7 +290,9 @@ class TestEmrAddStepsOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(MagicMock())
 
-        assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"
+        assert isinstance(
+            exc.value.trigger, EmrAddStepsTrigger
+        ), "Trigger is not a EmrAddStepsTrigger"
 
     def test_template_fields(self):
         op = EmrAddStepsOperator(

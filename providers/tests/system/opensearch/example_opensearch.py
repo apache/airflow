@@ -67,7 +67,11 @@ def load_connections():
 
     db.merge_conn(
         Connection(
-            conn_id="opensearch_test", conn_type="opensearch", host="127.0.0.1", login="test", password="test"
+            conn_id="opensearch_test",
+            conn_type="opensearch",
+            host="127.0.0.1",
+            login="test",
+            password="test",
         )
     )
 
@@ -111,12 +115,22 @@ with DAG(
     )
     search = Search()
     search._index = [INDEX_NAME]
-    search_object = search.filter("term", logger="airflow").query("match", message="hello airflow")
+    search_object = search.filter("term", logger="airflow").query(
+        "match", message="hello airflow"
+    )
 
-    search_high_level = OpenSearchQueryOperator(task_id="high_level_query", search_object=search_object)
+    search_high_level = OpenSearchQueryOperator(
+        task_id="high_level_query", search_object=search_object
+    )
     # [END howto_operator_opensearch_query]
 
-    chain(create_index, add_document_by_class, add_document_by_args, search_high_level, search_low_level)
+    chain(
+        create_index,
+        add_document_by_class,
+        add_document_by_args,
+        search_high_level,
+        search_low_level,
+    )
 
     from tests_common.test_utils.watcher import watcher
 

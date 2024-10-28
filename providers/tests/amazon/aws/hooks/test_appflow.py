@@ -35,7 +35,9 @@ AWS_CONN_ID = "aws_default"
 
 @pytest.fixture
 def hook():
-    with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn") as mock_conn:
+    with mock.patch(
+        "airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn"
+    ) as mock_conn:
         mock_conn.describe_flow.return_value = {
             "sourceFlowConfig": {"connectorType": CONNECTION_TYPE},
             "tasks": [],
@@ -68,7 +70,9 @@ def test_conn_attributes(hook):
 
 
 def test_run_flow(hook):
-    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+    with mock.patch(
+        "airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"
+    ):
         hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
     hook.conn.describe_flow_execution_records.assert_called_with(flowName=FLOW_NAME)
     assert hook.conn.describe_flow_execution_records.call_count == 1
@@ -84,7 +88,9 @@ def test_update_flow_filter(hook):
             "taskProperties": {"DATA_TYPE": "datetime", "VALUE": "1653523200000"},
         }
     ]
-    hook.update_flow_filter(flow_name=FLOW_NAME, filter_tasks=tasks, set_trigger_ondemand=True)
+    hook.update_flow_filter(
+        flow_name=FLOW_NAME, filter_tasks=tasks, set_trigger_ondemand=True
+    )
     hook.conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
     assert hook.conn.describe_flow.call_count == 1
     hook.conn.update_flow.assert_called_once_with(

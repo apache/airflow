@@ -40,7 +40,10 @@ class TestDagWarning:
         Test that the purge_inactive_dag_warnings method deletes inactive dag warnings
         """
 
-        dags = [DagModel(dag_id="dag_1", is_active=False), DagModel(dag_id="dag_2", is_active=True)]
+        dags = [
+            DagModel(dag_id="dag_1", is_active=False),
+            DagModel(dag_id="dag_2", is_active=True),
+        ]
         session.add_all(dags)
         session.commit()
 
@@ -65,7 +68,10 @@ class TestDagWarning:
         """
         self.session_mock = MagicMock()
 
-        self.session_mock.execute.side_effect = [OperationalError(None, None, "database timeout"), None]
+        self.session_mock.execute.side_effect = [
+            OperationalError(None, None, "database timeout"),
+            None,
+        ]
 
         DagWarning.purge_inactive_dag_warnings(self.session_mock)
 

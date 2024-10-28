@@ -83,7 +83,9 @@ class TestOpsgenieCreateAlertOperator:
 
     def test_build_opsgenie_payload(self):
         # Given / When
-        operator = OpsgenieCreateAlertOperator(task_id="opsgenie_alert_job", dag=self.dag, **self._config)
+        operator = OpsgenieCreateAlertOperator(
+            task_id="opsgenie_alert_job", dag=self.dag, **self._config
+        )
 
         payload = operator._build_opsgenie_payload()
 
@@ -92,7 +94,9 @@ class TestOpsgenieCreateAlertOperator:
 
     def test_properties(self):
         # Given / When
-        operator = OpsgenieCreateAlertOperator(task_id="opsgenie_alert_job", dag=self.dag, **self._config)
+        operator = OpsgenieCreateAlertOperator(
+            task_id="opsgenie_alert_job", dag=self.dag, **self._config
+        )
 
         assert "opsgenie_default" == operator.opsgenie_conn_id
         assert self._config["message"] == operator.message
@@ -125,7 +129,10 @@ class TestOpsgenieCloseAlertOperator:
     def test_build_opsgenie_payload(self):
         # Given / When
         operator = OpsgenieCloseAlertOperator(
-            task_id="opsgenie_close_alert_job", identifier="id", dag=self.dag, **self._config
+            task_id="opsgenie_close_alert_job",
+            identifier="id",
+            dag=self.dag,
+            **self._config,
         )
 
         payload = operator._build_opsgenie_close_alert_payload()
@@ -135,7 +142,10 @@ class TestOpsgenieCloseAlertOperator:
 
     def test_properties(self):
         operator = OpsgenieCloseAlertOperator(
-            task_id="opsgenie_test_properties_job", identifier="id", dag=self.dag, **self._config
+            task_id="opsgenie_test_properties_job",
+            identifier="id",
+            dag=self.dag,
+            **self._config,
         )
 
         assert "opsgenie_default" == operator.opsgenie_conn_id

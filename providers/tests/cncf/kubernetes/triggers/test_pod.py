@@ -28,7 +28,10 @@ import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
 
-from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.triggers.pod import (
+    ContainerState,
+    KubernetesPodTrigger,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
 
@@ -172,7 +175,9 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_run_loop_return_failed_event(self, mock_hook, mock_method, mock_wait_pod, trigger):
+    async def test_run_loop_return_failed_event(
+        self, mock_hook, mock_method, mock_wait_pod, trigger
+    ):
         mock_hook.get_pod.return_value = self._mock_pod_result(
             mock.MagicMock(
                 status=mock.MagicMock(
@@ -212,7 +217,12 @@ class TestKubernetesPodTrigger:
         actual_stack_trace = actual.payload.pop("stack_trace")
         assert (
             TriggerEvent(
-                {"name": POD_NAME, "namespace": NAMESPACE, "status": "error", "message": "Test exception"}
+                {
+                    "name": POD_NAME,
+                    "namespace": NAMESPACE,
+                    "status": "error",
+                    "message": "Test exception",
+                }
             )
             == actual
         )
@@ -254,9 +264,16 @@ class TestKubernetesPodTrigger:
     )
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
-    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod"
+    )
     async def test_running_log_interval(
-        self, mock_get_pod, mock_wait_pod, define_container_state, logging_interval, exp_event
+        self,
+        mock_get_pod,
+        mock_wait_pod,
+        define_container_state,
+        logging_interval,
+        exp_event,
     ):
         """
         If log interval given, should emit event with running status and last log time.
@@ -284,15 +301,27 @@ class TestKubernetesPodTrigger:
         "container_state, expected_state",
         [
             (
-                {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},
+                {
+                    "running": k8s.V1ContainerStateRunning(),
+                    "terminated": None,
+                    "waiting": None,
+                },
                 ContainerState.RUNNING,
             ),
             (
-                {"running": None, "terminated": k8s.V1ContainerStateTerminated(exit_code=0), "waiting": None},
+                {
+                    "running": None,
+                    "terminated": k8s.V1ContainerStateTerminated(exit_code=0),
+                    "waiting": None,
+                },
                 ContainerState.TERMINATED,
             ),
             (
-                {"running": None, "terminated": None, "waiting": k8s.V1ContainerStateWaiting()},
+                {
+                    "running": None,
+                    "terminated": None,
+                    "waiting": k8s.V1ContainerStateWaiting(),
+                },
                 ContainerState.WAITING,
             ),
         ],
@@ -319,7 +348,9 @@ class TestKubernetesPodTrigger:
         assert expected_state == trigger.define_container_state(pod)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("container_state", [ContainerState.WAITING, ContainerState.UNDEFINED])
+    @pytest.mark.parametrize(
+        "container_state", [ContainerState.WAITING, ContainerState.UNDEFINED]
+    )
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_return_timeout_event(

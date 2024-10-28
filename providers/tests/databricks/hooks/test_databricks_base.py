@@ -29,5 +29,7 @@ class TestBaseDatabricksHook:
         """
         Tests handling incorrect parameters passed to ``__init__``
         """
-        with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
+        with pytest.raises(
+            ValueError, match="Retry limit must be greater than or equal to 1"
+        ):
             BaseDatabricksHook(databricks_conn_id=DEFAULT_CONN_ID, retry_limit=0)

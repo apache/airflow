@@ -63,5 +63,7 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
             return render_template_to_string(self.prefix_jinja_template, jinja_context)
-        logger.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
+        logger.warning(
+            "'task_log_prefix_template' is in invalid format, ignoring the variable value"
+        )
         return ""

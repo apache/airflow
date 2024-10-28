@@ -27,7 +27,9 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
+from airflow.providers.google.marketing_platform.hooks.analytics import (
+    GoogleAnalyticsHook,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -99,12 +99,16 @@ class TestOpsgenieAlertHook:
         )
 
         hook = OpsgenieAlertHook(conn_id)
-        assert "https://app.eu.opsgenie.com" == hook.get_conn().api_client.configuration.host
+        assert (
+            "https://app.eu.opsgenie.com" == hook.get_conn().api_client.configuration.host
+        )
 
     def test_verify_api_key_set(self):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         assert (
-            hook.alert_api_instance.api_client.configuration.api_key.get("Authorization", None)
+            hook.alert_api_instance.api_client.configuration.api_key.get(
+                "Authorization", None
+            )
             == "eb243592-faa2-4ba2-a551q-1afdf565c889"
         )
 
@@ -117,7 +121,9 @@ class TestOpsgenieAlertHook:
     def test_create_alert_create_alert_payload(self, create_alert_mock):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         hook.create_alert(payload=self._create_alert_payload)
-        create_alert_mock.assert_called_once_with(CreateAlertPayload(**self._create_alert_payload))
+        create_alert_mock.assert_called_once_with(
+            CreateAlertPayload(**self._create_alert_payload)
+        )
 
     @mock.patch.object(AlertApi, "close_alert")
     def test_close_alert(self, close_alert_mock):
@@ -131,7 +137,12 @@ class TestOpsgenieAlertHook:
         kwargs = {"async_req": True}
 
         # Then
-        hook.close_alert(identifier=identifier, identifier_type=identifier_type, payload=pay_load, **kwargs)
+        hook.close_alert(
+            identifier=identifier,
+            identifier_type=identifier_type,
+            payload=pay_load,
+            **kwargs,
+        )
         close_alert_mock.assert_called_once_with(
             identifier=identifier,
             identifier_type=identifier_type,
@@ -150,7 +161,15 @@ class TestOpsgenieAlertHook:
         source = "airflow"
 
         # Then
-        hook.delete_alert(identifier=identifier, identifier_type=identifier_type, user=user, source=source)
+        hook.delete_alert(
+            identifier=identifier,
+            identifier_type=identifier_type,
+            user=user,
+            source=source,
+        )
         delete_alert_mock.assert_called_once_with(
-            identifier=identifier, identifier_type=identifier_type, user=user, source=source
+            identifier=identifier,
+            identifier_type=identifier_type,
+            user=user,
+            source=source,
         )

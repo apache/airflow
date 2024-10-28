@@ -137,7 +137,9 @@ with DAG(
         },
     }
 
-    notebook_task = DatabricksSubmitRunOperator(task_id="notebook_task", json=notebook_task_params)
+    notebook_task = DatabricksSubmitRunOperator(
+        task_id="notebook_task", json=notebook_task_params
+    )
     # [END howto_operator_databricks_json]
 
     # [START howto_operator_databricks_named]

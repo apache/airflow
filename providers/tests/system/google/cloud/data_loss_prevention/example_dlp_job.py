@@ -41,15 +41,22 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_job"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 JOB_ID = f"dlp_job_{ENV_ID}"
 
-INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
+INSPECT_CONFIG = InspectConfig(
+    info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}]
+)
 INSPECT_JOB = InspectJobConfig(
     inspect_config=INSPECT_CONFIG,
     storage_config={
-        "datastore_options": {"partition_id": {"project_id": PROJECT_ID}, "kind": {"name": "test"}}
+        "datastore_options": {
+            "partition_id": {"project_id": PROJECT_ID},
+            "kind": {"name": "test"},
+        }
     },
 )
 
@@ -62,7 +69,10 @@ with DAG(
     tags=["dlp", "example"],
 ) as dag:
     create_job = CloudDLPCreateDLPJobOperator(
-        task_id="create_job", project_id=PROJECT_ID, inspect_job=INSPECT_JOB, job_id=JOB_ID
+        task_id="create_job",
+        project_id=PROJECT_ID,
+        inspect_job=INSPECT_JOB,
+        job_id=JOB_ID,
     )
 
     list_jobs = CloudDLPListDLPJobsOperator(

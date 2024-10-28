@@ -96,7 +96,10 @@ class TestKubernetesXResourceOperator:
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.create_namespaced_persistent_volume_claim")
     def test_create_application_from_yaml(
-        self, mock_create_namespaced_persistent_volume_claim, mock_load_kube_config, context
+        self,
+        mock_create_namespaced_persistent_volume_claim,
+        mock_load_kube_config,
+        context,
     ):
         op = KubernetesCreateResourceOperator(
             yaml_conf=TEST_VALID_RESOURCE_YAML,
@@ -113,7 +116,9 @@ class TestKubernetesXResourceOperator:
         )
 
     @patch("kubernetes.client.api.CoreV1Api.create_namespaced_persistent_volume_claim")
-    def test_create_application_from_yaml_list(self, mock_create_namespaced_persistent_volume_claim, context):
+    def test_create_application_from_yaml_list(
+        self, mock_create_namespaced_persistent_volume_claim, context
+    ):
         op = KubernetesCreateResourceOperator(
             yaml_conf=TEST_VALID_LIST_RESOURCE_YAML,
             dag=self.dag,
@@ -128,7 +133,10 @@ class TestKubernetesXResourceOperator:
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.delete_namespaced_persistent_volume_claim")
     def test_single_delete_application_from_yaml(
-        self, mock_delete_namespaced_persistent_volume_claim, mock_load_kube_config, context
+        self,
+        mock_delete_namespaced_persistent_volume_claim,
+        mock_load_kube_config,
+        context,
     ):
         op = KubernetesDeleteResourceOperator(
             yaml_conf=TEST_VALID_RESOURCE_YAML,
@@ -145,7 +153,10 @@ class TestKubernetesXResourceOperator:
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.delete_namespaced_persistent_volume_claim")
     def test_multi_delete_application_from_yaml(
-        self, mock_delete_namespaced_persistent_volume_claim, mock_load_kube_config, context
+        self,
+        mock_delete_namespaced_persistent_volume_claim,
+        mock_load_kube_config,
+        context,
     ):
         op = KubernetesDeleteResourceOperator(
             yaml_conf=TEST_VALID_LIST_RESOURCE_YAML,
@@ -160,7 +171,9 @@ class TestKubernetesXResourceOperator:
         mock_delete_namespaced_persistent_volume_claim.assert_called()
 
     @patch("kubernetes.client.api.CustomObjectsApi.create_namespaced_custom_object")
-    def test_create_custom_application_from_yaml(self, mock_create_namespaced_custom_object, context):
+    def test_create_custom_application_from_yaml(
+        self, mock_create_namespaced_custom_object, context
+    ):
         op = KubernetesCreateResourceOperator(
             yaml_conf=TEST_VALID_CRD_YAML,
             dag=self.dag,
@@ -180,7 +193,9 @@ class TestKubernetesXResourceOperator:
         )
 
     @patch("kubernetes.client.api.CustomObjectsApi.delete_namespaced_custom_object")
-    def test_delete_custom_application_from_yaml(self, mock_delete_namespaced_custom_object, context):
+    def test_delete_custom_application_from_yaml(
+        self, mock_delete_namespaced_custom_object, context
+    ):
         op = KubernetesDeleteResourceOperator(
             yaml_conf=TEST_VALID_CRD_YAML,
             dag=self.dag,
@@ -200,7 +215,9 @@ class TestKubernetesXResourceOperator:
         )
 
     @patch("kubernetes.client.api.CustomObjectsApi.create_cluster_custom_object")
-    def test_create_not_namespaced_custom_app_from_yaml(self, mock_create_cluster_custom_object, context):
+    def test_create_not_namespaced_custom_app_from_yaml(
+        self, mock_create_cluster_custom_object, context
+    ):
         op = KubernetesCreateResourceOperator(
             yaml_conf=TEST_NOT_NAMESPACED_CRD_YAML,
             dag=self.dag,
@@ -220,7 +237,9 @@ class TestKubernetesXResourceOperator:
         )
 
     @patch("kubernetes.client.api.CustomObjectsApi.delete_cluster_custom_object")
-    def test_delete_not_namespaced_custom_app_from_yaml(self, mock_delete_cluster_custom_object, context):
+    def test_delete_not_namespaced_custom_app_from_yaml(
+        self, mock_delete_cluster_custom_object, context
+    ):
         op = KubernetesDeleteResourceOperator(
             yaml_conf=TEST_NOT_NAMESPACED_CRD_YAML,
             dag=self.dag,
@@ -241,7 +260,9 @@ class TestKubernetesXResourceOperator:
 
     @patch("kubernetes.config.load_kube_config")
     @patch("airflow.providers.cncf.kubernetes.operators.resource.create_from_yaml")
-    def test_create_objects_retries_on_500_error(self, mock_create_from_yaml, mock_load_kube_config, context):
+    def test_create_objects_retries_on_500_error(
+        self, mock_create_from_yaml, mock_load_kube_config, context
+    ):
         mock_create_from_yaml.side_effect = [
             ApiException(status=500),
             MagicMock(),
@@ -277,7 +298,9 @@ class TestKubernetesXResourceOperator:
 
     @patch("kubernetes.config.load_kube_config")
     @patch("airflow.providers.cncf.kubernetes.operators.resource.create_from_yaml")
-    def test_create_objects_retries_three_times(self, mock_create_from_yaml, mock_load_kube_config, context):
+    def test_create_objects_retries_three_times(
+        self, mock_create_from_yaml, mock_load_kube_config, context
+    ):
         mock_create_from_yaml.side_effect = [
             ApiException(status=500),
             ApiException(status=500),

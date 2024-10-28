@@ -38,14 +38,18 @@ class TestOperatorHelpers:
             "dag_run": mock.MagicMock(
                 name="dag_run",
                 run_id=self.dag_run_id,
-                execution_date=datetime.strptime(self.execution_date, "%Y-%m-%dT%H:%M:%S"),
+                execution_date=datetime.strptime(
+                    self.execution_date, "%Y-%m-%dT%H:%M:%S"
+                ),
             ),
             "task_instance": mock.MagicMock(
                 name="task_instance",
                 task_id=self.task_id,
                 dag_id=self.dag_id,
                 try_number=self.try_number,
-                execution_date=datetime.strptime(self.execution_date, "%Y-%m-%dT%H:%M:%S"),
+                execution_date=datetime.strptime(
+                    self.execution_date, "%Y-%m-%dT%H:%M:%S"
+                ),
             ),
             "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
         }
@@ -64,7 +68,9 @@ class TestOperatorHelpers:
             "airflow.ctx.dag_email": "email1@test.com",
         }
 
-        assert operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True) == {
+        assert operator_helpers.context_to_airflow_vars(
+            self.context, in_env_var_format=True
+        ) == {
             "AIRFLOW_CTX_DAG_ID": self.dag_id,
             "AIRFLOW_CTX_EXECUTION_DATE": self.execution_date,
             "AIRFLOW_CTX_TASK_ID": self.task_id,
@@ -82,14 +88,19 @@ class TestOperatorHelpers:
             context_vars = operator_helpers.context_to_airflow_vars(self.context)
             assert context_vars["airflow.ctx.airflow_cluster"] == airflow_cluster
 
-            context_vars = operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True)
+            context_vars = operator_helpers.context_to_airflow_vars(
+                self.context, in_env_var_format=True
+            )
             assert context_vars["AIRFLOW_CTX_AIRFLOW_CLUSTER"] == airflow_cluster
 
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {"airflow_cluster": [1, 2]}
             with pytest.raises(TypeError) as error:
                 operator_helpers.context_to_airflow_vars(self.context)
-            assert "value of key <airflow_cluster> must be string, not <class 'list'>" == str(error.value)
+            assert (
+                "value of key <airflow_cluster> must be string, not <class 'list'>"
+                == str(error.value)
+            )
 
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {1: "value"}

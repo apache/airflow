@@ -37,7 +37,9 @@ with DAG(
         task_id="run_this_last",
     )
 
-    yq_operator = YQExecuteQueryOperator(task_id="sample_query", sql="select 33 as d, 44 as t")
+    yq_operator = YQExecuteQueryOperator(
+        task_id="sample_query", sql="select 33 as d, 44 as t"
+    )
     yq_operator >> run_this_last
 
     from tests_common.test_utils.watcher import watcher

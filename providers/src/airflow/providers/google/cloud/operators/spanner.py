@@ -23,7 +23,10 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
-from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
+from airflow.providers.google.cloud.links.spanner import (
+    SpannerDatabaseLink,
+    SpannerInstanceLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -99,14 +102,18 @@ class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'instance_id' is empty or None"
+            )
 
     def execute(self, context: Context) -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        if not hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
+        if not hook.get_instance(
+            project_id=self.project_id, instance_id=self.instance_id
+        ):
             self.log.info("Creating Cloud Spanner instance '%s'", self.instance_id)
             func = hook.create_instance
         else:
@@ -178,7 +185,9 @@ class SpannerDeleteInstanceOperator(GoogleCloudBaseOperator):
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'instance_id' is empty or None"
+            )
 
     def execute(self, context: Context) -> bool | None:
         hook = SpannerHook(
@@ -186,7 +195,9 @@ class SpannerDeleteInstanceOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
-            return hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
+            return hook.delete_instance(
+                project_id=self.project_id, instance_id=self.instance_id
+            )
         else:
             self.log.info(
                 "Instance '%s' does not exist in project '%s'. Aborting delete.",
@@ -259,9 +270,13 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'instance_id' is empty or None"
+            )
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'database_id' is empty or None"
+            )
         if not self.query:
             raise AirflowException("The required parameter 'query' is empty")
 
@@ -369,9 +384,13 @@ class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'instance_id' is empty or None"
+            )
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'database_id' is empty or None"
+            )
 
     def execute(self, context: Context) -> bool | None:
         hook = SpannerHook(
@@ -386,7 +405,9 @@ class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
             project_id=self.project_id or hook.project_id,
         )
         if not hook.get_database(
-            project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
         ):
             self.log.info(
                 "Creating Cloud Spanner database '%s' in project '%s' and instance '%s'",
@@ -477,11 +498,17 @@ class SpannerUpdateDatabaseInstanceOperator(GoogleCloudBaseOperator):
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'instance_id' is empty or None"
+            )
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'database_id' is empty or None"
+            )
         if not self.ddl_statements:
-            raise AirflowException("The required parameter 'ddl_statements' is empty or None")
+            raise AirflowException(
+                "The required parameter 'ddl_statements' is empty or None"
+            )
 
     def execute(self, context: Context) -> None:
         hook = SpannerHook(
@@ -489,7 +516,9 @@ class SpannerUpdateDatabaseInstanceOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not hook.get_database(
-            project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
         ):
             raise AirflowException(
                 f"The Cloud Spanner database '{self.database_id}' in project '{self.project_id}' "
@@ -568,9 +597,13 @@ class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance_id:
-            raise AirflowException("The required parameter 'instance_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'instance_id' is empty or None"
+            )
         if not self.database_id:
-            raise AirflowException("The required parameter 'database_id' is empty or None")
+            raise AirflowException(
+                "The required parameter 'database_id' is empty or None"
+            )
 
     def execute(self, context: Context) -> bool:
         hook = SpannerHook(
@@ -578,7 +611,9 @@ class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         database = hook.get_database(
-            project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
         )
         if not database:
             self.log.info(
@@ -591,5 +626,7 @@ class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
             return True
         else:
             return hook.delete_database(
-                project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
+                project_id=self.project_id,
+                instance_id=self.instance_id,
+                database_id=self.database_id,
             )

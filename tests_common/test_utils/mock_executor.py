@@ -102,7 +102,9 @@ class MockExecutor(BaseExecutor):
         try_number)`` is run by this executor its state will be FAILED.
         """
         assert isinstance(run_id, str)
-        self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = (
+            State.FAILED
+        )
 
     def get_mock_loader_side_effect(self):
         return lambda *x: {

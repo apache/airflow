@@ -125,12 +125,16 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
-        bulk_report = service.bulk_facebook_report(params=self.parameters, fields=self.fields)
+        bulk_report = service.bulk_facebook_report(
+            params=self.parameters, fields=self.fields
+        )
 
         if isinstance(bulk_report, list):
             converted_rows_with_action = self._generate_rows_with_action(False)
             converted_rows_with_action = self._prepare_rows_for_upload(
-                rows=bulk_report, converted_rows_with_action=converted_rows_with_action, account_id=None
+                rows=bulk_report,
+                converted_rows_with_action=converted_rows_with_action,
+                account_id=None,
             )
         elif isinstance(bulk_report, dict):
             converted_rows_with_action = self._generate_rows_with_action(True)
@@ -150,7 +154,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 f"List or Dict. Actual return type of the Hook: {type(bulk_report)}"
             )
             raise AirflowException(message)
-        total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)
+        total_row_count = self._decide_and_flush(
+            converted_rows_with_action=converted_rows_with_action
+        )
         self.log.info("Facebook Returned %s data points in total: ", total_row_count)
 
     def _generate_rows_with_action(self, type_check: bool):
@@ -171,7 +177,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 {"account_id": account_id, "converted_rows": converted_rows}
             )
             self.log.info(
-                "Facebook Returned %s data points for account_id: %s", len(converted_rows), account_id
+                "Facebook Returned %s data points for account_id: %s",
+                len(converted_rows),
+                account_id,
             )
         else:
             converted_rows_with_action[FlushAction.EXPORT_ONCE].extend(converted_rows)
@@ -188,7 +196,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             )
             total_data_count += len(once_action)
         else:
-            every_account_action = converted_rows_with_action.get(FlushAction.EXPORT_EVERY_ACCOUNT)
+            every_account_action = converted_rows_with_action.get(
+                FlushAction.EXPORT_EVERY_ACCOUNT
+            )
             if every_account_action:
                 for converted_rows in every_account_action:
                     self._flush_rows(

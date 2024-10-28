@@ -94,7 +94,12 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query: Query object to be passed to request body.
         """
-        response = self.get_conn().queries().create(body=query).execute(num_retries=self.num_retries)
+        response = (
+            self.get_conn()
+            .queries()
+            .create(body=query)
+            .execute(num_retries=self.num_retries)
+        )
         return response
 
     def delete_query(self, query_id: str) -> None:
@@ -103,7 +108,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query_id: Query ID to delete.
         """
-        self.get_conn().queries().delete(queryId=query_id).execute(num_retries=self.num_retries)
+        self.get_conn().queries().delete(queryId=query_id).execute(
+            num_retries=self.num_retries
+        )
 
     def get_query(self, query_id: str) -> dict:
         """
@@ -111,7 +118,12 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query_id: Query ID to retrieve.
         """
-        response = self.get_conn().queries().get(queryId=query_id).execute(num_retries=self.num_retries)
+        response = (
+            self.get_conn()
+            .queries()
+            .get(queryId=query_id)
+            .execute(num_retries=self.num_retries)
+        )
         return response
 
     def list_queries(self) -> list[dict]:
@@ -127,7 +139,10 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param params: Parameters for the report.
         """
         return (
-            self.get_conn().queries().run(queryId=query_id, body=params).execute(num_retries=self.num_retries)
+            self.get_conn()
+            .queries()
+            .run(queryId=query_id, body=params)
+            .execute(num_retries=self.num_retries)
         )
 
     def get_report(self, query_id: str, report_id: str) -> dict:
@@ -182,7 +197,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         )
         return response["lineItems"]
 
-    def create_sdf_download_operation(self, body_request: dict[str, Any]) -> dict[str, Any]:
+    def create_sdf_download_operation(
+        self, body_request: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Create an SDF Download Task and Returns an Operation.
 
@@ -220,5 +237,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param resource_name: of the media that is being downloaded.
         """
-        request = self.get_conn_to_display_video().media().download_media(resourceName=resource_name)
+        request = (
+            self.get_conn_to_display_video()
+            .media()
+            .download_media(resourceName=resource_name)
+        )
         return request

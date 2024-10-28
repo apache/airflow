@@ -43,7 +43,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_deidentify_content"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 CRYPTO_KEY_NAME = f"{DAG_ID}_{ENV_ID}"
 
 ITEM = ContentItem(
@@ -52,7 +54,9 @@ ITEM = ContentItem(
         "rows": [{"values": [{"string_value": "My phone number is (206) 555-0123"}]}],
     }
 )
-INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
+INSPECT_CONFIG = InspectConfig(
+    info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}]
+)
 
 # [START dlp_deidentify_config_example]
 DEIDENTIFY_CONFIG = {
@@ -60,7 +64,9 @@ DEIDENTIFY_CONFIG = {
         "transformations": [
             {
                 "primitive_transformation": {
-                    "replace_config": {"new_value": {"string_value": "[deidentified_number]"}}
+                    "replace_config": {
+                        "new_value": {"string_value": "[deidentified_number]"}
+                    }
                 }
             }
         ]
@@ -106,7 +112,9 @@ with DAG(
     reidentify_content = CloudDLPReidentifyContentOperator(
         task_id="reidentify_content",
         project_id=PROJECT_ID,
-        item=ContentItem(value="{{ task_instance.xcom_pull('deidentify_content')['item'] }}"),
+        item=ContentItem(
+            value="{{ task_instance.xcom_pull('deidentify_content')['item'] }}"
+        ),
         reidentify_config=REVERSIBLE_DEIDENTIFY_CONFIG,
         inspect_config=INSPECT_CONFIG,
     )
@@ -118,7 +126,9 @@ with DAG(
         deidentify_template=DEIDENTIFY_TEMPLATE,
     )
 
-    list_templates = CloudDLPListDeidentifyTemplatesOperator(task_id="list_templates", project_id=PROJECT_ID)
+    list_templates = CloudDLPListDeidentifyTemplatesOperator(
+        task_id="list_templates", project_id=PROJECT_ID
+    )
 
     get_template = CloudDLPGetDeidentifyTemplateOperator(
         task_id="get_template", project_id=PROJECT_ID, template_id=TEMPLATE_ID

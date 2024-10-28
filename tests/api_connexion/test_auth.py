@@ -45,7 +45,12 @@ class TestSessionAuth(BaseTestAuth):
 
         try:
             with conf_vars(
-                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.session"}
+                {
+                    (
+                        "api",
+                        "auth_backends",
+                    ): "airflow.providers.fab.auth_manager.api.auth.backend.session"
+                }
             ):
                 init_api_auth(minimal_app_for_api)
                 yield
@@ -54,7 +59,9 @@ class TestSessionAuth(BaseTestAuth):
 
     @patch.object(SimpleAuthManager, "is_logged_in", return_value=True)
     @patch.object(
-        SimpleAuthManager, "get_user", return_value=SimpleAuthManagerUser(username="test", role="admin")
+        SimpleAuthManager,
+        "get_user",
+        return_value=SimpleAuthManagerUser(username="test", role="admin"),
     )
     def test_success(self, *args):
         clear_db_pools()

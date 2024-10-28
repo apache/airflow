@@ -43,7 +43,9 @@ def upgrade():
     with op.batch_alter_table("log") as batch_op:
         batch_op.add_column(sa.Column("try_number", sa.Integer(), nullable=True))
         batch_op.create_index(
-            "idx_log_task_instance", ["dag_id", "task_id", "run_id", "map_index", "try_number"], unique=False
+            "idx_log_task_instance",
+            ["dag_id", "task_id", "run_id", "map_index", "try_number"],
+            unique=False,
         )
 
 

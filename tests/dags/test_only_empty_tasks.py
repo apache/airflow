@@ -52,8 +52,12 @@ with dag:
 
     MyEmptyOperator(task_id="test_task_c", body={"hello": "world"})
 
-    EmptyOperator(task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: None)
+    EmptyOperator(
+        task_id="test_task_on_execute", on_execute_callback=lambda *args, **kwargs: None
+    )
 
-    EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)
+    EmptyOperator(
+        task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None
+    )
 
     EmptyOperator(task_id="test_task_outlets", outlets=[Asset("hello")])

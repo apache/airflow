@@ -19,7 +19,10 @@ from __future__ import annotations
 import pytest
 
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
+from airflow_breeze.utils.run_tests import (
+    convert_parallel_types_to_folders,
+    convert_test_type_to_pytest_args,
+)
 
 
 @pytest.mark.parametrize(
@@ -54,7 +57,12 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
+            [
+                "tests/api",
+                "tests/api_connexion",
+                "tests/api_internal",
+                "tests/api_fastapi",
+            ],
             False,
         ),
         (
@@ -69,7 +77,11 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "Operators",
-            ["tests/operators", "--exclude-virtualenv-operator", "--exclude-external-python-operator"],
+            [
+                "tests/operators",
+                "--exclude-virtualenv-operator",
+                "--exclude-external-python-operator",
+            ],
             False,
         ),
         (
@@ -94,7 +106,11 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "Providers[amazon,google,apache.hive]",
-            ["providers/tests/amazon", "providers/tests/google", "providers/tests/apache/hive"],
+            [
+                "providers/tests/amazon",
+                "providers/tests/google",
+                "providers/tests/apache/hive",
+            ],
             False,
         ),
         (
@@ -234,7 +250,12 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
     [
         (
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
+            [
+                "tests/api",
+                "tests/api_connexion",
+                "tests/api_internal",
+                "tests/api_fastapi",
+            ],
             False,
         ),
         (
@@ -257,7 +278,14 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
         ),
         (
             "Core",
-            ["tests/core", "tests/executors", "tests/jobs", "tests/models", "tests/ti_deps", "tests/utils"],
+            [
+                "tests/core",
+                "tests/executors",
+                "tests/jobs",
+                "tests/models",
+                "tests/ti_deps",
+                "tests/utils",
+            ],
             False,
         ),
         (

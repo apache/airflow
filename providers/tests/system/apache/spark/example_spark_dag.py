@@ -71,7 +71,9 @@ with DAG(
 
     # [START howto_operator_spark_sql]
     spark_sql_job = SparkSqlOperator(
-        sql="SELECT COUNT(1) as cnt FROM temp_table", master="local", task_id="spark_sql_job"
+        sql="SELECT COUNT(1) as cnt FROM temp_table",
+        master="local",
+        task_id="spark_sql_job",
     )
     # [END howto_operator_spark_sql]
 

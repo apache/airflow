@@ -56,11 +56,16 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServiceRunJobOperator,
     CloudDataTransferServiceUpdateJobOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -84,7 +89,9 @@ gcs_to_gcs_transfer_body = {
     SCHEDULE: {
         SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
         SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.now(tz=timezone.utc) + timedelta(seconds=120)).time(),
+        START_TIME_OF_DAY: (
+            datetime.now(tz=timezone.utc) + timedelta(seconds=120)
+        ).time(),
     },
     TRANSFER_SPEC: {
         GCS_DATA_SOURCE: {BUCKET_NAME: BUCKET_NAME_SRC},
@@ -176,11 +183,15 @@ with DAG(
     )
 
     delete_bucket_dst = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME_DST,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

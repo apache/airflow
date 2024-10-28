@@ -112,7 +112,9 @@ class HiveToDruidOperator(BaseOperator):
         self.log.info("Extracting data from Hive")
         hive_table = "druid." + context["task_instance_key_str"].replace(".", "_")
         sql = self.sql.strip().strip(";")
-        tblproperties = "".join(f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items())
+        tblproperties = "".join(
+            f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items()
+        )
         hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -154,7 +156,9 @@ class HiveToDruidOperator(BaseOperator):
             hql = f"DROP TABLE IF EXISTS {hive_table}"
             hive.run_cli(hql)
 
-    def construct_ingest_query(self, static_path: str, columns: list[str]) -> dict[str, Any]:
+    def construct_ingest_query(
+        self, static_path: str, columns: list[str]
+    ) -> dict[str, Any]:
         """
         Build an ingest query for an HDFS TSV load.
 
@@ -217,14 +221,21 @@ class HiveToDruidOperator(BaseOperator):
                         "numShards": num_shards,
                     },
                 },
-                "ioConfig": {"inputSpec": {"paths": static_path, "type": "static"}, "type": "hadoop"},
+                "ioConfig": {
+                    "inputSpec": {"paths": static_path, "type": "static"},
+                    "type": "hadoop",
+                },
             },
         }
 
         if self.job_properties:
-            ingest_query_dict["spec"]["tuningConfig"]["jobProperties"].update(self.job_properties)
+            ingest_query_dict["spec"]["tuningConfig"]["jobProperties"].update(
+                self.job_properties
+            )
 
         if self.hadoop_dependency_coordinates:
-            ingest_query_dict["hadoopDependencyCoordinates"] = self.hadoop_dependency_coordinates
+            ingest_query_dict["hadoopDependencyCoordinates"] = (
+                self.hadoop_dependency_coordinates
+            )
 
         return ingest_query_dict

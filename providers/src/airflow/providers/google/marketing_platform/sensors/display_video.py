@@ -21,7 +21,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
+from airflow.providers.google.marketing_platform.hooks.display_video import (
+    GoogleDisplayVideo360Hook,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -155,7 +157,12 @@ class GoogleDisplayVideo360RunQuerySensor(BaseSensorOperator):
 
         response = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = response.get("metadata", {}).get("status", {}).get("state")
-        self.log.info("STATUS OF THE REPORT %s FOR QUERY %s: %s", self.report_id, self.query_id, status)
+        self.log.info(
+            "STATUS OF THE REPORT %s FOR QUERY %s: %s",
+            self.report_id,
+            self.query_id,
+            status,
+        )
         if response and status in ["DONE", "FAILED"]:
             return True
         return False

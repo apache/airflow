@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
+from airflow.api_connexion.schemas.task_schema import (
+    TaskCollection,
+    task_collection_schema,
+    task_schema,
+)
 from airflow.operators.empty import EmptyOperator
 
 
@@ -48,7 +52,12 @@ class TestTaskSchema:
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+            "retry_delay": {
+                "__type": "TimeDelta",
+                "days": 0,
+                "seconds": 300,
+                "microseconds": 0,
+            },
             "retry_exponential_backoff": False,
             "start_date": "2020-06-16T00:00:00+00:00",
             "task_id": "task_id",
@@ -97,7 +106,12 @@ class TestTaskCollectionSchema:
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_delay": {
+                        "__type": "TimeDelta",
+                        "days": 0,
+                        "seconds": 300,
+                        "microseconds": 0,
+                    },
                     "retry_exponential_backoff": False,
                     "start_date": None,
                     "task_id": "task_id1",

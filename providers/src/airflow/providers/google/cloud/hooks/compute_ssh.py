@@ -183,13 +183,19 @@ class ComputeEngineSSHHook(SSHHook):
 
         conn = self.get_connection(self.gcp_conn_id)
         if conn and conn.conn_type == "gcpssh":
-            self.instance_name = self._compute_hook._get_field("instance_name", self.instance_name)
+            self.instance_name = self._compute_hook._get_field(
+                "instance_name", self.instance_name
+            )
             self.zone = self._compute_hook._get_field("zone", self.zone)
             self.user = conn.login if conn.login else self.user
             # self.project_id is skipped intentionally
             self.hostname = conn.host if conn.host else self.hostname
-            self.use_internal_ip = _boolify(self._compute_hook._get_field("use_internal_ip"))
-            self.use_iap_tunnel = _boolify(self._compute_hook._get_field("use_iap_tunnel"))
+            self.use_internal_ip = _boolify(
+                self._compute_hook._get_field("use_internal_ip")
+            )
+            self.use_iap_tunnel = _boolify(
+                self._compute_hook._get_field("use_iap_tunnel")
+            )
             self.use_oslogin = _boolify(self._compute_hook._get_field("use_oslogin"))
             self.expire_time = intify(
                 "expire_time",
@@ -214,7 +220,9 @@ class ComputeEngineSSHHook(SSHHook):
         if not self.project_id:
             self.project_id = self._compute_hook.project_id
 
-        missing_fields = [k for k in ["instance_name", "zone", "project_id"] if not getattr(self, k)]
+        missing_fields = [
+            k for k in ["instance_name", "zone", "project_id"] if not getattr(self, k)
+        ]
         if not self.instance_name or not self.zone or not self.project_id:
             raise AirflowException(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
@@ -266,30 +274,51 @@ class ComputeEngineSSHHook(SSHHook):
                         "--verbosity=warning",
                     ]
                     if self.impersonation_chain:
-                        proxy_command_args.append(f"--impersonate-service-account={self.impersonation_chain}")
-                    proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
-                sshclient = self._connect_to_instance(user, hostname, privkey, proxy_command)
+                        proxy_command_args.append(
+                            f"--impersonate-service-account={self.impersonation_chain}"
+                        )
+                    proxy_command = " ".join(
+                        shlex.quote(arg) for arg in proxy_command_args
+                    )
+                sshclient = self._connect_to_instance(
+                    user, hostname, privkey, proxy_command
+                )
                 break
             except (HttpError, AirflowException, SSHException) as exc:
                 if (isinstance(exc, HttpError) and exc.resp.status == 412) or (
-                    isinstance(exc, AirflowException) and "412 PRECONDITION FAILED" in str(exc)
+                    isinstance(exc, AirflowException)
+                    and "412 PRECONDITION FAILED" in str(exc)
                 ):
-                    self.log.info("Error occurred when trying to update instance metadata: %s", exc)
+                    self.log.info(
+                        "Error occurred when trying to update instance metadata: %s", exc
+                    )
                 elif isinstance(exc, SSHException):
-                    self.log.info("Error occurred when establishing SSH connection using Paramiko: %s", exc)
+                    self.log.info(
+                        "Error occurred when establishing SSH connection using Paramiko: %s",
+                        exc,
+                    )
                 else:
                     raise
                 if retry == self.max_retries:
-                    raise AirflowException("Maximum retries exceeded. Aborting operation.")
+                    raise AirflowException(
+                        "Maximum retries exceeded. Aborting operation."
+                    )
                 delay = random.randint(0, max_delay)
-                self.log.info("Failed establish SSH connection, waiting %s seconds to retry...", delay)
+                self.log.info(
+                    "Failed establish SSH connection, waiting %s seconds to retry...",
+                    delay,
+                )
                 time.sleep(delay)
         if not sshclient:
             raise AirflowException("Unable to establish SSH connection.")
         return sshclient
 
-    def _connect_to_instance(self, user, hostname, pkey, proxy_command) -> paramiko.SSHClient:
-        self.log.info("Opening remote connection to host: username=%s, hostname=%s", user, hostname)
+    def _connect_to_instance(
+        self, user, hostname, pkey, proxy_command
+    ) -> paramiko.SSHClient:
+        self.log.info(
+            "Opening remote connection to host: username=%s, hostname=%s", user, hostname
+        )
         max_time_to_wait = 5
         for time_to_wait in range(max_time_to_wait + 1):
             try:
@@ -331,7 +360,10 @@ class ComputeEngineSSHHook(SSHHook):
             metadata["items"] = [*items, new_dict]
 
         self._compute_hook.set_instance_metadata(
-            zone=self.zone, resource_id=self.instance_name, metadata=metadata, project_id=self.project_id
+            zone=self.zone,
+            resource_id=self.instance_name,
+            metadata=metadata,
+            project_id=self.project_id,
         )
 
     def _authorize_os_login(self, pubkey):

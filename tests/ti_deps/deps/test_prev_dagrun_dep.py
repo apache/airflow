@@ -51,7 +51,9 @@ class TestPrevDagrunDep:
         ignore_first_depends_on_past set to True.
         """
         dag = DAG("test_dag", schedule=timedelta(days=1), start_date=START_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         old_task = BaseOperator(
             task_id="test_task",
             dag=dag,
@@ -94,7 +96,9 @@ class TestPrevDagrunDep:
         dep_context = DepContext(ignore_depends_on_past=False)
         dep = PrevDagrunDep()
 
-        with patch.object(dep, "_has_any_prior_tis", Mock(return_value=False)) as mock_has_any_prior_tis:
+        with patch.object(
+            dep, "_has_any_prior_tis", Mock(return_value=False)
+        ) as mock_has_any_prior_tis:
             assert dep.is_met(ti=ti, dep_context=dep_context)
             mock_has_any_prior_tis.assert_called_once_with(ti, session=ANY)
 
@@ -110,7 +114,9 @@ class TestPrevDagrunDep:
                 depends_on_past=False,
                 wait_for_past_depends_before_skipping=False,
                 wait_for_downstream=False,  # wait_for_downstream=True overrides depends_on_past=False.
-                prev_tis=[Mock(state=None, **{"are_dependents_done.return_value": False})],
+                prev_tis=[
+                    Mock(state=None, **{"are_dependents_done.return_value": False})
+                ],
                 context_ignore_depends_on_past=False,
                 expected_dep_met=True,
                 past_depends_met_xcom_sent=False,
@@ -125,7 +131,9 @@ class TestPrevDagrunDep:
                 depends_on_past=False,
                 wait_for_past_depends_before_skipping=True,
                 wait_for_downstream=False,  # wait_for_downstream=True overrides depends_on_past=False.
-                prev_tis=[Mock(state=None, **{"are_dependents_done.return_value": False})],
+                prev_tis=[
+                    Mock(state=None, **{"are_dependents_done.return_value": False})
+                ],
                 context_ignore_depends_on_past=False,
                 expected_dep_met=True,
                 past_depends_met_xcom_sent=True,
@@ -141,7 +149,10 @@ class TestPrevDagrunDep:
                 wait_for_past_depends_before_skipping=False,
                 wait_for_downstream=False,
                 prev_tis=[
-                    Mock(state=TaskInstanceState.SUCCESS, **{"are_dependents_done.return_value": True})
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                    )
                 ],
                 context_ignore_depends_on_past=True,
                 expected_dep_met=True,
@@ -158,7 +169,10 @@ class TestPrevDagrunDep:
                 wait_for_past_depends_before_skipping=True,
                 wait_for_downstream=False,
                 prev_tis=[
-                    Mock(state=TaskInstanceState.SUCCESS, **{"are_dependents_done.return_value": True})
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                    )
                 ],
                 context_ignore_depends_on_past=True,
                 expected_dep_met=True,
@@ -216,7 +230,10 @@ class TestPrevDagrunDep:
                 wait_for_past_depends_before_skipping=False,
                 wait_for_downstream=True,
                 prev_tis=[
-                    Mock(state=TaskInstanceState.SUCCESS, **{"are_dependents_done.return_value": False})
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": False},
+                    )
                 ],
                 context_ignore_depends_on_past=False,
                 expected_dep_met=False,
@@ -232,7 +249,10 @@ class TestPrevDagrunDep:
                 wait_for_past_depends_before_skipping=False,
                 wait_for_downstream=True,
                 prev_tis=[
-                    Mock(state=TaskInstanceState.SUCCESS, **{"are_dependents_done.return_value": True})
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                    )
                 ],
                 context_ignore_depends_on_past=False,
                 expected_dep_met=True,
@@ -248,7 +268,10 @@ class TestPrevDagrunDep:
                 wait_for_past_depends_before_skipping=True,
                 wait_for_downstream=True,
                 prev_tis=[
-                    Mock(state=TaskInstanceState.SUCCESS, **{"are_dependents_done.return_value": True})
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                    )
                 ],
                 context_ignore_depends_on_past=False,
                 expected_dep_met=True,
@@ -261,7 +284,9 @@ class TestPrevDagrunDep:
 @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
 def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
     depends_on_past = kwargs["depends_on_past"]
-    wait_for_past_depends_before_skipping = kwargs["wait_for_past_depends_before_skipping"]
+    wait_for_past_depends_before_skipping = kwargs[
+        "wait_for_past_depends_before_skipping"
+    ]
     wait_for_downstream = kwargs["wait_for_downstream"]
     prev_tis = kwargs["prev_tis"]
     context_ignore_depends_on_past = kwargs["context_ignore_depends_on_past"]
@@ -296,13 +321,16 @@ def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
     )
 
     unsuccessful_tis_count = sum(
-        int(ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED}) for ti in prev_tis
+        int(ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED})
+        for ti in prev_tis
     )
 
     mock_has_tis = Mock(return_value=bool(prev_tis))
     mock_has_any_prior_tis = Mock(return_value=bool(prev_tis))
     mock_count_unsuccessful_tis = Mock(return_value=unsuccessful_tis_count)
-    mock_has_unsuccessful_dependants = Mock(return_value=any(not ti.are_dependents_done() for ti in prev_tis))
+    mock_has_unsuccessful_dependants = Mock(
+        return_value=any(not ti.are_dependents_done() for ti in prev_tis)
+    )
 
     dep = PrevDagrunDep()
     with patch.multiple(
@@ -317,12 +345,21 @@ def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
         mock_has_any_prior_tis.assert_not_called()
         if depends_on_past and not context_ignore_depends_on_past and prev_tis:
             mock_has_tis.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
-            mock_count_unsuccessful_tis.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
+            mock_count_unsuccessful_tis.assert_called_once_with(
+                prev_dagrun, "test_task", session=ANY
+            )
         else:
             mock_has_tis.assert_not_called()
             mock_count_unsuccessful_tis.assert_not_called()
-        if depends_on_past and not context_ignore_depends_on_past and prev_tis and not unsuccessful_tis_count:
-            mock_has_unsuccessful_dependants.assert_called_once_with(prev_dagrun, task, session=ANY)
+        if (
+            depends_on_past
+            and not context_ignore_depends_on_past
+            and prev_tis
+            and not unsuccessful_tis_count
+        ):
+            mock_has_unsuccessful_dependants.assert_called_once_with(
+                prev_dagrun, task, session=ANY
+            )
         else:
             mock_has_unsuccessful_dependants.assert_not_called()
 

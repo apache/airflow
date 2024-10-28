@@ -24,7 +24,9 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.speech_v1 import RecognitionAudio, RecognitionConfig, RecognizeResponse
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
+from airflow.providers.google.cloud.operators.speech_to_text import (
+    CloudSpeechToTextRecognizeSpeechOperator,
+)
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -34,7 +36,9 @@ AUDIO = RecognitionAudio({"uri": "gs://bucket/object"})
 
 
 class TestCloudSpeechToTextRecognizeSpeechOperator:
-    @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
+    @patch(
+        "airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook"
+    )
     def test_recognize_speech_green_path(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = RecognizeResponse()
 
@@ -55,7 +59,9 @@ class TestCloudSpeechToTextRecognizeSpeechOperator:
             config=CONFIG, audio=AUDIO, retry=DEFAULT, timeout=None
         )
 
-    @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
+    @patch(
+        "airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook"
+    )
     def test_missing_config(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
@@ -68,21 +74,30 @@ class TestCloudSpeechToTextRecognizeSpeechOperator:
         assert "config" in str(err)
         mock_hook.assert_not_called()
 
-    @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
+    @patch(
+        "airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook"
+    )
     def test_missing_audio(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with pytest.raises(AirflowException) as ctx:
             CloudSpeechToTextRecognizeSpeechOperator(
-                project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, task_id="id"
+                project_id=PROJECT_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                config=CONFIG,
+                task_id="id",
             ).execute(context={"task_instance": Mock()})
 
         err = ctx.value
         assert "audio" in str(err)
         mock_hook.assert_not_called()
 
-    @patch("airflow.providers.google.cloud.operators.speech_to_text.FileDetailsLink.persist")
-    @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
+    @patch(
+        "airflow.providers.google.cloud.operators.speech_to_text.FileDetailsLink.persist"
+    )
+    @patch(
+        "airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook"
+    )
     def test_no_audio_uri(self, mock_hook, mock_file_link):
         mock_hook.return_value.recognize_speech.return_value = RecognizeResponse()
         AUDIO_NO_URI = RecognitionAudio({"content": b"set content data instead of uri"})

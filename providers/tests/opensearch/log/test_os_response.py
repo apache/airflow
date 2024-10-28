@@ -104,7 +104,9 @@ class TestHitAndHitMetaAndOpenSearchResponse:
         assert hitmeta.doc_type == "_doc"
 
         expected_dict = {
-            k[1:] if k.startswith("_") else k: v for (k, v) in self.HIT_DOCUMENT.items() if k != "_source"
+            k[1:] if k.startswith("_") else k: v
+            for (k, v) in self.HIT_DOCUMENT.items()
+            if k != "_source"
         }
         expected_dict["doc_type"] = expected_dict.pop("type")
         assert hitmeta.to_dict() == expected_dict

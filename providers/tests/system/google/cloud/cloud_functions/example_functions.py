@@ -37,15 +37,21 @@ from airflow.providers.google.cloud.operators.functions import (
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "gcp_function"
 LOCATION = "europe-west1"
 
 # make sure there are no dashes in function name (!)
 SHORT_FUNCTION_NAME = "hello_world"
-FUNCTION_NAME = f"projects/{PROJECT_ID}/locations/{LOCATION}/functions/{SHORT_FUNCTION_NAME}"
-SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-functions/main_function.zip"
+FUNCTION_NAME = (
+    f"projects/{PROJECT_ID}/locations/{LOCATION}/functions/{SHORT_FUNCTION_NAME}"
+)
+SOURCE_ARCHIVE_URL = (
+    "gs://airflow-system-tests-resources/cloud-functions/main_function.zip"
+)
 ENTRYPOINT = "hello_world"
 RUNTIME = "python38"
 
@@ -56,7 +62,12 @@ SOURCE_REPOSITORY = ()
 VALIDATE_BODY = True
 
 # [START howto_operator_gcf_deploy_body]
-body = {"name": FUNCTION_NAME, "entryPoint": ENTRYPOINT, "runtime": RUNTIME, "httpsTrigger": {}}
+body = {
+    "name": FUNCTION_NAME,
+    "entryPoint": ENTRYPOINT,
+    "runtime": RUNTIME,
+    "httpsTrigger": {},
+}
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
@@ -97,7 +108,10 @@ with DAG(
 
     # [START howto_operator_gcf_deploy_no_project_id]
     deploy_function_no_project = CloudFunctionDeployFunctionOperator(
-        task_id="deploy_function_no_project", location=LOCATION, body=body, validate_body=VALIDATE_BODY
+        task_id="deploy_function_no_project",
+        location=LOCATION,
+        body=body,
+        validate_body=VALIDATE_BODY,
     )
     # [END howto_operator_gcf_deploy_no_project_id]
 
@@ -112,7 +126,9 @@ with DAG(
     # [END howto_operator_gcf_invoke_function]
 
     # [START howto_operator_gcf_delete]
-    delete_function = CloudFunctionDeleteFunctionOperator(task_id="delete_function", name=FUNCTION_NAME)
+    delete_function = CloudFunctionDeleteFunctionOperator(
+        task_id="delete_function", name=FUNCTION_NAME
+    )
     # [END howto_operator_gcf_delete]
 
     chain(

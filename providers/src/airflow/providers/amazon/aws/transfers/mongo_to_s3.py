@@ -57,7 +57,12 @@ class MongoToS3Operator(BaseOperator):
     :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
     """
 
-    template_fields: Sequence[str] = ("s3_bucket", "s3_key", "mongo_query", "mongo_collection")
+    template_fields: Sequence[str] = (
+        "s3_bucket",
+        "s3_key",
+        "mongo_query",
+        "mongo_collection",
+    )
     ui_color = "#589636"
     template_fields_renderers = {"mongo_query": "json"}
 
@@ -100,7 +105,9 @@ class MongoToS3Operator(BaseOperator):
 
         # Grab collection and execute query according to whether or not it is a pipeline
         if self.is_pipeline:
-            results: CommandCursor[Any] | Cursor = MongoHook(self.mongo_conn_id).aggregate(
+            results: CommandCursor[Any] | Cursor = MongoHook(
+                self.mongo_conn_id
+            ).aggregate(
                 mongo_collection=self.mongo_collection,
                 aggregate_query=cast(list, self.mongo_query),
                 mongo_db=self.mongo_db,
@@ -134,7 +141,9 @@ class MongoToS3Operator(BaseOperator):
 
         This dumps each dict with JSON, and joins them with ``joinable``.
         """
-        return joinable.join(json.dumps(doc, default=json_util.default) for doc in iterable)
+        return joinable.join(
+            json.dumps(doc, default=json_util.default) for doc in iterable
+        )
 
     @staticmethod
     def transform(docs: Any) -> Any:

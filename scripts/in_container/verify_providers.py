@@ -41,7 +41,9 @@ console = Console(width=400, color_system="standard")
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+GENERATED_PROVIDERS_DEPENDENCIES_FILE = (
+    AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+)
 ALL_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
@@ -177,7 +179,9 @@ def import_all_classes(
         for provider_prefix in provider_prefixes:
             if provider_prefix in exception_string:
                 start_index = exception_string.find(provider_prefix)
-                end_index = exception_string.find("\n", start_index + len(provider_prefix))
+                end_index = exception_string.find(
+                    "\n", start_index + len(provider_prefix)
+                )
                 package = exception_string[start_index:end_index]
                 tracebacks.append((package, exception_string))
                 break
@@ -303,10 +307,15 @@ def package_name_matches(the_class: type, expected_pattern: str | None = None) -
     :param expected_pattern: the pattern that should match the package
     :return: true if the expected_pattern is None or the pattern matches the package
     """
-    return expected_pattern is None or re.match(expected_pattern, the_class.__module__) is not None
+    return (
+        expected_pattern is None
+        or re.match(expected_pattern, the_class.__module__) is not None
+    )
 
 
-def convert_classes_to_table(entity_type: EntityType, entities: list[str], full_package_name: str) -> str:
+def convert_classes_to_table(
+    entity_type: EntityType, entities: list[str], full_package_name: str
+) -> str:
     """Converts new entities to a Markdown table.
 
     :param entity_type: entity type to convert to markup
@@ -316,8 +325,13 @@ def convert_classes_to_table(entity_type: EntityType, entities: list[str], full_
     """
     from tabulate import tabulate
 
-    headers = [f"New Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package"]
-    table = [(get_class_code_link(full_package_name, class_name, "main"),) for class_name in entities]
+    headers = [
+        f"New Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package"
+    ]
+    table = [
+        (get_class_code_link(full_package_name, class_name, "main"),)
+        for class_name in entities
+    ]
     return tabulate(table, headers=headers, tablefmt="pipe")
 
 
@@ -387,7 +401,9 @@ def print_wrong_naming(entity_type: EntityType, wrong_classes: list[tuple[type, 
     :param wrong_classes: list of wrong entities
     """
     if wrong_classes:
-        console.print(f"\n[red]There are wrongly named entities of type {entity_type}:[/]\n")
+        console.print(
+            f"\n[red]There are wrongly named entities of type {entity_type}:[/]\n"
+        )
         for wrong_entity_type, message in wrong_classes:
             console.print(f"{wrong_entity_type}: {message}")
 
@@ -422,13 +438,24 @@ def find_all_entities(
         if (
             is_class(the_class=the_class)
             and not is_example_dag(imported_name=imported_name)
-            and is_from_the_expected_base_package(the_class=the_class, expected_package=base_package)
-            and is_imported_from_same_module(the_class=the_class, imported_name=imported_name)
+            and is_from_the_expected_base_package(
+                the_class=the_class, expected_package=base_package
+            )
+            and is_imported_from_same_module(
+                the_class=the_class, imported_name=imported_name
+            )
             and inherits_from(the_class=the_class, expected_ancestor=ancestor_match)
-            and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type)
-            and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match)
+            and not inherits_from(
+                the_class=the_class, expected_ancestor=exclude_class_type
+            )
+            and package_name_matches(
+                the_class=the_class, expected_pattern=sub_package_pattern_match
+            )
         ):
-            if not false_positive_class_names or class_name not in false_positive_class_names:
+            if (
+                not false_positive_class_names
+                or class_name not in false_positive_class_names
+            ):
                 if not re.match(expected_class_name_pattern, class_name):
                     wrong_entities.append(
                         (
@@ -501,7 +528,8 @@ def get_package_class_summary(
             sub_package_pattern_match=r".*\.sensors\..*",
             ancestor_match=BaseSensorOperator,
             expected_class_name_pattern=SENSORS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, SENSORS_PATTERN},
+            unexpected_class_name_patterns=ALL_PATTERNS
+            - {OPERATORS_PATTERN, SENSORS_PATTERN},
         ),
         EntityType.Hooks: find_all_entities(
             imported_classes=imported_classes,
@@ -525,7 +553,8 @@ def get_package_class_summary(
             sub_package_pattern_match=r".*\.transfers\..*",
             ancestor_match=BaseOperator,
             expected_class_name_pattern=TRANSFERS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
+            unexpected_class_name_patterns=ALL_PATTERNS
+            - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
         ),
         EntityType.Trigger: find_all_entities(
             imported_classes=imported_classes,
@@ -620,15 +649,21 @@ def check_if_classes_are_properly_named(
     return total_class_number, badly_named_class_number
 
 
-def verify_provider_classes_for_single_provider(imported_classes: list[str], provider_package_id: str):
+def verify_provider_classes_for_single_provider(
+    imported_classes: list[str], provider_package_id: str
+):
     """Verify naming of provider classes for single provider."""
     full_package_name = f"airflow.providers.{provider_package_id}"
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
     total, bad = check_if_classes_are_properly_named(entity_summaries)
-    bad += sum(len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values())
+    bad += sum(
+        len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()
+    )
     if bad != 0:
         console.print()
-        console.print(f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]")
+        console.print(
+            f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]"
+        )
         console.print()
     return total, bad
 
@@ -685,7 +720,9 @@ def add_all_namespaced_packages(
             continue
         if candidate_path.is_dir() and not (candidate_path / "__init__.py").exists():
             subpackage = str(candidate_path.relative_to(main_path)).replace(os.sep, ".")
-            walkable_paths_and_prefixes[str(candidate_path)] = provider_prefix + subpackage + "."
+            walkable_paths_and_prefixes[str(candidate_path)] = (
+                provider_prefix + subpackage + "."
+            )
 
 
 def verify_provider_classes() -> tuple[list[str], list[str]]:
@@ -698,7 +735,9 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
     provider_prefix = "airflow.providers."
     for provider_path in get_providers_paths():
         walkable_paths_and_prefixes[provider_path] = provider_prefix
-        add_all_namespaced_packages(walkable_paths_and_prefixes, provider_path, provider_prefix)
+        add_all_namespaced_packages(
+            walkable_paths_and_prefixes, provider_path, provider_prefix
+        )
     imported_classes, classes_with_potential_circular_import = import_all_classes(
         walkable_paths_and_prefixes=walkable_paths_and_prefixes,
         provider_ids=provider_ids,
@@ -754,7 +793,9 @@ AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"
 
 if __name__ == "__main__":
     sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))
-    all_imported_classes, all_classes_with_potential_for_circular_import = verify_provider_classes()
+    all_imported_classes, all_classes_with_potential_for_circular_import = (
+        verify_provider_classes()
+    )
     try:
         AIRFLOW_LOCAL_SETTINGS_PATH.write_text(
             "\n".join(

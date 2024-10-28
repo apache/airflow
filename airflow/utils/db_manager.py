@@ -54,7 +54,9 @@ class BaseDBManager(LoggingMixin):
 
         config = Config(self.alembic_file)
         config.set_main_option("script_location", self.migration_dir.replace("%", "%%"))
-        config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
+        config.set_main_option(
+            "sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%")
+        )
         return config
 
     def get_script_object(self, config=None) -> ScriptDirectory:
@@ -69,7 +71,9 @@ class BaseDBManager(LoggingMixin):
 
         conn = self.session.connection()
 
-        return MigrationContext.configure(conn, opts={"version_table": self.version_table_name})
+        return MigrationContext.configure(
+            conn, opts={"version_table": self.version_table_name}
+        )
 
     def get_current_revision(self):
         return self._get_migration_ctx().get_current_revision()
@@ -104,7 +108,9 @@ class BaseDBManager(LoggingMixin):
 
         connection = settings.engine.connect()
 
-        with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), connection.begin():
+        with create_global_lock(
+            self.session, lock=DBLocks.MIGRATIONS
+        ), connection.begin():
             self.drop_tables(connection)
         if not skip_init:
             self.initdb()
@@ -161,7 +167,9 @@ class RunDBManager(LoggingMixin):
         # validate tables are not airflow tables in metadata
         for table_ in external_metadata.tables:
             if table_ in airflow_m.tables:
-                raise AirflowException(f"Table '{table_}' already exists in the Airflow metadata")
+                raise AirflowException(
+                    f"Table '{table_}' already exists in the Airflow metadata"
+                )
         # validate the version table schema is set appropriately in env.py
         migration_dir = manager.migration_dir
         env_file = os.path.join(migration_dir, "env.py")
@@ -178,7 +186,9 @@ class RunDBManager(LoggingMixin):
                     raise AirflowException(f"version_table not set in {env_file}")
         # validate the version table is not airflow version table
         if manager.version_table_name == "alembic_version":
-            raise AirflowException(f"{manager}.version_table_name cannot be 'alembic_version'")
+            raise AirflowException(
+                f"{manager}.version_table_name cannot be 'alembic_version'"
+            )
 
     def check_migration(self, session):
         """Check the external database migration."""

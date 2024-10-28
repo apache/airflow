@@ -53,7 +53,9 @@ class PackageIndexHook(BaseHook):
         }
 
     @staticmethod
-    def _get_basic_auth_conn_url(index_url: str, user: str | None, password: str | None) -> str:
+    def _get_basic_auth_conn_url(
+        index_url: str, user: str | None, password: str | None
+    ) -> str:
         """Return a connection URL with basic auth credentials based on connection config."""
         url = urlparse(index_url)
         host = url.netloc.split("@")[-1]
@@ -80,7 +82,14 @@ class PackageIndexHook(BaseHook):
         """Test connection to package index url."""
         conn_url = self.get_connection_url()
         proc = subprocess.run(
-            ["pip", "search", "not-existing-test-package", "--no-input", "--index", conn_url],
+            [
+                "pip",
+                "search",
+                "not-existing-test-package",
+                "--no-input",
+                "--index",
+                conn_url,
+            ],
             check=False,
             capture_output=True,
         )
@@ -90,6 +99,9 @@ class PackageIndexHook(BaseHook):
             23,  # executed successfully, didn't find any packages
             #      (but we do not expect it to find 'not-existing-test-package')
         ]:
-            return False, f"Connection test to {conn.host} failed. Error: {str(proc.stderr)}"
+            return (
+                False,
+                f"Connection test to {conn.host} failed. Error: {str(proc.stderr)}",
+            )
 
         return True, f"Connection to {conn.host} tested successfully!"

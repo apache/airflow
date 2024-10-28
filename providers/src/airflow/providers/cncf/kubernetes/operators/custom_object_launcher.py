@@ -32,7 +32,9 @@ from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
     convert_configmap,
     convert_configmap_to_volume,
 )
-from airflow.providers.cncf.kubernetes.resource_convert.env_variable import convert_env_vars
+from airflow.providers.cncf.kubernetes.resource_convert.env_variable import (
+    convert_env_vars,
+)
 from airflow.providers.cncf.kubernetes.resource_convert.secret import (
     convert_image_pull_secrets,
     convert_secret,
@@ -64,7 +66,9 @@ class SparkJobSpec:
                     self.spec["dynamicAllocation"].get("maxExecutors"),
                 ]
             ):
-                raise AirflowException("Make sure min/max value for dynamic allocation is passed")
+                raise AirflowException(
+                    "Make sure min/max value for dynamic allocation is passed"
+                )
 
     def update_resources(self):
         if self.spec["driver"].get("container_resources"):
@@ -86,14 +90,18 @@ class KubernetesSpec:
     def set_attribute(self):
         self.env_vars = convert_env_vars(self.env_vars) if self.env_vars else []
         self.image_pull_secrets = (
-            convert_image_pull_secrets(self.image_pull_secrets) if self.image_pull_secrets else []
+            convert_image_pull_secrets(self.image_pull_secrets)
+            if self.image_pull_secrets
+            else []
         )
         if self.config_map_mounts:
             vols, vols_mounts = convert_configmap_to_volume(self.config_map_mounts)
             self.volumes.extend(vols)
             self.volume_mounts.extend(vols_mounts)
         if self.from_env_config_map:
-            self.env_from.extend([convert_configmap(c_name) for c_name in self.from_env_config_map])
+            self.env_from.extend(
+                [convert_configmap(c_name) for c_name in self.from_env_config_map]
+            )
         if self.from_env_secret:
             self.env_from.extend([convert_secret(c) for c in self.from_env_secret])
 
@@ -135,7 +143,10 @@ class SparkResources:
         if self.driver["memory"].get("limit"):
             driver["memory"] = self.driver["memory"]["limit"]
         if self.driver["gpu"].get("name") and self.driver["gpu"].get("quantity"):
-            driver["gpu"] = {"name": self.driver["gpu"]["name"], "quantity": self.driver["gpu"]["quantity"]}
+            driver["gpu"] = {
+                "name": self.driver["gpu"]["name"],
+                "quantity": self.driver["gpu"]["quantity"],
+            }
         return driver
 
     @property
@@ -157,22 +168,38 @@ class SparkResources:
 
     def convert_resources(self):
         if isinstance(self.driver["memory"].get("limit"), str):
-            if "G" in self.driver["memory"]["limit"] or "Gi" in self.driver["memory"]["limit"]:
-                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("Gi G")) * 1024
+            if (
+                "G" in self.driver["memory"]["limit"]
+                or "Gi" in self.driver["memory"]["limit"]
+            ):
+                self.driver["memory"]["limit"] = (
+                    float(self.driver["memory"]["limit"].rstrip("Gi G")) * 1024
+                )
             elif "m" in self.driver["memory"]["limit"]:
-                self.driver["memory"]["limit"] = float(self.driver["memory"]["limit"].rstrip("m"))
+                self.driver["memory"]["limit"] = float(
+                    self.driver["memory"]["limit"].rstrip("m")
+                )
             # Adjusting the memory value as operator adds 40% to the given value
-            self.driver["memory"]["limit"] = str(int(self.driver["memory"]["limit"] / 1.4)) + "m"
+            self.driver["memory"]["limit"] = (
+                str(int(self.driver["memory"]["limit"] / 1.4)) + "m"
+            )
 
         if isinstance(self.executor["memory"].get("limit"), str):
-            if "G" in self.executor["memory"]["limit"] or "Gi" in self.executor["memory"]["limit"]:
+            if (
+                "G" in self.executor["memory"]["limit"]
+                or "Gi" in self.executor["memory"]["limit"]
+            ):
                 self.executor["memory"]["limit"] = (
                     float(self.executor["memory"]["limit"].rstrip("Gi G")) * 1024
                 )
             elif "m" in self.executor["memory"]["limit"]:
-                self.executor["memory"]["limit"] = float(self.executor["memory"]["limit"].rstrip("m"))
+                self.executor["memory"]["limit"] = float(
+                    self.executor["memory"]["limit"].rstrip("m")
+                )
             # Adjusting the memory value as operator adds 40% to the given value
-            self.executor["memory"]["limit"] = str(int(self.executor["memory"]["limit"] / 1.4)) + "m"
+            self.executor["memory"]["limit"] = (
+                str(int(self.executor["memory"]["limit"] / 1.4)) + "m"
+            )
 
         if self.driver["cpu"].get("request"):
             self.driver["cpu"]["request"] = int(float(self.driver["cpu"]["request"]))
@@ -186,7 +213,9 @@ class SparkResources:
         if self.driver["gpu"].get("quantity"):
             self.driver["gpu"]["quantity"] = int(float(self.driver["gpu"]["quantity"]))
         if self.executor["gpu"].get("quantity"):
-            self.executor["gpu"]["quantity"] = int(float(self.executor["gpu"]["quantity"]))
+            self.executor["gpu"]["quantity"] = int(
+                float(self.executor["gpu"]["quantity"])
+            )
 
 
 class CustomObjectStatus:
@@ -305,8 +334,12 @@ class CustomObjectLauncher(LoggingMixin):
                 self.check_pod_start_failure()
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
-                    pod_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses
-                    raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
+                    pod_status = self.pod_manager.read_pod(
+                        self.pod_spec
+                    ).status.container_statuses
+                    raise AirflowException(
+                        f"Job took too long to start. pod status: {pod_status}"
+                    )
                 time.sleep(10)
         except Exception as e:
             self.log.exception("Exception when attempting to create spark job")
@@ -323,9 +356,17 @@ class CustomObjectLauncher(LoggingMixin):
             name=spark_obj_spec["metadata"]["name"],
             plural=self.plural,
         )
-        driver_state = spark_job_info.get("status", {}).get("applicationState", {}).get("state", "SUBMITTED")
+        driver_state = (
+            spark_job_info.get("status", {})
+            .get("applicationState", {})
+            .get("state", "SUBMITTED")
+        )
         if driver_state == CustomObjectStatus.FAILED:
-            err = spark_job_info.get("status", {}).get("applicationState", {}).get("errorMessage", "N/A")
+            err = (
+                spark_job_info.get("status", {})
+                .get("applicationState", {})
+                .get("errorMessage", "N/A")
+            )
             try:
                 self.pod_manager.fetch_container_logs(
                     pod=self.pod_spec, container_name="spark-kubernetes-driver"
@@ -338,18 +379,24 @@ class CustomObjectLauncher(LoggingMixin):
     def check_pod_start_failure(self):
         try:
             waiting_status = (
-                self.pod_manager.read_pod(self.pod_spec).status.container_statuses[0].state.waiting
+                self.pod_manager.read_pod(self.pod_spec)
+                .status.container_statuses[0]
+                .state.waiting
             )
             waiting_reason = waiting_status.reason
             waiting_message = waiting_status.message
         except Exception:
             return
         if waiting_reason not in ("ContainerCreating", "PodInitializing"):
-            raise AirflowException(f"Spark Job Failed. Status: {waiting_reason}, Error: {waiting_message}")
+            raise AirflowException(
+                f"Spark Job Failed. Status: {waiting_reason}, Error: {waiting_message}"
+            )
 
     def delete_spark_job(self, spark_job_name=None):
         """Delete spark job."""
-        spark_job_name = spark_job_name or self.spark_obj_spec.get("metadata", {}).get("name")
+        spark_job_name = spark_job_name or self.spark_obj_spec.get("metadata", {}).get(
+            "name"
+        )
         if not spark_job_name:
             self.log.warning("Spark job not found: %s", spark_job_name)
             return

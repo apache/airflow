@@ -162,7 +162,8 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
 
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -345,7 +346,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
 
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -498,7 +500,8 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
 
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -602,7 +605,9 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
             resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
-        hook.start_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
+        hook.start_instance(
+            zone=self.zone, resource_id=self.resource_id, project_id=self.project_id
+        )
 
 
 class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
@@ -663,7 +668,9 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
             resource_id=self.resource_id,
             project_id=self.project_id or hook.project_id,
         )
-        hook.stop_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
+        hook.stop_instance(
+            zone=self.zone, resource_id=self.resource_id, project_id=self.project_id
+        )
 
 
 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
@@ -769,7 +776,10 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
             project_id=self.project_id or hook.project_id,
         )
         hook.set_machine_type(
-            zone=self.zone, resource_id=self.resource_id, body=self.body, project_id=self.project_id
+            zone=self.zone,
+            resource_id=self.resource_id,
+            body=self.body,
+            project_id=self.project_id,
         )
 
 
@@ -782,7 +792,11 @@ GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION: list[dict[str, Any]] = [
         "optional": True,
         "fields": [
             {"name": "description", "optional": True},
-            {"name": "tags", "optional": True, "fields": [{"name": "items", "optional": True}]},
+            {
+                "name": "tags",
+                "optional": True,
+                "fields": [{"name": "items", "optional": True}],
+            },
             {"name": "machineType", "optional": True},
             {"name": "canIpForward", "optional": True},
             {"name": "networkInterfaces", "optional": True},  # not validating deeper
@@ -906,7 +920,8 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
 
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -983,7 +998,9 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
             request_id=self.request_id,
             project_id=self.project_id,
         )
-        self.log.info("The specified Instance Template has been created SUCCESSFULLY", self.body)
+        self.log.info(
+            "The specified Instance Template has been created SUCCESSFULLY", self.body
+        )
         new_template = hook.get_instance_template(
             resource_id=self.resource_id,
             project_id=self.project_id,
@@ -1064,7 +1081,8 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
 
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -1183,7 +1201,8 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             )
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -1252,7 +1271,9 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
-        hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
+        hook.insert_instance_template(
+            body=new_body, request_id=self.request_id, project_id=self.project_id
+        )
         new_instance_tmp = hook.get_instance_template(
             resource_id=self.body_patch["name"], project_id=self.project_id
         )
@@ -1386,7 +1407,9 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             for version in patch_body["versions"]:
                 self._possibly_replace_template(version)
         if self._change_performed or self.update_policy:
-            self.log.info("Calling patch instance template with updated body: %s", patch_body)
+            self.log.info(
+                "Calling patch instance template with updated body: %s", patch_body
+            )
             ComputeInstanceGroupManagerDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -1491,7 +1514,8 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         self.metadata = metadata
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -1549,7 +1573,10 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             if e.code != 404:
                 raise e
         else:
-            self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)
+            self.log.info(
+                "The %s Instance Group Manager already exists",
+                existing_instance_group_manager,
+            )
             ComputeInstanceGroupManagerDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -1559,14 +1586,19 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
             )
             return InstanceGroupManager.to_dict(existing_instance_group_manager)
         self._field_sanitizer.sanitize(self.body)
-        self.log.info("Creating Instance Group Manager with specified body: %s", self.body)
+        self.log.info(
+            "Creating Instance Group Manager with specified body: %s", self.body
+        )
         hook.insert_instance_group_manager(
             body=self.body,
             request_id=self.request_id,
             project_id=self.project_id,
             zone=self.zone,
         )
-        self.log.info("The specified Instance Group Manager has been created SUCCESSFULLY", self.body)
+        self.log.info(
+            "The specified Instance Group Manager has been created SUCCESSFULLY",
+            self.body,
+        )
         new_instance_group_manager = hook.get_instance_group_manager(
             resource_id=self.resource_id,
             project_id=self.project_id,
@@ -1651,7 +1683,8 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         self.metadata = metadata
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION,
+                api_version=api_version,
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
@@ -1693,5 +1726,7 @@ class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # Expecting 404 Error in case if Instance Group Managers doesn't exist.
             if e.code == 404:
-                self.log.error("Instance Group Managers %s doesn't exist", self.resource_id)
+                self.log.error(
+                    "Instance Group Managers %s doesn't exist", self.resource_id
+                )
                 raise e

@@ -25,7 +25,9 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.transfers.copy_into_snowflake import CopyFromExternalStageToSnowflakeOperator
+from airflow.providers.snowflake.transfers.copy_into_snowflake import (
+    CopyFromExternalStageToSnowflakeOperator,
+)
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 # TODO: should be able to rely on connection's schema,

@@ -80,7 +80,9 @@ def _reset_dagruns():
 @pytest.fixture(autouse=True)
 def _init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
@@ -350,7 +352,9 @@ def client_ti_without_dag_edit(app):
         pytest.param(
             f"confirm?task_id=runme_0&dag_id=example_bash_operator&state=invalid"
             f"&dag_run_id={DEFAULT_DAGRUN}",
-            ["Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"],
+            [
+                "Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"
+            ],
             id="confirm-invalid",
         ),
     ],
@@ -373,7 +377,9 @@ def test_xcom_return_value_is_not_bytes(admin_client):
 
 
 def test_rendered_task_view(admin_client):
-    url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    url = (
+        f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    )
     resp = admin_client.get(url, follow_redirects=True)
     resp_html = resp.data.decode("utf-8")
     assert resp.status_code == 200
@@ -396,7 +402,9 @@ def test_rendered_k8s_without_k8s(admin_client):
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -414,7 +422,9 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
 
 
 def test_graph_trigger_origin_grid_view(app, admin_client):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -432,7 +442,9 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
 
 
 def test_gantt_trigger_origin_grid_view(app, admin_client):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -473,7 +485,9 @@ def test_last_dagruns(admin_client):
 
 def test_last_dagruns_success_when_selecting_dags(admin_client):
     resp = admin_client.post(
-        "last_dagruns", data={"dag_ids": ["example_python_operator"]}, follow_redirects=True
+        "last_dagruns",
+        data={"dag_ids": ["example_python_operator"]},
+        follow_redirects=True,
     )
     assert resp.status_code == 200
     stats = json.loads(resp.data.decode("utf-8"))
@@ -606,7 +620,9 @@ def test_dag_never_run(admin_client, url):
     )
     clear_db_runs()
     resp = admin_client.post(url, data=form, follow_redirects=True)
-    check_content_in_response(f"Cannot mark tasks as {url}, seem that DAG {dag_id} has never run", resp)
+    check_content_in_response(
+        f"Cannot mark tasks as {url}, seem that DAG {dag_id} has never run", resp
+    )
 
 
 class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
@@ -625,10 +641,14 @@ def new_id_example_bash_operator():
         dag_query.update({"dag_id": test_dag_id})
     yield test_dag_id
     with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({"dag_id": dag_id})
+        session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update(
+            {"dag_id": dag_id}
+        )
 
 
-def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
+def test_delete_dag_button_for_dag_on_scheduler_only(
+    admin_client, new_id_example_bash_operator
+):
     # The delete-dag URL should be generated correctly
     test_dag_id = new_id_example_bash_operator
     resp = admin_client.get("/", follow_redirects=True)
@@ -639,7 +659,10 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
 @pytest.fixture
 def new_dag_to_delete():
     dag = DAG(
-        "new_dag_to_delete", is_paused_upon_creation=True, schedule="0 * * * *", start_date=DEFAULT_DATE
+        "new_dag_to_delete",
+        is_paused_upon_creation=True,
+        schedule="0 * * * *",
+        start_date=DEFAULT_DATE,
     )
     session = settings.Session()
     dag.sync_to_db(session=session)
@@ -718,12 +741,16 @@ def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_use
 
 
 def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
-    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
+    resp = user_client.post(
+        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
+    )
     check_content_in_response(f"Deleting DAG with id {new_dag_to_delete.dag_id}.", resp)
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])
-def test_show_external_log_redirect_link_with_local_log_handler(capture_templates, admin_client, endpoint):
+def test_show_external_log_redirect_link_with_local_log_handler(
+    capture_templates, admin_client, endpoint
+):
     """Do not show external links if log handler is local."""
     url = f"{endpoint}?dag_id=example_bash_operator"
     with capture_templates() as templates:
@@ -811,15 +838,23 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
         execution_date=timezone.utcnow(),
         state=State.DEFERRED,
     )
-    composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
+    composite_key = _get_appbuilder_pk_string(
+        TaskInstanceModelView, task_instance_to_delete
+    )
     task_id = task_instance_to_delete.task_id
 
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    assert (
+        session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    )
     admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
+    assert (
+        session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
+    )
 
 
-def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
+def test_task_instance_delete_permission_denied(
+    session, client_ti_without_dag_edit, create_task_instance
+):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete_permission_denied",
         execution_date=timezone.utcnow(),
@@ -827,13 +862,21 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
         session=session,
     )
     session.commit()
-    composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
+    composite_key = _get_appbuilder_pk_string(
+        TaskInstanceModelView, task_instance_to_delete
+    )
     task_id = task_instance_to_delete.task_id
 
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
-    resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
+    assert (
+        session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    )
+    resp = client_ti_without_dag_edit.post(
+        f"/taskinstance/delete/{composite_key}", follow_redirects=True
+    )
     check_content_in_response("Access is Denied", resp)
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    assert (
+        session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
+    )
 
 
 @pytest.mark.parametrize(
@@ -867,7 +910,9 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
         check_content_in_response("Access is Denied", resp)
 
     # Now the state should be None.
-    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    state = (
+        session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    )
     assert state == (State.NONE if should_succeed else initial_state)
 
 
@@ -881,7 +926,9 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
     ):
         EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
         EmptyOperator(task_id="task_3")
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     run1 = dag_maker.create_dagrun(
         run_id="run_1",
         state=DagRunState.SUCCESS,
@@ -965,7 +1012,9 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
     assert resp.status_code == 200
 
     # Now the state should be modified.
-    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    state = (
+        session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    )
     assert state == expected_state
 
 
@@ -990,7 +1039,10 @@ def test_task_instance_set_state_failure(admin_client, action):
 
 
 def test_action_muldelete_task_instance(session, admin_client):
-    task_search_tuples = [("example_xcom", "bash_push"), ("example_bash_operator", "run_this_last")]
+    task_search_tuples = [
+        ("example_xcom", "bash_push"),
+        ("example_bash_operator", "run_this_last"),
+    ]
     # get task instances to delete
     tasks_to_delete = []
     for task_search_tuple in task_search_tuples:
@@ -1022,7 +1074,10 @@ def test_action_muldelete_task_instance(session, admin_client):
         "/taskinstance/action_post",
         data={
             "action": "muldelete",
-            "rowid": [_get_appbuilder_pk_string(TaskInstanceModelView, task) for task in tasks_to_delete],
+            "rowid": [
+                _get_appbuilder_pk_string(TaskInstanceModelView, task)
+                for task in tasks_to_delete
+            ],
         },
         follow_redirects=True,
     )
@@ -1061,7 +1116,9 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
 
 
 @pytest.mark.flaky(reruns=5)
-def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
+def test_get_date_time_num_runs_dag_runs_form_data_graph_view(
+    app, dag_maker, admin_client
+):
     """Test the get_date_time_num_runs_dag_runs_form_data function."""
     from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
 
@@ -1085,8 +1142,14 @@ def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, ad
         base_date = pendulum.parse(data["base_date"].isoformat())
 
         assert dttm.date() == execution_date.date()
-        assert dttm.time().hour == _safe_parse_datetime(execution_date.time().isoformat()).time().hour
-        assert dttm.time().minute == _safe_parse_datetime(execution_date.time().isoformat()).time().minute
+        assert (
+            dttm.time().hour
+            == _safe_parse_datetime(execution_date.time().isoformat()).time().hour
+        )
+        assert (
+            dttm.time().minute
+            == _safe_parse_datetime(execution_date.time().isoformat()).time().minute
+        )
         assert base_date.date() == execution_date.date()
 
 

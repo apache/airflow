@@ -154,7 +154,9 @@ def get_dag_run_conf(
     if isinstance(dag_run_conf, str):
         result = dag_run_conf
     elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        result = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
+        result = json.dumps(
+            dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False
+        )
         conf_is_json = True
 
     return result, conf_is_json
@@ -167,7 +169,9 @@ def encode_dag_run(
         return None, None
 
     try:
-        dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+        dag_run_conf, conf_is_json = get_dag_run_conf(
+            dag_run.conf, json_encoder=json_encoder
+        )
         encoded_dag_run = {
             "run_id": dag_run.run_id,
             "queued_at": datetime_to_string(dag_run.queued_at),
@@ -178,7 +182,9 @@ def encode_dag_run(
             "data_interval_start": datetime_to_string(dag_run.data_interval_start),
             "data_interval_end": datetime_to_string(dag_run.data_interval_end),
             "run_type": dag_run.run_type,
-            "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
+            "last_scheduling_decision": datetime_to_string(
+                dag_run.last_scheduling_decision
+            ),
             "external_trigger": dag_run.external_trigger,
             "conf": dag_run_conf,
             "conf_is_json": conf_is_json,
@@ -205,11 +211,16 @@ def check_import_errors(fileloc, session):
     ).all()
     if import_errors:
         for import_error in import_errors:
-            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
+            flash(
+                f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}",
+                "dag_import_error",
+            )
 
 
 def check_dag_warnings(dag_id, session):
-    dag_warnings = session.scalars(select(DagWarning).where(DagWarning.dag_id == dag_id)).all()
+    dag_warnings = session.scalars(
+        select(DagWarning).where(DagWarning.dag_id == dag_id)
+    ).all()
     if dag_warnings:
         for dag_warning in dag_warnings:
             flash(dag_warning.message, "warning")
@@ -485,7 +496,9 @@ def datetime_html(dttm: DateTime | None) -> str:
     if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
         as_iso_short = as_iso[5:]
     # The empty title will be replaced in JS code when non-UTC dates are displayed
-    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso_short)
+    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(
+        as_iso, as_iso_short
+    )
 
 
 def json_f(attr_name):
@@ -555,7 +568,9 @@ def sorted_dag_runs(
         contains only the *last* objects, but in *ascending* order.
     """
     ordering_exprs = (_get_run_ordering_expr(name) for name in ordering)
-    runs = session.scalars(query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit)).all()
+    runs = session.scalars(
+        query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit)
+    ).all()
     runs.reverse()
     return runs
 
@@ -794,9 +809,13 @@ class CustomSQLAInterface(SQLAInterface):
 
         def clean_column_names():
             if self.list_properties:
-                self.list_properties = {k.lstrip("_"): v for k, v in self.list_properties.items()}
+                self.list_properties = {
+                    k.lstrip("_"): v for k, v in self.list_properties.items()
+                }
             if self.list_columns:
-                self.list_columns = {k.lstrip("_"): v for k, v in self.list_columns.items()}
+                self.list_columns = {
+                    k.lstrip("_"): v for k, v in self.list_columns.items()
+                }
 
         clean_column_names()
         # Support for AssociationProxy in search and list columns
@@ -804,7 +823,9 @@ class CustomSQLAInterface(SQLAInterface):
             if isinstance(desc, AssociationProxy):
                 proxy_instance = getattr(self.obj, obj_attr)
                 if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                    self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
+                    self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[
+                        0
+                    ]
                     self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
@@ -852,7 +873,9 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.execute(delete(TI).where(TI.dag_id == item.dag_id, TI.run_id == item.run_id))
+        self.session.execute(
+            delete(TI).where(TI.dag_id == item.dag_id, TI.run_id == item.run_id)
+        )
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
@@ -903,7 +926,9 @@ class UIAlert:
 
     .. code-block:: python
 
-        UIAlert('Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True)
+        UIAlert(
+            'Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True
+        )
 
         # or safely escape part of the message
         # (more details: https://markupsafe.palletsprojects.com/en/2.0.x/formatting/)

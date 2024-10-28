@@ -64,7 +64,11 @@ class TestHasAccessNoDetails:
     @patch("airflow.www.auth.get_auth_manager")
     @patch("airflow.www.auth.render_template")
     def test_has_access_no_details_when_no_permission(
-        self, mock_render_template, mock_get_auth_manager, decorator_name, is_authorized_method_name
+        self,
+        mock_render_template,
+        mock_get_auth_manager,
+        decorator_name,
+        is_authorized_method_name,
     ):
         auth_manager = Mock()
         is_authorized_method = Mock()
@@ -136,7 +140,12 @@ class TestHasAccessWithDetails:
 
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_authorized(
-        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items, request
+        self,
+        mock_get_auth_manager,
+        decorator_name,
+        is_authorized_method_name,
+        items,
+        request,
     ):
         items = request.getfixturevalue(items)
         auth_manager = Mock()
@@ -153,7 +162,13 @@ class TestHasAccessWithDetails:
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_unauthorized(
-        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items, request
+        self,
+        mock_get_auth_manager,
+        app,
+        decorator_name,
+        is_authorized_method_name,
+        items,
+        request,
     ):
         items = request.getfixturevalue(items)
         auth_manager = Mock()
@@ -187,34 +202,44 @@ class TestHasAccessDagEntities:
         return True
 
     @patch("airflow.www.auth.get_auth_manager")
-    def test_has_access_dag_entities_when_authorized(self, mock_get_auth_manager, dag_access_entity):
+    def test_has_access_dag_entities_when_authorized(
+        self, mock_get_auth_manager, dag_access_entity
+    ):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
-        result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
+        result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(
+            None, items
+        )
 
         mock_call.assert_called_once()
         assert result is True
 
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
-    def test_has_access_dag_entities_when_unauthorized(self, mock_get_auth_manager, app, dag_access_entity):
+    def test_has_access_dag_entities_when_unauthorized(
+        self, mock_get_auth_manager, app, dag_access_entity
+    ):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
         with app.test_request_context():
-            result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
+            result = auth.has_access_dag_entities("GET", dag_access_entity)(
+                self.method_test
+            )(None, items)
 
         mock_call.assert_not_called()
         assert result.headers["Location"] == "/home"
 
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
-    def test_has_access_dag_entities_when_logged_out(self, mock_get_auth_manager, app, dag_access_entity):
+    def test_has_access_dag_entities_when_logged_out(
+        self, mock_get_auth_manager, app, dag_access_entity
+    ):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_dag.return_value = False
         auth_manager.is_logged_in.return_value = False
@@ -223,7 +248,9 @@ class TestHasAccessDagEntities:
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
         with app.test_request_context():
-            result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
+            result = auth.has_access_dag_entities("GET", dag_access_entity)(
+                self.method_test
+            )(None, items)
 
         mock_call.assert_not_called()
         assert result.headers["Location"] == "login_url"

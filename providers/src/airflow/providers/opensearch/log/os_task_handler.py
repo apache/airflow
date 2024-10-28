@@ -92,7 +92,11 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
-    kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
+    kwargs_dict = (
+        {key: value for key, value in open_search_config.items()}
+        if open_search_config
+        else {}
+    )
 
     return kwargs_dict
 
@@ -151,7 +155,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         host_field: str = "host",
         offset_field: str = "offset",
         index_patterns: str = conf.get("opensearch", "index_patterns", fallback="_all"),
-        index_patterns_callable: str = conf.get("opensearch", "index_patterns_callable", fallback=""),
+        index_patterns_callable: str = conf.get(
+            "opensearch", "index_patterns_callable", fallback=""
+        ),
         os_kwargs: dict | None | Literal["default_os_kwargs"] = "default_os_kwargs",
     ):
         os_kwargs = os_kwargs or {}
@@ -280,7 +286,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
-                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+                log_id_template = dag_run.get_log_template(
+                    session=session
+                ).elasticsearch_id
 
         if TYPE_CHECKING:
             assert ti.task
@@ -376,7 +384,10 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
                 # if max_offset specified, respect it
-                or ("max_offset" in metadata and int(offset) >= int(metadata["max_offset"]))
+                or (
+                    "max_offset" in metadata
+                    and int(offset) >= int(metadata["max_offset"])
+                )
             ):
                 metadata["end_of_log"] = True
 
@@ -386,7 +397,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
         def concat_logs(hits: list[Hit]):
-            log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            log_range = (
+                (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            )
             return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
@@ -395,7 +408,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             message = []
         return message, metadata
 
-    def _os_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> OpensearchResponse | None:
+    def _os_read(
+        self, log_id: str, offset: int | str, ti: TaskInstance
+    ) -> OpensearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -417,7 +432,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         try:
             max_log_line = self.client.count(index=index_patterns, body=query)["count"]  # type: ignore
         except NotFoundError as e:
-            self.log.exception("The target index pattern %s does not exist", index_patterns)
+            self.log.exception(
+                "The target index pattern %s does not exist", index_patterns
+            )
             raise e
 
         if max_log_line != 0:
@@ -431,7 +448,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 )
                 return OpensearchResponse(self, res)
             except Exception as err:
-                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
+                self.log.exception(
+                    "Could not read log with log_id: %s. Exception: %s", log_id, err
+                )
 
         return None
 
@@ -442,7 +461,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         :param ti: A TaskInstance object or None.
         """
         if self.index_patterns_callable:
-            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
+            self.log.debug(
+                "Using index_patterns_callable: %s", self.index_patterns_callable
+            )
             index_pattern_callable_obj = import_string(self.index_patterns_callable)
             return index_pattern_callable_obj(ti)
         self.log.debug("Using index_patterns: %s", self.index_patterns)
@@ -509,10 +530,14 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     break
 
         for t in hit.get("inner_hits", ()):
-            hit["inner_hits"][t] = OpensearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+            hit["inner_hits"][t] = OpensearchResponse(
+                self, hit["inner_hits"][t], doc_class=doc_class
+            )
 
         # callback should get the Hit class if "from_es" is not defined
-        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
+        callback: type[Hit] | Callable[..., Any] = getattr(
+            doc_class, "from_es", doc_class
+        )
         return callback(hit)
 
     def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:

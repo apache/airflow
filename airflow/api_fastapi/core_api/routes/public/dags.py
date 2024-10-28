@@ -43,7 +43,9 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.openapi.exceptions import (
+    create_openapi_http_exception_doc,
+)
 from airflow.api_fastapi.core_api.serializers.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -72,7 +74,13 @@ async def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
+                [
+                    "dag_id",
+                    "dag_display_name",
+                    "next_dagrun",
+                    "last_run_state",
+                    "last_run_start_date",
+                ],
                 DagModel,
             ).dynamic_depends()
         ),
@@ -82,7 +90,15 @@ async def get_dags(
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
         dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
+        [
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
         order_by,
         offset,
         limit,
@@ -127,10 +143,14 @@ async def get_dag_tags(
         session=session,
     )
     dag_tags = session.execute(dag_tags_select).scalars().all()
-    return DAGTagCollectionResponse(tags=[dag_tag for dag_tag in dag_tags], total_entries=total_entries)
+    return DAGTagCollectionResponse(
+        tags=[dag_tag for dag_tag in dag_tags], total_entries=total_entries
+    )
 
 
-@dags_router.get("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422])
+)
 async def get_dag(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGResponse:
@@ -150,7 +170,10 @@ async def get_dag(
     return DAGResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}/details",
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]),
+)
 async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
@@ -170,7 +193,9 @@ async def get_dag_details(
     return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.patch("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch(
+    "/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404])
+)
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
@@ -185,7 +210,9 @@ async def patch_dag(
 
     if update_mask:
         if update_mask != ["is_paused"]:
-            raise HTTPException(400, "Only `is_paused` field can be updated through the REST API")
+            raise HTTPException(
+                400, "Only `is_paused` field can be updated through the REST API"
+            )
 
     else:
         update_mask = ["is_paused"]
@@ -214,7 +241,9 @@ async def patch_dags(
     """Patch multiple DAGs."""
     if update_mask:
         if update_mask != ["is_paused"]:
-            raise HTTPException(400, "Only `is_paused` field can be updated through the REST API")
+            raise HTTPException(
+                400, "Only `is_paused` field can be updated through the REST API"
+            )
     else:
         update_mask = ["is_paused"]
 
@@ -244,7 +273,9 @@ async def patch_dags(
     )
 
 
-@dags_router.delete("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.delete(
+    "/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422])
+)
 async def delete_dag(
     dag_id: str,
     session: Annotated[Session, Depends(get_session)],
@@ -255,5 +286,7 @@ async def delete_dag(
     except DagNotFound:
         raise HTTPException(404, f"Dag with id: {dag_id} was not found")
     except AirflowException:
-        raise HTTPException(409, f"Task instances of dag with id: '{dag_id}' are still running")
+        raise HTTPException(
+            409, f"Task instances of dag with id: '{dag_id}' are still running"
+        )
     return Response(status_code=204)

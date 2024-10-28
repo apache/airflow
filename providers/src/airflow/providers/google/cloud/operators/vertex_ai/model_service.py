@@ -93,7 +93,9 @@ class DeleteModelOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.model_id = self.model_id.rpartition("@")[0] if "@" in self.model_id else self.model_id
+        self.model_id = (
+            self.model_id.rpartition("@")[0] if "@" in self.model_id else self.model_id
+        )
         try:
             self.log.info("Deleting model: %s", self.model_id)
             operation = hook.delete_model(
@@ -165,7 +167,9 @@ class GetModelOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.model_id = self.model_id.rpartition("@")[0] if "@" in self.model_id else self.model_id
+        self.model_id = (
+            self.model_id.rpartition("@")[0] if "@" in self.model_id else self.model_id
+        )
         try:
             self.log.info("Retrieving model: %s", self.model_id)
             model = hook.get_model(
@@ -179,7 +183,9 @@ class GetModelOperator(GoogleCloudBaseOperator):
             self.log.info("Model found. Model ID: %s", self.model_id)
 
             self.xcom_push(context, key="model_id", value=self.model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+            VertexAIModelLink.persist(
+                context=context, task_instance=self, model_id=self.model_id
+            )
             return Model.to_dict(model)
         except NotFound:
             self.log.info("The Model ID %s does not exist.", self.model_id)
@@ -497,7 +503,11 @@ class ListModelVersionsOperator(GoogleCloudBaseOperator):
         for result in results:
             model = Model.to_dict(result)
             self.log.info("Model name: %s;", model["name"])
-            self.log.info("Model version: %s, model alias %s;", model["version_id"], model["version_aliases"])
+            self.log.info(
+                "Model version: %s, model alias %s;",
+                model["version_id"],
+                model["version_aliases"],
+            )
         return [Model.to_dict(result) for result in results]
 
 
@@ -558,7 +568,9 @@ class SetDefaultVersionOnModelOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info(
-            "Setting version %s as default on model %s", self.model_id.rpartition("@")[0], self.model_id
+            "Setting version %s as default on model %s",
+            self.model_id.rpartition("@")[0],
+            self.model_id,
         )
 
         updated_model = hook.set_version_as_default(
@@ -569,7 +581,9 @@ class SetDefaultVersionOnModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+        VertexAIModelLink.persist(
+            context=context, task_instance=self, model_id=self.model_id
+        )
         return Model.to_dict(updated_model)
 
 
@@ -631,7 +645,9 @@ class AddVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Adding aliases %s to model version %s", self.version_aliases, self.model_id.rpartition("@")[0]
+            "Adding aliases %s to model version %s",
+            self.version_aliases,
+            self.model_id.rpartition("@")[0],
         )
 
         updated_model = hook.add_version_aliases(
@@ -643,7 +659,9 @@ class AddVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+        VertexAIModelLink.persist(
+            context=context, task_instance=self, model_id=self.model_id
+        )
         return Model.to_dict(updated_model)
 
 
@@ -719,7 +737,9 @@ class DeleteVersionAliasesOnModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=self.model_id)
+        VertexAIModelLink.persist(
+            context=context, task_instance=self, model_id=self.model_id
+        )
         return Model.to_dict(updated_model)
 
 

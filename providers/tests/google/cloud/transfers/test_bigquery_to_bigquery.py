@@ -19,16 +19,22 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import (
+    BigQueryToBigQueryOperator,
+)
 
-BQ_HOOK_PATH = "airflow.providers.google.cloud.transfers.bigquery_to_bigquery.BigQueryHook"
+BQ_HOOK_PATH = (
+    "airflow.providers.google.cloud.transfers.bigquery_to_bigquery.BigQueryHook"
+)
 TASK_ID = "test-bq-create-table-operator"
 TEST_GCP_PROJECT_ID = "test-project"
 TEST_DATASET = "test-dataset"
 TEST_TABLE_ID = "test-table-id"
 
 SOURCE_PROJECT_DATASET_TABLES = f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
-DESTINATION_PROJECT_DATASET_TABLE = f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET + '_new'}.{TEST_TABLE_ID}"
+DESTINATION_PROJECT_DATASET_TABLE = (
+    f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET + '_new'}.{TEST_TABLE_ID}"
+)
 WRITE_DISPOSITION = "WRITE_EMPTY"
 CREATE_DISPOSITION = "CREATE_IF_NEEDED"
 LABELS = {"k1": "v1"}
@@ -90,7 +96,9 @@ class TestBigQueryToBigQueryOperator:
         )
 
     @mock.patch(BQ_HOOK_PATH)
-    def test_execute_single_regional_location_should_execute_successfully(self, mock_hook):
+    def test_execute_single_regional_location_should_execute_successfully(
+        self, mock_hook
+    ):
         location = "us-central1"
 
         operator = BigQueryToBigQueryOperator(

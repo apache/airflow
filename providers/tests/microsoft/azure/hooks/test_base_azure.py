@@ -35,14 +35,17 @@ class TestBaseAzureHook:
         indirect=True,
     )
     @patch(f"{MODULE}.get_client_from_auth_file")
-    def test_get_conn_with_key_path(self, mock_get_client_from_auth_file, mocked_connection):
+    def test_get_conn_with_key_path(
+        self, mock_get_client_from_auth_file, mocked_connection
+    ):
         mock_get_client_from_auth_file.return_value = "foo-bar"
         mock_sdk_client = Mock()
 
         auth_sdk_client = AzureBaseHook(mock_sdk_client).get_conn()
 
         mock_get_client_from_auth_file.assert_called_once_with(
-            client_class=mock_sdk_client, auth_path=mocked_connection.extra_dejson["key_path"]
+            client_class=mock_sdk_client,
+            auth_path=mocked_connection.extra_dejson["key_path"],
         )
         assert auth_sdk_client == "foo-bar"
 
@@ -52,13 +55,16 @@ class TestBaseAzureHook:
         indirect=True,
     )
     @patch(f"{MODULE}.get_client_from_json_dict")
-    def test_get_conn_with_key_json(self, mock_get_client_from_json_dict, mocked_connection):
+    def test_get_conn_with_key_json(
+        self, mock_get_client_from_json_dict, mocked_connection
+    ):
         mock_sdk_client = Mock()
         mock_get_client_from_json_dict.return_value = "foo-bar"
         auth_sdk_client = AzureBaseHook(mock_sdk_client).get_conn()
 
         mock_get_client_from_json_dict.assert_called_once_with(
-            client_class=mock_sdk_client, config_dict=mocked_connection.extra_dejson["key_json"]
+            client_class=mock_sdk_client,
+            config_dict=mocked_connection.extra_dejson["key_json"],
         )
         assert auth_sdk_client == "foo-bar"
 
@@ -106,7 +112,9 @@ class TestBaseAzureHook:
         indirect=True,
     )
     @patch("azure.common.credentials.ServicePrincipalCredentials")
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.AzureIdentityCredentialAdapter")
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.base_azure.AzureIdentityCredentialAdapter"
+    )
     def test_get_conn_fallback_to_azure_identity_credential_adapter(
         self,
         mock_credential_adapter,

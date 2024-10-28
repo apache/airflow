@@ -160,7 +160,9 @@ with DAG(
                 },
             ],
         },
-        network_configuration={"awsvpcConfiguration": {"subnets": existing_cluster_subnets}},
+        network_configuration={
+            "awsvpcConfiguration": {"subnets": existing_cluster_subnets}
+        },
         # [START howto_awslogs_ecs]
         awslogs_group=log_group_name,
         awslogs_region=aws_region,

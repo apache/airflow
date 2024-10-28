@@ -70,7 +70,9 @@ class InfluxDBHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "token": StringField(lazy_gettext("Token"), widget=BS3TextFieldWidget(), default=""),
+            "token": StringField(
+                lazy_gettext("Token"), widget=BS3TextFieldWidget(), default=""
+            ),
             "org": StringField(
                 lazy_gettext("Organization Name"),
                 widget=BS3TextFieldWidget(),
@@ -130,7 +132,16 @@ class InfluxDBHook(BaseHook):
         query_api = client.query_api()
         return query_api.query_data_frame(query)
 
-    def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value, synchronous=False):
+    def write(
+        self,
+        bucket_name,
+        point_name,
+        tag_name,
+        tag_value,
+        field_name,
+        field_value,
+        synchronous=False,
+    ):
         """
         Write a Point to the bucket specified.
 
@@ -157,7 +168,10 @@ class InfluxDBHook(BaseHook):
     def create_bucket(self, bucket_name, description, org_id, retention_rules=None):
         """Create a bucket for an organization."""
         return self.client.buckets_api().create_bucket(
-            bucket_name=bucket_name, description=description, org_id=org_id, retention_rules=None
+            bucket_name=bucket_name,
+            description=description,
+            org_id=org_id,
+            retention_rules=None,
         )
 
     def find_bucket_id_by_name(self, bucket_name):

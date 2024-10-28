@@ -159,7 +159,11 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 )
                 state = job.status.state
                 self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                if state in (
+                    JobStatus.State.DONE,
+                    JobStatus.State.CANCELLED,
+                    JobStatus.State.ERROR,
+                ):
                     break
                 await asyncio.sleep(self.polling_interval_seconds)
             yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
@@ -180,9 +184,13 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                         job_id=self.job_id, project_id=self.project_id, region=self.region
                     )
                     self.log.info("Job: %s is cancelled", self.job_id)
-                    yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
+                    yield TriggerEvent(
+                        {"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING}
+                    )
             except Exception as e:
-                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                self.log.error(
+                    "Failed to cancel the job: %s with error : %s", self.job_id, str(e)
+                )
                 raise e
 
 
@@ -293,9 +301,13 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
                     # call, which means it does not wait until the cluster is deleted.
                     self.get_sync_hook().delete_cluster(
-                        region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
+                        region=self.region,
+                        cluster_name=self.cluster_name,
+                        project_id=self.project_id,
                     )
-                    self.log.info("Deleted cluster %s during cancellation.", self.cluster_name)
+                    self.log.info(
+                        "Deleted cluster %s during cancellation.", self.cluster_name
+                    )
             except Exception as e:
                 self.log.error("Error during cancellation handling: %s", e)
                 raise AirflowException("Error during cancellation handling: %s", e)
@@ -315,11 +327,16 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
         if self.delete_on_error:
             self.log.info("Deleting cluster %s.", self.cluster_name)
             await self.get_async_hook().delete_cluster(
-                region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
+                region=self.region,
+                cluster_name=self.cluster_name,
+                project_id=self.project_id,
             )
             self.log.info("Cluster %s has been deleted.", self.cluster_name)
         else:
-            self.log.info("Cluster %s is not deleted as delete_on_error is set to False.", self.cluster_name)
+            self.log.info(
+                "Cluster %s is not deleted as delete_on_error is set to False.",
+                self.cluster_name,
+            )
 
 
 class DataprocBatchTrigger(DataprocBaseTrigger):
@@ -366,14 +383,22 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
             )
             state = batch.state
 
-            if state in (Batch.State.FAILED, Batch.State.SUCCEEDED, Batch.State.CANCELLED):
+            if state in (
+                Batch.State.FAILED,
+                Batch.State.SUCCEEDED,
+                Batch.State.CANCELLED,
+            ):
                 break
             self.log.info("Current state is %s", state)
             self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
             await asyncio.sleep(self.polling_interval_seconds)
 
         yield TriggerEvent(
-            {"batch_id": self.batch_id, "batch_state": state, "batch_state_message": batch.state_message}
+            {
+                "batch_id": self.batch_id,
+                "batch_state": state,
+                "batch_state_message": batch.state_message,
+            }
         )
 
 
@@ -480,7 +505,9 @@ class DataprocOperationTrigger(DataprocBaseTrigger):
         hook = self.get_async_hook()
         try:
             while True:
-                operation = await hook.get_operation(region=self.region, operation_name=self.name)
+                operation = await hook.get_operation(
+                    region=self.region, operation_name=self.name
+                )
                 if operation.done:
                     if operation.error.message:
                         status = "error"
@@ -514,7 +541,9 @@ class DataprocOperationTrigger(DataprocBaseTrigger):
                         )
                     return
                 else:
-                    self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+                    self.log.info(
+                        "Sleeping for %s seconds.", self.polling_interval_seconds
+                    )
                     await asyncio.sleep(self.polling_interval_seconds)
         except Exception as e:
             self.log.exception("Exception occurred while checking operation status.")

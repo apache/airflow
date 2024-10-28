@@ -24,7 +24,9 @@ from unittest import mock
 import pytest
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildStep
 
-from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
+from airflow.providers.google.cloud.triggers.cloud_build import (
+    CloudBuildCreateBuildTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 CLOUD_BUILD_PATH = "airflow.providers.google.cloud.triggers.cloud_build.{}"
@@ -33,12 +35,24 @@ TEST_BUILD_ID = "test-build-id-9832662"
 REPO_SOURCE = {"repo_source": {"repo_name": "test_repo", "branch_name": "main"}}
 TEST_BUILD = {
     "source": REPO_SOURCE,
-    "steps": [{"name": "gcr.io/cloud-builders/gcloud", "entrypoint": "/bin/sh", "args": ["-c", "ls"]}],
+    "steps": [
+        {
+            "name": "gcr.io/cloud-builders/gcloud",
+            "entrypoint": "/bin/sh",
+            "args": ["-c", "ls"],
+        }
+    ],
     "status": "SUCCESS",
 }
 TEST_BUILD_WORKING = {
     "source": REPO_SOURCE,
-    "steps": [{"name": "gcr.io/cloud-builders/gcloud", "entrypoint": "/bin/sh", "args": ["-c", "ls"]}],
+    "steps": [
+        {
+            "name": "gcr.io/cloud-builders/gcloud",
+            "entrypoint": "/bin/sh",
+            "args": ["-c", "ls"],
+        }
+    ],
     "status": "WORKING",
 }
 
@@ -108,7 +122,10 @@ class TestCloudBuildCreateBuildTrigger:
         """
 
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger"
+        )
         assert kwargs == {
             "id_": TEST_BUILD_ID,
             "project_id": TEST_PROJECT_ID,
@@ -125,7 +142,11 @@ class TestCloudBuildCreateBuildTrigger:
         Tests the CloudBuildCreateBuildTrigger only fires once the job execution reaches a successful state.
         """
         mock_hook.return_value.get_cloud_build.return_value = self._mock_build_result(
-            Build(id=TEST_BUILD_ID, status=Build.Status.SUCCESS, steps=[BuildStep(name="ubuntu")])
+            Build(
+                id=TEST_BUILD_ID,
+                status=Build.Status.SUCCESS,
+                steps=[BuildStep(name="ubuntu")],
+            )
         )
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -148,7 +169,11 @@ class TestCloudBuildCreateBuildTrigger:
         Test that CloudBuildCreateBuildTrigger does not fire while a build is still running.
         """
         mock_hook.return_value.get_cloud_build.return_value = self._mock_build_result(
-            Build(id=TEST_BUILD_ID, status=Build.Status.WORKING, steps=[BuildStep(name="ubuntu")])
+            Build(
+                id=TEST_BUILD_ID,
+                status=Build.Status.WORKING,
+                steps=[BuildStep(name="ubuntu")],
+            )
         )
         caplog.set_level(logging.INFO)
 

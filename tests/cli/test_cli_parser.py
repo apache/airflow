@@ -62,21 +62,31 @@ class TestCli:
         Test if the name of cli.args long option valid
         """
         optional_long = [
-            arg for arg in cli_args.values() if len(arg.flags) == 1 and arg.flags[0].startswith("-")
+            arg
+            for arg in cli_args.values()
+            if len(arg.flags) == 1 and arg.flags[0].startswith("-")
         ]
         for arg in optional_long:
-            assert ILLEGAL_LONG_OPTION_PATTERN.match(arg.flags[0]) is None, f"{arg.flags[0]} is not match"
+            assert (
+                ILLEGAL_LONG_OPTION_PATTERN.match(arg.flags[0]) is None
+            ), f"{arg.flags[0]} is not match"
 
     def test_arg_option_mix_short_long(self):
         """
         Test if the name of cli.args mix option (-s, --long) valid
         """
         optional_mix = [
-            arg for arg in cli_args.values() if len(arg.flags) == 2 and arg.flags[0].startswith("-")
+            arg
+            for arg in cli_args.values()
+            if len(arg.flags) == 2 and arg.flags[0].startswith("-")
         ]
         for arg in optional_mix:
-            assert LEGAL_SHORT_OPTION_PATTERN.match(arg.flags[0]) is not None, f"{arg.flags[0]} is not match"
-            assert ILLEGAL_LONG_OPTION_PATTERN.match(arg.flags[1]) is None, f"{arg.flags[1]} is not match"
+            assert (
+                LEGAL_SHORT_OPTION_PATTERN.match(arg.flags[0]) is not None
+            ), f"{arg.flags[0]} is not match"
+            assert (
+                ILLEGAL_LONG_OPTION_PATTERN.match(arg.flags[1]) is None
+            ), f"{arg.flags[1]} is not match"
 
     def test_subcommand_conflict(self):
         """
@@ -89,7 +99,9 @@ class TestCli:
         }
         for group_name, sub in subcommand.items():
             name = [command.name.lower() for command in sub]
-            assert len(name) == len(set(name)), f"Command group {group_name} have conflict subcommand"
+            assert len(name) == len(
+                set(name)
+            ), f"Command group {group_name} have conflict subcommand"
 
     def test_subcommand_arg_name_conflict(self):
         """
@@ -102,7 +114,9 @@ class TestCli:
         }
         for group, command in subcommand.items():
             for com in command:
-                conflict_arg = [arg for arg, count in Counter(com.args).items() if count > 1]
+                conflict_arg = [
+                    arg for arg, count in Counter(com.args).items() if count > 1
+                ]
                 assert (
                     [] == conflict_arg
                 ), f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
@@ -119,25 +133,35 @@ class TestCli:
         for group, command in subcommand.items():
             for com in command:
                 position = [
-                    a.flags[0] for a in com.args if (len(a.flags) == 1 and not a.flags[0].startswith("-"))
+                    a.flags[0]
+                    for a in com.args
+                    if (len(a.flags) == 1 and not a.flags[0].startswith("-"))
                 ]
-                conflict_position = [arg for arg, count in Counter(position).items() if count > 1]
+                conflict_position = [
+                    arg for arg, count in Counter(position).items() if count > 1
+                ]
                 assert [] == conflict_position, (
                     f"Command group {group} function {com.name} have conflict "
                     f"position flags {conflict_position}"
                 )
 
                 long_option = [
-                    a.flags[0] for a in com.args if (len(a.flags) == 1 and a.flags[0].startswith("-"))
+                    a.flags[0]
+                    for a in com.args
+                    if (len(a.flags) == 1 and a.flags[0].startswith("-"))
                 ] + [a.flags[1] for a in com.args if len(a.flags) == 2]
-                conflict_long_option = [arg for arg, count in Counter(long_option).items() if count > 1]
+                conflict_long_option = [
+                    arg for arg, count in Counter(long_option).items() if count > 1
+                ]
                 assert [] == conflict_long_option, (
                     f"Command group {group} function {com.name} have conflict "
                     f"long option flags {conflict_long_option}"
                 )
 
                 short_option = [a.flags[0] for a in com.args if len(a.flags) == 2]
-                conflict_short_option = [arg for arg, count in Counter(short_option).items() if count > 1]
+                conflict_short_option = [
+                    arg for arg, count in Counter(short_option).items() if count > 1
+                ]
                 assert [] == conflict_short_option, (
                     f"Command group {group} function {com.name} have conflict "
                     f"short option flags {conflict_short_option}"
@@ -191,8 +215,12 @@ class TestCli:
         reload(executor_loader)
         executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
             return_value=[
-                ExecutorName("airflow.providers.celery.executors.celery_executor.CeleryExecutor"),
-                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
+                ExecutorName(
+                    "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
+                ),
+                ExecutorName(
+                    "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                ),
             ]
         )
 
@@ -227,8 +255,12 @@ class TestCli:
         reload(executor_loader)
         executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
             return_value=[
-                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
-                ExecutorName("airflow.providers.celery.executors.celery_executor.CeleryExecutor"),
+                ExecutorName(
+                    "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                ),
+                ExecutorName(
+                    "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
+                ),
             ]
         )
 
@@ -242,7 +274,9 @@ class TestCli:
         )
 
     @patch.object(AwsEcsExecutor, "get_cli_commands")
-    def test_cli_parser_fail_to_load_executor(self, ecs_executor_cli_commands_mock, caplog):
+    def test_cli_parser_fail_to_load_executor(
+        self, ecs_executor_cli_commands_mock, caplog
+    ):
         caplog.set_level("ERROR")
 
         ecs_executor_command = ActionCommand(
@@ -257,7 +291,9 @@ class TestCli:
         executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
             return_value=[
                 ExecutorName("airflow.providers.incorrect.executor.Executor"),
-                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
+                ExecutorName(
+                    "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                ),
             ]
         )
 
@@ -309,7 +345,10 @@ class TestCli:
             for command_as_args in (
                 [[top_command.name]]
                 if isinstance(top_command, cli_parser.ActionCommand)
-                else [[top_command.name, nested_command.name] for nested_command in top_command.subcommands]
+                else [
+                    [top_command.name, nested_command.name]
+                    for nested_command in top_command.subcommands
+                ]
             )
         ]
         for cmd_args in all_command_as_args:
@@ -325,7 +364,10 @@ class TestCli:
             for command_as_args in (
                 [[top_command.name]]
                 if isinstance(top_command, cli_parser.ActionCommand)
-                else [[top_command.name, nested_command.name] for nested_command in top_command.subcommands]
+                else [
+                    [top_command.name, nested_command.name]
+                    for nested_command in top_command.subcommands
+                ]
             )
         ]
         for cmd_args in all_command_as_args:
@@ -349,16 +391,18 @@ class TestCli:
         ],
     )
     def test_executor_specific_commands_not_accessible(self, command):
-        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
-            StringIO()
-        ) as stderr:
+        with conf_vars(
+            {("core", "executor"): "SequentialExecutor"}
+        ), contextlib.redirect_stderr(StringIO()) as stderr:
             reload(executor_loader)
             reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
                 parser.parse_args([command])
             stderr = stderr.getvalue()
-        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'") in stderr
+        assert (
+            f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'"
+        ) in stderr
 
     @pytest.mark.parametrize(
         "executor,expected_args",
@@ -386,18 +430,24 @@ class TestCli:
                 reload(executor_loader)
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
-                with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that
+                with pytest.raises(
+                    SystemExit
+                ) as e:  # running the help command exits, so we prevent that
                     parser.parse_args([expected_arg, "--help"])
                 assert e.value.code == 0, stderr.getvalue()  # return code 0 == no problem
                 stderr = stderr.getvalue()
                 assert "airflow command error" not in stderr
 
-    def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
+    def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(
+        self,
+    ):
         """Test that the error message is correct when the directory does not exist."""
         with contextlib.redirect_stderr(StringIO()) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
+                parser.parse_args(
+                    ["db", "export-archived", "--output-path", "/non/existing/directory"]
+                )
             error_msg = stderr.getvalue()
 
         assert error_msg == (
@@ -415,7 +465,14 @@ class TestCli:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
                 parser.parse_args(
-                    ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
+                    [
+                        "db",
+                        "export-archived",
+                        "--export-format",
+                        export_format,
+                        "--output-path",
+                        "mydir",
+                    ]
                 )
             error_msg = stderr.getvalue()
         assert error_msg == (
@@ -427,8 +484,12 @@ class TestCli:
     @pytest.mark.parametrize(
         "action_cmd",
         [
-            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=True),
-            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=False),
+            ActionCommand(
+                name="name", help="help", func=lazy_load_command(""), args=(), hide=True
+            ),
+            ActionCommand(
+                name="name", help="help", func=lazy_load_command(""), args=(), hide=False
+            ),
         ],
     )
     @patch("argparse._SubParsersAction")
@@ -440,7 +501,10 @@ class TestCli:
             )
         else:
             mock_subparser_actions.add_parser.assert_called_once_with(
-                action_cmd.name, help=action_cmd.help, description=action_cmd.help, epilog=action_cmd.epilog
+                action_cmd.name,
+                help=action_cmd.help,
+                description=action_cmd.help,
+                epilog=action_cmd.epilog,
             )
 
 
@@ -466,7 +530,10 @@ class TestCliSubprocess:
         # Limit the number of samples otherwise the test will take a very long time
         num_samples = 3
         threshold = 3.5
-        timing_result = timeit.timeit(stmt=timing_code, number=num_samples, setup=setup_code) / num_samples
+        timing_result = (
+            timeit.timeit(stmt=timing_code, number=num_samples, setup=setup_code)
+            / num_samples
+        )
         # Average run time of Airflow CLI should at least be within 3.5s
         assert timing_result < threshold
 

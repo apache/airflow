@@ -30,7 +30,11 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
+from airflow.providers.databricks.hooks.databricks import (
+    DatabricksHook,
+    RunLifeCycleState,
+    RunState,
+)
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
@@ -40,7 +44,10 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRunLink,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import (
+    normalise_json_content,
+    validate_trigger_event,
+)
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -88,7 +95,13 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                                 error = run_output["error"]
                             else:
                                 error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                            failed_tasks.append(
+                                {
+                                    "task_key": task_key,
+                                    "run_id": task_run_id,
+                                    "error": error,
+                                }
+                            )
 
                     error_message = (
                         f"{operator.task_id} failed with terminal state: {run_state} "
@@ -118,10 +131,15 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     job_id = operator.json["job_id"]
                     update_job_for_repair(operator, hook, job_id, run_state)
                     latest_repair_id = hook.get_latest_repair_id(operator.run_id)
-                    repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
+                    repair_json = {
+                        "run_id": operator.run_id,
+                        "rerun_all_failed_tasks": True,
+                    }
                     if latest_repair_id is not None:
                         repair_json["latest_repair_id"] = latest_repair_id
-                    operator.json["latest_repair_id"] = hook.repair_run(operator, repair_json)
+                    operator.json["latest_repair_id"] = hook.repair_run(
+                        operator, repair_json
+                    )
                     _handle_databricks_operator_execution(operator, hook, log, context)
                 raise AirflowException(error_message)
 
@@ -141,10 +159,15 @@ def is_repair_reason_match_exist(operator: Any, run_state: RunState) -> bool:
     :param run_state: Run state of the Databricks job
     :return: True if repair reason matches the run state message, False otherwise
     """
-    return any(reason in run_state.state_message for reason in operator.databricks_repair_reason_new_settings)
+    return any(
+        reason in run_state.state_message
+        for reason in operator.databricks_repair_reason_new_settings
+    )
 
 
-def update_job_for_repair(operator: Any, hook: Any, job_id: int, run_state: RunState) -> None:
+def update_job_for_repair(
+    operator: Any, hook: Any, job_id: int, run_state: RunState
+) -> None:
     """
     Update job settings(partial) to repair the run with all failed tasks.
 
@@ -168,7 +191,9 @@ def update_job_for_repair(operator: Any, hook: Any, job_id: int, run_state: RunS
         hook.update_job(job_id=job_id, json=new_settings_json)
 
 
-def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
+def _handle_deferrable_databricks_operator_execution(
+    operator, hook, log, context
+) -> None:
     """
     Handle the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
 
@@ -220,7 +245,9 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
         log.info("Job run completed successfully.")
         return
 
-    error_message = f"Job run failed with terminal state: {run_state} and with the errors {errors}"
+    error_message = (
+        f"Job run failed with terminal state: {run_state} and with the errors {errors}"
+    )
 
     if event.get("repair_run"):
         log.warning(
@@ -542,7 +569,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
@@ -590,8 +619,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
-        if pipeline_task is not None and "pipeline_id" in pipeline_task and "pipeline_name" in pipeline_task:
-            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
+        if (
+            pipeline_task is not None
+            and "pipeline_id" in pipeline_task
+            and "pipeline_name" in pipeline_task
+        ):
+            raise AirflowException(
+                "'pipeline_name' is not allowed in conjunction with 'pipeline_id'"
+            )
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -618,12 +653,16 @@ class DatabricksSubmitRunOperator(BaseOperator):
         ):
             # If pipeline_id is not provided, we need to fetch it from the pipeline_name
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
-            self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
+            self.json["pipeline_task"]["pipeline_id"] = (
+                self._hook.find_pipeline_id_by_name(pipeline_name)
+            )
             del self.json["pipeline_task"]["pipeline_name"]
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
-            _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
+            _handle_deferrable_databricks_operator_execution(
+                self, self._hook, self.log, context
+            )
         else:
             _handle_databricks_operator_execution(self, self._hook, self.log, context)
 
@@ -631,10 +670,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if self.run_id:
             self._hook.cancel_run(self.run_id)
             self.log.info(
-                "Task: %s with run_id: %s was requested to be cancelled.", self.task_id, self.run_id
+                "Task: %s with run_id: %s was requested to be cancelled.",
+                self.task_id,
+                self.run_id,
             )
         else:
-            self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
+            self.log.error(
+                "Error: Task: %s with invalid run_id was requested to be cancelled.",
+                self.task_id,
+            )
 
     def execute_complete(self, context: dict | None, event: dict):
         _handle_deferrable_databricks_operator_completion(event, self.log)
@@ -676,7 +720,10 @@ class DatabricksRunNowOperator(BaseOperator):
 
         json = {
             "job_id": 42,
-            "notebook_params": {"dry-run": "true", "oldest-time-to-consider": "1457570074236"},
+            "notebook_params": {
+                "dry-run": "true",
+                "oldest-time-to-consider": "1457570074236",
+            },
         }
 
         notebook_run = DatabricksRunNowOperator(task_id="notebook_run", json=json)
@@ -846,7 +893,9 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         repair_run: bool = False,
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
@@ -863,7 +912,9 @@ class DatabricksRunNowOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
         self.repair_run = repair_run
-        self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
+        self.databricks_repair_reason_new_settings = (
+            databricks_repair_reason_new_settings or {}
+        )
         self.cancel_previous_runs = cancel_previous_runs
 
         if job_id is not None:
@@ -871,7 +922,9 @@ class DatabricksRunNowOperator(BaseOperator):
         if job_name is not None:
             self.json["job_name"] = job_name
         if "job_id" in self.json and "job_name" in self.json:
-            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
+            raise AirflowException(
+                "Argument 'job_name' is not allowed with argument 'job_id'"
+            )
         if notebook_params is not None:
             self.json["notebook_params"] = notebook_params
         if python_params is not None:
@@ -908,7 +961,9 @@ class DatabricksRunNowOperator(BaseOperator):
         if "job_name" in self.json:
             job_id = hook.find_job_id_by_name(self.json["job_name"])
             if job_id is None:
-                raise AirflowException(f"Job ID for job name {self.json['job_name']} can not be found")
+                raise AirflowException(
+                    f"Job ID for job name {self.json['job_name']} can not be found"
+                )
             self.json["job_id"] = job_id
             del self.json["job_name"]
 
@@ -917,11 +972,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
-            _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
+            _handle_deferrable_databricks_operator_execution(
+                self, hook, self.log, context
+            )
         else:
             _handle_databricks_operator_execution(self, hook, self.log, context)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         if event:
             _handle_deferrable_databricks_operator_completion(event, self.log)
             run_state = RunState.from_json(event["run_state"])
@@ -939,16 +998,23 @@ class DatabricksRunNowOperator(BaseOperator):
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
                 self.json["latest_repair_id"] = self._hook.repair_run(repair_json)
-                _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
+                _handle_deferrable_databricks_operator_execution(
+                    self, self._hook, self.log, context
+                )
 
     def on_kill(self) -> None:
         if self.run_id:
             self._hook.cancel_run(self.run_id)
             self.log.info(
-                "Task: %s with run_id: %s was requested to be cancelled.", self.task_id, self.run_id
+                "Task: %s with run_id: %s was requested to be cancelled.",
+                self.task_id,
+                self.run_id,
             )
         else:
-            self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
+            self.log.error(
+                "Error: Task: %s with invalid run_id was requested to be cancelled.",
+                self.task_id,
+            )
 
 
 @deprecated(
@@ -995,7 +1061,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         databricks_retry_args: dict[Any, Any] | None = None,
         databricks_retry_delay: int = 1,
         databricks_retry_limit: int = 3,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         existing_cluster_id: str = "",
         job_cluster_key: str = "",
         new_cluster: dict[str, Any] | None = None,
@@ -1087,7 +1155,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             **self._get_task_base_json(),
         }
         if self.new_cluster and self.existing_cluster_id:
-            raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
+            raise ValueError(
+                "Both new_cluster and existing_cluster_id are set. Only one should be set."
+            )
         if self.new_cluster:
             run_json["new_cluster"] = self.new_cluster
         elif self.existing_cluster_id:
@@ -1124,7 +1194,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def _get_current_databricks_task(self) -> dict[str, Any]:
         """Retrieve the Databricks task corresponding to the current Airflow task."""
         if self.databricks_run_id is None:
-            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+            raise ValueError(
+                "Databricks job not yet launched. Please run launch_notebook_job first."
+            )
         tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
 
         # Because the task_key remains the same across multiple runs, and the Databricks API does not return
@@ -1170,7 +1242,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         Wait for the job to terminate. If deferrable, defer the task.
         """
         if self.databricks_run_id is None:
-            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+            raise ValueError(
+                "Databricks job not yet launched. Please run launch_notebook_job first."
+            )
         current_task_run_id = self._get_current_databricks_task()["run_id"]
         run = self._hook.get_run(current_task_run_id)
         run_page_url = run["run_page_url"]
@@ -1210,8 +1284,12 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if self._databricks_workflow_task_group:
             # If we are in a DatabricksWorkflowTaskGroup, we should have an upstream task launched.
             if not self.workflow_run_metadata:
-                launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
-                self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
+                launch_task_id = next(
+                    task for task in self.upstream_task_ids if task.endswith(".launch")
+                )
+                self.workflow_run_metadata = context["ti"].xcom_pull(
+                    task_ids=launch_task_id
+                )
             workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
                 **self.workflow_run_metadata
             )
@@ -1276,7 +1354,9 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         databricks_retry_delay: int = 1,
         databricks_retry_limit: int = 3,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         existing_cluster_id: str = "",
         job_cluster_key: str = "",
         new_cluster: dict[str, Any] | None = None,
@@ -1349,7 +1429,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
         """Extend the task group packages into the notebook's packages, without adding any duplicates."""
         for task_group_package in databricks_workflow_task_group.notebook_packages:
             exists = any(
-                task_group_package == existing_package for existing_package in self.notebook_packages
+                task_group_package == existing_package
+                for existing_package in self.notebook_packages
             )
             if not exists:
                 self.notebook_packages.append(task_group_package)
@@ -1373,7 +1454,9 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
                 **databricks_workflow_task_group.notebook_params,
             }
 
-        return super()._convert_to_databricks_workflow_task(relevant_upstreams, context=context)
+        return super()._convert_to_databricks_workflow_task(
+            relevant_upstreams, context=context
+        )
 
 
 class DatabricksTaskOperator(DatabricksTaskBaseOperator):
@@ -1411,7 +1494,9 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         databricks_retry_delay: int = 1,
         databricks_retry_limit: int = 3,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         existing_cluster_id: str = "",
         job_cluster_key: str = "",
         new_cluster: dict[str, Any] | None = None,

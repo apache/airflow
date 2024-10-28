@@ -26,14 +26,20 @@ from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
+from airflow.providers.google.cloud.hooks.datafusion import (
+    SUCCESS_STATES,
+    DataFusionHook,
+    PipelineStates,
+)
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
     DataFusionPipelineLink,
     DataFusionPipelinesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
+from airflow.providers.google.cloud.triggers.datafusion import (
+    DataFusionStartPipelineTrigger,
+)
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 from airflow.providers.google.common.deprecated import deprecated
@@ -275,7 +281,9 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
                 raise
             self.log.info("Instance %s already exists", self.instance_name)
             instance = hook.get_instance(
-                instance_name=self.instance_name, location=self.location, project_id=self.project_id
+                instance_name=self.instance_name,
+                location=self.location,
+                project_id=self.project_id,
             )
             # Wait for instance to be ready
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
@@ -283,7 +291,9 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
                     break
                 time.sleep(time_to_wait)
                 instance = hook.get_instance(
-                    instance_name=self.instance_name, location=self.location, project_id=self.project_id
+                    instance_name=self.instance_name,
+                    location=self.location,
+                    project_id=self.project_id,
                 )
 
         project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
@@ -784,7 +794,9 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous=False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval=3.0,
         **kwargs,
     ) -> None:
@@ -861,7 +873,10 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         else:
             if not self.asynchronous:
                 # when NOT using asynchronous mode it will just wait for pipeline to finish and print message
-                self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
+                self.log.info(
+                    "Waiting when pipeline %s will be in one of the success states",
+                    pipeline_id,
+                )
                 hook.wait_for_pipeline_state(
                     success_states=self.success_states,
                     pipeline_id=pipeline_id,
@@ -953,7 +968,9 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Data Fusion pipeline: %s is going to be stopped", self.pipeline_name)
+        self.log.info(
+            "Data Fusion pipeline: %s is going to be stopped", self.pipeline_name
+        )
         instance = hook.get_instance(
             instance_name=self.instance_name,
             location=self.location,

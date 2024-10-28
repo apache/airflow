@@ -96,7 +96,8 @@ class MongoHook(BaseHook):
                 description="Check if using an SRV/seed list connection, i.e. one that begins with 'mongdb+srv://' (if so, the port field should be left empty)",
             ),
             "ssl": BooleanField(
-                label=lazy_gettext("Use SSL"), description="Check to enable SSL/TLS for the connection"
+                label=lazy_gettext("Use SSL"),
+                description="Check to enable SSL/TLS for the connection",
             ),
             "allow_insecure": BooleanField(
                 label=lazy_gettext("Allow Invalid Certificates"),
@@ -136,7 +137,9 @@ class MongoHook(BaseHook):
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
 
-        self.allow_insecure = str(self.extras.pop("allow_insecure", "false")).lower() == "true"
+        self.allow_insecure = (
+            str(self.extras.pop("allow_insecure", "false")).lower() == "true"
+        )
         self.ssl_enabled = (
             str(self.extras.get("ssl", "false")).lower() == "true"
             or str(self.extras.get("tls", "false")).lower() == "true"
@@ -220,7 +223,9 @@ class MongoHook(BaseHook):
         path = f"/{self.connection.schema}"
         return urlunsplit((scheme, netloc, path, "", ""))
 
-    def get_collection(self, mongo_collection: str, mongo_db: str | None = None) -> MongoCollection:
+    def get_collection(
+        self, mongo_collection: str, mongo_db: str | None = None
+    ) -> MongoCollection:
         """
         Fetch a mongo collection object for querying.
 
@@ -232,7 +237,11 @@ class MongoHook(BaseHook):
         return mongo_conn.get_database(mongo_db).get_collection(mongo_collection)
 
     def aggregate(
-        self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs
+        self,
+        mongo_collection: str,
+        aggregate_query: list,
+        mongo_db: str | None = None,
+        **kwargs,
     ) -> CommandCursor:
         """
         Run an aggregation pipeline and returns the results.
@@ -300,7 +309,11 @@ class MongoHook(BaseHook):
         return collection.insert_one(doc, **kwargs)
 
     def insert_many(
-        self, mongo_collection: str, docs: Iterable[dict], mongo_db: str | None = None, **kwargs
+        self,
+        mongo_collection: str,
+        docs: Iterable[dict],
+        mongo_db: str | None = None,
+        **kwargs,
     ) -> pymongo.results.InsertManyResult:
         """
         Insert many docs into a mongo collection.
@@ -428,13 +441,18 @@ class MongoHook(BaseHook):
             filter_docs = [{"_id": doc["_id"]} for doc in docs]
 
         requests = [
-            ReplaceOne(filter_docs[i], docs[i], upsert=upsert, collation=collation) for i in range(len(docs))
+            ReplaceOne(filter_docs[i], docs[i], upsert=upsert, collation=collation)
+            for i in range(len(docs))
         ]
 
         return collection.bulk_write(requests, **kwargs)
 
     def delete_one(
-        self, mongo_collection: str, filter_doc: dict, mongo_db: str | None = None, **kwargs
+        self,
+        mongo_collection: str,
+        filter_doc: dict,
+        mongo_db: str | None = None,
+        **kwargs,
     ) -> pymongo.results.DeleteResult:
         """
         Delete a single document in a mongo collection.
@@ -451,7 +469,11 @@ class MongoHook(BaseHook):
         return collection.delete_one(filter_doc, **kwargs)
 
     def delete_many(
-        self, mongo_collection: str, filter_doc: dict, mongo_db: str | None = None, **kwargs
+        self,
+        mongo_collection: str,
+        filter_doc: dict,
+        mongo_db: str | None = None,
+        **kwargs,
     ) -> pymongo.results.DeleteResult:
         """
         Delete one or more documents in a mongo collection.

@@ -68,7 +68,12 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
     :param region: AnalyticDB MySQL region you want to submit spark application.
     """
 
-    TERMINAL_STATES = {AppState.COMPLETED, AppState.FAILED, AppState.FATAL, AppState.KILLED}
+    TERMINAL_STATES = {
+        AppState.COMPLETED,
+        AppState.FAILED,
+        AppState.FATAL,
+        AppState.KILLED,
+    }
 
     conn_name_attr = "alibabacloud_conn_id"
     default_conn_name = "adb_spark_default"
@@ -76,7 +81,11 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
     hook_name = "AnalyticDB Spark"
 
     def __init__(
-        self, adb_spark_conn_id: str = "adb_spark_default", region: str | None = None, *args, **kwargs
+        self,
+        adb_spark_conn_id: str = "adb_spark_default",
+        region: str | None = None,
+        *args,
+        **kwargs,
     ) -> None:
         self.adb_spark_conn_id = adb_spark_conn_id
         self.adb_spark_conn = self.get_connection(adb_spark_conn_id)
@@ -142,7 +151,9 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
             )
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when fetching state for spark application: {app_id}") from e
+            raise AirflowException(
+                f"Errors when fetching state for spark application: {app_id}"
+            ) from e
 
     def get_spark_web_ui_address(self, app_id: str) -> str:
         """
@@ -154,7 +165,9 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         try:
             return (
                 self.get_adb_spark_client()
-                .get_spark_app_web_ui_address(GetSparkAppWebUiAddressRequest(app_id=app_id))
+                .get_spark_app_web_ui_address(
+                    GetSparkAppWebUiAddressRequest(app_id=app_id)
+                )
                 .body.data.web_ui_address
             )
         except Exception as e:
@@ -178,7 +191,9 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
             )
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when fetching log for spark application: {app_id}") from e
+            raise AirflowException(
+                f"Errors when fetching log for spark application: {app_id}"
+            ) from e
 
     def kill_spark_app(self, app_id: str) -> None:
         """
@@ -191,7 +206,9 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
             self.get_adb_spark_client().kill_spark_app(KillSparkAppRequest(app_id=app_id))
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when killing spark application: {app_id}") from e
+            raise AirflowException(
+                f"Errors when killing spark application: {app_id}"
+            ) from e
 
     @staticmethod
     def build_submit_app_data(
@@ -337,10 +354,14 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         adb_spark_access_key_id = extra_config.get("access_key_id", None)
         adb_spark_access_secret = extra_config.get("access_key_secret", None)
         if not adb_spark_access_key_id:
-            raise ValueError(f"No access_key_id is specified for connection: {self.adb_spark_conn_id}")
+            raise ValueError(
+                f"No access_key_id is specified for connection: {self.adb_spark_conn_id}"
+            )
 
         if not adb_spark_access_secret:
-            raise ValueError(f"No access_key_secret is specified for connection: {self.adb_spark_conn_id}")
+            raise ValueError(
+                f"No access_key_secret is specified for connection: {self.adb_spark_conn_id}"
+            )
 
         return Client(
             Config(
@@ -362,5 +383,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
 
         default_region = extra_config.get("region", None)
         if not default_region:
-            raise ValueError(f"No region is specified for connection: {self.adb_spark_conn}")
+            raise ValueError(
+                f"No region is specified for connection: {self.adb_spark_conn}"
+            )
         return default_region

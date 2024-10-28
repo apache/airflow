@@ -86,9 +86,17 @@ class TestAwsLogsHook:
             ),
         ],
     )
-    @patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.conn", new_callable=mock.PropertyMock)
+    @patch(
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.conn",
+        new_callable=mock.PropertyMock,
+    )
     def test_get_log_events(
-        self, mock_conn, get_log_events_response, num_skip_events, expected_num_events, end_time
+        self,
+        mock_conn,
+        get_log_events_response,
+        num_skip_events,
+        expected_num_events,
+        end_time,
     ):
         mock_conn().get_log_events.side_effect = get_log_events_response
 

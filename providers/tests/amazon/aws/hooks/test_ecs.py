@@ -45,12 +45,18 @@ class TestEksHooks:
         assert EcsHook().get_cluster_state(cluster_name="cluster_name") == "ACTIVE"
 
     def test_get_task_definition_state(self, mock_conn) -> None:
-        mock_conn.describe_task_definition.return_value = {"taskDefinition": {"status": "ACTIVE"}}
-        assert EcsHook().get_task_definition_state(task_definition="task_name") == "ACTIVE"
+        mock_conn.describe_task_definition.return_value = {
+            "taskDefinition": {"status": "ACTIVE"}
+        }
+        assert (
+            EcsHook().get_task_definition_state(task_definition="task_name") == "ACTIVE"
+        )
 
     def test_get_task_state(self, mock_conn) -> None:
         mock_conn.describe_tasks.return_value = {"tasks": [{"lastStatus": "ACTIVE"}]}
-        assert EcsHook().get_task_state(cluster="cluster_name", task="task_name") == "ACTIVE"
+        assert (
+            EcsHook().get_task_state(cluster="cluster_name", task="task_name") == "ACTIVE"
+        )
 
 
 class TestShouldRetry:
@@ -58,7 +64,9 @@ class TestShouldRetry:
         assert should_retry(EcsOperatorError([{"reason": "RESOURCE:MEMORY"}], "Foo"))
 
     def test_return_false_on_invalid_reason(self):
-        assert not should_retry(EcsOperatorError([{"reason": "CLUSTER_NOT_FOUND"}], "Foo"))
+        assert not should_retry(
+            EcsOperatorError([{"reason": "CLUSTER_NOT_FOUND"}], "Foo")
+        )
 
 
 class TestShouldRetryEni:

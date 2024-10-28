@@ -21,7 +21,16 @@ import collections.abc
 import functools
 import operator
 from collections.abc import Sized
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    Mapping,
+    NamedTuple,
+    Sequence,
+    Union,
+)
 
 import attr
 
@@ -45,7 +54,9 @@ OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, Dict[str, 
 
 # The single argument of expand_kwargs() can be an XComArg, or a list with each
 # element being either an XComArg or a dict.
-OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
+OperatorExpandKwargsArgument = Union[
+    "XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]
+]
 
 
 @attr.define(kw_only=True)
@@ -69,7 +80,13 @@ class MappedArgument(ResolveMixin):
         yield from self._input.iter_references()
 
     @provide_session
-    def resolve(self, context: Context, *, include_xcom: bool = True, session: Session = NEW_SESSION) -> Any:
+    def resolve(
+        self,
+        context: Context,
+        *,
+        include_xcom: bool = True,
+        session: Session = NEW_SESSION,
+    ) -> Any:
         data, _ = self._input.resolve(context, session=session, include_xcom=include_xcom)
         return data[self._key]
 
@@ -78,7 +95,9 @@ class MappedArgument(ResolveMixin):
 def is_mappable(v: Any) -> TypeGuard[OperatorExpandArgument]:
     from airflow.models.xcom_arg import XComArg
 
-    return isinstance(v, (MappedArgument, XComArg, Mapping, Sequence)) and not isinstance(v, str)
+    return isinstance(v, (MappedArgument, XComArg, Mapping, Sequence)) and not isinstance(
+        v, str
+    )
 
 
 # To replace tedious isinstance() checks.
@@ -89,7 +108,9 @@ def _is_parse_time_mappable(v: OperatorExpandArgument) -> TypeGuard[Mapping | Se
 
 
 # To replace tedious isinstance() checks.
-def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | XComArg]:
+def _needs_run_time_resolution(
+    v: OperatorExpandArgument,
+) -> TypeGuard[MappedArgument | XComArg]:
     from airflow.models.xcom_arg import XComArg
 
     return isinstance(v, (MappedArgument, XComArg))
@@ -166,7 +187,13 @@ class DictOfListsExpandInput(NamedTuple):
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
     def _expand_mapped_field(
-        self, key: str, value: Any, context: Context, *, session: Session, include_xcom: bool
+        self,
+        key: str,
+        value: Any,
+        context: Context,
+        *,
+        session: Session,
+        include_xcom: bool,
     ) -> Any:
         if _needs_run_time_resolution(value):
             value = (
@@ -184,7 +211,9 @@ class DictOfListsExpandInput(NamedTuple):
             for mapped_key in reversed(self.value):
                 mapped_length = all_lengths[mapped_key]
                 if mapped_length < 1:
-                    raise RuntimeError(f"cannot expand field mapped to length {mapped_length!r}")
+                    raise RuntimeError(
+                        f"cannot expand field mapped to length {mapped_length!r}"
+                    )
                 if mapped_key == key:
                     return index % mapped_length
                 index //= mapped_length
@@ -213,7 +242,9 @@ class DictOfListsExpandInput(NamedTuple):
         self, context: Context, session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         data = {
-            k: self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
+            k: self._expand_mapped_field(
+                k, v, context, session=session, include_xcom=include_xcom
+            )
             for k, v in self.value.items()
         }
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
@@ -274,11 +305,15 @@ class ListOfDictsExpandInput(NamedTuple):
         elif include_xcom:
             mappings = self.value.resolve(context, session, include_xcom=include_xcom)
             if not isinstance(mappings, collections.abc.Sequence):
-                raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
+                raise ValueError(
+                    f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}"
+                )
             mapping = mappings[map_index]
 
         if not isinstance(mapping, collections.abc.Mapping):
-            raise ValueError(f"expand_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]")
+            raise ValueError(
+                f"expand_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]"
+            )
 
         for key in mapping:
             if not isinstance(key, str):
@@ -287,7 +322,9 @@ class ListOfDictsExpandInput(NamedTuple):
                     f"but {key!r} is of type {_describe_type(key)}"
                 )
         # filter out parse time resolved values from the resolved_oids
-        resolved_oids = {id(v) for k, v in mapping.items() if not _is_parse_time_mappable(v)}
+        resolved_oids = {
+            id(v) for k, v in mapping.items() if not _is_parse_time_mappable(v)
+        }
 
         return mapping, resolved_oids
 

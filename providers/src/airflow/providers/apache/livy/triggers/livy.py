@@ -125,11 +125,16 @@ class LivyTrigger(BaseTrigger):
         batch_execution_timed_out = False
         hook = self._get_async_hook()
         state = await hook.get_batch_state(batch_id)
-        self.log.info("Batch with id %s is in state: %s", batch_id, state["batch_state"].value)
+        self.log.info(
+            "Batch with id %s is in state: %s", batch_id, state["batch_state"].value
+        )
         while state["batch_state"] not in hook.TERMINAL_STATES:
-            self.log.info("Batch with id %s is in state: %s", batch_id, state["batch_state"].value)
+            self.log.info(
+                "Batch with id %s is in state: %s", batch_id, state["batch_state"].value
+            )
             batch_execution_timed_out = (
-                timeout_datetime is not None and datetime.now(timezone.utc) > timeout_datetime
+                timeout_datetime is not None
+                and datetime.now(timezone.utc) > timeout_datetime
             )
             if batch_execution_timed_out:
                 break
@@ -148,7 +153,11 @@ class LivyTrigger(BaseTrigger):
                 "response": f"Batch {batch_id} timed out",
                 "log_lines": log_lines,
             }
-        self.log.info("Batch with id %s terminated with state: %s", batch_id, state["batch_state"].value)
+        self.log.info(
+            "Batch with id %s terminated with state: %s",
+            batch_id,
+            state["batch_state"].value,
+        )
         if state["batch_state"] != BatchState.SUCCESS:
             return {
                 "status": "error",
@@ -164,7 +173,9 @@ class LivyTrigger(BaseTrigger):
         }
 
     def _get_async_hook(self) -> LivyAsyncHook:
-        if self._livy_hook_async is None or not isinstance(self._livy_hook_async, LivyAsyncHook):
+        if self._livy_hook_async is None or not isinstance(
+            self._livy_hook_async, LivyAsyncHook
+        ):
             self._livy_hook_async = LivyAsyncHook(
                 livy_conn_id=self._livy_conn_id,
                 extra_headers=self._extra_headers,

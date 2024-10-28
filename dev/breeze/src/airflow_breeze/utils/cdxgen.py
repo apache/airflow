@@ -42,7 +42,10 @@ from airflow_breeze.utils.github import (
     download_file_from_github,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
-from airflow_breeze.utils.projects_google_spreadsheet import MetadataFromSpreadsheet, get_project_metadata
+from airflow_breeze.utils.projects_google_spreadsheet import (
+    MetadataFromSpreadsheet,
+    get_project_metadata,
+)
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -50,7 +53,9 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
-def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
+def start_cdxgen_server(
+    application_root_path: Path, run_in_parallel: bool, parallelism: int
+) -> None:
     """
     Start cdxgen server that is used to perform cdxgen scans of applications in child process
     :param run_in_parallel: run parallel servers
@@ -149,7 +154,9 @@ def list_providers_from_providers_requirements(
             airflow_site_archive_directory
             / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
         )
-        provider_version_documentation_directory = provider_documentation_directory / provider_version
+        provider_version_documentation_directory = (
+            provider_documentation_directory / provider_version
+        )
 
         if not provider_version_documentation_directory.exists():
             get_console().print(
@@ -157,7 +164,12 @@ def list_providers_from_providers_requirements(
             )
             continue
 
-        yield (node_name, provider_id, provider_version, provider_version_documentation_directory)
+        yield (
+            node_name,
+            provider_id,
+            provider_version,
+            provider_version_documentation_directory,
+        )
 
 
 TARGET_DIR_NAME = "provider_requirements"
@@ -181,17 +193,23 @@ def get_requirements_for_provider(
         ) / "provider.yaml"
         provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
 
-    airflow_core_file_name = f"airflow-{airflow_version}-python{python_version}-requirements.txt"
+    airflow_core_file_name = (
+        f"airflow-{airflow_version}-python{python_version}-requirements.txt"
+    )
     airflow_core_path = PROVIDER_REQUIREMENTS_DIR_PATH / airflow_core_file_name
 
     provider_folder_name = f"provider-{provider_id}-{provider_version}"
     provider_folder_path = PROVIDER_REQUIREMENTS_DIR_PATH / provider_folder_name
 
-    provider_with_core_folder_path = provider_folder_path / f"python{python_version}" / "with-core"
+    provider_with_core_folder_path = (
+        provider_folder_path / f"python{python_version}" / "with-core"
+    )
     provider_with_core_folder_path.mkdir(exist_ok=True, parents=True)
     provider_with_core_path = provider_with_core_folder_path / "requirements.txt"
 
-    provider_without_core_folder_path = provider_folder_path / f"python{python_version}" / "without-core"
+    provider_without_core_folder_path = (
+        provider_folder_path / f"python{python_version}" / "without-core"
+    )
     provider_without_core_folder_path.mkdir(exist_ok=True, parents=True)
     provider_without_core_file = provider_without_core_folder_path / "requirements.txt"
 
@@ -243,8 +261,12 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
         output=output,
     )
     get_console(output=output).print(f"[info]Airflow requirements in {airflow_core_path}")
-    get_console(output=output).print(f"[info]Provider requirements in {provider_with_core_path}")
-    base_packages = {package.split("==")[0] for package in airflow_core_path.read_text().splitlines()}
+    get_console(output=output).print(
+        f"[info]Provider requirements in {provider_with_core_path}"
+    )
+    base_packages = {
+        package.split("==")[0] for package in airflow_core_path.read_text().splitlines()
+    }
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
     provider_packages = sorted(
         [
@@ -314,13 +336,25 @@ RUN python -m venv /opt/airflow/airflow-{airflow_version} && \
 constraints-{airflow_version}/constraints-{python_version}.txt
 """
     build_command = run_command(
-        ["docker", "buildx", "build", "--cache-from", image_name, "--tag", image_name, "-"],
+        [
+            "docker",
+            "buildx",
+            "build",
+            "--cache-from",
+            image_name,
+            "--tag",
+            image_name,
+            "-",
+        ],
         input=dockerfile,
         text=True,
         check=True,
         output=output,
     )
-    return build_command.returncode, f"All airflow image built for python {python_version}"
+    return (
+        build_command.returncode,
+        f"All airflow image built for python {python_version}",
+    )
 
 
 @dataclass
@@ -375,7 +409,9 @@ class SbomCoreJob(SbomApplicationJob):
         lock_file_relative_path = "airflow/www/yarn.lock"
         if self.include_npm:
             download_file_from_github(
-                tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
+                tag=self.airflow_version,
+                path=lock_file_relative_path,
+                output_file=source_dir / "yarn.lock",
             )
         else:
             (source_dir / "yarn.lock").unlink(missing_ok=True)
@@ -449,7 +485,9 @@ class SbomCoreJob(SbomApplicationJob):
                     suffix += ":python-only"
             if self.include_provider_dependencies:
                 suffix += ":full"
-            get_console(output=output).print(f"[success]Generated SBOM for {self.airflow_version}:{suffix}")
+            get_console(output=output).print(
+                f"[success]Generated SBOM for {self.airflow_version}:{suffix}"
+            )
 
         return 0, f"SBOM Generate {self.airflow_version}:python{self.python_version}"
 
@@ -498,7 +536,10 @@ class SbomProviderJob(SbomApplicationJob):
                 f"{self.python_version}"
             )
 
-        return 0, f"SBOM Generate {self.provider_id}:{self.provider_version}:{self.python_version}"
+        return (
+            0,
+            f"SBOM Generate {self.provider_id}:{self.provider_version}:{self.python_version}",
+        )
 
 
 def produce_sbom_for_application_via_cdxgen_server(
@@ -598,11 +639,17 @@ def get_github_stats(
         github_data = response.json()
         stargazer_count = github_data.get("stargazers_count")
         forks_count = github_data.get("forks_count")
-        if project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_LOW_IMPORTANCE_PROJECTS):
+        if project_name in get_project_metadata(
+            MetadataFromSpreadsheet.KNOWN_LOW_IMPORTANCE_PROJECTS
+        ):
             importance = "Low"
-        elif project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_MEDIUM_IMPORTANCE_PROJECTS):
+        elif project_name in get_project_metadata(
+            MetadataFromSpreadsheet.KNOWN_MEDIUM_IMPORTANCE_PROJECTS
+        ):
             importance = "Medium"
-        elif project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_HIGH_IMPORTANCE_PROJECTS):
+        elif project_name in get_project_metadata(
+            MetadataFromSpreadsheet.KNOWN_HIGH_IMPORTANCE_PROJECTS
+        ):
             importance = "High"
         elif forks_count > 1000 or stargazer_count > 1000:
             importance = "High"
@@ -615,7 +662,9 @@ def get_github_stats(
     return result
 
 
-def get_open_psf_scorecard(vcs: str, project_name: str, console: Console) -> dict[str, Any]:
+def get_open_psf_scorecard(
+    vcs: str, project_name: str, console: Console
+) -> dict[str, Any]:
     import requests
 
     console.print(f"[info]Retrieving Open PSF Scorecard for {project_name}")
@@ -637,9 +686,13 @@ def get_open_psf_scorecard(vcs: str, project_name: str, console: Console) -> dic
             if check.get("details"):
                 reason += "\n".join(check["details"])
             results["OPSF-Details-" + check_name] = reason
-            CHECK_DOCS[check_name] = check["documentation"]["short"] + "\n" + check["documentation"]["url"]
+            CHECK_DOCS[check_name] = (
+                check["documentation"]["short"] + "\n" + check["documentation"]["url"]
+            )
             if check_name == "Maintained":
-                if project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_STABLE_PROJECTS):
+                if project_name in get_project_metadata(
+                    MetadataFromSpreadsheet.KNOWN_STABLE_PROJECTS
+                ):
                     lifecycle_status = "Stable"
                 else:
                     if score == 0:
@@ -659,11 +712,17 @@ def get_governance(vcs: str | None):
     if not vcs or not vcs.startswith("https://github.com/"):
         return ""
     organization = vcs.split("/")[3]
-    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_REPUTABLE_FOUNDATIONS):
+    if organization.lower() in get_project_metadata(
+        MetadataFromSpreadsheet.KNOWN_REPUTABLE_FOUNDATIONS
+    ):
         return "Reputable Foundation"
-    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_STRONG_COMMUNITIES):
+    if organization.lower() in get_project_metadata(
+        MetadataFromSpreadsheet.KNOWN_STRONG_COMMUNITIES
+    ):
         return "Strong Community"
-    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_COMPANIES):
+    if organization.lower() in get_project_metadata(
+        MetadataFromSpreadsheet.KNOWN_COMPANIES
+    ):
         return "Company"
     return "Loose community/ Single Person"
 

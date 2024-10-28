@@ -72,11 +72,15 @@ class TestS3ToMySqlTransfer:
     def test_execute(self, mock_remove, mock_bulk_load_custom, mock_download_file):
         S3ToMySqlOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
 
-        mock_download_file.assert_called_once_with(key=self.s3_to_mysql_transfer_kwargs["s3_source_key"])
+        mock_download_file.assert_called_once_with(
+            key=self.s3_to_mysql_transfer_kwargs["s3_source_key"]
+        )
         mock_bulk_load_custom.assert_called_once_with(
             table=self.s3_to_mysql_transfer_kwargs["mysql_table"],
             tmp_file=mock_download_file.return_value,
-            duplicate_key_handling=self.s3_to_mysql_transfer_kwargs["mysql_duplicate_key_handling"],
+            duplicate_key_handling=self.s3_to_mysql_transfer_kwargs[
+                "mysql_duplicate_key_handling"
+            ],
             extra_options=self.s3_to_mysql_transfer_kwargs["mysql_extra_options"],
         )
         mock_remove.assert_called_once_with(mock_download_file.return_value)
@@ -84,17 +88,23 @@ class TestS3ToMySqlTransfer:
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.S3Hook.download_file")
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.MySqlHook.bulk_load_custom")
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.os.remove")
-    def test_execute_exception(self, mock_remove, mock_bulk_load_custom, mock_download_file):
+    def test_execute_exception(
+        self, mock_remove, mock_bulk_load_custom, mock_download_file
+    ):
         mock_bulk_load_custom.side_effect = RuntimeError("Some exception occurred")
 
         with pytest.raises(RuntimeError, match="Some exception occurred"):
             S3ToMySqlOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
 
-        mock_download_file.assert_called_once_with(key=self.s3_to_mysql_transfer_kwargs["s3_source_key"])
+        mock_download_file.assert_called_once_with(
+            key=self.s3_to_mysql_transfer_kwargs["s3_source_key"]
+        )
         mock_bulk_load_custom.assert_called_once_with(
             table=self.s3_to_mysql_transfer_kwargs["mysql_table"],
             tmp_file=mock_download_file.return_value,
-            duplicate_key_handling=self.s3_to_mysql_transfer_kwargs["mysql_duplicate_key_handling"],
+            duplicate_key_handling=self.s3_to_mysql_transfer_kwargs[
+                "mysql_duplicate_key_handling"
+            ],
             extra_options=self.s3_to_mysql_transfer_kwargs["mysql_extra_options"],
         )
         mock_remove.assert_called_once_with(mock_download_file.return_value)
@@ -104,7 +114,10 @@ class TestS3ToMySqlTransfer:
             (
                 session.query(models.Connection)
                 .filter(
-                    or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "mysql_test")
+                    or_(
+                        models.Connection.conn_id == "s3_test",
+                        models.Connection.conn_id == "mysql_test",
+                    )
                 )
                 .delete()
             )

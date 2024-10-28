@@ -61,18 +61,24 @@ if "sentinel_kwargs" in broker_transport_options:
             raise ValueError
         broker_transport_options["sentinel_kwargs"] = sentinel_kwargs
     except Exception:
-        raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
+        raise AirflowException(
+            "sentinel_kwargs should be written in the correct dictionary format."
+        )
 
 if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
 else:
-    log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
+    log.debug(
+        "Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix."
+    )
     result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
 
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
     "event_serializer": "json",
-    "worker_prefetch_multiplier": conf.getint("celery", "worker_prefetch_multiplier", fallback=1),
+    "worker_prefetch_multiplier": conf.getint(
+        "celery", "worker_prefetch_multiplier", fallback=1
+    ),
     "task_acks_late": conf.getboolean("celery", "task_acks_late", fallback=True),
     "task_default_queue": conf.get("operators", "DEFAULT_QUEUE"),
     "task_default_exchange": conf.get("operators", "DEFAULT_QUEUE"),
@@ -84,7 +90,9 @@ DEFAULT_CELERY_CONFIG = {
         "celery", "result_backend_sqlalchemy_engine_options", fallback={}
     ),
     "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
-    "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control", fallback=True),
+    "worker_enable_remote_control": conf.getboolean(
+        "celery", "worker_enable_remote_control", fallback=True
+    ),
 }
 
 

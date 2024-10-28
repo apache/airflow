@@ -71,7 +71,11 @@ def is_vendored_path(path: str) -> bool:
 
 
 def validate_object_types():
-    all_object_types = ((d, p) for d, p in walk(SCHEMA) if isinstance(d, dict) and d.get("type") == "object")
+    all_object_types = (
+        (d, p)
+        for d, p in walk(SCHEMA)
+        if isinstance(d, dict) and d.get("type") == "object"
+    )
     all_object_types_with_a_loose_definition = [
         (d, p)
         for d, p in all_object_types
@@ -82,7 +86,9 @@ def validate_object_types():
         and not is_vendored_path(p)
     ]
     to_display_invalid_types = [
-        (d, p) for d, p in all_object_types_with_a_loose_definition if p not in KNOWN_INVALID_TYPES
+        (d, p)
+        for d, p in all_object_types_with_a_loose_definition
+        if p not in KNOWN_INVALID_TYPES
     ]
     if to_display_invalid_types:
         print(
@@ -97,12 +103,18 @@ def validate_object_types():
 
 
 def validate_array_types():
-    all_array_types = ((d, p) for d, p in walk(SCHEMA) if isinstance(d, dict) and d.get("type") == "array")
+    all_array_types = (
+        (d, p)
+        for d, p in walk(SCHEMA)
+        if isinstance(d, dict) and d.get("type") == "array"
+    )
     all_array_types_with_a_loose_definition = [
         (d, p) for (d, p) in all_array_types if not isinstance(d.get("items"), dict)
     ]
     to_display_invalid_types = [
-        (d, p) for d, p in all_array_types_with_a_loose_definition if p not in KNOWN_INVALID_TYPES
+        (d, p)
+        for d, p in all_array_types_with_a_loose_definition
+        if p not in KNOWN_INVALID_TYPES
     ]
 
     if to_display_invalid_types:
@@ -117,7 +129,9 @@ def validate_array_types():
 invalid_object_types_path = {p for _, p in validate_object_types()}
 invalid_array_types_path = {p for _, p in validate_array_types()}
 fixed_types = KNOWN_INVALID_TYPES - invalid_object_types_path - invalid_array_types_path
-invalid_paths = (invalid_object_types_path.union(invalid_array_types_path)) - KNOWN_INVALID_TYPES
+invalid_paths = (
+    invalid_object_types_path.union(invalid_array_types_path)
+) - KNOWN_INVALID_TYPES
 
 if fixed_types:
     current_file = Path(__file__).resolve()

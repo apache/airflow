@@ -54,7 +54,9 @@ class TestRotateFernetKeyCommand:
         var2_key = f"{__file__}_var2"
 
         # Create unencrypted variable
-        with conf_vars({("core", "fernet_key"): ""}), mock.patch("airflow.models.crypto._fernet", None):
+        with conf_vars({("core", "fernet_key"): ""}), mock.patch(
+            "airflow.models.crypto._fernet", None
+        ):
             Variable.set(key=var1_key, value="value")
 
         # Create encrypted variable
@@ -88,7 +90,9 @@ class TestRotateFernetKeyCommand:
         var2_key = f"{__file__}_var2"
 
         # Create unencrypted variable
-        with conf_vars({("core", "fernet_key"): ""}), mock.patch("airflow.models.crypto._fernet", None):
+        with conf_vars({("core", "fernet_key"): ""}), mock.patch(
+            "airflow.models.crypto._fernet", None
+        ):
             session.add(Connection(conn_id=var1_key, uri="mysql://user:pass@localhost"))
             session.commit()
 

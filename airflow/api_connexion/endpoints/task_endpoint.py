@@ -21,7 +21,11 @@ from typing import TYPE_CHECKING
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
+from airflow.api_connexion.schemas.task_schema import (
+    TaskCollection,
+    task_collection_schema,
+    task_schema,
+)
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -54,7 +58,9 @@ def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     tasks = dag.tasks
 
     try:
-        tasks = sorted(tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
+        tasks = sorted(
+            tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-")
+        )
     except AttributeError as err:
         raise BadRequest(detail=str(err))
     task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))

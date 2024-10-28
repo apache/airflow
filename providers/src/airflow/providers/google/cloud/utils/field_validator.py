@@ -163,7 +163,11 @@ def _int_greater_than_zero(value):
 EXAMPLE_VALIDATION_SPECIFICATION = [
     {"name": "name", "allow_empty": False},
     {"name": "description", "allow_empty": False, "optional": True},
-    {"name": "availableMemoryMb", "custom_validation": _int_greater_than_zero, "optional": True},
+    {
+        "name": "availableMemoryMb",
+        "custom_validation": _int_greater_than_zero,
+        "optional": True,
+    },
     {"name": "labels", "optional": True, "type": "dict"},
     {
         "name": "an_union",
@@ -171,7 +175,11 @@ EXAMPLE_VALIDATION_SPECIFICATION = [
         "fields": [
             {"name": "variant_1", "regexp": r"^.+$"},
             {"name": "variant_2", "regexp": r"^.+$", "api_version": "v1beta2"},
-            {"name": "variant_3", "type": "dict", "fields": [{"name": "url", "regexp": r"^.+$"}]},
+            {
+                "name": "variant_3",
+                "type": "dict",
+                "fields": [{"name": "url", "regexp": r"^.+$"}],
+            },
             {"name": "variant_4"},
         ],
     },
@@ -256,10 +264,14 @@ class GcpBodyFieldValidator(LoggingMixin):
                 f"The body field '{full_field_path}' can't be empty. Please provide a value."
             )
 
-    def _validate_dict(self, children_validation_specs: dict, full_field_path: str, value: dict) -> None:
+    def _validate_dict(
+        self, children_validation_specs: dict, full_field_path: str, value: dict
+    ) -> None:
         for child_validation_spec in children_validation_specs:
             self._validate_field(
-                validation_spec=child_validation_spec, dictionary_to_validate=value, parent=full_field_path
+                validation_spec=child_validation_spec,
+                dictionary_to_validate=value,
+                parent=full_field_path,
             )
         all_dict_keys = {spec["name"] for spec in children_validation_specs}
         for field_name in value:
@@ -276,7 +288,10 @@ class GcpBodyFieldValidator(LoggingMixin):
                 )
 
     def _validate_union(
-        self, children_validation_specs: dict, full_field_path: str, dictionary_to_validate: dict
+        self,
+        children_validation_specs: dict,
+        full_field_path: str,
+        dictionary_to_validate: dict,
     ) -> None:
         field_found = False
         found_field_name = None
@@ -311,7 +326,9 @@ class GcpBodyFieldValidator(LoggingMixin):
                 [field["name"] for field in children_validation_specs],
             )
 
-    def _validate_field(self, validation_spec, dictionary_to_validate, parent=None, force_optional=False):
+    def _validate_field(
+        self, validation_spec, dictionary_to_validate, parent=None, force_optional=False
+    ):
         """
         Validate if field is OK.
 
@@ -331,7 +348,9 @@ class GcpBodyFieldValidator(LoggingMixin):
         required_api_version = validation_spec.get("api_version")
         custom_validation = validation_spec.get("custom_validation")
 
-        full_field_path = self._get_field_name_with_parent(field_name=field_name, parent=parent)
+        full_field_path = self._get_field_name_with_parent(
+            field_name=field_name, parent=parent
+        )
         if required_api_version and required_api_version != self._api_version:
             self.log.debug(
                 "Skipping validation of the field '%s' for API version '%s' "
@@ -344,7 +363,10 @@ class GcpBodyFieldValidator(LoggingMixin):
         value = dictionary_to_validate.get(field_name)
 
         if (optional or force_optional) and value is None:
-            self.log.debug("The optional field '%s' is missing. That's perfectly OK.", full_field_path)
+            self.log.debug(
+                "The optional field '%s' is missing. That's perfectly OK.",
+                full_field_path,
+            )
             return False
 
         # Certainly down from here the field is present (value is not None)
@@ -387,7 +409,9 @@ class GcpBodyFieldValidator(LoggingMixin):
                     f"specification '{validation_spec}'. "
                     "Unions should have at least one nested field defined."
                 )
-            self._validate_union(children_validation_specs, full_field_path, dictionary_to_validate)
+            self._validate_union(
+                children_validation_specs, full_field_path, dictionary_to_validate
+            )
         elif field_type == "list":
             if not isinstance(value, list):
                 raise GcpFieldValidationException(
@@ -426,10 +450,15 @@ class GcpBodyFieldValidator(LoggingMixin):
         :return: None
         """
         if body_to_validate is None:
-            raise RuntimeError("The body to validate is `None`. Please provide a dictionary to validate.")
+            raise RuntimeError(
+                "The body to validate is `None`. Please provide a dictionary to validate."
+            )
         try:
             for validation_spec in self._validation_specs:
-                self._validate_field(validation_spec=validation_spec, dictionary_to_validate=body_to_validate)
+                self._validate_field(
+                    validation_spec=validation_spec,
+                    dictionary_to_validate=body_to_validate,
+                )
         except GcpFieldValidationException as e:
             raise GcpFieldValidationException(
                 f"There was an error when validating: body '{body_to_validate}': '{e}'"
@@ -437,9 +466,12 @@ class GcpBodyFieldValidator(LoggingMixin):
         all_field_names = {
             spec["name"]
             for spec in self._validation_specs
-            if spec.get("type") != "union" and spec.get("api_version") != self._api_version
+            if spec.get("type") != "union"
+            and spec.get("api_version") != self._api_version
         }
-        all_union_fields = [spec for spec in self._validation_specs if spec.get("type") == "union"]
+        all_union_fields = [
+            spec for spec in self._validation_specs if spec.get("type") == "union"
+        ]
         for union_field in all_union_fields:
             all_field_names.update(
                 nested_union_spec["name"]

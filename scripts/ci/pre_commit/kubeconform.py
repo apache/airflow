@@ -41,7 +41,14 @@ ps = subprocess.Popen(
     stdout=subprocess.PIPE,
 )
 result = subprocess.run(
-    ["docker", "run", "--rm", "-i", "ghcr.io/yannh/kubeconform:latest-alpine", "--strict"],
+    [
+        "docker",
+        "run",
+        "--rm",
+        "-i",
+        "ghcr.io/yannh/kubeconform:latest-alpine",
+        "--strict",
+    ],
     stdin=ps.stdout,
     check=False,
 )

@@ -72,7 +72,9 @@ def mock_plugin_manager(plugins=None, **kwargs):
     Use this context if you want your test to not have side effects in airflow.plugins_manager, and
     other tests do not affect the results of this test.
     """
-    illegal_arguments = set(kwargs.keys()) - set(PLUGINS_MANAGER_NULLABLE_ATTRIBUTES) - {"import_errors"}
+    illegal_arguments = (
+        set(kwargs.keys()) - set(PLUGINS_MANAGER_NULLABLE_ATTRIBUTES) - {"import_errors"}
+    )
     if illegal_arguments:
         raise TypeError(
             f"TypeError: mock_plugin_manager got an unexpected keyword arguments: {illegal_arguments}"
@@ -81,11 +83,14 @@ def mock_plugin_manager(plugins=None, **kwargs):
     with ExitStack() as exit_stack:
 
         def mock_loaded_plugins():
-            exit_stack.enter_context(mock.patch("airflow.plugins_manager.plugins", plugins or []))
+            exit_stack.enter_context(
+                mock.patch("airflow.plugins_manager.plugins", plugins or [])
+            )
 
         exit_stack.enter_context(
             mock.patch(
-                "airflow.plugins_manager.load_plugins_from_plugin_directory", side_effect=mock_loaded_plugins
+                "airflow.plugins_manager.load_plugins_from_plugin_directory",
+                side_effect=mock_loaded_plugins,
             )
         )
 
@@ -95,12 +100,16 @@ def mock_plugin_manager(plugins=None, **kwargs):
             ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES
 
         for attr in ATTR_TO_PATCH:
-            exit_stack.enter_context(mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr)))
+            exit_stack.enter_context(
+                mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr))
+            )
 
         # Always start the block with an empty plugins, so ensure_plugins_loaded runs.
         exit_stack.enter_context(mock.patch("airflow.plugins_manager.plugins", None))
         exit_stack.enter_context(
-            mock.patch("airflow.plugins_manager.import_errors", kwargs.get("import_errors", {}))
+            mock.patch(
+                "airflow.plugins_manager.import_errors", kwargs.get("import_errors", {})
+            )
         )
 
         yield

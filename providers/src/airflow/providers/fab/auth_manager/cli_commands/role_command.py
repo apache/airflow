@@ -34,7 +34,12 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.models import Action, Permission, Resource, Role
+    from airflow.providers.fab.auth_manager.models import (
+        Action,
+        Permission,
+        Resource,
+        Role,
+    )
 
 
 @suppress_logs_and_warning
@@ -46,19 +51,27 @@ def roles_list(args):
 
     if not args.permission:
         AirflowConsole().print_as(
-            data=sorted(r.name for r in roles), output=args.output, mapper=lambda x: {"name": x}
+            data=sorted(r.name for r in roles),
+            output=args.output,
+            mapper=lambda x: {"name": x},
         )
         return
 
     permission_map: dict[tuple[str, str], list[str]] = defaultdict(list)
     for role in roles:
         for permission in role.permissions:
-            permission_map[(role.name, permission.resource.name)].append(permission.action.name)
+            permission_map[(role.name, permission.resource.name)].append(
+                permission.action.name
+            )
 
     AirflowConsole().print_as(
         data=sorted(permission_map),
         output=args.output,
-        mapper=lambda x: {"name": x[0], "resource": x[1], "action": ",".join(sorted(permission_map[x]))},
+        mapper=lambda x: {
+            "name": x[0],
+            "resource": x[1],
+            "action": ",".join(sorted(permission_map[x])),
+        },
     )
 
 
@@ -124,13 +137,19 @@ def __roles_add_or_remove_permissions(args):
         ):
             res_key = (role_name, resource_name)
             if is_add and action_name not in perm_map[res_key]:
-                perm: Permission | None = asm.create_permission(action_name, resource_name)
+                perm: Permission | None = asm.create_permission(
+                    action_name, resource_name
+                )
                 asm.add_permission_to_role(role_map[role_name], perm)
                 print(f"Added {perm} to role {role_name}")
                 permission_count += 1
             elif not is_add and res_key in perm_map:
-                for _action_name in perm_map[res_key] if action_name is None else [action_name]:
-                    perm: Permission | None = asm.get_permission(_action_name, resource_name)
+                for _action_name in (
+                    perm_map[res_key] if action_name is None else [action_name]
+                ):
+                    perm: Permission | None = asm.get_permission(
+                        _action_name, resource_name
+                    )
                     asm.remove_permission_from_role(role_map[role_name], perm)
                     print(f"Deleted {perm} from role {role_name}")
                     permission_count += 1
@@ -167,7 +186,9 @@ def roles_export(args):
     for role in exporting_roles:
         if role.permissions:
             for permission in role.permissions:
-                permission_map[(role.name, permission.resource.name)].append(permission.action.name)
+                permission_map[(role.name, permission.resource.name)].append(
+                    permission.action.name
+                )
         else:
             permission_map[(role.name, "")].append("")
     export_data = [
@@ -203,7 +224,11 @@ def roles_import(args):
 
     with get_application_builder() as appbuilder:
         existing_roles = [role.name for role in appbuilder.sm.get_all_roles()]
-        roles_to_import = [role_dict for role_dict in role_list if role_dict["name"] not in existing_roles]
+        roles_to_import = [
+            role_dict
+            for role_dict in role_list
+            if role_dict["name"] not in existing_roles
+        ]
         for role_dict in roles_to_import:
             if role_dict["name"] not in appbuilder.sm.get_all_roles():
                 if role_dict["action"] == "" or role_dict["resource"] == "":

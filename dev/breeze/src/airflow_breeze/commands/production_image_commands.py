@@ -93,7 +93,11 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     warm_up_docker_builder,
 )
-from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
+from airflow_breeze.utils.image import (
+    run_pull_image,
+    run_pull_in_parallel,
+    tag_image_as_latest,
+)
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
     ShowLastLineProgressMatcher,
@@ -117,7 +121,9 @@ def run_build_in_parallel(
 ) -> None:
     warm_up_docker_builder(image_params_list)
     with ci_group(f"Building for {params_description_list}"):
-        all_params = [f"PROD {param_description}" for param_description in params_description_list]
+        all_params = [
+            f"PROD {param_description}" for param_description in params_description_list
+        ]
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
@@ -152,7 +158,9 @@ def prepare_for_building_prod_image(params: BuildProdParams):
 
 
 @click.group(
-    cls=BreezeGroup, name="prod-image", help="Tools that developers can use to manually manage PROD images"
+    cls=BreezeGroup,
+    name="prod-image",
+    help="Tools that developers can use to manually manage PROD images",
 )
 def prod_image():
     pass
@@ -190,14 +198,28 @@ def prod_image():
     show_default=True,
     help="Extras to install by default.",
 )
-@click.option("--disable-mysql-client-installation", help="Do not install MySQL client.", is_flag=True)
-@click.option("--disable-mssql-client-installation", help="Do not install MsSQl client.", is_flag=True)
-@click.option("--disable-postgres-client-installation", help="Do not install Postgres client.", is_flag=True)
+@click.option(
+    "--disable-mysql-client-installation",
+    help="Do not install MySQL client.",
+    is_flag=True,
+)
+@click.option(
+    "--disable-mssql-client-installation",
+    help="Do not install MsSQl client.",
+    is_flag=True,
+)
+@click.option(
+    "--disable-postgres-client-installation",
+    help="Do not install Postgres client.",
+    is_flag=True,
+)
 @click.option(
     "--install-airflow-reference",
     help="Install Airflow using GitHub tag or branch.",
 )
-@click.option("-V", "--install-airflow-version", help="Install version of Airflow from PyPI.")
+@click.option(
+    "-V", "--install-airflow-version", help="Install version of Airflow from PyPI."
+)
 @option_additional_airflow_extras
 @option_additional_dev_apt_command
 @option_additional_dev_apt_deps
@@ -461,7 +483,10 @@ def pull_prod_image(
         )
     else:
         image_params = BuildProdParams(
-            image_tag=image_tag, python=python, github_repository=github_repository, github_token=github_token
+            image_tag=image_tag,
+            python=python,
+            github_repository=github_repository,
+            github_token=github_token,
         )
         return_code, info = run_pull_image(
             image_params=image_params,
@@ -471,7 +496,9 @@ def pull_prod_image(
             poll_time_seconds=10.0,
         )
         if return_code != 0:
-            get_console().print(f"[error]There was an error when pulling PROD image: {info}[/]")
+            get_console().print(
+                f"[error]There was an error when pulling PROD image: {info}[/]"
+            )
             sys.exit(return_code)
 
 
@@ -641,18 +668,26 @@ def check_docker_context_files(install_packages_from_context: bool):
         for context in context_file
     )
     if not any_context_files and install_packages_from_context:
-        get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
-        get_console().print("[warning]\n but there are no packages to install in this folder.")
+        get_console().print(
+            "[warning]\nERROR! You want to install packages from docker-context-files"
+        )
+        get_console().print(
+            "[warning]\n but there are no packages to install in this folder."
+        )
         sys.exit(1)
     elif any_context_files and not install_packages_from_context:
         get_console().print(
             "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
         )
-        get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
+        get_console().print(
+            "[warning]\nAnd you did not choose --install-packages-from-context flag"
+        )
         get_console().print(
             "[warning]\nThis might result in unnecessary cache invalidation and long build times"
         )
-        get_console().print("[warning]Please restart the command with --cleanup-context switch\n")
+        get_console().print(
+            "[warning]Please restart the command with --cleanup-context switch\n"
+        )
         sys.exit(1)
 
 
@@ -690,7 +725,9 @@ def run_build_production_image(
             " or preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push."
-    get_console(output=output).print(f"\n[info]Building PROD Image for {param_description}\n")
+    get_console(output=output).print(
+        f"\n[info]Building PROD Image for {param_description}\n"
+    )
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)
     else:
@@ -706,5 +743,7 @@ def run_build_production_image(
             output=output,
         )
         if build_command_result.returncode == 0 and prod_image_params.tag_as_latest:
-            build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
+            build_command_result = tag_image_as_latest(
+                image_params=prod_image_params, output=output
+            )
     return build_command_result.returncode, f"Image build: {param_description}"

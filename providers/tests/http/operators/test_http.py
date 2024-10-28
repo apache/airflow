@@ -112,7 +112,9 @@ class TestHttpOperator:
             context={},
             event={
                 "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                "response": base64.standard_b64encode(pickle.dumps(response)).decode(
+                    "ascii"
+                ),
             },
         )
         assert result == "content"
@@ -120,10 +122,38 @@ class TestHttpOperator:
     @pytest.mark.parametrize(
         "data, headers, extra_options, pagination_data, pagination_headers, pagination_extra_options",
         [
-            ({"data": 1}, {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
-            ("data foo", {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
-            ("data foo", {"x-head": "1"}, {"verify": False}, "data bar", {"x-head": "0"}, {"verify": True}),
-            ({"data": 1}, {"x-head": "1"}, {"verify": False}, "data foo", {"x-head": "0"}, {"verify": True}),
+            (
+                {"data": 1},
+                {"x-head": "1"},
+                {"verify": False},
+                {"data": 2},
+                {"x-head": "0"},
+                {"verify": True},
+            ),
+            (
+                "data foo",
+                {"x-head": "1"},
+                {"verify": False},
+                {"data": 2},
+                {"x-head": "0"},
+                {"verify": True},
+            ),
+            (
+                "data foo",
+                {"x-head": "1"},
+                {"verify": False},
+                "data bar",
+                {"x-head": "0"},
+                {"verify": True},
+            ),
+            (
+                {"data": 1},
+                {"x-head": "1"},
+                {"verify": False},
+                "data foo",
+                {"x-head": "0"},
+                {"verify": True},
+            ),
         ],
     )
     def test_pagination(
@@ -156,8 +186,12 @@ class TestHttpOperator:
                 )
             return None
 
-        first_endpoint = requests_mock.post("http://www.example.com/1", json={"value": 5, "endpoint": "2"})
-        second_endpoint = requests_mock.post("http://www.example.com/2", json={"value": 10, "endpoint": "3"})
+        first_endpoint = requests_mock.post(
+            "http://www.example.com/1", json={"value": 5, "endpoint": "2"}
+        )
+        second_endpoint = requests_mock.post(
+            "http://www.example.com/2", json={"value": 10, "endpoint": "3"}
+        )
         operator = HttpOperator(
             task_id="test_HTTP_op",
             method="POST",
@@ -203,7 +237,9 @@ class TestHttpOperator:
                 context={},
                 event={
                     "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode(
+                        "ascii"
+                    ),
                 },
             )
 
@@ -229,7 +265,8 @@ class TestHttpOperator:
         with contextlib.suppress(TaskDeferred):
             operator.execute_complete(**create_resume_response_parameters())
             result = operator.execute_complete(
-                **create_resume_response_parameters(), paginated_responses=[make_response_object()]
+                **create_resume_response_parameters(),
+                paginated_responses=[make_response_object()],
             )
             assert result == ['{"value": 5}', '{"value": 5}']
 

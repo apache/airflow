@@ -28,7 +28,13 @@ from airflow.exceptions import (
 pytest.importorskip("google.cloud.aiplatform_v1")
 pytest.importorskip("google.cloud.aiplatform_v1beta1")
 vertexai = pytest.importorskip("vertexai.generative_models")
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
+from vertexai.generative_models import (
+    HarmBlockThreshold,
+    HarmCategory,
+    Part,
+    Tool,
+    grounding,
+)
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
@@ -217,7 +223,9 @@ class TestVertexAIPromptMultimodalModelOperator:
 class TestVertexAIPromptMultimodalModelWithMediaOperator:
     pretrained_model = "gemini-pro-vision"
     vision_prompt = "In 10 words or less, describe this content."
-    media_gcs_path = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+    media_gcs_path = (
+        "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+    )
     mime_type = "image/jpeg"
     safety_settings = {
         HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -399,7 +407,9 @@ class TestVertexAISupervisedFineTuningTrainOperator:
         mock_hook,
     ):
         source_model = "gemini-1.0-pro-002"
-        train_dataset = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
+        train_dataset = (
+            "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
+        )
 
         op = SupervisedFineTuningTrainOperator(
             task_id=TASK_ID,

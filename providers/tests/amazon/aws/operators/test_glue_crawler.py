@@ -58,9 +58,15 @@ mock_config = {
             }
         ],
         "MongoDBTargets": [
-            {"ConnectionName": "test-mongo-conn", "Path": "test_db/test_collection", "ScanAll": True}
+            {
+                "ConnectionName": "test-mongo-conn",
+                "Path": "test_db/test_collection",
+                "ScanAll": True,
+            }
         ],
-        "DynamoDBTargets": [{"Path": "test_db/test_table", "scanAll": True, "scanRate": 123.0}],
+        "DynamoDBTargets": [
+            {"Path": "test_db/test_table", "scanAll": True, "scanRate": 123.0}
+        ],
         "CatalogTargets": [
             {
                 "DatabaseName": "test_glue_db",
@@ -105,7 +111,9 @@ class TestGlueCrawlerOperator:
             yield hook
 
     def setup_method(self):
-        self.op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
+        self.op = GlueCrawlerOperator(
+            task_id="test_glue_crawler_operator", config=mock_config
+        )
 
     def test_init(self):
         op = GlueCrawlerOperator(
@@ -165,7 +173,9 @@ class TestGlueCrawlerOperator:
         ],
     )
     @mock.patch.object(GlueCrawlerHook, "get_waiter")
-    def test_crawler_wait_combinations(self, _, wait_for_completion, deferrable, mock_conn, crawler_hook):
+    def test_crawler_wait_combinations(
+        self, _, wait_for_completion, deferrable, mock_conn, crawler_hook
+    ):
         self.op.defer = mock.MagicMock()
         self.op.wait_for_completion = wait_for_completion
         self.op.deferrable = deferrable

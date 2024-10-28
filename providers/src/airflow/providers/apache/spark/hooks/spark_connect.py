@@ -54,7 +54,9 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         from wtforms import BooleanField
 
         return {
-            SparkConnectHook.PARAM_USE_SSL: BooleanField(lazy_gettext("Use SSL"), default=False),
+            SparkConnectHook.PARAM_USE_SSL: BooleanField(
+                lazy_gettext("Use SSL"), default=False
+            ),
         }
 
     def __init__(self, conn_id: str = default_conn_name) -> None:
@@ -73,7 +75,9 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         url = urlparse(host)
 
         if url.path:
-            raise ValueError("Path {url.path} is not supported in Spark Connect connection URL")
+            raise ValueError(
+                "Path {url.path} is not supported in Spark Connect connection URL"
+            )
 
         params = []
 

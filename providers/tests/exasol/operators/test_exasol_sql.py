@@ -120,11 +120,15 @@ class Row2(NamedTuple):
         ),
     ],
 )
-def test_exec_success(sql, return_last, split_statement, hook_results, hook_descriptions, expected_results):
+def test_exec_success(
+    sql, return_last, split_statement, hook_results, hook_descriptions, expected_results
+):
     """
     Test the execute function in case where SQL query was successful.
     """
-    with patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook") as get_db_hook_mock:
+    with patch(
+        "airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook"
+    ) as get_db_hook_mock:
         op = ExasolOperator(
             task_id=TASK_ID,
             sql=sql,

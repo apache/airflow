@@ -85,11 +85,16 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = DataprocMetastoreHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_create_backup(self, mock_client) -> None:
         self.hook.create_backup(
             project_id=TEST_PROJECT_ID,
@@ -101,7 +106,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.create_backup.assert_called_once_with(
             request=dict(
-                parent=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                parent=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 backup=TEST_BACKUP,
                 backup_id=TEST_BACKUP_ID,
                 request_id=None,
@@ -111,7 +118,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_create_metadata_import(self, mock_client) -> None:
         self.hook.create_metadata_import(
             project_id=TEST_PROJECT_ID,
@@ -123,7 +134,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.create_metadata_import.assert_called_once_with(
             request=dict(
-                parent=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                parent=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 metadata_import=TEST_METADATA_IMPORT,
                 metadata_import_id=TEST_METADATA_IMPORT_ID,
                 request_id=None,
@@ -133,7 +146,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_create_service(self, mock_client) -> None:
         self.hook.create_service(
             region=TEST_REGION,
@@ -154,7 +171,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_get_backup(self, mock_client) -> None:
         self.hook.get_backup(
             project_id=TEST_PROJECT_ID,
@@ -165,14 +186,20 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.get_backup.assert_called_once_with(
             request=dict(
-                name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
+                name=TEST_NAME_BACKUPS.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID
+                ),
             ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_delete_backup(self, mock_client) -> None:
         self.hook.delete_backup(
             project_id=TEST_PROJECT_ID,
@@ -183,7 +210,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.delete_backup.assert_called_once_with(
             request=dict(
-                name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
+                name=TEST_NAME_BACKUPS.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID
+                ),
                 request_id=None,
             ),
             metadata=(),
@@ -191,7 +220,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_delete_service(self, mock_client) -> None:
         self.hook.delete_service(
             project_id=TEST_PROJECT_ID,
@@ -201,7 +234,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.delete_service.assert_called_once_with(
             request=dict(
-                name=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                name=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 request_id=None,
             ),
             retry=DEFAULT,
@@ -209,7 +244,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_export_metadata(self, mock_client) -> None:
         self.hook.export_metadata(
             destination_gcs_folder=TEST_DESTINATION_GCS_FOLDER,
@@ -221,7 +260,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.return_value.export_metadata.assert_called_once_with(
             request=dict(
                 destination_gcs_folder=TEST_DESTINATION_GCS_FOLDER,
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 request_id=None,
                 database_dump_type=None,
             ),
@@ -230,7 +271,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_get_service(self, mock_client) -> None:
         self.hook.get_service(
             project_id=TEST_PROJECT_ID,
@@ -240,14 +285,20 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.get_service.assert_called_once_with(
             request=dict(
-                name=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                name=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
             ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_list_backups(self, mock_client) -> None:
         self.hook.list_backups(
             project_id=TEST_PROJECT_ID,
@@ -257,7 +308,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.list_backups.assert_called_once_with(
             request=dict(
-                parent=TEST_PARENT_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                parent=TEST_PARENT_BACKUPS.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 page_size=None,
                 page_token=None,
                 filter=None,
@@ -268,7 +321,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_restore_service(self, mock_client) -> None:
         self.hook.restore_service(
             project_id=TEST_PROJECT_ID,
@@ -282,7 +339,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.restore_service.assert_called_once_with(
             request=dict(
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 backup=TEST_NAME_BACKUPS.format(
                     TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID
                 ),
@@ -294,7 +353,11 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_update_service(self, mock_client) -> None:
         self.hook.update_service(
             project_id=TEST_PROJECT_ID,
@@ -328,9 +391,13 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         ],
     )
     @mock.patch(
-        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client_v1beta"
+        )
     )
-    def test_list_hive_partitions(self, mock_client, partitions_input, partitions) -> None:
+    def test_list_hive_partitions(
+        self, mock_client, partitions_input, partitions
+    ) -> None:
         self.hook.list_hive_partitions(
             project_id=TEST_PROJECT_ID,
             service_id=TEST_SERVICE_ID,
@@ -341,14 +408,18 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.query_metadata.assert_called_once_with(
             request=dict(
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 query=TEST_PARTITIONS_QUERY.format(TEST_TABLE_ID, partitions),
             ),
         )
 
     @pytest.mark.parametrize("partitions", [[], None])
     @mock.patch(
-        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client_v1beta"
+        )
     )
     def test_list_hive_partitions_empty_list(self, mock_client, partitions) -> None:
         self.hook.list_hive_partitions(
@@ -361,7 +432,9 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.query_metadata.assert_called_once_with(
             request=dict(
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 query=TEST_PARTITIONS_QUERY_ALL.format(TEST_TABLE_ID),
             ),
         )
@@ -370,11 +443,16 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
 class TestDataprocMetastoreWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = DataprocMetastoreHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_create_backup(self, mock_client) -> None:
         self.hook.create_backup(
             project_id=TEST_PROJECT_ID,
@@ -386,7 +464,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.create_backup.assert_called_once_with(
             request=dict(
-                parent=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                parent=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 backup=TEST_BACKUP,
                 backup_id=TEST_BACKUP_ID,
                 request_id=None,
@@ -396,7 +476,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_create_metadata_import(self, mock_client) -> None:
         self.hook.create_metadata_import(
             project_id=TEST_PROJECT_ID,
@@ -408,7 +492,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.create_metadata_import.assert_called_once_with(
             request=dict(
-                parent=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                parent=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 metadata_import=TEST_METADATA_IMPORT,
                 metadata_import_id=TEST_METADATA_IMPORT_ID,
                 request_id=None,
@@ -418,7 +504,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_create_service(self, mock_client) -> None:
         self.hook.create_service(
             region=TEST_REGION,
@@ -439,7 +529,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_delete_backup(self, mock_client) -> None:
         self.hook.delete_backup(
             project_id=TEST_PROJECT_ID,
@@ -450,7 +544,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.delete_backup.assert_called_once_with(
             request=dict(
-                name=TEST_NAME_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID),
+                name=TEST_NAME_BACKUPS.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID
+                ),
                 request_id=None,
             ),
             metadata=(),
@@ -458,7 +554,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_delete_service(self, mock_client) -> None:
         self.hook.delete_service(
             project_id=TEST_PROJECT_ID,
@@ -468,7 +568,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.delete_service.assert_called_once_with(
             request=dict(
-                name=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                name=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 request_id=None,
             ),
             retry=DEFAULT,
@@ -476,7 +578,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_export_metadata(self, mock_client) -> None:
         self.hook.export_metadata(
             destination_gcs_folder=TEST_DESTINATION_GCS_FOLDER,
@@ -488,7 +594,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.return_value.export_metadata.assert_called_once_with(
             request=dict(
                 destination_gcs_folder=TEST_DESTINATION_GCS_FOLDER,
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 request_id=None,
                 database_dump_type=None,
             ),
@@ -497,7 +605,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_get_service(self, mock_client) -> None:
         self.hook.get_service(
             project_id=TEST_PROJECT_ID,
@@ -507,14 +619,20 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.get_service.assert_called_once_with(
             request=dict(
-                name=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                name=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
             ),
             metadata=(),
             retry=DEFAULT,
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_list_backups(self, mock_client) -> None:
         self.hook.list_backups(
             project_id=TEST_PROJECT_ID,
@@ -524,7 +642,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.list_backups.assert_called_once_with(
             request=dict(
-                parent=TEST_PARENT_BACKUPS.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                parent=TEST_PARENT_BACKUPS.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 page_size=None,
                 page_token=None,
                 filter=None,
@@ -535,7 +655,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_restore_service(self, mock_client) -> None:
         self.hook.restore_service(
             project_id=TEST_PROJECT_ID,
@@ -549,7 +673,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.restore_service.assert_called_once_with(
             request=dict(
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 backup=TEST_NAME_BACKUPS.format(
                     TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID, TEST_BACKUP_ID
                 ),
@@ -561,7 +687,11 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             timeout=None,
         )
 
-    @mock.patch(DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client"))
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client"
+        )
+    )
     def test_update_service(self, mock_client) -> None:
         self.hook.update_service(
             project_id=TEST_PROJECT_ID,
@@ -595,9 +725,13 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         ],
     )
     @mock.patch(
-        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client_v1beta"
+        )
     )
-    def test_list_hive_partitions(self, mock_client, partitions_input, partitions) -> None:
+    def test_list_hive_partitions(
+        self, mock_client, partitions_input, partitions
+    ) -> None:
         self.hook.list_hive_partitions(
             project_id=TEST_PROJECT_ID,
             service_id=TEST_SERVICE_ID,
@@ -608,14 +742,18 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.query_metadata.assert_called_once_with(
             request=dict(
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 query=TEST_PARTITIONS_QUERY.format(TEST_TABLE_ID, partitions),
             ),
         )
 
     @pytest.mark.parametrize("partitions", [[], None])
     @mock.patch(
-        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+        DATAPROC_METASTORE_STRING.format(
+            "DataprocMetastoreHook.get_dataproc_metastore_client_v1beta"
+        )
     )
     def test_list_hive_partitions_empty_list(self, mock_client, partitions) -> None:
         self.hook.list_hive_partitions(
@@ -628,7 +766,9 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         mock_client.assert_called_once()
         mock_client.return_value.query_metadata.assert_called_once_with(
             request=dict(
-                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                service=TEST_PARENT_SERVICES.format(
+                    TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID
+                ),
                 query=TEST_PARTITIONS_QUERY_ALL.format(TEST_TABLE_ID),
             ),
         )

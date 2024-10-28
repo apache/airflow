@@ -75,10 +75,21 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
             GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_GCS_KEY),
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            assert (
+                0
+                == subprocess.Popen(
+                    ["airflow", "dags", "trigger", "example_complex"]
+                ).wait()
+            )
+            assert (
+                0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            )
 
-        ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
+        ti = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == "create_entry_group")
+            .first()
+        )
         dag = DagBag(dag_folder=example_complex.__file__).dags["example_complex"]
         task = dag.task_dict["create_entry_group"]
         ti.task = task
@@ -90,7 +101,10 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
             conf_vars(
                 {
                     ("logging", "remote_logging"): "True",
-                    ("logging", "remote_base_log_folder"): f"gs://{self.bucket_name}/path/to/logs",
+                    (
+                        "logging",
+                        "remote_base_log_folder",
+                    ): f"gs://{self.bucket_name}/path/to/logs",
                     ("logging", "remote_log_conn_id"): "google_cloud_default",
                 }
             ),
@@ -101,5 +115,7 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
             settings.configure_logging()
 
             task_log_reader = TaskLogReader()
-            logs = "\n".join(task_log_reader.read_log_stream(ti, try_number=None, metadata={}))
+            logs = "\n".join(
+                task_log_reader.read_log_stream(ti, try_number=None, metadata={})
+            )
             assert expected_message in logs

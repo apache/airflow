@@ -24,7 +24,9 @@ from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset as OpenLineageDataset,
+    )
 
 
 def create_asset(*, bucket: str, key: str, extra: dict | None = None) -> Asset:
@@ -39,7 +41,9 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
 
 def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
     """Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset as OpenLineageDataset,
+    )
 
     bucket, key = _parse_gcs_url(asset.uri)
     return OpenLineageDataset(namespace=f"gs://{bucket}", name=key if key else "/")

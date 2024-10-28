@@ -60,9 +60,7 @@ class EventsTimetable(Timetable):
         self.restrict_to_events = restrict_to_events
         if description is None:
             if self.event_dates:
-                self.description = (
-                    f"{len(self.event_dates)} events between {self.event_dates[0]} and {self.event_dates[-1]}"
-                )
+                self.description = f"{len(self.event_dates)} events between {self.event_dates[0]} and {self.event_dates[-1]}"
             else:
                 self.description = "No events"
             self._summary = f"{len(self.event_dates)} events"
@@ -92,7 +90,10 @@ class EventsTimetable(Timetable):
         for next_event in self.event_dates:
             if earliest and next_event < earliest:
                 continue
-            if last_automated_data_interval and next_event <= last_automated_data_interval.end:
+            if (
+                last_automated_data_interval
+                and next_event <= last_automated_data_interval.end
+            ):
                 continue
             break
         else:
@@ -115,7 +116,9 @@ class EventsTimetable(Timetable):
         if run_after < self.event_dates[0]:
             return DataInterval.exact(self.event_dates[0])
         else:
-            past_events = itertools.dropwhile(lambda when: when > run_after, self.event_dates[::-1])
+            past_events = itertools.dropwhile(
+                lambda when: when > run_after, self.event_dates[::-1]
+            )
             most_recent_event = next(past_events)
             return DataInterval.exact(most_recent_event)
 

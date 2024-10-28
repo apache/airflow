@@ -43,8 +43,14 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "pubsub"
 
 TOPIC_ID = f"topic-{DAG_ID}-{ENV_ID}"
-MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
-MESSAGE_TWO = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.2kg", "count": "2"}}
+MESSAGE = {
+    "data": b"Tool",
+    "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"},
+}
+MESSAGE_TWO = {
+    "data": b"Tool",
+    "attributes": {"name": "wrench", "mass": "1.2kg", "count": "2"},
+}
 
 # [START howto_operator_gcp_pubsub_pull_messages_result_cmd]
 echo_cmd = """
@@ -62,7 +68,10 @@ with DAG(
 ) as dag:
     # [START howto_operator_gcp_pubsub_create_topic]
     create_topic = PubSubCreateTopicOperator(
-        task_id="create_topic", topic=TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
+        task_id="create_topic",
+        topic=TOPIC_ID,
+        project_id=PROJECT_ID,
+        fail_if_exists=False,
     )
     # [END howto_operator_gcp_pubsub_create_topic]
 
@@ -84,7 +93,9 @@ with DAG(
     # [END howto_operator_gcp_pubsub_pull_message_with_sensor]
 
     # [START howto_operator_gcp_pubsub_pull_messages_result]
-    pull_messages_result = BashOperator(task_id="pull_messages_result", bash_command=echo_cmd)
+    pull_messages_result = BashOperator(
+        task_id="pull_messages_result", bash_command=echo_cmd
+    )
     # [END howto_operator_gcp_pubsub_pull_messages_result]
 
     # [START howto_operator_gcp_pubsub_pull_message_with_operator]
@@ -123,7 +134,9 @@ with DAG(
     unsubscribe_task.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gcp_pubsub_delete_topic]
-    delete_topic = PubSubDeleteTopicOperator(task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID)
+    delete_topic = PubSubDeleteTopicOperator(
+        task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID
+    )
     # [END howto_operator_gcp_pubsub_delete_topic]
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
 

@@ -43,7 +43,9 @@ TABLE_NAME = "task_instance"
 def upgrade():
     """Apply Add custom_operator_name column."""
     with op.batch_alter_table(TABLE_NAME) as batch_op:
-        batch_op.add_column(sa.Column("custom_operator_name", sa.VARCHAR(length=1000), nullable=True))
+        batch_op.add_column(
+            sa.Column("custom_operator_name", sa.VARCHAR(length=1000), nullable=True)
+        )
 
 
 def downgrade():

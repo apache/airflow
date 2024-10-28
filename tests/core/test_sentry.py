@@ -82,7 +82,9 @@ class TestSentryHook:
         with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL, serialized=True):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
-        dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)
+        dr = dag_maker.create_dagrun(
+            data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE
+        )
         ti = dr.task_instances[0]
         ti.state = STATE
         ti.task = task

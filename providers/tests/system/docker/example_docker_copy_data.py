@@ -72,8 +72,16 @@ with models.DAG(
         image="centos:latest",
         network_mode="bridge",
         mounts=[
-            Mount(source="/your/host/input_dir/path", target="/your/input_dir/path", type="bind"),
-            Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind"),
+            Mount(
+                source="/your/host/input_dir/path",
+                target="/your/input_dir/path",
+                type="bind",
+            ),
+            Mount(
+                source="/your/host/output_dir/path",
+                target="/your/output_dir/path",
+                type="bind",
+            ),
         ],
         command=[
             "/bin/bash",
@@ -84,7 +92,10 @@ with models.DAG(
         ],
         task_id="move_data",
         do_xcom_push=True,
-        params={"source_location": "/your/input_dir/path", "target_location": "/your/output_dir/path"},
+        params={
+            "source_location": "/your/input_dir/path",
+            "target_location": "/your/output_dir/path",
+        },
         dag=dag,
     )
 
@@ -92,7 +103,13 @@ with models.DAG(
         api_version="1.19",
         docker_url="tcp://localhost:2375",
         image="centos:latest",
-        mounts=[Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind")],
+        mounts=[
+            Mount(
+                source="/your/host/output_dir/path",
+                target="/your/output_dir/path",
+                type="bind",
+            )
+        ],
         command=f"cat {t_move.output}",
         task_id="print",
         dag=dag,

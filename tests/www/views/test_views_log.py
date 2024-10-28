@@ -157,7 +157,9 @@ def dags(log_app, create_dummy_dag, session):
 @pytest.fixture(autouse=True)
 def tis(dags, session):
     dag, dag_removed = dags
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dagrun = dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -254,7 +256,9 @@ def test_get_file_task_log(log_admin_client, tis, state, try_number, num_logs):
     assert f"log-group-{num_logs + 1}" not in data
 
 
-def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expected_log_file):
+def test_get_logs_with_metadata_as_download_file(
+    log_admin_client, create_expected_log_file
+):
     url_template = (
         "get_logs_with_metadata?dag_id={}&"
         "task_id={}&execution_date={}&"
@@ -284,7 +288,9 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
     assert "localhost\n" in content
 
 
-DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
+DIFFERENT_LOG_FILENAME = (
+    "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
+)
 
 
 @pytest.fixture
@@ -324,9 +330,7 @@ def test_get_logs_for_changed_filename_format_db(
     assert 200 == response.status_code
     assert "Log for testing." in response.data.decode("utf-8")
     content_disposition = response.headers["Content-Disposition"]
-    expected_filename = (
-        f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
-    )
+    expected_filename = f"{dag_run_with_log_filename.dag_id}/{dag_run_with_log_filename.run_id}/{TASK_ID}/{try_number}.log"
     assert content_disposition.startswith("attachment")
     assert expected_filename in content_disposition
 
@@ -503,7 +507,9 @@ def test_get_logs_invalid_execution_data_format(log_admin_client):
 
 @unittest.mock.patch("airflow.www.views.TaskLogReader")
 def test_get_logs_for_handler_without_read_method(mock_reader, log_admin_client):
-    type(mock_reader.return_value).supports_read = unittest.mock.PropertyMock(return_value=False)
+    type(mock_reader.return_value).supports_read = unittest.mock.PropertyMock(
+        return_value=False
+    )
     url_template = (
         "get_logs_with_metadata?dag_id={}&"
         "task_id={}&execution_date={}&"
@@ -529,7 +535,9 @@ def test_get_logs_for_handler_without_read_method(mock_reader, log_admin_client)
 @pytest.mark.parametrize("task_id", ["inexistent", TASK_ID])
 def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_id):
     """Redirect to home if TI does not exist or if log handler is local"""
-    url_template = "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
+    url_template = (
+        "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
+    )
     try_number = 1
     url = url_template.format(
         DAG_ID,
@@ -563,7 +571,9 @@ class _ExternalHandler(ExternalLoggingMixin):
     return_value=_ExternalHandler(),
 )
 def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client):
-    url_template = "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
+    url_template = (
+        "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
+    )
     try_number = 1
     url = url_template.format(
         DAG_ID,

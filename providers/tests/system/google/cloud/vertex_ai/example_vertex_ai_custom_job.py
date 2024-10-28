@@ -43,7 +43,9 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import (
+    GCSToLocalFilesystemOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -62,7 +64,13 @@ def TABULAR_DATASET(bucket_name):
         "display_name": f"tabular-dataset-{ENV_ID}",
         "metadata_schema_uri": schema.dataset.metadata.tabular,
         "metadata": ParseDict(
-            {"input_config": {"gcs_source": {"uri": [f"gs://{bucket_name}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}}},
+            {
+                "input_config": {
+                    "gcs_source": {
+                        "uri": [f"gs://{bucket_name}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]
+                    }
+                }
+            },
             Value(),
         ),
     }
@@ -76,7 +84,9 @@ REPLICA_COUNT = 1
 # For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
 # Because `gcs/data/` is shared folder for Airflow's workers.
 IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
-LOCAL_TRAINING_SCRIPT_PATH = "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
+LOCAL_TRAINING_SCRIPT_PATH = (
+    "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
+)
 
 
 with DAG(

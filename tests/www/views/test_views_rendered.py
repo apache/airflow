@@ -42,7 +42,10 @@ from tests_common.test_utils.db import (
     clear_rendered_ti_fields,
     initial_db_init,
 )
-from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -145,7 +148,9 @@ def _reset_db(dag, task1, task2, task3, task4, task_secret):
 @pytest.fixture
 def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     def _create_dag_run(*, execution_date, session):
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=execution_date,
@@ -173,7 +178,9 @@ def create_dag_run(dag, task1, task2, task3, task4, task_secret):
 @pytest.fixture
 def patch_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
-        mock_dag_bag.get_dag.return_value = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        mock_dag_bag.get_dag.return_value = SerializedDAG.from_dict(
+            SerializedDAG.to_dict(dag)
+        )
         yield app
 
 
@@ -247,7 +254,10 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     Variable.set("my_secret", "secret_unlikely_to_happen_accidentally")
     Variable.set("spam", "egg")
 
-    assert task_secret.bash_command == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
+    assert (
+        task_secret.bash_command
+        == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
+    )
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
@@ -341,7 +351,9 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
     url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
 
     with create_session() as session:
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=DEFAULT_DATE,
@@ -360,7 +372,9 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
 
 
 @pytest.mark.usefixtures("patch_app")
-def test_rendered_template_view_for_list_template_field_args(admin_client, create_dag_run, task3):
+def test_rendered_template_view_for_list_template_field_args(
+    admin_client, create_dag_run, task3
+):
     """
     Test that the Rendered View can show a list of syntax-highlighted SQL statements
     """

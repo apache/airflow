@@ -73,12 +73,16 @@ class BatchWaitersHook(BatchClientHook):
         # and the details of the config on that waiter can be further modified without any
         # accidental impact on the generation of new waiters from the defined waiter_model, e.g.
         waiters.get_waiter("JobExists").config.delay  # -> 5
-        waiter = waiters.get_waiter("JobExists")  # -> botocore.waiter.Batch.Waiter.JobExists object
+        waiter = waiters.get_waiter(
+            "JobExists"
+        )  # -> botocore.waiter.Batch.Waiter.JobExists object
         waiter.config.delay = 10
         waiters.get_waiter("JobExists").config.delay  # -> 5 as defined by waiter_model
 
         # To use a specific waiter, update the config and call the `wait()` method for jobId, e.g.
-        waiter = waiters.get_waiter("JobExists")  # -> botocore.waiter.Batch.Waiter.JobExists object
+        waiter = waiters.get_waiter(
+            "JobExists"
+        )  # -> botocore.waiter.Batch.Waiter.JobExists object
         waiter.config.delay = random.uniform(1, 10)  # seconds
         waiter.config.max_attempts = 10
         waiter.wait(jobs=[jobId])
@@ -144,7 +148,11 @@ class BatchWaitersHook(BatchClientHook):
         return self._waiter_model
 
     def get_waiter(
-        self, waiter_name: str, _: dict[str, str] | None = None, deferrable: bool = False, client=None
+        self,
+        waiter_name: str,
+        _: dict[str, str] | None = None,
+        deferrable: bool = False,
+        client=None,
     ) -> botocore.waiter.Waiter:
         """
         Get an AWS Batch service waiter, using the configured ``.waiter_model``.
@@ -179,7 +187,9 @@ class BatchWaitersHook(BatchClientHook):
 
         :return: a waiter object for the named AWS Batch service
         """
-        return botocore.waiter.create_waiter_with_client(waiter_name, self.waiter_model, self.client)
+        return botocore.waiter.create_waiter_with_client(
+            waiter_name, self.waiter_model, self.client
+        )
 
     def list_waiters(self) -> list[str]:
         """
@@ -238,7 +248,9 @@ class BatchWaitersHook(BatchClientHook):
                     if batch_log_fetcher:
                         batch_log_fetcher.start()
                 waiter = self.get_waiter("JobComplete")
-                waiter.config.delay = self.add_jitter(waiter.config.delay, width=2, minima=1)
+                waiter.config.delay = self.add_jitter(
+                    waiter.config.delay, width=2, minima=1
+                )
                 waiter.config.max_attempts = sys.maxsize  # timeout is managed by Airflow
                 waiter.wait(jobs=[job_id])
             finally:

@@ -57,7 +57,10 @@ class TestScheduler:
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name }}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -94,7 +97,8 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         actual = jmespath.search(
-            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']",
+            docs[0],
         )
         assert actual is None
 
@@ -103,7 +107,10 @@ class TestScheduler:
             values={
                 "scheduler": {
                     "extraInitContainers": [
-                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "test-init-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -119,7 +126,9 @@ class TestScheduler:
         docs = render_chart(
             values={
                 "scheduler": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                    "extraInitContainers": [
+                        {"name": "{{ .Release.Name }}-test-init-container"}
+                    ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -134,16 +143,23 @@ class TestScheduler:
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                     "extraVolumeMounts": [
-                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                        {
+                            "name": "test-volume-{{ .Chart.Name }}",
+                            "mountPath": "/opt/test",
+                        }
                     ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-volume-airflow" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume-airflow" in jmespath.search(
+            "spec.template.spec.volumes[*].name", docs[0]
+        )
         assert "test-volume-airflow" in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
@@ -160,7 +176,9 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-volume" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume" in jmespath.search(
+            "spec.template.spec.volumes[*].name", docs[0]
+        )
         assert "test-volume" in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
@@ -173,11 +191,18 @@ class TestScheduler:
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
                             "name": "TEST_ENV_2",
-                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "my-secret", "key": "my-key"}
+                            },
                         },
                         {
                             "name": "TEST_ENV_3",
-                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "my-config-map",
+                                    "key": "my-key",
+                                }
+                            },
                         },
                     ],
                 },
@@ -225,13 +250,18 @@ class TestScheduler:
         )
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+    def test_revision_history_limit(
+        self, revision_history_limit, global_revision_history_limit
+    ):
         values = {"scheduler": {}}
         if revision_history_limit:
             values["scheduler"]["revisionHistoryLimit"] = revision_history_limit
@@ -254,7 +284,11 @@ class TestScheduler:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -262,7 +296,12 @@ class TestScheduler:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 }
@@ -288,7 +327,9 @@ class TestScheduler:
             docs[0],
         )
 
-    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(
+        self,
+    ):
         """When given both global and scheduler affinity etc, scheduler affinity etc is used."""
         expected_affinity = {
             "nodeAffinity": {
@@ -314,7 +355,12 @@ class TestScheduler:
                 "scheduler": {
                     "affinity": expected_affinity,
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
@@ -326,7 +372,11 @@ class TestScheduler:
                                 "weight": 1,
                                 "preference": {
                                     "matchExpressions": [
-                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "not-me",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 },
                             }
@@ -334,7 +384,12 @@ class TestScheduler:
                     }
                 },
                 "tolerations": [
-                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "not-me",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "topologySpreadConstraints": [
                     {
@@ -349,7 +404,9 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
+        assert expected_affinity == jmespath.search(
+            "spec.template.spec.affinity", docs[0]
+        )
         assert "ssd" == jmespath.search(
             "spec.template.spec.nodeSelector.type",
             docs[0],
@@ -407,7 +464,9 @@ class TestScheduler:
         assert 333 == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.failureThreshold", docs[0]
         )
-        assert 444 == jmespath.search("spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0])
+        assert 444 == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0]
+        )
         assert ["sh", "-c", "echo", "wow such test"] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
@@ -427,11 +486,15 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert 111 == jmespath.search("spec.template.spec.containers[0].startupProbe.timeoutSeconds", docs[0])
+        assert 111 == jmespath.search(
+            "spec.template.spec.containers[0].startupProbe.timeoutSeconds", docs[0]
+        )
         assert 222 == jmespath.search(
             "spec.template.spec.containers[0].startupProbe.failureThreshold", docs[0]
         )
-        assert 333 == jmespath.search("spec.template.spec.containers[0].startupProbe.periodSeconds", docs[0])
+        assert 333 == jmespath.search(
+            "spec.template.spec.containers[0].startupProbe.periodSeconds", docs[0]
+        )
         assert ["sh", "-c", "echo", "wow such test"] == jmespath.search(
             "spec.template.spec.containers[0].startupProbe.exec.command", docs[0]
         )
@@ -440,36 +503,50 @@ class TestScheduler:
         "airflow_version, probe_command",
         [
             ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
-            ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
+            (
+                "2.1.0",
+                "airflow jobs check --job-type SchedulerJob --hostname $(hostname)",
+            ),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
     )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_livenessprobe_command_depends_on_airflow_version(
+        self, airflow_version, probe_command
+    ):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert (
             probe_command
-            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+            in jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
+            )[-1]
         )
 
     @pytest.mark.parametrize(
         "airflow_version, probe_command",
         [
             ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
-            ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
+            (
+                "2.1.0",
+                "airflow jobs check --job-type SchedulerJob --hostname $(hostname)",
+            ),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
     )
-    def test_startupprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+    def test_startupprobe_command_depends_on_airflow_version(
+        self, airflow_version, probe_command
+    ):
         docs = render_chart(
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert (
             probe_command
-            in jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0])[-1]
+            in jmespath.search(
+                "spec.template.spec.containers[0].startupProbe.exec.command", docs[0]
+            )[-1]
         )
 
     @pytest.mark.parametrize(
@@ -477,7 +554,10 @@ class TestScheduler:
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {
+                    "persistence": {"enabled": False},
+                    "emptyDirConfig": {"sizeLimit": "10Gi"},
+                },
                 {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
             (
@@ -496,7 +576,9 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert {"name": "logs", **expected_volume} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
 
     def test_scheduler_security_contexts_are_configurable(self):
         docs = render_chart(
@@ -518,9 +600,10 @@ class TestScheduler:
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
-            "spec.template.spec.containers[0].securityContext", docs[0]
-        )
+        assert {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+        } == jmespath.search("spec.template.spec.containers[0].securityContext", docs[0])
 
         assert {
             "runAsUser": 2000,
@@ -563,17 +646,25 @@ class TestScheduler:
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.cpu", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.cpu", docs[0]
+        )
 
         assert "128Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
         )
-        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+        assert "200m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
         )
@@ -585,15 +676,22 @@ class TestScheduler:
         docs = render_chart(
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/scheduler/scheduler-deployment.yaml"]
+            values={"airflowLocalSettings": None},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts)
-        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts_init = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
@@ -607,8 +705,12 @@ class TestScheduler:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         }
-        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "executor, persistence, update_strategy, expected_update_strategy",
@@ -623,7 +725,12 @@ class TestScheduler:
                 {"rollingUpdate": {"partition": 0}},
             ),
             ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
-            ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (
+                "LocalExecutor",
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             ("LocalExecutor", True, None, None),
         ],
     )
@@ -648,7 +755,12 @@ class TestScheduler:
             ("LocalExecutor", False, None, None),
             ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
             ("LocalExecutor", True, {"type": "Recreate"}, None),
-            ("LocalKubernetesExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
+            (
+                "LocalKubernetesExecutor",
+                False,
+                {"type": "Recreate"},
+                {"type": "Recreate"},
+            ),
             ("LocalKubernetesExecutor", True, {"type": "Recreate"}, None),
             ("CeleryExecutor", True, None, None),
             ("CeleryExecutor", False, None, None),
@@ -677,7 +789,9 @@ class TestScheduler:
     def test_default_command_and_args(self):
         docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert ["bash", "-c", "exec airflow scheduler"] == jmespath.search(
             "spec.template.spec.containers[0].args", docs[0]
         )
@@ -690,17 +804,28 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={"scheduler": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={
+                "scheduler": {
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "dags_values",
@@ -715,9 +840,12 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
         assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            c["name"]
+            for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
     @pytest.mark.parametrize(
@@ -754,28 +882,47 @@ class TestScheduler:
 
         if skip_dags_mount:
             assert "dags" not in [
-                vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+                vm["name"]
+                for vm in jmespath.search(
+                    "spec.template.spec.containers[0].volumeMounts", docs[0]
+                )
             ]
-            assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert "dags" not in [
+                vm["name"]
+                for vm in jmespath.search("spec.template.spec.volumes", docs[0])
+            ]
             assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
         else:
             assert "dags" in [
-                vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+                vm["name"]
+                for vm in jmespath.search(
+                    "spec.template.spec.containers[0].volumeMounts", docs[0]
+                )
             ]
-            assert "dags" in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert "dags" in [
+                vm["name"]
+                for vm in jmespath.search("spec.template.spec.volumes", docs[0])
+            ]
             assert "git-sync" in [
-                c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+                c["name"]
+                for c in jmespath.search("spec.template.spec.containers", docs[0])
             ]
             assert "git-sync-init" in [
-                c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+                c["name"]
+                for c in jmespath.search("spec.template.spec.initContainers", docs[0])
             ]
 
     def test_persistence_volume_annotations(self):
         docs = render_chart(
-            values={"executor": "LocalExecutor", "workers": {"persistence": {"annotations": {"foo": "bar"}}}},
+            values={
+                "executor": "LocalExecutor",
+                "workers": {"persistence": {"annotations": {"foo": "bar"}}},
+            },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
+        assert {"foo": "bar"} == jmespath.search(
+            "spec.volumeClaimTemplates[0].metadata.annotations", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "executor",
@@ -806,7 +953,10 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+        assert (
+            jmespath.search("metadata.annotations", docs[0])["test_annotation"]
+            == "test_annotation_value"
+        )
 
     def test_scheduler_pod_hostaliases(self):
         docs = render_chart(
@@ -818,8 +968,12 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
-        assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+        assert "127.0.0.1" == jmespath.search(
+            "spec.template.spec.hostAliases[0].ip", docs[0]
+        )
+        assert "foo.local" == jmespath.search(
+            "spec.template.spec.hostAliases[0].hostnames[0]", docs[0]
+        )
 
     def test_scheduler_template_storage_class_name(self):
         docs = render_chart(
@@ -869,7 +1023,9 @@ class TestScheduler:
             values=scheduler_values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+        assert expected == jmespath.search(
+            "spec.template.spec.terminationGracePeriodSeconds", docs[0]
+        )
 
 
 class TestSchedulerNetworkPolicy:
@@ -887,7 +1043,10 @@ class TestSchedulerNetworkPolicy:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
 
 class TestSchedulerLogGroomer(LogGroomerTestBase):
@@ -910,7 +1069,9 @@ class TestSchedulerService:
             ("LocalKubernetesExecutor", True),
         ],
     )
-    def test_should_create_scheduler_service_for_specific_executors(self, executor, creates_service):
+    def test_should_create_scheduler_service_for_specific_executors(
+        self, executor, creates_service
+    ):
         docs = render_chart(
             values={
                 "executor": executor,
@@ -923,7 +1084,10 @@ class TestSchedulerService:
         if creates_service:
             assert jmespath.search("kind", docs[0]) == "Service"
             assert "test_label" in jmespath.search("metadata.labels", docs[0])
-            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+            assert (
+                jmespath.search("metadata.labels", docs[0])["test_label"]
+                == "test_label_value"
+            )
         else:
             assert docs == []
 
@@ -939,7 +1103,10 @@ class TestSchedulerService:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
 
 class TestSchedulerServiceAccount:
@@ -957,7 +1124,10 @@ class TestSchedulerServiceAccount:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
@@ -974,7 +1144,10 @@ class TestSchedulerServiceAccount:
         docs = render_chart(
             values={
                 "scheduler": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],

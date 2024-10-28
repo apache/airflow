@@ -34,9 +34,17 @@ class TestQdrantIngestOperator:
         Ensures that the upsert method on the hook is correctly called.
         """
         with dag_maker(dag_id="test_dag") as dummy_dag:
-            vectors = [[0.732, 0.611, 0.289], [0.217, 0.526, 0.416], [0.326, 0.483, 0.376]]
+            vectors = [
+                [0.732, 0.611, 0.289],
+                [0.217, 0.526, 0.416],
+                [0.326, 0.483, 0.376],
+            ]
             ids = [32, 21, "b626f6a9-b14d-4af9-b7c3-43d8deb719a6"]
-            payload = [{"meta": "data"}, {"meta": "data_2"}, {"meta": "data_3", "extra": "data"}]
+            payload = [
+                {"meta": "data"},
+                {"meta": "data_2"},
+                {"meta": "data_3", "extra": "data"},
+            ]
 
             task = QdrantIngestOperator(
                 task_id="ingest_vectors",

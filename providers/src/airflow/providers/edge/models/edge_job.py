@@ -55,7 +55,9 @@ class EdgeJobModel(Base, LoggingMixin):
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    map_index = Column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
     try_number = Column(Integer, primary_key=True, default=0)
     state = Column(String(20))
     queue = Column(String(256))
@@ -95,7 +97,9 @@ class EdgeJobModel(Base, LoggingMixin):
 
     @property
     def key(self):
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index
+        )
 
     @property
     def last_update_t(self) -> float:
@@ -120,7 +124,9 @@ class EdgeJob(BaseModel, LoggingMixin):
 
     @property
     def key(self) -> TaskInstanceKey:
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index
+        )
 
     @staticmethod
     @internal_api_call
@@ -161,7 +167,11 @@ class EdgeJob(BaseModel, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def set_state(task: TaskInstanceKey | tuple, state: TaskInstanceState, session: Session = NEW_SESSION):
+    def set_state(
+        task: TaskInstanceKey | tuple,
+        state: TaskInstanceState,
+        session: Session = NEW_SESSION,
+    ):
         if isinstance(task, tuple):
             task = TaskInstanceKey(*task)
         query = select(EdgeJobModel).where(

@@ -100,7 +100,9 @@ class GoogleAdsListAccountsOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-        gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        gcs_hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         with NamedTemporaryFile("w+") as temp_file:
             # Download accounts
             accounts = ads_hook.list_accessible_customers()
@@ -110,7 +112,10 @@ class GoogleAdsListAccountsOperator(BaseOperator):
 
             # Upload to GCS
             gcs_hook.upload(
-                bucket_name=self.bucket, object_name=self.object_name, gzip=self.gzip, filename=temp_file.name
+                bucket_name=self.bucket,
+                object_name=self.object_name,
+                gzip=self.gzip,
+                filename=temp_file.name,
             )
             self.log.info("Uploaded %s to %s", len(accounts), uri)
 

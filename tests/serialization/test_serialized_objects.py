@@ -164,7 +164,11 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
+    return (
+        a.raw_key == b.raw_key
+        and a.extra == b.extra
+        and a.asset_alias_events == b.asset_alias_events
+    )
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -188,7 +192,11 @@ class MockLazySelectSequence(LazySelectSequence):
         (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
-        (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
+        (
+            relativedelta.relativedelta(hours=+1),
+            DAT.RELATIVEDELTA,
+            lambda a, b: a.hours == b.hours,
+        ),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),
         (("tuple_item", 3), DAT.TUPLE, equals),
@@ -196,7 +204,9 @@ class MockLazySelectSequence(LazySelectSequence):
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    name="test", annotations={"test": "annotation"}, creation_timestamp=timezone.utcnow()
+                    name="test",
+                    annotations={"test": "annotation"},
+                    creation_timestamp=timezone.utcnow(),
                 )
             ),
             DAT.POD,
@@ -215,7 +225,14 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (Resources(cpus=0.1, ram=2048), None, None),
         (EmptyOperator(task_id="test-task"), None, None),
-        (TaskGroup(group_id="test-group", dag=DAG(dag_id="test_dag", start_date=datetime.now())), None, None),
+        (
+            TaskGroup(
+                group_id="test-group",
+                dag=DAG(dag_id="test_dag", start_date=datetime.now()),
+            ),
+            None,
+            None,
+        ),
         (
             Param("test", "desc"),
             DAT.PARAM,
@@ -232,7 +249,11 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.XCOM_REF,
             None,
         ),
-        (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
+        (
+            MockLazySelectSequence(),
+            None,
+            lambda a, b: len(a) == len(b) and isinstance(b, list),
+        ),
         (Asset(uri="test"), DAT.ASSET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
@@ -241,7 +262,9 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(raw_key=Asset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
+            OutletEventAccessor(
+                raw_key=Asset(uri="test"), extra={"key": "value"}, asset_alias_events=[]
+            ),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
@@ -250,14 +273,20 @@ class MockLazySelectSequence(LazySelectSequence):
                 raw_key=AssetAlias(name="test_alias"),
                 extra={"key": "value"},
                 asset_alias_events=[
-                    AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_uri="test_uri",
+                        extra={},
+                    )
                 ],
             ),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
+            OutletEventAccessor(
+                raw_key="test", extra={"key": "value"}, asset_alias_events=[]
+            ),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
@@ -296,7 +325,10 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     "conn_uri",
     [
         pytest.param("aws://", id="only-conn-type"),
-        pytest.param("postgres://username:password@ec2.compute.com:5432/the_database", id="all-non-extra"),
+        pytest.param(
+            "postgres://username:password@ec2.compute.com:5432/the_database",
+            id="all-non-extra",
+        ),
         pytest.param(
             "///?__extra__=%7B%22foo%22%3A+%22bar%22%2C+%22answer%22%3A+42%2C+%22"
             "nullable%22%3A+null%2C+%22empty%22%3A+%22%22%2C+%22zero%22%3A+0%7D",
@@ -308,7 +340,10 @@ def test_backcompat_deserialize_connection(conn_uri):
     """Test deserialize connection which serialised by previous serializer implementation."""
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    conn_obj = {Encoding.TYPE: DAT.CONNECTION, Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri}}
+    conn_obj = {
+        Encoding.TYPE: DAT.CONNECTION,
+        Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri},
+    }
     deserialized = BaseSerialization.deserialize(conn_obj)
     assert deserialized.get_uri() == conn_uri
 
@@ -369,13 +404,16 @@ sample_objects = {
             sample_objects.get(DagModelPydantic),
             DagModelPydantic,
             DAT.DAG_MODEL,
-            lambda a, b: a.fileloc == b.fileloc and a.timetable_summary == b.timetable_summary,
+            lambda a, b: a.fileloc == b.fileloc
+            and a.timetable_summary == b.timetable_summary,
         ),
         (
             sample_objects.get(LogTemplatePydantic),
             LogTemplatePydantic,
             DAT.LOG_TEMPLATE,
-            lambda a, b: a.id == b.id and a.filename == b.filename and equal_time(a.created_at, b.created_at),
+            lambda a, b: a.id == b.id
+            and a.filename == b.filename
+            and equal_time(a.created_at, b.created_at),
         ),
     ],
 )
@@ -386,9 +424,13 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
     from airflow.serialization.serialized_objects import BaseSerialization
 
     with warnings.catch_warnings():
-        warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
+        warnings.simplefilter(
+            "error", category=pydantic.warnings.PydanticDeprecationWarning
+        )
 
-        serialized = BaseSerialization.serialize(input, use_pydantic_models=True)  # does not raise
+        serialized = BaseSerialization.serialize(
+            input, use_pydantic_models=True
+        )  # does not raise
         # Verify the result is JSON-serializable
         json.dumps(serialized)  # does not raise
         assert serialized["__type"] == encoded_type
@@ -399,7 +441,9 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
 
         # verify that when we round trip a pydantic model we get the same thing
         reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
-        dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
+        dereserialized = BaseSerialization.deserialize(
+            reserialized, use_pydantic_models=True
+        )
         assert isinstance(dereserialized, pydantic_class)
 
         if encoded_type == "task_instance":
@@ -450,7 +494,9 @@ def test_all_pydantic_models_round_trip():
                 f" need to be serialized directly."
             )
         orm_ser = BaseSerialization.serialize(orm_instance, use_pydantic_models=True)
-        pydantic_instance = BaseSerialization.deserialize(orm_ser, use_pydantic_models=True)
+        pydantic_instance = BaseSerialization.deserialize(
+            orm_ser, use_pydantic_models=True
+        )
         if isinstance(pydantic_instance, str):
             pytest.fail(
                 f"The model object {orm_instance.__class__} came back as a string "
@@ -459,7 +505,9 @@ def test_all_pydantic_models_round_trip():
                 f"in `serialized_objects.py`"
             )
         assert isinstance(pydantic_instance, c)
-        serialized = BaseSerialization.serialize(pydantic_instance, use_pydantic_models=True)
+        serialized = BaseSerialization.serialize(
+            pydantic_instance, use_pydantic_models=True
+        )
         deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
         assert isinstance(deserialized, c)
         if isinstance(pydantic_instance, TaskInstancePydantic):
@@ -495,7 +543,9 @@ def test_serialized_mapped_operator_unmap(dag_maker):
 def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
-    d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
+    d[
+        "hi"
+    ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
     d["yo"].extra = {"this": "that", "the": "other"}
     ser = BaseSerialization.serialize(var=d)
     deser = BaseSerialization.deserialize(ser)

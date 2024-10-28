@@ -50,7 +50,9 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_creation(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+    def on_pod_creation(
+        *, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs
+    ) -> None:
         """
         Invoke this callback after creating the pod.
 
@@ -61,7 +63,9 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_starting(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+    def on_pod_starting(
+        *, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs
+    ) -> None:
         """
         Invoke this callback when the pod starts.
 
@@ -72,7 +76,9 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def on_pod_completion(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+    def on_pod_completion(
+        *, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs
+    ) -> None:
         """
         Invoke this callback when the pod completes.
 

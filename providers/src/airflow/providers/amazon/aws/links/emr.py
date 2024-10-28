@@ -34,7 +34,10 @@ class EmrClusterLink(BaseAwsLink):
 
     name = "EMR Cluster"
     key = "emr_cluster"
-    format_str = BASE_AWS_CONSOLE_LINK + "/emr/home?region={region_name}#/clusterDetails/{job_flow_id}"
+    format_str = (
+        BASE_AWS_CONSOLE_LINK
+        + "/emr/home?region={region_name}#/clusterDetails/{job_flow_id}"
+    )
 
 
 class EmrLogsLink(BaseAwsLink):
@@ -42,7 +45,10 @@ class EmrLogsLink(BaseAwsLink):
 
     name = "EMR Cluster Logs"
     key = "emr_logs"
-    format_str = BASE_AWS_CONSOLE_LINK + "/s3/buckets/{log_uri}?region={region_name}&prefix={job_flow_id}/"
+    format_str = (
+        BASE_AWS_CONSOLE_LINK
+        + "/s3/buckets/{log_uri}?region={region_name}&prefix={job_flow_id}/"
+    )
 
     def format_link(self, **kwargs) -> str:
         if not kwargs.get("log_uri"):
@@ -50,7 +56,9 @@ class EmrLogsLink(BaseAwsLink):
         return super().format_link(**kwargs)
 
 
-def get_serverless_log_uri(*, s3_log_uri: str, application_id: str, job_run_id: str) -> str:
+def get_serverless_log_uri(
+    *, s3_log_uri: str, application_id: str, job_run_id: str
+) -> str:
     """
     Retrieve the S3 URI to EMR Serverless Job logs.
 
@@ -76,12 +84,16 @@ def get_serverless_dashboard_url(
     If the connection ID is passed, a client is generated using that connection.
     """
     if not exactly_one(aws_conn_id, emr_serverless_client):
-        raise AirflowException("Requires either an AWS connection ID or an EMR Serverless Client.")
+        raise AirflowException(
+            "Requires either an AWS connection ID or an EMR Serverless Client."
+        )
 
     if aws_conn_id:
         # If get_dashboard_for_job_run fails for whatever reason, fail after 1 attempt
         # so that the rest of the links load in a reasonable time frame.
-        hook = EmrServerlessHook(aws_conn_id=aws_conn_id, config={"retries": {"total_max_attempts": 1}})
+        hook = EmrServerlessHook(
+            aws_conn_id=aws_conn_id, config={"retries": {"total_max_attempts": 1}}
+        )
         emr_serverless_client = hook.conn
 
     response = emr_serverless_client.get_dashboard_for_job_run(
@@ -94,7 +106,10 @@ def get_serverless_dashboard_url(
 
 
 def get_log_uri(
-    *, cluster: dict[str, Any] | None = None, emr_client: boto3.client = None, job_flow_id: str | None = None
+    *,
+    cluster: dict[str, Any] | None = None,
+    emr_client: boto3.client = None,
+    job_flow_id: str | None = None,
 ) -> str | None:
     """
     Retrieve the S3 URI to the EMR Job logs.
@@ -106,7 +121,9 @@ def get_log_uri(
             "Requires either the output of a describe_cluster call or both an EMR Client and a job_flow_id."
         )
 
-    cluster_info = (cluster or emr_client.describe_cluster(ClusterId=job_flow_id))["Cluster"]
+    cluster_info = (cluster or emr_client.describe_cluster(ClusterId=job_flow_id))[
+        "Cluster"
+    ]
     if "LogUri" not in cluster_info:
         return None
     log_uri = S3Hook.parse_s3_url(cluster_info["LogUri"])
@@ -119,11 +136,15 @@ class EmrServerlessLogsLink(BaseAwsLink):
     name = "Spark Driver stdout"
     key = "emr_serverless_logs"
 
-    def format_link(self, application_id: str | None = None, job_run_id: str | None = None, **kwargs) -> str:
+    def format_link(
+        self, application_id: str | None = None, job_run_id: str | None = None, **kwargs
+    ) -> str:
         if not application_id or not job_run_id:
             return ""
         url = get_serverless_dashboard_url(
-            aws_conn_id=kwargs.get("conn_id"), application_id=application_id, job_run_id=job_run_id
+            aws_conn_id=kwargs.get("conn_id"),
+            application_id=application_id,
+            job_run_id=job_run_id,
         )
         if url:
             return url._replace(path="/logs/SPARK_DRIVER/stdout.gz").geturl()
@@ -137,11 +158,15 @@ class EmrServerlessDashboardLink(BaseAwsLink):
     name = "EMR Serverless Dashboard"
     key = "emr_serverless_dashboard"
 
-    def format_link(self, application_id: str | None = None, job_run_id: str | None = None, **kwargs) -> str:
+    def format_link(
+        self, application_id: str | None = None, job_run_id: str | None = None, **kwargs
+    ) -> str:
         if not application_id or not job_run_id:
             return ""
         url = get_serverless_dashboard_url(
-            aws_conn_id=kwargs.get("conn_id"), application_id=application_id, job_run_id=job_run_id
+            aws_conn_id=kwargs.get("conn_id"),
+            application_id=application_id,
+            job_run_id=job_run_id,
         )
         if url:
             return url.geturl()
@@ -182,7 +207,7 @@ class EmrServerlessCloudWatchLogsLink(BaseAwsLink):
 
     def format_link(self, **kwargs) -> str:
         kwargs["awslogs_group"] = quote_plus(kwargs["awslogs_group"])
-        kwargs["stream_prefix"] = quote_plus("?logStreamNameFilter=").replace("%", "$") + quote_plus(
-            kwargs["stream_prefix"]
-        )
+        kwargs["stream_prefix"] = quote_plus("?logStreamNameFilter=").replace(
+            "%", "$"
+        ) + quote_plus(kwargs["stream_prefix"])
         return super().format_link(**kwargs)

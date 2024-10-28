@@ -75,7 +75,10 @@ with models.DAG(
         location="us-central1",
     )
 
-    start_python_job_dataflow_runner_async >> wait_for_python_job_dataflow_runner_async_done
+    (
+        start_python_job_dataflow_runner_async
+        >> wait_for_python_job_dataflow_runner_async_done
+    )
     # [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
 
 

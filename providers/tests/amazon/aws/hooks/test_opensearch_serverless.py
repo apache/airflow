@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 
 
 class TestOpenSearchServerlessHook:

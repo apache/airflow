@@ -78,7 +78,9 @@ class TestGlacierCreateJobOperator(BaseGlacierOperatorsTests):
     def test_execute(self, hook_mock):
         op = self.op_class(aws_conn_id=None, **self.default_op_kwargs)
         op.execute(mock.MagicMock())
-        hook_mock.return_value.retrieve_inventory.assert_called_once_with(vault_name=VAULT_NAME)
+        hook_mock.return_value.retrieve_inventory.assert_called_once_with(
+            vault_name=VAULT_NAME
+        )
 
     def test_template_fields(self):
         operator = self.op_class(**self.default_op_kwargs)
@@ -90,10 +92,16 @@ class TestGlacierUploadArchiveOperator(BaseGlacierOperatorsTests):
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        self.default_op_kwargs = {"vault_name": VAULT_NAME, "task_id": TASK_ID, "body": b"Test Data"}
+        self.default_op_kwargs = {
+            "vault_name": VAULT_NAME,
+            "task_id": TASK_ID,
+            "body": b"Test Data",
+        }
 
     def test_execute(self):
-        with mock.patch.object(self.op_class.aws_hook_class, "conn", new_callable=mock.PropertyMock) as m:
+        with mock.patch.object(
+            self.op_class.aws_hook_class, "conn", new_callable=mock.PropertyMock
+        ) as m:
             op = self.op_class(aws_conn_id=None, **self.default_op_kwargs)
             op.execute(mock.MagicMock())
             m.return_value.upload_archive.assert_called_once_with(

@@ -106,7 +106,9 @@ class AirbyteSyncTrigger(BaseTrigger):
                     }
                 )
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e), "job_id": self.job_id})
+            yield TriggerEvent(
+                {"status": "error", "message": str(e), "job_id": self.job_id}
+            )
 
     async def is_still_running(self, hook: AirbyteHook) -> bool:
         """
@@ -115,6 +117,10 @@ class AirbyteSyncTrigger(BaseTrigger):
         If job is in running state returns True if it is still running else return False
         """
         job_run_status = hook.get_job_status(self.job_id)
-        if job_run_status in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+        if job_run_status in (
+            JobStatusEnum.RUNNING,
+            JobStatusEnum.PENDING,
+            JobStatusEnum.INCOMPLETE,
+        ):
             return True
         return False

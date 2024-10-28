@@ -235,7 +235,9 @@ class TestKubernetesJobOperator:
     @pytest.fixture
     def job_spec(self):
         return k8s.V1Job(
-            metadata=k8s.V1ObjectMeta(name="hello", labels={"foo": "bar"}, namespace="jobspecnamespace"),
+            metadata=k8s.V1ObjectMeta(
+                name="hello", labels={"foo": "bar"}, namespace="jobspecnamespace"
+            ),
             spec=k8s.V1JobSpec(
                 template=k8s.V1PodTemplateSpec(
                     metadata=k8s.V1ObjectMeta(
@@ -272,9 +274,13 @@ class TestKubernetesJobOperator:
         else:
             assert job.metadata.name == f"job-{job_spec_name_base}"
         assert job.metadata.namespace == job_spec.metadata.namespace
-        assert job.spec.template.spec.containers[0].image == job_spec.spec.template.spec.containers[0].image
         assert (
-            job.spec.template.spec.containers[0].command == job_spec.spec.template.spec.containers[0].command
+            job.spec.template.spec.containers[0].image
+            == job_spec.spec.template.spec.containers[0].image
+        )
+        assert (
+            job.spec.template.spec.containers[0].command
+            == job_spec.spec.template.spec.containers[0].command
         )
         assert job.metadata.labels == {"foo": "bar"}
 
@@ -381,7 +387,11 @@ class TestKubernetesJobOperator:
                     {
                         "preference": {
                             "match_expressions": [
-                                {"key": "kubernetes.io/role", "operator": "In", "values": ["foo", "bar"]}
+                                {
+                                    "key": "kubernetes.io/role",
+                                    "operator": "In",
+                                    "values": ["foo", "bar"],
+                                }
                             ],
                             "match_fields": None,
                         },
@@ -392,7 +402,11 @@ class TestKubernetesJobOperator:
                     "node_selector_terms": [
                         {
                             "match_expressions": [
-                                {"key": "kubernetes.io/role", "operator": "In", "values": ["foo", "bar"]}
+                                {
+                                    "key": "kubernetes.io/role",
+                                    "operator": "In",
+                                    "values": ["foo", "bar"],
+                                }
                             ],
                             "match_fields": None,
                         }
@@ -471,14 +485,23 @@ class TestKubernetesJobOperator:
             dag=dag,
         )
         job = k.build_job_request_obj({})
-        assert re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name) is not None
+        assert (
+            re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name)
+            is not None
+        )
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
-    def test_execute(self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod):
+    def test_execute(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_or_create_pod,
+    ):
         mock_hook.return_value.is_job_failed.return_value = False
         mock_job_request_obj = mock_build_job_request_obj.return_value
         mock_job_expected = mock_create_job.return_value
@@ -495,7 +518,9 @@ class TestKubernetesJobOperator:
         mock_ti.xcom_push.assert_has_calls(
             [
                 mock.call(key="job_name", value=mock_job_expected.metadata.name),
-                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
+                mock.call(
+                    key="job_namespace", value=mock_job_expected.metadata.namespace
+                ),
                 mock.call(key="job", value=mock_job_expected.to_dict.return_value),
             ]
         )
@@ -538,7 +563,9 @@ class TestKubernetesJobOperator:
         mock_ti.xcom_push.assert_has_calls(
             [
                 mock.call(key="job_name", value=mock_job_expected.metadata.name),
-                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
+                mock.call(
+                    key="job_namespace", value=mock_job_expected.metadata.namespace
+                ),
             ]
         )
         mock_execute_deferrable.assert_called_once()
@@ -554,7 +581,11 @@ class TestKubernetesJobOperator:
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
     def test_execute_fail(
-        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_or_create_pod,
     ):
         mock_hook.return_value.is_job_failed.return_value = "Error"
 
@@ -634,7 +665,9 @@ class TestKubernetesJobOperator:
         mock_ti = mock.MagicMock()
 
         op = KubernetesJobOperator(
-            task_id="test_task_id", wait_until_job_complete=True, job_poll_interval=POLL_INTERVAL
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            job_poll_interval=POLL_INTERVAL,
         )
         op.execute(context=dict(ti=mock_ti))
 
@@ -680,7 +713,9 @@ class TestKubernetesJobOperator:
         event = {"job": mock_job, "status": "error", "message": "error message"}
 
         with pytest.raises(AirflowException):
-            KubernetesJobOperator(task_id="test_task_id").execute_complete(context=context, event=event)
+            KubernetesJobOperator(task_id="test_task_id").execute_complete(
+                context=context, event=event
+            )
 
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
@@ -691,7 +726,9 @@ class TestKubernetesJobOperator:
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = JOB_NAMESPACE
-        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+        mock_serialize = (
+            mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+        )
         mock_serialized_job = mock_serialize.return_value
 
         op = KubernetesJobOperator(task_id="test_task_id")
@@ -712,7 +749,9 @@ class TestKubernetesJobOperator:
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = JOB_NAMESPACE
-        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+        mock_serialize = (
+            mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+        )
         mock_serialized_job = mock_serialize.return_value
         mock_termination_grace_period = mock.MagicMock()
 
@@ -734,7 +773,9 @@ class TestKubernetesJobOperator:
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
     @patch(HOOK_CLASS)
     def test_on_kill_none_job(self, mock_hook, mock_client):
-        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+        mock_serialize = (
+            mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
+        )
 
         op = KubernetesJobOperator(task_id="test_task_id")
         op.on_kill()
@@ -819,8 +860,12 @@ class TestKubernetesDeleteJobOperator:
         op.execute(None)
 
         assert not mock_wait_until_job_complete.called
-        mock_get_job_status.assert_called_once_with(job_name=JOB_NAME, namespace=JOB_NAMESPACE)
-        mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
+        mock_get_job_status.assert_called_once_with(
+            job_name=JOB_NAME, namespace=JOB_NAMESPACE
+        )
+        mock_delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME, namespace=JOB_NAMESPACE
+        )
 
     @patch(f"{HOOK_CLASS}.get_job_status")
     @patch(f"{HOOK_CLASS}.wait_until_job_complete")
@@ -845,10 +890,14 @@ class TestKubernetesDeleteJobOperator:
         op.execute({})
 
         mock_wait_until_job_complete.assert_called_once_with(
-            job_name=JOB_NAME, namespace=JOB_NAMESPACE, job_poll_interval=JOB_POLL_INTERVAL
+            job_name=JOB_NAME,
+            namespace=JOB_NAMESPACE,
+            job_poll_interval=JOB_POLL_INTERVAL,
         )
         assert not mock_get_job_status.called
-        mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
+        mock_delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME, namespace=JOB_NAMESPACE
+        )
 
     @pytest.mark.parametrize(
         "on_status, success, fail, deleted",

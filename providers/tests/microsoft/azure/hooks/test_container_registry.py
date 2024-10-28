@@ -22,7 +22,9 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
+from airflow.providers.microsoft.azure.hooks.container_registry import (
+    AzureContainerRegistryHook,
+)
 
 
 class TestAzureContainerRegistryHook:
@@ -55,7 +57,10 @@ class TestAzureContainerRegistryHook:
                 login="myuser",
                 password="",
                 host="test.cr",
-                extra={"subscription_id": "subscription_id", "resource_group": "resource_group"},
+                extra={
+                    "subscription_id": "subscription_id",
+                    "resource_group": "resource_group",
+                },
             )
         ],
         indirect=True,

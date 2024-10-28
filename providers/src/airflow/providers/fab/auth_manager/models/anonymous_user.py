@@ -36,7 +36,11 @@ class AnonymousUser(AnonymousUserMixin, BaseUser):
     def roles(self):
         if not self._roles:
             public_role = current_app.config.get("AUTH_ROLE_PUBLIC", None)
-            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
+            self._roles = (
+                {current_app.appbuilder.sm.find_role(public_role)}
+                if public_role
+                else set()
+            )
         return self._roles
 
     @roles.setter
@@ -48,7 +52,9 @@ class AnonymousUser(AnonymousUserMixin, BaseUser):
     def perms(self):
         if not self._perms:
             self._perms = {
-                (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
+                (perm.action.name, perm.resource.name)
+                for role in self.roles
+                for perm in role.permissions
             }
         return self._perms
 

@@ -47,7 +47,9 @@ with models.DAG(
     )
     # [END howto_operator_docker]
 
-    t4 = BashOperator(task_id="print_hello", bash_command='echo "hello world!!!"', dag=dag)
+    t4 = BashOperator(
+        task_id="print_hello", bash_command='echo "hello world!!!"', dag=dag
+    )
     # t1 >> t2
     # t1 >> t3
     # t3 >> t4

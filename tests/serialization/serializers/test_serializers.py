@@ -44,7 +44,9 @@ PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 class TestSerializers:
     def test_datetime(self):
-        i = datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC)
+        i = datetime.datetime(
+            2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC
+        )
         s = serialize(i)
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
@@ -65,7 +67,14 @@ class TestSerializers:
         assert i == d
 
         i = datetime.datetime(
-            2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.timezone("America/New_York")
+            2022,
+            7,
+            10,
+            22,
+            10,
+            43,
+            microsecond=0,
+            tzinfo=pendulum.timezone("America/New_York"),
         )
         s = serialize(i)
         d = deserialize(s)
@@ -141,7 +150,13 @@ class TestSerializers:
 
     @pytest.mark.parametrize(
         "expr, expected",
-        [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
+        [
+            ("1", "1"),
+            ("52e4", "520000"),
+            ("2e0", "2"),
+            ("12e-2", "0.12"),
+            ("12.34", "12.34"),
+        ],
     )
     def test_encode_decimal(self, expr, expected):
         assert deserialize(serialize(decimal.Decimal(expr))) == decimal.Decimal(expected)
@@ -175,7 +190,9 @@ class TestSerializers:
         assert i == d
 
     def test_params(self):
-        i = ParamsDict({"x": Param(default="value", description="there is a value", key="test")})
+        i = ParamsDict(
+            {"x": Param(default="value", description="there is a value", key="test")}
+        )
         e = serialize(i)
         d = deserialize(e)
         assert i["x"] == d["x"]
@@ -204,7 +221,9 @@ class TestSerializers:
             identifier = ("catalog", "schema", "table")
             mock_load_catalog.return_value = catalog
 
-            i = Table(identifier, "bar", catalog=catalog, metadata_location="", io=FileIO())
+            i = Table(
+                identifier, "bar", catalog=catalog, metadata_location="", io=FileIO()
+            )
             mock_load_table.return_value = i
 
             e = serialize(i)
@@ -216,9 +235,11 @@ class TestSerializers:
     def test_deltalake(selfa):
         deltalake = pytest.importorskip("deltalake")
 
-        with patch("deltalake.table.Metadata"), patch("deltalake.table.RawDeltaTable"), patch.object(
-            deltalake.DeltaTable, "version", return_value=0
-        ), patch.object(deltalake.DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path"):
+        with patch("deltalake.table.Metadata"), patch(
+            "deltalake.table.RawDeltaTable"
+        ), patch.object(deltalake.DeltaTable, "version", return_value=0), patch.object(
+            deltalake.DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path"
+        ):
             uri = "/tmp/bucket/path"
 
             i = deltalake.DeltaTable(uri, storage_options={"key": "value"})
@@ -250,7 +271,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": ["UTC", "pendulum.tz.timezone.FixedTimezone", 1, True],
+                            "__data__": [
+                                "UTC",
+                                "pendulum.tz.timezone.FixedTimezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },
@@ -266,7 +292,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": ["Asia/Tbilisi", "pendulum.tz.timezone.Timezone", 1, True],
+                            "__data__": [
+                                "Asia/Tbilisi",
+                                "pendulum.tz.timezone.Timezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },
@@ -282,7 +313,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": ["Europe/London", "pendulum.tz.timezone.Timezone", 1, True],
+                            "__data__": [
+                                "Europe/London",
+                                "pendulum.tz.timezone.Timezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },
@@ -298,7 +334,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": [-3600, "pendulum.tz.timezone.FixedTimezone", 1, True],
+                            "__data__": [
+                                -3600,
+                                "pendulum.tz.timezone.FixedTimezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },
@@ -340,7 +381,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": ["Asia/Tbilisi", "pendulum.tz.timezone.Timezone", 1, True],
+                            "__data__": [
+                                "Asia/Tbilisi",
+                                "pendulum.tz.timezone.Timezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },
@@ -356,7 +402,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": ["Europe/London", "pendulum.tz.timezone.Timezone", 1, True],
+                            "__data__": [
+                                "Europe/London",
+                                "pendulum.tz.timezone.Timezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },
@@ -372,7 +423,12 @@ class TestSerializers:
                         "tz": {
                             "__classname__": "builtins.tuple",
                             "__version__": 1,
-                            "__data__": [-3600, "pendulum.tz.timezone.FixedTimezone", 1, True],
+                            "__data__": [
+                                -3600,
+                                "pendulum.tz.timezone.FixedTimezone",
+                                1,
+                                True,
+                            ],
                         },
                     },
                 },

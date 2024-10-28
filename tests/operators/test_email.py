@@ -39,7 +39,9 @@ send_email_test = mock.Mock()
 
 class TestEmailOperator:
     def test_execute(self, dag_maker):
-        with conf_vars({("email", "email_backend"): "tests.operators.test_email.send_email_test"}):
+        with conf_vars(
+            {("email", "email_backend"): "tests.operators.test_email.send_email_test"}
+        ):
             with dag_maker(
                 "test_dag",
                 default_args={"owner": "airflow", "start_date": DEFAULT_DATE},

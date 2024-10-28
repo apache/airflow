@@ -90,7 +90,10 @@ class TestDeleteVariable(TestVariableEndpoint):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
         body = response.json()
-        assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+        assert (
+            f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found"
+            == body["detail"]
+        )
 
 
 class TestGetVariable(TestVariableEndpoint):
@@ -134,7 +137,10 @@ class TestGetVariable(TestVariableEndpoint):
         response = test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
         body = response.json()
-        assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+        assert (
+            f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found"
+            == body["detail"]
+        )
 
 
 class TestGetVariables(TestVariableEndpoint):
@@ -147,10 +153,26 @@ class TestGetVariables(TestVariableEndpoint):
             ({"limit": 1}, 3, [TEST_VARIABLE_KEY]),
             ({"limit": 1, "offset": 1}, 3, [TEST_VARIABLE_KEY2]),
             # Sort
-            ({"order_by": "id"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
-            ({"order_by": "-id"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
-            ({"order_by": "key"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
-            ({"order_by": "-key"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
+            (
+                {"order_by": "id"},
+                3,
+                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
+            ),
+            (
+                {"order_by": "-id"},
+                3,
+                [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY],
+            ),
+            (
+                {"order_by": "key"},
+                3,
+                [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY],
+            ),
+            (
+                {"order_by": "-key"},
+                3,
+                [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3],
+            ),
         ],
     )
     def test_should_respond_200(
@@ -228,7 +250,9 @@ class TestPatchVariable(TestVariableEndpoint):
             ),
         ],
     )
-    def test_patch_should_respond_200(self, test_client, session, key, body, params, expected_response):
+    def test_patch_should_respond_200(
+        self, test_client, session, key, body, params, expected_response
+    ):
         self.create_variables()
         response = test_client.patch(f"/public/variables/{key}", json=body, params=params)
         assert response.status_code == 200
@@ -241,7 +265,10 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 400
         body = response.json()
-        assert "Invalid body, key from request body doesn't match uri parameter" == body["detail"]
+        assert (
+            "Invalid body, key from request body doesn't match uri parameter"
+            == body["detail"]
+        )
 
     def test_patch_should_respond_404(self, test_client):
         response = test_client.patch(
@@ -250,7 +277,10 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 404
         body = response.json()
-        assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+        assert (
+            f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found"
+            == body["detail"]
+        )
 
 
 class TestPostVariable(TestVariableEndpoint):

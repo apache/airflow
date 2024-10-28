@@ -71,7 +71,9 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("drive", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "drive", self.api_version, http=http_authorized, cache_discovery=False
+            )
         return self._conn
 
     def _ensure_folders_exists(self, path: str, folder_id: str) -> str:
@@ -81,7 +83,9 @@ class GoogleDriveHook(GoogleBaseHook):
         depth = 0
         # First tries to enter directories
         for current_folder in folders:
-            self.log.debug("Looking for %s directory with %s parent", current_folder, current_parent)
+            self.log.debug(
+                "Looking for %s directory with %s parent", current_folder, current_parent
+            )
             conditions = [
                 "trashed=false",
                 "mimeType='application/vnd.google-apps.folder'",
@@ -143,7 +147,12 @@ class GoogleDriveHook(GoogleBaseHook):
         return request
 
     def exists(
-        self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
+        self,
+        folder_id: str,
+        file_name: str,
+        drive_id: str | None = None,
+        *,
+        include_trashed: bool = True,
     ) -> bool:
         """
         Check to see if a file exists within a Google Drive folder.
@@ -157,7 +166,10 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         return bool(
             self.get_file_id(
-                folder_id=folder_id, file_name=file_name, include_trashed=include_trashed, drive_id=drive_id
+                folder_id=folder_id,
+                file_name=file_name,
+                include_trashed=include_trashed,
+                drive_id=drive_id,
             )
         )
 
@@ -209,7 +221,12 @@ class GoogleDriveHook(GoogleBaseHook):
         return path
 
     def get_file_id(
-        self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
+        self,
+        folder_id: str,
+        file_name: str,
+        drive_id: str | None = None,
+        *,
+        include_trashed: bool = True,
     ) -> dict:
         """
         Return the file id of a Google Drive file.
@@ -247,12 +264,20 @@ class GoogleDriveHook(GoogleBaseHook):
         else:
             files = (
                 service.files()
-                .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
+                .list(
+                    q=query,
+                    spaces="drive",
+                    fields="files(id, mimeType)",
+                    orderBy="modifiedTime desc",
+                )
                 .execute(num_retries=self.num_retries)
             )
         file_metadata = {}
         if files["files"]:
-            file_metadata = {"id": files["files"][0]["id"], "mime_type": files["files"][0]["mimeType"]}
+            file_metadata = {
+                "id": files["files"][0]["id"],
+                "mime_type": files["files"][0]["mimeType"],
+            }
         return file_metadata
 
     def upload_file(
@@ -291,7 +316,9 @@ class GoogleDriveHook(GoogleBaseHook):
         media = MediaFileUpload(local_location, chunksize=chunk_size, resumable=resumable)
         file = (
             service.files()
-            .create(body=file_metadata, media_body=media, fields="id", supportsAllDrives=True)
+            .create(
+                body=file_metadata, media_body=media, fields="id", supportsAllDrives=True
+            )
             .execute(num_retries=self.num_retries)
         )
         file_id = file.get("id")
@@ -302,15 +329,23 @@ class GoogleDriveHook(GoogleBaseHook):
             try:
                 upload_location = self._resolve_file_path(folder_id)
             except GoogleApiClientError as e:
-                self.log.warning("A problem has been encountered when trying to resolve file path: ", e)
+                self.log.warning(
+                    "A problem has been encountered when trying to resolve file path: ", e
+                )
 
         if show_full_target_path:
-            self.log.info("File %s uploaded to gdrive://%s.", local_location, upload_location)
+            self.log.info(
+                "File %s uploaded to gdrive://%s.", local_location, upload_location
+            )
         else:
-            self.log.info("File %s has been uploaded successfully to gdrive", local_location)
+            self.log.info(
+                "File %s has been uploaded successfully to gdrive", local_location
+            )
         return file_id
 
-    def download_file(self, file_id: str, file_handle: IO, chunk_size: int = 100 * 1024 * 1024):
+    def download_file(
+        self, file_id: str, file_handle: IO, chunk_size: int = 100 * 1024 * 1024
+    ):
         """
         Download a file from Google Drive.
 
@@ -319,4 +354,6 @@ class GoogleDriveHook(GoogleBaseHook):
         :param chunk_size: File will be downloaded in chunks of this many bytes.
         """
         request = self.get_media_request(file_id=file_id)
-        self.download_content_from_request(file_handle=file_handle, request=request, chunk_size=chunk_size)
+        self.download_content_from_request(
+            file_handle=file_handle, request=request, chunk_size=chunk_size
+        )

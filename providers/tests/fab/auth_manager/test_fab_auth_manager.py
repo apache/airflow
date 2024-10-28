@@ -27,7 +27,11 @@ from flask import Flask
 from airflow.exceptions import AirflowConfigException, AirflowException
 
 try:
-    from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
+    from airflow.auth.managers.models.resource_details import (
+        AccessView,
+        DagAccessEntity,
+        DagDetails,
+    )
 except ImportError:
     pass
 
@@ -36,7 +40,9 @@ from tests_common.test_utils.compat import ignore_provider_compatibility_error
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.models import User
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        FabAirflowSecurityManagerOverride,
+    )
 
 from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.security.permissions import (
@@ -101,7 +107,15 @@ class TestFabAuthManager:
     )
     @mock.patch.object(FabAuthManager, "get_user")
     def test_get_user_display_name(
-        self, mock_get_user, id, first_name, last_name, username, email, expected, auth_manager
+        self,
+        mock_get_user,
+        id,
+        first_name,
+        last_name,
+        username,
+        email,
+        expected,
+        auth_manager,
     ):
         user = User()
         user.id = id
@@ -132,7 +146,9 @@ class TestFabAuthManager:
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
-    def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
+    def test_is_logged_in_with_inactive_user(
+        self, mock_get_user, auth_manager_with_appbuilder
+    ):
         user = Mock()
         user.is_anonymous.return_value = False
         user.is_active.return_value = True
@@ -163,7 +179,10 @@ class TestFabAuthManager:
                     (
                         api_name,
                         "DELETE",
-                        [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
+                        [
+                            (ACTION_CAN_DELETE, resource_type),
+                            (ACTION_CAN_CREATE, "resource_test"),
+                        ],
                         True,
                     ),
                     # With permission
@@ -177,7 +196,10 @@ class TestFabAuthManager:
                     (
                         api_name,
                         "POST",
-                        [(ACTION_CAN_READ, resource_type), (ACTION_CAN_CREATE, "resource_test")],
+                        [
+                            (ACTION_CAN_READ, resource_type),
+                            (ACTION_CAN_CREATE, "resource_test"),
+                        ],
                         False,
                     ),
                 )
@@ -185,7 +207,9 @@ class TestFabAuthManager:
             ]
         ),
     )
-    def test_is_authorized(self, api_name, method, user_permissions, expected_result, auth_manager):
+    def test_is_authorized(
+        self, api_name, method, user_permissions, expected_result, auth_manager
+    ):
         user = Mock()
         user.perms = user_permissions
         result = getattr(auth_manager, api_name)(
@@ -219,7 +243,10 @@ class TestFabAuthManager:
                 "GET",
                 None,
                 DagDetails(id="test_dag_id"),
-                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
+                [
+                    (ACTION_CAN_READ, "DAG:test_dag_id"),
+                    (ACTION_CAN_READ, "DAG:test_dag_id2"),
+                ],
                 True,
             ),
             # Without permission on a specific DAG (wrong method)
@@ -268,7 +295,10 @@ class TestFabAuthManager:
                 "GET",
                 DagAccessEntity.TASK_INSTANCE,
                 DagDetails(id="test_dag_id"),
-                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
+                [
+                    (ACTION_CAN_READ, "DAG:test_dag_id"),
+                    (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE),
+                ],
                 False,
             ),
             # With read permissions on a specific DAG but not on the DAG run
@@ -288,7 +318,10 @@ class TestFabAuthManager:
                 "DELETE",
                 DagAccessEntity.TASK,
                 DagDetails(id="test_dag_id"),
-                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
+                [
+                    (ACTION_CAN_EDIT, "DAG:test_dag_id"),
+                    (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE),
+                ],
                 True,
             ),
             # With edit permissions on a specific DAG and read on the DAG access entity
@@ -296,7 +329,10 @@ class TestFabAuthManager:
                 "POST",
                 DagAccessEntity.RUN,
                 DagDetails(id="test_dag_id"),
-                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_CREATE, RESOURCE_DAG_RUN)],
+                [
+                    (ACTION_CAN_EDIT, "DAG:test_dag_id"),
+                    (ACTION_CAN_CREATE, RESOURCE_DAG_RUN),
+                ],
                 True,
             ),
             # Without permissions to edit the DAG
@@ -318,7 +354,13 @@ class TestFabAuthManager:
         ],
     )
     def test_is_authorized_dag(
-        self, method, dag_access_entity, dag_details, user_permissions, expected_result, auth_manager
+        self,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager,
     ):
         user = Mock()
         user.perms = user_permissions
@@ -363,7 +405,10 @@ class TestFabAuthManager:
             # Without permission
             (
                 AccessView.WEBSITE,
-                [(ACTION_CAN_READ, "resource_test"), (ACTION_CAN_CREATE, RESOURCE_WEBSITE)],
+                [
+                    (ACTION_CAN_READ, "resource_test"),
+                    (ACTION_CAN_CREATE, RESOURCE_WEBSITE),
+                ],
                 False,
             ),
             # Without permission
@@ -386,7 +431,9 @@ class TestFabAuthManager:
             ),
         ],
     )
-    def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
+    def test_is_authorized_view(
+        self, access_view, user_permissions, expected_result, auth_manager
+    ):
         user = Mock()
         user.perms = user_permissions
         result = auth_manager.is_authorized_view(access_view=access_view, user=user)
@@ -431,20 +478,31 @@ class TestFabAuthManager:
     ):
         user = Mock()
         user.perms = user_permissions
-        result = auth_manager.is_authorized_custom_view(method=method, resource_name=resource_name, user=user)
+        result = auth_manager.is_authorized_custom_view(
+            method=method, resource_name=resource_name, user=user
+        )
         assert result == expected_result
 
     @pytest.mark.db_test
-    def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
-        assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)
+    def test_security_manager_return_fab_security_manager_override(
+        self, auth_manager_with_appbuilder
+    ):
+        assert isinstance(
+            auth_manager_with_appbuilder.security_manager,
+            FabAirflowSecurityManagerOverride,
+        )
 
     @pytest.mark.db_test
-    def test_security_manager_return_custom_provided(self, flask_app, auth_manager_with_appbuilder):
+    def test_security_manager_return_custom_provided(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
         class TestSecurityManager(FabAirflowSecurityManagerOverride):
             pass
 
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
-        assert isinstance(auth_manager_with_appbuilder.security_manager, TestSecurityManager)
+        assert isinstance(
+            auth_manager_with_appbuilder.security_manager, TestSecurityManager
+        )
 
     @pytest.mark.db_test
     def test_security_manager_wrong_inheritance_raise_exception(
@@ -463,7 +521,9 @@ class TestFabAuthManager:
 
     @pytest.mark.db_test
     def test_get_url_login_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
-        with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
+        with pytest.raises(
+            AirflowException, match="`auth_view` not defined in the security manager."
+        ):
             auth_manager_with_appbuilder.get_url_login()
 
     @pytest.mark.db_test
@@ -483,8 +543,12 @@ class TestFabAuthManager:
         mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
 
     @pytest.mark.db_test
-    def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
-        with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
+    def test_get_url_logout_when_auth_view_not_defined(
+        self, auth_manager_with_appbuilder
+    ):
+        with pytest.raises(
+            AirflowException, match="`auth_view` not defined in the security manager."
+        ):
             auth_manager_with_appbuilder.get_url_logout()
 
     @pytest.mark.db_test
@@ -496,7 +560,9 @@ class TestFabAuthManager:
         mock_url_for.assert_called_once_with("test_endpoint.logout")
 
     @pytest.mark.db_test
-    def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
+    def test_get_url_user_profile_when_auth_view_not_defined(
+        self, auth_manager_with_appbuilder
+    ):
         assert auth_manager_with_appbuilder.get_url_user_profile() is None
 
     @pytest.mark.db_test

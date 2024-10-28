@@ -30,7 +30,12 @@ if typing.TYPE_CHECKING:
     import pendulum
 
     from airflow.assets import Asset
-    from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+    from airflow.timetables.base import (
+        DagRunInfo,
+        DataInterval,
+        TimeRestriction,
+        Timetable,
+    )
 
 
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
@@ -55,7 +60,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_condition, decode_timetable
+        from airflow.serialization.serialized_objects import (
+            decode_asset_condition,
+            decode_timetable,
+        )
 
         return cls(
             assets=decode_asset_condition(data["asset_condition"]),
@@ -63,7 +71,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         )
 
     def serialize(self) -> dict[str, typing.Any]:
-        from airflow.serialization.serialized_objects import encode_asset_condition, encode_timetable
+        from airflow.serialization.serialized_objects import (
+            encode_asset_condition,
+            encode_timetable,
+        )
 
         return {
             "asset_condition": encode_asset_condition(self.asset_condition),
@@ -84,7 +95,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         return self.timetable.infer_manual_data_interval(run_after=run_after)
 
     def next_dagrun_info(
-        self, *, last_automated_data_interval: DataInterval | None, restriction: TimeRestriction
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         return self.timetable.next_dagrun_info(
             last_automated_data_interval=last_automated_data_interval,

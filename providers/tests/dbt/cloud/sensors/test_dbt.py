@@ -27,8 +27,15 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models.connection import Connection
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
-from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+)
+from airflow.providers.dbt.cloud.sensors.dbt import (
+    DbtCloudJobRunAsyncSensor,
+    DbtCloudJobRunSensor,
+)
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.utils import db
 
@@ -57,7 +64,12 @@ class TestDbtCloudJobRunSensor:
         )
 
         # Connection
-        conn = Connection(conn_id="dbt", conn_type=DbtCloudHook.conn_type, login=ACCOUNT_ID, password=TOKEN)
+        conn = Connection(
+            conn_id="dbt",
+            conn_type=DbtCloudHook.conn_type,
+            login=ACCOUNT_ID,
+            password=TOKEN,
+        )
 
         db.merge_conn(conn)
 
@@ -90,7 +102,9 @@ class TestDbtCloudJobRunSensor:
         ],
     )
     @patch.object(DbtCloudHook, "get_job_run_status")
-    def test_poke_with_exception(self, mock_job_run_status, job_run_status, expected_poke_result):
+    def test_poke_with_exception(
+        self, mock_job_run_status, job_run_status, expected_poke_result
+    ):
         mock_job_run_status.return_value = job_run_status
 
         # The sensor should fail if the job run status is 20 (aka Error) or 30 (aka Cancelled).
@@ -112,7 +126,9 @@ class TestDbtCloudJobRunSensor:
             timeout=self.TIMEOUT,
             deferrable=True,
         )
-        mock_hook.return_value.get_job_run_status.return_value = DbtCloudJobRunStatus.SUCCESS.value
+        mock_hook.return_value.get_job_run_status.return_value = (
+            DbtCloudJobRunStatus.SUCCESS.value
+        )
         task.execute(mock.MagicMock())
         assert not mock_defer.called
 
@@ -126,10 +142,14 @@ class TestDbtCloudJobRunSensor:
             timeout=self.TIMEOUT,
             deferrable=True,
         )
-        mock_hook.return_value.get_job_run_status.return_value = DbtCloudJobRunStatus.STARTING.value
+        mock_hook.return_value.get_job_run_status.return_value = (
+            DbtCloudJobRunStatus.STARTING.value
+        )
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
-        assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
+        assert isinstance(
+            exc.value.trigger, DbtCloudRunJobTrigger
+        ), "Trigger is not a DbtCloudRunJobTrigger"
 
     def test_execute_complete_success(self):
         """Assert execute_complete log success message when trigger fire with target status"""
@@ -144,7 +164,8 @@ class TestDbtCloudJobRunSensor:
         msg = f"Job run {self.DBT_RUN_ID} has completed successfully."
         with mock.patch.object(task.log, "info") as mock_log_info:
             task.execute_complete(
-                context={}, event={"status": "success", "message": msg, "run_id": self.DBT_RUN_ID}
+                context={},
+                event={"status": "success", "message": msg, "run_id": self.DBT_RUN_ID},
             )
         mock_log_info.assert_called_with(msg)
 
@@ -166,7 +187,12 @@ class TestDbtCloudJobRunSensor:
         )
         with pytest.raises(AirflowException):
             task.execute_complete(
-                context={}, event={"status": mock_status, "message": mock_message, "run_id": self.DBT_RUN_ID}
+                context={},
+                event={
+                    "status": mock_status,
+                    "message": mock_message,
+                    "run_id": self.DBT_RUN_ID,
+                },
             )
 
 
@@ -185,21 +211,29 @@ class TestDbtCloudJobRunAsyncSensor:
     def test_dbt_job_run_async_sensor(self, mock_hook):
         """Assert execute method defer for Dbt cloud job run status sensors"""
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=self.depcrecation_message
+        ):
             task = DbtCloudJobRunAsyncSensor(
                 dbt_cloud_conn_id=self.CONN_ID,
                 task_id=self.TASK_ID,
                 run_id=self.DBT_RUN_ID,
                 timeout=self.TIMEOUT,
             )
-        mock_hook.return_value.get_job_run_status.return_value = DbtCloudJobRunStatus.STARTING.value
+        mock_hook.return_value.get_job_run_status.return_value = (
+            DbtCloudJobRunStatus.STARTING.value
+        )
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
-        assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
+        assert isinstance(
+            exc.value.trigger, DbtCloudRunJobTrigger
+        ), "Trigger is not a DbtCloudRunJobTrigger"
 
     def test_dbt_job_run_async_sensor_execute_complete_success(self):
         """Assert execute_complete log success message when trigger fire with target status"""
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=self.depcrecation_message
+        ):
             task = DbtCloudJobRunAsyncSensor(
                 dbt_cloud_conn_id=self.CONN_ID,
                 task_id=self.TASK_ID,
@@ -210,7 +244,8 @@ class TestDbtCloudJobRunAsyncSensor:
         msg = f"Job run {self.DBT_RUN_ID} has completed successfully."
         with mock.patch.object(task.log, "info") as mock_log_info:
             task.execute_complete(
-                context={}, event={"status": "success", "message": msg, "run_id": self.DBT_RUN_ID}
+                context={},
+                event={"status": "success", "message": msg, "run_id": self.DBT_RUN_ID},
             )
         mock_log_info.assert_called_with(msg)
 
@@ -221,9 +256,13 @@ class TestDbtCloudJobRunAsyncSensor:
             ("error", "Job run 1234 has failed."),
         ],
     )
-    def test_dbt_job_run_async_sensor_execute_complete_failure(self, mock_status, mock_message):
+    def test_dbt_job_run_async_sensor_execute_complete_failure(
+        self, mock_status, mock_message
+    ):
         """Assert execute_complete method to raise exception on the cancelled and error status"""
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=self.depcrecation_message
+        ):
             task = DbtCloudJobRunAsyncSensor(
                 dbt_cloud_conn_id=self.CONN_ID,
                 task_id=self.TASK_ID,
@@ -232,5 +271,10 @@ class TestDbtCloudJobRunAsyncSensor:
             )
         with pytest.raises(AirflowException):
             task.execute_complete(
-                context={}, event={"status": mock_status, "message": mock_message, "run_id": self.DBT_RUN_ID}
+                context={},
+                event={
+                    "status": mock_status,
+                    "message": mock_message,
+                    "run_id": self.DBT_RUN_ID,
+                },
             )

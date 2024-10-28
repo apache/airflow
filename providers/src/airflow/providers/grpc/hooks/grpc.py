@@ -60,11 +60,15 @@ class GrpcHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "auth_type": StringField(lazy_gettext("Grpc Auth Type"), widget=BS3TextFieldWidget()),
+            "auth_type": StringField(
+                lazy_gettext("Grpc Auth Type"), widget=BS3TextFieldWidget()
+            ),
             "credential_pem_file": StringField(
                 lazy_gettext("Credential Keyfile Path"), widget=BS3TextFieldWidget()
             ),
-            "scopes": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
+            "scopes": StringField(
+                lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()
+            ),
         }
 
     def __init__(
@@ -97,13 +101,19 @@ class GrpcHook(BaseHook):
             channel = grpc.secure_channel(base_url, creds)
         elif auth_type == "JWT_GOOGLE":
             credentials, _ = google_auth.default()
-            jwt_creds = google_auth_jwt.OnDemandCredentials.from_signing_credentials(credentials)
-            channel = google_auth_transport_grpc.secure_authorized_channel(jwt_creds, None, base_url)
+            jwt_creds = google_auth_jwt.OnDemandCredentials.from_signing_credentials(
+                credentials
+            )
+            channel = google_auth_transport_grpc.secure_authorized_channel(
+                jwt_creds, None, base_url
+            )
         elif auth_type == "OATH_GOOGLE":
             scopes = self._get_field("scopes").split(",")
             credentials, _ = google_auth.default(scopes=scopes)
             request = google_auth_transport_requests.Request()
-            channel = google_auth_transport_grpc.secure_authorized_channel(credentials, request, base_url)
+            channel = google_auth_transport_grpc.secure_authorized_channel(
+                credentials, request, base_url
+            )
         elif auth_type == "CUSTOM":
             if not self.custom_connection_func:
                 raise AirflowConfigException(
@@ -123,7 +133,11 @@ class GrpcHook(BaseHook):
         return channel
 
     def run(
-        self, stub_class: Callable, call_func: str, streaming: bool = False, data: dict | None = None
+        self,
+        stub_class: Callable,
+        call_func: str,
+        streaming: bool = False,
+        data: dict | None = None,
     ) -> Generator:
         """Call gRPC function and yield response to caller."""
         if data is None:

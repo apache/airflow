@@ -62,7 +62,9 @@ VIDEO_DATASET = {
 VIDEO_DATA_CONFIG = [
     {
         "import_schema_uri": schema.dataset.ioformat.video.classification,
-        "gcs_source": {"uris": [f"gs://{VIDEO_GCS_BUCKET_NAME}/automl/classification.csv"]},
+        "gcs_source": {
+            "uris": [f"gs://{VIDEO_GCS_BUCKET_NAME}/automl/classification.csv"]
+        },
     },
 ]
 

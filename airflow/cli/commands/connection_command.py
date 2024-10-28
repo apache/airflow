@@ -112,7 +112,9 @@ def create_default_connections(args):
     db_create_default_connections()
 
 
-def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
+def _format_connections(
+    conns: list[Connection], file_format: str, serialization_format: str
+) -> str:
     if serialization_format == "json":
 
         def serializer_func(x):
@@ -121,7 +123,9 @@ def _format_connections(conns: list[Connection], file_format: str, serialization
     elif serialization_format == "uri":
         serializer_func = Connection.get_uri
     else:
-        raise SystemExit(f"Received unexpected value for `--serialization-format`: {serialization_format!r}")
+        raise SystemExit(
+            f"Received unexpected value for `--serialization-format`: {serialization_format!r}"
+        )
     if file_format == ".env":
         connections_env = ""
         for conn in conns:
@@ -163,7 +167,9 @@ def connections_export(args):
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn(
-            "Option `--format` is deprecated. Use `--file-format` instead.", DeprecationWarning, stacklevel=3
+            "Option `--format` is deprecated. Use `--file-format` instead.",
+            DeprecationWarning,
+            stacklevel=3,
         )
     if args.format and args.file_format:
         raise SystemExit("Option `--format` is deprecated.  Use `--file-format` instead.")
@@ -185,10 +191,14 @@ def connections_export(args):
                 )
 
         if args.serialization_format and filetype != ".env":
-            raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
+            raise SystemExit(
+                "Option `--serialization-format` may only be used with file type `env`."
+            )
 
         with create_session() as session:
-            connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
+            connections = session.scalars(
+                select(Connection).order_by(Connection.conn_id)
+            ).all()
 
         msg = _format_connections(
             conns=connections,
@@ -201,7 +211,14 @@ def connections_export(args):
     print_export_output("Connections", connections, f)
 
 
-alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]
+alternative_conn_specs = [
+    "conn_type",
+    "conn_host",
+    "conn_login",
+    "conn_password",
+    "conn_schema",
+    "conn_port",
+]
 
 
 @cli_utils.action_cli
@@ -219,14 +236,18 @@ def connections_add(args):
         raise SystemExit(f"Could not create connection. {e}")
 
     if not has_type and not (has_json or has_uri):
-        raise SystemExit("Must supply either conn-uri or conn-json if not supplying conn-type")
+        raise SystemExit(
+            "Must supply either conn-uri or conn-json if not supplying conn-type"
+        )
 
     if has_json and has_uri:
         raise SystemExit("Cannot supply both conn-uri and conn-json")
 
     if has_type and args.conn_type not in _get_connection_types():
         warnings.warn(
-            f"The type provided to --conn-type is invalid: {args.conn_type}", UserWarning, stacklevel=4
+            f"The type provided to --conn-type is invalid: {args.conn_type}",
+            UserWarning,
+            stacklevel=4,
         )
         warnings.warn(
             f"Supported --conn-types are:{_get_connection_types()}."
@@ -239,7 +260,9 @@ def connections_add(args):
     if has_uri or has_json:
         invalid_args = []
         if has_uri and not _valid_uri(args.conn_uri):
-            raise SystemExit(f"The URI provided to --conn-uri is invalid: {args.conn_uri}")
+            raise SystemExit(
+                f"The URI provided to --conn-uri is invalid: {args.conn_uri}"
+            )
 
         for arg in alternative_conn_specs:
             if getattr(args, arg) is not None:
@@ -255,7 +278,9 @@ def connections_add(args):
             )
 
     if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
+        new_conn = Connection(
+            conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri
+        )
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
     elif args.conn_json:
@@ -277,7 +302,9 @@ def connections_add(args):
             new_conn.set_extra(args.conn_extra)
 
     with create_session() as session:
-        if not session.scalar(select(Connection).where(Connection.conn_id == new_conn.conn_id).limit(1)):
+        if not session.scalar(
+            select(Connection).where(Connection.conn_id == new_conn.conn_id).limit(1)
+        ):
             session.add(new_conn)
             msg = "Successfully added `conn_id`={conn_id} : {uri}"
             msg = msg.format(
@@ -306,11 +333,15 @@ def connections_delete(args):
     """Delete connection from DB."""
     with create_session() as session:
         try:
-            to_delete = session.scalars(select(Connection).where(Connection.conn_id == args.conn_id)).one()
+            to_delete = session.scalars(
+                select(Connection).where(Connection.conn_id == args.conn_id)
+            ).one()
         except exc.NoResultFound:
             raise SystemExit(f"Did not find a connection with `conn_id`={args.conn_id}")
         except exc.MultipleResultsFound:
-            raise SystemExit(f"Found more than one connection with `conn_id`={args.conn_id}")
+            raise SystemExit(
+                f"Found more than one connection with `conn_id`={args.conn_id}"
+            )
         else:
             session.delete(to_delete)
             print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
@@ -341,10 +372,14 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
                 print(f"Could not import connection. {e}")
                 continue
 
-            existing_conn_id = session.scalar(select(Connection.id).where(Connection.conn_id == conn_id))
+            existing_conn_id = session.scalar(
+                select(Connection.id).where(Connection.conn_id == conn_id)
+            )
             if existing_conn_id is not None:
                 if not overwrite:
-                    print(f"Could not import connection {conn_id}: connection already exists.")
+                    print(
+                        f"Could not import connection {conn_id}: connection already exists."
+                    )
                     continue
 
                 # The conn_ids match, but the PK of the new entry must also be the same as the old
@@ -360,7 +395,10 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
 def connections_test(args) -> None:
     """Test an Airflow connection."""
     console = AirflowConsole()
-    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+    if (
+        conf.get("core", "test_connection", fallback="Disabled").lower().strip()
+        != "enabled"
+    ):
         console.print(
             "[bold yellow]\nTesting connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it.\n"

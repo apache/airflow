@@ -59,8 +59,12 @@ def mock_launcher():
 
 
 class TestSparkJobSpec:
-    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.SparkJobSpec.update_resources")
-    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.SparkJobSpec.validate")
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.SparkJobSpec.update_resources"
+    )
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.SparkJobSpec.validate"
+    )
     def test_spark_job_spec_initialization(self, mock_validate, mock_update_resources):
         entries = {
             "spec": {
@@ -95,7 +99,9 @@ class TestSparkJobSpec:
 
         assert spark_job_spec.spec["dynamicAllocation"]["enabled"]
 
-    def test_spark_job_spec_dynamicAllocation_enabled_with_default_initial_executors(self):
+    def test_spark_job_spec_dynamicAllocation_enabled_with_default_initial_executors(
+        self,
+    ):
         entries = {
             "spec": {
                 "dynamicAllocation": {
@@ -203,15 +209,23 @@ class TestCustomObjectLauncher:
             ]
         )
 
-    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager"
+    )
     def test_check_pod_start_failure_no_error(self, mock_pod_manager, mock_launcher):
-        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("ContainerCreating")
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
+            "ContainerCreating"
+        )
         mock_launcher.check_pod_start_failure()
 
-        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("PodInitializing")
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
+            "PodInitializing"
+        )
         mock_launcher.check_pod_start_failure()
 
-    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager"
+    )
     def test_check_pod_start_failure_with_error(self, mock_pod_manager, mock_launcher):
         mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
             "CrashLoopBackOff", "Error message"

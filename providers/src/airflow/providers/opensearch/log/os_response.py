@@ -60,7 +60,9 @@ class AttributeDict:
         try:
             return self.__getitem__(attr_name)
         except KeyError:
-            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {attr_name!r}")
+            raise AttributeError(
+                f"{self.__class__.__name__!r} object has no attribute {attr_name!r}"
+            )
 
     def __getitem__(self, key):
         """Retrieve an item using a key from the dictionary."""
@@ -98,7 +100,11 @@ class HitMeta(AttributeDict):
     """
 
     def __init__(self, document, exclude=("_source", "_fields")):
-        d = {k[1:] if k.startswith("_") else k: v for (k, v) in document.items() if k not in exclude}
+        d = {
+            k[1:] if k.startswith("_") else k: v
+            for (k, v) in document.items()
+            if k not in exclude
+        }
         if "type" in d:
             # make sure we are consistent everywhere in python
             d["doc_type"] = d.pop("type")

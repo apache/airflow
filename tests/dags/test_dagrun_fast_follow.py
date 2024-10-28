@@ -58,8 +58,14 @@ task_i.set_downstream(task_j)
 
 # wait_for_downstream test
 # K -> L -> M
-task_k = PythonOperator(task_id="K", dag=dag, python_callable=lambda: True, wait_for_downstream=True)
-task_l = PythonOperator(task_id="L", dag=dag, python_callable=lambda: True, wait_for_downstream=True)
-task_m = PythonOperator(task_id="M", dag=dag, python_callable=lambda: True, wait_for_downstream=True)
+task_k = PythonOperator(
+    task_id="K", dag=dag, python_callable=lambda: True, wait_for_downstream=True
+)
+task_l = PythonOperator(
+    task_id="L", dag=dag, python_callable=lambda: True, wait_for_downstream=True
+)
+task_m = PythonOperator(
+    task_id="M", dag=dag, python_callable=lambda: True, wait_for_downstream=True
+)
 task_k.set_downstream(task_l)
 task_l.set_downstream(task_m)

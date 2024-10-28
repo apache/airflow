@@ -54,7 +54,9 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
-                prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
+                prev_result = ti.xcom_pull(
+                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session
+                )
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.
@@ -80,11 +82,16 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # ti does not execute.
                     if dep_context.wait_for_past_depends_before_skipping:
                         past_depends_met = ti.xcom_pull(
-                            task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                            task_ids=ti.task_id,
+                            key=PAST_DEPENDS_MET,
+                            session=session,
+                            default=False,
                         )
                         if not past_depends_met:
                             yield self._failing_status(
-                                reason=("Task should be skipped but the past depends are not met")
+                                reason=(
+                                    "Task should be skipped but the past depends are not met"
+                                )
                             )
                             return
                     ti.set_state(TaskInstanceState.SKIPPED, session)

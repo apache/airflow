@@ -41,19 +41,26 @@ class TestGenerateUuid:
 
     def test_deterministic(self):
         """Test that result is deterministic and a valid UUID object"""
-        args = ["".join(random.choices(string.ascii_letters, k=random.randint(3, 13))) for _ in range(100)]
+        args = [
+            "".join(random.choices(string.ascii_letters, k=random.randint(3, 13)))
+            for _ in range(100)
+        ]
         result = generate_uuid(*args, **self.kwargs)
         assert result == generate_uuid(*args, **self.kwargs)
         assert uuid.UUID(result).version == 5, "Should generate UUID v5"
 
     def test_nil_uuid(self):
         """Test that result of single None are NIL UUID, regardless namespace."""
-        assert generate_uuid(None, **self.kwargs) == "00000000-0000-0000-0000-000000000000"
+        assert (
+            generate_uuid(None, **self.kwargs) == "00000000-0000-0000-0000-000000000000"
+        )
 
     def test_single_uuid_value(self):
         """Test that result of single not None value are the same as uuid5."""
         assert generate_uuid("", **self.kwargs) == str(uuid.uuid5(self.namespace, ""))
-        assert generate_uuid("Airflow", **self.kwargs) == str(uuid.uuid5(self.namespace, "Airflow"))
+        assert generate_uuid("Airflow", **self.kwargs) == str(
+            uuid.uuid5(self.namespace, "Airflow")
+        )
 
     def test_multiple_none_value(self):
         """Test that result of single None are NIL UUID, regardless of namespace."""
@@ -62,9 +69,15 @@ class TestGenerateUuid:
         assert uuid.UUID(multi_none).version == 5
 
         # Test that None values not skipped
-        assert generate_uuid(None, "1", None, **self.kwargs) != generate_uuid("1", **self.kwargs)
-        assert generate_uuid(None, "1", **self.kwargs) != generate_uuid("1", **self.kwargs)
-        assert generate_uuid("1", None, **self.kwargs) != generate_uuid("1", **self.kwargs)
+        assert generate_uuid(None, "1", None, **self.kwargs) != generate_uuid(
+            "1", **self.kwargs
+        )
+        assert generate_uuid(None, "1", **self.kwargs) != generate_uuid(
+            "1", **self.kwargs
+        )
+        assert generate_uuid("1", None, **self.kwargs) != generate_uuid(
+            "1", **self.kwargs
+        )
 
     def test_no_args_value(self):
         with pytest.raises(ValueError, match="Expected at least 1 argument"):

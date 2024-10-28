@@ -21,7 +21,11 @@ import urllib.parse
 import pytest
 
 from airflow.providers.common.compat.assets import Asset
-from airflow.providers.google.assets.gcs import convert_asset_to_openlineage, create_asset, sanitize_uri
+from airflow.providers.google.assets.gcs import (
+    convert_asset_to_openlineage,
+    create_asset,
+    sanitize_uri,
+)
 
 
 def test_sanitize_uri():
@@ -46,7 +50,9 @@ def test_sanitize_uri_no_path():
 
 
 def test_create_asset():
-    assert create_asset(bucket="test-bucket", key="test-path") == Asset(uri="gs://test-bucket/test-path")
+    assert create_asset(bucket="test-bucket", key="test-path") == Asset(
+        uri="gs://test-bucket/test-path"
+    )
     assert create_asset(bucket="test-bucket", key="test-dir/test-path") == Asset(
         uri="gs://test-bucket/test-dir/test-path"
     )

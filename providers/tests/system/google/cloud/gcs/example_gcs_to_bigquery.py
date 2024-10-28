@@ -39,7 +39,9 @@ DAG_ID = "gcs_to_bigquery_operator"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 TABLE_NAME = "test"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 with DAG(
     dag_id=DAG_ID,
@@ -49,7 +51,9 @@ with DAG(
     tags=["example", "gcs"],
 ) as dag:
     create_test_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_airflow_test_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset",
+        dataset_id=DATASET_NAME,
+        project_id=PROJECT_ID,
     )
 
     # [START howto_operator_gcs_to_bigquery]

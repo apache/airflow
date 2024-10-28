@@ -223,7 +223,9 @@ class GCSToBigQueryOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels=None,
         description=None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         cancel_on_kill: bool = True,
@@ -318,7 +320,9 @@ class GCSToBigQueryOperator(BaseOperator):
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
-            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
+            raise AirflowException(
+                f"BigQuery job {job.job_id} failed: {job.error_result}"
+            )
 
     def execute(self, context: Context):
         hook = BigQueryHook(
@@ -339,9 +343,13 @@ class GCSToBigQueryOperator(BaseOperator):
         )
 
         self.source_objects = (
-            self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
+            self.source_objects
+            if isinstance(self.source_objects, list)
+            else [self.source_objects]
         )
-        self.source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
+        self.source_uris = [
+            f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects
+        ]
 
         if not self.schema_fields:
             # Check for self.autodetect explicitly False. self.autodetect equal to None
@@ -357,7 +365,9 @@ class GCSToBigQueryOperator(BaseOperator):
                     impersonation_chain=self.impersonation_chain,
                 )
                 self.schema_fields = json.loads(
-                    gcs_hook.download(self.schema_object_bucket, self.schema_object).decode("utf-8")
+                    gcs_hook.download(
+                        self.schema_object_bucket, self.schema_object
+                    ).decode("utf-8")
                 )
                 self.log.info("Loaded fields from schema object: %s", self.schema_fields)
             else:
@@ -472,7 +482,9 @@ class GCSToBigQueryOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self.max_id_key:
-            self.log.info("Selecting the MAX value from BigQuery column %r...", self.max_id_key)
+            self.log.info(
+                "Selecting the MAX value from BigQuery column %r...", self.max_id_key
+            )
             select_command = (
                 f"SELECT MAX({self.max_id_key}) AS max_value "
                 f"FROM {self.destination_project_dataset_table}"
@@ -486,7 +498,8 @@ class GCSToBigQueryOperator(BaseOperator):
             }
             try:
                 job_id = hook.insert_job(
-                    configuration=self.configuration, project_id=self.project_id or hook.project_id
+                    configuration=self.configuration,
+                    project_id=self.project_id or hook.project_id,
                 )
                 rows = list(hook.get_job(job_id=job_id, location=self.location).result())
             except BadRequest as e:
@@ -528,7 +541,10 @@ class GCSToBigQueryOperator(BaseOperator):
             "allowJaggedRows": self.allow_jagged_rows,
             "encoding": self.encoding,
         }
-        src_fmt_to_param_mapping = {"CSV": "csvOptions", "GOOGLE_SHEETS": "googleSheetsOptions"}
+        src_fmt_to_param_mapping = {
+            "CSV": "csvOptions",
+            "GOOGLE_SHEETS": "googleSheetsOptions",
+        }
         src_fmt_to_configs_mapping = {
             "csvOptions": [
                 "allowJaggedRows",
@@ -542,21 +558,32 @@ class GCSToBigQueryOperator(BaseOperator):
             "googleSheetsOptions": ["skipLeadingRows"],
         }
         if self.source_format in src_fmt_to_param_mapping:
-            valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[self.source_format]]
+            valid_configs = src_fmt_to_configs_mapping[
+                src_fmt_to_param_mapping[self.source_format]
+            ]
             self.src_fmt_configs = self._validate_src_fmt_configs(
-                self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs
+                self.source_format,
+                self.src_fmt_configs,
+                valid_configs,
+                backward_compatibility_configs,
             )
-            external_config_api_repr[src_fmt_to_param_mapping[self.source_format]] = self.src_fmt_configs
+            external_config_api_repr[src_fmt_to_param_mapping[self.source_format]] = (
+                self.src_fmt_configs
+            )
 
         external_config = ExternalConfig.from_api_repr(external_config_api_repr)
         if self.schema_fields:
-            external_config.schema = [SchemaField.from_api_repr(f) for f in self.schema_fields]
+            external_config.schema = [
+                SchemaField.from_api_repr(f) for f in self.schema_fields
+            ]
         if self.max_bad_records:
             external_config.max_bad_records = self.max_bad_records
 
         # build table definition
         table = Table(
-            table_ref=TableReference.from_string(self.destination_project_dataset_table, self.hook.project_id)
+            table_ref=TableReference.from_string(
+                self.destination_project_dataset_table, self.hook.project_id
+            )
         )
         table.external_data_configuration = external_config
         if self.labels:
@@ -571,21 +598,28 @@ class GCSToBigQueryOperator(BaseOperator):
             )
         table_obj_api_repr = table.to_api_repr()
 
-        self.log.info("Creating external table: %s", self.destination_project_dataset_table)
+        self.log.info(
+            "Creating external table: %s", self.destination_project_dataset_table
+        )
         self.hook.create_empty_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
             location=self.location,
             exists_ok=True,
         )
-        self.log.info("External table created successfully: %s", self.destination_project_dataset_table)
+        self.log.info(
+            "External table created successfully: %s",
+            self.destination_project_dataset_table,
+        )
         return table_obj_api_repr
 
     def _use_existing_table(self):
-        destination_project_id, destination_dataset, destination_table = self.hook.split_tablename(
-            table_input=self.destination_project_dataset_table,
-            default_project_id=self.hook.project_id,
-            var_name="destination_project_dataset_table",
+        destination_project_id, destination_dataset, destination_table = (
+            self.hook.split_tablename(
+                table_input=self.destination_project_dataset_table,
+                default_project_id=self.hook.project_id,
+                var_name="destination_project_dataset_table",
+            )
         )
 
         # bigquery also allows you to define how you want a table's schema to change
@@ -593,7 +627,9 @@ class GCSToBigQueryOperator(BaseOperator):
         # for more details:
         # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
         allowed_schema_update_options = ["ALLOW_FIELD_ADDITION", "ALLOW_FIELD_RELAXATION"]
-        if not set(allowed_schema_update_options).issuperset(set(self.schema_update_options)):
+        if not set(allowed_schema_update_options).issuperset(
+            set(self.schema_update_options)
+        ):
             raise ValueError(
                 f"{self.schema_update_options} contains invalid schema update options. "
                 f"Please only use one or more of the following options: {allowed_schema_update_options}"
@@ -618,10 +654,14 @@ class GCSToBigQueryOperator(BaseOperator):
             self.destination_project_dataset_table, self.time_partitioning
         )
         if self.time_partitioning:
-            self.configuration["load"].update({"timePartitioning": self.time_partitioning})
+            self.configuration["load"].update(
+                {"timePartitioning": self.time_partitioning}
+            )
 
         if self.cluster_fields:
-            self.configuration["load"].update({"clustering": {"fields": self.cluster_fields}})
+            self.configuration["load"].update(
+                {"clustering": {"fields": self.cluster_fields}}
+            )
 
         if self.schema_fields:
             self.configuration["load"]["schema"] = {"fields": self.schema_fields}
@@ -636,21 +676,32 @@ class GCSToBigQueryOperator(BaseOperator):
             else:
                 # To provide backward compatibility
                 self.schema_update_options = list(self.schema_update_options or [])
-                self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)
-                self.configuration["load"]["schemaUpdateOptions"] = self.schema_update_options
+                self.log.info(
+                    "Adding experimental 'schemaUpdateOptions': %s",
+                    self.schema_update_options,
+                )
+                self.configuration["load"]["schemaUpdateOptions"] = (
+                    self.schema_update_options
+                )
 
         if self.max_bad_records:
             self.configuration["load"]["maxBadRecords"] = self.max_bad_records
 
         if self.encryption_configuration:
-            self.configuration["load"]["destinationEncryptionConfiguration"] = self.encryption_configuration
+            self.configuration["load"]["destinationEncryptionConfiguration"] = (
+                self.encryption_configuration
+            )
 
         if self.labels or self.description:
             self.configuration["load"].update({"destinationTableProperties": {}})
             if self.labels:
-                self.configuration["load"]["destinationTableProperties"]["labels"] = self.labels
+                self.configuration["load"]["destinationTableProperties"]["labels"] = (
+                    self.labels
+                )
             if self.description:
-                self.configuration["load"]["destinationTableProperties"]["description"] = self.description
+                self.configuration["load"]["destinationTableProperties"][
+                    "description"
+                ] = self.description
 
         src_fmt_to_configs_mapping = {
             "CSV": [
@@ -685,7 +736,10 @@ class GCSToBigQueryOperator(BaseOperator):
         }
 
         self.src_fmt_configs = self._validate_src_fmt_configs(
-            self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs
+            self.source_format,
+            self.src_fmt_configs,
+            valid_configs,
+            backward_compatibility_configs,
         )
 
         self.configuration["load"].update(self.src_fmt_configs)
@@ -720,13 +774,17 @@ class GCSToBigQueryOperator(BaseOperator):
 
         for k in src_fmt_configs:
             if k not in valid_configs:
-                raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
+                raise ValueError(
+                    f"{k} is not a valid src_fmt_configs for type {source_format}."
+                )
 
         return src_fmt_configs
 
     def _cleanse_time_partitioning(
         self, destination_dataset_table: str | None, time_partitioning_in: dict | None
-    ) -> dict:  # if it is a partitioned table ($ is in the table name) add partition load option
+    ) -> (
+        dict
+    ):  # if it is a partitioned table ($ is in the table name) add partition load option
         if time_partitioning_in is None:
             time_partitioning_in = {}
 
@@ -766,12 +824,16 @@ class GCSToBigQueryOperator(BaseOperator):
             )
 
         project_id = self.project_id or self.hook.project_id
-        table_object = self.hook.get_client(project_id).get_table(self.destination_project_dataset_table)
+        table_object = self.hook.get_client(project_id).get_table(
+            self.destination_project_dataset_table
+        )
 
         output_dataset_facets = get_facets_from_bq_table(table_object)
 
         source_objects = (
-            self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
+            self.source_objects
+            if isinstance(self.source_objects, list)
+            else [self.source_objects]
         )
         input_dataset_facets = {
             "schema": output_dataset_facets["schema"],
@@ -785,7 +847,11 @@ class GCSToBigQueryOperator(BaseOperator):
                 # but we create a symlink to the full object path with wildcard.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
-                        identifiers=[Identifier(namespace=f"gs://{self.bucket}", name=blob, type="file")]
+                        identifiers=[
+                            Identifier(
+                                namespace=f"gs://{self.bucket}", name=blob, type="file"
+                            )
+                        ]
                     ),
                 }
                 blob = Path(blob).parent.as_posix()
@@ -801,7 +867,8 @@ class GCSToBigQueryOperator(BaseOperator):
             input_datasets.append(dataset)
 
         output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in table_object.schema], input_datasets=input_datasets
+            field_names=[field.name for field in table_object.schema],
+            input_datasets=input_datasets,
         )
 
         output_dataset = Dataset(
@@ -813,7 +880,11 @@ class GCSToBigQueryOperator(BaseOperator):
         run_facets = {}
         if self.job_id:
             run_facets = {
-                "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery"),
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId=self.job_id, source="bigquery"
+                ),
             }
 
-        return OperatorLineage(inputs=input_datasets, outputs=[output_dataset], run_facets=run_facets)
+        return OperatorLineage(
+            inputs=input_datasets, outputs=[output_dataset], run_facets=run_facets
+        )

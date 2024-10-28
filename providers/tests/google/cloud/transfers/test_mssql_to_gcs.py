@@ -89,7 +89,9 @@ class TestMsSqlToGoogleCloudStorageOperator:
 
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""
-        op = MSSQLToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME)
+        op = MSSQLToGCSOperator(
+            task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME
+        )
         assert op.task_id == TASK_ID
         assert op.sql == SQL
         assert op.bucket == BUCKET
@@ -100,7 +102,11 @@ class TestMsSqlToGoogleCloudStorageOperator:
     def test_exec_success_json(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test successful run of execute function for JSON"""
         op = MSSQLToGCSOperator(
-            task_id=TASK_ID, mssql_conn_id=MSSQL_CONN_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME
+            task_id=TASK_ID,
+            mssql_conn_id=MSSQL_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME,
         )
 
         mssql_hook_mock = mssql_hook_mock_class.return_value
@@ -109,7 +115,9 @@ class TestMsSqlToGoogleCloudStorageOperator:
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
+        def _assert_upload(
+            bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None
+        ):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
             assert "application/json" == mime_type
@@ -138,7 +146,9 @@ class TestMsSqlToGoogleCloudStorageOperator:
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
+        def _assert_upload(
+            bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None
+        ):
             assert BUCKET == bucket
             assert "application/json" == mime_type
             assert GZIP == gzip
@@ -159,9 +169,12 @@ class TestMsSqlToGoogleCloudStorageOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     @pytest.mark.parametrize(
-        "bit_fields,schema_json", [(None, SCHEMA_JSON), (["bit_fields", SCHEMA_JSON_BIT_FIELDS])]
+        "bit_fields,schema_json",
+        [(None, SCHEMA_JSON), (["bit_fields", SCHEMA_JSON_BIT_FIELDS])],
     )
-    def test_schema_file(self, gcs_hook_mock_class, mssql_hook_mock_class, bit_fields, schema_json):
+    def test_schema_file(
+        self, gcs_hook_mock_class, mssql_hook_mock_class, bit_fields, schema_json
+    ):
         """Test writing schema files."""
         mssql_hook_mock = mssql_hook_mock_class.return_value
         mssql_hook_mock.get_conn().cursor().__iter__.return_value = iter(ROWS)

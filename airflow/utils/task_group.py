@@ -140,10 +140,14 @@ class TaskGroup(DAGNode):
 
             parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
             if not parent_group:
-                raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
+                raise AirflowException(
+                    "TaskGroup must have a parent_group except for the root TaskGroup"
+                )
             if dag is not parent_group.dag:
                 raise RuntimeError(
-                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, parent_group.dag
+                    "Cannot mix TaskGroups from different DAGs: %s and %s",
+                    dag,
+                    parent_group.dag,
                 )
 
             self.used_group_ids = parent_group.used_group_ids
@@ -184,12 +188,15 @@ class TaskGroup(DAGNode):
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         if self._group_id in self.used_group_ids:
             if not add_suffix_on_collision:
-                raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
+                raise DuplicateTaskIdFound(
+                    f"group_id '{self._group_id}' has already been added to the DAG"
+                )
             base = re2.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
                 int(re2.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re2.match(rf"^{base}__\d+$", used_group_id)
+                if used_group_id is not None
+                and re2.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
                 self._group_id += "__1"
@@ -238,7 +245,11 @@ class TaskGroup(DAGNode):
                 task.task_group.children.pop(task.node_id, None)
                 task.task_group = self
         existing_tg = task.task_group
-        if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
+        if (
+            isinstance(task, AbstractOperator)
+            and existing_tg is not None
+            and existing_tg != self
+        ):
             raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
 
         # Set the TG first, as setting it might change the return value of node_id!
@@ -247,13 +258,17 @@ class TaskGroup(DAGNode):
 
         if key in self.children:
             node_type = "Task" if hasattr(task, "task_id") else "Task Group"
-            raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
+            raise DuplicateTaskIdFound(
+                f"{node_type} id '{key}' has already been added to the DAG"
+            )
 
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
                     raise RuntimeError(
-                        "Cannot mix TaskGroups from different DAGs: %s and %s", self.dag, task.dag
+                        "Cannot mix TaskGroups from different DAGs: %s and %s",
+                        self.dag,
+                        task.dag,
                     )
                 task.dag = self.dag
             if task.children:
@@ -274,7 +289,11 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.task_group and self.task_group.prefix_group_id and self.task_group._group_id:
+        if (
+            self.task_group
+            and self.task_group.prefix_group_id
+            and self.task_group._group_id
+        ):
             # defer to parent whether it adds a prefix
             return self.task_group.child_id(self._group_id)
 
@@ -286,7 +305,10 @@ class TaskGroup(DAGNode):
         return self._group_id
 
     def update_relative(
-        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin,
+        upstream: bool = True,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """
         Override TaskMixin.update_relative.
@@ -299,11 +321,15 @@ class TaskGroup(DAGNode):
             if upstream:
                 parent, child = (self, other)
                 if edge_modifier:
-                    edge_modifier.add_edge_info(self.dag, other.downstream_join_id, self.upstream_join_id)
+                    edge_modifier.add_edge_info(
+                        self.dag, other.downstream_join_id, self.upstream_join_id
+                    )
             else:
                 parent, child = (other, self)
                 if edge_modifier:
-                    edge_modifier.add_edge_info(self.dag, self.downstream_join_id, other.upstream_join_id)
+                    edge_modifier.add_edge_info(
+                        self.dag, self.downstream_join_id, other.upstream_join_id
+                    )
 
             parent.upstream_group_ids.add(child.group_id)
             child.downstream_group_ids.add(parent.group_id)
@@ -323,11 +349,15 @@ class TaskGroup(DAGNode):
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
                     if edge_modifier:
-                        edge_modifier.add_edge_info(self.dag, task.node_id, self.upstream_join_id)
+                        edge_modifier.add_edge_info(
+                            self.dag, task.node_id, self.upstream_join_id
+                        )
                 else:
                     self.downstream_task_ids.add(task.node_id)
                     if edge_modifier:
-                        edge_modifier.add_edge_info(self.dag, self.downstream_join_id, task.node_id)
+                        edge_modifier.add_edge_info(
+                            self.dag, self.downstream_join_id, task.node_id
+                        )
 
     def _set_relatives(
         self,
@@ -365,7 +395,11 @@ class TaskGroup(DAGNode):
         if task.task_id in self.children:
             return True
 
-        return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
+        return any(
+            child.has_task(task)
+            for child in self.children.values()
+            if isinstance(child, TaskGroup)
+        )
 
     @property
     def roots(self) -> list[BaseOperator]:
@@ -476,7 +510,9 @@ class TaskGroup(DAGNode):
         """Serialize task group; required by DAGNode."""
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
+        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(
+            self
+        )
 
     def hierarchical_alphabetical_sort(self):
         """
@@ -488,7 +524,8 @@ class TaskGroup(DAGNode):
         :return: list of tasks in hierarchical alphabetical order
         """
         return sorted(
-            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+            self.children.values(),
+            key=lambda node: (not isinstance(node, TaskGroup), node.node_id),
         )
 
     def topological_sort(self):
@@ -539,7 +576,9 @@ class TaskGroup(DAGNode):
                     graph_sorted.append(node)
 
             if not acyclic:
-                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                raise AirflowDagCycleException(
+                    f"A cyclic dependency occurred in dag: {self.dag_id}"
+                )
 
         return graph_sorted
 
@@ -618,7 +657,10 @@ class MappedTaskGroup(TaskGroup):
         """
         return functools.reduce(
             operator.mul,
-            (g._expand_input.get_parse_time_mapped_ti_count() for g in self.iter_mapped_task_groups()),
+            (
+                g._expand_input.get_parse_time_mapped_ti_count()
+                for g in self.iter_mapped_task_groups()
+            ),
         )
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
@@ -641,7 +683,10 @@ class MappedTaskGroup(TaskGroup):
         groups = self.iter_mapped_task_groups()
         return functools.reduce(
             operator.mul,
-            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
+            (
+                g._expand_input.get_total_map_length(run_id, session=session)
+                for g in groups
+            ),
         )
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -661,7 +706,9 @@ class TaskGroupContext:
     def push_context_managed_task_group(cls, task_group: TaskGroup):
         """Push a TaskGroup into the list of managed TaskGroups."""
         if cls._context_managed_task_group:
-            cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
+            cls._previous_context_managed_task_groups.append(
+                cls._context_managed_task_group
+            )
         cls._context_managed_task_group = task_group
         cls.active = True
 
@@ -670,7 +717,9 @@ class TaskGroupContext:
         """Pops the last TaskGroup from the list of managed TaskGroups and update the current TaskGroup."""
         old_task_group = cls._context_managed_task_group
         if cls._previous_context_managed_task_groups:
-            cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()
+            cls._context_managed_task_group = (
+                cls._previous_context_managed_task_groups.pop()
+            )
         else:
             cls._context_managed_task_group = None
         cls.active = False
@@ -719,7 +768,8 @@ def task_group_to_dict(task_item_or_group):
     task_group = task_item_or_group
     is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
-        task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
+        task_group_to_dict(child)
+        for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:

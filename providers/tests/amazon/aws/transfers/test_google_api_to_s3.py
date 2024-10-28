@@ -67,10 +67,14 @@ class TestGoogleApiToS3:
             "dag": None,
         }
 
-    @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query")
+    @patch(
+        "airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query"
+    )
     @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.S3Hook.load_string")
     @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.json.dumps")
-    def test_execute(self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query):
+    def test_execute(
+        self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query
+    ):
         context = {"task_instance": Mock()}
 
         GoogleApiToS3Operator(**self.kwargs).execute(context)
@@ -91,10 +95,14 @@ class TestGoogleApiToS3:
         context["task_instance"].xcom_pull.assert_not_called()
         context["task_instance"].xcom_push.assert_not_called()
 
-    @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query")
+    @patch(
+        "airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query"
+    )
     @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.S3Hook.load_string")
     @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.json.dumps")
-    def test_execute_with_xcom(self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query):
+    def test_execute_with_xcom(
+        self, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query
+    ):
         context = {"task_instance": Mock()}
         xcom_kwargs = {
             "google_api_response_via_xcom": "response",
@@ -123,17 +131,25 @@ class TestGoogleApiToS3:
             key=xcom_kwargs["google_api_endpoint_params_via_xcom"],
         )
         context["task_instance"].xcom_push.assert_called_once_with(
-            key=xcom_kwargs["google_api_response_via_xcom"], value=mock_google_api_hook_query.return_value
+            key=xcom_kwargs["google_api_response_via_xcom"],
+            value=mock_google_api_hook_query.return_value,
         )
 
-    @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query")
+    @patch(
+        "airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleDiscoveryApiHook.query"
+    )
     @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.S3Hook.load_string")
     @patch("airflow.providers.amazon.aws.transfers.google_api_to_s3.json.dumps")
     @patch(
-        "airflow.providers.amazon.aws.transfers.google_api_to_s3.sys.getsizeof", return_value=MAX_XCOM_SIZE
+        "airflow.providers.amazon.aws.transfers.google_api_to_s3.sys.getsizeof",
+        return_value=MAX_XCOM_SIZE,
     )
     def test_execute_with_xcom_exceeded_max_xcom_size(
-        self, mock_sys_getsizeof, mock_json_dumps, mock_s3_hook_load_string, mock_google_api_hook_query
+        self,
+        mock_sys_getsizeof,
+        mock_json_dumps,
+        mock_s3_hook_load_string,
+        mock_google_api_hook_query,
     ):
         context = {"task_instance": Mock()}
         xcom_kwargs = {
@@ -164,4 +180,6 @@ class TestGoogleApiToS3:
             key=xcom_kwargs["google_api_endpoint_params_via_xcom"],
         )
         context["task_instance"].xcom_push.assert_not_called()
-        mock_sys_getsizeof.assert_called_once_with(mock_google_api_hook_query.return_value)
+        mock_sys_getsizeof.assert_called_once_with(
+            mock_google_api_hook_query.return_value
+        )

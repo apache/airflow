@@ -41,7 +41,9 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         self.api_version = api_version
         self._conn = None
 
-    def _paginate(self, resource: Resource, list_args: dict[str, Any] | None = None) -> list[dict]:
+    def _paginate(
+        self, resource: Resource, list_args: dict[str, Any] | None = None
+    ) -> list[dict]:
         list_args = list_args or {}
         result: list[dict] = []
         while True:
@@ -102,7 +104,9 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         )
         return ad_words_link
 
-    def list_ad_words_links(self, account_id: str, web_property_id: str) -> list[dict[str, Any]]:
+    def list_ad_words_links(
+        self, account_id: str, web_property_id: str
+    ) -> list[dict[str, Any]]:
         """
         List webProperty-Google Ads links for a given web property.
 
@@ -186,7 +190,9 @@ class GoogleAnalyticsHook(GoogleBaseHook):
             body=delete_request_body,
         ).execute()
 
-    def list_uploads(self, account_id, web_property_id, custom_data_source_id) -> list[dict[str, Any]]:
+    def list_uploads(
+        self, account_id, web_property_id, custom_data_source_id
+    ) -> list[dict[str, Any]]:
         """
         Get list of data upload from GA.
 

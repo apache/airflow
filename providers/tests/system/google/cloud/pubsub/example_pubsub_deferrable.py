@@ -41,7 +41,10 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "pubsub_async"
 
 TOPIC_ID = f"topic-{DAG_ID}-{ENV_ID}"
-MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
+MESSAGE = {
+    "data": b"Tool",
+    "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"},
+}
 
 
 with DAG(
@@ -51,7 +54,10 @@ with DAG(
     catchup=False,
 ) as dag:
     create_topic = PubSubCreateTopicOperator(
-        task_id="create_topic", topic=TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
+        task_id="create_topic",
+        topic=TOPIC_ID,
+        project_id=PROJECT_ID,
+        fail_if_exists=False,
     )
 
     subscribe_task = PubSubCreateSubscriptionOperator(
@@ -83,7 +89,9 @@ with DAG(
     )
     unsubscribe_task.trigger_rule = TriggerRule.ALL_DONE
 
-    delete_topic = PubSubDeleteTopicOperator(task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID)
+    delete_topic = PubSubDeleteTopicOperator(
+        task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID
+    )
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
 
     (

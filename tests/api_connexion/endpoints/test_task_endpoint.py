@@ -28,8 +28,16 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -65,19 +73,31 @@ class TestTaskEndpoint:
 
     @pytest.fixture(scope="class")
     def setup_dag(self, configured_app):
-        with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
+        with DAG(
+            self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details"
+        ) as dag:
             task1 = EmptyOperator(task_id=self.task_id, params={"foo": "bar"})
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
-        with DAG(self.mapped_dag_id, schedule=None, start_date=self.task1_start_date) as mapped_dag:
+        with DAG(
+            self.mapped_dag_id, schedule=None, start_date=self.task1_start_date
+        ) as mapped_dag:
             EmptyOperator(task_id=self.task_id3)
             # Use the private _expand() method to avoid the empty kwargs check.
             # We don't care about how the operator runs here, only its presence.
-            EmptyOperator.partial(task_id=self.mapped_task_id)._expand(EXPAND_INPUT_EMPTY, strict=False)
+            EmptyOperator.partial(task_id=self.mapped_task_id)._expand(
+                EXPAND_INPUT_EMPTY, strict=False
+            )
 
-        with DAG(self.unscheduled_dag_id, start_date=None, schedule=None) as unscheduled_dag:
-            task4 = EmptyOperator(task_id=self.unscheduled_task_id1, params={"is_unscheduled": True})
-            task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
+        with DAG(
+            self.unscheduled_dag_id, start_date=None, schedule=None
+        ) as unscheduled_dag:
+            task4 = EmptyOperator(
+                task_id=self.unscheduled_task_id1, params={"is_unscheduled": True}
+            )
+            task5 = EmptyOperator(
+                task_id=self.unscheduled_task_id2, params={"is_unscheduled": True}
+            )
 
         task1 >> task2
         task4 >> task5
@@ -132,7 +152,12 @@ class TestGetTask(TestTaskEndpoint):
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+            "retry_delay": {
+                "__type": "TimeDelta",
+                "days": 0,
+                "seconds": 300,
+                "microseconds": 0,
+            },
             "retry_exponential_backoff": False,
             "start_date": "2020-06-15T00:00:00+00:00",
             "task_id": "op1",
@@ -147,14 +172,18 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == expected
 
     def test_mapped_task(self):
         expected = {
-            "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+            "class_ref": {
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.operators.empty",
+            },
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,
@@ -169,7 +198,12 @@ class TestGetTask(TestTaskEndpoint):
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
+            "retry_delay": {
+                "__type": "TimeDelta",
+                "days": 0,
+                "microseconds": 0,
+                "seconds": 300,
+            },
             "retry_exponential_backoff": False,
             "start_date": "2020-06-15T00:00:00+00:00",
             "task_id": "mapped_task",
@@ -215,7 +249,12 @@ class TestGetTask(TestTaskEndpoint):
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+            "retry_delay": {
+                "__type": "TimeDelta",
+                "days": 0,
+                "seconds": 300,
+                "microseconds": 0,
+            },
             "retry_exponential_backoff": False,
             "start_date": None,
             "task_id": None,
@@ -239,7 +278,9 @@ class TestGetTask(TestTaskEndpoint):
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
-            expected["downstream_task_ids"] = [downstream_task_id] if downstream_task_id else []
+            expected["downstream_task_ids"] = (
+                [downstream_task_id] if downstream_task_id else []
+            )
             expected["task_id"] = task_id
             expected["task_display_name"] = task_id
             assert response.json == expected
@@ -277,7 +318,12 @@ class TestGetTask(TestTaskEndpoint):
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+            "retry_delay": {
+                "__type": "TimeDelta",
+                "days": 0,
+                "seconds": 300,
+                "microseconds": 0,
+            },
             "retry_exponential_backoff": False,
             "start_date": "2020-06-15T00:00:00+00:00",
             "task_id": "op1",
@@ -292,7 +338,8 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == expected
@@ -301,14 +348,16 @@ class TestGetTask(TestTaskEndpoint):
     def test_should_respond_404(self):
         task_id = "xxxx_not_existing"
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks/{task_id}",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 
     def test_should_respond_404_when_dag_not_found(self):
         dag_id = "xxxx_not_existing"
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{dag_id}/tasks/{self.task_id}",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert response.json["title"] == "DAG not found"
@@ -320,7 +369,8 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            f"/api/v1/dags/{self.dag_id}/tasks",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -354,7 +404,12 @@ class TestGetTasks(TestTaskEndpoint):
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_delay": {
+                        "__type": "TimeDelta",
+                        "days": 0,
+                        "seconds": 300,
+                        "microseconds": 0,
+                    },
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-15T00:00:00+00:00",
                     "task_id": "op1",
@@ -386,7 +441,12 @@ class TestGetTasks(TestTaskEndpoint):
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_delay": {
+                        "__type": "TimeDelta",
+                        "days": 0,
+                        "seconds": 300,
+                        "microseconds": 0,
+                    },
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-16T00:00:00+00:00",
                     "task_id": self.task_id2,
@@ -413,7 +473,10 @@ class TestGetTasks(TestTaskEndpoint):
         expected = {
             "tasks": [
                 {
-                    "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
                     "end_date": None,
@@ -428,7 +491,12 @@ class TestGetTasks(TestTaskEndpoint):
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
+                    "retry_delay": {
+                        "__type": "TimeDelta",
+                        "days": 0,
+                        "microseconds": 0,
+                        "seconds": 300,
+                    },
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-15T00:00:00+00:00",
                     "task_id": "mapped_task",
@@ -459,7 +527,12 @@ class TestGetTasks(TestTaskEndpoint):
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_delay": {
+                        "__type": "TimeDelta",
+                        "days": 0,
+                        "seconds": 300,
+                        "microseconds": 0,
+                    },
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-15T00:00:00+00:00",
                     "task_id": self.task_id3,
@@ -477,7 +550,8 @@ class TestGetTasks(TestTaskEndpoint):
             "total_entries": 2,
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.mapped_dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.mapped_dag_id}/tasks",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == expected
@@ -495,7 +569,9 @@ class TestGetTasks(TestTaskEndpoint):
                         "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
-                    "downstream_task_ids": [downstream_task_id] if downstream_task_id else [],
+                    "downstream_task_ids": [downstream_task_id]
+                    if downstream_task_id
+                    else [],
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
@@ -514,7 +590,12 @@ class TestGetTasks(TestTaskEndpoint):
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_delay": {
+                        "__type": "TimeDelta",
+                        "days": 0,
+                        "seconds": 300,
+                        "microseconds": 0,
+                    },
                     "retry_exponential_backoff": False,
                     "start_date": None,
                     "task_id": task_id,
@@ -533,7 +614,8 @@ class TestGetTasks(TestTaskEndpoint):
             "total_entries": len(downstream_dict),
         }
         response = self.client.get(
-            f"/api/v1/dags/{self.unscheduled_dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/dags/{self.unscheduled_dag_id}/tasks",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == expected
@@ -565,11 +647,16 @@ class TestGetTasks(TestTaskEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        assert (
+            response.json["detail"]
+            == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        )
 
     def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/tasks", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 404
 
     def test_should_raises_401_unauthenticated(self):

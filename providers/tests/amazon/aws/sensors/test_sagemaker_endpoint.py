@@ -60,7 +60,10 @@ class TestSageMakerEndpointSensor:
     def test_sensor_with_failure(self, mock_describe, mock_get_conn):
         mock_describe.side_effect = [DESCRIBE_ENDPOINT_FAILED_RESPONSE]
         sensor = SageMakerEndpointSensor(
-            task_id="test_task", poke_interval=1, aws_conn_id="aws_test", endpoint_name="test_job_name"
+            task_id="test_task",
+            poke_interval=1,
+            aws_conn_id="aws_test",
+            endpoint_name="test_job_name",
         )
         with pytest.raises(AirflowException):
             sensor.execute(None)
@@ -78,7 +81,10 @@ class TestSageMakerEndpointSensor:
             DESCRIBE_ENDPOINT_INSERVICE_RESPONSE,
         ]
         sensor = SageMakerEndpointSensor(
-            task_id="test_task", poke_interval=0, aws_conn_id="aws_test", endpoint_name="test_job_name"
+            task_id="test_task",
+            poke_interval=0,
+            aws_conn_id="aws_test",
+            endpoint_name="test_job_name",
         )
 
         sensor.execute(None)

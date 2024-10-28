@@ -33,7 +33,11 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.mock_operators import MockOperator
 
@@ -89,7 +93,9 @@ class TestMappedTaskInstanceEndpoint:
             count = dag["success"] + dag["running"]
             with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
                 task1 = BaseOperator(task_id="op1")
-                mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
+                mapped = MockOperator.partial(
+                    task_id="task_2", executor="default"
+                ).expand(arg2=task1.output)
 
             dr = dag_maker.create_dagrun(run_id=f"run_{dag_id}")
 
@@ -299,7 +305,9 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert len(response.json["task_instances"]) == 100
 
     @provide_session
-    def test_mapped_task_instances_offset_limit(self, one_task_with_many_mapped_tis, session):
+    def test_mapped_task_instances_offset_limit(
+        self, one_task_with_many_mapped_tis, session
+    ):
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
             "?offset=4&limit=10",
@@ -308,7 +316,9 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 110
         assert len(response.json["task_instances"]) == 10
-        assert list(range(4, 14)) == [ti["map_index"] for ti in response.json["task_instances"]]
+        assert list(range(4, 14)) == [
+            ti["map_index"] for ti in response.json["task_instances"]
+        ]
 
     @provide_session
     def test_mapped_task_instances_order(self, one_task_with_many_mapped_tis, session):
@@ -319,10 +329,14 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 110
         assert len(response.json["task_instances"]) == 100
-        assert list(range(100)) == [ti["map_index"] for ti in response.json["task_instances"]]
+        assert list(range(100)) == [
+            ti["map_index"] for ti in response.json["task_instances"]
+        ]
 
     @provide_session
-    def test_mapped_task_instances_reverse_order(self, one_task_with_many_mapped_tis, session):
+    def test_mapped_task_instances_reverse_order(
+        self, one_task_with_many_mapped_tis, session
+    ):
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
             "?order_by=-map_index",
@@ -331,10 +345,14 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 110
         assert len(response.json["task_instances"]) == 100
-        assert list(range(109, 9, -1)) == [ti["map_index"] for ti in response.json["task_instances"]]
+        assert list(range(109, 9, -1)) == [
+            ti["map_index"] for ti in response.json["task_instances"]
+        ]
 
     @provide_session
-    def test_mapped_task_instances_state_order(self, one_task_with_many_mapped_tis, session):
+    def test_mapped_task_instances_state_order(
+        self, one_task_with_many_mapped_tis, session
+    ):
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
             "?order_by=-state",
@@ -360,7 +378,9 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         ]
 
     @provide_session
-    def test_mapped_task_instances_invalid_order(self, one_task_with_many_mapped_tis, session):
+    def test_mapped_task_instances_invalid_order(
+        self, one_task_with_many_mapped_tis, session
+    ):
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
             "?order_by=unsupported",
@@ -463,7 +483,9 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.json["task_instances"] == []
 
     @provide_session
-    def test_mapped_task_instances_with_zero_mapped(self, one_task_with_zero_mapped_tis, session):
+    def test_mapped_task_instances_with_zero_mapped(
+        self, one_task_with_zero_mapped_tis, session
+    ):
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
             environ_overrides={"REMOTE_USER": "test"},

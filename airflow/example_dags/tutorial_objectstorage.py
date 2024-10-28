@@ -115,7 +115,9 @@ def tutorial_objectstorage():
 
         conn = duckdb.connect(database=":memory:")
         conn.register_filesystem(path.fs)
-        conn.execute(f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path}')")
+        conn.execute(
+            f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path}')"
+        )
 
         df2 = conn.execute("SELECT * FROM airquality_urban").fetchdf()
 

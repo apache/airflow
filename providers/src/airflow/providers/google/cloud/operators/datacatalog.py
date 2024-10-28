@@ -632,7 +632,9 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(GoogleCloudBaseOperator):
             result = tag_template.fields[self.tag_template_field_id]
 
         self.log.info("Current Tag ID: %s", self.tag_template_field_id)
-        self.xcom_push(context, key="tag_template_field_id", value=self.tag_template_field_id)
+        self.xcom_push(
+            context, key="tag_template_field_id", value=self.tag_template_field_id
+        )
         DataCatalogTagTemplateLink.persist(
             context=context,
             task_instance=self,

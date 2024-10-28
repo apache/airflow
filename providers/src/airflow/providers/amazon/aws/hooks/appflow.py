@@ -86,7 +86,9 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
         exec_details = last_execs[execution_id]
         self.log.info("Run complete, execution details: %s", exec_details)
 
-    def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
+    def update_flow_filter(
+        self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False
+    ) -> None:
         """
         Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 

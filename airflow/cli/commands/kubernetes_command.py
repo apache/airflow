@@ -67,14 +67,20 @@ def generate_pod_yaml(args):
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
-            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+            base_worker_pod=PodGenerator.deserialize_model_file(
+                kube_config.pod_template_file
+            ),
             with_mutation_hook=True,
         )
         api_client = ApiClient()
         date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
-        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
-        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+        os.makedirs(
+            os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True
+        )
+        with open(
+            yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w"
+        ) as output:
             sanitized_pod = api_client.sanitize_for_serialization(pod)
             output.write(yaml.dump(sanitized_pod))
     print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
@@ -120,7 +126,11 @@ def cleanup_pods(args):
         "try_number",
         "airflow_version",
     ]
-    list_kwargs = {"namespace": namespace, "limit": 500, "label_selector": ",".join(airflow_pod_labels)}
+    list_kwargs = {
+        "namespace": namespace,
+        "limit": 500,
+        "label_selector": ",".join(airflow_pod_labels),
+    }
 
     while True:
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
@@ -134,7 +144,10 @@ def cleanup_pods(args):
 
             if (
                 pod_phase == pod_succeeded
-                or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
+                or (
+                    pod_phase == pod_failed
+                    and pod_restart_policy == pod_restart_policy_never
+                )
                 or (pod_reason == pod_reason_evicted)
                 or (
                     pod_phase == pod_pending
@@ -167,5 +180,7 @@ def _delete_pod(name, namespace):
     kube_client = get_kube_client()
     delete_options = client.V1DeleteOptions()
     print(f'Deleting POD "{name}" from "{namespace}" namespace')
-    api_response = kube_client.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
+    api_response = kube_client.delete_namespaced_pod(
+        name=name, namespace=namespace, body=delete_options
+    )
     print(api_response)

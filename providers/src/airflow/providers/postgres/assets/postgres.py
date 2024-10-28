@@ -31,7 +31,9 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
         uri = uri._replace(netloc=f"{host}:5432")
     path_parts = uri.path.split("/")
     if len(path_parts) != 4:  # Leading slash, database, schema, and table names.
-        raise ValueError("URI format postgres:// must contain database, schema, and table names")
+        raise ValueError(
+            "URI format postgres:// must contain database, schema, and table names"
+        )
     if not path_parts[2]:
         path_parts[2] = "default"
     return uri._replace(scheme="postgres", path="/".join(path_parts))

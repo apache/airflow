@@ -116,9 +116,13 @@ def _reset_dagrun():
         session.query(TaskInstance).delete()
 
 
-def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, client_dr_without_dag_edit):
+def test_get_dagrun_can_view_dags_without_edit_perms(
+    session, running_dag_run, client_dr_without_dag_edit
+):
     """Test that a user without dag_edit but with dag_read permission can view the records"""
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert (
+        session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    )
     resp = client_dr_without_dag_edit.get("/dagrun/list/", follow_redirects=True)
     check_content_in_response(running_dag_run.dag_id, resp)
 
@@ -132,7 +136,9 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
         "conf": '{"include": "me"}',
     }
 
-    resp = client_dr_without_dag_run_create.post("/dagrun/add", data=data, follow_redirects=True)
+    resp = client_dr_without_dag_run_create.post(
+        "/dagrun/add", data=data, follow_redirects=True
+    )
     check_content_in_response("Access is Denied", resp)
 
 
@@ -140,7 +146,9 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
     execution_date = timezone.datetime(2016, 1, 9)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dr = dag.create_dagrun(
         state="running",
         execution_date=execution_date,
@@ -163,7 +171,9 @@ def running_dag_run(session):
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
     execution_date = timezone.datetime(2016, 1, 9)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dr = dag.create_dagrun(
         state="success",
         execution_date=execution_date,
@@ -188,18 +198,30 @@ def completed_dag_run_with_missing_task(session):
 
 def test_delete_dagrun(session, admin_client, running_dag_run):
     composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert (
+        session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    )
     admin_client.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 0
+    assert (
+        session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 0
+    )
 
 
-def test_delete_dagrun_permission_denied(session, running_dag_run, client_dr_without_dag_edit):
+def test_delete_dagrun_permission_denied(
+    session, running_dag_run, client_dr_without_dag_edit
+):
     composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
 
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
-    resp = client_dr_without_dag_edit.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
+    assert (
+        session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    )
+    resp = client_dr_without_dag_edit.post(
+        f"/dagrun/delete/{composite_key}", follow_redirects=True
+    )
     check_content_in_response("Access is Denied", resp)
-    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    assert (
+        session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+    )
 
 
 @pytest.mark.parametrize(
@@ -287,7 +309,9 @@ def test_muldelete_dag_runs_action(session, admin_client, running_dag_run):
     ["clear", "set_success", "set_failed", "set_running"],
     ids=["clear", "success", "failed", "running"],
 )
-def test_set_dag_runs_action_permission_denied(client_dr_without_dag_edit, running_dag_run, action):
+def test_set_dag_runs_action_permission_denied(
+    client_dr_without_dag_edit, running_dag_run, action
+):
     running_dag_id = running_dag_run.id
     resp = client_dr_without_dag_edit.post(
         "/dagrun/action_post",
@@ -297,7 +321,9 @@ def test_set_dag_runs_action_permission_denied(client_dr_without_dag_edit, runni
     check_content_in_response("Access is Denied", resp)
 
 
-def test_dag_runs_queue_new_tasks_action(session, admin_client, completed_dag_run_with_missing_task):
+def test_dag_runs_queue_new_tasks_action(
+    session, admin_client, completed_dag_run_with_missing_task
+):
     dag, dag_run = completed_dag_run_with_missing_task
     resp = admin_client.post(
         "/dagrun_queued",

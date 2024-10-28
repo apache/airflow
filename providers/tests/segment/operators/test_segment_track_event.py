@@ -23,7 +23,9 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.segment.hooks.segment import SegmentHook
-from airflow.providers.segment.operators.segment_track_event import SegmentTrackEventOperator
+from airflow.providers.segment.operators.segment_track_event import (
+    SegmentTrackEventOperator,
+)
 
 TEST_CONN_ID = "test_segment"
 WRITE_KEY = "foo"

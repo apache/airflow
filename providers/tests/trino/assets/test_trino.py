@@ -52,7 +52,9 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
         pytest.param("trino:///catalog/schema/table", id="no-host"),
         pytest.param("trino://example.com/catalog/table", id="missing-component"),
         pytest.param("trino://example.com:abcd/catalog/schema/table", id="non-port"),
-        pytest.param("trino://example.com/catalog/schema/table/column", id="extra-component"),
+        pytest.param(
+            "trino://example.com/catalog/schema/table/column", id="extra-component"
+        ),
     ],
 )
 def test_sanitize_uri_fail(value: str) -> None:

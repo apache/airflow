@@ -23,7 +23,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue_databrew import (
+    GlueDataBrewJobCompleteTrigger,
+)
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
@@ -81,7 +83,9 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         delay: int | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -95,7 +99,9 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         job = self.hook.conn.start_job_run(Name=self.job_name)
         run_id = job["RunId"]
 
-        self.log.info("AWS Glue DataBrew Job: %s. Run Id: %s submitted.", self.job_name, run_id)
+        self.log.info(
+            "AWS Glue DataBrew Job: %s. Run Id: %s submitted.", self.job_name, run_id
+        )
 
         if self.deferrable:
             self.log.info("Deferring job %s with run_id %s", self.job_name, run_id)
@@ -115,7 +121,9 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
 
         elif self.wait_for_completion:
             self.log.info(
-                "Waiting for AWS Glue DataBrew Job: %s. Run Id: %s to complete.", self.job_name, run_id
+                "Waiting for AWS Glue DataBrew Job: %s. Run Id: %s to complete.",
+                self.job_name,
+                run_id,
             )
             status = self.hook.job_completion(
                 job_name=self.job_name,
@@ -127,7 +135,9 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
 
         return {"run_id": run_id}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> dict[str, str]:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -136,6 +146,8 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         run_id = event.get("run_id", "")
         status = event.get("status", "")
 
-        self.log.info("AWS Glue DataBrew runID: %s completed with status: %s", run_id, status)
+        self.log.info(
+            "AWS Glue DataBrew runID: %s completed with status: %s", run_id, status
+        )
 
         return {"run_id": run_id}

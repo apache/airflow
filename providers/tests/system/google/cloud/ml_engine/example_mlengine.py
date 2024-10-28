@@ -85,7 +85,9 @@ TRAINING_FRACTION_SPLIT = 0.7
 TEST_FRACTION_SPLIT = 0.15
 VALIDATION_FRACTION_SPLIT = 0.15
 
-PYTHON_PACKAGE_GCS_URI = f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/vertex-ai/penguins_trainer_script-0.1.zip"
+PYTHON_PACKAGE_GCS_URI = (
+    f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/vertex-ai/penguins_trainer_script-0.1.zip"
+)
 PYTHON_MODULE_NAME = "penguins_trainer_script.task"
 
 TRAIN_IMAGE = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-8:latest"
@@ -123,27 +125,29 @@ with models.DAG(
     tabular_dataset_id = create_tabular_dataset.output["dataset_id"]
 
     # [START howto_operator_create_custom_python_training_job_v1]
-    create_custom_python_package_training_job = CreateCustomPythonPackageTrainingJobOperator(
-        task_id="create_custom_python_package_training_job",
-        staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
-        display_name=PACKAGE_DISPLAY_NAME,
-        python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
-        python_module_name=PYTHON_MODULE_NAME,
-        container_uri=TRAIN_IMAGE,
-        model_serving_container_image_uri=DEPLOY_IMAGE,
-        bigquery_destination=f"bq://{PROJECT_ID}",
-        # run params
-        dataset_id=tabular_dataset_id,
-        model_display_name=MODEL_DISPLAY_NAME,
-        replica_count=REPLICA_COUNT,
-        machine_type=MACHINE_TYPE,
-        accelerator_type=ACCELERATOR_TYPE,
-        accelerator_count=ACCELERATOR_COUNT,
-        training_fraction_split=TRAINING_FRACTION_SPLIT,
-        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
-        test_fraction_split=TEST_FRACTION_SPLIT,
-        region=REGION,
-        project_id=PROJECT_ID,
+    create_custom_python_package_training_job = (
+        CreateCustomPythonPackageTrainingJobOperator(
+            task_id="create_custom_python_package_training_job",
+            staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
+            display_name=PACKAGE_DISPLAY_NAME,
+            python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+            python_module_name=PYTHON_MODULE_NAME,
+            container_uri=TRAIN_IMAGE,
+            model_serving_container_image_uri=DEPLOY_IMAGE,
+            bigquery_destination=f"bq://{PROJECT_ID}",
+            # run params
+            dataset_id=tabular_dataset_id,
+            model_display_name=MODEL_DISPLAY_NAME,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
     )
     # [END howto_operator_create_custom_python_training_job_v1]
     model_id_v1 = create_custom_python_package_training_job.output["model_id"]
@@ -162,28 +166,30 @@ with models.DAG(
     # [END howto_operator_gcp_mlengine_print_model]
 
     # [START howto_operator_create_custom_python_training_job_v2]
-    create_custom_python_package_training_job_v2 = CreateCustomPythonPackageTrainingJobOperator(
-        task_id="create_custom_python_package_training_job_v2",
-        staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
-        display_name=PACKAGE_DISPLAY_NAME,
-        python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
-        python_module_name=PYTHON_MODULE_NAME,
-        container_uri=TRAIN_IMAGE,
-        model_serving_container_image_uri=DEPLOY_IMAGE,
-        bigquery_destination=f"bq://{PROJECT_ID}",
-        parent_model=model_id_v1,
-        # run params
-        dataset_id=tabular_dataset_id,
-        model_display_name=MODEL_DISPLAY_NAME,
-        replica_count=REPLICA_COUNT,
-        machine_type=MACHINE_TYPE,
-        accelerator_type=ACCELERATOR_TYPE,
-        accelerator_count=ACCELERATOR_COUNT,
-        training_fraction_split=TRAINING_FRACTION_SPLIT,
-        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
-        test_fraction_split=TEST_FRACTION_SPLIT,
-        region=REGION,
-        project_id=PROJECT_ID,
+    create_custom_python_package_training_job_v2 = (
+        CreateCustomPythonPackageTrainingJobOperator(
+            task_id="create_custom_python_package_training_job_v2",
+            staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
+            display_name=PACKAGE_DISPLAY_NAME,
+            python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+            python_module_name=PYTHON_MODULE_NAME,
+            container_uri=TRAIN_IMAGE,
+            model_serving_container_image_uri=DEPLOY_IMAGE,
+            bigquery_destination=f"bq://{PROJECT_ID}",
+            parent_model=model_id_v1,
+            # run params
+            dataset_id=tabular_dataset_id,
+            model_display_name=MODEL_DISPLAY_NAME,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
     )
     # [END howto_operator_create_custom_python_training_job_v2]
     model_id_v2 = create_custom_python_package_training_job_v2.output["model_id"]
@@ -199,7 +205,10 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_list_versions]
     list_model_versions = ListModelVersionsOperator(
-        task_id="list_model_versions", region=REGION, project_id=PROJECT_ID, model_id=model_id_v2
+        task_id="list_model_versions",
+        region=REGION,
+        project_id=PROJECT_ID,
+        model_id=model_id_v2,
     )
     # [END howto_operator_gcp_mlengine_list_versions]
 
@@ -239,7 +248,9 @@ with models.DAG(
 
     delete_batch_prediction_job = DeleteBatchPredictionJobOperator(
         task_id="delete_batch_prediction_job",
-        batch_prediction_job_id=create_batch_prediction_job.output["batch_prediction_job_id"],
+        batch_prediction_job_id=create_batch_prediction_job.output[
+            "batch_prediction_job_id"
+        ],
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,

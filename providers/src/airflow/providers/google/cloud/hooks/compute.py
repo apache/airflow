@@ -22,17 +22,26 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
-from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
+from google.cloud.compute_v1.services.instance_group_managers import (
+    InstanceGroupManagersClient,
+)
 from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
 from google.cloud.compute_v1.services.instances import InstancesClient
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
+    from google.cloud.compute_v1.types import (
+        Instance,
+        InstanceGroupManager,
+        InstanceTemplate,
+    )
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -83,20 +92,28 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("compute", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "compute", self.api_version, http=http_authorized, cache_discovery=False
+            )
         return self._conn
 
     def get_compute_instance_template_client(self):
         """Return Compute Engine Instance Template Client."""
-        return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=self.client_info)
+        return InstanceTemplatesClient(
+            credentials=self.get_credentials(), client_info=self.client_info
+        )
 
     def get_compute_instance_client(self):
         """Return Compute Engine Instance Client."""
-        return InstancesClient(credentials=self.get_credentials(), client_info=self.client_info)
+        return InstancesClient(
+            credentials=self.get_credentials(), client_info=self.client_info
+        )
 
     def get_compute_instance_group_managers_client(self):
         """Return Compute Engine Instance Group Managers Client."""
-        return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=self.client_info)
+        return InstanceGroupManagersClient(
+            credentials=self.get_credentials(), client_info=self.client_info
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(
@@ -148,7 +165,9 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=project_id)
+        self._wait_for_operation_to_complete(
+            operation_name=operation.name, project_id=project_id
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance_template(
@@ -202,7 +221,9 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=project_id)
+        self._wait_for_operation_to_complete(
+            operation_name=operation.name, project_id=project_id
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_template(
@@ -325,7 +346,9 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation.name, zone=zone
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
@@ -435,7 +458,9 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation.name, zone=zone
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
@@ -460,8 +485,12 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
+            raise AirflowException(
+                f"Wrong response '{response}' returned - it should contain 'name' field"
+            )
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, zone=zone
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def stop_instance(self, zone: str, resource_id: str, project_id: str) -> None:
@@ -486,11 +515,17 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
+            raise AirflowException(
+                f"Wrong response '{response}' returned - it should contain 'name' field"
+            )
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, zone=zone
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> None:
+    def set_machine_type(
+        self, zone: str, resource_id: str, body: dict, project_id: str
+    ) -> None:
         """
         Set machine type of an instance defined by project_id, zone and resource_id.
 
@@ -510,14 +545,22 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
+            raise AirflowException(
+                f"Wrong response '{response}' returned - it should contain 'name' field"
+            )
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, zone=zone
+        )
 
-    def _execute_set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> dict:
+    def _execute_set_machine_type(
+        self, zone: str, resource_id: str, body: dict, project_id: str
+    ) -> dict:
         return (
             self.get_conn()
             .instances()
-            .setMachineType(project=project_id, zone=zone, instance=resource_id, body=body)
+            .setMachineType(
+                project=project_id, zone=zone, instance=resource_id, body=body
+            )
             .execute(num_retries=self.num_retries)
         )
 
@@ -577,7 +620,9 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation.name, zone=zone
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_group_manager(
@@ -686,7 +731,9 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation.name, zone=zone
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(
@@ -731,8 +778,12 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
+            raise AirflowException(
+                f"Wrong response '{response}' returned - it should contain 'name' field"
+            )
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, zone=zone
+        )
 
     def _wait_for_operation_to_complete(
         self, project_id: str, operation_name: str, zone: str | None = None
@@ -792,7 +843,9 @@ class ComputeEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_info(self, zone: str, resource_id: str, project_id: str) -> dict[str, Any]:
+    def get_instance_info(
+        self, zone: str, resource_id: str, project_id: str
+    ) -> dict[str, Any]:
         """
         Get instance information.
 
@@ -812,7 +865,11 @@ class ComputeEngineHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_address(
-        self, zone: str, resource_id: str, project_id: str = PROVIDE_PROJECT_ID, use_internal_ip: bool = False
+        self,
+        zone: str,
+        resource_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        use_internal_ip: bool = False,
     ) -> str:
         """
         Return network address associated to instance.
@@ -824,7 +881,9 @@ class ComputeEngineHook(GoogleBaseHook):
             the default project_id from the Google Cloud connection is used.
         :param use_internal_ip: If true, return private IP address.
         """
-        instance_info = self.get_instance_info(project_id=project_id, resource_id=resource_id, zone=zone)
+        instance_info = self.get_instance_info(
+            project_id=project_id, resource_id=resource_id, zone=zone
+        )
         if use_internal_ip:
             return instance_info["networkInterfaces"][0].get("networkIP")
 
@@ -850,8 +909,12 @@ class ComputeEngineHook(GoogleBaseHook):
         response = (
             self.get_conn()
             .instances()
-            .setMetadata(project=project_id, zone=zone, instance=resource_id, body=metadata)
+            .setMetadata(
+                project=project_id, zone=zone, instance=resource_id, body=metadata
+            )
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, zone=zone
+        )

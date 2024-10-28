@@ -64,5 +64,7 @@ if res.returncode != 0:
         " this command and try again:\n"
     )
     console.print(f"breeze ci-image build --python 3.9{flag}\n")
-    console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
+    console.print(
+        "[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n"
+    )
 sys.exit(res.returncode)

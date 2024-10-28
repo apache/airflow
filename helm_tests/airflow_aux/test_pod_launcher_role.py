@@ -46,7 +46,9 @@ class TestPodLauncher:
         )
         if expected_accounts:
             for idx, suffix in enumerate(expected_accounts):
-                assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
+                assert f"release-name-airflow-{suffix}" == jmespath.search(
+                    f"subjects[{idx}].name", docs[0]
+                )
         else:
             assert [] == docs
 
@@ -65,7 +67,12 @@ class TestPodLauncher:
                 "other-ns-release-name-pod-launcher-role",
                 "other-ns-release-name-pod-launcher-rolebinding",
             ),
-            (False, "namespace", "release-name-pod-launcher-role", "release-name-pod-launcher-rolebinding"),
+            (
+                False,
+                "namespace",
+                "release-name-pod-launcher-role",
+                "release-name-pod-launcher-rolebinding",
+            ),
         ],
     )
     def test_pod_launcher_rolebinding_multi_namespace(
@@ -73,7 +80,10 @@ class TestPodLauncher:
     ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={
+                "webserver": {"allowPodLogReading": True},
+                "multiNamespaceMode": multiNamespaceMode,
+            },
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
 
@@ -100,10 +110,15 @@ class TestPodLauncher:
             (False, "namespace", "release-name-pod-launcher-role"),
         ],
     )
-    def test_pod_launcher_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
+    def test_pod_launcher_role_multi_namespace(
+        self, multiNamespaceMode, namespace, expectedRole
+    ):
         docs = render_chart(
             namespace=namespace,
-            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            values={
+                "webserver": {"allowPodLogReading": True},
+                "multiNamespaceMode": multiNamespaceMode,
+            },
             show_only=["templates/rbac/pod-launcher-role.yaml"],
         )
 

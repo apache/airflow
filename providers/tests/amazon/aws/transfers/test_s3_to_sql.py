@@ -89,7 +89,9 @@ class TestS3ToSqlTransfer:
             mock_tempfile.return_value.__enter__.return_value
         )
 
-        mock_parser.assert_called_once_with(mock_tempfile.return_value.__enter__.return_value.name)
+        mock_parser.assert_called_once_with(
+            mock_tempfile.return_value.__enter__.return_value.name
+        )
 
         mock_hook.return_value.insert_rows.assert_called_once_with(
             table=self.s3_to_sql_transfer_kwargs["table"],
@@ -102,9 +104,13 @@ class TestS3ToSqlTransfer:
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.NamedTemporaryFile")
     @patch("airflow.models.connection.Connection.get_hook", return_value=mock_bad_hook)
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
-    def test_execute_with_bad_hook(self, mock_get_key, mock_bad_hook, mock_tempfile, mock_parser):
+    def test_execute_with_bad_hook(
+        self, mock_get_key, mock_bad_hook, mock_tempfile, mock_parser
+    ):
         with pytest.raises(AirflowException):
-            S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
+            S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute(
+                {}
+            )
 
     def test_hook_params(self, mock_parser):
         op = S3ToSqlOperator(
@@ -121,6 +127,11 @@ class TestS3ToSqlTransfer:
         with create_session() as session:
             (
                 session.query(models.Connection)
-                .filter(or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "sql_test"))
+                .filter(
+                    or_(
+                        models.Connection.conn_id == "s3_test",
+                        models.Connection.conn_id == "sql_test",
+                    )
+                )
                 .delete()
             )

@@ -25,7 +25,11 @@ from unittest import mock
 import pytest
 
 from airflow.utils import file as file_utils
-from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
+from airflow.utils.file import (
+    correct_maybe_zipped,
+    find_path_from_directory,
+    open_maybe_zipped,
+)
 
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.config import conf_vars
@@ -131,13 +135,15 @@ class TestListPyFilesPath:
             "test_on_kill.py",
             "test_dont_ignore_this.py",
         ]
-        files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
+        files = list(
+            find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob")
+        )
 
         assert files
         assert all(os.path.basename(file) not in should_ignore for file in files)
-        assert sum(1 for file in files if os.path.basename(file) in should_not_ignore) == len(
-            should_not_ignore
-        )
+        assert sum(
+            1 for file in files if os.path.basename(file) in should_not_ignore
+        ) == len(should_not_ignore)
 
     def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
         ignore_list_file = ".airflowignore"
@@ -148,7 +154,11 @@ class TestListPyFilesPath:
 
     def test_find_path_from_directory_respects_symlinks_glob_ignore(self, test_dir):
         ignore_list_file = ".airflowignore"
-        found = list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
+        found = list(
+            find_path_from_directory(
+                test_dir, ignore_list_file, ignore_file_syntax="glob"
+            )
+        )
 
         assert os.path.join(test_dir, "symlink", "hello_world.py") in found
         assert os.path.join(test_dir, "folder", "hello_world.py") not in found
@@ -167,14 +177,25 @@ class TestListPyFilesPath:
             f"{Path(recursing_tgt).resolve()} has appeared more than once."
         )
         with pytest.raises(RuntimeError, match=error_message):
-            list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
+            list(
+                find_path_from_directory(
+                    test_dir, ignore_list_file, ignore_file_syntax="glob"
+                )
+            )
 
     def test_might_contain_dag_with_default_callable(self):
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
 
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
 
-    @conf_vars({("core", "might_contain_dag_callable"): "tests.utils.test_file.might_contain_dag"})
+    @conf_vars(
+        {
+            (
+                "core",
+                "might_contain_dag_callable",
+            ): "tests.utils.test_file.might_contain_dag"
+        }
+    )
     def test_might_contain_dag(self):
         """Test might_contain_dag_callable"""
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
@@ -182,7 +203,9 @@ class TestListPyFilesPath:
         # There is a DAG defined in the file_path_with_dag, however, the might_contain_dag_callable
         # returns False no matter what, which is used to test might_contain_dag_callable actually
         # overrides the default function
-        assert not file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+        assert not file_utils.might_contain_dag(
+            file_path=file_path_with_dag, safe_mode=True
+        )
 
         # With safe_mode is False, the user defined callable won't be invoked
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
@@ -206,7 +229,9 @@ class TestListPyFilesPath:
         assert "airflow.else_branch" not in modules
 
     def test_get_modules_from_invalid_file(self):
-        file_path = os.path.join(TEST_DAGS_FOLDER, "README.md")  # just getting a non-python file
+        file_path = os.path.join(
+            TEST_DAGS_FOLDER, "README.md"
+        )  # just getting a non-python file
 
         # should not error
         modules = list(file_utils.iter_airflow_imports(file_path))

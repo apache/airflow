@@ -40,10 +40,16 @@ class TestIngressWeb:
 
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
-            values={"ingress": {"web": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}}},
+            values={
+                "ingress": {
+                    "web": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}
+                }
+            },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
-        assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])
+        assert {"aa": "bb", "cc": "dd"} == jmespath.search(
+            "metadata.annotations", docs[0]
+        )
 
     def test_should_set_ingress_class_name(self):
         docs = render_chart(
@@ -60,10 +66,22 @@ class TestIngressWeb:
                         "enabled": True,
                         "tls": {"enabled": True, "secretName": "oldsecret"},
                         "hosts": [
-                            {"name": "*.a-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
-                            {"name": "b-host", "tls": {"enabled": True, "secretName": "newsecret2"}},
-                            {"name": "c-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
-                            {"name": "d-host", "tls": {"enabled": False, "secretName": ""}},
+                            {
+                                "name": "*.a-host",
+                                "tls": {"enabled": True, "secretName": "newsecret1"},
+                            },
+                            {
+                                "name": "b-host",
+                                "tls": {"enabled": True, "secretName": "newsecret2"},
+                            },
+                            {
+                                "name": "c-host",
+                                "tls": {"enabled": True, "secretName": "newsecret1"},
+                            },
+                            {
+                                "name": "d-host",
+                                "tls": {"enabled": False, "secretName": ""},
+                            },
                             {"name": "e-host"},
                         ],
                         "host": "old-host",
@@ -95,7 +113,9 @@ class TestIngressWeb:
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
-        assert ["*.a-host", "b-host", "c-host", "d-host"] == jmespath.search("spec.rules[*].host", docs[0])
+        assert ["*.a-host", "b-host", "c-host", "d-host"] == jmespath.search(
+            "spec.rules[*].host", docs[0]
+        )
         assert [
             {"hosts": ["*.a-host", "b-host", "c-host", "d-host"], "secretName": "secret"}
         ] == jmespath.search("spec.tls[*]", docs[0])
@@ -152,7 +172,9 @@ class TestIngressWeb:
             values["ingress"]["web"] = {"enabled": web_value}
         if values["ingress"] == {}:
             del values["ingress"]
-        docs = render_chart(values=values, show_only=["templates/webserver/webserver-ingress.yaml"])
+        docs = render_chart(
+            values=values, show_only=["templates/webserver/webserver-ingress.yaml"]
+        )
         assert expected == (1 == len(docs))
 
     def test_should_add_component_specific_labels(self):
@@ -166,7 +188,10 @@ class TestIngressWeb:
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_can_ingress_hosts_be_templated(self):
         docs = render_chart(

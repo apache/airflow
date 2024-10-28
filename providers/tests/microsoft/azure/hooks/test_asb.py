@@ -87,9 +87,7 @@ class TestAdminClientHook:
         the azure service bus `create_queue` function
         """
         mock_queue_properties.name = self.queue_name
-        mock_sb_admin_client.return_value.__enter__.return_value.create_queue.return_value = (
-            mock_queue_properties
-        )
+        mock_sb_admin_client.return_value.__enter__.return_value.create_queue.return_value = mock_queue_properties
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         response = hook.create_queue(self.queue_name)
         assert response == mock_queue_properties
@@ -129,7 +127,9 @@ class TestAdminClientHook:
         topic_name = "test_topic_name"
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         hook.delete_subscription(subscription_name, topic_name)
-        expected_calls = [mock.call().__enter__().delete_subscription(topic_name, subscription_name)]
+        expected_calls = [
+            mock.call().__enter__().delete_subscription(topic_name, subscription_name)
+        ]
         mock_sb_admin_client.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
@@ -205,7 +205,12 @@ class TestMessageHook:
     @mock.patch(f"{MODULE}.MessageHook.send_batch_message")
     @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_send_message(
-        self, mock_sb_client, mock_batch_message, mock_list_message, mock_message, mock_batch_flag
+        self,
+        mock_sb_client,
+        mock_batch_message,
+        mock_list_message,
+        mock_message,
+        mock_batch_flag,
     ):
         """
         Test `send_message` hook function with batch flag and message passed as mocked params,
@@ -213,7 +218,9 @@ class TestMessageHook:
         """
         hook = MessageHook(azure_service_bus_conn_id="azure_service_bus_default")
         hook.send_message(
-            queue_name=self.queue_name, messages=mock_message, batch_message_flag=mock_batch_flag
+            queue_name=self.queue_name,
+            messages=mock_message,
+            batch_message_flag=mock_batch_flag,
         )
         if isinstance(mock_message, list):
             if mock_batch_flag:
@@ -292,7 +299,9 @@ class TestMessageHook:
             assert context is not None
             received_messages.append(msg)
 
-        hook.receive_message(self.queue_name, Context(), message_callback=message_callback)
+        hook.receive_message(
+            self.queue_name, Context(), message_callback=message_callback
+        )
 
         assert len(received_messages) == 1
         assert received_messages[0] == mock_service_bus_message
@@ -326,7 +335,9 @@ class TestMessageHook:
             .__enter__()
             .get_subscription_receiver(subscription_name, topic_name)
             .__enter__()
-            .receive_messages(max_message_count=max_message_count, max_wait_time=max_wait_time)
+            .receive_messages(
+                max_message_count=max_message_count, max_wait_time=max_wait_time
+            )
             .get_subscription_receiver(subscription_name, topic_name)
             .__exit__()
             .mock_call()
@@ -377,7 +388,12 @@ class TestMessageHook:
     )
     @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_receive_subscription_message_exception(
-        self, mock_sb_client, mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time
+        self,
+        mock_sb_client,
+        mock_subscription_name,
+        mock_topic_name,
+        mock_max_count,
+        mock_wait_time,
     ):
         """
         Test `receive_subscription_message` hook function to raise exception

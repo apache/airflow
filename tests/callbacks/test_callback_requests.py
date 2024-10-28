@@ -39,7 +39,10 @@ class TestCallbackRequest:
     @pytest.mark.parametrize(
         "input,request_class",
         [
-            (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
+            (
+                CallbackRequest(full_filepath="filepath", msg="task_failure"),
+                CallbackRequest,
+            ),
             (
                 None,  # to be generated when test is run
                 TaskCallbackRequest,
@@ -78,7 +81,9 @@ class TestCallbackRequest:
         result = request_class.from_json(json_str=json_str)
         assert result == input
 
-    def test_taskcallback_to_json_with_start_date_and_end_date(self, session, create_task_instance):
+    def test_taskcallback_to_json_with_start_date_and_end_date(
+        self, session, create_task_instance
+    ):
         ti = create_task_instance()
         ti.start_date = timezone.utcnow()
         ti.end_date = timezone.utcnow()
@@ -103,11 +108,15 @@ class TestCallbackRequest:
         from airflow.providers.standard.operators.bash import BashOperator
 
         test_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="hello", namespace="ns"))
-        op = BashOperator(task_id="hi", executor_config={"pod_override": test_pod}, bash_command="hi")
+        op = BashOperator(
+            task_id="hi", executor_config={"pod_override": test_pod}, bash_command="hi"
+        )
         ti = TaskInstance(task=op)
         s = SimpleTaskInstance.from_ti(ti)
         data = TaskCallbackRequest("hi", s).to_json()
-        actual = TaskCallbackRequest.from_json(data).simple_task_instance.executor_config["pod_override"]
+        actual = TaskCallbackRequest.from_json(data).simple_task_instance.executor_config[
+            "pod_override"
+        ]
         assert actual == test_pod
 
     def test_simple_ti_roundtrip_dates(self, dag_maker):
@@ -130,5 +139,10 @@ class TestCallbackRequest:
         end_date = ti.end_date
         s = SimpleTaskInstance.from_ti(ti)
         data = TaskCallbackRequest("hi", s).to_json()
-        assert TaskCallbackRequest.from_json(data).simple_task_instance.start_date == start_date
-        assert TaskCallbackRequest.from_json(data).simple_task_instance.end_date == end_date
+        assert (
+            TaskCallbackRequest.from_json(data).simple_task_instance.start_date
+            == start_date
+        )
+        assert (
+            TaskCallbackRequest.from_json(data).simple_task_instance.end_date == end_date
+        )

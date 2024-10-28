@@ -100,7 +100,9 @@ with DAG(
     container_name = f"{env_id}-test-container"
     task_definition_name = f"{env_id}-test-definition"
 
-    create_task_definition = register_task_definition(task_definition_name, container_name)
+    create_task_definition = register_task_definition(
+        task_definition_name, container_name
+    )
 
     # [START howto_operator_ecs]
     hello_world = EcsRunTaskOperator(

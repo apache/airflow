@@ -27,7 +27,9 @@ from kubernetes.client import ApiClient, models as k8s
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+    PodReconciliationError,
+)
 from airflow.providers.cncf.kubernetes.pod_generator import (
     PodDefaultsDeprecated,
     PodGenerator,
@@ -54,7 +56,10 @@ class TestPodGenerator:
                         "command": ["stress"],
                         "image": "ghcr.io/apache/airflow-stress:1.0.4-2021.07.04",
                         "name": "memory-demo-ctr",
-                        "resources": {"limits": {"memory": "200Mi"}, "requests": {"memory": "100Mi"}},
+                        "resources": {
+                            "limits": {"memory": "200Mi"},
+                            "requests": {"memory": "100Mi"},
+                        },
                     }
                 ]
             },
@@ -103,7 +108,12 @@ class TestPodGenerator:
                 "memory": "1Gi",
                 "ephemeral-storage": "2Gi",
             },
-            limits={"cpu": 2, "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": 1},
+            limits={
+                "cpu": 2,
+                "memory": "2Gi",
+                "ephemeral-storage": "4Gi",
+                "nvidia.com/gpu": 1,
+            },
         )
 
         self.k8s_client = ApiClient()
@@ -130,14 +140,26 @@ class TestPodGenerator:
                             k8s.V1EnvVar(
                                 name="TARGET",
                                 value_from=k8s.V1EnvVarSource(
-                                    secret_key_ref=k8s.V1SecretKeySelector(name="secret_b", key="source_b")
+                                    secret_key_ref=k8s.V1SecretKeySelector(
+                                        name="secret_b", key="source_b"
+                                    )
                                 ),
                             ),
                         ],
                         env_from=[
-                            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="configmap_a")),
-                            k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="configmap_b")),
-                            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="secret_a")),
+                            k8s.V1EnvFromSource(
+                                config_map_ref=k8s.V1ConfigMapEnvSource(
+                                    name="configmap_a"
+                                )
+                            ),
+                            k8s.V1EnvFromSource(
+                                config_map_ref=k8s.V1ConfigMapEnvSource(
+                                    name="configmap_b"
+                                )
+                            ),
+                            k8s.V1EnvFromSource(
+                                secret_ref=k8s.V1SecretEnvSource(name="secret_a")
+                            ),
                         ],
                         ports=[k8s.V1ContainerPort(name="foo", container_port=1234)],
                         resources=k8s.V1ResourceRequirements(
@@ -182,7 +204,9 @@ class TestPodGenerator:
         self.expected.spec.containers.append(container_two)
         base_container: k8s.V1Container = self.expected.spec.containers[0]
         base_container.volume_mounts = base_container.volume_mounts or []
-        base_container.volume_mounts.append(k8s.V1VolumeMount(name="xcom", mount_path="/airflow/xcom"))
+        base_container.volume_mounts.append(
+            k8s.V1VolumeMount(name="xcom", mount_path="/airflow/xcom")
+        )
         self.expected.spec.containers[0] = base_container
         self.expected.spec.volumes = self.expected.spec.volumes or []
         self.expected.spec.volumes.append(
@@ -206,7 +230,10 @@ class TestPodGenerator:
                         k8s.V1Container(
                             name="base",
                             volume_mounts=[
-                                k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume")
+                                k8s.V1VolumeMount(
+                                    mount_path="/foo/",
+                                    name="example-kubernetes-test-volume",
+                                )
                             ],
                         )
                     ],
@@ -233,10 +260,20 @@ class TestPodGenerator:
                 "containers": [
                     {
                         "name": "base",
-                        "volumeMounts": [{"mountPath": "/foo/", "name": "example-kubernetes-test-volume"}],
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/foo/",
+                                "name": "example-kubernetes-test-volume",
+                            }
+                        ],
                     }
                 ],
-                "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
+                "volumes": [
+                    {
+                        "hostPath": {"path": "/tmp/"},
+                        "name": "example-kubernetes-test-volume",
+                    }
+                ],
             },
         }
 
@@ -279,12 +316,22 @@ class TestPodGenerator:
                         "envFrom": [],
                         "name": "base",
                         "ports": [],
-                        "volumeMounts": [{"mountPath": "/foo/", "name": "example-kubernetes-test-volume"}],
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/foo/",
+                                "name": "example-kubernetes-test-volume",
+                            }
+                        ],
                     }
                 ],
                 "hostNetwork": False,
                 "imagePullSecrets": [],
-                "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
+                "volumes": [
+                    {
+                        "hostPath": {"path": "/tmp/"},
+                        "name": "example-kubernetes-test-volume",
+                    }
+                ],
             },
         }
 
@@ -310,7 +357,9 @@ class TestPodGenerator:
                 ],
             },
         }
-        with pytest.raises(AirflowConfigException, match="Can not have both a legacy and new"):
+        with pytest.raises(
+            AirflowConfigException, match="Can not have both a legacy and new"
+        ):
             PodGenerator.from_obj(obj)
 
     def test_reconcile_pods_empty_mutator_pod(self, data_file):
@@ -329,7 +378,9 @@ class TestPodGenerator:
     def test_reconcile_pods(self, mock_rand_str, data_file):
         mock_rand_str.return_value = self.rand_str
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
-        base_pod = PodGenerator(pod_template_file=template_file, extract_xcom=False).ud_pod
+        base_pod = PodGenerator(
+            pod_template_file=template_file, extract_xcom=False
+        ).ud_pod
 
         mutator_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -343,7 +394,9 @@ class TestPodGenerator:
                         name="name",
                         command=["/bin/command2.sh", "arg2"],
                         volume_mounts=[
-                            k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume2")
+                            k8s.V1VolumeMount(
+                                mount_path="/foo/", name="example-kubernetes-test-volume2"
+                            )
                         ],
                     )
                 ],
@@ -363,7 +416,8 @@ class TestPodGenerator:
         expected.spec.volumes = expected.spec.volumes or []
         expected.spec.volumes.append(
             k8s.V1Volume(
-                host_path=k8s.V1HostPathVolumeSource(path="/tmp/"), name="example-kubernetes-test-volume2"
+                host_path=k8s.V1HostPathVolumeSource(path="/tmp/"),
+                name="example-kubernetes-test-volume2",
             )
         )
 
@@ -390,12 +444,20 @@ class TestPodGenerator:
     @pytest.mark.parametrize(
         "pod_override_object_namespace, expected_namespace",
         [
-            ("new_namespace", "new_namespace"),  # pod_override_object namespace should be used
+            (
+                "new_namespace",
+                "new_namespace",
+            ),  # pod_override_object namespace should be used
             (None, "test_namespace"),  # if it is not provided, we use default one
         ],
     )
     def test_construct_pod(
-        self, config_image, expected_image, pod_override_object_namespace, expected_namespace, data_file
+        self,
+        config_image,
+        expected_image,
+        pod_override_object_namespace,
+        expected_namespace,
+        data_file,
     ):
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
@@ -406,7 +468,10 @@ class TestPodGenerator:
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
-                        name="", resources=k8s.V1ResourceRequirements(limits={"cpu": "1m", "memory": "1G"})
+                        name="",
+                        resources=k8s.V1ResourceRequirements(
+                            limits={"cpu": "1m", "memory": "1G"}
+                        ),
                     )
                 ]
             ),
@@ -473,7 +538,9 @@ class TestPodGenerator:
         expected.spec.containers[0].args = ["command"]
         del expected.spec.containers[0].env_from[1:]
         del expected.spec.containers[0].env[-1:]
-        expected.spec.containers[0].env.append(k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True"))
+        expected.spec.containers[0].env.append(
+            k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")
+        )
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(expected)
 
@@ -685,20 +752,28 @@ class TestPodGenerator:
     def test_reconcile_specs(self):
         base_objs = [k8s.V1Container(name="base_container1", image="base_image")]
         client_objs = [k8s.V1Container(name="client_container1")]
-        base_spec = k8s.V1PodSpec(priority=1, active_deadline_seconds=100, containers=base_objs)
+        base_spec = k8s.V1PodSpec(
+            priority=1, active_deadline_seconds=100, containers=base_objs
+        )
         client_spec = k8s.V1PodSpec(priority=2, hostname="local", containers=client_objs)
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
-        client_spec.containers = [k8s.V1Container(name="client_container1", image="base_image")]
+        client_spec.containers = [
+            k8s.V1Container(name="client_container1", image="base_image")
+        ]
         client_spec.active_deadline_seconds = 100
         assert client_spec == res
 
     def test_reconcile_specs_init_containers(self):
-        base_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name="base_container1")])
+        base_spec = k8s.V1PodSpec(
+            containers=[], init_containers=[k8s.V1Container(name="base_container1")]
+        )
         client_spec = k8s.V1PodSpec(
             containers=[], init_containers=[k8s.V1Container(name="client_container1")]
         )
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
-        assert res.init_containers == base_spec.init_containers + client_spec.init_containers
+        assert (
+            res.init_containers == base_spec.init_containers + client_spec.init_containers
+        )
 
     def test_deserialize_model_file(self, caplog, data_file):
         template_file = data_file("pods/template.yaml").as_posix()
@@ -726,7 +801,8 @@ class TestPodGenerator:
     )
     def test_pod_name_confirm_to_max_length(self, input):
         with pytest.warns(
-            AirflowProviderDeprecationWarning, match="Use `add_pod_suffix` in `kubernetes_helper_functions`"
+            AirflowProviderDeprecationWarning,
+            match="Use `add_pod_suffix` in `kubernetes_helper_functions`",
         ):
             actual = PodGenerator.make_unique_pod_id(input)
         assert len(actual) <= 100
@@ -760,7 +836,8 @@ class TestPodGenerator:
         But I guess this test verifies that an otherwise valid pod_id doesn't get _screwed up_.
         """
         with pytest.warns(
-            AirflowProviderDeprecationWarning, match="Use `add_pod_suffix` in `kubernetes_helper_functions`"
+            AirflowProviderDeprecationWarning,
+            match="Use `add_pod_suffix` in `kubernetes_helper_functions`",
         ):
             actual = PodGenerator.make_unique_pod_id(pod_id)
         assert len(actual) <= 253
@@ -770,7 +847,9 @@ class TestPodGenerator:
         assert re.match(regex, actual), "pod_id is invalid - fails allowed regex check"
         assert actual.rsplit("-", 1)[0] == expected_starts_with
         # verify ends with 8 char lowercase alphanum string
-        assert re.match(rf"^{expected_starts_with}-[a-z0-9]{{8}}$", actual), "doesn't match expected pattern"
+        assert re.match(
+            rf"^{expected_starts_with}-[a-z0-9]{{8}}$", actual
+        ), "doesn't match expected pattern"
 
     def test_validate_pod_generator(self, data_file):
         with pytest.raises(AirflowConfigException):
@@ -826,4 +905,7 @@ class TestPodGenerator:
         if "airflow_worker" not in extra:
             items.append("airflow-worker")
         exp_selector = ",".join(items)
-        assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector
+        assert (
+            PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra)
+            == exp_selector
+        )

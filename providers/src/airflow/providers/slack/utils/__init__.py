@@ -31,7 +31,12 @@ class ConnectionExtraConfig:
     :param extra: Connection extra dictionary.
     """
 
-    def __init__(self, conn_type: str, conn_id: str | None = None, extra: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        conn_type: str,
+        conn_id: str | None = None,
+        extra: dict[str, Any] | None = None,
+    ):
         super().__init__()
         self.conn_type = conn_type
         self.conn_id = conn_id
@@ -55,7 +60,10 @@ class ConnectionExtraConfig:
                     stacklevel=2,
                 )
             return self.extra[field]
-        elif backcompat_key in self.extra and self.extra[backcompat_key] not in (None, ""):
+        elif backcompat_key in self.extra and self.extra[backcompat_key] not in (
+            None,
+            "",
+        ):
             # Addition validation with non-empty required for connection which created in the UI
             # in Airflow 2.2. In these connections always present key-value pair for all prefixed extras
             # even if user do not fill this fields.
@@ -98,7 +106,9 @@ def parse_filename(
     if not filename:
         raise ValueError("Expected 'filename' parameter is missing.")
     if fallback and fallback not in supported_file_formats:
-        raise ValueError(f"Invalid fallback value {fallback!r}, expected one of {supported_file_formats}.")
+        raise ValueError(
+            f"Invalid fallback value {fallback!r}, expected one of {supported_file_formats}."
+        )
 
     parts = filename.rsplit(".", 2)
     try:

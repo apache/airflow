@@ -86,7 +86,9 @@ def check_limit(value: int) -> int:
 T = TypeVar("T", bound=Callable)
 
 
-def format_parameters(params_formatters: dict[str, Callable[[Any], Any]]) -> Callable[[T], T]:
+def format_parameters(
+    params_formatters: dict[str, Callable[[Any], Any]],
+) -> Callable[[T], T]:
     """
     Create a decorator to convert parameters using given formatters.
 

@@ -77,4 +77,6 @@ def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
 
     hostname = fix_account_name(hostname)
     # else - its new hostname, just return it
-    return urlunparse((parts.scheme, hostname, parts.path, parts.params, parts.query, parts.fragment))
+    return urlunparse(
+        (parts.scheme, hostname, parts.path, parts.params, parts.query, parts.fragment)
+    )

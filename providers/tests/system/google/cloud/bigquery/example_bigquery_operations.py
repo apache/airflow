@@ -31,8 +31,13 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateExternalTableOperator,
     BigQueryDeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -51,9 +56,13 @@ with DAG(
     catchup=False,
     tags=["example", "bigquery"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME
+    )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset", dataset_id=DATASET_NAME
+    )
 
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -83,7 +92,9 @@ with DAG(
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

@@ -34,14 +34,16 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 
 from common_precommit_black_utils import black_format
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH
 
-PROVIDERS_ROOT = (AIRFLOW_SOURCES_ROOT_PATH / "providers" / "src" / "airflow" / "providers").resolve(
-    strict=True
-)
+PROVIDERS_ROOT = (
+    AIRFLOW_SOURCES_ROOT_PATH / "providers" / "src" / "airflow" / "providers"
+).resolve(strict=True)
 COMMON_SQL_ROOT = (PROVIDERS_ROOT / "common" / "sql").resolve(strict=True)
 OUT_DIR = AIRFLOW_SOURCES_ROOT_PATH / "out"
 OUT_DIR_PROVIDERS = OUT_DIR / PROVIDERS_ROOT.relative_to(AIRFLOW_SOURCES_ROOT_PATH)
@@ -72,7 +74,9 @@ def summarize_changes(results: list[str]) -> tuple[int, int]:
     """
     removals, additions = 0, 0
     for line in results:
-        if line.startswith(("+", "[green]+")) and not line.startswith(("+#", "[green]+#")):
+        if line.startswith(("+", "[green]+")) and not line.startswith(
+            ("+#", "[green]+#")
+        ):
             # Skip additions of comments in counting removals
             additions += 1
         if line.startswith(("-", "[red]+")) and not line.startswith(("-#", "[red]+#")):
@@ -99,7 +103,10 @@ def post_process_line(stub_file_path: Path, line: str, new_lines: list[str]) -> 
     :param line: line to post-process
     :param new_lines: new_lines - this is where we add post-processed lines
     """
-    if stub_file_path.relative_to(OUT_DIR_PROVIDERS) == Path("common") / "sql" / "operators" / "sql.pyi":
+    if (
+        stub_file_path.relative_to(OUT_DIR_PROVIDERS)
+        == Path("common") / "sql" / "operators" / "sql.pyi"
+    ):
         stripped_line = line.strip()
         if stripped_line.startswith("parse_boolean: Incomplete"):
             # Handle Special case - historically we allow _parse_boolean to be part of the public API,
@@ -117,7 +124,9 @@ def post_process_line(stub_file_path: Path, line: str, new_lines: list[str]) -> 
         elif stripped_line == "class SQLExecuteQueryOperator(BaseSQLOperator):":
             # The "_raise_exception" method is really part of the public API and should not be removed
             new_lines.append(line)
-            new_lines.append("    def _raise_exception(self, exception_string: str) -> Incomplete: ...")
+            new_lines.append(
+                "    def _raise_exception(self, exception_string: str) -> Incomplete: ..."
+            )
         elif stripped_line == "":
             pass
         else:
@@ -188,14 +197,18 @@ def read_pyi_file_content(
         elif not remove_docstring:
             lines.append(line)
     if (pyi_file_path.name == "__init__.pyi") and lines == []:
-        console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")
+        console.print(
+            f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file"
+        )
         return None
     return post_process_generated_stub_file(
         module_name, pyi_file_path, lines, patch_generated_file=patch_generated_files
     )
 
 
-def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple[int, int]:
+def compare_stub_files(
+    generated_stub_path: Path, force_override: bool
+) -> tuple[int, int]:
     """
     Compare generated with stored files and returns True in case some modifications are needed.
     :param generated_stub_path: path of the stub that has been generated
@@ -207,7 +220,9 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
     stub_file_target_path = PROVIDERS_ROOT / rel_path
     if stub_file_target_path.name == "__init__.pyi":
         return _removals, _additions
-    module_name = "airflow.providers." + os.fspath(rel_path.with_suffix("")).replace(os.path.sep, ".")
+    module_name = "airflow.providers." + os.fspath(rel_path.with_suffix("")).replace(
+        os.path.sep, "."
+    )
     generated_pyi_content = read_pyi_file_content(
         module_name, generated_stub_path, patch_generated_files=True
     )
@@ -231,7 +246,9 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
             )
             return 0, 0
     if not stub_file_target_path.exists():
-        console.print(f"[yellow]New file {stub_file_target_path} has been missing. Treated as addition.")
+        console.print(
+            f"[yellow]New file {stub_file_target_path} has been missing. Treated as addition."
+        )
         write_pyi_file(stub_file_target_path, "\n".join(generated_pyi_content) + "\n")
         return 0, 1
     target_pyi_content = read_pyi_file_content(
@@ -330,7 +347,9 @@ if __name__ == "__main__":
     for stub_path in OUT_DIR_PROVIDERS.rglob("*.pyi"):
         write_pyi_file(stub_path, stub_path.read_text(encoding="utf-8"))
     for stub_path in OUT_DIR_PROVIDERS.rglob("*.pyi"):
-        _new_removals, _new_additions = compare_stub_files(stub_path, force_override=_force_override)
+        _new_removals, _new_additions = compare_stub_files(
+            stub_path, force_override=_force_override
+        )
         total_removals += _new_removals
         total_additions += _new_additions
     for target_path in COMMON_SQL_ROOT.rglob("*.pyi"):
@@ -365,14 +384,18 @@ if __name__ == "__main__":
                 "pre-commit run update-common-sql-api-stubs --all-files[/]\n"
             )
             console.print(WHAT_TO_CHECK)
-            console.print("\n[yellow]Make sure to commit the changes after you update the API.[/]")
+            console.print(
+                "\n[yellow]Make sure to commit the changes after you update the API.[/]"
+            )
         else:
             console.print(
                 f"\n[bright_blue]As you can see above, there are changes in the common.sql API:[/]\n\n"
                 f"[bright_blue]* additions: {total_additions}[/]\n"
                 f"[bright_blue]* removals: {total_removals}[/]\n"
             )
-            console.print("[yellow]You've set UPDATE_COMMON_SQL_API to 1 to update the API.[/]\n\n")
+            console.print(
+                "[yellow]You've set UPDATE_COMMON_SQL_API to 1 to update the API.[/]\n\n"
+            )
             console.print("[yellow]So the files were updated automatically.")
     else:
         console.print(

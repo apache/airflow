@@ -98,7 +98,9 @@ class TestLookerHook:
         mock_sdk.assert_called_once_with()
 
         # assert sdk.check_pdt_build called once
-        mock_sdk.return_value.check_pdt_build.assert_called_once_with(materialization_id=JOB_ID)
+        mock_sdk.return_value.check_pdt_build.assert_called_once_with(
+            materialization_id=JOB_ID
+        )
 
     @mock.patch(HOOK_PATH.format("get_looker_sdk"))
     def test_start_pdt_build(self, mock_sdk):

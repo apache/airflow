@@ -24,8 +24,16 @@ import pytest
 
 from airflow.models import DagBag
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
+from tests_common.test_utils.db import (
+    clear_db_dag_code,
+    clear_db_dags,
+    clear_db_serialized_dags,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -88,7 +96,9 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = self.client.get(
-            url, headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
@@ -103,7 +113,9 @@ class TestGetSource:
 
         url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = self.client.get(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
@@ -114,7 +126,9 @@ class TestGetSource:
         wrong_fileloc = "abcd1234"
         url = f"/api/v1/dagSources/{wrong_fileloc}"
         response = self.client.get(
-            url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
+            url,
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 404 == response.status_code

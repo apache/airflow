@@ -138,7 +138,10 @@ def _load_package_data(package_paths: Iterable[str]):
 
 def get_all_integration_names(yaml_files) -> list[str]:
     all_integrations = [
-        i["integration-name"] for f in yaml_files.values() if "integrations" in f for i in f["integrations"]
+        i["integration-name"]
+        for f in yaml_files.values()
+        if "integrations" in f
+        for i in f["integrations"]
     ]
     all_integrations += ["Local"]
     return all_integrations
@@ -268,7 +271,9 @@ def check_if_objects_exist_and_belong_to_package(
                 f" with the expected {provider_package}."
             )
             num_errors += 1
-        num_errors += check_if_object_exist(object_name, resource_type, yaml_file_path, object_type)
+        num_errors += check_if_object_exist(
+            object_name, resource_type, yaml_file_path, object_type
+        )
     return num_errors
 
 
@@ -281,7 +286,9 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
         package_dir.glob(f"**/{resource_type}/**/*.py"),
         package_dir.glob(f"{resource_type}/**/*.py"),
     )
-    expected_modules = {_filepath_to_module(f) for f in py_files if f.name != "__init__.py"}
+    expected_modules = {
+        _filepath_to_module(f) for f in py_files if f.name != "__init__.py"
+    }
     resource_data = provider_data.get(resource_type, [])
     return expected_modules, _filepath_to_module(provider_dir), resource_data
 
@@ -317,7 +324,9 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
             "Duplicate integration names found. Integration names must be globally unique. "
             "Please delete duplicates."
         )
-        errors.append(tabulate(duplicates, headers=["Integration name", "Number of occurrences"]))
+        errors.append(
+            tabulate(duplicates, headers=["Integration name", "Number of occurrences"])
+        )
         num_errors += 1
     return num_integrations, num_errors
 
@@ -334,16 +343,24 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
         )
-        expected_modules = {module for module in expected_modules if module not in DEPRECATED_MODULES}
-        current_modules = {str(i) for r in resource_data for i in r.get("python-modules", [])}
+        expected_modules = {
+            module for module in expected_modules if module not in DEPRECATED_MODULES
+        }
+        current_modules = {
+            str(i) for r in resource_data for i in r.get("python-modules", [])
+        }
         num_modules += len(current_modules)
         num_errors += check_if_objects_exist_and_belong_to_package(
-            current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
+            current_modules,
+            provider_package,
+            yaml_file_path,
+            resource_type,
+            ObjectType.MODULE,
         )
         try:
-            package_name = os.fspath(ROOT_DIR.joinpath(yaml_file_path).parent.relative_to(ROOT_DIR)).replace(
-                "/", "."
-            )
+            package_name = os.fspath(
+                ROOT_DIR.joinpath(yaml_file_path).parent.relative_to(ROOT_DIR)
+            ).replace("/", ".")
             assert_sets_equal(
                 set(expected_modules),
                 f"Found list of {resource_type} modules in provider package: {package_name}",
@@ -386,7 +403,9 @@ def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
 
 
 @run_check("Checking completeness of list of transfers")
-def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]) -> tuple[int, int]:
+def check_completeness_of_list_of_transfers(
+    yaml_files: dict[str, dict],
+) -> tuple[int, int]:
     resource_type = "transfers"
     num_errors = 0
     num_transfers = 0
@@ -394,11 +413,17 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]) -> tupl
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
         )
-        expected_modules = {module for module in expected_modules if module not in DEPRECATED_MODULES}
+        expected_modules = {
+            module for module in expected_modules if module not in DEPRECATED_MODULES
+        }
         current_modules = {r.get("python-module") for r in resource_data}
         num_transfers += len(current_modules)
         num_errors += check_if_objects_exist_and_belong_to_package(
-            current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
+            current_modules,
+            provider_package,
+            yaml_file_path,
+            resource_type,
+            ObjectType.MODULE,
         )
         try:
             assert_sets_equal(
@@ -417,8 +442,12 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]) -> tupl
     return num_transfers, num_errors
 
 
-@run_check("Checking if hook classes specified by hook-class-name in connection type are importable")
-def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict]) -> tuple[int, int]:
+@run_check(
+    "Checking if hook classes specified by hook-class-name in connection type are importable"
+)
+def check_hook_class_name_entries_in_connection_types(
+    yaml_files: dict[str, dict],
+) -> tuple[int, int]:
     resource_type = "connection-types"
     num_errors = 0
     num_connection_types = 0
@@ -427,14 +456,22 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
         connection_types = provider_data.get(resource_type)
         if connection_types:
             num_connection_types += len(connection_types)
-            hook_class_names = {connection_type["hook-class-name"] for connection_type in connection_types}
+            hook_class_names = {
+                connection_type["hook-class-name"] for connection_type in connection_types
+            }
             num_errors += check_if_objects_exist_and_belong_to_package(
-                hook_class_names, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
+                hook_class_names,
+                provider_package,
+                yaml_file_path,
+                resource_type,
+                ObjectType.CLASS,
             )
     return num_connection_types, num_errors
 
 
-@run_check("Checking plugin classes belong to package are importable and belong to package")
+@run_check(
+    "Checking plugin classes belong to package are importable and belong to package"
+)
 def check_plugin_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     resource_type = "plugins"
     num_errors = 0
@@ -465,7 +502,11 @@ def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
         if extra_links:
             num_extra_links += len(extra_links)
             num_errors += check_if_objects_exist_and_belong_to_package(
-                extra_links, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
+                extra_links,
+                provider_package,
+                yaml_file_path,
+                resource_type,
+                ObjectType.CLASS,
             )
     return num_extra_links, num_errors
 
@@ -481,7 +522,11 @@ def check_notification_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
         if notifications:
             num_notifications += len(notifications)
             num_errors += check_if_objects_exist_and_belong_to_package(
-                notifications, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
+                notifications,
+                provider_package,
+                yaml_file_path,
+                resource_type,
+                ObjectType.CLASS,
             )
     return num_notifications, num_errors
 
@@ -558,7 +603,9 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
                 for guide in guides["how-to-guide"]
             )
             current_logo_urls.extend(
-                integration["logo"] for integration in provider["integrations"] if "logo" in integration
+                integration["logo"]
+                for integration in provider["integrations"]
+                if "logo" in integration
             )
         if "transfers" in provider:
             current_doc_urls.extend(
@@ -591,7 +638,10 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
     expected_logo_urls = {
         f"/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in (DOCS_DIR / "integration-logos").rglob("*")
-        if f.is_file() and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(tuple(suspended_logos))
+        if f.is_file()
+        and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(
+            tuple(suspended_logos)
+        )
     }
 
     try:
@@ -645,10 +695,14 @@ def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict])
     for item in deprecated_providers:
         short_provider_names.remove(item)
     num_providers += len(short_provider_names)
-    jsonpath_expr = parse('$.body[?(@.attributes.label == "Apache Airflow Provider(s)")]..options[*]')
+    jsonpath_expr = parse(
+        '$.body[?(@.attributes.label == "Apache Airflow Provider(s)")]..options[*]'
+    )
     with PROVIDER_ISSUE_TEMPLATE_PATH.open() as issue_file:
         issue_template = yaml.safe_load(issue_file)
-    all_mentioned_providers = [match.value for match in jsonpath_expr.find(issue_template)]
+    all_mentioned_providers = [
+        match.value for match in jsonpath_expr.find(issue_template)
+    ]
     try:
         # in case of suspended providers, we still want to have them in the issue template
         assert_sets_equal(
@@ -691,10 +745,12 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 if __name__ == "__main__":
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
-    console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
-    provider_files_pattern = pathlib.Path(ROOT_DIR, "providers", "src", "airflow", "providers").rglob(
-        "provider.yaml"
+    console.print(
+        f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}."
     )
+    provider_files_pattern = pathlib.Path(
+        ROOT_DIR, "providers", "src", "airflow", "providers"
+    ).rglob("provider.yaml")
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
     if len(sys.argv) > 1:
         paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]
@@ -706,13 +762,17 @@ if __name__ == "__main__":
     all_files_loaded = len(all_provider_files) == len(paths)
     check_integration_duplicates(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
-    check_duplicates_in_integrations_names_of_hooks_sensors_operators(all_parsed_yaml_files)
+    check_duplicates_in_integrations_names_of_hooks_sensors_operators(
+        all_parsed_yaml_files
+    )
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
-    check_correctness_of_list_of_sensors_operators_hook_trigger_modules(all_parsed_yaml_files)
+    check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
+        all_parsed_yaml_files
+    )
     check_notification_classes(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
     check_providers_have_all_documentation_files(all_parsed_yaml_files)
@@ -725,7 +785,9 @@ if __name__ == "__main__":
 
     if errors:
         error_num = len(errors)
-        console.print(f"[red]Found {error_num} error{'' if error_num == 1 else 's'} in providers[/]")
+        console.print(
+            f"[red]Found {error_num} error{'' if error_num == 1 else 's'} in providers[/]"
+        )
         for error in errors:
             console.print(f"[red]Error:[/] {error}")
         sys.exit(1)

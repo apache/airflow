@@ -65,7 +65,9 @@ def _create_dagruns(
     # Find out existing DAG runs that we don't need to create.
     dag_runs = {
         run.logical_date: run
-        for run in DagRun.find(dag_id=dag.dag_id, execution_date=[info.logical_date for info in infos])
+        for run in DagRun.find(
+            dag_id=dag.dag_id, execution_date=[info.logical_date for info in infos]
+        )
     }
 
     for info in infos:
@@ -143,7 +145,9 @@ def set_state(
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
     # now look for the task instances that are affected
 
-    qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
+    qry_dag = get_all_dag_task_query(
+        dag, session, state, task_id_map_index_list, dag_run_ids
+    )
 
     if commit:
         tis_altered = session.scalars(qry_dag.with_for_update()).all()
@@ -169,13 +173,15 @@ def get_all_dag_task_query(
         TaskInstance.ti_selector_condition(task_ids),
     )
 
-    qry_dag = qry_dag.where(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
-        lazyload(TaskInstance.dag_run)
-    )
+    qry_dag = qry_dag.where(
+        or_(TaskInstance.state.is_(None), TaskInstance.state != state)
+    ).options(lazyload(TaskInstance.dag_run))
     return qry_dag
 
 
-def _iter_existing_dag_run_infos(dag: DAG, run_ids: list[str], session: SASession) -> Iterator[_DagRunInfo]:
+def _iter_existing_dag_run_infos(
+    dag: DAG, run_ids: list[str], session: SASession
+) -> Iterator[_DagRunInfo]:
     for dag_run in DagRun.find(dag_id=dag.dag_id, run_id=run_ids, session=session):
         dag_run.dag = dag
         dag_run.verify_integrity(session=session)
@@ -201,7 +207,12 @@ def find_task_relatives(tasks, downstream, upstream):
 
 @provide_session
 def get_execution_dates(
-    dag: DAG, execution_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
+    dag: DAG,
+    execution_date: datetime,
+    future: bool,
+    past: bool,
+    *,
+    session: SASession = NEW_SESSION,
 ) -> list[datetime]:
     """Return DAG execution dates."""
     latest_execution_date = dag.get_latest_execution_date(session=session)
@@ -224,18 +235,24 @@ def get_execution_dates(
         dates = [start_date]
     else:
         dates = [
-            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
+            info.logical_date
+            for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
         ]
     return dates
 
 
 @provide_session
-def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
+def get_run_ids(
+    dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION
+):
     """Return DAG executions' run_ids."""
     last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     first_dagrun = session.scalar(
-        select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date.asc()).limit(1)
+        select(DagRun)
+        .filter(DagRun.dag_id == dag.dag_id)
+        .order_by(DagRun.execution_date.asc())
+        .limit(1)
     )
 
     if last_dagrun is None:
@@ -247,15 +264,23 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
+        dag_runs = dag.get_dagruns_between(
+            start_date=start_date, end_date=end_date, session=session
+        )
         run_ids = sorted({d.run_id for d in dag_runs})
     elif not dag.timetable.periodic:
         run_ids = [run_id]
     else:
         dates = [
-            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
+            info.logical_date
+            for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
         ]
-        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates, session=session)]
+        run_ids = [
+            dr.run_id
+            for dr in DagRun.find(
+                dag_id=dag.dag_id, execution_date=dates, session=session
+            )
+        ]
     return run_ids
 
 

@@ -74,7 +74,9 @@ class CustomTTYColoredFormatter(ColoredFormatter, TimezoneAware):
         elif isinstance(record.args, dict):
             if self._count_number_of_arguments_in_message(record) > 1:
                 # Case of logging.debug("a %(a)d b %(b)s", {'a':1, 'b':2})
-                record.args = {key: self._color_arg(value) for key, value in record.args.items()}
+                record.args = {
+                    key: self._color_arg(value) for key, value in record.args.items()
+                }
             else:
                 # Case of single dict passed to formatted string
                 record.args = self._color_arg(record.args)  # type: ignore

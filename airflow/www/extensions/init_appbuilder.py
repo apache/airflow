@@ -425,7 +425,9 @@ class AirflowAppBuilder:
             # or not instantiated
             appbuilder.add_view(MyModelView, "My View")
             # Register a view, a submenu "Other View" from "Other" with a phone icon.
-            appbuilder.add_view(MyOtherModelView, "Other View", icon="fa-phone", category="Others")
+            appbuilder.add_view(
+                MyOtherModelView, "Other View", icon="fa-phone", category="Others"
+            )
             # Register a view, with category icon and translation.
             appbuilder.add_view(
                 YetOtherModelView,
@@ -558,7 +560,9 @@ class AirflowAppBuilder:
             self.baseviews.append(baseview)
             self._process_inner_views()
             if self.app:
-                self.register_blueprint(baseview, endpoint=endpoint, static_folder=static_folder)
+                self.register_blueprint(
+                    baseview, endpoint=endpoint, static_folder=static_folder
+                )
                 self._add_permission(baseview)
         else:
             log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS, baseview.__class__.__name__)
@@ -579,7 +583,9 @@ class AirflowAppBuilder:
             view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
         if not hasattr(self.sm, "security_cleanup"):
-            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
+            raise NotImplementedError(
+                "The auth manager used does not support security_cleanup method."
+            )
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
@@ -628,7 +634,9 @@ class AirflowAppBuilder:
     def _add_permission(self, baseview, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
+                self.sm.add_permissions_view(
+                    baseview.base_permissions, baseview.class_permission_name
+                )
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
@@ -652,7 +660,9 @@ class AirflowAppBuilder:
 
     def register_blueprint(self, baseview, endpoint=None, static_folder=None):
         self.get_app.register_blueprint(
-            baseview.create_blueprint(self, endpoint=endpoint, static_folder=static_folder)
+            baseview.create_blueprint(
+                self, endpoint=endpoint, static_folder=static_folder
+            )
         )
 
     def _view_exists(self, view):
@@ -662,7 +672,10 @@ class AirflowAppBuilder:
         for view in self.baseviews:
             for inner_class in view.get_uninit_inner_views():
                 for v in self.baseviews:
-                    if isinstance(v, inner_class) and v not in view.get_init_inner_views():
+                    if (
+                        isinstance(v, inner_class)
+                        and v not in view.get_init_inner_views()
+                    ):
                         view.get_init_inner_views().append(v)
 
 

@@ -86,7 +86,9 @@ class S3ToTeradataOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info(
-            "transferring data from %s to teradata table %s...", self.s3_source_key, self.teradata_table
+            "transferring data from %s to teradata table %s...",
+            self.s3_source_key,
+            self.teradata_table,
         )
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
@@ -100,7 +102,9 @@ class S3ToTeradataOperator(BaseOperator):
                 credentials = s3_hook.get_credentials()
                 access_key = credentials.access_key
                 access_secret = credentials.secret_key
-                credentials_part = f"ACCESS_ID= '{access_key}' ACCESS_KEY= '{access_secret}'"
+                credentials_part = (
+                    f"ACCESS_ID= '{access_key}' ACCESS_KEY= '{access_secret}'"
+                )
                 token = credentials.token
                 if token:
                     credentials_part = credentials_part + f" SESSION_TOKEN = '{token}'"

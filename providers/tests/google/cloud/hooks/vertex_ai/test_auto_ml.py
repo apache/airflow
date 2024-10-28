@@ -48,7 +48,8 @@ CUSTOM_JOB_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.{}"
 class TestAutoMLWithDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = AutoMLHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -111,7 +112,9 @@ class TestAutoMLWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestAutoMLWithoutDefaultProjectIdHook:
@@ -121,7 +124,8 @@ class TestAutoMLWithoutDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = AutoMLHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -184,4 +188,6 @@ class TestAutoMLWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )

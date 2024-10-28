@@ -40,7 +40,9 @@ class JiraHook(BaseHook):
     conn_name_attr = "jira_conn_id"
     hook_name = "JIRA"
 
-    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Any | None = None) -> None:
+    def __init__(
+        self, jira_conn_id: str = default_conn_name, proxies: Any | None = None
+    ) -> None:
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
@@ -53,7 +55,9 @@ class JiraHook(BaseHook):
 
             verify = True
             if not self.jira_conn_id:
-                raise AirflowException("Failed to create jira client. no jira_conn_id provided")
+                raise AirflowException(
+                    "Failed to create jira client. no jira_conn_id provided"
+                )
 
             conn = self.get_connection(self.jira_conn_id)
             if conn.extra is not None:

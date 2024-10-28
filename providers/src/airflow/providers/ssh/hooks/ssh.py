@@ -172,7 +172,9 @@ class SSHHook(BaseHook):
                 private_key = extra_options.get("private_key")
                 private_key_passphrase = extra_options.get("private_key_passphrase")
                 if private_key:
-                    self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
+                    self.pkey = self._pkey_from_private_key(
+                        private_key, passphrase=private_key_passphrase
+                    )
 
                 if "timeout" in extra_options:
                     warnings.warn(
@@ -193,7 +195,10 @@ class SSHHook(BaseHook):
                     else:
                         self.cmd_timeout = None
 
-                if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
+                if (
+                    "compress" in extra_options
+                    and str(extra_options["compress"]).lower() == "false"
+                ):
                     self.compress = False
 
                 host_key = extra_options.get("host_key")
@@ -309,7 +314,9 @@ class SSHHook(BaseHook):
             client.load_system_host_keys()
 
         if self.no_host_key_check:
-            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            self.log.warning(
+                "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
+            )
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             # to avoid BadHostKeyException, skip loading and saving host keys
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
@@ -320,10 +327,14 @@ class SSHHook(BaseHook):
             # Get host key from connection extra if it not set or None then we fallback to system host keys
             client_host_keys = client.get_host_keys()
             if self.port == SSH_PORT:
-                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                client_host_keys.add(
+                    self.remote_host, self.host_key.get_name(), self.host_key
+                )
             else:
                 client_host_keys.add(
-                    f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                    f"[{self.remote_host}]:{self.port}",
+                    self.host_key.get_name(),
+                    self.host_key,
                 )
 
         connect_kwargs: dict[str, Any] = {
@@ -353,7 +364,8 @@ class SSHHook(BaseHook):
 
         def log_before_sleep(retry_state):
             return self.log.info(
-                "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+                "Failed to connect. Sleeping before retry attempt %d",
+                retry_state.attempt_number,
             )
 
         for attempt in Retrying(
@@ -397,7 +409,10 @@ class SSHHook(BaseHook):
             self.client = None
 
     def get_tunnel(
-        self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
+        self,
+        remote_port: int,
+        remote_host: str = "localhost",
+        local_port: int | None = None,
     ) -> SSHTunnelForwarder:
         """
         Create a tunnel between two hosts.
@@ -460,7 +475,9 @@ class SSHHook(BaseHook):
         """
         return self.get_tunnel(remote_port, remote_host, local_port)
 
-    def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
+    def _pkey_from_private_key(
+        self, private_key: str, passphrase: str | None = None
+    ) -> paramiko.PKey:
         """
         Create an appropriate Paramiko key for a given private key.
 
@@ -469,11 +486,15 @@ class SSHHook(BaseHook):
         :raises AirflowException: if key cannot be read
         """
         if len(private_key.splitlines()) < 2:
-            raise AirflowException("Key must have BEGIN and END header/footer on separate lines.")
+            raise AirflowException(
+                "Key must have BEGIN and END header/footer on separate lines."
+            )
 
         for pkey_class in self._pkey_loaders:
             try:
-                key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
+                key = pkey_class.from_private_key(
+                    StringIO(private_key), password=passphrase
+                )
                 # Test it actually works. If Paramiko loads an openssh generated key, sometimes it will
                 # happily load it as the wrong type, only to fail when actually used.
                 key.sign_ssh_data(b"")
@@ -539,12 +560,16 @@ class SSHHook(BaseHook):
                 if recv.recv_ready():
                     output = stdout.channel.recv(len(recv.in_buffer))
                     agg_stdout += output
-                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                    for line in (
+                        output.decode("utf-8", "replace").strip("\n").splitlines()
+                    ):
                         self.log.info(line)
                 if recv.recv_stderr_ready():
                     output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
                     agg_stderr += output
-                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                    for line in (
+                        output.decode("utf-8", "replace").strip("\n").splitlines()
+                    ):
                         self.log.warning(line)
             if (
                 stdout.channel.exit_status_ready()

@@ -115,10 +115,14 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     def client(self):
         """Create a SSM client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
-        from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+        from airflow.providers.amazon.aws.utils.connection_wrapper import (
+            AwsConnectionWrapper,
+        )
 
         conn_id = f"{self.__class__.__name__}__connection"
-        conn_config = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=self.kwargs)
+        conn_config = AwsConnectionWrapper.from_connection_metadata(
+            conn_id=conn_id, extra=self.kwargs
+        )
         client_kwargs = trim_none_values(
             {
                 "region_name": conn_config.region_name,
@@ -141,7 +145,9 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        return self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
+        return self._get_secret(
+            self.connections_prefix, conn_id, self.connections_lookup_pattern
+        )
 
     def get_variable(self, key: str) -> str | None:
         """
@@ -167,7 +173,9 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
-    def _get_secret(self, path_prefix: str, secret_id: str, lookup_pattern: str | None) -> str | None:
+    def _get_secret(
+        self, path_prefix: str, secret_id: str, lookup_pattern: str | None
+    ) -> str | None:
         """
         Get secret value from Parameter Store.
 

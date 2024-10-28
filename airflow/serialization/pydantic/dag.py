@@ -76,7 +76,9 @@ class DagModelPydantic(BaseModelPydantic):
     """Serializable representation of the DagModel ORM SqlAlchemyModel used by internal API."""
 
     dag_id: str
-    is_paused_at_creation: bool = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
+    is_paused_at_creation: bool = airflow_conf.getboolean(
+        "core", "dags_are_paused_at_creation"
+    )
     is_paused: bool = is_paused_at_creation
     is_active: Optional[bool] = False
     last_parsed_time: Optional[datetime]
@@ -109,7 +111,9 @@ class DagModelPydantic(BaseModelPydantic):
         """File location of the importable dag 'file' relative to the configured DAGs folder."""
         path = pathlib.Path(self.fileloc)
         try:
-            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
+            rel_path = path.relative_to(
+                self._processor_dags_folder or settings.DAGS_FOLDER
+            )
             if rel_path == pathlib.Path("."):
                 return path
             else:

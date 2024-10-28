@@ -34,11 +34,15 @@ UTC = timezone.utc
 
 class TestTimezone:
     def test_is_aware(self):
-        assert timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
+        assert timezone.is_localized(
+            datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)
+        )
         assert not timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30))
 
     def test_is_naive(self):
-        assert not timezone.is_naive(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
+        assert not timezone.is_naive(
+            datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)
+        )
         assert timezone.is_naive(datetime.datetime(2011, 9, 1, 13, 20, 30))
 
     def test_utcnow(self):
@@ -67,11 +71,13 @@ class TestTimezone:
             timezone.make_naive(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT)
 
     def test_make_aware(self):
-        assert timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT) == datetime.datetime(
-            2011, 9, 1, 13, 20, 30, tzinfo=EAT
-        )
+        assert timezone.make_aware(
+            datetime.datetime(2011, 9, 1, 13, 20, 30), EAT
+        ) == datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)
         with pytest.raises(ValueError):
-            timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
+            timezone.make_aware(
+                datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT
+            )
 
     def test_td_format(self):
         td = datetime.timedelta(seconds=3752)
@@ -139,7 +145,9 @@ def test_parse_timezone_utc(tz_name):
     tz = parse_timezone(tz_name)
     assert tz.name == "UTC"
     assert parse_timezone(tz_name) is tz
-    assert tz is timezone.utc, "Expected that UTC timezone is same object as `airflow.utils.timezone.utc`"
+    assert (
+        tz is timezone.utc
+    ), "Expected that UTC timezone is same object as `airflow.utils.timezone.utc`"
 
 
 @pytest.mark.parametrize(
@@ -167,7 +175,9 @@ def test_parse_timezone_offset(tz_offset: int, expected_offset, expected_name):
     ],
 )
 def test_from_timestamp_utc(tz):
-    from_ts = timezone.from_timestamp(0) if tz is None else timezone.from_timestamp(0, tz=tz)
+    from_ts = (
+        timezone.from_timestamp(0) if tz is None else timezone.from_timestamp(0, tz=tz)
+    )
     assert from_ts == pendulum.DateTime(1970, 1, 1, tzinfo=timezone.utc)
     assert from_ts.tzinfo == timezone.utc
 

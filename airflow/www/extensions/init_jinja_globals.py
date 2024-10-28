@@ -67,17 +67,29 @@ def init_jinja_globals(app):
             "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
             "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
             "navbar_logo_text_color": conf.get("webserver", "NAVBAR_LOGO_TEXT_COLOR"),
-            "log_fetch_delay_sec": conf.getint("webserver", "log_fetch_delay_sec", fallback=2),
-            "log_auto_tailing_offset": conf.getint("webserver", "log_auto_tailing_offset", fallback=30),
-            "log_animation_speed": conf.getint("webserver", "log_animation_speed", fallback=1000),
+            "log_fetch_delay_sec": conf.getint(
+                "webserver", "log_fetch_delay_sec", fallback=2
+            ),
+            "log_auto_tailing_offset": conf.getint(
+                "webserver", "log_auto_tailing_offset", fallback=30
+            ),
+            "log_animation_speed": conf.getint(
+                "webserver", "log_animation_speed", fallback=1000
+            ),
             "state_color_mapping": STATE_COLORS,
             "airflow_version": airflow_version,
             "git_version": git_version,
             "k8s_or_k8scelery_executor": IS_K8S_OR_K8SCELERY_EXECUTOR,
             "rest_api_enabled": False,
-            "config_test_connection": conf.get("core", "test_connection", fallback="Disabled"),
-            "included_events_raw": conf.get("webserver", "audit_view_included_events", fallback=""),
-            "excluded_events_raw": conf.get("webserver", "audit_view_excluded_events", fallback=""),
+            "config_test_connection": conf.get(
+                "core", "test_connection", fallback="Disabled"
+            ),
+            "included_events_raw": conf.get(
+                "webserver", "audit_view_included_events", fallback=""
+            ),
+            "excluded_events_raw": conf.get(
+                "webserver", "audit_view_excluded_events", fallback=""
+            ),
         }
 
         # Extra global specific to auth manager

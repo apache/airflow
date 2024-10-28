@@ -41,7 +41,9 @@ class AQLSensor(BaseSensorOperator):
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 
-    def __init__(self, *, query: str, arangodb_conn_id: str = "arangodb_default", **kwargs) -> None:
+    def __init__(
+        self, *, query: str, arangodb_conn_id: str = "arangodb_default", **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.arangodb_conn_id = arangodb_conn_id
         self.query = query

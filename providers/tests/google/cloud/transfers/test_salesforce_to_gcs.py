@@ -21,7 +21,9 @@ from unittest import mock
 import pytest
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
+from airflow.providers.google.cloud.transfers.salesforce_to_gcs import (
+    SalesforceToGcsOperator,
+)
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
 TASK_ID = "test-task-id"
@@ -34,7 +36,10 @@ GCP_CONNECTION_ID = "google_cloud_default"
 SALESFORCE_RESPONSE = {
     "records": [
         {
-            "attributes": {"type": "Lead", "url": "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK"},
+            "attributes": {
+                "type": "Lead",
+                "url": "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK",
+            },
             "Id": "00Q3t00001eJ7AnEAK",
             "Company": "Hello World Inc",
         }
@@ -82,7 +87,10 @@ class TestSalesforceToGcsOperator:
         )
 
         mock_upload.assert_called_once_with(
-            bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
+            bucket_name=GCS_BUCKET,
+            object_name=GCS_OBJECT_PATH,
+            filename=mock.ANY,
+            gzip=False,
         )
 
         assert EXPECTED_GCS_URI == result

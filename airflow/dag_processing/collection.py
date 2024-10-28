@@ -86,7 +86,9 @@ def _create_orm_dags(dags: Iterable[DAG], *, session: Session) -> Iterator[DagMo
 
 def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
     """Build a select statement to retrieve the last automated run for each dag."""
-    if len(dag_ids) == 1:  # Index optimized fast path to avoid more complicated & slower groupby queryplan.
+    if (
+        len(dag_ids) == 1
+    ):  # Index optimized fast path to avoid more complicated & slower groupby queryplan.
         (dag_id,) = dag_ids
         last_automated_runs_subq = (
             select(func.max(DagRun.execution_date).label("max_execution_date"))
@@ -102,7 +104,9 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
         )
     else:
         last_automated_runs_subq = (
-            select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+            select(
+                DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date")
+            )
             .where(
                 DagRun.dag_id.in_(dag_ids),
                 DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
@@ -139,7 +143,10 @@ class _RunInfo(NamedTuple):
         if not any(dag.timetable.can_be_scheduled for dag in dags.values()):
             return cls({}, {})
 
-        latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags.keys()))}
+        latest_runs = {
+            run.dag_id: run
+            for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags.keys()))
+        }
         active_run_counts = DagRun.active_runs_of_dags(
             dag_ids=dags.keys(),
             exclude_backfill=True,
@@ -154,10 +161,14 @@ def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> 
     for name, orm_tag in orm_tags.items():
         if name not in tag_names:
             session.delete(orm_tag)
-    dm.tags.extend(DagTag(name=name, dag_id=dm.dag_id) for name in tag_names.difference(orm_tags))
+    dm.tags.extend(
+        DagTag(name=name, dag_id=dm.dag_id) for name in tag_names.difference(orm_tags)
+    )
 
 
-def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, session: Session) -> None:
+def _update_dag_owner_links(
+    dag_owner_links: dict[str, str], dm: DagModel, *, session: Session
+) -> None:
     orm_dag_owner_attributes = {obj.owner: obj for obj in dm.dag_owner_links}
     for owner, obj in orm_dag_owner_attributes.items():
         try:
@@ -217,7 +228,8 @@ class DagModelOperation(NamedTuple):
             dm.max_active_runs = dag.max_active_runs
             dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
             dm.has_task_concurrency_limits = any(
-                t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
+                t.max_active_tis_per_dag is not None
+                or t.max_active_tis_per_dagrun is not None
                 for t in dag.tasks
             )
             dm.timetable_summary = dag.timetable.summary
@@ -229,7 +241,9 @@ class DagModelOperation(NamedTuple):
             if last_automated_run is None:
                 last_automated_data_interval = None
             else:
-                last_automated_data_interval = dag.get_run_data_interval(last_automated_run)
+                last_automated_data_interval = dag.get_run_data_interval(
+                    last_automated_run
+                )
             if run_info.num_active_runs.get(dag.dag_id, 0) >= dm.max_active_runs:
                 dm.next_dagrun_create_after = None
             else:
@@ -283,11 +297,16 @@ class AssetModelOperation(NamedTuple):
     def collect(cls, dags: dict[str, DAG]) -> Self:
         coll = cls(
             schedule_asset_references={
-                dag_id: [asset for _, asset in dag.timetable.asset_condition.iter_assets()]
+                dag_id: [
+                    asset for _, asset in dag.timetable.asset_condition.iter_assets()
+                ]
                 for dag_id, dag in dags.items()
             },
             schedule_asset_alias_references={
-                dag_id: [alias for _, alias in dag.timetable.asset_condition.iter_asset_aliases()]
+                dag_id: [
+                    alias
+                    for _, alias in dag.timetable.asset_condition.iter_asset_aliases()
+                ]
                 for dag_id, dag in dags.items()
             },
             outlet_references={
@@ -299,8 +318,13 @@ class AssetModelOperation(NamedTuple):
                 ]
                 for dag_id, dag in dags.items()
             },
-            assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
-            asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
+            assets={
+                (asset.name, asset.uri): asset
+                for asset in _find_all_assets(dags.values())
+            },
+            asset_aliases={
+                alias.name: alias for alias in _find_all_asset_aliases(dags.values())
+            },
         )
         return coll
 
@@ -311,13 +335,19 @@ class AssetModelOperation(NamedTuple):
         orm_assets: dict[tuple[str, str], AssetModel] = {
             (am.name, am.uri): am
             for am in session.scalars(
-                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
+                select(AssetModel).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(self.assets)
+                )
             )
         }
         orm_assets.update(
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(
-                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
+                [
+                    asset
+                    for name_uri, asset in self.assets.items()
+                    if name_uri not in orm_assets
+                ],
                 session=session,
             )
         )
@@ -330,13 +360,19 @@ class AssetModelOperation(NamedTuple):
         orm_aliases: dict[str, AssetAliasModel] = {
             da.name: da
             for da in session.scalars(
-                select(AssetAliasModel).where(AssetAliasModel.name.in_(self.asset_aliases))
+                select(AssetAliasModel).where(
+                    AssetAliasModel.name.in_(self.asset_aliases)
+                )
             )
         }
         orm_aliases.update(
             (model.name, model)
             for model in asset_manager.create_asset_aliases(
-                [alias for name, alias in self.asset_aliases.items() if name not in orm_aliases],
+                [
+                    alias
+                    for name, alias in self.asset_aliases.items()
+                    if name not in orm_aliases
+                ],
                 session=session,
             )
         )
@@ -357,7 +393,9 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_references = []
                 continue
-            referenced_asset_ids = {asset.id for asset in (assets[r.name, r.uri] for r in references)}
+            referenced_asset_ids = {
+                asset.id for asset in (assets[r.name, r.uri] for r in references)
+            }
             orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
                 if asset_id not in referenced_asset_ids:
@@ -383,8 +421,12 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_alias_references = []
                 continue
-            referenced_alias_ids = {alias.id for alias in (aliases[r.name] for r in references)}
-            orm_refs = {a.alias_id: a for a in dags[dag_id].schedule_asset_alias_references}
+            referenced_alias_ids = {
+                alias.id for alias in (aliases[r.name] for r in references)
+            }
+            orm_refs = {
+                a.alias_id: a for a in dags[dag_id].schedule_asset_alias_references
+            }
             for alias_id, ref in orm_refs.items():
                 if alias_id not in referenced_alias_ids:
                     session.delete(ref)
@@ -411,14 +453,21 @@ class AssetModelOperation(NamedTuple):
                 continue
             referenced_outlets = {
                 (task_id, asset.id)
-                for task_id, asset in ((task_id, assets[d.name, d.uri]) for task_id, d in references)
+                for task_id, asset in (
+                    (task_id, assets[d.name, d.uri]) for task_id, d in references
+                )
             }
-            orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_outlet_asset_references}
+            orm_refs = {
+                (r.task_id, r.asset_id): r
+                for r in dags[dag_id].task_outlet_asset_references
+            }
             for key, ref in orm_refs.items():
                 if key not in referenced_outlets:
                     session.delete(ref)
             session.bulk_save_objects(
-                TaskOutletAssetReference(asset_id=asset_id, dag_id=dag_id, task_id=task_id)
+                TaskOutletAssetReference(
+                    asset_id=asset_id, dag_id=dag_id, task_id=task_id
+                )
                 for task_id, asset_id in referenced_outlets
                 if (task_id, asset_id) not in orm_refs
             )

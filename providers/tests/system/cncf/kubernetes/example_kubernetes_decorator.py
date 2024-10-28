@@ -43,7 +43,9 @@ with DAG(
         print("Hello from k8s pod")
         time.sleep(2)
 
-    @task.kubernetes(image="python:3.9-slim-buster", namespace="default", in_cluster=False)
+    @task.kubernetes(
+        image="python:3.9-slim-buster", namespace="default", in_cluster=False
+    )
     def print_pattern():
         n = 5
         for i in range(n):

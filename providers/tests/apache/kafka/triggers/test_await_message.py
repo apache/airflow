@@ -63,7 +63,11 @@ class TestTrigger:
                 conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "localhost:9092",
+                        "group.id": "test_group",
+                    }
                 ),
             )
         )
@@ -83,7 +87,10 @@ class TestTrigger:
 
         classpath, kwargs = trigger.serialize()
 
-        assert classpath == "airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger"
+        assert (
+            classpath
+            == "airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger"
+        )
         assert kwargs == dict(
             kafka_config_id="kafka_d",
             apply_function="test.noop",
@@ -96,7 +103,9 @@ class TestTrigger:
 
     @pytest.mark.asyncio
     async def test_trigger_run_good(self, mocker):
-        mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
+        mocker.patch.object(
+            KafkaConsumerHook, "get_consumer", return_value=MockedConsumer
+        )
 
         trigger = AwaitMessageTrigger(
             kafka_config_id="kafka_d",
@@ -113,7 +122,9 @@ class TestTrigger:
 
     @pytest.mark.asyncio
     async def test_trigger_run_bad(self, mocker):
-        mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
+        mocker.patch.object(
+            KafkaConsumerHook, "get_consumer", return_value=MockedConsumer
+        )
 
         trigger = AwaitMessageTrigger(
             kafka_config_id="kafka_d",

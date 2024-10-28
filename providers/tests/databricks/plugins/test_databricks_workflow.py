@@ -46,7 +46,9 @@ from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 RUN_ID = "test_run_1"
-TASK_INSTANCE_KEY = TaskInstanceKey(dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_ID, try_number=1)
+TASK_INSTANCE_KEY = TaskInstanceKey(
+    dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_ID, try_number=1
+)
 DATABRICKS_CONN_ID = "databricks_default"
 DATABRICKS_RUN_ID = 12345
 GROUP_ID = "test_group"
@@ -139,7 +141,8 @@ def test_get_task_instance(app):
         session.query().filter().one_or_none.return_value = dag_run
 
         with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.DagRun.find", return_value=[dag_run]
+            "airflow.providers.databricks.plugins.databricks_workflow.DagRun.find",
+            return_value=[dag_run],
         ):
             result = get_task_instance(operator, dttm, session)
             assert result == dag_run
@@ -185,15 +188,20 @@ def test_workflow_job_run_link(app):
                         return_value=mock_connection,
                     ):
                         mock_get_task_instance.return_value = Mock(key=ti_key)
-                        mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1, job_id=1)
-                        mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
+                        mock_get_xcom_result.return_value = Mock(
+                            conn_id="conn_id", run_id=1, job_id=1
+                        )
+                        mock_get_dag.return_value.get_task = Mock(
+                            return_value=Mock(task_id="task_id")
+                        )
 
                         result = link.get_link(operator, ti_key=ti_key)
                         assert "https://mockhost/#job/1/run/1" in result
 
 
 @pytest.mark.skipif(
-    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Web plugin test doesn't work when not against sources"
+    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+    reason="Web plugin test doesn't work when not against sources",
 )
 @pytest.mark.db_test
 def test_workflow_job_repair_single_failed_link(app):
@@ -220,7 +228,9 @@ def test_workflow_job_repair_single_failed_link(app):
                 ) as mock_get_dag:
                     mock_get_task_instance.return_value = Mock(key=ti_key)
                     mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1)
-                    mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
+                    mock_get_dag.return_value.get_task = Mock(
+                        return_value=Mock(task_id="task_id")
+                    )
 
                     result = link.get_link(operator, ti_key=ti_key)
                     assert result.startswith("http://localhost/repair_databricks_job")

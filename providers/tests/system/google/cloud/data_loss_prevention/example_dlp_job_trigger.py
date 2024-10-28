@@ -39,12 +39,17 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_job_trigger"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 JOB_TRIGGER = {
     "inspect_job": {
         "storage_config": {
-            "datastore_options": {"partition_id": {"project_id": PROJECT_ID}, "kind": {"name": "test"}}
+            "datastore_options": {
+                "partition_id": {"project_id": PROJECT_ID},
+                "kind": {"name": "test"},
+            }
         }
     },
     "triggers": [{"schedule": {"recurrence_period_duration": {"seconds": 60 * 60 * 24}}}],
@@ -69,13 +74,17 @@ with DAG(
     )
     # [END howto_operator_dlp_create_job_trigger]
 
-    list_triggers = CloudDLPListJobTriggersOperator(task_id="list_triggers", project_id=PROJECT_ID)
+    list_triggers = CloudDLPListJobTriggersOperator(
+        task_id="list_triggers", project_id=PROJECT_ID
+    )
 
     get_trigger = CloudDLPGetDLPJobTriggerOperator(
         task_id="get_trigger", project_id=PROJECT_ID, job_trigger_id=TRIGGER_ID
     )
 
-    JOB_TRIGGER["triggers"] = [{"schedule": {"recurrence_period_duration": {"seconds": 2 * 60 * 60 * 24}}}]
+    JOB_TRIGGER["triggers"] = [
+        {"schedule": {"recurrence_period_duration": {"seconds": 2 * 60 * 60 * 24}}}
+    ]
 
     # [START howto_operator_dlp_update_job_trigger]
     update_trigger = CloudDLPUpdateJobTriggerOperator(

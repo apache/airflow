@@ -29,7 +29,10 @@ from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
     DataflowJobMessagesSensor,
@@ -66,7 +69,9 @@ with DAG(
     catchup=False,
     tags=["example", "dataflow"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     start_beam_python_pipeline = BeamRunPythonPipelineOperator(
         task_id="start_beam_python_pipeline",
@@ -116,7 +121,9 @@ with DAG(
         task_id="wait_for_beam_python_pipeline_job_metric_def",
         job_id="{{task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id']}}",
         location=LOCATION,
-        callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
+        callback=check_metric_scalar_gte(
+            metric_name="Service-cpu_num_seconds", value=100
+        ),
         fail_on_terminal_state=False,
         deferrable=True,
     )
@@ -144,7 +151,9 @@ with DAG(
     def check_autoscaling_event(autoscaling_events: list[dict]) -> bool:
         """Check autoscaling event."""
         for autoscaling_event in autoscaling_events:
-            if "Worker pool started." in autoscaling_event.get("description", {}).get("messageText", ""):
+            if "Worker pool started." in autoscaling_event.get("description", {}).get(
+                "messageText", ""
+            ):
                 return True
         return False
 
@@ -159,7 +168,9 @@ with DAG(
     # [END howto_sensor_wait_for_job_autoscaling_event_deferrable]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

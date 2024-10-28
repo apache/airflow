@@ -60,7 +60,9 @@ class GithubHook(BaseHook):
         # only means available, but raising an exception to enforce this method for now.
         # TODO: When/If other auth methods are implemented this exception should be removed/modified.
         if not access_token:
-            raise AirflowException("An access token is required to authenticate to GitHub.")
+            raise AirflowException(
+                "An access token is required to authenticate to GitHub."
+            )
 
         if not host:
             self.client = GithubClient(login_or_token=access_token)
@@ -74,7 +76,10 @@ class GithubHook(BaseHook):
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "login", "extra"],
-            "relabeling": {"host": "GitHub Enterprise URL (Optional)", "password": "GitHub Access Token"},
+            "relabeling": {
+                "host": "GitHub Enterprise URL (Optional)",
+                "password": "GitHub Access Token",
+            },
             "placeholders": {"host": "https://{hostname}/api/v3 (for GitHub Enterprise)"},
         }
 

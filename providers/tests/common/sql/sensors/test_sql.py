@@ -101,8 +101,12 @@ class TestSqlSensor:
             sql="SELECT 1",
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = []
         assert not op.poke({})
@@ -134,8 +138,12 @@ class TestSqlSensor:
             fail_on_empty=True,
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = []
         with pytest.raises(AirflowException):
@@ -144,11 +152,18 @@ class TestSqlSensor:
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_success(self, mock_hook):
         op = SqlSensor(
-            task_id="sql_sensor_check", conn_id="postgres_default", sql="SELECT 1", success=lambda x: x in [1]
+            task_id="sql_sensor_check",
+            conn_id="postgres_default",
+            sql="SELECT 1",
+            success=lambda x: x in [1],
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = []
         assert not op.poke({})
@@ -171,8 +186,12 @@ class TestSqlSensor:
             failure=lambda x: x in [1],
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = []
         assert not op.poke({})
@@ -194,8 +213,12 @@ class TestSqlSensor:
             success=lambda x: x in [2],
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = []
         assert not op.poke({})
@@ -217,8 +240,12 @@ class TestSqlSensor:
             success=lambda x: x in [1],
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = []
         assert not op.poke({})
@@ -236,8 +263,12 @@ class TestSqlSensor:
             failure=[1],  # type: ignore[arg-type]
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(AirflowException) as ctx:
@@ -256,8 +287,12 @@ class TestSqlSensor:
             success=[1],  # type: ignore[arg-type]
         )
 
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(AirflowException) as ctx:
@@ -311,8 +346,14 @@ class TestSqlSensor:
             parameters={"something": "{{ logical_date }}"},
         )
         op.render_template_fields(context={"logical_date": "1970-01-01"})
-        mock_base_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_base_hook.get_connection.return_value.get_hook.return_value.get_records
+        mock_base_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(
+            spec=DbApiHook
+        )
+        mock_get_records = (
+            mock_base_hook.get_connection.return_value.get_hook.return_value.get_records
+        )
         op.execute(context=mock.MagicMock())
 
-        mock_get_records.assert_called_once_with("SELECT %(something)s", {"something": "1970-01-01"})
+        mock_get_records.assert_called_once_with(
+            "SELECT %(something)s", {"something": "1970-01-01"}
+        )

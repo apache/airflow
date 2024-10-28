@@ -115,4 +115,6 @@ class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
                 task_instance=self,
                 project_id=project_id,
             )
-        return hook.run_pipeline(body=self.body, location=self.location, project_id=self.project_id)
+        return hook.run_pipeline(
+            body=self.body, location=self.location, project_id=self.project_id
+        )

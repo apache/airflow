@@ -68,7 +68,9 @@ def _handle_user_query_band_text(query_band_text) -> str:
             if "airflow" not in appname_value.lower():
                 new_appname_value = appname_value + "_airflow"
                 # Optionally, you can replace the original value in the query_band_text
-                updated_query_band_text = re.sub(pattern, f"appname={new_appname_value}", query_band_text)
+                updated_query_band_text = re.sub(
+                    pattern, f"appname={new_appname_value}", query_band_text
+                )
                 query_band_text = updated_query_band_text
         else:
             # if appname doesn't exist in query_band, adding 'appname=airflow'
@@ -158,7 +160,9 @@ class TeradataHook(DbApiHook):
             with teradata_conn.cursor() as cur:
                 cur.execute(set_query_band_sql)
         except Exception as ex:
-            self.log.error("Error occurred while setting session query band: %s ", str(ex))
+            self.log.error(
+                "Error occurred while setting session query band: %s ", str(ex)
+            )
 
     def bulk_insert_rows(
         self,
@@ -192,7 +196,9 @@ class TeradataHook(DbApiHook):
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
 
-        self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
+        self.insert_rows(
+            table=table, rows=rows, target_fields=target_fields, commit_every=commit_every
+        )
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
@@ -249,7 +255,12 @@ class TeradataHook(DbApiHook):
             },
             "placeholders": {
                 "extra": json.dumps(
-                    {"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"}, indent=4
+                    {
+                        "tmode": "TERA",
+                        "sslmode": "verify-ca",
+                        "sslca": "/tmp/server-ca.pem",
+                    },
+                    indent=4,
                 ),
                 "login": "dbc",
                 "password": "dbc",

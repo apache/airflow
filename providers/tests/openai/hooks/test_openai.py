@@ -26,7 +26,13 @@ openai = pytest.importorskip("openai")
 from unittest.mock import mock_open
 
 from openai.pagination import SyncCursorPage
-from openai.types import Batch, CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
+from openai.types import (
+    Batch,
+    CreateEmbeddingResponse,
+    Embedding,
+    FileDeleted,
+    FileObject,
+)
 from openai.types.beta import (
     Assistant,
     AssistantDeleted,
@@ -36,11 +42,18 @@ from openai.types.beta import (
     VectorStoreDeleted,
 )
 from openai.types.beta.threads import Message, Run
-from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from openai.types.beta.vector_stores import (
+    VectorStoreFile,
+    VectorStoreFileBatch,
+    VectorStoreFileDeleted,
+)
 from openai.types.chat import ChatCompletion
 
 from airflow.models import Connection
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+)
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
 ASSISTANT_ID = "test_assistant_abc123"
@@ -153,7 +166,12 @@ def mock_message():
         thread_id=THREAD_ID,
         status="completed",
         role="user",
-        content=[{"type": "text", "text": {"value": "Tell me something interesting.", "annotations": []}}],
+        content=[
+            {
+                "type": "text",
+                "text": {"value": "Tell me something interesting.", "annotations": []},
+            }
+        ],
         assistant_id=ASSISTANT_ID,
         run_id=RUN_ID,
         file_ids=[],
@@ -220,7 +238,13 @@ def mock_vector_store():
         name=VECTOR_STORE_NAME,
         bytes=123456,
         status="completed",
-        file_counts={"in_progress": 0, "completed": 100, "cancelled": 0, "failed": 0, "total": 100},
+        file_counts={
+            "in_progress": 0,
+            "completed": 100,
+            "cancelled": 0,
+            "failed": 0,
+            "total": 100,
+        },
         metadata={},
         last_used_at=1698107661,
     )
@@ -333,12 +357,16 @@ def test_modify_assistant(mock_openai_hook, mock_assistant):
     new_assistant_name = "New Test Assistant"
     mock_assistant.name = new_assistant_name
     mock_openai_hook.conn.beta.assistants.update.return_value = mock_assistant
-    assistant = mock_openai_hook.modify_assistant(assistant_id=ASSISTANT_ID, name=new_assistant_name)
+    assistant = mock_openai_hook.modify_assistant(
+        assistant_id=ASSISTANT_ID, name=new_assistant_name
+    )
     assert assistant.name == new_assistant_name
 
 
 def test_delete_assistant(mock_openai_hook):
-    delete_response = AssistantDeleted(id=ASSISTANT_ID, object="assistant.deleted", deleted=True)
+    delete_response = AssistantDeleted(
+        id=ASSISTANT_ID, object="assistant.deleted", deleted=True
+    )
     mock_openai_hook.conn.beta.assistants.delete.return_value = delete_response
     assistant_deleted = mock_openai_hook.delete_assistant(assistant_id=ASSISTANT_ID)
     assert assistant_deleted.deleted
@@ -369,7 +397,9 @@ def test_create_message(mock_openai_hook, mock_message):
     role = "user"
     content = "Tell me something interesting."
     mock_openai_hook.conn.beta.threads.messages.create.return_value = mock_message
-    message = mock_openai_hook.create_message(thread_id=THREAD_ID, content=content, role=role)
+    message = mock_openai_hook.create_message(
+        thread_id=THREAD_ID, content=content, role=role
+    )
     assert message.id == MESSAGE_ID
 
 
@@ -382,7 +412,9 @@ def test_get_messages(mock_openai_hook, mock_message_list):
 def test_modify_messages(mock_openai_hook, mock_message):
     mock_message.metadata = METADATA
     mock_openai_hook.conn.beta.threads.messages.update.return_value = mock_message
-    message = mock_openai_hook.modify_message(thread_id=THREAD_ID, message_id=MESSAGE_ID, metadata=METADATA)
+    message = mock_openai_hook.modify_message(
+        thread_id=THREAD_ID, message_id=MESSAGE_ID, metadata=METADATA
+    )
     assert message.metadata.get("modified") == "true"
     assert message.metadata.get("user") == "abc123"
 
@@ -399,7 +431,9 @@ def test_create_run_and_poll(mock_openai_hook, mock_run):
     thread_id = THREAD_ID
     assistant_id = ASSISTANT_ID
     mock_openai_hook.conn.beta.threads.runs.create_and_poll.return_value = mock_run
-    run = mock_openai_hook.create_run_and_poll(thread_id=thread_id, assistant_id=assistant_id)
+    run = mock_openai_hook.create_run_and_poll(
+        thread_id=thread_id, assistant_id=assistant_id
+    )
     assert run.id == RUN_ID
 
 
@@ -418,7 +452,9 @@ def test_get_run_with_run_id(mock_openai_hook, mock_run):
 def test_modify_run(mock_openai_hook, mock_run):
     mock_run.metadata = METADATA
     mock_openai_hook.conn.beta.threads.runs.update.return_value = mock_run
-    message = mock_openai_hook.modify_run(thread_id=THREAD_ID, run_id=RUN_ID, metadata=METADATA)
+    message = mock_openai_hook.modify_run(
+        thread_id=THREAD_ID, run_id=RUN_ID, metadata=METADATA
+    )
     assert message.metadata.get("modified") == "true"
     assert message.metadata.get("user") == "abc123"
 
@@ -491,9 +527,13 @@ def test_modify_vector_store(mock_openai_hook, mock_vector_store):
 
 
 def test_delete_vector_store(mock_openai_hook):
-    delete_response = VectorStoreDeleted(id=VECTOR_STORE_ID, object="vector_store.deleted", deleted=True)
+    delete_response = VectorStoreDeleted(
+        id=VECTOR_STORE_ID, object="vector_store.deleted", deleted=True
+    )
     mock_openai_hook.conn.beta.vector_stores.delete.return_value = delete_response
-    vector_store_deleted = mock_openai_hook.delete_vector_store(vector_store_id=VECTOR_STORE_ID)
+    vector_store_deleted = mock_openai_hook.delete_vector_store(
+        vector_store_id=VECTOR_STORE_ID
+    )
     assert vector_store_deleted.deleted
 
 
@@ -510,8 +550,12 @@ def test_upload_files_to_vector_store(mock_openai_hook, mock_vector_file_store_b
 
 
 def test_get_vector_store_files(mock_openai_hook, mock_vector_file_store_list):
-    mock_openai_hook.conn.beta.vector_stores.files.list.return_value = mock_vector_file_store_list
-    vector_file_store_list = mock_openai_hook.get_vector_store_files(vector_store_id=VECTOR_STORE_ID)
+    mock_openai_hook.conn.beta.vector_stores.files.list.return_value = (
+        mock_vector_file_store_list
+    )
+    vector_file_store_list = mock_openai_hook.get_vector_store_files(
+        vector_store_id=VECTOR_STORE_ID
+    )
     assert isinstance(vector_file_store_list, list)
 
 
@@ -529,7 +573,9 @@ def test_delete_vector_store_file(mock_openai_hook):
 
 def test_create_batch(mock_openai_hook, mock_terminated_batch):
     mock_openai_hook.conn.batches.create.return_value = mock_terminated_batch
-    batch = mock_openai_hook.create_batch(endpoint="/v1/chat/completions", file_id=FILE_ID)
+    batch = mock_openai_hook.create_batch(
+        endpoint="/v1/chat/completions", file_id=FILE_ID
+    )
     assert batch.id == mock_terminated_batch.id
 
 
@@ -554,7 +600,9 @@ def test_wait_for_finished_batch(mock_openai_hook, mock_terminated_batch):
             pytest.fail(f"Should not have raised exception: {e}")
     else:
         with pytest.raises(OpenAIBatchJobException, match="Batch failed"):
-            mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.1)
+            mock_openai_hook.wait_for_batch(
+                batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.1
+            )
 
 
 def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
@@ -611,7 +659,12 @@ def test_get_conn_with_base_url_in_extra(mock_client):
     conn = Connection(
         conn_id=conn_id,
         conn_type="openai",
-        extra={"openai_client_kwargs": {"base_url": "base_url_in_extra", "api_key": "api_key_in_extra"}},
+        extra={
+            "openai_client_kwargs": {
+                "base_url": "base_url_in_extra",
+                "api_key": "api_key_in_extra",
+            }
+        },
     )
     os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
     hook = OpenAIHook(conn_id=conn_id)

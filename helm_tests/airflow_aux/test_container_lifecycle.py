@@ -23,12 +23,16 @@ from tests.charts.helm_template_generator import render_chart
 CONTAINER_LIFECYCLE_PARAMETERS = {
     "preStop": {
         "release_name": "test-release",
-        "lifecycle_templated": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}},
+        "lifecycle_templated": {
+            "exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}
+        },
         "lifecycle_parsed": {"exec": {"command": ["echo", "preStop", "test-release"]}},
     },
     "postStart": {
         "release_name": "test-release",
-        "lifecycle_templated": {"exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}},
+        "lifecycle_templated": {
+            "exec": {"command": ["echo", "preStop", "{{ .Release.Name }}"]}
+        },
         "lifecycle_parsed": {"exec": {"command": ["echo", "preStop", "test-release"]}},
     },
 }
@@ -64,7 +68,9 @@ class TestContainerLifecycleHooks:
 
         # Default for every service is None except for pgbouncer
         for doc in docs[:-1]:
-            assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) is None
+            assert (
+                jmespath.search("spec.template.spec.containers[0].lifecycle", doc) is None
+            )
 
         pgbouncer_default_value = {
             "exec": {"command": ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]}
@@ -72,7 +78,12 @@ class TestContainerLifecycleHooks:
         assert pgbouncer_default_value == jmespath.search(
             "spec.template.spec.containers[0].lifecycle.preStop", docs[-1]
         )
-        assert jmespath.search("spec.template.spec.containers[0].lifecycle.postStart", docs[-1]) is None
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[0].lifecycle.postStart", docs[-1]
+            )
+            is None
+        )
 
     # Test Global container lifecycle hooks for the main services
     def test_global_setting(self, hook_type="preStop"):
@@ -80,7 +91,9 @@ class TestContainerLifecycleHooks:
         docs = render_chart(
             name=lifecycle_hook_params["release_name"],
             values={
-                "containerLifecycleHooks": {hook_type: lifecycle_hook_params["lifecycle_templated"]},
+                "containerLifecycleHooks": {
+                    hook_type: lifecycle_hook_params["lifecycle_templated"]
+                },
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
@@ -173,7 +186,9 @@ class TestContainerLifecycleHooks:
             values={
                 "pgbouncer": {
                     "enabled": True,
-                    "metricsExporterSidecar": {"containerLifecycleHooks": lifecycle_hooks_config},
+                    "metricsExporterSidecar": {
+                        "containerLifecycleHooks": lifecycle_hooks_config
+                    },
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
@@ -211,8 +226,16 @@ class TestContainerLifecycleHooks:
         docs = render_chart(
             name=lifecycle_hook_params["release_name"],
             values={
-                "scheduler": {"logGroomerSidecar": {"containerLifecycleHooks": lifecycle_hooks_config}},
-                "workers": {"logGroomerSidecar": {"containerLifecycleHooks": lifecycle_hooks_config}},
+                "scheduler": {
+                    "logGroomerSidecar": {
+                        "containerLifecycleHooks": lifecycle_hooks_config
+                    }
+                },
+                "workers": {
+                    "logGroomerSidecar": {
+                        "containerLifecycleHooks": lifecycle_hooks_config
+                    }
+                },
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",

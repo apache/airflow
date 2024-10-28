@@ -26,7 +26,11 @@ from sqlalchemy import select
 from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import (
+    TaskInstance,
+    TaskInstance as TI,
+    clear_task_instances,
+)
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
@@ -86,7 +90,12 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = (
+                session.query(TI)
+                .filter(TI.dag_id == dag.dag_id)
+                .order_by(TI.task_id)
+                .all()
+            )
             clear_task_instances(qry, session, dag=dag)
 
         ti0.refresh_from_db()
@@ -119,7 +128,12 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = (
+                session.query(TI)
+                .filter(TI.dag_id == dag.dag_id)
+                .order_by(TI.task_id)
+                .all()
+            )
             clear_task_instances(qry, session, dag=dag)
 
             ti0.refresh_from_db()
@@ -151,7 +165,8 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
+        ["state", "last_scheduling"],
+        [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)],
     )
     def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """Test that DR state is set to None after clear.
@@ -317,7 +332,12 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = (
+                session.query(TI)
+                .filter(TI.dag_id == dag.dag_id)
+                .order_by(TI.task_id)
+                .all()
+            )
             clear_task_instances(qry, session, dag=dag)
 
         # When no task is found, max_tries will be maximum of original max_tries or try_number.
@@ -363,7 +383,12 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = (
+                session.query(TI)
+                .filter(TI.dag_id == dag.dag_id)
+                .order_by(TI.task_id)
+                .all()
+            )
             clear_task_instances(qry, session)
 
         # When no DAG is found, max_tries will be maximum of original max_tries or try_number.
@@ -485,8 +510,12 @@ class TestClearTasks:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
-            task0 = PythonSensor(task_id="0", python_callable=lambda: False, mode="reschedule")
-            task1 = PythonSensor(task_id="1", python_callable=lambda: False, mode="reschedule")
+            task0 = PythonSensor(
+                task_id="0", python_callable=lambda: False, mode="reschedule"
+            )
+            task1 = PythonSensor(
+                task_id="1", python_callable=lambda: False, mode="reschedule"
+            )
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -579,11 +608,16 @@ class TestClearTasks:
         session.refresh(dr)
         ti_history = session.scalars(select(TaskInstanceHistory.state)).all()
 
-        assert [ti_history[0], ti_history[1]] == [str(state_recorded), str(state_recorded)]
+        assert [ti_history[0], ti_history[1]] == [
+            str(state_recorded),
+            str(state_recorded),
+        ]
 
     def test_dag_clear(self, dag_maker):
         with dag_maker(
-            "test_dag_clear", start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10)
+            "test_dag_clear",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ) as dag:
             task0 = EmptyOperator(task_id="test_dag_clear_task_0")
             task1 = EmptyOperator(task_id="test_dag_clear_task_1", retries=2)
@@ -642,7 +676,9 @@ class TestClearTasks:
             )
             task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
 
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dr = dag.create_dagrun(
                 execution_date=DEFAULT_DATE,
                 state=State.RUNNING,
@@ -751,4 +787,6 @@ class TestClearTasks:
         # so clear won't change the max_tries.
         assert ti1.max_tries == 0
         assert ti2.try_number == 2
-        assert ti2.max_tries == 2  # max tries has not changed since it was updated when op2.clear called
+        assert (
+            ti2.max_tries == 2
+        )  # max tries has not changed since it was updated when op2.clear called

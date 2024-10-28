@@ -104,7 +104,9 @@ class TestRedisHook:
         connection = mock_get_connection.return_value
         hook = RedisHook()
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=self.deprecation_message
+        ):
             hook.get_conn()
         mock_redis.assert_called_once_with(
             host=connection.host,

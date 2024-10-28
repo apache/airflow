@@ -65,7 +65,9 @@ with DAG(
 
     # [START howto_operator_python_render_sql]
     def log_sql(**kwargs):
-        log.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+        log.info(
+            "Python task decorator query: %s", str(kwargs["templates_dict"]["query"])
+        )
 
     log_the_sql = PythonOperator(
         task_id="log_sql_query",
@@ -83,14 +85,18 @@ with DAG(
 
     for i in range(5):
         sleeping_task = PythonOperator(
-            task_id=f"sleep_for_{i}", python_callable=my_sleeping_function, op_kwargs={"random_base": i / 10}
+            task_id=f"sleep_for_{i}",
+            python_callable=my_sleeping_function,
+            op_kwargs={"random_base": i / 10},
         )
 
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
 
     if not is_venv_installed():
-        log.warning("The virtalenv_python example task requires virtualenv, please install it.")
+        log.warning(
+            "The virtalenv_python example task requires virtualenv, please install it."
+        )
     else:
         # [START howto_operator_python_venv]
         def callable_virtualenv():

@@ -69,11 +69,17 @@ class DebugExecutor(BaseExecutor):
         while self.tasks_to_run:
             ti = self.tasks_to_run.pop(0)
             if self.fail_fast and not task_succeeded:
-                self.log.info("Setting %s to %s", ti.key, TaskInstanceState.UPSTREAM_FAILED)
+                self.log.info(
+                    "Setting %s to %s", ti.key, TaskInstanceState.UPSTREAM_FAILED
+                )
                 ti.set_state(TaskInstanceState.UPSTREAM_FAILED)
                 self.change_state(ti.key, TaskInstanceState.UPSTREAM_FAILED)
             elif self._terminated.is_set():
-                self.log.info("Executor is terminated! Stopping %s to %s", ti.key, TaskInstanceState.FAILED)
+                self.log.info(
+                    "Executor is terminated! Stopping %s to %s",
+                    ti.key,
+                    TaskInstanceState.FAILED,
+                )
                 ti.set_state(TaskInstanceState.FAILED)
                 self.fail(ti.key)
             else:

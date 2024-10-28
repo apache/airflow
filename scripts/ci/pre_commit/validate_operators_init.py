@@ -60,14 +60,22 @@ def _extract_template_fields(class_node: ast.ClassDef) -> list[str]:
                     and target.id == "template_fields"
                     and isinstance(class_item.value, ast.Tuple)
                 ):
-                    return [elt.value for elt in class_item.value.elts if isinstance(elt, ast.Constant)]
+                    return [
+                        elt.value
+                        for elt in class_item.value.elts
+                        if isinstance(elt, ast.Constant)
+                    ]
         elif isinstance(class_item, ast.AnnAssign):
             if (
                 isinstance(class_item.target, ast.Name)
                 and class_item.target.id == "template_fields"
                 and isinstance(class_item.value, ast.Tuple)
             ):
-                return [elt.value for elt in class_item.value.elts if isinstance(elt, ast.Constant)]
+                return [
+                    elt.value
+                    for elt in class_item.value.elts
+                    if isinstance(elt, ast.Constant)
+                ]
     return []
 
 
@@ -104,7 +112,9 @@ def _handle_parent_constructor_kwargs(
                 if arg.arg is not None and arg.arg in template_fields:
                     if not isinstance(arg.value, ast.Name) or arg.arg != arg.value.id:
                         invalid_assignments.append(arg.arg)
-            assigned_targets = [arg.arg for arg in ctor_stmt.value.keywords if arg.arg is not None]
+            assigned_targets = [
+                arg.arg for arg in ctor_stmt.value.keywords if arg.arg is not None
+            ]
             return list(set(missing_assignments) - set(assigned_targets))
     return missing_assignments
 
@@ -131,28 +141,49 @@ def _handle_constructor_statement(
         if isinstance(ctor_stmt.targets[0], ast.Attribute):
             for target in ctor_stmt.targets:
                 if isinstance(target, ast.Attribute) and target.attr in template_fields:
-                    if isinstance(ctor_stmt.value, ast.BoolOp) and isinstance(ctor_stmt.value.op, ast.Or):
+                    if isinstance(ctor_stmt.value, ast.BoolOp) and isinstance(
+                        ctor_stmt.value.op, ast.Or
+                    ):
                         _handle_assigned_field(
-                            assigned_template_fields, invalid_assignments, target, ctor_stmt.value.values[0]
+                            assigned_template_fields,
+                            invalid_assignments,
+                            target,
+                            ctor_stmt.value.values[0],
                         )
                     else:
                         _handle_assigned_field(
-                            assigned_template_fields, invalid_assignments, target, ctor_stmt.value
+                            assigned_template_fields,
+                            invalid_assignments,
+                            target,
+                            ctor_stmt.value,
                         )
-        elif isinstance(ctor_stmt.targets[0], ast.Tuple) and isinstance(ctor_stmt.value, ast.Tuple):
+        elif isinstance(ctor_stmt.targets[0], ast.Tuple) and isinstance(
+            ctor_stmt.value, ast.Tuple
+        ):
             for target, value in zip(ctor_stmt.targets[0].elts, ctor_stmt.value.elts):
                 if isinstance(target, ast.Attribute):
-                    _handle_assigned_field(assigned_template_fields, invalid_assignments, target, value)
+                    _handle_assigned_field(
+                        assigned_template_fields, invalid_assignments, target, value
+                    )
     elif isinstance(ctor_stmt, ast.AnnAssign):
-        if isinstance(ctor_stmt.target, ast.Attribute) and ctor_stmt.target.attr in template_fields:
+        if (
+            isinstance(ctor_stmt.target, ast.Attribute)
+            and ctor_stmt.target.attr in template_fields
+        ):
             _handle_assigned_field(
-                assigned_template_fields, invalid_assignments, ctor_stmt.target, ctor_stmt.value
+                assigned_template_fields,
+                invalid_assignments,
+                ctor_stmt.target,
+                ctor_stmt.value,
             )
     return list(set(missing_assignments) - set(assigned_template_fields))
 
 
 def _handle_assigned_field(
-    assigned_template_fields: list[str], invalid_assignments: list[str], target: ast.Attribute, value: Any
+    assigned_template_fields: list[str],
+    invalid_assignments: list[str],
+    target: ast.Attribute,
+    value: Any,
 ) -> None:
     """
     Handle an assigned field by its value.
@@ -168,7 +199,9 @@ def _handle_assigned_field(
         assigned_template_fields.append(target.attr)
 
 
-def _check_constructor_template_fields(class_node: ast.ClassDef, template_fields: list[str]) -> int:
+def _check_constructor_template_fields(
+    class_node: ast.ClassDef, template_fields: list[str]
+) -> int:
     """
     This method checks a class's constructor for missing or invalid assignments of template fields.
     When there isn't a constructor - it assumes that the template fields are defined in the parent's

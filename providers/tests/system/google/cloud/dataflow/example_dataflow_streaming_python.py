@@ -29,7 +29,10 @@ from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.operators.dataflow import DataflowStopJobOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateTopicOperator,
     PubSubDeleteTopicOperator,
@@ -64,10 +67,15 @@ with DAG(
     catchup=False,
     tags=["example", "dataflow"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     create_pub_sub_topic = PubSubCreateTopicOperator(
-        task_id="create_topic", topic=TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
+        task_id="create_topic",
+        topic=TOPIC_ID,
+        project_id=PROJECT_ID,
+        fail_if_exists=False,
     )
 
     # [START howto_operator_start_streaming_python_job]
@@ -95,11 +103,15 @@ with DAG(
         job_id="{{ task_instance.xcom_pull(task_ids='start_streaming_python_job')['dataflow_job_id'] }}",
     )
 
-    delete_topic = PubSubDeleteTopicOperator(task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID)
+    delete_topic = PubSubDeleteTopicOperator(
+        task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID
+    )
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

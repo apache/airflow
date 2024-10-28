@@ -116,7 +116,12 @@ class AirflowTestPlugin(AirflowPlugin):
         AirflowLink(),
         GithubLink(),
     ]
-    operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
+    operator_extra_links = [
+        GoogleLink(),
+        AirflowLink2(),
+        CustomOpLink(),
+        CustomBaseIndexOpLink(1),
+    ]
     timetables = [CustomCronDataIntervalTimetable]
     listeners = [empty_listener, ClassBasedListener()]
     ti_deps = [CustomTestTriggerRule()]

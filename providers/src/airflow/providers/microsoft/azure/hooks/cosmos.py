@@ -74,10 +74,12 @@ class AzureCosmosDBHook(BaseHook):
 
         return {
             "database_name": StringField(
-                lazy_gettext("Cosmos Database Name (optional)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Cosmos Database Name (optional)"),
+                widget=BS3TextFieldWidget(),
             ),
             "collection_name": StringField(
-                lazy_gettext("Cosmos Collection Name (optional)"), widget=BS3TextFieldWidget()
+                lazy_gettext("Cosmos Collection Name (optional)"),
+                widget=BS3TextFieldWidget(),
             ),
             "subscription_id": StringField(
                 lazy_gettext("Subscription ID (optional)"),
@@ -136,8 +138,12 @@ class AzureCosmosDBHook(BaseHook):
             if conn.password:
                 master_key = conn.password
             elif resource_group_name:
-                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
-                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                managed_identity_client_id = self._get_field(
+                    extras, "managed_identity_client_id"
+                )
+                workload_identity_tenant_id = self._get_field(
+                    extras, "workload_identity_tenant_id"
+                )
                 subscritption_id = self._get_field(extras, "subscription_id")
                 credential = get_sync_default_azure_credential(
                     managed_identity_client_id=managed_identity_client_id,
@@ -154,7 +160,9 @@ class AzureCosmosDBHook(BaseHook):
                 )
                 master_key = database_account_keys.primary_master_key
             else:
-                raise AirflowException("Either password or resource_group_name is required")
+                raise AirflowException(
+                    "Either password or resource_group_name is required"
+                )
 
             self.default_database_name = self._get_field(extras, "database_name")
             self.default_collection_name = self._get_field(extras, "collection_name")
@@ -186,7 +194,9 @@ class AzureCosmosDBHook(BaseHook):
 
         return coll_name
 
-    def __get_partition_key(self, partition_key: PartitionKeyType | None = None) -> PartitionKeyType:
+    def __get_partition_key(
+        self, partition_key: PartitionKeyType | None = None
+    ) -> PartitionKeyType:
         self.get_conn()
         if partition_key is None:
             part_key = self.default_partition_key
@@ -243,7 +253,9 @@ class AzureCosmosDBHook(BaseHook):
 
         # Only create if we did not find it already existing
         if not existing_container:
-            self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
+            self.get_conn().get_database_client(
+                self.__get_database_name(database_name)
+            ).create_container(
                 collection_name,
                 partition_key=PartitionKey(path=self.__get_partition_key(partition_key)),
             )
@@ -293,16 +305,20 @@ class AzureCosmosDBHook(BaseHook):
 
         self.get_conn().delete_database(database_name)
 
-    def delete_collection(self, collection_name: str, database_name: str | None = None) -> None:
+    def delete_collection(
+        self, collection_name: str, database_name: str | None = None
+    ) -> None:
         """Delete an existing collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
-        self.get_conn().get_database_client(self.__get_database_name(database_name)).delete_container(
-            collection_name
-        )
+        self.get_conn().get_database_client(
+            self.__get_database_name(database_name)
+        ).delete_container(collection_name)
 
-    def upsert_document(self, document, database_name=None, collection_name=None, document_id=None):
+    def upsert_document(
+        self, document, database_name=None, collection_name=None, document_id=None
+    ):
         """Insert or update a document into an existing collection in the CosmosDB database."""
         # Assign unique ID if one isn't provided
         if document_id is None:
@@ -325,7 +341,10 @@ class AzureCosmosDBHook(BaseHook):
         return created_document
 
     def insert_documents(
-        self, documents, database_name: str | None = None, collection_name: str | None = None
+        self,
+        documents,
+        database_name: str | None = None,
+        collection_name: str | None = None,
     ) -> list:
         """Insert a list of new documents into an existing collection in the CosmosDB database."""
         if documents is None:
@@ -356,7 +375,9 @@ class AzureCosmosDBHook(BaseHook):
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .get_container_client(self.__get_collection_name(collection_name))
-            .delete_item(document_id, partition_key=self.__get_partition_key(partition_key))
+            .delete_item(
+                document_id, partition_key=self.__get_partition_key(partition_key)
+            )
         )
 
     def get_document(
@@ -375,7 +396,9 @@ class AzureCosmosDBHook(BaseHook):
                 self.get_conn()
                 .get_database_client(self.__get_database_name(database_name))
                 .get_container_client(self.__get_collection_name(collection_name))
-                .read_item(document_id, partition_key=self.__get_partition_key(partition_key))
+                .read_item(
+                    document_id, partition_key=self.__get_partition_key(partition_key)
+                )
             )
         except CosmosHttpResponseError:
             return None
@@ -396,7 +419,9 @@ class AzureCosmosDBHook(BaseHook):
                 self.get_conn()
                 .get_database_client(self.__get_database_name(database_name))
                 .get_container_client(self.__get_collection_name(collection_name))
-                .query_items(sql_string, partition_key=self.__get_partition_key(partition_key))
+                .query_items(
+                    sql_string, partition_key=self.__get_partition_key(partition_key)
+                )
             )
             return list(result_iterable)
         except CosmosHttpResponseError:

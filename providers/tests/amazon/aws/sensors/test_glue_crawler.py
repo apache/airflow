@@ -53,10 +53,15 @@ class TestGlueCrawlerSensor:
         assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook.get_crawler")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook.get_crawler"
+    )
     def test_fail_poke(self, get_crawler):
         crawler_status = "FAILED"
-        get_crawler.return_value = {"State": "READY", "LastCrawl": {"Status": crawler_status}}
+        get_crawler.return_value = {
+            "State": "READY",
+            "LastCrawl": {"Status": crawler_status},
+        }
         message = f"Status: {crawler_status}"
         with pytest.raises(AirflowException, match=message):
             self.sensor.poke(context={})

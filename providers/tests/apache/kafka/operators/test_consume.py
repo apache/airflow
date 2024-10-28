@@ -55,7 +55,11 @@ class TestConsumeFromTopic:
                 conn_id="kafka_d",
                 conn_type="kafka",
                 extra=json.dumps(
-                    {"socket.timeout.ms": 10, "bootstrap.servers": "localhost:9092", "group.id": "test_group"}
+                    {
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "localhost:9092",
+                        "group.id": "test_group",
+                    }
                 ),
             )
         )
@@ -84,7 +88,9 @@ class TestConsumeFromTopic:
         # execute the operator (this is essentially a no op as the broker isn't setup)
         operator.execute(context={})
 
-    @mock.patch("airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer")
+    @mock.patch(
+        "airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer"
+    )
     def test_operator_consume_max(self, mock_get_consumer):
         mock_consumer = mock.MagicMock()
 

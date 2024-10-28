@@ -99,7 +99,8 @@ class TestBaseChartTest:
             ),
         )
         list_of_kind_names_tuples = {
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         }
         expected = {
             ("ServiceAccount", "test-basic-create-user-job"),
@@ -182,7 +183,9 @@ class TestBaseChartTest:
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         # Dag Processor creates two extra objects compared to the basic deployment
         object_count_in_basic_deployment = self._get_object_count(version)
-        expected_object_count_with_standalone_scheduler = object_count_in_basic_deployment + 2
+        expected_object_count_with_standalone_scheduler = (
+            object_count_in_basic_deployment + 2
+        )
         k8s_objects = render_chart(
             "test-basic",
             self._get_values_with_version(
@@ -198,7 +201,8 @@ class TestBaseChartTest:
             ),
         )
         list_of_kind_names_tuples = {
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         }
         expected = {
             ("ServiceAccount", "test-basic-create-user-job"),
@@ -268,7 +272,8 @@ class TestBaseChartTest:
             ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         ]
         assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
         assert len(k8s_objects) == expected_object_count_in_basic_deployment - 2
@@ -278,10 +283,13 @@ class TestBaseChartTest:
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
             "test-basic",
-            values=self._get_values_with_version(values={"statsd": {"enabled": False}}, version=version),
+            values=self._get_values_with_version(
+                values={"statsd": {"enabled": False}}, version=version
+            ),
         )
         list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         ]
         assert ("ServiceAccount", "test-basic-statsd") not in list_of_kind_names_tuples
         assert ("ConfigMap", "test-basic-statsd") not in list_of_kind_names_tuples
@@ -301,7 +309,8 @@ class TestBaseChartTest:
             },
         )
         kind_names_tuples = {
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+            (k8s_object["kind"], k8s_object["metadata"]["name"])
+            for k8s_object in k8s_objects
         }
 
         expected_kind_names = [
@@ -344,21 +353,33 @@ class TestBaseChartTest:
                 "dagProcessor": {"enabled": True},
                 "logs": {"persistence": {"enabled": True}},
                 "dags": {"persistence": {"enabled": True}},
-                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+                "postgresql": {
+                    "enabled": False
+                },  # We won't check the objects created by the postgres chart
             },
         )
         kind_k8s_obj_labels_tuples = {
-            (k8s_object["metadata"]["name"], k8s_object["kind"]): k8s_object["metadata"]["labels"]
+            (k8s_object["metadata"]["name"], k8s_object["kind"]): k8s_object["metadata"][
+                "labels"
+            ]
             for k8s_object in k8s_objects
         }
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
             (f"{release_name}-config", "ConfigMap", "config"),
-            (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
+            (
+                f"{release_name}-airflow-create-user-job",
+                "ServiceAccount",
+                "create-user-job",
+            ),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
             (f"{release_name}-metadata", "Secret", None),
-            (f"{release_name}-airflow-migrate-database-job", "ServiceAccount", "run-airflow-migrations"),
+            (
+                f"{release_name}-airflow-migrate-database-job",
+                "ServiceAccount",
+                "run-airflow-migrations",
+            ),
             (f"{release_name}-airflow-pgbouncer", "ServiceAccount", "pgbouncer"),
             (f"{release_name}-result-backend", "Secret", None),
             (f"{release_name}-airflow-redis", "ServiceAccount", "redis"),
@@ -381,7 +402,11 @@ class TestBaseChartTest:
             (f"{release_name}-pgbouncer", "Deployment", "pgbouncer"),
             (f"{release_name}-pgbouncer", "Service", "pgbouncer"),
             (f"{release_name}-pgbouncer-config", "Secret", "pgbouncer"),
-            (f"{release_name}-pgbouncer-policy", "NetworkPolicy", "airflow-pgbouncer-policy"),
+            (
+                f"{release_name}-pgbouncer-policy",
+                "NetworkPolicy",
+                "airflow-pgbouncer-policy",
+            ),
             (f"{release_name}-pgbouncer-stats", "Secret", "pgbouncer"),
             (f"{release_name}-pod-launcher-role", "Role", None),
             (f"{release_name}-pod-launcher-rolebinding", "RoleBinding", None),
@@ -393,14 +418,22 @@ class TestBaseChartTest:
             (f"{release_name}-redis-password", "Secret", "redis"),
             (f"{release_name}-run-airflow-migrations", "Job", "run-airflow-migrations"),
             (f"{release_name}-scheduler", "Deployment", "scheduler"),
-            (f"{release_name}-scheduler-policy", "NetworkPolicy", "airflow-scheduler-policy"),
+            (
+                f"{release_name}-scheduler-policy",
+                "NetworkPolicy",
+                "airflow-scheduler-policy",
+            ),
             (f"{release_name}-statsd", "Deployment", "statsd"),
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
             (f"{release_name}-webserver", "Deployment", "webserver"),
             (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-webserver", "Service", "webserver"),
-            (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
+            (
+                f"{release_name}-webserver-policy",
+                "NetworkPolicy",
+                "airflow-webserver-policy",
+            ),
             (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
@@ -443,11 +476,15 @@ class TestBaseChartTest:
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
-                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+                "postgresql": {
+                    "enabled": False
+                },  # We won't check the objects created by the postgres chart
             },
         )
         dict_of_labels_in_job_templates = {
-            k8s_object["metadata"]["name"]: k8s_object["spec"]["template"]["metadata"]["labels"]
+            k8s_object["metadata"]["name"]: k8s_object["spec"]["template"]["metadata"][
+                "labels"
+            ]
             for k8s_object in k8s_objects
             if k8s_object["kind"] == "Job"
         }
@@ -501,7 +538,9 @@ class TestBaseChartTest:
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
     def test_chart_is_consistent_with_official_airflow_image(self):
-        def get_k8s_objs_with_image(obj: list[Any] | dict[str, Any]) -> list[dict[str, Any]]:
+        def get_k8s_objs_with_image(
+            obj: list[Any] | dict[str, Any],
+        ) -> list[dict[str, Any]]:
             """Retrieve all the k8s objects that have an "image" key inside k8s obj or list of k8s obj."""
             out = []
             if isinstance(obj, list):
@@ -561,12 +600,22 @@ class TestBaseChartTest:
             '"LocalKubernetesExecutor", "CeleryExecutor", '
             '"KubernetesExecutor", "CeleryKubernetesExecutor", '
             '"airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor", '
-            '"airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"' in ex_ctx.value.stderr.decode()
+            '"airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"'
+            in ex_ctx.value.stderr.decode()
         )
 
     @pytest.mark.parametrize(
         "image",
-        ["airflow", "pod_template", "flower", "statsd", "redis", "pgbouncer", "pgbouncerExporter", "gitSync"],
+        [
+            "airflow",
+            "pod_template",
+            "flower",
+            "statsd",
+            "redis",
+            "pgbouncer",
+            "pgbouncerExporter",
+            "gitSync",
+        ],
     )
     def test_invalid_pull_policy(self, image):
         with pytest.raises(CalledProcessError) as ex_ctx:
@@ -668,7 +717,10 @@ class TestBaseChartTest:
             assert objs[i]["metadata"]["name"] == ("my-release" + "-" + pc[i]["name"])
             assert objs[i]["preemptionPolicy"] == pc[i]["preemptionPolicy"]
             assert objs[i]["value"] == pc[i]["value"]
-            assert objs[i]["description"] == "This priority class will not cause other pods to be preempted."
+            assert (
+                objs[i]["description"]
+                == "This priority class will not cause other pods to be preempted."
+            )
 
     def test_priority_classes_default_preemption(self):
         obj = render_chart(
@@ -682,7 +734,10 @@ class TestBaseChartTest:
         )[0]
 
         assert obj["preemptionPolicy"] == "PreemptLowerPriority"
-        assert obj["description"] == "This priority class will not cause other pods to be preempted."
+        assert (
+            obj["description"]
+            == "This priority class will not cause other pods to be preempted."
+        )
 
     def test_redis_broker_connection_url(self):
         # no nameoverride, redis
@@ -700,7 +755,10 @@ class TestBaseChartTest:
         doc = render_chart(
             "my-release",
             show_only=["templates/secrets/redis-secrets.yaml"],
-            values={"useStandardNaming": True, "redis": {"enabled": True, "password": "test1234"}},
+            values={
+                "useStandardNaming": True,
+                "redis": {"enabled": True, "password": "test1234"},
+            },
         )[1]
         assert "redis://:test1234@my-release-airflow-redis:6379/0" == base64.b64decode(
             doc["data"]["connection"]

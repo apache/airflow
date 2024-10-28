@@ -62,9 +62,15 @@ MOCK_DESCRIBE_RESPONSE_WITH_MARKER: dict[str, Any] = {
     "Marker": "marker",
 }
 MOCK_CREATE_RESPONSE: dict[str, Any] = {"ReplicationTask": MOCK_TASK_RESPONSE_DATA}
-MOCK_START_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "starting"}}
-MOCK_STOP_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "stopping"}}
-MOCK_DELETE_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "deleting"}}
+MOCK_START_RESPONSE: dict[str, Any] = {
+    "ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "starting"}
+}
+MOCK_STOP_RESPONSE: dict[str, Any] = {
+    "ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "stopping"}
+}
+MOCK_DELETE_RESPONSE: dict[str, Any] = {
+    "ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "deleting"}
+}
 
 
 class TestDmsHook:
@@ -86,35 +92,55 @@ class TestDmsHook:
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_describe_replication_tasks(self, mock_conn):
-        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
+        mock_conn.return_value.describe_replication_tasks.return_value = (
+            MOCK_DESCRIBE_RESPONSE
+        )
         describe_tasks_kwargs = {
-            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_DATA["replication_task_id"]]}]
+            "Filters": [
+                {
+                    "Name": "replication-task-id",
+                    "Values": [MOCK_DATA["replication_task_id"]],
+                }
+            ]
         }
 
         marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
 
-        mock_conn.return_value.describe_replication_tasks.assert_called_with(**describe_tasks_kwargs)
+        mock_conn.return_value.describe_replication_tasks.assert_called_with(
+            **describe_tasks_kwargs
+        )
         assert marker is None
         assert len(tasks) == 1
         assert tasks[0]["ReplicationTaskArn"] == MOCK_TASK_ARN
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_describe_teplication_tasks_with_marker(self, mock_conn):
-        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE_WITH_MARKER
+        mock_conn.return_value.describe_replication_tasks.return_value = (
+            MOCK_DESCRIBE_RESPONSE_WITH_MARKER
+        )
         describe_tasks_kwargs = {
-            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_DATA["replication_task_id"]]}]
+            "Filters": [
+                {
+                    "Name": "replication-task-id",
+                    "Values": [MOCK_DATA["replication_task_id"]],
+                }
+            ]
         }
 
         marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
 
-        mock_conn.return_value.describe_replication_tasks.assert_called_with(**describe_tasks_kwargs)
+        mock_conn.return_value.describe_replication_tasks.assert_called_with(
+            **describe_tasks_kwargs
+        )
         assert marker == MOCK_DESCRIBE_RESPONSE_WITH_MARKER["Marker"]
         assert len(tasks) == 1
         assert tasks[0]["ReplicationTaskArn"] == MOCK_TASK_ARN
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_find_replication_tasks_by_arn(self, mock_conn):
-        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
+        mock_conn.return_value.describe_replication_tasks.return_value = (
+            MOCK_DESCRIBE_RESPONSE
+        )
 
         tasks = self.dms.find_replication_tasks_by_arn(MOCK_TASK_ARN)
 
@@ -123,13 +149,17 @@ class TestDmsHook:
             "WithoutSettings": False,
         }
 
-        mock_conn.return_value.describe_replication_tasks.assert_called_with(**expected_call_params)
+        mock_conn.return_value.describe_replication_tasks.assert_called_with(
+            **expected_call_params
+        )
         assert len(tasks) == 1
         assert tasks[0]["ReplicationTaskArn"] == MOCK_TASK_ARN
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_get_task_status(self, mock_conn):
-        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
+        mock_conn.return_value.describe_replication_tasks.return_value = (
+            MOCK_DESCRIBE_RESPONSE
+        )
 
         status = self.dms.get_task_status(MOCK_TASK_ARN)
 
@@ -138,7 +168,9 @@ class TestDmsHook:
             "WithoutSettings": True,
         }
 
-        mock_conn.return_value.describe_replication_tasks.assert_called_with(**expected_call_params)
+        mock_conn.return_value.describe_replication_tasks.assert_called_with(
+            **expected_call_params
+        )
         assert status == MOCK_TASK_RESPONSE_DATA["Status"]
 
     @mock.patch.object(DmsHook, "get_conn")
@@ -161,7 +193,9 @@ class TestDmsHook:
             "MigrationType": MOCK_DATA["migration_type"],
             "TableMappings": json.dumps(MOCK_DATA["table_mappings"]),
         }
-        mock_conn.return_value.create_replication_task.assert_called_with(**expected_call_params)
+        mock_conn.return_value.create_replication_task.assert_called_with(
+            **expected_call_params
+        )
         assert result == MOCK_CREATE_RESPONSE["ReplicationTask"]["ReplicationTaskArn"]
 
     @mock.patch.object(DmsHook, "get_conn")
@@ -178,7 +212,9 @@ class TestDmsHook:
             "ReplicationTaskArn": MOCK_TASK_ARN,
             "StartReplicationTaskType": start_type,
         }
-        mock_conn.return_value.start_replication_task.assert_called_with(**expected_call_params)
+        mock_conn.return_value.start_replication_task.assert_called_with(
+            **expected_call_params
+        )
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_stop_replication_task(self, mock_conn):
@@ -187,7 +223,9 @@ class TestDmsHook:
         self.dms.stop_replication_task(replication_task_arn=MOCK_TASK_ARN)
 
         expected_call_params = {"ReplicationTaskArn": MOCK_TASK_ARN}
-        mock_conn.return_value.stop_replication_task.assert_called_with(**expected_call_params)
+        mock_conn.return_value.stop_replication_task.assert_called_with(
+            **expected_call_params
+        )
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_delete_replication_task(self, mock_conn):
@@ -196,20 +234,28 @@ class TestDmsHook:
         self.dms.delete_replication_task(replication_task_arn=MOCK_TASK_ARN)
 
         expected_call_params = {"ReplicationTaskArn": MOCK_TASK_ARN}
-        mock_conn.return_value.delete_replication_task.assert_called_with(**expected_call_params)
+        mock_conn.return_value.delete_replication_task.assert_called_with(
+            **expected_call_params
+        )
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_wait_for_task_status_with_unknown_target_status(self, mock_conn):
-        with pytest.raises(TypeError, match="Status must be an instance of DmsTaskWaiterStatus"):
+        with pytest.raises(
+            TypeError, match="Status must be an instance of DmsTaskWaiterStatus"
+        ):
             self.dms.wait_for_task_status(MOCK_TASK_ARN, "unknown_status")
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_wait_for_task_status(self, mock_conn):
-        self.dms.wait_for_task_status(replication_task_arn=MOCK_TASK_ARN, status=DmsTaskWaiterStatus.DELETED)
+        self.dms.wait_for_task_status(
+            replication_task_arn=MOCK_TASK_ARN, status=DmsTaskWaiterStatus.DELETED
+        )
 
         expected_waiter_call_params = {
             "Filters": [{"Name": "replication-task-arn", "Values": [MOCK_TASK_ARN]}],
             "WithoutSettings": True,
         }
         mock_conn.return_value.get_waiter.assert_called_with("replication_task_deleted")
-        mock_conn.return_value.get_waiter.return_value.wait.assert_called_with(**expected_waiter_call_params)
+        mock_conn.return_value.get_waiter.return_value.wait.assert_called_with(
+            **expected_waiter_call_params
+        )

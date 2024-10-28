@@ -118,21 +118,34 @@ class DruidHook(BaseHook):
         return self.verify_ssl
 
     def submit_indexing_job(
-        self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
+        self,
+        json_index_spec: dict[str, Any] | str,
+        ingestion_type: IngestionType = IngestionType.BATCH,
     ) -> None:
         """Submit Druid ingestion job."""
         url = self.get_conn_url(ingestion_type)
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(
-            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.get_verify()
+            url,
+            data=json_index_spec,
+            headers=self.header,
+            auth=self.get_auth(),
+            verify=self.get_verify(),
         )
 
         code = req_index.status_code
         not_accepted = not (200 <= code < 300)
         if not_accepted:
-            self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
-            raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
+            self.log.error(
+                "Error submitting the Druid job to %s (%s) %s",
+                url,
+                code,
+                req_index.content,
+            )
+            raise AirflowException(
+                f"Did not get 200 or 202 when submitting the Druid job to {url}"
+            )
 
         req_json = req_index.json()
         # Wait until the job is completed
@@ -147,16 +160,22 @@ class DruidHook(BaseHook):
 
         sec = 0
         while running:
-            req_status = requests.get(druid_task_status_url, auth=self.get_auth(), verify=self.get_verify())
+            req_status = requests.get(
+                druid_task_status_url, auth=self.get_auth(), verify=self.get_verify()
+            )
 
             self.log.info("Job still running for %s seconds...", sec)
 
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post(
-                    f"{url}/{druid_task_id}/shutdown", auth=self.get_auth(), verify=self.get_verify()
+                    f"{url}/{druid_task_id}/shutdown",
+                    auth=self.get_auth(),
+                    verify=self.get_verify(),
                 )
-                raise AirflowException(f"Druid ingestion took more than {self.max_ingestion_time} seconds")
+                raise AirflowException(
+                    f"Druid ingestion took more than {self.max_ingestion_time} seconds"
+                )
 
             time.sleep(self.timeout)
 
@@ -168,7 +187,9 @@ class DruidHook(BaseHook):
             elif status == "SUCCESS":
                 running = False  # Great success!
             elif status == "FAILED":
-                raise AirflowException("Druid indexing job failed, check console for more info")
+                raise AirflowException(
+                    "Druid indexing job failed, check console for more info"
+                )
             else:
                 raise AirflowException(f"Could not get status of the job, got {status}")
 
@@ -209,7 +230,11 @@ class DruidDbApiHook(DbApiHook):
             password=conn.password,
             context=self.context,
         )
-        self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
+        self.log.info(
+            "Get the connection to druid broker on %s using user %s",
+            conn.host,
+            conn.login,
+        )
         return druid_broker_conn
 
     def get_uri(self) -> str:

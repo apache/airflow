@@ -22,7 +22,9 @@ import re
 
 from airflow_breeze.utils.console import get_console
 
-DATE_MATCHER = re.compile(r"automatically generated on (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z")
+DATE_MATCHER = re.compile(
+    r"automatically generated on (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z"
+)
 
 
 def match_generated_date(string: str) -> datetime.datetime:
@@ -45,7 +47,9 @@ def print_backtracking_candidates():
     last_constraint_date = match_generated_date(constraints_text)
     get_console().print(f"Last constraint date: {last_constraint_date}")
     dependency_array = [
-        dep for dep in constraints_text.splitlines() if not dep.startswith("#") and dep.strip()
+        dep
+        for dep in constraints_text.splitlines()
+        if not dep.startswith("#") and dep.strip()
     ]
     candidates_for_backtracking = []
     for x in dependency_array:
@@ -61,7 +65,9 @@ def print_backtracking_candidates():
                 f"In current constraints: {version})"
             )
             candidates_for_backtracking.append(f"{dep}<={version}")
-    get_console().print(f"\nFound {len(candidates_for_backtracking)} candidates for backtracking")
+    get_console().print(
+        f"\nFound {len(candidates_for_backtracking)} candidates for backtracking"
+    )
     get_console().print("")
     formatted_candidates = " ".join(candidates_for_backtracking)
     get_console().print(

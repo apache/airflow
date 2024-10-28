@@ -47,7 +47,9 @@ with DAG(
 ) as dag:
     table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor")
 
-    record_sensor = CassandraRecordSensor(task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"})
+    record_sensor = CassandraRecordSensor(
+        task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"}
+    )
 # [END howto_operator_cassandra_sensors]
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

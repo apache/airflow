@@ -29,7 +29,10 @@ from datetime import datetime
 from google.cloud import aiplatform
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
     CreateHyperparameterTuningJobOperator,
     DeleteHyperparameterTuningJobOperator,
@@ -64,8 +67,12 @@ WORKER_POOL_SPECS = [
     }
 ]
 PARAM_SPECS = {
-    "learning_rate": aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0.01, max=1, scale="log"),
-    "momentum": aiplatform.hyperparameter_tuning.DoubleParameterSpec(min=0, max=1, scale="linear"),
+    "learning_rate": aiplatform.hyperparameter_tuning.DoubleParameterSpec(
+        min=0.01, max=1, scale="log"
+    ),
+    "momentum": aiplatform.hyperparameter_tuning.DoubleParameterSpec(
+        min=0, max=1, scale="linear"
+    ),
     "num_neurons": aiplatform.hyperparameter_tuning.DiscreteParameterSpec(
         values=[64, 128, 512], scale="linear"
     ),

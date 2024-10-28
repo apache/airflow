@@ -19,7 +19,11 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
+from airflow.providers.amazon.aws.hooks.emr import (
+    EmrContainerHook,
+    EmrHook,
+    EmrServerlessHook,
+)
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 if TYPE_CHECKING:
@@ -163,7 +167,10 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int = sys.maxsize,
     ):
         super().__init__(
-            serialized_fields={"virtual_cluster_id": virtual_cluster_id, "job_id": job_id},
+            serialized_fields={
+                "virtual_cluster_id": virtual_cluster_id,
+                "job_id": job_id,
+            },
             waiter_name="container_job_complete",
             waiter_args={"id": job_id, "virtualClusterId": virtual_cluster_id},
             failure_message="Job failed",

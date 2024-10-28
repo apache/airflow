@@ -38,8 +38,13 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -49,8 +54,12 @@ DAG_ID = "bigquery_tables"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-SCHEMA_JSON_LOCAL_SRC = str(Path(__file__).parent / "resources" / "update_table_schema.json")
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
+SCHEMA_JSON_LOCAL_SRC = str(
+    Path(__file__).parent / "resources" / "update_table_schema.json"
+)
 SCHEMA_JSON_DESTINATION = "update_table_schema.json"
 GCS_PATH_TO_SCHEMA_JSON = f"gs://{BUCKET_NAME}/{SCHEMA_JSON_DESTINATION}"
 
@@ -73,7 +82,9 @@ with DAG(
         bucket=BUCKET_NAME,
     )
 
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset", dataset_id=DATASET_NAME
+    )
 
     # [START howto_operator_bigquery_create_table]
     create_table = BigQueryCreateEmptyTableOperator(
@@ -196,7 +207,9 @@ with DAG(
     delete_dataset.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

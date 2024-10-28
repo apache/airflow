@@ -195,7 +195,8 @@ def test_query(
     hook_results,
 ):
     modified_descriptions = [
-        get_cursor_descriptions(cursor_description) for cursor_description in cursor_descriptions
+        get_cursor_descriptions(cursor_description)
+        for cursor_description in cursor_descriptions
     ]
     dbapi_hook = DBApiHookForTests()
     dbapi_hook.get_conn.return_value.cursor.return_value.rowcount = 2
@@ -205,15 +206,22 @@ def test_query(
         # the run method accesses description property directly, and we need to modify it after
         # every execute, to make sure that different descriptions are returned. I could not find easier
         # method with mocking
-        dbapi_hook.get_conn.return_value.cursor.return_value.description = modified_descriptions[
-            dbapi_hook.get_conn.return_value.cursor.return_value._description_index
-        ]
+        dbapi_hook.get_conn.return_value.cursor.return_value.description = (
+            modified_descriptions[
+                dbapi_hook.get_conn.return_value.cursor.return_value._description_index
+            ]
+        )
         dbapi_hook.get_conn.return_value.cursor.return_value._description_index += 1
 
     dbapi_hook.get_conn.return_value.cursor.return_value.execute = mock_execute
-    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = cursor_results
+    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = (
+        cursor_results
+    )
     results = dbapi_hook.run(
-        sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
+        sql=sql,
+        handler=fetch_all_handler,
+        return_last=return_last,
+        split_statements=split_statements,
     )
 
     assert dbapi_hook.descriptions == hook_descriptions
@@ -249,7 +257,8 @@ class TestDbApiHook:
         hook = mock_hook(DbApiHook)
         hook._make_serializable = lambda result: result
         with pytest.warns(
-            AirflowProviderDeprecationWarning, match="`_make_serializable` method is deprecated"
+            AirflowProviderDeprecationWarning,
+            match="`_make_serializable` method is deprecated",
         ):
             hook._make_common_data_structure(["foo", "bar", "baz"])
 
@@ -266,8 +275,12 @@ class TestDbApiHook:
         assert dbapi_hook.placeholder == "?"
 
     @pytest.mark.db_test
-    def test_placeholder_config_from_extra_when_not_in_default_sql_placeholders(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="airflow.providers.common.sql.hooks.test_sql"):
+    def test_placeholder_config_from_extra_when_not_in_default_sql_placeholders(
+        self, caplog
+    ):
+        with caplog.at_level(
+            logging.WARNING, logger="airflow.providers.common.sql.hooks.test_sql"
+        ):
             dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "!"}})
             assert dbapi_hook.placeholder == "%s"
             assert (
@@ -277,7 +290,9 @@ class TestDbApiHook:
             )
 
     @pytest.mark.db_test
-    def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(self):
+    def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(
+        self,
+    ):
         dbapi_hook = mock_hook(DbApiHook)
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"

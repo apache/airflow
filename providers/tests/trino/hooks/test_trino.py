@@ -30,11 +30,17 @@ from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
 
 HOOK_GET_CONNECTION = "airflow.providers.trino.hooks.trino.TrinoHook.get_connection"
-BASIC_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"
-KERBEROS_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication"
+BASIC_AUTHENTICATION = (
+    "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"
+)
+KERBEROS_AUTHENTICATION = (
+    "airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication"
+)
 TRINO_DBAPI_CONNECT = "airflow.providers.trino.hooks.trino.trino.dbapi.connect"
 JWT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication"
-CERT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.CertificateAuthentication"
+CERT_AUTHENTICATION = (
+    "airflow.providers.trino.hooks.trino.trino.auth.CertificateAuthentication"
+)
 
 
 @pytest.fixture
@@ -48,7 +54,9 @@ class TestTrinoHookConn:
     @patch(BASIC_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
-    def test_get_conn_basic_auth(self, mock_get_connection, mock_connect, mock_basic_auth):
+    def test_get_conn_basic_auth(
+        self, mock_get_connection, mock_connect, mock_basic_auth
+    ):
         self.set_get_connection_return_value(mock_get_connection, password="password")
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_basic_auth)
@@ -81,10 +89,14 @@ class TestTrinoHookConn:
         )
         http_headers = {"X-Trino-Client-Info": client}
 
-        mocked_generate_airflow_trino_client_info_header.return_value = http_headers["X-Trino-Client-Info"]
+        mocked_generate_airflow_trino_client_info_header.return_value = http_headers[
+            "X-Trino-Client-Info"
+        ]
 
         conn = TrinoHook().get_conn()
-        self.assert_connection_called_with(mock_connect, auth=mock_basic_auth, http_headers=http_headers)
+        self.assert_connection_called_with(
+            mock_connect, auth=mock_basic_auth, http_headers=http_headers
+        )
 
         mock_basic_auth.assert_called_once_with("login", "password")
         assert mock_connect.return_value == conn
@@ -98,7 +110,10 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("The 'kerberos' authorization type doesn't support password.")
+            AirflowException,
+            match=re.escape(
+                "The 'kerberos' authorization type doesn't support password."
+            ),
         ):
             TrinoHook().get_conn()
 
@@ -120,7 +135,9 @@ class TestTrinoHookConn:
     @patch(JWT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
-    def test_get_conn_jwt_file(self, mock_get_connection, mock_connect, mock_jwt_auth, jwt_token_file):
+    def test_get_conn_jwt_file(
+        self, mock_get_connection, mock_connect, mock_jwt_auth, jwt_token_file
+    ):
         extras = {
             "auth": "jwt",
             "jwt__file": jwt_token_file,
@@ -150,7 +167,9 @@ class TestTrinoHookConn:
         if jwt_token:
             extras["jwt__token"] = "TEST_JWT_TOKEN"
 
-        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        self.set_get_connection_return_value(
+            mock_get_connection, extra=json.dumps(extras)
+        )
         with pytest.raises(ValueError, match=error_match):
             TrinoHook().get_conn()
 
@@ -169,7 +188,9 @@ class TestTrinoHookConn:
         )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_cert_auth)
-        mock_cert_auth.assert_called_once_with("/path/to/client.pem", "/path/to/client.key")
+        mock_cert_auth.assert_called_once_with(
+            "/path/to/client.pem", "/path/to/client.key"
+        )
 
     @patch(KERBEROS_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
@@ -209,7 +230,9 @@ class TestTrinoHookConn:
         self.set_get_connection_return_value(mock_get_connection, extra=extras)
         TrinoHook().get_conn()
 
-        self.assert_connection_called_with(mock_connect, session_properties=extras["session_properties"])
+        self.assert_connection_called_with(
+            mock_connect, session_properties=extras["session_properties"]
+        )
 
     @patch(HOOK_GET_CONNECTION)
     @patch(TRINO_DBAPI_CONNECT)
@@ -219,7 +242,9 @@ class TestTrinoHookConn:
         self.set_get_connection_return_value(mock_get_connection, extra=extras)
         TrinoHook().get_conn()
 
-        self.assert_connection_called_with(mock_connect, client_tags=extras["client_tags"])
+        self.assert_connection_called_with(
+            mock_connect, client_tags=extras["client_tags"]
+        )
 
     @pytest.mark.parametrize(
         "current_verify, expected_verify",
@@ -233,9 +258,13 @@ class TestTrinoHookConn:
     )
     @patch(HOOK_GET_CONNECTION)
     @patch(TRINO_DBAPI_CONNECT)
-    def test_get_conn_verify(self, mock_connect, mock_get_connection, current_verify, expected_verify):
+    def test_get_conn_verify(
+        self, mock_connect, mock_get_connection, current_verify, expected_verify
+    ):
         extras = {"verify": current_verify}
-        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        self.set_get_connection_return_value(
+            mock_get_connection, extra=json.dumps(extras)
+        )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, verify=expected_verify)
 
@@ -243,14 +272,20 @@ class TestTrinoHookConn:
     @patch(TRINO_DBAPI_CONNECT)
     def test_get_conn_timezone(self, mock_connect, mock_get_connection):
         extras = {"timezone": "Asia/Jerusalem"}
-        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        self.set_get_connection_return_value(
+            mock_get_connection, extra=json.dumps(extras)
+        )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, timezone="Asia/Jerusalem")
 
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
         mocked_connection = Connection(
-            login="login", password=password, host="host", schema="hive", extra=extra or "{}"
+            login="login",
+            password=password,
+            host="host",
+            schema="hive",
+            extra=extra or "{}",
         )
         mock_get_connection.return_value = mocked_connection
 

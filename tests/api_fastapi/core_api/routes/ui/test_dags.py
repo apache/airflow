@@ -73,14 +73,24 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
             ({"paused": False}, [DAG1_ID, DAG2_ID], 11),
             ({"owners": ["airflow"]}, [DAG1_ID, DAG2_ID], 11),
             ({"owners": ["test_owner"], "only_active": False}, [DAG3_ID], 4),
-            ({"last_dag_run_state": "success", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 6),
-            ({"last_dag_run_state": "failed", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 9),
+            (
+                {"last_dag_run_state": "success", "only_active": False},
+                [DAG1_ID, DAG2_ID, DAG3_ID],
+                6,
+            ),
+            (
+                {"last_dag_run_state": "failed", "only_active": False},
+                [DAG1_ID, DAG2_ID, DAG3_ID],
+                9,
+            ),
             # Search
             ({"dag_id_pattern": "1"}, [DAG1_ID], 6),
             ({"dag_display_name_pattern": "test_dag2"}, [DAG2_ID], 5),
         ],
     )
-    def test_recent_dag_runs(self, test_client, query_params, expected_ids, expected_total_dag_runs):
+    def test_recent_dag_runs(
+        self, test_client, query_params, expected_ids, expected_total_dag_runs
+    ):
         response = test_client.get("/ui/dags/recent_dag_runs", params=query_params)
         assert response.status_code == 200
         body = response.json()

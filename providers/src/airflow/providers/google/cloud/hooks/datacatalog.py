@@ -33,7 +33,10 @@ from google.cloud.datacatalog import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -75,7 +78,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
     def get_conn(self) -> DataCatalogClient:
         """Retrieve client library object that allow access to Cloud Data Catalog service."""
         if not self._client:
-            self._client = DataCatalogClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = DataCatalogClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -156,7 +161,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         self.log.info("Creating a new entry group: parent=%s", parent)
 
         result = client.create_entry_group(
-            request={"parent": parent, "entry_group_id": entry_group_id, "entry_group": entry_group},
+            request={
+                "parent": parent,
+                "entry_group_id": entry_group_id,
+                "entry_group": entry_group,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -198,7 +207,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         if template_id:
-            template_path = f"projects/{project_id}/locations/{location}/tagTemplates/{template_id}"
+            template_path = (
+                f"projects/{project_id}/locations/{location}/tagTemplates/{template_id}"
+            )
             if isinstance(tag, Tag):
                 tag.template = template_path
             else:
@@ -225,7 +236,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
             tag=tag,
         )
 
-        result = client.create_tag(request=request, retry=retry, timeout=timeout, metadata=metadata or ())
+        result = client.create_tag(
+            request=request, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
         self.log.info("Created a tag: name=%s", result.name)
 
         return result
@@ -369,7 +382,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}"
         self.log.info("Deleting a entry: name=%s", name)
-        client.delete_entry(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ())
+        client.delete_entry(
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
         self.log.info("Deleted a entry: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -434,12 +449,12 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_conn()
-        name = (
-            f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}/tags/{tag}"
-        )
+        name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}/tags/{tag}"
 
         self.log.info("Deleting a tag: name=%s", name)
-        client.delete_tag(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ())
+        client.delete_tag(
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
         self.log.info("Deleted a tag: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -474,7 +489,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
         self.log.info("Deleting a tag template: name=%s", name)
         client.delete_tag_template(
-            request={"name": name, "force": force}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name, "force": force},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         self.log.info("Deleted a tag template: name=%s", name)
 
@@ -510,7 +528,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
         self.log.info("Deleting a tag template field: name=%s", name)
         client.delete_tag_template_field(
-            request={"name": name, "force": force}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name, "force": force},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         self.log.info("Deleted a tag template field: name=%s", name)
 
@@ -741,10 +762,14 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         if linked_resource and sql_resource:
-            raise AirflowException("Only one of linked_resource, sql_resource should be set.")
+            raise AirflowException(
+                "Only one of linked_resource, sql_resource should be set."
+            )
 
         if not linked_resource and not sql_resource:
-            raise AirflowException("At least one of linked_resource, sql_resource should be set.")
+            raise AirflowException(
+                "At least one of linked_resource, sql_resource should be set."
+            )
 
         if linked_resource:
             self.log.info("Getting entry: linked_resource=%s", linked_resource)
@@ -799,11 +824,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template}/fields/{field}"
 
         self.log.info(
-            "Renaming field: old_name=%s, new_tag_template_field_id=%s", name, new_tag_template_field_id
+            "Renaming field: old_name=%s, new_tag_template_field_id=%s",
+            name,
+            new_tag_template_field_id,
         )
 
         result = client.rename_tag_template_field(
-            request={"name": name, "new_tag_template_field_id": new_tag_template_field_id},
+            request={
+                "name": name,
+                "new_tag_template_field_id": new_tag_template_field_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -874,7 +904,12 @@ class CloudDataCatalogHook(GoogleBaseHook):
             order_by,
         )
         result = client.search_catalog(
-            request={"scope": scope, "query": query, "page_size": page_size, "order_by": order_by},
+            request={
+                "scope": scope,
+                "query": query,
+                "page_size": page_size,
+                "order_by": order_by,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -922,9 +957,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         if project_id and location and entry_group and entry_id:
-            full_entry_name = (
-                f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry_id}"
-            )
+            full_entry_name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry_id}"
             if isinstance(entry, Entry):
                 entry.name = full_entry_name
             elif isinstance(entry, dict):
@@ -1066,9 +1099,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         if project_id and location and tag_template:
-            full_tag_template_name = (
-                f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template_id}"
-            )
+            full_tag_template_name = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template_id}"
             if isinstance(tag_template, TagTemplate):
                 tag_template.name = full_tag_template_name
             elif isinstance(tag_template, dict):
@@ -1081,7 +1112,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
                 "contained in the name, or do not specify any parameters and pass the name on the object "
             )
 
-        name = tag_template.name if isinstance(tag_template, TagTemplate) else tag_template["name"]
+        name = (
+            tag_template.name
+            if isinstance(tag_template, TagTemplate)
+            else tag_template["name"]
+        )
         self.log.info("Updating tag template: name=%s", name)
 
         # HACK: google-cloud-datacatalog has a problem with dictionaries for update methods.

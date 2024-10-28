@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.google.cloud.utils.dataform import DataformLocations, define_default_location
+from airflow.providers.google.cloud.utils.dataform import (
+    DataformLocations,
+    define_default_location,
+)
 
 
 @pytest.mark.parametrize(

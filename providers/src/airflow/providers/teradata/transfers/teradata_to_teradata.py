@@ -97,5 +97,8 @@ class TeradataToTeradataOperator(BaseOperator):
                         commit_every=self.rows_chunk,
                     )
                     rows_total += len(rows)
-            self.log.info("Finished data transfer. Total number of rows transferred - %s", rows_total)
+            self.log.info(
+                "Finished data transfer. Total number of rows transferred - %s",
+                rows_total,
+            )
             cursor.close()

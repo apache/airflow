@@ -131,11 +131,15 @@ def wait_for_container(container_id: str, timeout: int = 300):
                 )
                 break
         elif state.status == "exited":
-            print(f"{container_msg}. Status: {state.status!r}. Exit Code: {state.exit_code}")
+            print(
+                f"{container_msg}. Status: {state.status!r}. Exit Code: {state.exit_code}"
+            )
             break
 
         msg = f"{container_msg} has state:\n {state}"
         if timeout != 0:
-            msg += f"\nWaiting for {int(timeout - (monotonic() - start_time))} more seconds"
+            msg += (
+                f"\nWaiting for {int(timeout - (monotonic() - start_time))} more seconds"
+            )
         print(msg)
         sleep(1)

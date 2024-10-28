@@ -46,9 +46,15 @@ def example_weaviate_dag_using_hook():
             COLLECTION_NAME,
             description="Information from a Jeopardy! question",
             properties=[
-                Property(name="question", description="The question", data_type=DataType.TEXT),
-                Property(name="answer", description="The answer", data_type=DataType.TEXT),
-                Property(name="category", description="The category", data_type=DataType.TEXT),
+                Property(
+                    name="question", description="The question", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="answer", description="The answer", data_type=DataType.TEXT
+                ),
+                Property(
+                    name="category", description="The category", data_type=DataType.TEXT
+                ),
             ],
             vectorizer_config=Configure.Vectorizer.text2vec_openai(),
         )

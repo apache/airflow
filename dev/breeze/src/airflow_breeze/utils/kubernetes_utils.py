@@ -43,7 +43,11 @@ from airflow_breeze.global_constants import (
     PIP_VERSION,
 )
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
+from airflow_breeze.utils.host_info_utils import (
+    Architecture,
+    get_host_architecture,
+    get_host_os,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
@@ -79,15 +83,23 @@ def get_kubectl_cluster_name(python: str, kubernetes_version: str) -> str:
 
 
 def get_config_folder(python: str, kubernetes_version: str) -> Path:
-    return K8S_CLUSTERS_PATH / get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    return K8S_CLUSTERS_PATH / get_kind_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
 
 
 def get_kubeconfig_file(python: str, kubernetes_version: str) -> Path:
-    return get_config_folder(python=python, kubernetes_version=kubernetes_version) / ".kubeconfig"
+    return (
+        get_config_folder(python=python, kubernetes_version=kubernetes_version)
+        / ".kubeconfig"
+    )
 
 
 def get_kind_cluster_config_path(python: str, kubernetes_version: str) -> Path:
-    return get_config_folder(python=python, kubernetes_version=kubernetes_version) / ".kindconfig.yaml"
+    return (
+        get_config_folder(python=python, kubernetes_version=kubernetes_version)
+        / ".kindconfig.yaml"
+    )
 
 
 def get_architecture_string_for_urls() -> str:
@@ -110,7 +122,9 @@ def _download_with_retries(num_tries, path, tool, url):
         except OSError as e:
             num_tries = num_tries - 1
             if num_tries == 0:
-                get_console().print(f"[error]Failing on max retries. Error while downloading {tool}: {e}")
+                get_console().print(
+                    f"[error]Failing on max retries. Error while downloading {tool}: {e}"
+                )
                 sys.exit(1)
             get_console().print(
                 f"[warning]Retrying: {num_tries} retries  left on error "
@@ -185,7 +199,9 @@ def _download_tool_if_needed(
         with tempfile.NamedTemporaryFile(delete=True) as f:
             _download_with_retries(num_tries, Path(f.name), tool, url)
             tgz_file = tarfile.open(f.name)
-            get_console().print(f"[info]Extracting the {uncompress_file} to {path.parent}[/]")
+            get_console().print(
+                f"[info]Extracting the {uncompress_file} to {path.parent}[/]"
+            )
             with tempfile.TemporaryDirectory() as d:
                 tgz_file.extract(uncompress_file, str(d))
                 target_file = Path(d) / uncompress_file
@@ -333,14 +349,22 @@ def _install_packages_in_k8s_virtualenv():
         ],
     )
     install_packages_result = run_command(
-        install_command_with_constraints, check=False, capture_output=capture_output, text=True, env=env
+        install_command_with_constraints,
+        check=False,
+        capture_output=capture_output,
+        text=True,
+        env=env,
     )
     if install_packages_result.returncode != 0:
         if not get_verbose():
             get_console().print(install_packages_result.stdout)
             get_console().print(install_packages_result.stderr)
         install_packages_result = run_command(
-            install_command_no_constraints, check=False, capture_output=capture_output, text=True, env=env
+            install_command_no_constraints,
+            check=False,
+            capture_output=capture_output,
+            text=True,
+            env=env,
         )
         if install_packages_result.returncode != 0:
             get_console().print(
@@ -362,12 +386,16 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
                 capture_output=True,
             )
             if python_command_result.returncode == 0:
-                get_console().print(f"[success]K8S Virtualenv is initialized in {K8S_ENV_PATH}")
+                get_console().print(
+                    f"[success]K8S Virtualenv is initialized in {K8S_ENV_PATH}"
+                )
                 return python_command_result
         except FileNotFoundError:
             pass
     if force_venv_setup:
-        get_console().print(f"[info]Forcing initializing K8S virtualenv in {K8S_ENV_PATH}")
+        get_console().print(
+            f"[info]Forcing initializing K8S virtualenv in {K8S_ENV_PATH}"
+        )
     else:
         get_console().print(f"[info]Initializing K8S virtualenv in {K8S_ENV_PATH}")
     if get_dry_run():
@@ -376,12 +404,17 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
         shutil.rmtree(K8S_ENV_PATH, ignore_errors=True)
     max_python_version = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]
     max_python_version_tuple = tuple(int(x) for x in max_python_version.split("."))
-    higher_python_version_tuple = max_python_version_tuple[0], max_python_version_tuple[1] + 1
+    higher_python_version_tuple = (
+        max_python_version_tuple[0],
+        max_python_version_tuple[1] + 1,
+    )
     if sys.version_info >= higher_python_version_tuple:
         get_console().print(
             f"[red]This is not supported in Python {higher_python_version_tuple} and above[/]\n"
         )
-        get_console().print(f"[warning]Please use Python version before {higher_python_version_tuple}[/]\n")
+        get_console().print(
+            f"[warning]Please use Python version before {higher_python_version_tuple}[/]\n"
+        )
         get_console().print(
             "[info]You can uninstall breeze and install it again with earlier Python "
             "version. For example:[/]\n"
@@ -421,7 +454,9 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
     install_packages_result = _install_packages_in_k8s_virtualenv()
     if install_packages_result.returncode == 0:
         if get_dry_run():
-            get_console().print(f"[info]Dry run - would be saving {K8S_REQUIREMENTS_PATH} to cache")
+            get_console().print(
+                f"[info]Dry run - would be saving {K8S_REQUIREMENTS_PATH} to cache"
+            )
         else:
             CACHED_K8S_DEPS_HASH_PATH.write_text(_get_k8s_deps_hash())
     return install_packages_result
@@ -443,7 +478,9 @@ def run_command_with_k8s_env(
     return run_command(
         cmd,
         title,
-        env=get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor),
+        env=get_k8s_env(
+            python=python, kubernetes_version=kubernetes_version, executor=executor
+        ),
         check=check,
         no_output_dump_on_exception=no_output_dump_on_exception,
         input=input,
@@ -452,10 +489,14 @@ def run_command_with_k8s_env(
     )
 
 
-def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = None) -> dict[str, str]:
+def get_k8s_env(
+    python: str, kubernetes_version: str, executor: str | None = None
+) -> dict[str, str]:
     new_env = os.environ.copy()
     new_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env["PATH"]
-    new_env["KUBECONFIG"] = str(get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version))
+    new_env["KUBECONFIG"] = str(
+        get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+    )
     new_env["KINDCONFIG"] = str(
         get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     )
@@ -463,7 +504,9 @@ def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = Non
         python=python, kubernetes_version=kubernetes_version
     )
     new_env["CLUSTER_FORWARDED_PORT"] = str(web_server_port)
-    kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    kubectl_cluster_name = get_kubectl_cluster_name(
+        python=python, kubernetes_version=kubernetes_version
+    )
     if executor:
         new_env["PS1"] = f"({kubectl_cluster_name}:{executor})> "
         new_env["EXECUTOR"] = executor
@@ -491,17 +534,25 @@ def _get_free_port() -> int:
         return port
 
 
-def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> dict[str, Any] | None:
-    if not get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).exists():
+def _get_kind_cluster_config_content(
+    python: str, kubernetes_version: str
+) -> dict[str, Any] | None:
+    if not get_kind_cluster_config_path(
+        python=python, kubernetes_version=kubernetes_version
+    ).exists():
         return None
     import yaml
 
     return yaml.safe_load(
-        get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).read_text()
+        get_kind_cluster_config_path(
+            python=python, kubernetes_version=kubernetes_version
+        ).read_text()
     )
 
 
-def set_random_cluster_ports(python: str, kubernetes_version: str, output: Output | None) -> None:
+def set_random_cluster_ports(
+    python: str, kubernetes_version: str, output: Output | None
+) -> None:
     """
     Creates cluster config file and returns sockets keeping the ports bound.
     The sockets should be closed just before creating the cluster.
@@ -511,9 +562,17 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     get_console(output=output).print(
         f"[info]Random ports: API: {api_server_port}, Web: {forwarded_port_number}"
     )
-    cluster_conf_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
+    cluster_conf_path = get_kind_cluster_config_path(
+        python=python, kubernetes_version=kubernetes_version
+    )
     config = (
-        (AIRFLOW_SOURCES_ROOT / "scripts" / "ci" / "kubernetes" / "kind-cluster-conf.yaml")
+        (
+            AIRFLOW_SOURCES_ROOT
+            / "scripts"
+            / "ci"
+            / "kubernetes"
+            / "kind-cluster-conf.yaml"
+        )
         .read_text()
         .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
         .replace("{{API_SERVER_PORT}}", str(api_server_port))
@@ -525,7 +584,9 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
 
 
 def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
-    conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
+    conf = _get_kind_cluster_config_content(
+        python=python, kubernetes_version=kubernetes_version
+    )
     if conf is None:
         return 0, 0
     api_server_port = conf["networking"]["apiServerPort"]
@@ -533,13 +594,17 @@ def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[
     return api_server_port, web_server_port
 
 
-def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: int = 0) -> bool:
+def _attempt_to_connect(
+    port_number: int, output: Output | None, wait_seconds: int = 0
+) -> bool:
     import requests
 
     start_time = datetime.now(timezone.utc)
     sleep_seconds = 5
     for attempt in itertools.count(1):
-        get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
+        get_console(output=output).print(
+            f"[info]Connecting to localhost:{port_number}. Num try: {attempt}"
+        )
         try:
             response = requests.head(f"http://localhost:{port_number}/health")
         except ConnectionError:
@@ -547,7 +612,9 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
                 f"The webserver is not yet ready at http://localhost:{port_number}/health "
             )
         except Exception as e:
-            get_console(output=output).print(f"[info]Error when connecting to localhost:{port_number} : {e}")
+            get_console(output=output).print(
+                f"[info]Error when connecting to localhost:{port_number} : {e}"
+            )
         else:
             if response.status_code == 200:
                 get_console(output=output).print(
@@ -563,7 +630,9 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
         current_time = datetime.now(timezone.utc)
         if current_time - start_time > timedelta(seconds=wait_seconds):
             if wait_seconds > 0:
-                get_console(output=output).print(f"[error]More than {wait_seconds} passed. Exiting.")
+                get_console(output=output).print(
+                    f"[error]More than {wait_seconds} passed. Exiting."
+                )
             break
         get_console(output=output).print(f"Sleeping for {sleep_seconds} seconds.")
         sleep(sleep_seconds)
@@ -571,7 +640,10 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
 
 
 def print_cluster_urls(
-    python: str, kubernetes_version: str, output: Output | None, wait_time_in_seconds: int = 0
+    python: str,
+    kubernetes_version: str,
+    output: Output | None,
+    wait_time_in_seconds: int = 0,
 ):
     api_server_port, web_server_port = _get_kubernetes_port_numbers(
         python=python, kubernetes_version=kubernetes_version
@@ -579,7 +651,9 @@ def print_cluster_urls(
     get_console(output=output).print(
         f"\n[info]KinD Cluster API server URL: [/]http://localhost:{api_server_port}"
     )
-    if _attempt_to_connect(port_number=web_server_port, output=output, wait_seconds=wait_time_in_seconds):
+    if _attempt_to_connect(
+        port_number=web_server_port, output=output, wait_seconds=wait_time_in_seconds
+    ):
         get_console(output=output).print(
             f"[info]Airflow Web server URL: [/]http://localhost:{web_server_port} (admin/admin)\n"
         )
@@ -600,7 +674,9 @@ def _get_k8s_python_version(
     index: int, kubernetes_version_array: list[str], python_version_array: list[str]
 ) -> KubernetesPythonVersion:
     current_python = python_version_array[index % len(python_version_array)]
-    current_kubernetes_version = kubernetes_version_array[index % len(kubernetes_version_array)]
+    current_kubernetes_version = kubernetes_version_array[
+        index % len(kubernetes_version_array)
+    ]
     return KubernetesPythonVersion(
         kubernetes_version=current_kubernetes_version, python_version=current_python
     )
@@ -611,10 +687,13 @@ def get_kubernetes_python_combos(
 ) -> tuple[list[str], list[str], list[KubernetesPythonVersion]]:
     num_tests = max(len(python_version_array), len(kubernetes_version_array))
     combos: list[KubernetesPythonVersion] = [
-        _get_k8s_python_version(i, kubernetes_version_array, python_version_array) for i in range(num_tests)
+        _get_k8s_python_version(i, kubernetes_version_array, python_version_array)
+        for i in range(num_tests)
     ]
     combo_titles = [
-        get_kind_cluster_name(python=combo.python_version, kubernetes_version=combo.kubernetes_version)
+        get_kind_cluster_name(
+            python=combo.python_version, kubernetes_version=combo.kubernetes_version
+        )
         for combo in combos
     ]
     short_combo_titles = [combo[len("airflow-python-") :] for combo in combo_titles]

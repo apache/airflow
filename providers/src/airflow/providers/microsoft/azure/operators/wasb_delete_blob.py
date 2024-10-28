@@ -64,9 +64,15 @@ class WasbDeleteBlobOperator(BaseOperator):
         self.ignore_if_missing = ignore_if_missing
 
     def execute(self, context: Context) -> None:
-        self.log.info("Deleting blob: %s\n in wasb://%s", self.blob_name, self.container_name)
+        self.log.info(
+            "Deleting blob: %s\n in wasb://%s", self.blob_name, self.container_name
+        )
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
 
         hook.delete_file(
-            self.container_name, self.blob_name, self.is_prefix, self.ignore_if_missing, **self.check_options
+            self.container_name,
+            self.blob_name,
+            self.is_prefix,
+            self.ignore_if_missing,
+            **self.check_options,
         )

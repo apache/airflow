@@ -35,7 +35,9 @@ EXECUTION_ARN = (
 )
 AWS_CONN_ID = "aws_non_default"
 REGION_NAME = "us-west-2"
-STATE_MACHINE_ARN = "arn:aws:states:us-east-1:000000000000:stateMachine:pseudo-state-machine"
+STATE_MACHINE_ARN = (
+    "arn:aws:states:us-east-1:000000000000:stateMachine:pseudo-state-machine"
+)
 NAME = "NAME"
 INPUT = "{}"
 
@@ -72,7 +74,9 @@ class TestStepFunctionGetExecutionOutputOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-        op = StepFunctionGetExecutionOutputOperator(task_id=self.TASK_ID, execution_arn=EXECUTION_ARN)
+        op = StepFunctionGetExecutionOutputOperator(
+            task_id=self.TASK_ID, execution_arn=EXECUTION_ARN
+        )
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
         assert op.hook._verify is None
@@ -151,7 +155,9 @@ class TestStepFunctionStartExecutionOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-        op = StepFunctionStartExecutionOperator(task_id=self.TASK_ID, state_machine_arn=STATE_MACHINE_ARN)
+        op = StepFunctionStartExecutionOperator(
+            task_id=self.TASK_ID, state_machine_arn=STATE_MACHINE_ARN
+        )
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
         assert op.hook._verify is None
@@ -172,7 +178,9 @@ class TestStepFunctionStartExecutionOperator:
             aws_conn_id=None,
         )
         assert op.execute(mocked_context) == hook_response
-        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT, False)
+        mocked_hook.start_execution.assert_called_once_with(
+            STATE_MACHINE_ARN, NAME, INPUT, False
+        )
         self.mocked_details_link.assert_called_once_with(
             aws_partition=mock.ANY,
             context=mock.ANY,
@@ -202,16 +210,22 @@ class TestStepFunctionStartExecutionOperator:
         )
         with pytest.raises(TaskDeferred):
             operator.execute(None)
-        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT, False)
+        mocked_hook.start_execution.assert_called_once_with(
+            STATE_MACHINE_ARN, NAME, INPUT, False
+        )
 
     @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
-    @pytest.mark.parametrize("execution_arn", [pytest.param(None, id="none"), pytest.param("", id="empty")])
+    @pytest.mark.parametrize(
+        "execution_arn", [pytest.param(None, id="none"), pytest.param("", id="empty")]
+    )
     def test_step_function_no_execution_arn_returns(self, mocked_hook, execution_arn):
         mocked_hook.start_execution.return_value = execution_arn
         op = StepFunctionStartExecutionOperator(
             task_id=self.TASK_ID, state_machine_arn=STATE_MACHINE_ARN, aws_conn_id=None
         )
-        with pytest.raises(AirflowException, match="Failed to start State Machine execution"):
+        with pytest.raises(
+            AirflowException, match="Failed to start State Machine execution"
+        ):
             op.execute({})
 
     @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
@@ -230,7 +244,9 @@ class TestStepFunctionStartExecutionOperator:
             aws_conn_id=None,
         )
         assert op.execute(mocked_context) == hook_response
-        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, None, True)
+        mocked_hook.start_execution.assert_called_once_with(
+            STATE_MACHINE_ARN, NAME, None, True
+        )
         self.mocked_details_link.assert_called_once_with(
             aws_partition=mock.ANY,
             context=mock.ANY,

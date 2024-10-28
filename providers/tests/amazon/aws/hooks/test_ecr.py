@@ -59,12 +59,16 @@ class TestEcrHook:
     @pytest.mark.parametrize(
         "accounts_id, expected_registry",
         [
-            pytest.param(DEFAULT_ACCOUNT_ID, DEFAULT_ACCOUNT_ID, id="moto-default-account"),
+            pytest.param(
+                DEFAULT_ACCOUNT_ID, DEFAULT_ACCOUNT_ID, id="moto-default-account"
+            ),
             pytest.param("111100002222", "111100002222", id="custom-account-id"),
             pytest.param(["333366669999"], "333366669999", id="custom-account-id-list"),
         ],
     )
-    def test_get_temporary_credentials_single_account_id(self, patch_hook, accounts_id, expected_registry):
+    def test_get_temporary_credentials_single_account_id(
+        self, patch_hook, accounts_id, expected_registry
+    ):
         """Test different types of single account/registry ids."""
         result = EcrHook().get_temporary_credentials(registry_ids=accounts_id)
         assert len(result) == 1
@@ -75,28 +79,41 @@ class TestEcrHook:
     @pytest.mark.parametrize(
         "accounts_ids",
         [
-            pytest.param([DEFAULT_ACCOUNT_ID, "111100002222"], id="moto-default-and-custom-account-ids"),
-            pytest.param(["999888777666", "333366669999", "777"], id="custom-accounts-ids"),
+            pytest.param(
+                [DEFAULT_ACCOUNT_ID, "111100002222"],
+                id="moto-default-and-custom-account-ids",
+            ),
+            pytest.param(
+                ["999888777666", "333366669999", "777"], id="custom-accounts-ids"
+            ),
         ],
     )
-    def test_get_temporary_credentials_multiple_account_ids(self, patch_hook, accounts_ids):
+    def test_get_temporary_credentials_multiple_account_ids(
+        self, patch_hook, accounts_ids
+    ):
         """Test multiple account ids in the single method call."""
         expected_creds = len(accounts_ids)
         result = EcrHook().get_temporary_credentials(registry_ids=accounts_ids)
         assert len(result) == expected_creds
         assert [cr.username for cr in result] == ["AWS"] * expected_creds
-        assert all(cr.registry.startswith(accounts_ids[ix]) for ix, cr in enumerate(result))
+        assert all(
+            cr.registry.startswith(accounts_ids[ix]) for ix, cr in enumerate(result)
+        )
 
     @pytest.mark.parametrize(
         "accounts_ids",
         [
             pytest.param(None, id="none"),
             pytest.param("111100002222", id="single-account-id"),
-            pytest.param(["999888777666", "333366669999", "777"], id="multiple-account-ids"),
+            pytest.param(
+                ["999888777666", "333366669999", "777"], id="multiple-account-ids"
+            ),
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.ecr.mask_secret")
-    def test_get_temporary_credentials_mask_secrets(self, mock_masker, patch_hook, accounts_ids):
+    def test_get_temporary_credentials_mask_secrets(
+        self, mock_masker, patch_hook, accounts_ids
+    ):
         """Test masking passwords."""
         result = EcrHook().get_temporary_credentials(registry_ids=accounts_ids)
         assert mock_masker.call_args_list == [mock.call(cr.password) for cr in result]

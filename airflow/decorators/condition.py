@@ -37,7 +37,9 @@ __all__ = ["run_if", "skip_if"]
 _T = TypeVar("_T", bound="Task[..., Any] | _TaskDecorator[..., Any, Any]")
 
 
-def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+def run_if(
+    condition: AnyConditionFunc, skip_message: str | None = None
+) -> Callable[[_T], _T]:
     """
     Decorate a task to run only if a condition is met.
 
@@ -51,7 +53,9 @@ def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Call
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
-            error_msg = "run_if can only be used with task. decorate with @task before @run_if."
+            error_msg = (
+                "run_if can only be used with task. decorate with @task before @run_if."
+            )
             raise TypeError(error_msg)
 
         pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
@@ -62,7 +66,9 @@ def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Call
     return decorator
 
 
-def skip_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+def skip_if(
+    condition: AnyConditionFunc, skip_message: str | None = None
+) -> Callable[[_T], _T]:
     """
     Decorate a task to skip if a condition is met.
 
@@ -76,7 +82,9 @@ def skip_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Cal
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
-            error_msg = "skip_if can only be used with task. decorate with @task before @skip_if."
+            error_msg = (
+                "skip_if can only be used with task. decorate with @task before @skip_if."
+            )
             raise TypeError(error_msg)
 
         pre_execute: TaskPreExecuteHook | None = task.kwargs.get("pre_execute")
@@ -87,7 +95,9 @@ def skip_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Cal
     return decorator
 
 
-def wrap_skip(func: AnyConditionFunc, error_msg: str, *, reverse: bool) -> TaskPreExecuteHook:
+def wrap_skip(
+    func: AnyConditionFunc, error_msg: str, *, reverse: bool
+) -> TaskPreExecuteHook:
     @wraps(func)
     def pre_execute(context: Context) -> None:
         condition = func(context)

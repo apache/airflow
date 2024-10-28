@@ -49,7 +49,14 @@ RUN_PAGE_URL = "https://XX.cloud.databricks.com/#jobs/1/runs/1"
 ERROR_MESSAGE = "error message from databricks API"
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 
-RUN_LIFE_CYCLE_STATES = ["PENDING", "RUNNING", "TERMINATING", "TERMINATED", "SKIPPED", "INTERNAL_ERROR"]
+RUN_LIFE_CYCLE_STATES = [
+    "PENDING",
+    "RUNNING",
+    "TERMINATING",
+    "TERMINATED",
+    "SKIPPED",
+    "INTERNAL_ERROR",
+]
 
 LIFE_CYCLE_STATE_PENDING = "PENDING"
 LIFE_CYCLE_STATE_TERMINATED = "TERMINATED"
@@ -118,7 +125,11 @@ GET_RUN_RESPONSE_TERMINATED_WITH_FAILED = {
 class TestDatabricksExecutionTrigger:
     @provide_session
     def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn = (
+            session.query(Connection)
+            .filter(Connection.conn_id == DEFAULT_CONN_ID)
+            .first()
+        )
         conn.host = HOST
         conn.login = LOGIN
         conn.password = PASSWORD
@@ -148,10 +159,16 @@ class TestDatabricksExecutionTrigger:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output"
+    )
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url"
+    )
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state"
+    )
     async def test_run_return_success(
         self, mock_get_run_state, mock_get_run_page_url, mock_get_run, mock_get_run_output
     ):
@@ -170,7 +187,9 @@ class TestDatabricksExecutionTrigger:
                 {
                     "run_id": RUN_ID,
                     "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                        state_message="",
+                        result_state="SUCCESS",
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,
@@ -179,10 +198,16 @@ class TestDatabricksExecutionTrigger:
             )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output"
+    )
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url"
+    )
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state"
+    )
     async def test_run_return_failure(
         self, mock_get_run_state, mock_get_run_page_url, mock_get_run, mock_get_run_output
     ):
@@ -201,22 +226,36 @@ class TestDatabricksExecutionTrigger:
                 {
                     "run_id": RUN_ID,
                     "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                        state_message="",
+                        result_state="FAILED",
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,
                     "errors": [
-                        {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
-                        {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+                        {
+                            "task_key": TASK_RUN_ID1_KEY,
+                            "run_id": TASK_RUN_ID1,
+                            "error": ERROR_MESSAGE,
+                        },
+                        {
+                            "task_key": TASK_RUN_ID3_KEY,
+                            "run_id": TASK_RUN_ID3,
+                            "error": ERROR_MESSAGE,
+                        },
                     ],
                 }
             )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output"
+    )
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state"
+    )
     async def test_sleep_between_retries(
         self, mock_get_run_state, mock_sleep, mock_get_run, mock_get_run_output
     ):
@@ -241,7 +280,9 @@ class TestDatabricksExecutionTrigger:
                 {
                     "run_id": RUN_ID,
                     "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                        state_message="",
+                        result_state="SUCCESS",
                     ).to_json(),
                     "run_page_url": RUN_PAGE_URL,
                     "repair_run": False,

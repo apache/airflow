@@ -45,11 +45,16 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     flask_app = Flask(__name__, static_folder=None)
-    expiration_time_in_seconds = conf.getint("webserver", "log_request_clock_grace", fallback=30)
+    expiration_time_in_seconds = conf.getint(
+        "webserver", "log_request_clock_grace", fallback=30
+    )
     log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
     log_config_class = conf.get("logging", "logging_config_class")
     if log_config_class:
-        logger.info("Detected user-defined logging config. Attempting to load %s", log_config_class)
+        logger.info(
+            "Detected user-defined logging config. Attempting to load %s",
+            log_config_class,
+        )
         try:
             logging_config = import_string(log_config_class)
             try:
@@ -82,13 +87,17 @@ def create_app():
         try:
             auth = request.headers.get("Authorization")
             if auth is None:
-                logger.warning("The Authorization header is missing: %s.", request.headers)
+                logger.warning(
+                    "The Authorization header is missing: %s.", request.headers
+                )
                 abort(403)
             payload = signer.verify_token(auth)
             token_filename = payload.get("filename")
             request_filename = request.view_args["filename"]
             if token_filename is None:
-                logger.warning("The payload does not contain 'filename' key: %s.", payload)
+                logger.warning(
+                    "The payload does not contain 'filename' key: %s.", payload
+                )
                 abort(403)
             if token_filename != request_filename:
                 logger.warning(
@@ -107,7 +116,9 @@ def create_app():
             logger.warning("The signature of the request was wrong", exc_info=True)
             abort(403)
         except ImmatureSignatureError:
-            logger.warning("The signature of the request was sent from the future", exc_info=True)
+            logger.warning(
+                "The signature of the request was sent from the future", exc_info=True
+            )
             abort(403)
         except ExpiredSignatureError:
             logger.warning(
@@ -133,7 +144,9 @@ def create_app():
 
     @flask_app.route("/log/<path:filename>")
     def serve_logs_view(filename):
-        return send_from_directory(log_directory, filename, mimetype="application/json", as_attachment=False)
+        return send_from_directory(
+            log_directory, filename, mimetype="application/json", as_attachment=False
+        )
 
     return flask_app
 

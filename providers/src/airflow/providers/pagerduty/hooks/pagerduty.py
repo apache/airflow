@@ -78,7 +78,9 @@ class PagerdutyHook(BaseHook):
             ),
         }
 
-    def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
+    def __init__(
+        self, token: str | None = None, pagerduty_conn_id: str | None = None
+    ) -> None:
         super().__init__()
         self.routing_key = None
         self._session = None
@@ -95,7 +97,9 @@ class PagerdutyHook(BaseHook):
             self.token = token
 
         if self.token is None:
-            raise AirflowException("Cannot get token: No valid api token nor pagerduty_conn_id supplied.")
+            raise AirflowException(
+                "Cannot get token: No valid api token nor pagerduty_conn_id supplied."
+            )
 
     def get_session(self) -> pdpyras.APISession:
         """

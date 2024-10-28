@@ -36,7 +36,9 @@ class TestGoogleSearchAdsSearchOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsReportingHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         query = "SELECT * FROM campaigns WHERE segments.date DURING LAST_30_DAYS"
         hook_mock.return_value.search.return_value = {"results": []}
@@ -66,7 +68,9 @@ class TestGoogleSearchAdsGetFieldOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsReportingHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         field_name = "the_field"
         hook_mock.return_value.get_field.return_value = {
@@ -92,7 +96,9 @@ class TestGoogleSearchAdsSearchFieldsOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsReportingHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         field_name = "the_field"
         query = (
@@ -103,7 +109,9 @@ class TestGoogleSearchAdsSearchFieldsOperator:
             "  name LIKE 'ad_group.%'"
         )
         hook_mock.return_value.search_fields.return_value = {
-            "results": [{"name": field_name, "resource_name": f"searchAds360Fields/{field_name}"}]
+            "results": [
+                {"name": field_name, "resource_name": f"searchAds360Fields/{field_name}"}
+            ]
         }
         op = GoogleSearchAdsSearchFieldsOperator(
             query=query,
@@ -126,7 +134,9 @@ class TestGoogleSearchAdsGetCustomColumnOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsReportingHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         custom_column_id = "custom_column_id"
         hook_mock.return_value.get_custom_column.return_value = {"id": custom_column_id}
@@ -151,14 +161,18 @@ class TestGoogleSearchAdsListCustomColumnsOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsReportingHook"
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator"
+    )
     def test_execute(self, mock_base_op, hook_mock):
         customs_columns = [
             {"id": "custom_column_id_1"},
             {"id": "custom_column_id_2"},
             {"id": "custom_column_id_3"},
         ]
-        hook_mock.return_value.list_custom_columns.return_value = {"customColumns": customs_columns}
+        hook_mock.return_value.list_custom_columns.return_value = {
+            "customColumns": customs_columns
+        }
         op = GoogleSearchAdsListCustomColumnsOperator(
             customer_id=CUSTOMER_ID,
             api_version=API_VERSION,

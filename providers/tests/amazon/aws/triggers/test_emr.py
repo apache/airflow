@@ -71,7 +71,10 @@ class TestEmrCreateJobFlowTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrCreateJobFlowTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrCreateJobFlowTrigger"
+        )
         assert kwargs == {
             "job_flow_id": "test_job_flow_id",
             "waiter_delay": 30,
@@ -94,7 +97,10 @@ class TestEmrTerminateJobFlowTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrTerminateJobFlowTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrTerminateJobFlowTrigger"
+        )
         assert kwargs == {
             "job_flow_id": "test_job_flow_id",
             "waiter_delay": 30,
@@ -119,7 +125,9 @@ class TestEmrContainerTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        )
         assert kwargs == {
             "virtual_cluster_id": "test_virtual_cluster_id",
             "job_id": "test_job_id",
@@ -141,7 +149,9 @@ class TestEmrContainerTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        )
         assert kwargs == {
             "virtual_cluster_id": "test_virtual_cluster_id",
             "job_id": "test_job_id",
@@ -167,7 +177,9 @@ class TestEmrStepSensorTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrStepSensorTrigger"
+        assert (
+            classpath == "airflow.providers.amazon.aws.triggers.emr.EmrStepSensorTrigger"
+        )
         assert kwargs == {
             "job_flow_id": "test_job_flow_id",
             "step_id": "test_step_id",
@@ -191,7 +203,10 @@ class TestEmrServerlessCreateApplicationTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCreateApplicationTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCreateApplicationTrigger"
+        )
         assert kwargs == {
             "application_id": "test_application_id",
             "waiter_delay": 30,
@@ -214,7 +229,10 @@ class TestEmrServerlessStartApplicationTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartApplicationTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartApplicationTrigger"
+        )
         assert kwargs == {
             "application_id": "test_application_id",
             "waiter_delay": 30,
@@ -237,7 +255,10 @@ class TestEmrServerlessStopApplicationTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStopApplicationTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStopApplicationTrigger"
+        )
         assert kwargs == {
             "application_id": "test_application_id",
             "waiter_delay": 30,
@@ -262,7 +283,10 @@ class TestEmrServerlessStartJobTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger"
+        )
         assert kwargs == {
             "application_id": "test_application_id",
             "waiter_delay": 30,
@@ -286,7 +310,10 @@ class TestEmrServerlessDeleteApplicationTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessDeleteApplicationTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessDeleteApplicationTrigger"
+        )
         assert kwargs == {
             "application_id": "test_application_id",
             "waiter_delay": 30,
@@ -309,7 +336,10 @@ class TestEmrServerlessCancelJobsTrigger:
             aws_conn_id=aws_conn_id,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCancelJobsTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCancelJobsTrigger"
+        )
         assert kwargs == {
             "application_id": "test_application_id",
             "waiter_delay": 30,

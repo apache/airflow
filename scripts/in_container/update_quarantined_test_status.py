@@ -139,7 +139,11 @@ def update_test_history(history: TestHistory, last_status: bool):
 def create_test_history(result: TestResult) -> TestHistory:
     print(f"Creating test history {result}")
     return TestHistory(
-        test_id=result.test_id, name=result.name, url=get_url(result), states=[result.result], comment=""
+        test_id=result.test_id,
+        name=result.name,
+        url=get_url(result),
+        states=[result.result],
+        comment="",
     )
 
 
@@ -235,9 +239,13 @@ if __name__ == "__main__":
     print(table)
     print()
     with Path(__file__).resolve().with_name("quarantine_issue_header.md").open() as f:
-        header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).render(
+        header = jinja2.Template(
+            f.read(), autoescape=True, undefined=StrictUndefined
+        ).render(
             DATE_UTC_NOW=datetime.now(tz=timezone.utc).isoformat("T", timespec="seconds")
         )
     quarantined_issue.edit(
-        title=None, body=f"{header}\n\n{table}", state="open" if test_results else "closed"
+        title=None,
+        body=f"{header}\n\n{table}",
+        state="open" if test_results else "closed",
     )

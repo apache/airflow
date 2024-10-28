@@ -30,8 +30,14 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteDbSnapshotOperator,
     RdsStartExportTaskOperator,
 )
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.providers.amazon.aws.sensors.rds import RdsExportTaskExistenceSensor, RdsSnapshotExistenceSensor
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
+from airflow.providers.amazon.aws.sensors.rds import (
+    RdsExportTaskExistenceSensor,
+    RdsSnapshotExistenceSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -43,7 +49,10 @@ KMS_KEY_ID_KEY = "KMS_KEY_ID"
 ROLE_ARN_KEY = "ROLE_ARN"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(KMS_KEY_ID_KEY).add_variable(ROLE_ARN_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(KMS_KEY_ID_KEY)
+    .add_variable(ROLE_ARN_KEY)
+    .build()
 )
 
 

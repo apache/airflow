@@ -79,7 +79,9 @@ RUN_TASK_KWARGS = {
             {
                 "name": "container-name",
                 "command": [""],
-                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                "environment": [
+                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
+                ],
             }
         ]
     },
@@ -187,33 +189,47 @@ class TestEcsTaskCollection:
 
     def test_add_task(self):
         # Add a task, verify that the collection has grown and the task arn matches.
-        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1
+        )
         assert len(self.collection) == 1
         assert self.collection.tasks[ARN1].task_arn == ARN1
 
         # Add a task, verify that the collection has grown and the task arn is not the same as the first.
-        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1
+        )
         assert len(self.collection) == 2
         assert self.collection.tasks[ARN2].task_arn == ARN2
-        assert self.collection.tasks[ARN2].task_arn != self.collection.tasks[ARN1].task_arn
+        assert (
+            self.collection.tasks[ARN2].task_arn != self.collection.tasks[ARN1].task_arn
+        )
 
     def test_task_by_key(self):
-        self.collection.add_task(mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1
+        )
 
         task = self.collection.task_by_key(mock_airflow_key)
 
         assert task == self.collection.tasks[ARN1]
 
     def test_task_by_arn(self):
-        self.collection.add_task(mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1
+        )
 
         task = self.collection.task_by_arn(ARN1)
 
         assert task == self.collection.tasks[ARN1]
 
     def test_info_by_key(self, mock_queue):
-        self.collection.add_task(mock_task(ARN1), self.key1, queue1 := mock_queue(), mock_cmd, mock_config, 1)
-        self.collection.add_task(mock_task(ARN2), self.key2, queue2 := mock_queue(), mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, queue1 := mock_queue(), mock_cmd, mock_config, 1
+        )
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, queue2 := mock_queue(), mock_cmd, mock_config, 1
+        )
         assert queue1 != queue2
 
         task1_info = self.collection.info_by_key(self.key1)
@@ -229,20 +245,32 @@ class TestEcsTaskCollection:
         assert task1_info != task2_info
 
     def test_get_all_arns(self):
-        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
-        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1
+        )
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1
+        )
 
         assert self.collection.get_all_arns() == [ARN1, ARN2]
 
     def test_get_all_task_keys(self):
-        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
-        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1
+        )
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1
+        )
 
         assert self.collection.get_all_task_keys() == [self.key1, self.key2]
 
     def test_pop_by_key(self):
-        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
-        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1
+        )
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1
+        )
         task1_as_saved = self.collection.tasks[ARN1]
 
         assert len(self.collection) == 2
@@ -258,7 +286,12 @@ class TestEcsTaskCollection:
 
     def test_update_task(self):
         self.collection.add_task(
-            initial_task := mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1
+            initial_task := mock_task(),
+            mock_airflow_key,
+            mock_queue,
+            mock_cmd,
+            mock_config,
+            1,
         )
         assert self.collection[ARN1] == initial_task
         self.collection.update_task(updated_task := mock_task())
@@ -268,8 +301,12 @@ class TestEcsTaskCollection:
 
     def test_failure_count(self):
         # Create a new Collection and add a two tasks.
-        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
-        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1
+        )
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1
+        )
 
         # failure_count is set to attempt number, which is initialized as 1.
         assert self.collection.failure_count_by_key(self.key1) == 1
@@ -286,21 +323,36 @@ class TestEcsExecutorTask:
         last_status = "QUEUED"
         desired_status = "SUCCESS"
         running_task = EcsExecutorTask(
-            task_arn=ARN1, last_status=last_status, desired_status=desired_status, containers=[{}]
+            task_arn=ARN1,
+            last_status=last_status,
+            desired_status=desired_status,
+            containers=[{}],
         )
-        assert f"({ARN1}, {last_status}->{desired_status}, {running_task.get_task_state()})" == repr(
-            running_task
+        assert (
+            f"({ARN1}, {last_status}->{desired_status}, {running_task.get_task_state()})"
+            == repr(running_task)
         )
 
     def test_queued_tasks(self):
         """Tasks that are pending launch identified as 'queued'."""
         queued_tasks = [
             EcsExecutorTask(
-                task_arn=ARN1, last_status="PROVISIONING", desired_status="RUNNING", containers=[{}]
+                task_arn=ARN1,
+                last_status="PROVISIONING",
+                desired_status="RUNNING",
+                containers=[{}],
             ),
-            EcsExecutorTask(task_arn=ARN2, last_status="PENDING", desired_status="RUNNING", containers=[{}]),
             EcsExecutorTask(
-                task_arn=ARN3, last_status="ACTIVATING", desired_status="RUNNING", containers=[{}]
+                task_arn=ARN2,
+                last_status="PENDING",
+                desired_status="RUNNING",
+                containers=[{}],
+            ),
+            EcsExecutorTask(
+                task_arn=ARN3,
+                last_status="ACTIVATING",
+                desired_status="RUNNING",
+                containers=[{}],
             ),
         ]
         for task in queued_tasks:
@@ -309,7 +361,10 @@ class TestEcsExecutorTask:
     def test_running_tasks(self):
         """Tasks that have been launched are identified as 'running'."""
         running_task = EcsExecutorTask(
-            task_arn=ARN1, last_status="RUNNING", desired_status="RUNNING", containers=[{}]
+            task_arn=ARN1,
+            last_status="RUNNING",
+            desired_status="RUNNING",
+            containers=[{}],
         )
         assert State.RUNNING == running_task.get_task_state()
 
@@ -324,11 +379,22 @@ class TestEcsExecutorTask:
         """Tasks that failed to launch are identified as 'removed'."""
         deprovisioning_tasks = [
             EcsExecutorTask(
-                task_arn=ARN1, last_status="DEACTIVATING", desired_status="STOPPED", containers=[{}]
+                task_arn=ARN1,
+                last_status="DEACTIVATING",
+                desired_status="STOPPED",
+                containers=[{}],
             ),
-            EcsExecutorTask(task_arn=ARN2, last_status="STOPPING", desired_status="STOPPED", containers=[{}]),
             EcsExecutorTask(
-                task_arn=ARN3, last_status="DEPROVISIONING", desired_status="STOPPED", containers=[{}]
+                task_arn=ARN2,
+                last_status="STOPPING",
+                desired_status="STOPPED",
+                containers=[{}],
+            ),
+            EcsExecutorTask(
+                task_arn=ARN3,
+                last_status="DEPROVISIONING",
+                desired_status="STOPPED",
+                containers=[{}],
             ),
         ]
         for task in deprovisioning_tasks:
@@ -375,7 +441,9 @@ class TestAwsEcsExecutor:
     """Tests the AWS ECS Executor."""
 
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
-    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
+    @mock.patch(
+        "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state"
+    )
     def test_execute(self, change_state_mock, mock_airflow_key, mock_executor):
         """Test execution from end-to-end."""
         airflow_key = mock_airflow_key()
@@ -406,7 +474,9 @@ class TestAwsEcsExecutor:
             airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
         )
 
-    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0)
+    )
     def test_success_execute_api_exception(self, mock_backoff, mock_executor):
         """Test what happens when ECS throws an exception, but ultimately runs the task."""
         run_task_exception = Exception("Test exception")
@@ -421,7 +491,11 @@ class TestAwsEcsExecutor:
             ],
             "failures": [],
         }
-        mock_executor.ecs.run_task.side_effect = [run_task_exception, run_task_exception, run_task_success]
+        mock_executor.ecs.run_task.side_effect = [
+            run_task_exception,
+            run_task_exception,
+            run_task_success,
+        ]
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
         expected_retry_count = 2
 
@@ -455,7 +529,11 @@ class TestAwsEcsExecutor:
         mock_executor.ecs.run_task.return_value = {
             "tasks": [],
             "failures": [
-                {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
+                {
+                    "arn": ARN1,
+                    "reason": "Sample Failure",
+                    "detail": "UnitTest Failure - Please ignore",
+                }
             ],
         }
 
@@ -467,7 +545,9 @@ class TestAwsEcsExecutor:
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
 
-    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0)
+    )
     def test_attempt_task_runs_attempts_when_tasks_fail(self, _, mock_executor):
         """
         Test case when all tasks fail to run.
@@ -521,13 +601,17 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.pending_tasks) == 0
 
         if airflow_version >= (2, 10, 0):
-            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            events = [
+                (x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs
+            ]
             assert events == [
                 ("ecs task submit failure", "task_a", 1),
                 ("ecs task submit failure", "task_b", 1),
             ]
 
-    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0)
+    )
     def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor):
         """
         Test case when one task fail to run, and a new task gets queued.
@@ -563,7 +647,9 @@ class TestAwsEcsExecutor:
         mock_executor.attempt_task_runs()
 
         for i in range(2):
-            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = (
+                airflow_commands[i]
+            )
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
 
         assert len(mock_executor.pending_tasks) == 1
@@ -588,7 +674,9 @@ class TestAwsEcsExecutor:
         mock_executor.attempt_task_runs()
 
         for i in range(2):
-            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = (
+                airflow_commands[i]
+            )
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
 
         assert len(mock_executor.pending_tasks) == 1
@@ -600,14 +688,20 @@ class TestAwsEcsExecutor:
         mock_executor.ecs.run_task.side_effect = responses
         mock_executor.attempt_task_runs()
 
-        RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[0]
+        RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = (
+            airflow_commands[0]
+        )
         assert mock_executor.ecs.run_task.call_args_list[0].kwargs == RUN_TASK_KWARGS
 
         if airflow_version >= (2, 10, 0):
-            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            events = [
+                (x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs
+            ]
             assert events == [("ecs task submit failure", "task_a", 1)]
 
-    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0)
+    )
     def test_task_retry_on_api_failure_all_tasks_fail(self, _, mock_executor, caplog):
         """
         Test API failure retries.
@@ -668,12 +762,16 @@ class TestAwsEcsExecutor:
             {"tasks": [run_tasks[0]], "failures": []},
             {"tasks": [run_tasks[1]], "failures": []},
         ]
-        mock_executor.ecs.describe_tasks.side_effect = [{"tasks": describe_tasks, "failures": []}]
+        mock_executor.ecs.describe_tasks.side_effect = [
+            {"tasks": describe_tasks, "failures": []}
+        ]
 
         mock_executor.attempt_task_runs()
 
         for i in range(2):
-            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = (
+                airflow_commands[i]
+            )
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
 
         assert len(mock_executor.pending_tasks) == 0
@@ -693,14 +791,18 @@ class TestAwsEcsExecutor:
             {"tasks": [run_tasks[0]], "failures": []},
             {"tasks": [run_tasks[1]], "failures": []},
         ]
-        mock_executor.ecs.describe_tasks.side_effect = [{"tasks": describe_tasks, "failures": []}]
+        mock_executor.ecs.describe_tasks.side_effect = [
+            {"tasks": describe_tasks, "failures": []}
+        ]
 
         mock_executor.attempt_task_runs()
 
         mock_executor.attempt_task_runs()
 
         for i in range(2):
-            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = (
+                airflow_commands[i]
+            )
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
 
         mock_executor.sync_running_tasks()
@@ -728,7 +830,9 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     @mock.patch.object(EcsTaskCollection, "get_all_arns", return_value=[])
-    def test_sync_short_circuits_with_no_arns(self, _, success_mock, fail_mock, mock_executor):
+    def test_sync_short_circuits_with_no_arns(
+        self, _, success_mock, fail_mock, mock_executor
+    ):
         self._mock_sync(mock_executor)
 
         mock_executor.sync_running_tasks()
@@ -758,7 +862,9 @@ class TestAwsEcsExecutor:
     def test_removed_sync(self, fail_mock, success_mock, mock_executor):
         """A removed task will be treated as a failed task."""
         AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
-        self._mock_sync(mock_executor, expected_state=State.REMOVED, set_task_state=State.REMOVED)
+        self._mock_sync(
+            mock_executor, expected_state=State.REMOVED, set_task_state=State.REMOVED
+        )
 
         mock_executor.sync_running_tasks()
 
@@ -770,14 +876,22 @@ class TestAwsEcsExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_failed_sync_cumulative_fail(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0)
+    )
+    def test_failed_sync_cumulative_fail(
+        self, _, success_mock, fail_mock, mock_airflow_key, mock_executor
+    ):
         """Test that failure_count/attempt_number is cumulative for pending tasks and active workers."""
         AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "5"
         mock_executor.ecs.run_task.return_value = {
             "tasks": [],
             "failures": [
-                {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
+                {
+                    "arn": ARN1,
+                    "reason": "Sample Failure",
+                    "detail": "UnitTest Failure - Please ignore",
+                }
             ],
         }
         mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
@@ -808,7 +922,11 @@ class TestAwsEcsExecutor:
         mock_executor.ecs.describe_tasks.return_value = {
             "tasks": [],
             "failures": [
-                {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
+                {
+                    "arn": ARN1,
+                    "reason": "Sample Failure",
+                    "detail": "UnitTest Failure - Please ignore",
+                }
             ],
         }
 
@@ -853,7 +971,9 @@ class TestAwsEcsExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0)
+    )
     def test_failed_sync_api(self, _, success_mock, fail_mock, mock_executor):
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
         airflow_key = "test-key"
@@ -873,11 +993,18 @@ class TestAwsEcsExecutor:
                 }
             ],
         }
-        mock_executor.ecs.run_task.return_value = {"tasks": [run_task_ret_val], "failures": []}
+        mock_executor.ecs.run_task.return_value = {
+            "tasks": [run_task_ret_val],
+            "failures": [],
+        }
         describe_tasks_ret_value = {
             "tasks": [],
             "failures": [
-                {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
+                {
+                    "arn": ARN1,
+                    "reason": "Sample Failure",
+                    "detail": "UnitTest Failure - Please ignore",
+                }
             ],
         }
         mock_executor.ecs.describe_tasks.return_value = describe_tasks_ret_value
@@ -952,10 +1079,16 @@ class TestAwsEcsExecutor:
                         ARN2,
                         "STOPPED",
                         "STOPPED",
-                        {"exit_code": 0, "name": "some-ecs-container", "last_status": "STOPPED"},
+                        {
+                            "exit_code": 0,
+                            "name": "some-ecs-container",
+                            "last_status": "STOPPED",
+                        },
                     )
                 )
-                self.response_task2_json.update({"desiredStatus": "STOPPED", "lastStatus": "STOPPED"})
+                self.response_task2_json.update(
+                    {"desiredStatus": "STOPPED", "lastStatus": "STOPPED"}
+                )
                 mock_executor.ecs.describe_tasks.return_value = {
                     "tasks": [self.response_task2_json],
                     "failures": [],
@@ -968,7 +1101,9 @@ class TestAwsEcsExecutor:
 
         base_response_task_json = {
             "startedAt": dt.datetime.now(),
-            "containers": [{"name": "some-ecs-container", "lastStatus": "STOPPED", "exitCode": 0}],
+            "containers": [
+                {"name": "some-ecs-container", "lastStatus": "STOPPED", "exitCode": 0}
+            ],
         }
         self.response_task1_json = {
             "taskArn": ARN1,
@@ -995,20 +1130,28 @@ class TestAwsEcsExecutor:
     @pytest.mark.parametrize(
         "bad_config",
         [
-            pytest.param({"name": "bad_robot"}, id="executor_config_can_not_overwrite_name"),
-            pytest.param({"command": "bad_robot"}, id="executor_config_can_not_overwrite_command"),
+            pytest.param(
+                {"name": "bad_robot"}, id="executor_config_can_not_overwrite_name"
+            ),
+            pytest.param(
+                {"command": "bad_robot"}, id="executor_config_can_not_overwrite_command"
+            ),
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor):
         with pytest.raises(ValueError) as raised:
-            mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
+            mock_executor.execute_async(
+                mock_airflow_key, mock_cmd, executor_config=bad_config
+            )
 
         assert raised.match('Executor Config should never override "name" or "command"')
         assert 0 == len(mock_executor.pending_tasks)
 
     @mock.patch.object(ecs_executor_config, "build_task_kwargs")
     def test_container_not_found(self, mock_build_task_kwargs, mock_executor):
-        mock_build_task_kwargs.return_value({"overrides": {"containerOverrides": [{"name": "foo"}]}})
+        mock_build_task_kwargs.return_value(
+            {"overrides": {"containerOverrides": [{"name": "foo"}]}}
+        )
 
         with pytest.raises(KeyError) as raised:
             AwsEcsExecutor()
@@ -1038,20 +1181,31 @@ class TestAwsEcsExecutor:
                 {
                     "name": "some-ecs-container",
                     "lastStatus": "STOPPED",
-                    "exitCode": 100 if expected_state in [State.FAILED, State.QUEUED] else 0,
+                    "exitCode": 100
+                    if expected_state in [State.FAILED, State.QUEUED]
+                    else 0,
                 }
             ],
         }
         if not set_task_state == State.REMOVED:
             response_task_json["startedAt"] = dt.datetime.now()
-        assert expected_state == BotoTaskSchema().load(response_task_json).get_task_state()
+        assert (
+            expected_state == BotoTaskSchema().load(response_task_json).get_task_state()
+        )
 
-        executor.ecs.describe_tasks.return_value = {"tasks": [response_task_json], "failures": []}
+        executor.ecs.describe_tasks.return_value = {
+            "tasks": [response_task_json],
+            "failures": [],
+        }
 
     @staticmethod
-    def _add_mock_task(executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING):
+    def _add_mock_task(
+        executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING
+    ):
         task = mock_task(arn, state)
-        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)  # type:ignore[arg-type]
+        executor.active_workers.add_task(
+            task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1
+        )  # type:ignore[arg-type]
 
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""
@@ -1086,10 +1240,16 @@ class TestAwsEcsExecutor:
                 }
             ],
         }
-        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [test_response_task_json],
+            "failures": [],
+        }
         mock_executor.sync_running_tasks()
         if expected_status != State.REMOVED:
-            assert mock_executor.active_workers.tasks["arn1"].get_task_state() == expected_status
+            assert (
+                mock_executor.active_workers.tasks["arn1"].get_task_state()
+                == expected_status
+            )
             # The task is not removed from active_workers in these states
             assert len(mock_executor.active_workers) == 1
         else:
@@ -1112,10 +1272,14 @@ class TestAwsEcsExecutor:
             ],
         }
         patcher = mock.patch(
-            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.success", auth_spec=True
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.success",
+            auth_spec=True,
         )
         mock_success_function = patcher.start()
-        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [test_response_task_json],
+            "failures": [],
+        }
         mock_executor.sync_running_tasks()
         assert len(mock_executor.active_workers) == 0
         mock_success_function.assert_called_once()
@@ -1141,10 +1305,14 @@ class TestAwsEcsExecutor:
         }
 
         patcher = mock.patch(
-            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail", auth_spec=True
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail",
+            auth_spec=True,
         )
         mock_failed_function = patcher.start()
-        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [test_response_task_json],
+            "failures": [],
+        }
         mock_executor.sync_running_tasks()
         assert len(mock_executor.active_workers) == 0
         mock_failed_function.assert_called_once()
@@ -1180,7 +1348,9 @@ class TestAwsEcsExecutor:
         ]
         orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
-        orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
+        orphaned_tasks[
+            2
+        ].external_executor_id = None  # One orphaned task has no external_executor_id
         for task in orphaned_tasks:
             task.try_number = 1
 
@@ -1227,7 +1397,9 @@ class TestEcsExecutorConfig:
         with open(config_filename) as config:
             options = yaml.safe_load(config)["config"][CONFIG_GROUP_NAME]["options"]
             file_defaults = {
-                option: default for (option, value) in options.items() if (default := value.get("default"))
+                option: default
+                for (option, value) in options.items()
+                if (default := value.get("default"))
             }
 
         assert len(file_defaults) == len(CONFIG_DEFAULTS)
@@ -1274,12 +1446,16 @@ class TestEcsExecutorConfig:
                     expected_value = parse_assign_public_ip(expected_value)
                 assert expected_value == task_kwargs[found_keys[expected_key]]
 
-    def test_provided_values_override_defaults(self, assign_subnets, assign_container_name, monkeypatch):
+    def test_provided_values_override_defaults(
+        self, assign_subnets, assign_container_name, monkeypatch
+    ):
         """
         Expected precedence is default values are overwritten by values provided explicitly,
         and those values are overwritten by those provided in run_task_kwargs.
         """
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        run_task_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        )
         platform_version_env_key = (
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()
         )
@@ -1340,7 +1516,9 @@ class TestEcsExecutorConfig:
         # Assert that count was NOT overridden when the others were applied.
         assert task_kwargs["count"] == 1
 
-    def test_verify_tags_are_used_as_provided(self, assign_subnets, assign_container_name, monkeypatch):
+    def test_verify_tags_are_used_as_provided(
+        self, assign_subnets, assign_container_name, monkeypatch
+    ):
         """Confirm that the ``tags`` provided are not converted to camelCase."""
         templated_tags = {"Apache": "Airflow"}
 
@@ -1348,7 +1526,9 @@ class TestEcsExecutorConfig:
             "tags": templated_tags,  # The user should be allowed to pass arbitrary run task args
         }
 
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        run_task_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        )
         monkeypatch.setenv(run_task_kwargs_env_key, json.dumps(provided_run_task_kwargs))
         task_kwargs = ecs_executor_config.build_task_kwargs()
 
@@ -1371,7 +1551,9 @@ class TestEcsExecutorConfig:
             monkeypatch.setenv(f"AIRFLOW__{CONFIG_GROUP_NAME}__{key}".upper(), value)
 
         run_task_kwargs = ecs_executor_config.build_task_kwargs()
-        run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"]["awsvpcConfiguration"]
+        run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"][
+            "awsvpcConfiguration"
+        ]
         for key, value in kwargs_to_test.items():
             # Assert that the values are not at the root of the kwargs
             camelized_key = camelize(key, uppercase_first_letter=False)
@@ -1380,7 +1562,9 @@ class TestEcsExecutorConfig:
             assert camelized_key not in run_task_kwargs
             if key == AllEcsConfigKeys.CONTAINER_NAME:
                 # The actual ECS run_task_kwarg is "name" not "containerName"
-                assert run_task_kwargs["overrides"]["containerOverrides"][0]["name"] == value
+                assert (
+                    run_task_kwargs["overrides"]["containerOverrides"][0]["name"] == value
+                )
             elif key == AllEcsConfigKeys.ASSIGN_PUBLIC_IP:
                 # The value for this kwarg is cast from bool to enabled/disabled
                 assert run_task_kwargs_network_config[camelized_key] == "ENABLED"
@@ -1410,7 +1594,9 @@ class TestEcsExecutorConfig:
 
         # Replace boto3 ECS client with mock.
         ecs_mock = mock.Mock(spec=executor.ecs)
-        mock_resp = {"Error": {"Code": "ClusterNotFoundException", "Message": "Cluster not found."}}
+        mock_resp = {
+            "Error": {"Code": "ClusterNotFoundException", "Message": "Cluster not found."}
+        }
         ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
 
         executor.ecs = ecs_mock
@@ -1424,7 +1610,10 @@ class TestEcsExecutorConfig:
         # Replace boto3 ECS client with mock.
         ecs_mock = mock.Mock(spec=executor.ecs)
         mock_resp = {
-            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+            "Error": {
+                "Code": "InvalidParameterException",
+                "Message": "The referenced task was not found.",
+            }
         }
         ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
 
@@ -1442,33 +1631,43 @@ class TestEcsExecutorConfig:
         # Replace boto3 ECS client with mock.
         ecs_mock = mock.Mock(spec=executor.ecs)
         mock_resp = {
-            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+            "Error": {
+                "Code": "InvalidParameterException",
+                "Message": "The referenced task was not found.",
+            }
         }
         ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
 
         executor.ecs = ecs_mock
 
-        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP): "False"}):
+        with conf_vars(
+            {(CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP): "False"}
+        ):
             executor.start()
 
         ecs_mock.stop_task.assert_not_called()
 
-    def test_providing_both_capacity_provider_and_launch_type_fails(self, set_env_vars, monkeypatch):
+    def test_providing_both_capacity_provider_and_launch_type_fails(
+        self, set_env_vars, monkeypatch
+    ):
         cps = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
         expected_error = re.escape(
             "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
         )
-        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY): cps}):
+        with conf_vars(
+            {(CONFIG_GROUP_NAME, AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY): cps}
+        ):
             with pytest.raises(ValueError, match=expected_error):
                 AwsEcsExecutor()
 
     def test_providing_capacity_provider(self, set_env_vars):
         # If a capacity provider strategy is supplied without a launch type, use the strategy.
-        valid_capacity_provider = (
-            "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
-        )
+        valid_capacity_provider = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
         conf_overrides = {
-            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY): valid_capacity_provider,
+            (
+                CONFIG_GROUP_NAME,
+                AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY,
+            ): valid_capacity_provider,
             (CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): None,
         }
         with conf_vars(conf_overrides):
@@ -1479,7 +1678,9 @@ class TestEcsExecutorConfig:
             assert task_kwargs["capacityProviderStrategy"] == valid_capacity_provider
 
     @mock.patch.object(EcsHook, "conn")
-    def test_providing_no_capacity_provider_no_lunch_type_with_cluster_default(self, mock_conn, set_env_vars):
+    def test_providing_no_capacity_provider_no_lunch_type_with_cluster_default(
+        self, mock_conn, set_env_vars
+    ):
         # If no capacity provider strategy is supplied and no launch type, but the
         # cluster has a default capacity provider strategy, use the cluster's default.
         mock_conn.describe_clusters.return_value = {
@@ -1494,7 +1695,9 @@ class TestEcsExecutorConfig:
             mock_conn.describe_clusters.assert_called_once()
 
     @mock.patch.object(EcsHook, "conn")
-    def test_providing_no_capacity_provider_no_lunch_type_no_cluster_default(self, mock_conn, set_env_vars):
+    def test_providing_no_capacity_provider_no_lunch_type_no_cluster_default(
+        self, mock_conn, set_env_vars
+    ):
         # If no capacity provider strategy is supplied and no launch type, and the cluster
         # does not have a default capacity provider strategy, use the FARGATE launch type.
         mock_conn.describe_clusters.return_value = {"clusters": [{"status": "ACTIVE"}]}
@@ -1522,7 +1725,12 @@ class TestEcsExecutorConfig:
                             {
                                 "command": ["command"],
                                 "name": "container-name",
-                                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                                "environment": [
+                                    {
+                                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                                        "value": "true",
+                                    }
+                                ],
                             }
                         ]
                     },
@@ -1570,7 +1778,10 @@ class TestEcsExecutorConfig:
                                 "environment": [
                                     {"name": "X", "value": "Y"},
                                     # Added by the ecs executor
-                                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                                    {
+                                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                                        "value": "true",
+                                    },
                                 ],
                             }
                         ]
@@ -1620,7 +1831,10 @@ class TestEcsExecutorConfig:
                                 "environment": [
                                     {"name": "X", "value": "Y"},
                                     # Added by the ecs executor
-                                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                                    {
+                                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                                        "value": "true",
+                                    },
                                 ],
                             }
                         ]
@@ -1687,9 +1901,15 @@ class TestEcsExecutorConfig:
                                 "name": "container-name",
                                 "environment": [
                                     # Overridden list type
-                                    {"name": "W", "value": "Z"},  # Only new env vars present, overwritten
+                                    {
+                                        "name": "W",
+                                        "value": "Z",
+                                    },  # Only new env vars present, overwritten
                                     # Added by the ecs executor
-                                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                                    {
+                                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                                        "value": "true",
+                                    },
                                 ],
                             }
                         ]
@@ -1709,7 +1929,9 @@ class TestEcsExecutorConfig:
     def test_run_task_kwargs_exec_config_overrides(
         self, set_env_vars, run_task_kwargs, exec_config, expected_result, monkeypatch
     ):
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        run_task_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        )
         monkeypatch.setenv(run_task_kwargs_env_key, json.dumps(run_task_kwargs))
 
         mock_ti_key = mock.Mock(spec=TaskInstanceKey)
@@ -1717,11 +1939,15 @@ class TestEcsExecutorConfig:
 
         executor = AwsEcsExecutor()
 
-        final_run_task_kwargs = executor._run_task_kwargs(mock_ti_key, command, "queue", exec_config)
+        final_run_task_kwargs = executor._run_task_kwargs(
+            mock_ti_key, command, "queue", exec_config
+        )
 
         assert final_run_task_kwargs == expected_result
 
     def test_short_import_path(self):
-        from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor as AwsEcsExecutorShortPath
+        from airflow.providers.amazon.aws.executors.ecs import (
+            AwsEcsExecutor as AwsEcsExecutorShortPath,
+        )
 
         assert AwsEcsExecutor is AwsEcsExecutorShortPath

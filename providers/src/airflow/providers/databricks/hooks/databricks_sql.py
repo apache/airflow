@@ -124,9 +124,15 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
         try:
-            endpoint = next(endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name)
+            endpoint = next(
+                endpoint
+                for endpoint in result["endpoints"]
+                if endpoint["name"] == endpoint_name
+            )
         except StopIteration:
-            raise AirflowException(f"Can't find Databricks SQL endpoint with name '{endpoint_name}'")
+            raise AirflowException(
+                f"Can't find Databricks SQL endpoint with name '{endpoint_name}'"
+            )
         else:
             return endpoint
 
@@ -156,7 +162,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 requires_init = False
 
         if not self.session_config:
-            self.session_config = self.databricks_conn.extra_dejson.get("session_configuration")
+            self.session_config = self.databricks_conn.extra_dejson.get(
+                "session_configuration"
+            )
 
         if not self._sql_conn or requires_init:
             if self._sql_conn:  # close already existing connection
@@ -235,7 +243,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             sql_list = [self.strip_sql_string(s) for s in sql]
 
         if sql_list:
-            self.log.debug("Executing following statements against Databricks DB: %s", sql_list)
+            self.log.debug(
+                "Executing following statements against Databricks DB: %s", sql_list
+            )
         else:
             raise ValueError("List of SQL statements is empty")
 
@@ -256,7 +266,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                         else:
                             # Returning raw result is deprecated, and do not comply with current common.sql interface
                             result = raw_result  # type: ignore[assignment]
-                        if return_single_query_results(sql, return_last, split_statements):
+                        if return_single_query_results(
+                            sql, return_last, split_statements
+                        ):
                             results = [result]
                             self.descriptions = [cur.description]
                         else:
@@ -273,7 +285,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             return results
 
-    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
+    def _make_common_data_structure(
+        self, result: Sequence[Row] | Row
+    ) -> list[tuple] | tuple:
         """Transform the databricks Row objects into namedtuple."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848

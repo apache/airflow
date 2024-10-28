@@ -42,12 +42,17 @@ HIVE_CONNECTION_ID_KEY = "HIVE_CONNECTION_ID"
 HIVE_HOSTNAME_KEY = "HIVE_HOSTNAME"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(HIVE_CONNECTION_ID_KEY).add_variable(HIVE_HOSTNAME_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(HIVE_CONNECTION_ID_KEY)
+    .add_variable(HIVE_HOSTNAME_KEY)
+    .build()
 )
 
 # These values assume you set up the Hive data source following the link above.
 DYNAMODB_TABLE_HASH_KEY = "feature_id"
-HIVE_SQL = "SELECT feature_id, feature_name, feature_class, state_alpha FROM hive_features"
+HIVE_SQL = (
+    "SELECT feature_id, feature_name, feature_class, state_alpha FROM hive_features"
+)
 
 
 @task
@@ -82,7 +87,9 @@ def get_dynamodb_item_count(table_name):
     item_count = response["Count"]
 
     while "LastEvaluatedKey" in response:
-        response = table.scan(Select="COUNT", ExclusiveStartKey=response["LastEvaluatedKey"])
+        response = table.scan(
+            Select="COUNT", ExclusiveStartKey=response["LastEvaluatedKey"]
+        )
         item_count += response["Count"]
 
     print(f"DynamoDB table contains {item_count} items.")

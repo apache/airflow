@@ -191,9 +191,15 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         assert not self.datasync.task_execution_kwargs  # Empty dict
         # Assignments
         assert self.datasync.source_location_uri == MOCK_DATA["source_location_uri"]
-        assert self.datasync.destination_location_uri == MOCK_DATA["destination_location_uri"]
+        assert (
+            self.datasync.destination_location_uri
+            == MOCK_DATA["destination_location_uri"]
+        )
         assert self.datasync.create_task_kwargs == MOCK_DATA["create_task_kwargs"]
-        assert self.datasync.create_source_location_kwargs == MOCK_DATA["create_source_location_kwargs"]
+        assert (
+            self.datasync.create_source_location_kwargs
+            == MOCK_DATA["create_source_location_kwargs"]
+        )
         assert (
             self.datasync.create_destination_location_kwargs
             == MOCK_DATA["create_destination_location_kwargs"]
@@ -389,7 +395,9 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
             source_location_uri=source_location_uri,
             destination_location_uri=destination_location_uri,
             create_source_location_kwargs=MOCK_DATA["create_source_location_kwargs"],
-            create_destination_location_kwargs=MOCK_DATA["create_destination_location_kwargs"],
+            create_destination_location_kwargs=MOCK_DATA[
+                "create_destination_location_kwargs"
+            ],
             create_task_kwargs=MOCK_DATA["create_task_kwargs"],
             allow_random_task_choice=allow_random_task_choice,
             wait_interval_seconds=0,
@@ -404,7 +412,10 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         assert not self.datasync.allow_random_location_choice
         # Assignments
         assert self.datasync.source_location_uri == MOCK_DATA["source_location_uri"]
-        assert self.datasync.destination_location_uri == MOCK_DATA["destination_location_uri"]
+        assert (
+            self.datasync.destination_location_uri
+            == MOCK_DATA["destination_location_uri"]
+        )
         assert not self.datasync.allow_random_task_choice
         # ### Check mocks:
         mock_get_conn.assert_not_called()
@@ -525,7 +536,11 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         locations = self.client.list_locations()
         assert len(locations["Locations"]) == 2
 
-        self.set_up_operator(task_id="datasync_task2", task_arn=self.task_arn, allow_random_task_choice=True)
+        self.set_up_operator(
+            task_id="datasync_task2",
+            task_arn=self.task_arn,
+            allow_random_task_choice=True,
+        )
         self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -575,12 +590,17 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
     def set_up_operator(
-        self, task_id="test_datasync_update_task_operator", task_arn="self", update_task_kwargs="default"
+        self,
+        task_id="test_datasync_update_task_operator",
+        task_arn="self",
+        update_task_kwargs="default",
     ):
         if task_arn == "self":
             task_arn = self.task_arn
         if update_task_kwargs == "default":
-            update_task_kwargs = {"Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}}
+            update_task_kwargs = {
+                "Options": {"VerifyMode": "BEST_EFFORT", "Atime": "NONE"}
+            }
         # Create operator
         self.datasync = DataSyncOperator(
             task_id=task_id,
@@ -681,7 +701,10 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperator(DataSyncTestCaseBase):
     def set_up_operator(
-        self, task_id="test_datasync_task_operator", task_arn="self", wait_for_completion=True
+        self,
+        task_id="test_datasync_task_operator",
+        task_arn="self",
+        wait_for_completion=True,
     ):
         if task_arn == "self":
             task_arn = self.task_arn
@@ -744,7 +767,9 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         assert len(locations["Locations"]) == len_locations_before
 
         # Check with the DataSync client what happened
-        task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
+        task_execution = self.client.describe_task_execution(
+            TaskExecutionArn=task_execution_arn
+        )
         assert task_execution["Status"] == "SUCCESS"
 
         # Insist that this specific task was executed, not anything else
@@ -809,7 +834,9 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # Verify the task was killed
         task = self.client.describe_task(TaskArn=self.task_arn)
         assert task["Status"] == "AVAILABLE"
-        task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
+        task_execution = self.client.describe_task_execution(
+            TaskExecutionArn=task_execution_arn
+        )
         assert task_execution["Status"] == "ERROR"
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -857,7 +884,9 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
 @mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")
 class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
-    def set_up_operator(self, task_id="test_datasync_delete_task_operator", task_arn="self"):
+    def set_up_operator(
+        self, task_id="test_datasync_delete_task_operator", task_arn="self"
+    ):
         if task_arn == "self":
             task_arn = self.task_arn
         # Create operator

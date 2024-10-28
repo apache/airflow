@@ -38,7 +38,9 @@ from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildTriggersListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
+from airflow.providers.google.cloud.triggers.cloud_build import (
+    CloudBuildCreateBuildTrigger,
+)
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import yaml
@@ -50,7 +52,9 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-REGEX_REPO_PATH = re.compile(r"^/(?P<project_id>[^/]+)/(?P<repo_name>[^/]+)[\+/]*(?P<branch_name>[^:]+)?")
+REGEX_REPO_PATH = re.compile(
+    r"^/(?P<project_id>[^/]+)/(?P<repo_name>[^/]+)[\+/]*(?P<branch_name>[^:]+)?"
+)
 
 
 class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
@@ -108,7 +112,9 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.cancel_build(
             id_=self.id_,
             project_id=self.project_id,
@@ -165,7 +171,13 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain", "location")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "build",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "location",
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -180,7 +192,9 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 4.0,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         location: str = "global",
         **kwargs,
     ) -> None:
@@ -216,18 +230,22 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         )
         build = BuildProcessor(build=self.build).process_body()
 
-        self.cloud_build_operation, self.id_ = hook.create_build_without_waiting_for_result(
-            build=build,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-            location=self.location,
+        self.cloud_build_operation, self.id_ = (
+            hook.create_build_without_waiting_for_result(
+                build=build,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+                location=self.location,
+            )
         )
         self.xcom_push(context, key="id", value=self.id_)
         if not self.wait:
             return Build.to_dict(
-                hook.get_build(id_=self.id_, project_id=self.project_id, location=self.location)
+                hook.get_build(
+                    id_=self.id_, project_id=self.project_id, location=self.location
+                )
             )
 
         if self.deferrable:
@@ -275,7 +293,9 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                 )
             return event["instance"]
         else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+            raise AirflowException(
+                f"Unexpected error in the operation: {event['message']}"
+            )
 
 
 class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
@@ -337,7 +357,9 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.create_build_trigger(
             trigger=self.trigger,
             project_id=self.project_id,
@@ -393,7 +415,12 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "trigger_id",
+        "gcp_conn_id",
+        "location",
+    )
     operator_extra_links = (CloudBuildTriggersListLink(),)
 
     def __init__(
@@ -420,7 +447,9 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         hook.delete_build_trigger(
             trigger_id=self.trigger_id,
             project_id=self.project_id,
@@ -494,7 +523,9 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.get_build(
             id_=self.id_,
             project_id=self.project_id,
@@ -543,7 +574,12 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "trigger_id",
+        "gcp_conn_id",
+        "location",
+    )
     operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
@@ -570,7 +606,9 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.get_build_trigger(
             trigger_id=self.trigger_id,
             project_id=self.project_id,
@@ -650,7 +688,9 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         results = hook.list_build_triggers(
             project_id=self.project_id,
             location=self.location,
@@ -730,7 +770,9 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         results = hook.list_builds(
             project_id=self.project_id,
             location=self.location,
@@ -743,7 +785,10 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         if project_id:
             CloudBuildListLink.persist(
-                context=context, task_instance=self, project_id=project_id, region=self.location
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                region=self.location,
             )
         return [Build.to_dict(result) for result in results]
 
@@ -806,7 +851,9 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.retry_build(
             id_=self.id_,
             project_id=self.project_id,
@@ -861,7 +908,13 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "source", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "trigger_id",
+        "source",
+        "gcp_conn_id",
+        "location",
+    )
     operator_extra_links = (CloudBuildLink(),)
 
     def __init__(
@@ -892,7 +945,9 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.run_build_trigger(
             trigger_id=self.trigger_id,
             source=self.source,
@@ -946,7 +1001,13 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
     :param location: The location of the project.
     """
 
-    template_fields: Sequence[str] = ("project_id", "trigger_id", "trigger", "gcp_conn_id", "location")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "trigger_id",
+        "trigger",
+        "gcp_conn_id",
+        "location",
+    )
     operator_extra_links = (CloudBuildTriggerDetailsLink(),)
 
     def __init__(
@@ -975,7 +1036,9 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
         self.location = location
 
     def execute(self, context: Context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
         result = hook.update_build_trigger(
             trigger_id=self.trigger_id,
             trigger=self.trigger,
@@ -1014,7 +1077,10 @@ class BuildProcessor:
         self.build = deepcopy(build)
 
     def _verify_source(self) -> None:
-        if not exactly_one("storage_source" in self.build["source"], "repo_source" in self.build["source"]):
+        if not exactly_one(
+            "storage_source" in self.build["source"],
+            "repo_source" in self.build["source"],
+        ):
             raise AirflowException(
                 "The source could not be determined. Please choose one data source from: "
                 "storage_source and repo_source."
@@ -1044,7 +1110,9 @@ class BuildProcessor:
         if not isinstance(storage_source, str):
             return
 
-        self.build["source"]["storage_source"] = self._convert_storage_url_to_dict(storage_source)
+        self.build["source"]["storage_source"] = self._convert_storage_url_to_dict(
+            storage_source
+        )
 
     def process_body(self) -> Build:
         """
@@ -1073,7 +1141,11 @@ class BuildProcessor:
 
         match = REGEX_REPO_PATH.search(url_parts.path)
 
-        if url_parts.scheme != "https" or url_parts.hostname != "source.cloud.google.com" or not match:
+        if (
+            url_parts.scheme != "https"
+            or url_parts.hostname != "source.cloud.google.com"
+            or not match
+        ):
             raise AirflowException(
                 "Invalid URL. You must pass the URL in the format: "
                 "https://source.cloud.google.com/airflow-project/airflow-repo/+/branch-name:"
@@ -1081,7 +1153,11 @@ class BuildProcessor:
 
         project_id = unquote(match.group("project_id"))
         repo_name = unquote(match.group("repo_name"))
-        branch_name = unquote(match.group("branch_name")) if match.group("branch_name") else "master"
+        branch_name = (
+            unquote(match.group("branch_name"))
+            if match.group("branch_name")
+            else "master"
+        )
 
         source_dict = {
             "project_id": project_id,
@@ -1105,7 +1181,12 @@ class BuildProcessor:
         """
         url_parts = urlsplit(storage_url)
 
-        if url_parts.scheme != "gs" or not url_parts.hostname or not url_parts.path or url_parts.path == "/":
+        if (
+            url_parts.scheme != "gs"
+            or not url_parts.hostname
+            or not url_parts.path
+            or url_parts.path == "/"
+        ):
             raise AirflowException(
                 "Invalid URL. You must pass the URL in the format: "
                 "gs://bucket-name/object-name.tar.gz#24565443"

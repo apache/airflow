@@ -95,7 +95,9 @@ class S3KeySensor(BaseSensorOperator):
         check_fn: Callable[..., bool] | None = None,
         aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         use_regex: bool = False,
         metadata_keys: list[str] | None = None,
         **kwargs,
@@ -112,7 +114,9 @@ class S3KeySensor(BaseSensorOperator):
         self.metadata_keys = metadata_keys if metadata_keys else ["Size"]
 
     def _check_key(self, key, context: Context):
-        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
+        bucket_name, key = S3Hook.get_s3_bucket_key(
+            self.bucket_name, key, "bucket_name", "bucket_key"
+        )
         self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
 
         """
@@ -140,8 +144,13 @@ class S3KeySensor(BaseSensorOperator):
                             metadata[key] = f[key]
                         except KeyError:
                             # supplied key might be from head_object response
-                            self.log.info("Key %s not found in response, performing head_object", key)
-                            metadata[key] = self.hook.head_object(f["Key"], bucket_name).get(key, None)
+                            self.log.info(
+                                "Key %s not found in response, performing head_object",
+                                key,
+                            )
+                            metadata[key] = self.hook.head_object(
+                                f["Key"], bucket_name
+                            ).get(key, None)
                 files.append(metadata)
         elif self.use_regex:
             keys = self.hook.get_file_metadata("", bucket_name)
@@ -168,7 +177,10 @@ class S3KeySensor(BaseSensorOperator):
         if self.check_fn is not None:
             # For backwards compatibility, check if the function takes a context argument
             signature = inspect.signature(self.check_fn)
-            if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
+            if any(
+                param.kind == inspect.Parameter.VAR_KEYWORD
+                for param in signature.parameters.values()
+            ):
                 return self.check_fn(files, **context)
             # Otherwise, just pass the files
             return self.check_fn(files)
@@ -275,7 +287,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         min_objects: int = 1,
         previous_objects: set[str] | None = None,
         allow_delete: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -337,7 +351,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             )
 
         if self.last_activity_time:
-            self.inactivity_seconds = int((datetime.now() - self.last_activity_time).total_seconds())
+            self.inactivity_seconds = int(
+                (datetime.now() - self.last_activity_time).total_seconds()
+            )
         else:
             # Handles the first poke where last inactivity time is None.
             self.last_activity_time = datetime.now()
@@ -356,13 +372,17 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                 )
                 return True
 
-            self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
+            self.log.error(
+                "FAILURE: Inactivity Period passed, not enough objects found in %s", path
+            )
 
             return False
         return False
 
     def poke(self, context: Context):
-        return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))
+        return self.is_keys_unchanged(
+            set(self.hook.list_keys(self.bucket_name, prefix=self.prefix))
+        )
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger if deferrable is True."""
@@ -387,7 +407,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         """
         Execute when the trigger fires - returns immediately.
 

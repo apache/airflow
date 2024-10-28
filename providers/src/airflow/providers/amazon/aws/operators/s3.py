@@ -75,7 +75,9 @@ class S3CreateBucketOperator(BaseOperator):
     def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         if not s3_hook.check_for_bucket(self.bucket_name):
-            s3_hook.create_bucket(bucket_name=self.bucket_name, region_name=self.region_name)
+            s3_hook.create_bucket(
+                bucket_name=self.bucket_name, region_name=self.region_name
+            )
             self.log.info("Created bucket with name: %s", self.bucket_name)
         else:
             self.log.info("Bucket with name: %s already exists", self.bucket_name)
@@ -115,7 +117,9 @@ class S3DeleteBucketOperator(BaseOperator):
     def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         if s3_hook.check_for_bucket(self.bucket_name):
-            s3_hook.delete_bucket(bucket_name=self.bucket_name, force_delete=self.force_delete)
+            s3_hook.delete_bucket(
+                bucket_name=self.bucket_name, force_delete=self.force_delete
+            )
             self.log.info("Deleted bucket with name: %s", self.bucket_name)
         else:
             self.log.info("Bucket with name: %s doesn't exist", self.bucket_name)
@@ -139,7 +143,9 @@ class S3GetBucketTaggingOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("bucket_name",)
 
-    def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
+    def __init__(
+        self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.aws_conn_id = aws_conn_id
@@ -201,7 +207,10 @@ class S3PutBucketTaggingOperator(BaseOperator):
         if s3_hook.check_for_bucket(self.bucket_name):
             self.log.info("Putting tags for bucket %s", self.bucket_name)
             return s3_hook.put_bucket_tagging(
-                key=self.key, value=self.value, tag_set=self.tag_set, bucket_name=self.bucket_name
+                key=self.key,
+                value=self.value,
+                tag_set=self.tag_set,
+                bucket_name=self.bucket_name,
             )
         else:
             self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
@@ -226,7 +235,9 @@ class S3DeleteBucketTaggingOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("bucket_name",)
 
-    def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
+    def __init__(
+        self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.aws_conn_id = aws_conn_id
@@ -331,11 +342,17 @@ class S3CopyObjectOperator(BaseOperator):
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(
-            self.dest_bucket_name, self.dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
+            self.dest_bucket_name,
+            self.dest_bucket_key,
+            "dest_bucket_name",
+            "dest_bucket_key",
         )
 
         source_bucket_name, source_bucket_key = S3Hook.get_s3_bucket_key(
-            self.source_bucket_name, self.source_bucket_key, "source_bucket_name", "source_bucket_key"
+            self.source_bucket_name,
+            self.source_bucket_key,
+            "source_bucket_name",
+            "source_bucket_key",
         )
 
         input_dataset = Dataset(
@@ -424,7 +441,9 @@ class S3CreateObjectOperator(BaseOperator):
     def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
+        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(
+            self.s3_bucket, self.s3_key, "dest_bucket", "dest_key"
+        )
 
         if isinstance(self.data, str):
             s3_hook.load_string(
@@ -438,13 +457,17 @@ class S3CreateObjectOperator(BaseOperator):
                 self.compression,
             )
         else:
-            s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
+            s3_hook.load_bytes(
+                self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy
+            )
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        bucket, key = S3Hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
+        bucket, key = S3Hook.get_s3_bucket_key(
+            self.s3_bucket, self.s3_key, "dest_bucket", "dest_key"
+        )
 
         output_dataset = Dataset(
             namespace=f"s3://{bucket}",
@@ -493,7 +516,13 @@ class S3DeleteObjectsOperator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ("keys", "bucket", "prefix", "from_datetime", "to_datetime")
+    template_fields: Sequence[str] = (
+        "keys",
+        "bucket",
+        "prefix",
+        "from_datetime",
+        "to_datetime",
+    )
 
     def __init__(
         self,
@@ -518,14 +547,19 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         self._keys: str | list[str] = ""
 
-        if not exactly_one(keys is None, all(var is None for var in [prefix, from_datetime, to_datetime])):
+        if not exactly_one(
+            keys is None, all(var is None for var in [prefix, from_datetime, to_datetime])
+        ):
             raise AirflowException(
                 "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
             )
 
     def execute(self, context: Context):
         if not exactly_one(
-            self.keys is None, all(var is None for var in [self.prefix, self.from_datetime, self.to_datetime])
+            self.keys is None,
+            all(
+                var is None for var in [self.prefix, self.from_datetime, self.to_datetime]
+            ),
         ):
             raise AirflowException(
                 "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
@@ -674,7 +708,9 @@ class S3FileTransformOperator(BaseOperator):
 
     def execute(self, context: Context):
         if self.transform_script is None and self.select_expression is None:
-            raise AirflowException("Either transform_script or select_expression must be specified")
+            raise AirflowException(
+                "Either transform_script or select_expression must be specified"
+            )
 
         source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id, verify=self.source_verify)
         dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
@@ -685,11 +721,19 @@ class S3FileTransformOperator(BaseOperator):
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
 
         with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
-            self.log.info("Dumping S3 file %s contents to local file %s", self.source_s3_key, f_source.name)
+            self.log.info(
+                "Dumping S3 file %s contents to local file %s",
+                self.source_s3_key,
+                f_source.name,
+            )
 
             if self.select_expression is not None:
-                input_serialization = self.select_expr_serialization_config.get("input_serialization")
-                output_serialization = self.select_expr_serialization_config.get("output_serialization")
+                input_serialization = self.select_expr_serialization_config.get(
+                    "input_serialization"
+                )
+                output_serialization = self.select_expr_serialization_config.get(
+                    "output_serialization"
+                )
                 content = source_s3.select_key(
                     key=self.source_s3_key,
                     expression=self.select_expression,
@@ -703,7 +747,12 @@ class S3FileTransformOperator(BaseOperator):
 
             if self.transform_script is not None:
                 with subprocess.Popen(
-                    [self.transform_script, f_source.name, f_dest.name, *self.script_args],
+                    [
+                        self.transform_script,
+                        f_source.name,
+                        f_dest.name,
+                        *self.script_args,
+                    ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     close_fds=True,
@@ -716,10 +765,13 @@ class S3FileTransformOperator(BaseOperator):
                     process.wait()
 
                     if process.returncode:
-                        raise AirflowException(f"Transform script failed: {process.returncode}")
+                        raise AirflowException(
+                            f"Transform script failed: {process.returncode}"
+                        )
                     else:
                         self.log.info(
-                            "Transform script successful. Output temporarily located at %s", f_dest.name
+                            "Transform script successful. Output temporarily located at %s",
+                            f_dest.name,
                         )
 
             self.log.info("Uploading transformed file to S3")
@@ -918,4 +970,6 @@ class S3ListPrefixesOperator(BaseOperator):
             self.delimiter,
         )
 
-        return hook.list_prefixes(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        return hook.list_prefixes(
+            bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter
+        )

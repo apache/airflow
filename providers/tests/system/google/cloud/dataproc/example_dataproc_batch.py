@@ -39,7 +39,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "dataproc_batch"
 REGION = "europe-west3"
 
@@ -144,13 +146,22 @@ with DAG(
         task_id="delete_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
     )
     delete_batch_2 = DataprocDeleteBatchOperator(
-        task_id="delete_batch_2", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_2
+        task_id="delete_batch_2",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch_id=BATCH_ID_2,
     )
     delete_batch_3 = DataprocDeleteBatchOperator(
-        task_id="delete_batch_3", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_3
+        task_id="delete_batch_3",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch_id=BATCH_ID_3,
     )
     delete_batch_4 = DataprocDeleteBatchOperator(
-        task_id="delete_batch_4", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_4
+        task_id="delete_batch_4",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch_id=BATCH_ID_4,
     )
     # [END how_to_cloud_dataproc_delete_batch_operator]
     delete_batch.trigger_rule = TriggerRule.ALL_DONE

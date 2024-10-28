@@ -34,7 +34,10 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
+from airflow.providers.amazon.aws.executors.ecs.boto_schema import (
+    BotoDescribeTasksSchema,
+    BotoRunTaskSchema,
+)
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
@@ -126,7 +129,9 @@ class AwsEcsExecutor(BaseExecutor):
         try:
             self.check_health()
         except AirflowException:
-            self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
+            self.log.error(
+                "Stopping the Airflow Scheduler from starting until the issue is resolved."
+            )
             raise
 
     def check_health(self):
@@ -157,7 +162,9 @@ class AwsEcsExecutor(BaseExecutor):
             error_code = ex.response["Error"]["Code"]
             error_message = ex.response["Error"]["Message"]
 
-            if ("InvalidParameterException" in error_code) and ("task was not found" in error_message):
+            if ("InvalidParameterException" in error_code) and (
+                "task was not found" in error_message
+            ):
                 # This failure is expected, and means we're healthy
                 pass
             else:
@@ -172,9 +179,7 @@ class AwsEcsExecutor(BaseExecutor):
                 self.IS_BOTO_CONNECTION_HEALTHY = True
                 self.log.info(msg_prefix, status)
             else:
-                msg_error_suffix = (
-                    "The ECS executor will not be able to run Airflow tasks until the issue is addressed."
-                )
+                msg_error_suffix = "The ECS executor will not be able to run Airflow tasks until the issue is addressed."
                 raise AirflowException(msg_prefix % status + msg_error_suffix)
 
     def load_ecs_connection(self, check_connection: bool = True):
@@ -184,7 +189,9 @@ class AwsEcsExecutor(BaseExecutor):
             AllEcsConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
+        region_name = conf.get(
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None
+        )
         self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
@@ -210,7 +217,8 @@ class AwsEcsExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection",
+                    error,
                 )
 
         except Exception:
@@ -263,7 +271,9 @@ class AwsEcsExecutor(BaseExecutor):
             batched_task_arns = task_arns[i : i + self.DESCRIBE_TASKS_BATCH_SIZE]
             if not batched_task_arns:
                 continue
-            boto_describe_tasks = self.ecs.describe_tasks(tasks=batched_task_arns, cluster=self.cluster)
+            boto_describe_tasks = self.ecs.describe_tasks(
+                tasks=batched_task_arns, cluster=self.cluster
+            )
             describe_tasks_response = BotoDescribeTasksSchema().load(boto_describe_tasks)
 
             all_task_descriptions["tasks"].extend(describe_tasks_response["tasks"])
@@ -283,7 +293,8 @@ class AwsEcsExecutor(BaseExecutor):
         ]
         if reasons:
             self.log.warning(
-                "The ECS task failed due to the following containers failing:\n%s", "\n".join(reasons)
+                "The ECS task failed due to the following containers failing:\n%s",
+                "\n".join(reasons),
             )
 
     def __handle_failed_task(self, task_arn: str, reason: str):
@@ -374,14 +385,16 @@ class AwsEcsExecutor(BaseExecutor):
                 # failures list so that it is logged to the user and most importantly the task
                 # is added back to the pending list to be retried later.
                 if run_task_response["failures"]:
-                    failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
+                    failure_reasons.extend(
+                        [f["reason"] for f in run_task_response["failures"]]
+                    )
 
             if failure_reasons:
                 # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
                 if int(attempt_number) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
                     ecs_task.attempt_number += 1
-                    ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
-                        attempt_number
+                    ecs_task.next_attempt_time = (
+                        timezone.utcnow() + calculate_next_attempt_delay(attempt_number)
                     )
                     self.pending_tasks.append(ecs_task)
                 else:
@@ -413,7 +426,9 @@ class AwsEcsExecutor(BaseExecutor):
                 )
             else:
                 task = run_task_response["tasks"][0]
-                self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
+                self.active_workers.add_task(
+                    task, task_key, queue, cmd, exec_config, attempt_number
+                )
                 try:
                     self.running_state(task_key, task.task_arn)
                 except AttributeError:
@@ -423,7 +438,11 @@ class AwsEcsExecutor(BaseExecutor):
                     pass
 
     def _run_task(
-        self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self,
+        task_id: TaskInstanceKey,
+        cmd: CommandType,
+        queue: str,
+        exec_config: ExecutorConfigType,
     ):
         """
         Run a queued-up Airflow task.
@@ -438,7 +457,11 @@ class AwsEcsExecutor(BaseExecutor):
         return run_task_response
 
     def _run_task_kwargs(
-        self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
+        self,
+        task_id: TaskInstanceKey,
+        cmd: CommandType,
+        queue: str,
+        exec_config: ExecutorConfigType,
     ) -> dict:
         """
         Update the Airflow command by modifying container overrides for task-specific kwargs.
@@ -447,22 +470,32 @@ class AwsEcsExecutor(BaseExecutor):
         """
         run_task_kwargs = deepcopy(self.run_task_kwargs)
         run_task_kwargs = merge_dicts(run_task_kwargs, exec_config)
-        container_override = self.get_container(run_task_kwargs["overrides"]["containerOverrides"])
+        container_override = self.get_container(
+            run_task_kwargs["overrides"]["containerOverrides"]
+        )
         container_override["command"] = cmd
 
         # Inject the env variable to configure logging for containerized execution environment
         if "environment" not in container_override:
             container_override["environment"] = []
-        container_override["environment"].append({"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"})
+        container_override["environment"].append(
+            {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
+        )
 
         return run_task_kwargs
 
-    def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
+    def execute_async(
+        self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None
+    ):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
-        if executor_config and ("name" in executor_config or "command" in executor_config):
+        if executor_config and (
+            "name" in executor_config or "command" in executor_config
+        ):
             raise ValueError('Executor Config should never override "name" or "command"')
         self.pending_tasks.append(
-            EcsQueuedTask(key, command, queue, executor_config or {}, 1, timezone.utcnow())
+            EcsQueuedTask(
+                key, command, queue, executor_config or {}, 1, timezone.utcnow()
+            )
         )
 
     def end(self, heartbeat_interval=10):
@@ -483,7 +516,9 @@ class AwsEcsExecutor(BaseExecutor):
         try:
             for arn in self.active_workers.get_all_arns():
                 self.ecs.stop_task(
-                    cluster=self.cluster, task=arn, reason="Airflow Executor received a SIGTERM"
+                    cluster=self.cluster,
+                    task=arn,
+                    reason="Airflow Executor received a SIGTERM",
                 )
             self.end()
         except Exception:
@@ -492,12 +527,16 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.exception("Failed to terminate %s", self.__class__.__name__)
 
     def _load_run_kwargs(self) -> dict:
-        from airflow.providers.amazon.aws.executors.ecs.ecs_executor_config import build_task_kwargs
+        from airflow.providers.amazon.aws.executors.ecs.ecs_executor_config import (
+            build_task_kwargs,
+        )
 
         ecs_executor_run_task_kwargs = build_task_kwargs()
 
         try:
-            self.get_container(ecs_executor_run_task_kwargs["overrides"]["containerOverrides"])["command"]
+            self.get_container(
+                ecs_executor_run_task_kwargs["overrides"]["containerOverrides"]
+            )["command"]
         except KeyError:
             raise KeyError(
                 "Rendered JSON template does not contain key "
@@ -515,9 +554,13 @@ class AwsEcsExecutor(BaseExecutor):
                 raise EcsExecutorException(
                     'container "name" must be provided in "containerOverrides" configuration'
                 )
-        raise KeyError(f"No such container found by container name: {self.container_name}")
+        raise KeyError(
+            f"No such container found by container name: {self.container_name}"
+        )
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         """
         Adopt task instances which have an external_executor_id (the ECS task ARN).
 
@@ -526,11 +569,15 @@ class AwsEcsExecutor(BaseExecutor):
         with Stats.timer("ecs_executor.adopt_task_instances.duration"):
             adopted_tis: list[TaskInstance] = []
 
-            if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+            if task_arns := [
+                ti.external_executor_id for ti in tis if ti.external_executor_id
+            ]:
                 task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
 
                 for task in task_descriptions:
-                    ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
+                    ti = next(
+                        ti for ti in tis if ti.external_executor_id == task.task_arn
+                    )
                     self.active_workers.add_task(
                         task,
                         ti.key,

@@ -21,7 +21,16 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Callable, Collection, Container, Iterable, Mapping, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Container,
+    Iterable,
+    Mapping,
+    TypeVar,
+    overload,
+)
 
 from docker.types import Mount
 from kubernetes.client import models as k8s
@@ -91,7 +100,9 @@ class TaskDecoratorCollection:
         """
     # [START mixin_for_typing]
     @overload
-    def python(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def python(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
     # [END mixin_for_typing]
     @overload
     def __call__(  # type: ignore[misc]
@@ -104,7 +115,9 @@ class TaskDecoratorCollection:
     ) -> TaskDecorator:
         """Aliasing ``python``; signature should match exactly."""
     @overload
-    def __call__(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]:
+    def __call__(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]:
         """Aliasing ``python``; signature should match exactly."""
     @overload
     def virtualenv(  # type: ignore[misc]
@@ -181,7 +194,9 @@ class TaskDecoratorCollection:
         :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
-    def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def virtualenv(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
     def external_python(
         self,
         *,
@@ -244,7 +259,9 @@ class TaskDecoratorCollection:
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         """
     @overload
-    def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def branch(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
     @overload
     def branch_virtualenv(  # type: ignore[misc]
         self,
@@ -308,7 +325,9 @@ class TaskDecoratorCollection:
         :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
-    def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def branch_virtualenv(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
     @overload
     def branch_external_python(
         self,
@@ -374,7 +393,9 @@ class TaskDecoratorCollection:
             Defaults to True.
         """
     @overload
-    def short_circuit(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def short_circuit(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
     # [START decorator_signature]
     def docker(
         self,
@@ -738,7 +759,9 @@ class TaskDecoratorCollection:
         :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
         """
     @overload
-    def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
+    def sensor(
+        self, python_callable: Callable[FParams, FReturn] | None = None
+    ) -> Task[FParams, FReturn]: ...
     @overload
     def pyspark(  # type: ignore[misc]
         self,
@@ -790,8 +813,12 @@ class TaskDecoratorCollection:
             temporary directory.
         """
     @overload
-    def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
-    def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+    def bash(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
+    def run_if(
+        self, condition: AnyConditionFunc, skip_message: str | None = None
+    ) -> Callable[[_T], _T]:
         """
         Decorate a task to run only if a condition is met.
 
@@ -799,7 +826,9 @@ class TaskDecoratorCollection:
         :param skip_message: The message to log if the task is skipped.
             If None, a default message is used.
         """
-    def skip_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+    def skip_if(
+        self, condition: AnyConditionFunc, skip_message: str | None = None
+    ) -> Callable[[_T], _T]:
         """
         Decorate a task to skip if a condition is met.
 

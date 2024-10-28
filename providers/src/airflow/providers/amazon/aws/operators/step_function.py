@@ -28,7 +28,9 @@ from airflow.providers.amazon.aws.links.step_function import (
     StateMachineExecutionsDetailsLink,
 )
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
+from airflow.providers.amazon.aws.triggers.step_function import (
+    StepFunctionsExecutionCompleteTrigger,
+)
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
@@ -79,7 +81,10 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         "state_machine_arn", "name", "input", "is_redrive_execution"
     )
     ui_color = "#f9c915"
-    operator_extra_links = (StateMachineDetailsLink(), StateMachineExecutionsDetailsLink())
+    operator_extra_links = (
+        StateMachineDetailsLink(),
+        StateMachineExecutionsDetailsLink(),
+    )
 
     def __init__(
         self,
@@ -90,7 +95,9 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         state_machine_input: dict | str | None = None,
         waiter_max_attempts: int = 30,
         waiter_delay: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -116,7 +123,9 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
                 self.state_machine_arn, self.name, self.input, self.is_redrive_execution
             )
         ):
-            raise AirflowException(f"Failed to start State Machine execution for: {self.state_machine_arn}")
+            raise AirflowException(
+                f"Failed to start State Machine execution for: {self.state_machine_arn}"
+            )
 
         StateMachineExecutionsDetailsLink.persist(
             context=context,
@@ -126,7 +135,11 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
             execution_arn=execution_arn,
         )
 
-        self.log.info("Started State Machine execution for %s: %s", self.state_machine_arn, execution_arn)
+        self.log.info(
+            "Started State Machine execution for %s: %s",
+            self.state_machine_arn,
+            execution_arn,
+        )
         if self.deferrable:
             self.defer(
                 trigger=StepFunctionsExecutionCompleteTrigger(
@@ -143,7 +156,9 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
             )
         return execution_arn
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":

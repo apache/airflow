@@ -49,7 +49,11 @@ class TestCustomEKSServiceWaiters:
         boto_waiter = boto3.client("eks").get_waiter("cluster_active")
 
         assert_all_match(hook_waiter.name, client_waiter.name, boto_waiter.name)
-        assert_all_match(len(hook_waiter.__dict__), len(client_waiter.__dict__), len(boto_waiter.__dict__))
+        assert_all_match(
+            len(hook_waiter.__dict__),
+            len(client_waiter.__dict__),
+            len(boto_waiter.__dict__),
+        )
         for attr in hook_waiter.__dict__:
             # Not all attributes in a Waiter are directly comparable
             # so the best we can do it make sure the same attrs exist.

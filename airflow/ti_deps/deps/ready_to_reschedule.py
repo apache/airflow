@@ -80,9 +80,13 @@ class ReadyToRescheduleDep(BaseTIDep):
             # Because mapped sensors don't have the reschedule property, here's the last resort
             # and we need a slightly different passing reason
             if is_mapped:
-                yield self._passing_status(reason="The task is mapped and not in reschedule mode")
+                yield self._passing_status(
+                    reason="The task is mapped and not in reschedule mode"
+                )
                 return
-            yield self._passing_status(reason="There is no reschedule request for this task instance.")
+            yield self._passing_status(
+                reason="There is no reschedule request for this task instance."
+            )
             return
 
         now = timezone.utcnow()

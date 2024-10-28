@@ -33,7 +33,9 @@ class WebHdfsSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ("filepath",)
 
-    def __init__(self, *, filepath: str, webhdfs_conn_id: str = "webhdfs_default", **kwargs: Any) -> None:
+    def __init__(
+        self, *, filepath: str, webhdfs_conn_id: str = "webhdfs_default", **kwargs: Any
+    ) -> None:
         super().__init__(**kwargs)
         self.filepath = filepath
         self.webhdfs_conn_id = webhdfs_conn_id

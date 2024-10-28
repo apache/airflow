@@ -32,7 +32,9 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     JobRunInfo,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.providers.dbt.cloud.utils.openlineage import (
+    generate_openlineage_events_from_dbt_cloud_run,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -110,7 +112,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         additional_run_config: dict[str, Any] | None = None,
         reuse_existing_run: bool = False,
         retry_from_failure: bool = False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -131,9 +135,7 @@ class DbtCloudRunJobOperator(BaseOperator):
 
     def execute(self, context: Context):
         if self.trigger_reason is None:
-            self.trigger_reason = (
-                f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
-            )
+            self.trigger_reason = f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
 
         non_terminal_runs = None
         if self.reuse_existing_run:
@@ -141,7 +143,9 @@ class DbtCloudRunJobOperator(BaseOperator):
                 account_id=self.account_id,
                 payload={
                     "job_definition_id": self.job_id,
-                    "status__in": str(list(DbtCloudJobRunStatus.NON_TERMINAL_STATUSES.value)),
+                    "status__in": str(
+                        list(DbtCloudJobRunStatus.NON_TERMINAL_STATUSES.value)
+                    ),
                     "order_by": "-created_at",
                 },
             ).json()["data"]
@@ -179,7 +183,9 @@ class DbtCloudRunJobOperator(BaseOperator):
                 ):
                     self.log.info("Job run %s has completed successfully.", self.run_id)
                 else:
-                    raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+                    raise DbtCloudJobRunException(
+                        f"Job run {self.run_id} has failed or has been cancelled."
+                    )
 
                 return self.run_id
             else:
@@ -205,7 +211,9 @@ class DbtCloudRunJobOperator(BaseOperator):
                     DbtCloudJobRunStatus.CANCELLED.value,
                     DbtCloudJobRunStatus.ERROR.value,
                 ):
-                    raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+                    raise DbtCloudJobRunException(
+                        f"Job run {self.run_id} has failed or has been cancelled."
+                    )
         else:
             if self.deferrable is True:
                 warnings.warn(
@@ -253,7 +261,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         if isinstance(self.run_id, int) and self.wait_for_termination is True:
-            return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
+            return generate_openlineage_events_from_dbt_cloud_run(
+                operator=self, task_instance=task_instance
+            )
         return OperatorLineage()
 
 
@@ -278,7 +288,13 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         Defaults to <run_id>_<path> (e.g. "728368_run_results.json").
     """
 
-    template_fields = ("dbt_cloud_conn_id", "run_id", "path", "account_id", "output_file_name")
+    template_fields = (
+        "dbt_cloud_conn_id",
+        "run_id",
+        "path",
+        "account_id",
+        "output_file_name",
+    )
 
     def __init__(
         self,
@@ -297,7 +313,9 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.path = path
         self.account_id = account_id
         self.step = step
-        self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
+        self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace(
+            "/", "-"
+        )
 
     def execute(self, context: Context) -> str:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
@@ -309,7 +327,10 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         output_file_path.parent.mkdir(parents=True, exist_ok=True)
         with output_file_path.open(mode="w") as file:
             self.log.info(
-                "Writing %s artifact for job run %s to %s.", self.path, self.run_id, self.output_file_name
+                "Writing %s artifact for job run %s to %s.",
+                self.path,
+                self.run_id,
+                self.output_file_name,
             )
             if self.path.endswith(".json"):
                 json.dump(response.json(), file)
@@ -366,5 +387,7 @@ class DbtCloudListJobsOperator(BaseOperator):
         for job_metadata in list_jobs_response:
             for job in job_metadata.json()["data"]:
                 buffer.append(job["id"])
-        self.log.info("Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer)))
+        self.log.info(
+            "Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer))
+        )
         return buffer

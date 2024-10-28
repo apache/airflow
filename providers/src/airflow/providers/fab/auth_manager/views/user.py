@@ -64,9 +64,13 @@ class MultiResourceUserMixin:
             action_name = request.view_args.get("name")
             _, method_name = request.url_rule.endpoint.rsplit(".", 1)
             if method_name == "action" and action_name:
-                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
+                return self.class_permission_name_mapping.get(
+                    action_name, self._class_permission_name
+                )
             if method_name:
-                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
+                return self.class_permission_name_mapping.get(
+                    method_name, self._class_permission_name
+                )
         return self._class_permission_name
 
     @class_permission_name.setter

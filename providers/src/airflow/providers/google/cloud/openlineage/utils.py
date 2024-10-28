@@ -69,13 +69,17 @@ def get_identity_column_lineage_facet(
     in each input dataset and there are no transformations made.
     """
     if field_names and not input_datasets:
-        raise ValueError("When providing `field_names` You must provide at least one `input_dataset`.")
+        raise ValueError(
+            "When providing `field_names` You must provide at least one `input_dataset`."
+        )
 
     column_lineage_facet = ColumnLineageDatasetFacet(
         fields={
             field: Fields(
                 inputFields=[
-                    InputField(namespace=dataset.namespace, name=dataset.name, field=field)
+                    InputField(
+                        namespace=dataset.namespace, name=dataset.name, field=field
+                    )
                     for dataset in input_datasets
                 ],
                 transformationType="IDENTITY",

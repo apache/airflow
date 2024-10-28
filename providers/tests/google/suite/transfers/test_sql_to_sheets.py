@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
+from airflow.providers.google.suite.transfers.sql_to_sheets import (
+    SQLToGoogleSheetsOperator,
+)
 
 
 class TestSQLToGoogleSheets:

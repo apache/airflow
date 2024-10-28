@@ -29,9 +29,13 @@ class TestJdbcOperator:
     def setup_method(self):
         self.kwargs = dict(sql="sql", task_id="test_jdbc_operator", dag=None)
 
-    @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_execute_do_push(self, mock_get_db_hook):
-        jdbc_operator = SQLExecuteQueryOperator(**self.kwargs, do_xcom_push=True, conn_id=JDBC_DEFAULT)
+        jdbc_operator = SQLExecuteQueryOperator(
+            **self.kwargs, do_xcom_push=True, conn_id=JDBC_DEFAULT
+        )
         jdbc_operator.execute(context={})
 
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -42,9 +46,13 @@ class TestJdbcOperator:
             return_last=True,
         )
 
-    @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_execute_dont_push(self, mock_get_db_hook):
-        jdbc_operator = SQLExecuteQueryOperator(**self.kwargs, do_xcom_push=False, conn_id=JDBC_DEFAULT)
+        jdbc_operator = SQLExecuteQueryOperator(
+            **self.kwargs, do_xcom_push=False, conn_id=JDBC_DEFAULT
+        )
         jdbc_operator.execute(context={})
 
         mock_get_db_hook.return_value.run.assert_called_once_with(

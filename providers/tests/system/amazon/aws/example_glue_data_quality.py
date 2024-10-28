@@ -32,7 +32,9 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
-from airflow.providers.amazon.aws.sensors.glue import GlueDataQualityRuleSetEvaluationRunSensor
+from airflow.providers.amazon.aws.sensors.glue import (
+    GlueDataQualityRuleSetEvaluationRunSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
@@ -131,7 +133,9 @@ with DAG(
     query_drop_table = f"DROP TABLE IF EXISTS {athena_database}.{athena_table}"
     query_drop_database = f"DROP DATABASE IF EXISTS {athena_database}"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket
+    )
 
     upload_sample_data = S3CreateObjectOperator(
         task_id="upload_sample_data",

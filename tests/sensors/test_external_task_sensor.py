@@ -30,7 +30,12 @@ import pytest
 
 from airflow import exceptions, settings
 from airflow.decorators import task as task_deco
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
@@ -83,7 +88,10 @@ def clean_db():
 def dag_zip_maker():
     class DagZipMaker:
         def __call__(self, *dag_files):
-            self.__dag_files = [os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file]) for dag_file in dag_files]
+            self.__dag_files = [
+                os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file])
+                for dag_file in dag_files
+            ]
             dag_files_hash = md5("".join(self.__dag_files).encode()).hexdigest()
             self.__tmp_dir = os.sep.join([tempfile.tempdir, dag_files_hash])
 
@@ -152,7 +160,9 @@ class TestExternalTaskSensor:
         for task in task_group:
             if task.task_id == "fake_mapped_task":
                 for map_index in map_indexes:
-                    ti = TaskInstance(task=task, run_id=self.dag_run_id, map_index=map_index)
+                    ti = TaskInstance(
+                        task=task, run_id=self.dag_run_id, map_index=map_index
+                    )
                     ti.run(ignore_ti_state=True, mark_success=True)
                     ti.set_state(target_state)
             else:
@@ -220,7 +230,8 @@ class TestExternalTaskSensor:
                 dag=self.dag,
             )
         assert (
-            str(ctx.value) == "Only one of `external_task_group_id` or `external_task_ids` may "
+            str(ctx.value)
+            == "Only one of `external_task_group_id` or `external_task_ids` may "
             "be provided to ExternalTaskSensor; "
             "use external_task_id or external_task_ids or external_task_group_id."
         )
@@ -235,7 +246,8 @@ class TestExternalTaskSensor:
                 dag=self.dag,
             )
         assert (
-            str(ctx.value) == "Only one of `external_task_group_id` or `external_task_ids` may "
+            str(ctx.value)
+            == "Only one of `external_task_group_id` or `external_task_ids` may "
             "be provided to ExternalTaskSensor; "
             "use external_task_id or external_task_ids or external_task_group_id."
         )
@@ -336,7 +348,9 @@ class TestExternalTaskSensor:
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
             with pytest.raises(AirflowException, match=error_message):
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                op.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
         ) in caplog.messages
@@ -360,7 +374,9 @@ class TestExternalTaskSensor:
         # then
         session = settings.Session()
         TI = TaskInstance
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = (
+            session.query(TI).filter(TI.task_id == op.task_id).all()
+        )
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -381,7 +397,9 @@ class TestExternalTaskSensor:
 
         # then
         TI = TaskInstance
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = (
+            session.query(TI).filter(TI.task_id == op.task_id).all()
+        )
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -426,7 +444,9 @@ class TestExternalTaskSensor:
             ) in caplog.messages
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-    def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self, caplog):
+    def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(
+        self, caplog
+    ):
         self.add_time_sensor(task_id=TEST_TASK_ID)
         self.add_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
         op = ExternalTaskSensor(
@@ -444,7 +464,9 @@ class TestExternalTaskSensor:
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
             with pytest.raises(AirflowException, match=error_message):
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                op.run(
+                    start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+                )
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}', '{TEST_TASK_ID_ALTERNATE}'] "
             f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... "
@@ -452,8 +474,12 @@ class TestExternalTaskSensor:
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_dag_sensor(self):
-        other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        other_dag = DAG(
+            "other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once"
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
@@ -472,8 +498,12 @@ class TestExternalTaskSensor:
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_dag_sensor_log(self, caplog):
-        other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        other_dag = DAG(
+            "other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once"
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
@@ -488,12 +518,18 @@ class TestExternalTaskSensor:
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
+        assert (
+            f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... "
+        ) in caplog.messages
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_dag_sensor_soft_fail_as_skipped(self):
-        other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        other_dag = DAG(
+            "other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once"
+        )
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
@@ -518,7 +554,9 @@ class TestExternalTaskSensor:
         # then
         session = settings.Session()
         TI = TaskInstance
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = (
+            session.query(TI).filter(TI.task_id == op.task_id).all()
+        )
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -534,23 +572,32 @@ fi
 exit 0
 """
         dag_external_id = TEST_DAG_ID + "_external"
-        dag_external = DAG(dag_external_id, default_args=self.args, schedule=timedelta(seconds=1))
+        dag_external = DAG(
+            dag_external_id, default_args=self.args, schedule=timedelta(seconds=1)
+        )
         task_external_with_failure = BashOperator(
-            task_id="task_external_with_failure", bash_command=bash_command_code, retries=0, dag=dag_external
+            task_id="task_external_with_failure",
+            bash_command=bash_command_code,
+            retries=0,
+            dag=dag_external,
         )
         task_external_without_failure = EmptyOperator(
             task_id="task_external_without_failure", retries=0, dag=dag_external
         )
 
         task_external_without_failure.run(
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(seconds=1), ignore_ti_state=True
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + timedelta(seconds=1),
+            ignore_ti_state=True,
         )
 
         session = settings.Session()
         TI = TaskInstance
         try:
             task_external_with_failure.run(
-                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(seconds=1), ignore_ti_state=True
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE + timedelta(seconds=1),
+                ignore_ti_state=True,
             )
             # The test_with_failure task is excepted to fail
             # once per minute (the run on the first second of
@@ -565,7 +612,10 @@ exit 0
                 )
                 .all()
             )
-            if len(failed_tis) == 1 and failed_tis[0].task_id == "task_external_with_failure":
+            if (
+                len(failed_tis) == 1
+                and failed_tis[0].task_id == "task_external_with_failure"
+            ):
                 pass
             else:
                 raise e
@@ -595,10 +645,14 @@ exit 0
             dag=dag,
         )
 
-        task_without_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        task_without_failure.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
         with pytest.raises(AirflowSensorTimeout):
-            task_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task_with_failure.run(
+                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+            )
 
         # Test to ensure that if one task in a chain of tasks fails, the
         # ExternalTaskSensor will also report a failure and return without
@@ -620,7 +674,9 @@ exit 0
         # AirflowSensorTimeout is a subclass that will be raised if this does
         # not execute properly.
         with pytest.raises(AirflowException) as ex_ctx:
-            task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task_chain_with_failure.run(
+                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+            )
         assert type(ex_ctx.value) is AirflowException
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
@@ -937,7 +993,13 @@ exit 0
     @mock.patch("airflow.sensors.external_task.ExternalTaskSensor.get_count")
     @mock.patch("airflow.sensors.external_task.ExternalTaskSensor._get_dttm_filter")
     def test_fail_poke(
-        self, _get_dttm_filter, get_count, soft_fail, expected_exception, kwargs, expected_message
+        self,
+        _get_dttm_filter,
+        get_count,
+        soft_fail,
+        expected_exception,
+        kwargs,
+        expected_message,
     ):
         _get_dttm_filter.return_value = []
         get_count.return_value = 1
@@ -1049,7 +1111,9 @@ class TestExternalTaskAsyncSensor:
         with pytest.raises(TaskDeferred) as exc:
             sensor.execute(context=mock.MagicMock())
 
-        assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
+        assert isinstance(
+            exc.value.trigger, WorkflowTrigger
+        ), "Trigger is not a WorkflowTrigger"
 
     def test_defer_and_fire_failed_state_trigger(self):
         """Tests that an AirflowException is raised in case of error event"""
@@ -1062,7 +1126,8 @@ class TestExternalTaskAsyncSensor:
 
         with pytest.raises(AirflowException):
             sensor.execute_complete(
-                context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
+                context=mock.MagicMock(),
+                event={"status": "error", "message": "test failure message"},
             )
 
     def test_defer_and_fire_timeout_state_trigger(self):
@@ -1077,7 +1142,10 @@ class TestExternalTaskAsyncSensor:
         with pytest.raises(AirflowException):
             sensor.execute_complete(
                 context=mock.MagicMock(),
-                event={"status": "timeout", "message": "Dag was not started within 1 minute, assuming fail."},
+                event={
+                    "status": "timeout",
+                    "message": "Dag was not started within 1 minute, assuming fail.",
+                },
             )
 
     def test_defer_execute_check_correct_logging(self):
@@ -1094,7 +1162,9 @@ class TestExternalTaskAsyncSensor:
                 context=mock.MagicMock(),
                 event={"status": "success"},
             )
-        mock_log_info.assert_called_with("External tasks %s has executed successfully.", [EXTERNAL_TASK_ID])
+        mock_log_info.assert_called_with(
+            "External tasks %s has executed successfully.", [EXTERNAL_TASK_ID]
+        )
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
@@ -1108,10 +1178,20 @@ def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.parametrize(
-    argnames=["external_dag_id", "external_task_id", "expected_external_dag_id", "expected_external_task_id"],
+    argnames=[
+        "external_dag_id",
+        "external_task_id",
+        "expected_external_dag_id",
+        "expected_external_task_id",
+    ],
     argvalues=[
         ("dag_test", "task_test", "dag_test", "task_test"),
-        ("dag_{{ ds }}", "task_{{ ds }}", f"dag_{DEFAULT_DATE.date()}", f"task_{DEFAULT_DATE.date()}"),
+        (
+            "dag_{{ ds }}",
+            "task_{{ ds }}",
+            f"dag_{DEFAULT_DATE.date()}",
+            f"task_{DEFAULT_DATE.date()}",
+        ),
     ],
     ids=["not_templated", "templated"],
 )
@@ -1149,7 +1229,9 @@ class TestExternalTaskMarker:
         assert {"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields())
 
     def test_serialized_external_task_marker(self):
-        dag = DAG("test_serialized_external_task_marker", schedule=None, start_date=DEFAULT_DATE)
+        dag = DAG(
+            "test_serialized_external_task_marker", schedule=None, start_date=DEFAULT_DATE
+        )
         task = ExternalTaskMarker(
             task_id="parent_task",
             external_dag_id="external_task_marker_child",
@@ -1188,31 +1270,52 @@ def dag_bag_ext():
     dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule=None)
     task_a_0 = EmptyOperator(task_id="task_a_0", dag=dag_0)
     task_b_0 = ExternalTaskMarker(
-        task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3, dag=dag_0
+        task_id="task_b_0",
+        external_dag_id="dag_1",
+        external_task_id="task_a_1",
+        recursion_depth=3,
+        dag=dag_0,
     )
     task_a_0 >> task_b_0
 
     dag_1 = DAG("dag_1", start_date=DEFAULT_DATE, schedule=None)
     task_a_1 = ExternalTaskSensor(
-        task_id="task_a_1", external_dag_id=dag_0.dag_id, external_task_id=task_b_0.task_id, dag=dag_1
+        task_id="task_a_1",
+        external_dag_id=dag_0.dag_id,
+        external_task_id=task_b_0.task_id,
+        dag=dag_1,
     )
     task_b_1 = ExternalTaskMarker(
-        task_id="task_b_1", external_dag_id="dag_2", external_task_id="task_a_2", recursion_depth=2, dag=dag_1
+        task_id="task_b_1",
+        external_dag_id="dag_2",
+        external_task_id="task_a_2",
+        recursion_depth=2,
+        dag=dag_1,
     )
     task_a_1 >> task_b_1
 
     dag_2 = DAG("dag_2", start_date=DEFAULT_DATE, schedule=None)
     task_a_2 = ExternalTaskSensor(
-        task_id="task_a_2", external_dag_id=dag_1.dag_id, external_task_id=task_b_1.task_id, dag=dag_2
+        task_id="task_a_2",
+        external_dag_id=dag_1.dag_id,
+        external_task_id=task_b_1.task_id,
+        dag=dag_2,
     )
     task_b_2 = ExternalTaskMarker(
-        task_id="task_b_2", external_dag_id="dag_3", external_task_id="task_a_3", recursion_depth=1, dag=dag_2
+        task_id="task_b_2",
+        external_dag_id="dag_3",
+        external_task_id="task_a_3",
+        recursion_depth=1,
+        dag=dag_2,
     )
     task_a_2 >> task_b_2
 
     dag_3 = DAG("dag_3", start_date=DEFAULT_DATE, schedule=None)
     task_a_3 = ExternalTaskSensor(
-        task_id="task_a_3", external_dag_id=dag_2.dag_id, external_task_id=task_b_2.task_id, dag=dag_3
+        task_id="task_a_3",
+        external_dag_id=dag_2.dag_id,
+        external_task_id=task_b_2.task_id,
+        dag=dag_3,
     )
     task_b_3 = EmptyOperator(task_id="task_b_3", dag=dag_3)
     task_a_3 >> task_b_3
@@ -1281,7 +1384,9 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
     keyed by task_id.
     """
     tis = {}
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
 
     for dag in dag_bag.dags.values():
         dagrun = dag.create_dagrun(
@@ -1330,7 +1435,9 @@ def clear_tasks(
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
-    partial: DAG = dag.partial_subset(task_ids_or_regex=[task.task_id], include_downstream=True)
+    partial: DAG = dag.partial_subset(
+        task_ids_or_regex=[task.task_id], include_downstream=True
+    )
     return partial.clear(
         start_date=start_date,
         end_date=end_date,
@@ -1380,10 +1487,18 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
     # Unaffected dagruns should be left as SUCCESS.
-    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_1, session=session)
-    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_2, session=session)
-    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_1, session=session)
-    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_2, session=session)
+    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(
+        execution_date=day_1, session=session
+    )
+    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(
+        execution_date=day_2, session=session
+    )
+    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(
+        execution_date=day_1, session=session
+    )
+    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(
+        execution_date=day_2, session=session
+    )
 
     assert dagrun_0_1.state == State.QUEUED
     assert dagrun_0_2.state == State.QUEUED
@@ -1457,7 +1572,10 @@ def dag_bag_cyclic():
             dags.append(dag)
             task_a_0 = EmptyOperator(task_id="task_a_0")
             task_b_0 = ExternalTaskMarker(
-                task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3
+                task_id="task_b_0",
+                external_dag_id="dag_1",
+                external_task_id="task_a_1",
+                recursion_depth=3,
             )
             task_a_0 >> task_b_0
 
@@ -1575,7 +1693,8 @@ def test_clear_multiple_external_task_marker(dag_bag_multiple):
     session = settings.Session()
     try:
         qry = session.query(TaskInstance).filter(
-            TaskInstance.state == State.NONE, TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids)
+            TaskInstance.state == State.NONE,
+            TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids),
         )
         assert agg_dag.clear(dag_bag=dag_bag_multiple) == len(tis) == qry.count() == 10
     finally:
@@ -1648,7 +1767,10 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     # The next two lines are doing the same thing. Clearing the first "head" with "Future"
     # selected is the same as not selecting "Future". They should take similar amount of
     # time too because dag.clear() uses visited_external_tis to keep track of visited ExternalTaskMarker.
-    assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
+    assert (
+        dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session)
+        == 30
+    )
     assert (
         dag.clear(
             start_date=DEFAULT_DATE,
@@ -1709,7 +1831,9 @@ def dag_bag_head_tail_mapped_tasks():
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
-def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_mapped_tasks, session):
+def test_clear_overlapping_external_task_marker_mapped_tasks(
+    dag_bag_head_tail_mapped_tasks, session
+):
     dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
 
     # "Run" 10 times.
@@ -1726,7 +1850,9 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         for task in dag.tasks:
             if task.task_id == "dummy_task":
                 for map_index in range(5):
-                    ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
+                    ti = TaskInstance(
+                        task=task, run_id=dagrun.run_id, map_index=map_index
+                    )
                     ti.state = TaskInstanceState.SUCCESS
                     dagrun.task_instances.append(ti)
             else:

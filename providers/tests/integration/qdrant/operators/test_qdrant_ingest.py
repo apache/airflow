@@ -44,7 +44,9 @@ class TestQdrantIngestOperator:
         collection_name = "test-operator-collection"
         dimensions = 384
         points_count = 100
-        vectors = [[random.uniform(0, 1) for _ in range(dimensions)] for _ in range(points_count)]
+        vectors = [
+            [random.uniform(0, 1) for _ in range(dimensions)] for _ in range(points_count)
+        ]
         ids = random.sample(range(100, 10000), points_count)
         payload = [{"some_number": i % 10} for i in range(points_count)]
 
@@ -61,7 +63,8 @@ class TestQdrantIngestOperator:
         hook = operator.hook
 
         hook.conn.create_collection(
-            collection_name, vectors_config=VectorParams(size=dimensions, distance=Distance.COSINE)
+            collection_name,
+            vectors_config=VectorParams(size=dimensions, distance=Distance.COSINE),
         )
 
         operator.execute(self.mock_context)

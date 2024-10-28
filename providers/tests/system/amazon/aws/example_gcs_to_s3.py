@@ -56,7 +56,9 @@ with DAG(
     s3_bucket = f"{env_id}-gcs-to-s3-bucket"
     s3_key = f"{env_id}-gcs-to-s3-key"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket
+    )
 
     gcs_bucket = f"{env_id}-gcs-to-s3-bucket"
     gcs_key = f"{env_id}-gcs-to-s3-key"

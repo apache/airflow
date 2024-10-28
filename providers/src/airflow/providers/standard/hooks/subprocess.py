@@ -102,12 +102,16 @@ class SubprocessHook(BaseHook):
                 raise RuntimeError("The subprocess should be created here and is None!")
             if self.sub_process.stdout is not None:
                 for raw_line in iter(self.sub_process.stdout.readline, b""):
-                    line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
+                    line = raw_line.decode(
+                        output_encoding, errors="backslashreplace"
+                    ).rstrip()
                     self.log.info("%s", line)
 
             self.sub_process.wait()
 
-            self.log.info("Command exited with return code %s", self.sub_process.returncode)
+            self.log.info(
+                "Command exited with return code %s", self.sub_process.returncode
+            )
             return_code: int = self.sub_process.returncode
 
         return SubprocessResult(exit_code=return_code, output=line)

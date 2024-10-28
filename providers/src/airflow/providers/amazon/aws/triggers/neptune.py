@@ -139,7 +139,9 @@ class NeptuneClusterInstancesAvailableTrigger(AwsBaseWaiterTrigger):
         super().__init__(
             serialized_fields={"db_cluster_id": db_cluster_id},
             waiter_name="db_instance_available",
-            waiter_args={"Filters": [{"Name": "db-cluster-id", "Values": [db_cluster_id]}]},
+            waiter_args={
+                "Filters": [{"Name": "db-cluster-id", "Values": [db_cluster_id]}]
+            },
             failure_message="Failed to start Neptune instances",
             status_message="Status of Neptune instances are",
             status_queries=["DBInstances[].Status"],

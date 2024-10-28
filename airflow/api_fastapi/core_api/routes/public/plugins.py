@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.plugins import PluginCollectionResponse, PluginResponse
+from airflow.api_fastapi.core_api.serializers.plugins import (
+    PluginCollectionResponse,
+    PluginResponse,
+)
 from airflow.plugins_manager import get_plugin_info
 
 plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")

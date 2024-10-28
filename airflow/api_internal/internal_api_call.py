@@ -31,7 +31,10 @@ from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.settings import _ENABLE_AIP_44, force_traceback_session_for_untrusted_components
+from airflow.settings import (
+    _ENABLE_AIP_44,
+    force_traceback_session_for_untrusted_components,
+)
 from airflow.typing_compat import ParamSpec
 from airflow.utils.jwt_signer import JWTSigner
 
@@ -83,12 +86,16 @@ class InternalApiConfig:
             # Add the default path if not given in the configuration
             api_path = "/internal_api/v1/rpcapi"
         if url_conf.scheme not in ["http", "https"]:
-            raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
+            raise AirflowConfigException(
+                "[core]internal_api_url must start with http:// or https://"
+            )
         internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
         InternalApiConfig._use_internal_api = True
         InternalApiConfig._internal_api_endpoint = internal_api_endpoint
         logger.info("DB isolation mode. Using internal_api when running %s.", component)
-        force_traceback_session_for_untrusted_components(allow_tests_to_use_db=allow_tests_to_use_db)
+        force_traceback_session_for_untrusted_components(
+            allow_tests_to_use_db=allow_tests_to_use_db
+        )
 
     @staticmethod
     def get_use_internal_api():
@@ -140,7 +147,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         signer = JWTSigner(
             secret_key=conf.get("core", "internal_api_secret_key"),
-            expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+            expiration_time_in_seconds=conf.getint(
+                "core", "internal_api_clock_grace", fallback=30
+            ),
             audience="api",
         )
         headers = {
@@ -150,7 +159,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         }
         data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
         internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
-        response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
+        response = requests.post(
+            url=internal_api_endpoint, data=json.dumps(data), headers=headers
+        )
         if response.status_code != 200:
             raise AirflowHttpException(
                 f"Got {response.status_code}:{response.reason} when sending "
@@ -171,7 +182,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
             # This is a test fixture, we should not use internal API for it
             return func(*args, **kwargs)
 
-        from airflow.serialization.serialized_objects import BaseSerialization  # avoid circular import
+        from airflow.serialization.serialized_objects import (
+            BaseSerialization,
+        )  # avoid circular import
 
         bound = inspect.signature(func).bind(*args, **kwargs)
         arguments_dict = dict(bound.arguments)
@@ -185,7 +198,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         result = make_jsonrpc_request(method_name, args_dict)
         if result is None or result == b"":
             return None
-        result = BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
+        result = BaseSerialization.deserialize(
+            json.loads(result), use_pydantic_models=True
+        )
         if isinstance(result, (KeyError, AttributeError, AirflowException)):
             raise result
         return result

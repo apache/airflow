@@ -136,11 +136,15 @@ class TestAssetManager:
 
         asm = AssetModel(uri="test_asset_uri")
         session.add(asm)
-        asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        asm.consuming_dags = [
+            DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)
+        ]
         session.execute(delete(AssetDagRunQueue))
         session.flush()
 
-        asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset, session=session
+        )
         session.flush()
 
         # Ensure we've created an asset
@@ -148,7 +152,9 @@ class TestAssetManager:
         assert session.query(AssetDagRunQueue).count() == 2
 
     @pytest.mark.usefixtures("clear_assets")
-    def test_register_asset_change_with_alias(self, session, dag_maker, mock_task_instance):
+    def test_register_asset_change_with_alias(
+        self, session, dag_maker, mock_task_instance
+    ):
         consumer_dag_1 = DagModel(dag_id="conumser_1", is_active=True, fileloc="dag1.py")
         consumer_dag_2 = DagModel(dag_id="conumser_2", is_active=True, fileloc="dag2.py")
         session.add_all([consumer_dag_1, consumer_dag_2])
@@ -191,7 +197,9 @@ class TestAssetManager:
         session.execute(delete(AssetDagRunQueue))
         session.flush()
 
-        asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset, session=session
+        )
         session.flush()
 
         # Ensure we've created an asset
@@ -199,7 +207,9 @@ class TestAssetManager:
         assert session.query(AssetDagRunQueue).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode
-    def test_register_asset_change_notifies_asset_listener(self, session, mock_task_instance):
+    def test_register_asset_change_notifies_asset_listener(
+        self, session, mock_task_instance
+    ):
         asset_manager = AssetManager()
         asset_listener.clear()
         get_listener_manager().add_listener(asset_listener)
@@ -213,7 +223,9 @@ class TestAssetManager:
         asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
 
-        asset_manager.register_asset_change(task_instance=mock_task_instance, asset=asset, session=session)
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset, session=session
+        )
         session.flush()
 
         # Ensure the listener was notified

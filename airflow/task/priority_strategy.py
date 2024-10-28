@@ -108,7 +108,8 @@ class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
         if dag is None:
             return ti.task.priority_weight
         return ti.task.priority_weight + sum(
-            dag.task_dict[task_id].priority_weight for task_id in ti.task.get_flat_relative_ids(upstream=True)
+            dag.task_dict[task_id].priority_weight
+            for task_id in ti.task.get_flat_relative_ids(upstream=True)
         )
 
 
@@ -136,7 +137,9 @@ def validate_and_load_priority_weight_strategy(
 
     :meta private:
     """
-    from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
+    from airflow.serialization.serialized_objects import (
+        _get_registered_priority_weight_strategy,
+    )
     from airflow.utils.module_loading import qualname
 
     if priority_weight_strategy is None:
@@ -148,7 +151,11 @@ def validate_and_load_priority_weight_strategy(
         priority_weight_strategy_class = priority_weight_strategy
     else:
         priority_weight_strategy_class = qualname(priority_weight_strategy)
-    loaded_priority_weight_strategy = _get_registered_priority_weight_strategy(priority_weight_strategy_class)
+    loaded_priority_weight_strategy = _get_registered_priority_weight_strategy(
+        priority_weight_strategy_class
+    )
     if loaded_priority_weight_strategy is None:
-        raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_class}")
+        raise AirflowException(
+            f"Unknown priority strategy {priority_weight_strategy_class}"
+        )
     return loaded_priority_weight_strategy()

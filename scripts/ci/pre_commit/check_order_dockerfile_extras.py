@@ -27,16 +27,25 @@ from pathlib import Path
 
 from rich import print
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, check_list_sorted
 
 errors: list[str] = []
 
 MY_DIR_PATH = Path(__file__).parent.resolve()
 
-BUILD_ARGS_REF_PATH = AIRFLOW_SOURCES_ROOT_PATH / "docs" / "docker-stack" / "build-arg-ref.rst"
+BUILD_ARGS_REF_PATH = (
+    AIRFLOW_SOURCES_ROOT_PATH / "docs" / "docker-stack" / "build-arg-ref.rst"
+)
 GLOBAL_CONSTANTS_PATH = (
-    AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+    AIRFLOW_SOURCES_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "global_constants.py"
 )
 
 START_RST_LINE = ".. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT"
@@ -82,7 +91,9 @@ def check_dockerfile():
         if line.startswith("ARG AIRFLOW_EXTRAS="):
             extras_list = line.split("=")[1].replace('"', "").split(",")
             if check_list_sorted(extras_list, "Dockerfile's AIRFLOW_EXTRAS", errors):
-                builds_args_content = BUILD_ARGS_REF_PATH.read_text().splitlines(keepends=True)
+                builds_args_content = BUILD_ARGS_REF_PATH.read_text().splitlines(
+                    keepends=True
+                )
                 result = get_replaced_content(
                     builds_args_content,
                     extras_list,
@@ -93,7 +104,9 @@ def check_dockerfile():
                     add_empty_lines=True,
                 )
                 BUILD_ARGS_REF_PATH.write_text("".join(result))
-                global_constants_path = GLOBAL_CONSTANTS_PATH.read_text().splitlines(keepends=True)
+                global_constants_path = GLOBAL_CONSTANTS_PATH.read_text().splitlines(
+                    keepends=True
+                )
                 result = get_replaced_content(
                     global_constants_path,
                     extras_list,

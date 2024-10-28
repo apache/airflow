@@ -47,7 +47,9 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema."""
 
     password = auto_field(load_only=True)
-    extra = fields.Method("serialize_extra", deserialize="deserialize_extra", allow_none=True)
+    extra = fields.Method(
+        "serialize_extra", deserialize="deserialize_extra", allow_none=True
+    )
 
     @staticmethod
     def serialize_extra(obj: Connection):
@@ -63,7 +65,9 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
             return obj.extra
 
     @staticmethod
-    def deserialize_extra(value):  # an explicit deserialize method is required for field.Method
+    def deserialize_extra(
+        value,
+    ):  # an explicit deserialize method is required for field.Method
         return value
 
 

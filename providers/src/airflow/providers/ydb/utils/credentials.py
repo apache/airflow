@@ -29,7 +29,10 @@ log = logging.getLogger(__name__)
 
 
 def get_credentials_from_connection(
-    endpoint: str, database: str, connection: Connection, connection_extra: dict[str, Any] | None = None
+    endpoint: str,
+    database: str,
+    connection: Connection,
+    connection_extra: dict[str, Any] | None = None,
 ) -> Any:
     """
     Return YDB credentials object for YDB SDK based on connection settings.
@@ -56,7 +59,9 @@ def get_credentials_from_connection(
         )
 
         log.info("using login as credentials")
-        return ydb.StaticCredentials(driver_config, user=connection.login, password=connection.password)
+        return ydb.StaticCredentials(
+            driver_config, user=connection.login, password=connection.password
+        )
 
     connection_extra = connection_extra or {}
     token = connection_extra.get("token")

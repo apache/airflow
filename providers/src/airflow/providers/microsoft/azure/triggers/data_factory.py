@@ -70,7 +70,9 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to Azure Data Factory, polls for the pipeline run status."""
-        hook = AzureDataFactoryAsyncHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+        hook = AzureDataFactoryAsyncHook(
+            azure_data_factory_conn_id=self.azure_data_factory_conn_id
+        )
         executed_after_token_refresh = False
         try:
             while True:
@@ -83,7 +85,10 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                     executed_after_token_refresh = False
                     if pipeline_status == AzureDataFactoryPipelineRunStatus.FAILED:
                         yield TriggerEvent(
-                            {"status": "error", "message": f"Pipeline run {self.run_id} has Failed."}
+                            {
+                                "status": "error",
+                                "message": f"Pipeline run {self.run_id} has Failed.",
+                            }
                         )
                         return
                     elif pipeline_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
@@ -161,7 +166,9 @@ class AzureDataFactoryTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to Azure Data Factory, polls for the pipeline run status."""
-        hook = AzureDataFactoryAsyncHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+        hook = AzureDataFactoryAsyncHook(
+            azure_data_factory_conn_id=self.azure_data_factory_conn_id
+        )
         try:
             pipeline_status = await hook.get_adf_pipeline_run_status(
                 run_id=self.run_id,
@@ -178,7 +185,10 @@ class AzureDataFactoryTrigger(BaseTrigger):
                             factory_name=self.factory_name,
                         )
                         executed_after_token_refresh = True
-                        if pipeline_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
+                        if (
+                            pipeline_status
+                            in AzureDataFactoryPipelineRunStatus.FAILURE_STATES
+                        ):
                             yield TriggerEvent(
                                 {
                                     "status": "error",
@@ -187,7 +197,9 @@ class AzureDataFactoryTrigger(BaseTrigger):
                                 }
                             )
                             return
-                        elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+                        elif (
+                            pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
+                        ):
                             yield TriggerEvent(
                                 {
                                     "status": "success",
@@ -197,7 +209,9 @@ class AzureDataFactoryTrigger(BaseTrigger):
                             )
                             return
                         self.log.info(
-                            "Sleeping for %s. The pipeline state is %s.", self.check_interval, pipeline_status
+                            "Sleeping for %s. The pipeline state is %s.",
+                            self.check_interval,
+                            pipeline_status,
                         )
                         await asyncio.sleep(self.check_interval)
                     except ServiceRequestError:
@@ -235,7 +249,15 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         resource_group_name=self.resource_group_name,
                         factory_name=self.factory_name,
                     )
-                    self.log.info("Unexpected error %s caught. Cancel pipeline run %s", e, self.run_id)
+                    self.log.info(
+                        "Unexpected error %s caught. Cancel pipeline run %s",
+                        e,
+                        self.run_id,
+                    )
                 except Exception as err:
-                    yield TriggerEvent({"status": "error", "message": str(err), "run_id": self.run_id})
-            yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
+                    yield TriggerEvent(
+                        {"status": "error", "message": str(err), "run_id": self.run_id}
+                    )
+            yield TriggerEvent(
+                {"status": "error", "message": str(e), "run_id": self.run_id}
+            )

@@ -44,7 +44,9 @@ class TestWorkerPrecheck:
         by mocking validate_session method
         """
         mock_validate_session.return_value = False
-        with pytest.raises(SystemExit) as ctx, conf_vars({("core", "executor"): "CeleryExecutor"}):
+        with pytest.raises(SystemExit) as ctx, conf_vars(
+            {("core", "executor"): "CeleryExecutor"}
+        ):
             celery_command.worker(Namespace(queues=1, concurrency=1))
         assert str(ctx.value) == "Worker exiting, database connection precheck failed."
 
@@ -132,7 +134,9 @@ class TestCeleryStopCommand:
         pid_file = "custom_test_pid_file"
         mock_setup_locations.return_value = (pid_file, None, None, None)
         # Call worker
-        worker_args = self.parser.parse_args(["celery", "worker", "--skip-serve-logs", "--pid", pid_file])
+        worker_args = self.parser.parse_args(
+            ["celery", "worker", "--skip-serve-logs", "--pid", pid_file]
+        )
         celery_command.worker(worker_args)
         assert mock_celery_app.worker_main.call_args
         args, _ = mock_celery_app.worker_main.call_args
@@ -159,7 +163,9 @@ class TestWorkerStart:
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
-    def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
+    def test_worker_started_with_required_arguments(
+        self, mock_celery_app, mock_popen, mock_locations
+    ):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)
         concurrency = "1"
@@ -221,7 +227,9 @@ class TestWorkerFailure:
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_worker_failure_gracefull_shutdown(self, mock_celery_app, mock_popen):
         args = self.parser.parse_args(["celery", "worker"])
-        mock_celery_app.run.side_effect = Exception("Mock exception to trigger runtime error")
+        mock_celery_app.run.side_effect = Exception(
+            "Mock exception to trigger runtime error"
+        )
         try:
             celery_command.worker(args)
         finally:
@@ -276,7 +284,9 @@ class TestFlowerCommand:
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
     @mock.patch("airflow.cli.commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
-    def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
+    def test_run_command_daemon(
+        self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file
+    ):
         mock_setup_locations.return_value = (
             mock.MagicMock(name="pidfile"),
             mock.MagicMock(name="stdout"),
@@ -347,7 +357,9 @@ class TestFlowerCommand:
                 log="/tmp/flower.log",
             )
         ]
-        mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
+        mock_pid_file.assert_has_calls(
+            [mock.call(mock_setup_locations.return_value[0], -1)]
+        )
         assert mock_open.mock_calls == [
             mock.call(mock_setup_locations.return_value[1], "a"),
             mock.call().__enter__(),

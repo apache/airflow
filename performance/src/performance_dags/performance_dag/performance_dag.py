@@ -158,7 +158,9 @@ def chain_as_grid(*tasks):
      t9
     """
     if len(tasks) > 100 * 99 / 2:
-        raise ValueError("Cannot generate grid DAGs with lateral size larger than 100 tasks.")
+        raise ValueError(
+            "Cannot generate grid DAGs with lateral size larger than 100 tasks."
+        )
     grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
 
     def index(i, j):

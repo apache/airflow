@@ -498,7 +498,8 @@ class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
             )
         except AlreadyExists:
             self.log.info(
-                "Product with id %s already exists. Exiting from the create operation.", self.product_id
+                "Product with id %s already exists. Exiting from the create operation.",
+                self.product_id,
             )
             return self.product_id
 
@@ -844,7 +845,9 @@ class CloudVisionImageAnnotateOperator(GoogleCloudBaseOperator):
         )
 
         if not isinstance(self.request, list):
-            response = hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+            response = hook.annotate_image(
+                request=self.request, retry=self.retry, timeout=self.timeout
+            )
         else:
             response = hook.batch_annotate_images(
                 requests=self.request, retry=self.retry, timeout=self.timeout
@@ -1541,11 +1544,15 @@ def prepare_additional_parameters(
     if "image_context" not in merged_additional_parameters:
         merged_additional_parameters["image_context"] = {}
 
-    merged_additional_parameters["image_context"]["language_hints"] = merged_additional_parameters[
-        "image_context"
-    ].get("language_hints", language_hints)
-    merged_additional_parameters["image_context"]["web_detection_params"] = merged_additional_parameters[
-        "image_context"
-    ].get("web_detection_params", web_detection_params)
+    merged_additional_parameters["image_context"]["language_hints"] = (
+        merged_additional_parameters[
+            "image_context"
+        ].get("language_hints", language_hints)
+    )
+    merged_additional_parameters["image_context"]["web_detection_params"] = (
+        merged_additional_parameters[
+            "image_context"
+        ].get("web_detection_params", web_detection_params)
+    )
 
     return merged_additional_parameters

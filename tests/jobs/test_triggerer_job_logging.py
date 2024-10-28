@@ -29,7 +29,10 @@ from airflow.logging_config import configure_logging
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import RedirectStdHandler
-from airflow.utils.log.trigger_handler import DropTriggerLogsFilter, TriggererHandlerWrapper
+from airflow.utils.log.trigger_handler import (
+    DropTriggerLogsFilter,
+    TriggererHandlerWrapper,
+)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.log_handlers import non_pytest_handlers
@@ -70,7 +73,9 @@ def test_configure_trigger_log_handler_file():
     triggerer_job_runner.configure_trigger_log_handler()
     # after config
     assert triggerer_job_runner.HANDLER_SUPPORTS_TRIGGERER is True
-    root_handlers = assert_handlers(root_logger, RedirectStdHandler, TriggererHandlerWrapper)
+    root_handlers = assert_handlers(
+        root_logger, RedirectStdHandler, TriggererHandlerWrapper
+    )
     assert root_handlers[1].base_handler == task_handlers[0]
     # other handlers have DropTriggerLogsFilter
     assert root_handlers[0].filters[1].__class__ == DropTriggerLogsFilter
@@ -148,7 +153,9 @@ not_supported_message = [
     "supports individual trigger logging.",
     "Could not find log handler suitable for individual trigger logging.",
 ]
-not_found_message = ["Could not find log handler suitable for individual trigger logging."]
+not_found_message = [
+    "Could not find log handler suitable for individual trigger logging."
+]
 
 
 @pytest.mark.parametrize(
@@ -158,7 +165,9 @@ not_found_message = ["Could not find log handler suitable for individual trigger
         ("non_file_task_handler", logging.Handler, not_found_message),
     ],
 )
-def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg, clear_all_logger_handlers):
+def test_configure_trigger_log_handler_not_file_task_handler(
+    cfg, cls, msg, clear_all_logger_handlers
+):
     """
     No root handler configured.
     When non FileTaskHandler is configured, don't modify.
@@ -221,7 +230,10 @@ def test_configure_trigger_log_handler_fallback_task():
     """
     with conf_vars(
         {
-            ("logging", "logging_config_class"): "tests.jobs.test_triggerer_job_logging.fallback_task",
+            (
+                "logging",
+                "logging_config_class",
+            ): "tests.jobs.test_triggerer_job_logging.fallback_task",
         }
     ):
         importlib.reload(airflow_local_settings)

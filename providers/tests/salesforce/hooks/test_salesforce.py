@@ -74,7 +74,9 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
+        TestSalesforceHook._insert_conn_db_entry(
+            password_auth_conn.conn_id, password_auth_conn
+        )
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="password_auth_conn")
         self.salesforce_hook.get_conn()
@@ -122,11 +124,15 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
+        TestSalesforceHook._insert_conn_db_entry(
+            direct_access_conn.conn_id, direct_access_conn
+        )
 
         with request_session() as session:
             self.salesforce_hook = SalesforceHook(
-                salesforce_conn_id="direct_access_conn", session_id="session_id", session=session
+                salesforce_conn_id="direct_access_conn",
+                session_id="session_id",
+                session=session,
             )
 
         self.salesforce_hook.get_conn()
@@ -220,7 +226,9 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
+        TestSalesforceHook._insert_conn_db_entry(
+            ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn
+        )
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="ip_filtering_auth_conn")
         self.salesforce_hook.get_conn()
@@ -272,7 +280,9 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(default_to_none_conn.conn_id, default_to_none_conn)
+        TestSalesforceHook._insert_conn_db_entry(
+            default_to_none_conn.conn_id, default_to_none_conn
+        )
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="default_to_none_conn")
         self.salesforce_hook.get_conn()
@@ -297,13 +307,17 @@ class TestSalesforceHook:
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_make_query(self, mock_salesforce):
-        mock_salesforce.return_value.query_all.return_value = dict(totalSize=123, done=True)
+        mock_salesforce.return_value.query_all.return_value = dict(
+            totalSize=123, done=True
+        )
         self.salesforce_hook.conn = mock_salesforce.return_value
         query = "SELECT * FROM table"
 
         query_results = self.salesforce_hook.make_query(query, include_deleted=True)
 
-        mock_salesforce.return_value.query_all.assert_called_once_with(query, include_deleted=True)
+        mock_salesforce.return_value.query_all.assert_called_once_with(
+            query, include_deleted=True
+        )
         assert query_results == mock_salesforce.return_value.query_all.return_value
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -315,7 +329,10 @@ class TestSalesforceHook:
         obj_description = self.salesforce_hook.describe_object(obj)
 
         mock_salesforce.return_value.__getattr__(obj).describe.assert_called_once_with()
-        assert obj_description == mock_salesforce.return_value.__getattr__(obj).describe.return_value
+        assert (
+            obj_description
+            == mock_salesforce.return_value.__getattr__(obj).describe.return_value
+        )
 
     @patch(
         "airflow.providers.salesforce.hooks.salesforce.SalesforceHook.describe_object",
@@ -340,23 +357,31 @@ class TestSalesforceHook:
 
     def test_write_object_to_file_invalid_format(self):
         with pytest.raises(ValueError):
-            self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
+            self.salesforce_hook.write_object_to_file(
+                query_results=[], filename="test", fmt="test"
+            )
 
     @patch(
         "pandas.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [np.nan, np.nan, {"foo": "bar"}]}),
+        return_value=pd.DataFrame(
+            {"test": [1, 2, 3], "dict": [np.nan, np.nan, {"foo": "bar"}]}
+        ),
     )
     def test_write_object_to_file_csv(self, mock_data_frame):
         mock_data_frame.return_value.to_csv = Mock()
         filename = "test"
 
-        data_frame = self.salesforce_hook.write_object_to_file(query_results=[], filename=filename, fmt="csv")
+        data_frame = self.salesforce_hook.write_object_to_file(
+            query_results=[], filename=filename, fmt="csv"
+        )
 
         mock_data_frame.return_value.to_csv.assert_called_once_with(filename, index=False)
         # Note that the latest version of pandas dataframes (1.1.2) returns "nan" rather than "None" here
         pd.testing.assert_frame_equal(
             data_frame,
-            pd.DataFrame({"test": [1, 2, 3], "dict": ["nan", "nan", str({"foo": "bar"})]}),
+            pd.DataFrame(
+                {"test": [1, 2, 3], "dict": ["nan", "nan", str({"foo": "bar"})]}
+            ),
             check_index_type=False,
         )
 
@@ -366,9 +391,13 @@ class TestSalesforceHook:
     )
     @patch(
         "pandas.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03"]}),
+        return_value=pd.DataFrame(
+            {"test": [1, 2, 3], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03"]}
+        ),
     )
-    def test_write_object_to_file_json_with_timestamp_conversion(self, mock_data_frame, mock_describe_object):
+    def test_write_object_to_file_json_with_timestamp_conversion(
+        self, mock_data_frame, mock_describe_object
+    ):
         mock_data_frame.return_value.to_json = Mock()
         filename = "test"
         obj_name = "obj_name"
@@ -381,9 +410,14 @@ class TestSalesforceHook:
         )
 
         mock_describe_object.assert_called_once_with(obj_name)
-        mock_data_frame.return_value.to_json.assert_called_once_with(filename, "records", date_unit="s")
+        mock_data_frame.return_value.to_json.assert_called_once_with(
+            filename, "records", date_unit="s"
+        )
         pd.testing.assert_frame_equal(
-            data_frame, pd.DataFrame({"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]})
+            data_frame,
+            pd.DataFrame(
+                {"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]}
+            ),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.time.time", return_value=1.23)
@@ -391,7 +425,9 @@ class TestSalesforceHook:
         "pandas.DataFrame.from_records",
         return_value=pd.DataFrame({"test": [1, 2, 3]}),
     )
-    def test_write_object_to_file_ndjson_with_record_time(self, mock_data_frame, mock_time):
+    def test_write_object_to_file_ndjson_with_record_time(
+        self, mock_data_frame, mock_time
+    ):
         mock_data_frame.return_value.to_json = Mock()
         filename = "test"
 
@@ -423,10 +459,15 @@ class TestSalesforceHook:
     @patch(
         "pandas.DataFrame.from_records",
         return_value=pd.DataFrame(
-            {"test": [1, 2, 3, 4], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03", "NaT"]}
+            {
+                "test": [1, 2, 3, 4],
+                "field_1": ["2019-01-01", "2019-01-02", "2019-01-03", "NaT"],
+            }
         ),
     )
-    def test_object_to_df_with_timestamp_conversion(self, mock_data_frame, mock_describe_object):
+    def test_object_to_df_with_timestamp_conversion(
+        self, mock_data_frame, mock_describe_object
+    ):
         obj_name = "obj_name"
 
         data_frame = self.salesforce_hook.object_to_df(
@@ -437,7 +478,12 @@ class TestSalesforceHook:
         mock_describe_object.assert_called_once_with(obj_name)
         pd.testing.assert_frame_equal(
             data_frame,
-            pd.DataFrame({"test": [1, 2, 3, 4], "field_1": [1.546301e09, 1.546387e09, 1.546474e09, np.nan]}),
+            pd.DataFrame(
+                {
+                    "test": [1, 2, 3, 4],
+                    "field_1": [1.546301e09, 1.546387e09, 1.546474e09, np.nan],
+                }
+            ),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.time.time", return_value=1.23)
@@ -446,7 +492,9 @@ class TestSalesforceHook:
         return_value=pd.DataFrame({"test": [1, 2, 3]}),
     )
     def test_object_to_df_with_record_time(self, mock_data_frame, mock_time):
-        data_frame = self.salesforce_hook.object_to_df(query_results=[], record_time_added=True)
+        data_frame = self.salesforce_hook.object_to_df(
+            query_results=[], record_time_added=True
+        )
 
         pd.testing.assert_frame_equal(
             data_frame,

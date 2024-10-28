@@ -25,7 +25,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from airflow.providers.amazon.aws.triggers.lambda_function import (
+    LambdaCreateFunctionCompleteTrigger,
+)
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
@@ -88,7 +90,9 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
         wait_for_completion: bool = False,
         waiter_max_attempts: int = 60,
         waiter_delay: int = 15,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -143,7 +147,9 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
 
         return response.get("FunctionArn")
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if not event or event["status"] != "success":
@@ -214,7 +220,11 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
         :return: The response payload from the function, or an error object.
         """
         success_status_codes = [200, 202, 204]
-        self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.function_name, self.payload)
+        self.log.info(
+            "Invoking AWS Lambda function: %s with payload: %s",
+            self.function_name,
+            self.payload,
+        )
         response = self.hook.invoke_lambda(
             function_name=self.function_name,
             invocation_type=self.invocation_type,
@@ -239,13 +249,21 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
                     self.log.info(log_record)
 
         if response.get("StatusCode") not in success_status_codes:
-            raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
+            raise ValueError(
+                "Lambda function did not execute",
+                json.dumps(response.get("ResponseMetadata")),
+            )
         payload_stream = response.get("Payload")
         payload = payload_stream.read().decode()
         if "FunctionError" in response:
             raise ValueError(
                 "Lambda function execution resulted in error",
-                {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
+                {
+                    "ResponseMetadata": response.get("ResponseMetadata"),
+                    "Payload": payload,
+                },
             )
-        self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
+        self.log.info(
+            "Lambda function invocation succeeded: %r", response.get("ResponseMetadata")
+        )
         return payload

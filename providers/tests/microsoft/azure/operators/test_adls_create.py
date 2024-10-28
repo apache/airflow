@@ -29,7 +29,9 @@ DATA = json.dumps({"name": "David", "surname": "Blain", "gender": "M"}).encode("
 
 
 class TestADLSUploadOperator:
-    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook"
+    )
     def test_execute_success_when_local_data(self, mock_hook):
         operator = ADLSCreateObjectOperator(
             task_id=TASK_ID,

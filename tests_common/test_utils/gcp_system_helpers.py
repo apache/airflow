@@ -29,9 +29,14 @@ import pytest
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 
 import airflow.providers.google
-from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    provide_gcp_conn_and_credentials,
+)
 
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
+from providers.tests.google.cloud.utils.gcp_authenticator import (
+    GCP_GCS_KEY,
+    GCP_SECRET_MANAGER_KEY,
+)
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.logging_command_executor import CommandExecutor
 from tests_common.test_utils.system_tests_class import SystemTest
@@ -132,7 +137,12 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def execute_with_ctx(
-        cls, cmd: list[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None, silent: bool = False
+        cls,
+        cmd: list[str],
+        key: str = GCP_GCS_KEY,
+        project_id=None,
+        scopes=None,
+        silent: bool = False,
     ):
         """Execute command with context created by provide_gcp_context and activated service key."""
         current_project_id = project_id or cls._project_id()
@@ -174,7 +184,14 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def get_project_number(cls, project_id: str) -> str:
-        cmd = ["gcloud", "projects", "describe", project_id, "--format", "value(projectNumber)"]
+        cmd = [
+            "gcloud",
+            "projects",
+            "describe",
+            project_id,
+            "--format",
+            "value(projectNumber)",
+        ]
         return cls.check_output(cmd).decode("utf-8").strip()
 
     @classmethod
@@ -192,7 +209,15 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def delete_secret(cls, name: str, silent: bool = False):
-        cmd = ["gcloud", "secrets", "delete", name, "--project", GoogleSystemTest._project_id(), "--quiet"]
+        cmd = [
+            "gcloud",
+            "secrets",
+            "delete",
+            name,
+            "--project",
+            GoogleSystemTest._project_id(),
+            "--quiet",
+        ]
         cls.execute_with_ctx(cmd, key=GCP_SECRET_MANAGER_KEY, silent=silent)
 
     @classmethod

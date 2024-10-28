@@ -28,7 +28,9 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 STACKDRIVER_BASE_LINK = "/monitoring/alerting"
-STACKDRIVER_NOTIFICATIONS_LINK = STACKDRIVER_BASE_LINK + "/notifications?project={project_id}"
+STACKDRIVER_NOTIFICATIONS_LINK = (
+    STACKDRIVER_BASE_LINK + "/notifications?project={project_id}"
+)
 STACKDRIVER_POLICIES_LINK = STACKDRIVER_BASE_LINK + "/policies?project={project_id}"
 
 

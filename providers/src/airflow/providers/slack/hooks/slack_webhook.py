@@ -173,7 +173,9 @@ class SlackWebhookHook(BaseHook):
         return {k: v for k, v in conn_params.items() if v is not None}
 
     @check_webhook_response
-    def send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
+    def send_dict(
+        self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None
+    ):
         """
         Perform a Slack Incoming Webhook request with given JSON data block.
 
@@ -191,7 +193,10 @@ class SlackWebhookHook(BaseHook):
         if not isinstance(body, dict):
             raise TypeError(f"Body expected dictionary, got {type(body).__name__}.")
 
-        if any(legacy_attr in body for legacy_attr in ("channel", "username", "icon_emoji", "icon_url")):
+        if any(
+            legacy_attr in body
+            for legacy_attr in ("channel", "username", "icon_emoji", "icon_url")
+        ):
             warnings.warn(
                 "You cannot override the default channel (chosen by the user who installed your app), "
                 "username, or icon when you're using Incoming Webhooks to post messages. "
@@ -264,7 +269,12 @@ class SlackWebhookHook(BaseHook):
         :param unfurl_media: Option to indicate whether media url should unfurl.
         :param headers: Request headers for this request.
         """
-        return self.send(text=text, unfurl_links=unfurl_links, unfurl_media=unfurl_media, headers=headers)
+        return self.send(
+            text=text,
+            unfurl_links=unfurl_links,
+            unfurl_media=unfurl_media,
+            headers=headers,
+        )
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:

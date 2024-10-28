@@ -28,9 +28,17 @@ from airflow.providers.apache.pinot.hooks.pinot import PinotDbApiHook
 class TestPinotDbApiHookIntegration:
     # This test occasionally fail in the CI. Re-run this test if it failed after timeout but only once.
     @pytest.mark.flaky(reruns=1, reruns_delay=30)
-    @mock.patch.dict("os.environ", AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
+    @mock.patch.dict(
+        "os.environ", AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/"
+    )
     def test_should_return_records(self):
         hook = PinotDbApiHook()
         sql = "select playerName from baseballStats  ORDER BY playerName limit 5"
         records = hook.get_records(sql)
-        assert [["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]] == records
+        assert [
+            ["A. Harry"],
+            ["A. Harry"],
+            ["Aaron"],
+            ["Aaron Albert"],
+            ["Aaron Albert"],
+        ] == records

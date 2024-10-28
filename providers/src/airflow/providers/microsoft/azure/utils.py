@@ -103,10 +103,12 @@ def add_managed_identity_connection_widgets(func):
         widgets.update(
             {
                 "managed_identity_client_id": StringField(
-                    lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+                    lazy_gettext("Managed Identity Client ID"),
+                    widget=BS3TextFieldWidget(),
                 ),
                 "workload_identity_tenant_id": StringField(
-                    lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+                    lazy_gettext("Workload Identity Tenant ID"),
+                    widget=BS3TextFieldWidget(),
                 ),
             }
         )
@@ -155,7 +157,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
 
     def _make_request(self):
         return PipelineRequest(
-            HttpRequest("AzureIdentityCredentialAdapter", "https://fakeurl"), PipelineContext(None)
+            HttpRequest("AzureIdentityCredentialAdapter", "https://fakeurl"),
+            PipelineContext(None),
         )
 
     def set_token(self):

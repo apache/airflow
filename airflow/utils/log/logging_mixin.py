@@ -100,7 +100,11 @@ class LoggingMixin:
         )
 
         if log_config_logger_name:
-            return f"{log_config_logger_name}.{logger_name}" if logger_name else log_config_logger_name
+            return (
+                f"{log_config_logger_name}.{logger_name}"
+                if logger_name
+                else log_config_logger_name
+            )
         return logger_name
 
     @classmethod

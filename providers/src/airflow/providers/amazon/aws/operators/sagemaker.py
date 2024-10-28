@@ -37,7 +37,10 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
     SageMakerTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils import (
+    trim_none_values,
+    validate_execute_complete_event,
+)
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import prune_dict
@@ -69,7 +72,9 @@ class SageMakerBaseOperator(BaseOperator):
     ui_color: str = "#ededed"
     integer_fields: list[list[Any]] = []
 
-    def __init__(self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs):
+    def __init__(
+        self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs
+    ):
         super().__init__(**kwargs)
         self.config = config
         self.aws_conn_id = aws_conn_id
@@ -123,7 +128,10 @@ class SageMakerBaseOperator(BaseOperator):
         self.integer_fields = []
 
     def _get_unique_job_name(
-        self, proposed_name: str, fail_if_exists: bool, describe_func: Callable[[str], Any]
+        self,
+        proposed_name: str,
+        fail_if_exists: bool,
+        describe_func: Callable[[str], Any],
     ) -> str:
         """
         Return the proposed name if it doesn't already exist, otherwise returns it with a timestamp suffix.
@@ -162,10 +170,14 @@ class SageMakerBaseOperator(BaseOperator):
             # this while should loop only once in most cases, just setting it this way to regenerate a name
             # in case there is collision.
             if fail_if_exists:
-                raise AirflowException(f"A SageMaker {resource_type} with name {name} already exists.")
+                raise AirflowException(
+                    f"A SageMaker {resource_type} with name {name} already exists."
+                )
             else:
                 name = f"{proposed_name}-{time.time_ns()//1000000}"
-                self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
+                self.log.info(
+                    "Changed %s name to '%s' to avoid collision.", resource_type, name
+                )
         return name
 
     def _check_resource_type(self, resource_type: str):
@@ -176,7 +188,9 @@ class SageMakerBaseOperator(BaseOperator):
                 f"Provided value: '{resource_type}'."
             )
 
-    def _check_if_job_exists(self, job_name: str, describe_func: Callable[[str], Any]) -> bool:
+    def _check_if_job_exists(
+        self, job_name: str, describe_func: Callable[[str], Any]
+    ) -> bool:
         """Return True if job exists, False otherwise."""
         return self._check_if_resource_exists(job_name, "job", describe_func)
 
@@ -187,7 +201,9 @@ class SageMakerBaseOperator(BaseOperator):
         self._check_resource_type(resource_type)
         try:
             describe_func(resource_name)
-            self.log.info("Found existing %s with name '%s'.", resource_type, resource_name)
+            self.log.info(
+                "Found existing %s with name '%s'.", resource_type, resource_name
+            )
             return True
         except ClientError as e:
             if e.response["Error"]["Code"] == "ValidationException":
@@ -209,7 +225,9 @@ class SageMakerBaseOperator(BaseOperator):
 
         path = path.replace("s3://", "")
         split_path = path.split("/")
-        return Dataset(namespace=f"s3://{split_path[0]}", name="/".join(split_path[1:]), facets={})
+        return Dataset(
+            namespace=f"s3://{split_path[0]}", name="/".join(split_path[1:]), facets={}
+        )
 
 
 class SageMakerProcessingOperator(SageMakerBaseOperator):
@@ -255,7 +273,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -314,13 +334,17 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise AirflowException(f"Sagemaker Processing Job creation failed: {response}")
+            raise AirflowException(
+                f"Sagemaker Processing Job creation failed: {response}"
+            )
 
         if self.deferrable and self.wait_for_completion:
             response = self.hook.describe_processing_job(self.config["ProcessingJobName"])
             status = response["ProcessingJobStatus"]
             if status in self.hook.failed_states:
-                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
+                raise AirflowException(
+                    f"SageMaker job failed because {response['FailureReason']}"
+                )
             elif status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)
                 return {"Processing": serialize(response)}
@@ -341,17 +365,23 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 method_name="execute_complete",
             )
 
-        self.serialized_job = serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))
+        self.serialized_job = serialize(
+            self.hook.describe_processing_job(self.config["ProcessingJobName"])
+        )
         return {"Processing": self.serialized_job}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
         self.log.info(event["message"])
-        self.serialized_job = serialize(self.hook.describe_processing_job(event["job_name"]))
+        self.serialized_job = serialize(
+            self.hook.describe_processing_job(event["job_name"])
+        )
         self.log.info("%s completed successfully.", self.task_id)
         return {"Processing": self.serialized_job}
 
@@ -364,7 +394,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         try:
             inputs, outputs = self._extract_s3_dataset_identifiers(
                 processing_inputs=self.serialized_job["ProcessingInputs"],
-                processing_outputs=self.serialized_job["ProcessingOutputConfig"]["Outputs"],
+                processing_outputs=self.serialized_job["ProcessingOutputConfig"][
+                    "Outputs"
+                ],
             )
         except KeyError:
             self.log.exception("Could not find input/output information in Xcom.")
@@ -376,13 +408,17 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         outputs = []
         try:
             for processing_input in processing_inputs:
-                inputs.append(self.path_to_s3_dataset(processing_input["S3Input"]["S3Uri"]))
+                inputs.append(
+                    self.path_to_s3_dataset(processing_input["S3Input"]["S3Uri"])
+                )
         except KeyError:
             self.log.exception("Cannot find S3 input details")
 
         try:
             for processing_output in processing_outputs:
-                outputs.append(self.path_to_s3_dataset(processing_output["S3Output"]["S3Uri"]))
+                outputs.append(
+                    self.path_to_s3_dataset(processing_output["S3Output"]["S3Uri"])
+                )
         except KeyError:
             self.log.exception("Cannot find S3 output details.")
         return inputs, outputs
@@ -417,14 +453,20 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
-        self.integer_fields: list[list[str]] = [["ProductionVariants", "InitialInstanceCount"]]
+        self.integer_fields: list[list[str]] = [
+            ["ProductionVariants", "InitialInstanceCount"]
+        ]
 
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
-        self.log.info("Creating SageMaker Endpoint Config %s.", self.config["EndpointConfigName"])
+        self.log.info(
+            "Creating SageMaker Endpoint Config %s.", self.config["EndpointConfigName"]
+        )
         response = self.hook.create_endpoint_config(self.config)
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise AirflowException(f"Sagemaker endpoint config creation failed: {response}")
+            raise AirflowException(
+                f"Sagemaker endpoint config creation failed: {response}"
+            )
         else:
             return {
                 "EndpointConfig": serialize(
@@ -492,7 +534,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
         operation: str = "create",
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -501,7 +545,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self.max_ingestion_time = max_ingestion_time or 3600 * 10
         self.operation = operation.lower()
         if self.operation not in ["create", "update"]:
-            raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
+            raise ValueError(
+                'Invalid value! Argument operation has to be one of "create" and "update"'
+            )
         self.deferrable = deferrable
 
     def _create_integer_fields(self) -> None:
@@ -529,7 +575,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             self.log.info("Creating SageMaker model %s.", model_info["ModelName"])
             self.hook.create_model(model_info)
         if endpoint_config_info:
-            self.log.info("Creating endpoint config %s.", endpoint_config_info["EndpointConfigName"])
+            self.log.info(
+                "Creating endpoint config %s.", endpoint_config_info["EndpointConfigName"]
+            )
             self.hook.create_endpoint_config(endpoint_config_info)
         if self.operation == "create":
             sagemaker_operation = self.hook.create_endpoint
@@ -538,7 +586,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             sagemaker_operation = self.hook.update_endpoint
             log_str = "Updating"
         else:
-            raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
+            raise ValueError(
+                'Invalid value! Argument operation has to be one of "create" and "update"'
+            )
         self.log.info("%s SageMaker endpoint %s.", log_str, endpoint_info["EndpointName"])
         try:
             response = sagemaker_operation(
@@ -587,17 +637,24 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         elif self.wait_for_completion:
             self.hook.get_waiter("endpoint_in_service").wait(
                 EndpointName=endpoint_info["EndpointName"],
-                WaiterConfig={"Delay": self.check_interval, "MaxAttempts": self.max_ingestion_time},
+                WaiterConfig={
+                    "Delay": self.check_interval,
+                    "MaxAttempts": self.max_ingestion_time,
+                },
             )
 
         return {
             "EndpointConfig": serialize(
                 self.hook.describe_endpoint_config(endpoint_info["EndpointConfigName"])
             ),
-            "Endpoint": serialize(self.hook.describe_endpoint(endpoint_info["EndpointName"])),
+            "Endpoint": serialize(
+                self.hook.describe_endpoint(endpoint_info["EndpointName"])
+            ),
         }
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -605,7 +662,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
 
         response = self.hook.describe_endpoint(event["job_name"])
         return {
-            "EndpointConfig": serialize(self.hook.describe_endpoint_config(response["EndpointConfigName"])),
+            "EndpointConfig": serialize(
+                self.hook.describe_endpoint_config(response["EndpointConfigName"])
+            ),
             "Endpoint": serialize(self.hook.describe_endpoint(response["EndpointName"])),
         }
 
@@ -667,7 +726,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         action_if_job_exists: str = "timestamp",
         check_if_model_exists: bool = True,
         action_if_model_exists: str = "timestamp",
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -736,10 +797,14 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 )
                 if "ModelName" in self.config["Transform"].keys():
                     self.config["Transform"]["ModelName"] = model_config["ModelName"]
-            self.log.info("Creating SageMaker Model %s for transform job", model_config["ModelName"])
+            self.log.info(
+                "Creating SageMaker Model %s for transform job", model_config["ModelName"]
+            )
             self.hook.create_model(model_config)
 
-        self.log.info("Creating SageMaker transform Job %s.", transform_config["TransformJobName"])
+        self.log.info(
+            "Creating SageMaker transform Job %s.", transform_config["TransformJobName"]
+        )
 
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
@@ -761,15 +826,21 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             raise AirflowException(f"Sagemaker transform Job creation failed: {response}")
 
         if self.deferrable and self.wait_for_completion:
-            response = self.hook.describe_transform_job(transform_config["TransformJobName"])
+            response = self.hook.describe_transform_job(
+                transform_config["TransformJobName"]
+            )
             status = response["TransformJobStatus"]
             if status in self.hook.failed_states:
-                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
+                raise AirflowException(
+                    f"SageMaker job failed because {response['FailureReason']}"
+                )
 
             if status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)
                 return {
-                    "Model": serialize(self.hook.describe_model(transform_config["ModelName"])),
+                    "Model": serialize(
+                        self.hook.describe_model(transform_config["ModelName"])
+                    ),
                     "Transform": serialize(response),
                 }
 
@@ -792,17 +863,28 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         return self.serialize_result(transform_config["TransformJobName"])
 
     def _get_unique_model_name(
-        self, proposed_name: str, fail_if_exists: bool, describe_func: Callable[[str], Any]
+        self,
+        proposed_name: str,
+        fail_if_exists: bool,
+        describe_func: Callable[[str], Any],
     ) -> str:
         return self._get_unique_name(
-            proposed_name, fail_if_exists, describe_func, self._check_if_model_exists, "model"
+            proposed_name,
+            fail_if_exists,
+            describe_func,
+            self._check_if_model_exists,
+            "model",
         )
 
-    def _check_if_model_exists(self, model_name: str, describe_func: Callable[[str], Any]) -> bool:
+    def _check_if_model_exists(
+        self, model_name: str, describe_func: Callable[[str], Any]
+    ) -> bool:
         """Return True if model exists, False otherwise."""
         return self._check_if_resource_exists(model_name, "model", describe_func)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
 
         self.log.info(event["message"])
@@ -810,7 +892,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
         job_description = self.hook.describe_transform_job(job_name)
-        self.serialized_model = serialize(self.hook.describe_model(job_description["ModelName"]))
+        self.serialized_model = serialize(
+            self.hook.describe_model(job_description["ModelName"])
+        )
         self.serialized_transform = serialize(job_description)
         return {"Model": self.serialized_model, "Transform": self.serialized_transform}
 
@@ -823,15 +907,19 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         transform_output = None
 
         try:
-            model_package_arn = self.serialized_model["PrimaryContainer"]["ModelPackageName"]
+            model_package_arn = self.serialized_model["PrimaryContainer"][
+                "ModelPackageName"
+            ]
         except KeyError:
             self.log.exception("Cannot find Model Package Name.")
 
         try:
-            transform_input = self.serialized_transform["TransformInput"]["DataSource"]["S3DataSource"][
-                "S3Uri"
+            transform_input = self.serialized_transform["TransformInput"]["DataSource"][
+                "S3DataSource"
+            ]["S3Uri"]
+            transform_output = self.serialized_transform["TransformOutput"][
+                "S3OutputPath"
             ]
-            transform_output = self.serialized_transform["TransformOutput"]["S3OutputPath"]
         except KeyError:
             self.log.exception("Cannot find some required input/output details.")
 
@@ -903,7 +991,9 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -923,8 +1013,16 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
         self.integer_fields: list[list[str]] = [
-            ["HyperParameterTuningJobConfig", "ResourceLimits", "MaxNumberOfTrainingJobs"],
-            ["HyperParameterTuningJobConfig", "ResourceLimits", "MaxParallelTrainingJobs"],
+            [
+                "HyperParameterTuningJobConfig",
+                "ResourceLimits",
+                "MaxNumberOfTrainingJobs",
+            ],
+            [
+                "HyperParameterTuningJobConfig",
+                "ResourceLimits",
+                "MaxParallelTrainingJobs",
+            ],
             ["TrainingJobDefinition", "ResourceConfig", "InstanceCount"],
             ["TrainingJobDefinition", "ResourceConfig", "VolumeSizeInGB"],
             ["TrainingJobDefinition", "StoppingCondition", "MaxRuntimeInSeconds"],
@@ -970,11 +1068,15 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 self.max_ingestion_time,
             )
         else:
-            description = self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"])
+            description = self.hook.describe_tuning_job(
+                self.config["HyperParameterTuningJobName"]
+            )
 
         return {"Tuning": serialize(description)}
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -1002,14 +1104,18 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
-    def __init__(self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs):
+    def __init__(
+        self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs
+    ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def expand_role(self) -> None:
         """Expand an IAM role name into an ARN."""
         if "ExecutionRoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
-            self.config["ExecutionRoleArn"] = hook.expand_role(self.config["ExecutionRoleArn"])
+            self.config["ExecutionRoleArn"] = hook.expand_role(
+                self.config["ExecutionRoleArn"]
+            )
 
     def execute(self, context: Context) -> dict:
         self.preprocess_config()
@@ -1018,7 +1124,9 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker model creation failed: {response}")
         else:
-            return {"Model": serialize(self.hook.describe_model(self.config["ModelName"]))}
+            return {
+                "Model": serialize(self.hook.describe_model(self.config["ModelName"]))
+            }
 
 
 class SageMakerTrainingOperator(SageMakerBaseOperator):
@@ -1068,7 +1176,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -1112,7 +1222,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 self.hook.describe_training_job,
             )
 
-        self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
+        self.log.info(
+            "Creating SageMaker training job %s.", self.config["TrainingJobName"]
+        )
 
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
@@ -1142,14 +1254,16 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 instance_count = description["ResourceConfig"]["InstanceCount"]
                 last_describe_job_call = time.monotonic()
                 job_already_completed = status not in self.hook.non_terminal_states
-                _, description, last_describe_job_call = self.hook.describe_training_job_with_log(
-                    self.config["TrainingJobName"],
-                    {},
-                    [],
-                    instance_count,
-                    LogState.COMPLETE if job_already_completed else LogState.TAILING,
-                    description,
-                    last_describe_job_call,
+                _, description, last_describe_job_call = (
+                    self.hook.describe_training_job_with_log(
+                        self.config["TrainingJobName"],
+                        {},
+                        [],
+                        instance_count,
+                        LogState.COMPLETE if job_already_completed else LogState.TAILING,
+                        description,
+                        last_describe_job_call,
+                    )
                 )
                 self.log.info(secondary_training_status_message(description, None))
 
@@ -1186,7 +1300,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
         return self.serialize_result(self.config["TrainingJobName"])
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -1196,7 +1312,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         return self.serialize_result(event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
-        self.serialized_training_data = serialize(self.hook.describe_training_job(job_name))
+        self.serialized_training_data = serialize(
+            self.hook.describe_training_job(job_name)
+        )
         return {"Training": self.serialized_training_data}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
@@ -1207,13 +1325,19 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         outputs = []
         try:
             for input_data in self.serialized_training_data["InputDataConfig"]:
-                inputs.append(self.path_to_s3_dataset(input_data["DataSource"]["S3DataSource"]["S3Uri"]))
+                inputs.append(
+                    self.path_to_s3_dataset(
+                        input_data["DataSource"]["S3DataSource"]["S3Uri"]
+                    )
+                )
         except KeyError:
             self.log.exception("Issues extracting inputs.")
 
         try:
             outputs.append(
-                self.path_to_s3_dataset(self.serialized_training_data["ModelArtifacts"]["S3ModelArtifacts"])
+                self.path_to_s3_dataset(
+                    self.serialized_training_data["ModelArtifacts"]["S3ModelArtifacts"]
+                )
             )
         except KeyError:
             self.log.exception("Issues extracting inputs.")
@@ -1233,7 +1357,9 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
     :param aws_conn_id: The AWS connection ID to use.
     """
 
-    def __init__(self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs):
+    def __init__(
+        self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs
+    ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def execute(self, context: Context) -> Any:
@@ -1284,7 +1410,9 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         check_interval: int = CHECK_INTERVAL_SECOND,
         waiter_max_attempts: int = 9999,
         verbose: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
@@ -1304,7 +1432,9 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
             pipeline_params=self.pipeline_params,
         )
         self.log.info(
-            "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
+            "Starting a new execution for pipeline %s, running with ARN %s",
+            self.pipeline_name,
+            arn,
         )
         if self.deferrable:
             self.defer(
@@ -1328,7 +1458,9 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
             )
         return arn
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -1372,7 +1504,9 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         waiter_max_attempts: int = 9999,
         verbose: bool = True,
         fail_if_not_running: bool = False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
@@ -1423,7 +1557,9 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
 
         return status
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -1494,7 +1630,9 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
 
     def execute(self, context: Context):
         # create a model package group if it does not exist
-        group_created = self.hook.create_model_package_group(self.package_group_name, self.package_desc)
+        group_created = self.hook.create_model_package_group(
+            self.package_group_name, self.package_desc
+        )
 
         # then create a model package in that group
         input_dict = {
@@ -1513,14 +1651,18 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
             "ModelApprovalStatus": self.model_approval.value,
         }
         if self.extras:
-            input_dict.update(self.extras)  # overrides config above if keys are redefined in extras
+            input_dict.update(
+                self.extras
+            )  # overrides config above if keys are redefined in extras
         try:
             res = self.hook.conn.create_model_package(**input_dict)
             return res["ModelPackageArn"]
         except ClientError:
             # rollback group creation if adding the model to it was not successful
             if group_created:
-                self.hook.conn.delete_model_package_group(ModelPackageGroupName=self.package_group_name)
+                self.hook.conn.delete_model_package_group(
+                    ModelPackageGroupName=self.package_group_name
+                )
             raise
 
 
@@ -1736,7 +1878,9 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         self.create_instance_kwargs = create_instance_kwargs or {}
 
         if self.create_instance_kwargs.get("tags") is not None:
-            self.create_instance_kwargs["tags"] = format_tags(self.create_instance_kwargs["tags"])
+            self.create_instance_kwargs["tags"] = format_tags(
+                self.create_instance_kwargs["tags"]
+            )
 
     @cached_property
     def hook(self) -> SageMakerHook:
@@ -1758,12 +1902,16 @@ class SageMakerCreateNotebookOperator(BaseOperator):
             create_notebook_instance_kwargs.update(self.create_instance_kwargs)
 
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)
-        response = self.hook.conn.create_notebook_instance(**prune_dict(create_notebook_instance_kwargs))
+        response = self.hook.conn.create_notebook_instance(
+            **prune_dict(create_notebook_instance_kwargs)
+        )
 
         self.log.info("SageMaker notebook created: %s", response["NotebookInstanceArn"])
 
         if self.wait_for_completion:
-            self.log.info("Waiting for SageMaker notebook %s to be in service", self.instance_name)
+            self.log.info(
+                "Waiting for SageMaker notebook %s to be in service", self.instance_name
+            )
             waiter = self.hook.conn.get_waiter("notebook_instance_in_service")
             waiter.wait(NotebookInstanceName=self.instance_name)
 
@@ -1854,7 +2002,9 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
         self.hook.conn.delete_notebook_instance(NotebookInstanceName=self.instance_name)
 
         if self.wait_for_completion:
-            self.log.info("Waiting for SageMaker notebook %s to delete...", self.instance_name)
+            self.log.info(
+                "Waiting for SageMaker notebook %s to delete...", self.instance_name
+            )
             self.hook.conn.get_waiter("notebook_instance_deleted").wait(
                 NotebookInstanceName=self.instance_name
             )
@@ -1899,7 +2049,9 @@ class SageMakerStartNoteBookOperator(BaseOperator):
         self.hook.conn.start_notebook_instance(NotebookInstanceName=self.instance_name)
 
         if self.wait_for_completion:
-            self.log.info("Waiting for SageMaker notebook %s to start...", self.instance_name)
+            self.log.info(
+                "Waiting for SageMaker notebook %s to start...", self.instance_name
+            )
             self.hook.conn.get_waiter("notebook_instance_in_service").wait(
                 NotebookInstanceName=self.instance_name
             )

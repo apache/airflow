@@ -41,7 +41,9 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
-CLOUD_RUN_SERVICE_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceHook"
+CLOUD_RUN_SERVICE_HOOK_PATH = (
+    "airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceHook"
+)
 TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
@@ -71,7 +73,11 @@ def _assert_common_template_fields(template_fields):
 class TestCloudRunCreateJobOperator:
     def test_template_fields(self):
         operator = CloudRunCreateJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
         )
 
         _assert_common_template_fields(operator.template_fields)
@@ -82,7 +88,11 @@ class TestCloudRunCreateJobOperator:
         hook_mock.return_value.create_job.return_value = JOB
 
         operator = CloudRunCreateJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
         )
 
         operator.execute(context=mock.MagicMock())
@@ -95,7 +105,11 @@ class TestCloudRunCreateJobOperator:
 class TestCloudRunExecuteJobOperator:
     def test_template_fields(self):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=OVERRIDES
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            overrides=OVERRIDES,
         )
 
         _assert_common_template_fields(operator.template_fields)
@@ -176,7 +190,11 @@ class TestCloudRunExecuteJobOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable(self, hook_mock):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
         )
 
         with pytest.raises(TaskDeferred):
@@ -185,7 +203,11 @@ class TestCloudRunExecuteJobOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
         )
 
         event = {"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}
@@ -198,7 +220,11 @@ class TestCloudRunExecuteJobOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_fail(self, hook_mock):
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
         )
 
         error_code = 10
@@ -214,8 +240,9 @@ class TestCloudRunExecuteJobOperator:
         with pytest.raises(AirflowException) as e:
             operator.execute_complete(mock.MagicMock(), event)
 
-        assert f"Operation failed with error code [{error_code}] and error message [{error_message}]" in str(
-            e.value
+        assert (
+            f"Operation failed with error code [{error_code}] and error message [{error_message}]"
+            in str(e.value)
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -223,7 +250,11 @@ class TestCloudRunExecuteJobOperator:
         hook_mock.return_value.get_job.return_value = JOB
 
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            deferrable=True,
         )
 
         event = {"status": RunJobStatus.SUCCESS.value, "job_name": JOB_NAME}
@@ -247,7 +278,11 @@ class TestCloudRunExecuteJobOperator:
         }
 
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            overrides=overrides,
         )
 
         operator.execute(context=mock.MagicMock())
@@ -269,7 +304,11 @@ class TestCloudRunExecuteJobOperator:
         }
 
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            overrides=overrides,
         )
 
         with pytest.raises(AirflowException):
@@ -284,7 +323,11 @@ class TestCloudRunExecuteJobOperator:
         }
 
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            overrides=overrides,
         )
 
         with pytest.raises(AirflowException):
@@ -299,7 +342,11 @@ class TestCloudRunExecuteJobOperator:
         }
 
         operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            overrides=overrides,
         )
 
         with pytest.raises(AirflowException):
@@ -307,7 +354,9 @@ class TestCloudRunExecuteJobOperator:
 
     def _mock_operation(self, task_count, succeeded_count, failed_count):
         operation = mock.MagicMock()
-        operation.result.return_value = self._mock_execution(task_count, succeeded_count, failed_count)
+        operation.result.return_value = self._mock_execution(
+            task_count, succeeded_count, failed_count
+        )
         return operation
 
     def _mock_execution(self, task_count, succeeded_count, failed_count):
@@ -347,7 +396,11 @@ class TestCloudRunDeleteJobOperator:
 class TestCloudRunUpdateJobOperator:
     def test_template_fields(self):
         operator = CloudRunUpdateJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
         )
 
         _assert_common_template_fields(operator.template_fields)
@@ -358,7 +411,11 @@ class TestCloudRunUpdateJobOperator:
         hook_mock.return_value.update_job.return_value = JOB
 
         operator = CloudRunUpdateJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
         )
 
         updated_job = operator.execute(context=mock.MagicMock())
@@ -373,7 +430,11 @@ class TestCloudRunUpdateJobOperator:
 class TestCloudRunListJobsOperator:
     def test_template_fields(self):
         operator = CloudRunListJobsOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=2, show_deleted=False
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            limit=2,
+            show_deleted=False,
         )
 
         _assert_common_template_fields(operator.template_fields)
@@ -383,7 +444,11 @@ class TestCloudRunListJobsOperator:
         limit = 2
         show_deleted = True
         operator = CloudRunListJobsOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit, show_deleted=show_deleted
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            limit=limit,
+            show_deleted=show_deleted,
         )
 
         operator.execute(context=mock.MagicMock())
@@ -396,7 +461,9 @@ class TestCloudRunListJobsOperator:
     def test_execute_with_invalid_limit(self, hook_mock):
         limit = -1
         with pytest.raises(expected_exception=AirflowException):
-            CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
+            CloudRunListJobsOperator(
+                task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit
+            )
 
 
 class TestCloudRunCreateServiceOperator:
@@ -435,7 +502,9 @@ class TestCloudRunCreateServiceOperator:
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute_already_exists(self, hook_mock):
-        hook_mock.return_value.create_service.side_effect = AlreadyExists("Service already exists")
+        hook_mock.return_value.create_service.side_effect = AlreadyExists(
+            "Service already exists"
+        )
         hook_mock.return_value.get_service.return_value = SERVICE
 
         operator = CloudRunCreateServiceOperator(
@@ -465,7 +534,9 @@ class TestCloudRunCreateServiceOperator:
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute_when_other_error(self, hook_mock):
         error_message = "An error occurred. Exiting."
-        hook_mock.return_value.create_service.side_effect = GoogleCloudError(error_message, errors=None)
+        hook_mock.return_value.create_service.side_effect = GoogleCloudError(
+            error_message, errors=None
+        )
 
         operator = CloudRunCreateServiceOperator(
             task_id=TASK_ID,

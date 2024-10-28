@@ -41,7 +41,9 @@ class TestEmrServerlessApplicationSensor:
         self.sensor.hook = self.mock_hook
 
     def assert_get_application_was_called_once_with_app_id(self):
-        self.mock_hook.conn.get_application.assert_called_once_with(applicationId=self.app_id)
+        self.mock_hook.conn.get_application.assert_called_once_with(
+            applicationId=self.app_id
+        )
 
 
 class TestPokeReturnValue(TestEmrServerlessApplicationSensor):
@@ -67,7 +69,9 @@ class TestPokeRaisesAirflowException(TestEmrServerlessApplicationSensor):
     def test_poke_raises_airflow_exception_with_failure_states(self, state):
         state_details = f"mock {state}"
         exception_msg = f"EMR Serverless application failed: {state_details}"
-        get_job_run_return_value = {"application": {"state": state, "stateDetails": state_details}}
+        get_job_run_return_value = {
+            "application": {"state": state, "stateDetails": state_details}
+        }
         self.set_get_application_return_value(get_job_run_return_value)
 
         with pytest.raises(AirflowException) as ctx:

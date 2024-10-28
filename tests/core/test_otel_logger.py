@@ -35,7 +35,10 @@ from airflow.metrics.otel_logger import (
     _is_up_down_counter,
     full_name,
 )
-from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
+from airflow.metrics.validators import (
+    BACK_COMPAT_METRIC_NAMES,
+    MetricNameLengthExemptionWarning,
+)
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
@@ -110,7 +113,9 @@ class TestOtelMetrics:
     def test_incr_new_metric(self, name):
         self.stats.incr(name)
 
-        self.meter.get_meter().create_counter.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_counter.assert_called_once_with(
+            name=full_name(name)
+        )
 
     def test_incr_new_metric_with_tags(self, name):
         tags = {"hello": "world"}
@@ -118,7 +123,9 @@ class TestOtelMetrics:
 
         self.stats.incr(name, tags=tags)
 
-        self.meter.get_meter().create_counter.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_counter.assert_called_once_with(
+            name=full_name(name)
+        )
         self.map[key].add.assert_called_once_with(1, attributes=tags)
 
     def test_incr_existing_metric(self, name):
@@ -128,7 +135,9 @@ class TestOtelMetrics:
         self.stats.incr(name)
 
         assert self.map[full_name(name)].add.call_count == 2
-        self.meter.get_meter().create_counter.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_counter.assert_called_once_with(
+            name=full_name(name)
+        )
 
     @mock.patch("random.random", side_effect=[0.1, 0.9])
     def test_incr_with_rate_limit_works(self, mock_random, name):
@@ -281,7 +290,9 @@ class TestOtelMetrics:
         [True, False],
     )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_with_name_returns_float_and_stores_value(self, mock_time, metrics_consistency_on, name):
+    def test_timer_with_name_returns_float_and_stores_value(
+        self, mock_time, metrics_consistency_on, name
+    ):
         protocols.metrics_consistency_on = metrics_consistency_on
         with self.stats.timer(name) as timer:
             pass
@@ -320,7 +331,9 @@ class TestOtelMetrics:
         ],
     )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_start_and_stop_manually_send_false(self, mock_time, metrics_consistency_on, name):
+    def test_timer_start_and_stop_manually_send_false(
+        self, mock_time, metrics_consistency_on, name
+    ):
         protocols.metrics_consistency_on = metrics_consistency_on
 
         timer = self.stats.timer(name)
@@ -342,7 +355,9 @@ class TestOtelMetrics:
         ],
     )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_start_and_stop_manually_send_true(self, mock_time, metrics_consistency_on, name):
+    def test_timer_start_and_stop_manually_send_true(
+        self, mock_time, metrics_consistency_on, name
+    ):
         protocols.metrics_consistency_on = metrics_consistency_on
         timer = self.stats.timer(name)
         timer.start()

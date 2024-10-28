@@ -54,14 +54,18 @@ class TestCliGetConnection:
     def test_cli_connection_get(self):
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_get(
-                self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
+                self.parser.parse_args(
+                    ["connections", "get", "google_cloud_default", "--output", "json"]
+                )
             )
             stdout = stdout.getvalue()
         assert "google-cloud-platform:///default" in stdout
 
     def test_cli_connection_get_invalid(self):
         with pytest.raises(SystemExit, match=re.escape("Connection not found.")):
-            connection_command.connections_get(self.parser.parse_args(["connections", "get", "INVALID"]))
+            connection_command.connections_get(
+                self.parser.parse_args(["connections", "get", "INVALID"])
+            )
 
 
 class TestCliListConnections:
@@ -139,11 +143,17 @@ class TestCliExportConnections:
 
     def test_cli_connections_export_should_return_error_for_invalid_format(self):
         with pytest.raises(SystemExit):
-            self.parser.parse_args(["connections", "export", "--format", "invalid", "/path/to/file"])
+            self.parser.parse_args(
+                ["connections", "export", "--format", "invalid", "/path/to/file"]
+            )
 
-    def test_cli_connections_export_should_return_error_for_invalid_export_format(self, tmp_path):
+    def test_cli_connections_export_should_return_error_for_invalid_export_format(
+        self, tmp_path
+    ):
         output_filepath = tmp_path / "connections.invalid"
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         with pytest.raises(SystemExit, match=r"Unsupported file format"):
             connection_command.connections_export(args)
 
@@ -157,7 +167,9 @@ class TestCliExportConnections:
             raise Exception("dummy exception")
 
         mock_create_session.side_effect = my_side_effect
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
 
@@ -170,8 +182,12 @@ class TestCliExportConnections:
         def my_side_effect(_):
             raise Exception("dummy exception")
 
-        mock_session.return_value.__enter__.return_value.scalars.side_effect = my_side_effect
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        mock_session.return_value.__enter__.return_value.scalars.side_effect = (
+            my_side_effect
+        )
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
 
@@ -181,13 +197,17 @@ class TestCliExportConnections:
     ):
         output_filepath = tmp_path / "connections.json"
         mock_session.return_value.__enter__.return_value.query.return_value.all.return_value = []
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         connection_command.connections_export(args)
         assert output_filepath.read_text() == "{}"
 
     def test_cli_connections_export_should_export_as_json(self, tmp_path):
         output_filepath = tmp_path / "connections.json"
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         connection_command.connections_export(args)
         expected_connections = {
             "airflow_db": {
@@ -215,7 +235,9 @@ class TestCliExportConnections:
 
     def test_cli_connections_export_should_export_as_yaml(self, tmp_path):
         output_filepath = tmp_path / "connections.yaml"
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         connection_command.connections_export(args)
         expected_connections = (
             "airflow_db:\n"
@@ -269,7 +291,9 @@ class TestCliExportConnections:
             ),
         ],
     )
-    def test_cli_connections_export_should_export_as_env(self, serialization_format, expected, tmp_path):
+    def test_cli_connections_export_should_export_as_env(
+        self, serialization_format, expected, tmp_path
+    ):
         """
         When exporting with env file format, we should
         """
@@ -285,9 +309,13 @@ class TestCliExportConnections:
         connection_command.connections_export(args)
         assert output_filepath.read_text().splitlines() == expected
 
-    def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(self, tmp_path):
+    def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(
+        self, tmp_path
+    ):
         output_filepath = tmp_path / "connections.ENV"
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        args = self.parser.parse_args(
+            ["connections", "export", output_filepath.as_posix()]
+        )
         connection_command.connections_export(args)
         expected_connections = [
             "airflow_db=mysql://root:plainpassword@mysql/airflow",
@@ -296,7 +324,9 @@ class TestCliExportConnections:
 
         assert output_filepath.read_text().splitlines() == expected_connections
 
-    def test_cli_connections_export_should_force_export_as_specified_format(self, tmp_path):
+    def test_cli_connections_export_should_force_export_as_specified_format(
+        self, tmp_path
+    ):
         output_filepath = tmp_path / "connections.yaml"
         args = self.parser.parse_args(
             [
@@ -523,7 +553,13 @@ class TestCliAddConnections:
                 id="empty-uri-with-conn-type-and-extra",
             ),
             pytest.param(
-                ["connections", "add", "new6", "--conn-uri", "aws://?region_name=foo-bar-1"],
+                [
+                    "connections",
+                    "add",
+                    "new6",
+                    "--conn-uri",
+                    "aws://?region_name=foo-bar-1",
+                ],
                 "Successfully added `conn_id`=new6 : aws://?region_name=foo-bar-1",
                 {
                     "conn_type": "aws",
@@ -539,7 +575,13 @@ class TestCliAddConnections:
                 id="uri-without-authority-and-host-blocks",
             ),
             pytest.param(
-                ["connections", "add", "new7", "--conn-uri", "aws://@/?region_name=foo-bar-1"],
+                [
+                    "connections",
+                    "add",
+                    "new7",
+                    "--conn-uri",
+                    "aws://@/?region_name=foo-bar-1",
+                ],
                 "Successfully added `conn_id`=new7 : aws://@/?region_name=foo-bar-1",
                 {
                     "conn_type": "aws",
@@ -576,18 +618,28 @@ class TestCliAddConnections:
             "schema",
             "extra",
         ]
-        current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-        assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+        current_conn = (
+            session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        )
+        assert expected_conn == {
+            attr: getattr(current_conn, attr) for attr in comparable_attrs
+        }
 
     def test_cli_connections_add_duplicate(self):
         conn_id = "to_be_duplicated"
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
+            self.parser.parse_args(
+                ["connections", "add", conn_id, f"--conn-uri={TEST_URL}"]
+            )
         )
         # Check for addition attempt
-        with pytest.raises(SystemExit, match=rf"A connection with `conn_id`={conn_id} already exists"):
+        with pytest.raises(
+            SystemExit, match=rf"A connection with `conn_id`={conn_id} already exists"
+        ):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
+                self.parser.parse_args(
+                    ["connections", "add", conn_id, f"--conn-uri={TEST_URL}"]
+                )
             )
 
     def test_cli_connections_add_delete_with_missing_parameters(self):
@@ -596,7 +648,9 @@ class TestCliAddConnections:
             SystemExit,
             match="Must supply either conn-uri or conn-json if not supplying conn-type",
         ):
-            connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
+            connection_command.connections_add(
+                self.parser.parse_args(["connections", "add", "new1"])
+            )
 
     def test_cli_connections_add_json_invalid_args(self):
         """can't supply extra and json"""
@@ -606,7 +660,13 @@ class TestCliAddConnections:
         ):
             connection_command.connections_add(
                 self.parser.parse_args(
-                    ["connections", "add", "new1", f"--conn-json={TEST_JSON}", "--conn-extra='hi'"]
+                    [
+                        "connections",
+                        "add",
+                        "new1",
+                        f"--conn-json={TEST_JSON}",
+                        "--conn-extra='hi'",
+                    ]
                 )
             )
 
@@ -618,7 +678,13 @@ class TestCliAddConnections:
         ):
             connection_command.connections_add(
                 self.parser.parse_args(
-                    ["connections", "add", "new1", f"--conn-uri={TEST_URL}", f"--conn-json={TEST_JSON}"]
+                    [
+                        "connections",
+                        "add",
+                        "new1",
+                        f"--conn-uri={TEST_URL}",
+                        f"--conn-json={TEST_JSON}",
+                    ]
                 )
             )
 
@@ -631,10 +697,17 @@ class TestCliAddConnections:
     )
     def test_cli_connections_add_invalid_uri(self, invalid_uri):
         # Attempt to add with invalid uri
-        with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: .*"):
+        with pytest.raises(
+            SystemExit, match=r"The URI provided to --conn-uri is invalid: .*"
+        ):
             connection_command.connections_add(
                 self.parser.parse_args(
-                    ["connections", "add", "new1", f"--conn-uri={shlex.quote(invalid_uri)}"]
+                    [
+                        "connections",
+                        "add",
+                        "new1",
+                        f"--conn-uri={shlex.quote(invalid_uri)}",
+                    ]
                 )
             )
 
@@ -642,17 +715,26 @@ class TestCliAddConnections:
         with warnings.catch_warnings(record=True):
             connection_command.connections_add(
                 self.parser.parse_args(
-                    ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
+                    [
+                        "connections",
+                        "add",
+                        "fsconn",
+                        "--conn-host=/tmp",
+                        "--conn-type=File",
+                    ]
                 )
             )
 
     def test_cli_connections_add_invalid_conn_id(self):
         with pytest.raises(SystemExit) as e:
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
+                self.parser.parse_args(
+                    ["connections", "add", "Test$", f"--conn-uri={TEST_URL}"]
+                )
             )
         assert (
-            e.value.args[0] == "Could not create connection. The key 'Test$' has to be made of "
+            e.value.args[0]
+            == "Could not create connection. The key 'Test$' has to be made of "
             "alphanumeric characters, dashes, dots and underscores exclusively"
         )
 
@@ -678,7 +760,9 @@ class TestCliDeleteConnections:
         )
         # Delete connections
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "new1"]))
+            connection_command.connections_delete(
+                self.parser.parse_args(["connections", "delete", "new1"])
+            )
             stdout = stdout.getvalue()
 
         # Check deletion stdout
@@ -691,8 +775,12 @@ class TestCliDeleteConnections:
 
     def test_cli_delete_invalid_connection(self):
         # Attempt to delete a non-existing connection
-        with pytest.raises(SystemExit, match=r"Did not find a connection with `conn_id`=fake"):
-            connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "fake"]))
+        with pytest.raises(
+            SystemExit, match=r"Did not find a connection with `conn_id`=fake"
+        ):
+            connection_command.connections_delete(
+                self.parser.parse_args(["connections", "delete", "fake"])
+            )
 
 
 class TestCliImportConnections:
@@ -702,11 +790,15 @@ class TestCliImportConnections:
         clear_db_connections(add_default_connections_back=False)
 
     @mock.patch("os.path.exists")
-    def test_cli_connections_import_should_return_error_if_file_does_not_exist(self, mock_exists):
+    def test_cli_connections_import_should_return_error_if_file_does_not_exist(
+        self, mock_exists
+    ):
         mock_exists.return_value = False
         filepath = "/does/not/exist.json"
         with pytest.raises(SystemExit, match=r"Missing connections file."):
-            connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", filepath])
+            )
 
     @pytest.mark.parametrize("filepath", ["sample.jso", "sample.environ"])
     @mock.patch("os.path.exists")
@@ -721,11 +813,15 @@ class TestCliImportConnections:
                 ".env .json .yaml .yml"
             ),
         ):
-            connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", filepath])
+            )
 
     @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
     @mock.patch("os.path.exists")
-    def test_cli_connections_import_should_load_connections(self, mock_exists, mock_parse_secret_file):
+    def test_cli_connections_import_should_load_connections(
+        self, mock_exists, mock_parse_secret_file
+    ):
         mock_exists.return_value = True
 
         # Sample connections to import
@@ -776,7 +872,9 @@ class TestCliImportConnections:
             ]
 
             current_conns_as_dicts = {
-                current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+                current_conn.conn_id: {
+                    attr: getattr(current_conn, attr) for attr in comparable_attrs
+                }
                 for current_conn in current_conns
             }
             assert expected_connections == current_conns_as_dicts
@@ -834,7 +932,10 @@ class TestCliImportConnections:
                 self.parser.parse_args(["connections", "import", "sample.json"])
             )
 
-            assert "Could not import connection new3: connection already exists." in stdout.getvalue()
+            assert (
+                "Could not import connection new3: connection already exists."
+                in stdout.getvalue()
+            )
 
         # Verify that the imported connections match the expected, sample connections
         current_conns = session.query(Connection).all()
@@ -852,7 +953,9 @@ class TestCliImportConnections:
         ]
 
         current_conns_as_dicts = {
-            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+            current_conn.conn_id: {
+                attr: getattr(current_conn, attr) for attr in comparable_attrs
+            }
             for current_conn in current_conns
         }
         assert current_conns_as_dicts["new2"] == expected_connections["new2"]
@@ -910,10 +1013,15 @@ class TestCliImportConnections:
 
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_import(
-                self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"])
+                self.parser.parse_args(
+                    ["connections", "import", "sample.json", "--overwrite"]
+                )
             )
 
-            assert "Could not import connection new3: connection already exists." not in stdout.getvalue()
+            assert (
+                "Could not import connection new3: connection already exists."
+                not in stdout.getvalue()
+            )
 
         # Verify that the imported connections match the expected, sample connections
         current_conns = session.query(Connection).all()
@@ -931,7 +1039,9 @@ class TestCliImportConnections:
         ]
 
         current_conns_as_dicts = {
-            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+            current_conn.conn_id: {
+                attr: getattr(current_conn, attr) for attr in comparable_attrs
+            }
             for current_conn in current_conns
         }
         assert current_conns_as_dicts["new2"] == expected_connections["new2"]
@@ -953,7 +1063,9 @@ class TestCliTestConnections:
         conn_id = "http_default"
         mock_test_conn.return_value = True, None
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+            connection_command.connections_test(
+                self.parser.parse_args(["connections", "test", conn_id])
+            )
 
             assert "Connection success!" in stdout.getvalue()
 
@@ -964,7 +1076,9 @@ class TestCliTestConnections:
         conn_id = "http_default"
         mock_test_conn.return_value = False, "Failed."
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+            connection_command.connections_test(
+                self.parser.parse_args(["connections", "test", conn_id])
+            )
 
             assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
 
@@ -972,13 +1086,17 @@ class TestCliTestConnections:
     def test_cli_connections_test_missing_conn(self):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
         with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+            connection_command.connections_test(
+                self.parser.parse_args(["connections", "test", "missing"])
+            )
         assert "Connection not found.\n\n" in stdout.getvalue()
 
     def test_cli_connections_test_disabled_by_default(self):
         """Check that test connection functionality is disabled by default."""
         with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+            connection_command.connections_test(
+                self.parser.parse_args(["connections", "test", "missing"])
+            )
         assert (
             "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
             "enable it.\n\n"
@@ -989,7 +1107,8 @@ class TestCliCreateDefaultConnection:
     @mock.patch("airflow.cli.commands.connection_command.db_create_default_connections")
     def test_cli_create_default_connections(self, mock_db_create_default_connections):
         create_default_connection_fnc = dict(
-            (db_command.name, db_command.func) for db_command in cli_config.CONNECTIONS_COMMANDS
+            (db_command.name, db_command.func)
+            for db_command in cli_config.CONNECTIONS_COMMANDS
         )["create-default-connections"]
         create_default_connection_fnc(())
         mock_db_create_default_connections.assert_called_once()

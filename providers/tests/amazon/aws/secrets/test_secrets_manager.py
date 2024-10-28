@@ -25,7 +25,9 @@ from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerB
 
 
 class TestSecretsManagerBackend:
-    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.get_conn_value")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.get_conn_value"
+    )
     def test_aws_secrets_manager_get_connection(self, mock_get_value):
         mock_get_value.return_value = "scheme://user:pass@host:100"
         conn = SecretsManagerBackend().get_connection("fake_conn")
@@ -104,7 +106,9 @@ class TestSecretsManagerBackend:
 
         assert secrets_manager_backend.get_config("test") is None
 
-    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret"
+    )
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
         Test that if Connection ID is not present in AWS Secrets Manager,
@@ -118,7 +122,9 @@ class TestSecretsManagerBackend:
         assert secrets_manager_backend.get_conn_value("test_mysql") is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret"
+    )
     def test_variable_prefix_none_value(self, mock_get_secret):
         """
         Test that if Variable key is not present in AWS Secrets Manager,
@@ -132,7 +138,9 @@ class TestSecretsManagerBackend:
         assert secrets_manager_backend.get_variable("hello") is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret"
+    )
     def test_config_prefix_none_value(self, mock_get_secret):
         """
         Test that if Config key is not present in AWS Secrets Manager,
@@ -214,7 +222,9 @@ class TestSecretsManagerBackend:
             ("test", None, 1),
         ],
     )
-    def test_config_lookup_pattern(self, mock_client, config_key, config_lookup_pattern, num_client_calls):
+    def test_config_lookup_pattern(
+        self, mock_client, config_key, config_lookup_pattern, num_client_calls
+    ):
         """
         Test that if Variable key is looked up in AWS Secrets Manager
         """
@@ -228,7 +238,9 @@ class TestSecretsManagerBackend:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     def test_passing_client_kwargs(self, mock_session_factory):
         secrets_manager_backend = SecretsManagerBackend(
-            use_ssl=False, role_arn="arn:aws:iam::222222222222:role/awesome-role", region_name="eu-central-1"
+            use_ssl=False,
+            role_arn="arn:aws:iam::222222222222:role/awesome-role",
+            region_name="eu-central-1",
         )
 
         # Mock SessionFactory, session and client

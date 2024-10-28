@@ -80,26 +80,42 @@ class TestAzureSynapseRunSparkBatchOperator:
             )
         )
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job"
+    )
     def test_azure_synapse_run_spark_batch_operator_success(
         self, mock_run_spark_job, mock_get_job_run_status
     ):
         mock_get_job_run_status.return_value = "success"
         mock_run_spark_job.return_value = MagicMock(**JOB_RUN_RESPONSE)
         op = AzureSynapseRunSparkBatchOperator(
-            task_id="test", azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID, spark_pool="test_pool", payload={}
+            task_id="test",
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            spark_pool="test_pool",
+            payload={},
         )
         op.execute(context=self.mock_context)
         assert op.job_id == JOB_RUN_RESPONSE["id"]
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
-    def test_azure_synapse_run_spark_batch_operator_error(self, mock_run_spark_job, mock_get_job_run_status):
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job"
+    )
+    def test_azure_synapse_run_spark_batch_operator_error(
+        self, mock_run_spark_job, mock_get_job_run_status
+    ):
         mock_get_job_run_status.return_value = "error"
         mock_run_spark_job.return_value = MagicMock(**JOB_RUN_RESPONSE)
         op = AzureSynapseRunSparkBatchOperator(
-            task_id="test", azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID, spark_pool="test_pool", payload={}
+            task_id="test",
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            spark_pool="test_pool",
+            payload={},
         )
         with pytest.raises(
             AirflowException,
@@ -107,16 +123,25 @@ class TestAzureSynapseRunSparkBatchOperator:
         ):
             op.execute(context=self.mock_context)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.cancel_job_run")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.cancel_job_run"
+    )
     def test_azure_synapse_run_spark_batch_operator_on_kill(
         self, mock_cancel_job_run, mock_run_spark_job, mock_get_job_run_status
     ):
         mock_get_job_run_status.return_value = "success"
         mock_run_spark_job.return_value = MagicMock(**JOB_RUN_RESPONSE)
         op = AzureSynapseRunSparkBatchOperator(
-            task_id="test", azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID, spark_pool="test_pool", payload={}
+            task_id="test",
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            spark_pool="test_pool",
+            payload={},
         )
         op.execute(context=self.mock_context)
         op.on_kill()
@@ -157,7 +182,11 @@ class TestAzureSynapseRunPipelineOperator:
 
         return run
 
-    @patch.object(AzureSynapsePipelineHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
+    @patch.object(
+        AzureSynapsePipelineHook,
+        "run_pipeline",
+        return_value=MagicMock(**PIPELINE_RUN_RESPONSE),
+    )
     @pytest.mark.parametrize(
         "pipeline_run_status,expected_output",
         [
@@ -169,7 +198,9 @@ class TestAzureSynapseRunPipelineOperator:
             (AzureSynapsePipelineRunStatus.CANCELING, "timeout"),
         ],
     )
-    def test_execute_wait_for_termination(self, mock_run_pipeline, pipeline_run_status, expected_output):
+    def test_execute_wait_for_termination(
+        self, mock_run_pipeline, pipeline_run_status, expected_output
+    ):
         # Initialize the operator with mock config, (**) unpacks the config dict.
         operator = AzureSynapseRunPipelineOperator(**self.config)
 
@@ -183,9 +214,13 @@ class TestAzureSynapseRunPipelineOperator:
         assert operator.timeout == self.config["timeout"]
         assert operator.wait_for_termination
 
-        with patch.object(AzureSynapsePipelineHook, "get_pipeline_run") as mock_get_pipeline_run:
-            mock_get_pipeline_run.return_value = TestAzureSynapseRunPipelineOperator.create_pipeline_run(
-                pipeline_run_status
+        with patch.object(
+            AzureSynapsePipelineHook, "get_pipeline_run"
+        ) as mock_get_pipeline_run:
+            mock_get_pipeline_run.return_value = (
+                TestAzureSynapseRunPipelineOperator.create_pipeline_run(
+                    pipeline_run_status
+                )
             )
 
             if not expected_output:
@@ -227,7 +262,9 @@ class TestAzureSynapseRunPipelineOperator:
             )
 
             if pipeline_run_status in AzureSynapsePipelineRunStatus.TERMINAL_STATUSES:
-                mock_get_pipeline_run.assert_called_once_with(run_id=mock_run_pipeline.return_value.run_id)
+                mock_get_pipeline_run.assert_called_once_with(
+                    run_id=mock_run_pipeline.return_value.run_id
+                )
             else:
                 # When the pipeline run status is not in a terminal status or "Succeeded", the operator will
                 # continue to call ``get_pipeline_run()`` until a ``timeout`` number of seconds has passed
@@ -235,11 +272,19 @@ class TestAzureSynapseRunPipelineOperator:
                 # initially and 3 for each check done at a 1 second interval.
                 assert mock_get_pipeline_run.call_count == 4
 
-                mock_get_pipeline_run.assert_called_with(run_id=mock_run_pipeline.return_value.run_id)
+                mock_get_pipeline_run.assert_called_with(
+                    run_id=mock_run_pipeline.return_value.run_id
+                )
 
-    @patch.object(AzureSynapsePipelineHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
+    @patch.object(
+        AzureSynapsePipelineHook,
+        "run_pipeline",
+        return_value=MagicMock(**PIPELINE_RUN_RESPONSE),
+    )
     def test_execute_no_wait_for_termination(self, mock_run_pipeline):
-        operator = AzureSynapseRunPipelineOperator(wait_for_termination=False, **self.config)
+        operator = AzureSynapseRunPipelineOperator(
+            wait_for_termination=False, **self.config
+        )
 
         assert operator.azure_synapse_conn_id == self.config["azure_synapse_conn_id"]
         assert operator.pipeline_name == self.config["pipeline_name"]
@@ -303,7 +348,9 @@ class TestAzureSynapseRunPipelineOperator:
 
         # Extract the workspace_name, subscription_id and resource_group from the Synapse workspace url.
         pipeline_run_object = AzureSynapsePipelineRunLink()
-        fields = pipeline_run_object.get_fields_from_url(workspace_url=conn_synapse_workspace_url)
+        fields = pipeline_run_object.get_fields_from_url(
+            workspace_url=conn_synapse_workspace_url
+        )
 
         assert url == (
             EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK.format(
@@ -316,9 +363,13 @@ class TestAzureSynapseRunPipelineOperator:
 
     def test_pipeline_operator_link_invalid_uri_pattern(self):
         with pytest.raises(ValueError, match="Invalid workspace URL format"):
-            AzureSynapsePipelineRunLink().get_fields_from_url(workspace_url="https://example.org/")
+            AzureSynapsePipelineRunLink().get_fields_from_url(
+                workspace_url="https://example.org/"
+            )
 
     def test_pipeline_operator_link_invalid_uri_workspace_segments(self):
-        workspace_url = "https://web.azuresynapse.net?workspace=%2Fsubscriptions%2Fspam-egg"
+        workspace_url = (
+            "https://web.azuresynapse.net?workspace=%2Fsubscriptions%2Fspam-egg"
+        )
         with pytest.raises(ValueError, match="Workspace expected at least 5 segments"):
             AzureSynapsePipelineRunLink().get_fields_from_url(workspace_url=workspace_url)

@@ -212,7 +212,9 @@ def test_task_map_from_task_instance_xcom():
 
     # Test case where run_id is None
     ti.run_id = None
-    with pytest.raises(ValueError, match="cannot record task map for unrun task instance"):
+    with pytest.raises(
+        ValueError, match="cannot record task map for unrun task instance"
+    ):
         TaskMap.from_task_instance_xcom(ti, value)
 
 
@@ -224,7 +226,9 @@ def test_task_map_with_invalid_task_instance():
     # Define some arbitrary XCom-like value data
     value = {"example_key": "example_value"}
 
-    with pytest.raises(ValueError, match="cannot record task map for unrun task instance"):
+    with pytest.raises(
+        ValueError, match="cannot record task map for unrun task instance"
+    ):
         TaskMap.from_task_instance_xcom(ti, value)
 
 

@@ -111,7 +111,9 @@ class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
         self.log.info("Exporting data to Cloud Storage bucket %s", self.bucket)
 
         if self.overwrite_existing and self.namespace:
-            gcs_hook = GCSHook(self.cloud_storage_conn_id, impersonation_chain=self.impersonation_chain)
+            gcs_hook = GCSHook(
+                self.cloud_storage_conn_id, impersonation_chain=self.impersonation_chain
+            )
             objects = gcs_hook.list(self.bucket, prefix=self.namespace)
             for obj in objects:
                 gcs_hook.delete(self.bucket, obj)
@@ -128,7 +130,9 @@ class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         operation_name = result["name"]
-        result = ds_hook.poll_operation_until_done(operation_name, self.polling_interval_in_seconds)
+        result = ds_hook.poll_operation_until_done(
+            operation_name, self.polling_interval_in_seconds
+        )
 
         state = result["metadata"]["common"]["state"]
         if state != "SUCCESSFUL":
@@ -225,7 +229,9 @@ class CloudDatastoreImportEntitiesOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         operation_name = result["name"]
-        result = ds_hook.poll_operation_until_done(operation_name, self.polling_interval_in_seconds)
+        result = ds_hook.poll_operation_until_done(
+            operation_name, self.polling_interval_in_seconds
+        )
 
         state = result["metadata"]["common"]["state"]
         if state != "SUCCESSFUL":

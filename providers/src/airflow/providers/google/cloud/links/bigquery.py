@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 
 BIGQUERY_BASE_LINK = "/bigquery"
 BIGQUERY_DATASET_LINK = (
-    BIGQUERY_BASE_LINK + "?referrer=search&project={project_id}&d={dataset_id}&p={project_id}&page=dataset"
+    BIGQUERY_BASE_LINK
+    + "?referrer=search&project={project_id}&d={dataset_id}&p={project_id}&page=dataset"
 )
 BIGQUERY_TABLE_LINK = (
     BIGQUERY_BASE_LINK
@@ -76,5 +77,9 @@ class BigQueryTableLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=BigQueryTableLink.key,
-            value={"dataset_id": dataset_id, "project_id": project_id, "table_id": table_id},
+            value={
+                "dataset_id": dataset_id,
+                "project_id": project_id,
+                "table_id": table_id,
+            },
         )

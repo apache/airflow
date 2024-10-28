@@ -101,7 +101,9 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         timeout = self.timeout
         hook = self._get_async_hook()
         while timeout is None or timeout > 0:
-            operation: operations_pb2.Operation = await hook.get_operation(self.operation_name)
+            operation: operations_pb2.Operation = await hook.get_operation(
+                self.operation_name
+            )
             if operation.done:
                 # An operation can only have one of those two combinations: if it is failed, then
                 # the error field will be populated, else, then the response field will be.

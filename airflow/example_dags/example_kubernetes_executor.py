@@ -53,7 +53,9 @@ if k8s:
     ) as dag:
         # You can use annotations on your kubernetes pods!
         start_task_executor_config = {
-            "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}))
+            "pod_override": k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"})
+            )
         }
 
         @task(executor_config=start_task_executor_config)
@@ -68,7 +70,10 @@ if k8s:
                         k8s.V1Container(
                             name="base",
                             volume_mounts=[
-                                k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume")
+                                k8s.V1VolumeMount(
+                                    mount_path="/foo/",
+                                    name="example-kubernetes-test-volume",
+                                )
                             ],
                         )
                     ],
@@ -93,7 +98,9 @@ if k8s:
 
             return_code = os.system("cat /foo/volume_mount_test.txt")
             if return_code != 0:
-                raise ValueError(f"Error when checking volume mount. Return code {return_code}")
+                raise ValueError(
+                    f"Error when checking volume mount. Return code {return_code}"
+                )
 
         volume_task = test_volume_mount()
         # [END task_with_volume]
@@ -105,18 +112,29 @@ if k8s:
                     containers=[
                         k8s.V1Container(
                             name="base",
-                            volume_mounts=[k8s.V1VolumeMount(mount_path="/shared/", name="shared-empty-dir")],
+                            volume_mounts=[
+                                k8s.V1VolumeMount(
+                                    mount_path="/shared/", name="shared-empty-dir"
+                                )
+                            ],
                         ),
                         k8s.V1Container(
                             name="sidecar",
                             image="ubuntu",
                             args=['echo "retrieved from mount" > /shared/test.txt'],
                             command=["bash", "-cx"],
-                            volume_mounts=[k8s.V1VolumeMount(mount_path="/shared/", name="shared-empty-dir")],
+                            volume_mounts=[
+                                k8s.V1VolumeMount(
+                                    mount_path="/shared/", name="shared-empty-dir"
+                                )
+                            ],
                         ),
                     ],
                     volumes=[
-                        k8s.V1Volume(name="shared-empty-dir", empty_dir=k8s.V1EmptyDirVolumeSource()),
+                        k8s.V1Volume(
+                            name="shared-empty-dir",
+                            empty_dir=k8s.V1EmptyDirVolumeSource(),
+                        ),
                     ],
                 )
             ),
@@ -131,7 +149,9 @@ if k8s:
                 try:
                     return_code = os.system("cat /shared/test.txt")
                     if return_code != 0:
-                        raise ValueError(f"Error when checking volume mount. Return code {return_code}")
+                        raise ValueError(
+                            f"Error when checking volume mount. Return code {return_code}"
+                        )
                 except ValueError as e:
                     if i > 4:
                         raise e
@@ -141,7 +161,9 @@ if k8s:
 
         # You can add labels to pods
         executor_config_non_root = {
-            "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"release": "stable"}))
+            "pod_override": k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(labels={"release": "stable"})
+            )
         }
 
         @task(executor_config=executor_config_non_root)
@@ -152,7 +174,9 @@ if k8s:
 
         executor_config_other_ns = {
             "pod_override": k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(namespace="test-namespace", labels={"release": "stable"})
+                metadata=k8s.V1ObjectMeta(
+                    namespace="test-namespace", labels={"release": "stable"}
+                )
             )
         }
 
@@ -161,7 +185,9 @@ if k8s:
             print_stuff()
 
         other_ns_task = other_namespace_task()
-        worker_container_repository = conf.get("kubernetes_executor", "worker_container_repository")
+        worker_container_repository = conf.get(
+            "kubernetes_executor", "worker_container_repository"
+        )
         worker_container_tag = conf.get("kubernetes_executor", "worker_container_tag")
 
         # You can also change the base image, here we used the worker image for demonstration.
@@ -173,7 +199,8 @@ if k8s:
                 spec=k8s.V1PodSpec(
                     containers=[
                         k8s.V1Container(
-                            name="base", image=f"{worker_container_repository}:{worker_container_tag}"
+                            name="base",
+                            image=f"{worker_container_repository}:{worker_container_tag}",
                         ),
                     ]
                 )
@@ -193,7 +220,9 @@ if k8s:
                     k8s.V1PodAffinityTerm(
                         label_selector=k8s.V1LabelSelector(
                             match_expressions=[
-                                k8s.V1LabelSelectorRequirement(key="app", operator="In", values=["airflow"])
+                                k8s.V1LabelSelectorRequirement(
+                                    key="app", operator="In", values=["airflow"]
+                                )
                             ]
                         ),
                         topology_key="kubernetes.io/hostname",
@@ -203,7 +232,9 @@ if k8s:
         )
 
         # Use k8s_client.V1Toleration to define node tolerations
-        k8s_tolerations = [k8s.V1Toleration(key="dedicated", operator="Equal", value="airflow")]
+        k8s_tolerations = [
+            k8s.V1Toleration(key="dedicated", operator="Equal", value="airflow")
+        ]
 
         # Use k8s_client.V1ResourceRequirements to define resource limits
         k8s_resource_requirements = k8s.V1ResourceRequirements(

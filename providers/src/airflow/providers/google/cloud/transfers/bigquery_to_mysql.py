@@ -23,7 +23,9 @@ import warnings
 from typing import Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_sql import (
+    BigQueryToSqlBaseOperator,
+)
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 
@@ -41,7 +43,11 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     """
 
-    template_fields: Sequence[str] = (*BigQueryToSqlBaseOperator.template_fields, "dataset_id", "table_id")
+    template_fields: Sequence[str] = (
+        *BigQueryToSqlBaseOperator.template_fields,
+        "dataset_id",
+        "table_id",
+    )
 
     def __init__(
         self,
@@ -69,7 +75,10 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
             target_table_name = mysql_table
 
         super().__init__(
-            target_table_name=target_table_name, dataset_id=dataset_id, table_id=table_id, **kwargs
+            target_table_name=target_table_name,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            **kwargs,
         )
         self.mysql_conn_id = mysql_conn_id
 

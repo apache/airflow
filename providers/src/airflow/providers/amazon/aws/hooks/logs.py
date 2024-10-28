@@ -127,7 +127,10 @@ class AwsLogsHook(AwsBaseHook):
 
             if not event_count:
                 num_consecutive_empty_response += 1
-                if num_consecutive_empty_response >= NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD:
+                if (
+                    num_consecutive_empty_response
+                    >= NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD
+                ):
                     # Exit if there are more than NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD consecutive
                     # empty responses
                     return

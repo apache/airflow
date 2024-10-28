@@ -41,7 +41,9 @@ def create_branch(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
-            ["git", "checkout", "-b", f"v{version_branch}-test"], dry_run_override=DRY_RUN, check=True
+            ["git", "checkout", "-b", f"v{version_branch}-test"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
         console_print(f"Created branch: v{version_branch}-test")
 
@@ -58,7 +60,9 @@ def update_default_branch(version_branch):
         console_print("To:")
         console_print()
         console_print(f"AIRFLOW_BRANCH = 'v{version_branch}-test'")
-        console_print(f"DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = 'constraints-{version_branch}'")
+        console_print(
+            f"DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = 'constraints-{version_branch}'"
+        )
 
 
 def commit_changes(version_branch):
@@ -69,7 +73,13 @@ def commit_changes(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
-            ["git", "commit", "-m", f"Update default branches for {version_branch}", "--no-verify"],
+            [
+                "git",
+                "commit",
+                "-m",
+                f"Update default branches for {version_branch}",
+                "--no-verify",
+            ],
             dry_run_override=DRY_RUN,
             check=True,
         )
@@ -80,7 +90,9 @@ def create_stable_branch(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
-            ["git", "checkout", "-b", f"v{version_branch}-stable"], dry_run_override=DRY_RUN, check=True
+            ["git", "checkout", "-b", f"v{version_branch}-stable"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
         console_print(f"Created branch: v{version_branch}-stable")
     else:
@@ -92,7 +104,11 @@ def push_test_and_stable_branch(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
 
-        run_command(["git", "checkout", f"v{version_branch}-test"], dry_run_override=DRY_RUN, check=True)
+        run_command(
+            ["git", "checkout", f"v{version_branch}-test"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
@@ -103,7 +119,11 @@ def push_test_and_stable_branch(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
 
-        run_command(["git", "checkout", f"v{version_branch}-stable"], dry_run_override=DRY_RUN, check=True)
+        run_command(
+            ["git", "checkout", f"v{version_branch}-stable"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
@@ -118,7 +138,10 @@ def checkout_main():
         if DRY_RUN:
             console_print("Skipping below command on CI")
         result = run_command(
-            ["git", "checkout", "main"], dry_run_override=DRY_RUN, check=False, capture_output=True
+            ["git", "checkout", "main"],
+            dry_run_override=DRY_RUN,
+            check=False,
+            capture_output=True,
         )
         if result.returncode != 0:
             console_print("[error]Failed to checkout main.[/]")
@@ -127,7 +150,9 @@ def checkout_main():
             sys.exit(1)
         if DRY_RUN:
             console_print("Skipping below command on CI")
-        result = run_command(["git", "pull"], dry_run_override=DRY_RUN, capture_output=True, check=False)
+        result = run_command(
+            ["git", "pull"], dry_run_override=DRY_RUN, capture_output=True, check=False
+        )
         if result.returncode != 0:
             console_print("[error]Failed to pull repo.[/]")
             console_print(result.stdout)
@@ -136,7 +161,9 @@ def checkout_main():
 
 
 def instruction_update_version_branch(version_branch):
-    if confirm_action("Now, we need to manually update the version branches in main. Continue?"):
+    if confirm_action(
+        "Now, we need to manually update the version branches in main. Continue?"
+    ):
         console_print()
         console_print(
             f"Add v{version_branch}-stable and v{version_branch}-test branches "
@@ -156,7 +183,9 @@ def instruction_update_version_branch(version_branch):
             """
         )
         console_print()
-        console_print(f"Add v{version_branch}-stable to .asf.yaml ({version_branch} is your new branch)")
+        console_print(
+            f"Add v{version_branch}-stable to .asf.yaml ({version_branch} is your new branch)"
+        )
         console_print(
             f"""
             protected_branches:
@@ -169,7 +198,9 @@ def instruction_update_version_branch(version_branch):
                 required_approving_review_count: 1
             """
         )
-        console_print("Once you finish with the above. Commit the changes and make a PR against main")
+        console_print(
+            "Once you finish with the above. Commit the changes and make a PR against main"
+        )
         confirm_action("I'm done with the changes. Continue?", abort=True)
 
 
@@ -177,14 +208,28 @@ def create_constraints(version_branch):
     if confirm_action("Do you want to create branches from the constraints main?"):
         if DRY_RUN:
             console_print("Skipping below 4 commands on CI")
-        run_command(["git", "checkout", "constraints-main"], dry_run_override=DRY_RUN, check=True)
-        run_command(["git", "pull", "origin", "constraints-main"], dry_run_override=DRY_RUN, check=True)
         run_command(
-            ["git", "checkout", "-b", f"constraints-{version_branch}"], dry_run_override=DRY_RUN, check=True
+            ["git", "checkout", "constraints-main"], dry_run_override=DRY_RUN, check=True
+        )
+        run_command(
+            ["git", "pull", "origin", "constraints-main"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
+        run_command(
+            ["git", "checkout", "-b", f"constraints-{version_branch}"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
         if confirm_action("Push the new branch?"):
             run_command(
-                ["git", "push", "--set-upstream", "origin", f"constraints-{version_branch}"],
+                [
+                    "git",
+                    "push",
+                    "--set-upstream",
+                    "origin",
+                    f"constraints-{version_branch}",
+                ],
                 dry_run_override=DRY_RUN,
                 check=True,
             )
@@ -194,7 +239,11 @@ def create_constraints(version_branch):
     name="create-minor-branch",
     help="Create a new version branch and update the default branches in main",
 )
-@click.option("--version-branch", help="The version branch you want to create e.g 2-4", required=True)
+@click.option(
+    "--version-branch",
+    help="The version branch you want to create e.g 2-4",
+    required=True,
+)
 @option_answer
 def create_minor_version_branch(version_branch):
     for obj in version_branch.split("-"):
@@ -218,7 +267,10 @@ def create_minor_version_branch(version_branch):
     console_print("Below are your git remotes. We will push to origin:")
     run_command(["git", "remote", "-v"])
     console_print()
-    confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
+    confirm_action(
+        "Verify that the above information is correct. Do you want to continue?",
+        abort=True,
+    )
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
     # Create a new branch from main
@@ -227,7 +279,11 @@ def create_minor_version_branch(version_branch):
     if confirm_action("Build latest breeze image?"):
         if DRY_RUN:
             console_print("Skipping below command on CI")
-        run_command(["breeze", "ci-image", "build", "--python", "3.9"], dry_run_override=DRY_RUN, check=True)
+        run_command(
+            ["breeze", "ci-image", "build", "--python", "3.9"],
+            dry_run_override=DRY_RUN,
+            check=True,
+        )
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

@@ -73,7 +73,9 @@ class OSSKeySensor(BaseSensorOperator):
         parsed_url = urlsplit(self.bucket_key)
         if self.bucket_name is None:
             if parsed_url.netloc == "":
-                message = "If key is a relative path from root, please provide a bucket_name"
+                message = (
+                    "If key is a relative path from root, please provide a bucket_name"
+                )
                 raise AirflowException(message)
             self.bucket_name = parsed_url.netloc
             self.bucket_key = parsed_url.path.lstrip("/")
@@ -90,7 +92,9 @@ class OSSKeySensor(BaseSensorOperator):
         return self.hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
 
     @property
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> OSSHook:
         """Create and return an OSSHook."""
         return self.hook

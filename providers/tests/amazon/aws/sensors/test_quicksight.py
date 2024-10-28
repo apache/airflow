@@ -88,7 +88,9 @@ class TestQuickSightSensor:
         mocked_get_status.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
 
     @pytest.mark.parametrize("status", ["FAILED", "CANCELLED"])
-    def test_poke_terminated_status(self, status, mocked_get_status, mocked_get_error_info):
+    def test_poke_terminated_status(
+        self, status, mocked_get_status, mocked_get_error_info
+    ):
         mocked_get_status.return_value = status
         mocked_get_error_info.return_value = "something bad happen"
         with pytest.raises(AirflowException, match="Error info: something bad happen"):

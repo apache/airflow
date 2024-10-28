@@ -67,7 +67,13 @@ class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "region", "repository_id", "compilation_result", "impersonation_chain")
+    template_fields = (
+        "project_id",
+        "region",
+        "repository_id",
+        "compilation_result",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -209,7 +215,13 @@ class DataformCreateWorkflowInvocationOperator(GoogleCloudBaseOperator):
     :param wait_time: Number of seconds between checks
     """
 
-    template_fields = ("project_id", "region", "repository_id", "workflow_invocation", "impersonation_chain")
+    template_fields = (
+        "project_id",
+        "region",
+        "repository_id",
+        "workflow_invocation",
+        "impersonation_chain",
+    )
     operator_extra_links = (DataformWorkflowInvocationLink(),)
 
     def __init__(

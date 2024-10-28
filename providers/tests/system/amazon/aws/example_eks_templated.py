@@ -28,7 +28,10 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteNodegroupOperator,
     EksPodOperator,
 )
-from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+from airflow.providers.amazon.aws.sensors.eks import (
+    EksClusterStateSensor,
+    EksNodegroupStateSensor,
+)
 
 from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 

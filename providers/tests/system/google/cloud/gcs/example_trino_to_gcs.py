@@ -32,7 +32,10 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -61,7 +64,9 @@ with DAG(
     catchup=False,
     tags=["example", "gcs"],
 ) as dag:
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create-dataset", dataset_id=DATASET_NAME
+    )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
@@ -70,9 +75,13 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=GCS_BUCKET)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=GCS_BUCKET
+    )
 
-    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=GCS_BUCKET)
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=GCS_BUCKET
+    )
 
     # [START howto_operator_trino_to_gcs_basic]
     trino_to_gcs_basic = TrinoToGCSOperator(
@@ -119,7 +128,9 @@ with DAG(
             "externalDataConfiguration": {
                 "sourceFormat": "NEWLINE_DELIMITED_JSON",
                 "compression": "NONE",
-                "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
+                "sourceUris": [
+                    f"gs://{GCS_BUCKET}/{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"
+                ],
             },
         },
         source_objects=[f"{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
@@ -174,7 +185,9 @@ with DAG(
             "externalDataConfiguration": {
                 "sourceFormat": "NEWLINE_DELIMITED_JSON",
                 "compression": "NONE",
-                "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
+                "sourceUris": [
+                    f"gs://{GCS_BUCKET}/{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"
+                ],
             },
         },
         source_objects=[f"{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],

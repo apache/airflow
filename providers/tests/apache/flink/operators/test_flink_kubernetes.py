@@ -26,7 +26,9 @@ import pytest
 
 from airflow import DAG
 from airflow.models import Connection
-from airflow.providers.apache.flink.operators.flink_kubernetes import FlinkKubernetesOperator
+from airflow.providers.apache.flink.operators.flink_kubernetes import (
+    FlinkKubernetesOperator,
+)
 from airflow.utils import db, timezone
 
 pytestmark = pytest.mark.db_test
@@ -190,7 +192,11 @@ TEST_APPLICATION_DICT = {
 class TestFlinkKubernetesOperator:
     def setup_method(self):
         db.merge_conn(
-            Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
+            Connection(
+                conn_id="kubernetes_default_kube_config",
+                conn_type="kubernetes",
+                extra=json.dumps({}),
+            )
         )
         db.merge_conn(
             Connection(
@@ -202,8 +208,12 @@ class TestFlinkKubernetesOperator:
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
-    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
-    def test_create_application_from_yaml(self, mock_create_namespaced_crd, mock_kubernetes_hook):
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object"
+    )
+    def test_create_application_from_yaml(
+        self, mock_create_namespaced_crd, mock_kubernetes_hook
+    ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_YAML,
             dag=self.dag,
@@ -221,8 +231,12 @@ class TestFlinkKubernetesOperator:
             version="v1beta1",
         )
 
-    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
-    def test_create_application_from_json(self, mock_create_namespaced_crd, mock_kubernetes_hook):
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object"
+    )
+    def test_create_application_from_json(
+        self, mock_create_namespaced_crd, mock_kubernetes_hook
+    ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
@@ -240,7 +254,9 @@ class TestFlinkKubernetesOperator:
             version="v1beta1",
         )
 
-    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object"
+    )
     def test_create_application_from_json_with_api_group_and_version(
         self, mock_create_namespaced_crd, mock_kubernetes_hook
     ):
@@ -265,8 +281,12 @@ class TestFlinkKubernetesOperator:
             version=api_version,
         )
 
-    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
-    def test_namespace_from_operator(self, mock_create_namespaced_crd, mock_kubernetes_hook):
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object"
+    )
+    def test_namespace_from_operator(
+        self, mock_create_namespaced_crd, mock_kubernetes_hook
+    ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,
@@ -285,8 +305,12 @@ class TestFlinkKubernetesOperator:
             version="v1beta1",
         )
 
-    @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
-    def test_namespace_from_connection(self, mock_create_namespaced_crd, mock_kubernetes_hook):
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object"
+    )
+    def test_namespace_from_connection(
+        self, mock_create_namespaced_crd, mock_kubernetes_hook
+    ):
         op = FlinkKubernetesOperator(
             application_file=TEST_VALID_APPLICATION_JSON,
             dag=self.dag,

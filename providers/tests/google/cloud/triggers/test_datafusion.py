@@ -22,11 +22,15 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
+from airflow.providers.google.cloud.triggers.datafusion import (
+    DataFusionStartPipelineTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 HOOK_STATUS_STR = "airflow.providers.google.cloud.hooks.datafusion.DataFusionAsyncHook.get_pipeline_status"
-CLASSPATH = "airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger"
+CLASSPATH = (
+    "airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger"
+)
 
 TASK_ID = "test_task"
 LOCATION = "test-location"
@@ -58,7 +62,9 @@ def trigger():
 
 
 class TestDataFusionStartPipelineTrigger:
-    def test_start_pipeline_trigger_serialization_should_execute_successfully(self, trigger):
+    def test_start_pipeline_trigger_serialization_should_execute_successfully(
+        self, trigger
+    ):
         """
         Asserts that the DataFusionStartPipelineTrigger correctly serializes its arguments
         and classpath.
@@ -87,7 +93,13 @@ class TestDataFusionStartPipelineTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
-            TriggerEvent({"status": "success", "message": "Pipeline is running", "pipeline_id": PIPELINE_ID})
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": "Pipeline is running",
+                    "pipeline_id": PIPELINE_ID,
+                }
+            )
             == actual
         )
 

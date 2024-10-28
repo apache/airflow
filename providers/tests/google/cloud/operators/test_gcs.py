@@ -61,7 +61,11 @@ class TestGoogleCloudStorageCreateBucket:
         operator = GCSCreateBucketOperator(
             task_id=TASK_ID,
             bucket_name=TEST_BUCKET,
-            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
+            resource={
+                "lifecycle": {
+                    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
+                }
+            },
             storage_class="MULTI_REGIONAL",
             location="EU",
             labels={"env": "prod"},
@@ -75,7 +79,11 @@ class TestGoogleCloudStorageCreateBucket:
             location="EU",
             labels={"env": "prod"},
             project_id=TEST_PROJECT,
-            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
+            resource={
+                "lifecycle": {
+                    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
+                }
+            },
         )
 
 
@@ -122,7 +130,9 @@ class TestGoogleCloudStorageAcl:
 class TestGCSDeleteObjectsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_objects(self, mock_hook):
-        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2])
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2]
+        )
 
         operator.execute(None)
         mock_hook.return_value.list.assert_not_called()
@@ -136,7 +146,9 @@ class TestGCSDeleteObjectsOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_empty_list_of_objects(self, mock_hook):
-        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=[])
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=[]
+        )
 
         operator.execute(None)
         mock_hook.return_value.list.assert_not_called()
@@ -145,10 +157,14 @@ class TestGCSDeleteObjectsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:4]
-        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX
+        )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix=PREFIX)
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix=PREFIX
+        )
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
@@ -160,10 +176,14 @@ class TestGCSDeleteObjectsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix_as_empty_string(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[0:4]
-        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix="")
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=""
+        )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix="")
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix=""
+        )
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
@@ -247,11 +267,18 @@ class TestGoogleCloudStorageListOperator:
     def test_execute__match_glob(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
         operator = GCSListObjectsOperator(
-            task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, match_glob=f"**/*{DELIMITER}", delimiter=None
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            prefix=PREFIX,
+            match_glob=f"**/*{DELIMITER}",
+            delimiter=None,
         )
         files = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list.assert_called_once_with(
-            bucket_name=TEST_BUCKET, prefix=PREFIX, match_glob=f"**/*{DELIMITER}", delimiter=None
+            bucket_name=TEST_BUCKET,
+            prefix=PREFIX,
+            match_glob=f"**/*{DELIMITER}",
+            delimiter=None,
         )
         assert sorted(files) == sorted(MOCK_FILES)
 
@@ -346,15 +373,21 @@ class TestGCSTimeSpanFileTransformOperatorDateInterpolation:
     def test_execute(self):
         interp_dt = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
 
-        assert GCSTimeSpanFileTransformOperator.interpolate_prefix(None, interp_dt) is None
+        assert (
+            GCSTimeSpanFileTransformOperator.interpolate_prefix(None, interp_dt) is None
+        )
 
         assert (
-            GCSTimeSpanFileTransformOperator.interpolate_prefix("prefix_without_date", interp_dt)
+            GCSTimeSpanFileTransformOperator.interpolate_prefix(
+                "prefix_without_date", interp_dt
+            )
             == "prefix_without_date"
         )
 
         assert (
-            GCSTimeSpanFileTransformOperator.interpolate_prefix("prefix_with_year_%Y", interp_dt)
+            GCSTimeSpanFileTransformOperator.interpolate_prefix(
+                "prefix_with_year_%Y", interp_dt
+            )
             == "prefix_with_year_2015"
         )
 
@@ -573,7 +606,14 @@ class TestGCSTimeSpanFileTransformOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_get_openlineage_facets_on_complete(
-        self, mock_hook, mock_subprocess, mock_tempdir, source_prefix, dest_prefix, inputs, outputs
+        self,
+        mock_hook,
+        mock_subprocess,
+        mock_tempdir,
+        source_prefix,
+        dest_prefix,
+        inputs,
+        outputs,
     ):
         source_bucket = TEST_BUCKET
 

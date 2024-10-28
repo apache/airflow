@@ -58,7 +58,11 @@ def wrap_backticks(val):
     def _wrap_backticks(x):
         return f"``{x}``"
 
-    return ",\n".join(map(_wrap_backticks, val)) if isinstance(val, (tuple, list)) else _wrap_backticks(val)
+    return (
+        ",\n".join(map(_wrap_backticks, val))
+        if isinstance(val, (tuple, list))
+        else _wrap_backticks(val)
+    )
 
 
 def update_doc(file, data, app):
@@ -85,7 +89,9 @@ def update_doc(file, data, app):
 
 def has_version(content, app):
     if app == "airflow":
-        return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
+        return (
+            re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
+        )
     return re.search(r"^fab_version\s*=.*", content, flags=re.MULTILINE) is not None
 
 
@@ -144,7 +150,9 @@ def get_revisions(app="airflow") -> Iterable[Script]:
 def update_docs(revisions: Iterable[Script], app="airflow"):
     doc_data = []
     for rev in revisions:
-        app_revision = rev.module.airflow_version if app == "airflow" else rev.module.fab_version
+        app_revision = (
+            rev.module.airflow_version if app == "airflow" else rev.module.fab_version
+        )
         doc_data.append(
             dict(
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
@@ -154,7 +162,9 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
             )
         )
     if app == "fab":
-        filepath = project_root / "docs" / "apache-airflow-providers-fab" / "migrations-ref.rst"
+        filepath = (
+            project_root / "docs" / "apache-airflow-providers-fab" / "migrations-ref.rst"
+        )
     else:
         filepath = project_root / "docs" / "apache-airflow" / "migrations-ref.rst"
 
@@ -201,7 +211,10 @@ def ensure_filenames_are_sorted(revisions, app):
     if is_branched:
         head_prefixes = [x[0:4] for x in unmerged_heads]
         alembic_command = (
-            "alembic merge -m 'merge heads " + ", ".join(head_prefixes) + "' " + " ".join(unmerged_heads)
+            "alembic merge -m 'merge heads "
+            + ", ".join(head_prefixes)
+            + "' "
+            + " ".join(unmerged_heads)
         )
         raise SystemExit(
             "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
@@ -227,11 +240,15 @@ def correct_mismatching_revision_nums(revisions: Iterable[Script]):
             content,
         )
         revision_id_match = re2.search(revision_id_pattern, content)
-        new_content = content.replace(revision_id_match.group(1), revision_match.group(1), 1)
+        new_content = content.replace(
+            revision_id_match.group(1), revision_match.group(1), 1
+        )
         down_revision_match = re2.search(down_revision_pattern, new_content)
         revises_id_match = re2.search(revises_id_pattern, new_content)
         if down_revision_match:
-            new_content = new_content.replace(revises_id_match.group(1), down_revision_match.group(1), 1)
+            new_content = new_content.replace(
+                revises_id_match.group(1), down_revision_match.group(1), 1
+            )
         file.write_text(new_content)
 
 

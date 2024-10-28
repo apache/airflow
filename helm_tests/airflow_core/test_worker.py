@@ -51,7 +51,9 @@ class TestWorker:
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+    def test_revision_history_limit(
+        self, revision_history_limit, global_revision_history_limit
+    ):
         values = {"workers": {}}
         if revision_history_limit:
             values["workers"]["revisionHistoryLimit"] = revision_history_limit
@@ -70,7 +72,10 @@ class TestWorker:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name }}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -125,7 +130,8 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         actual = jmespath.search(
-            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']",
+            docs[0],
         )
         assert actual is None
 
@@ -134,7 +140,10 @@ class TestWorker:
             values={
                 "workers": {
                     "extraInitContainers": [
-                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "test-init-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -150,7 +159,9 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                    "extraInitContainers": [
+                        {"name": "{{ .Release.Name }}-test-init-container"}
+                    ],
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -165,16 +176,23 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                     "extraVolumeMounts": [
-                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                        {
+                            "name": "test-volume-{{ .Chart.Name }}",
+                            "mountPath": "/opt/test",
+                        }
                     ],
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.volumes[0].name", docs[0]
+        )
         assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
@@ -191,7 +209,9 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.volumes[0].name", docs[0]
+        )
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
@@ -204,11 +224,18 @@ class TestWorker:
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
                             "name": "TEST_ENV_2",
-                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "my-secret", "key": "my-key"}
+                            },
                         },
                         {
                             "name": "TEST_ENV_3",
-                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "my-config-map",
+                                    "key": "my-key",
+                                }
+                            },
                         },
                     ],
                 },
@@ -232,7 +259,9 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                    "waitForMigrations": {
+                        "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]
+                    },
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -254,7 +283,10 @@ class TestWorker:
         )
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_workers_host_aliases(self):
         docs = render_chart(
@@ -267,18 +299,28 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
-        assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+        assert "127.0.0.2" == jmespath.search(
+            "spec.template.spec.hostAliases[0].ip", docs[0]
+        )
+        assert "test.hostname" == jmespath.search(
+            "spec.template.spec.hostAliases[0].hostnames[0]", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "persistence, update_strategy, expected_update_strategy",
         [
             (False, None, None),
-            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             (True, None, None),
         ],
     )
-    def test_workers_update_strategy(self, persistence, update_strategy, expected_update_strategy):
+    def test_workers_update_strategy(
+        self, persistence, update_strategy, expected_update_strategy
+    ):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
@@ -308,7 +350,10 @@ class TestWorker:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {"persistence": {"enabled": persistence}, "strategy": strategy},
+                "workers": {
+                    "persistence": {"enabled": persistence},
+                    "strategy": strategy,
+                },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -326,7 +371,11 @@ class TestWorker:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -334,7 +383,12 @@ class TestWorker:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 },
@@ -360,7 +414,9 @@ class TestWorker:
             docs[0],
         )
 
-    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(
+        self,
+    ):
         """When given both global and worker affinity etc, worker affinity etc is used."""
         expected_affinity = {
             "nodeAffinity": {
@@ -386,7 +442,12 @@ class TestWorker:
                 "workers": {
                     "affinity": expected_affinity,
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
@@ -398,7 +459,11 @@ class TestWorker:
                                 "weight": 1,
                                 "preference": {
                                     "matchExpressions": [
-                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "not-me",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 },
                             }
@@ -406,7 +471,12 @@ class TestWorker:
                     }
                 },
                 "tolerations": [
-                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "not-me",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "topologySpreadConstraints": [
                     {
@@ -421,7 +491,9 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
+        assert expected_affinity == jmespath.search(
+            "spec.template.spec.affinity", docs[0]
+        )
         assert "ssd" == jmespath.search(
             "spec.template.spec.nodeSelector.type",
             docs[0],
@@ -498,7 +570,9 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        livenessprobe = jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe", docs[0]
+        )
         assert livenessprobe == {
             "initialDelaySeconds": 111,
             "timeoutSeconds": 222,
@@ -517,7 +591,9 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        livenessprobe = jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe", docs[0]
+        )
         assert livenessprobe is None
 
     def test_extra_init_container_restart_policy_is_configurable(self):
@@ -536,14 +612,19 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "Always" == jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0])
+        assert "Always" == jmespath.search(
+            "spec.template.spec.initContainers[1].restartPolicy", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "log_values, expected_volume",
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {
+                    "persistence": {"enabled": False},
+                    "emptyDirConfig": {"sizeLimit": "10Gi"},
+                },
                 {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
             (
@@ -566,7 +647,9 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert {"name": "logs", **expected_volume} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
 
     def test_worker_resources_are_configurable(self):
         docs = render_chart(
@@ -581,19 +664,27 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         # main container
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.cpu", docs[0]
+        )
 
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.cpu", docs[0]
+        )
 
         # initContainer wait-for-airflow-configurations
         assert "128Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
         )
-        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+        assert "200m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]
+        )
 
         assert "169Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
@@ -606,15 +697,22 @@ class TestWorker:
         docs = render_chart(
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/workers/worker-deployment.yaml"]
+            values={"airflowLocalSettings": None},
+            show_only=["templates/workers/worker-deployment.yaml"],
         )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts)
-        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts_init = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
@@ -628,8 +726,12 @@ class TestWorker:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         }
-        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts", docs[0]
+        )
 
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
@@ -691,7 +793,9 @@ class TestWorker:
             ("2.1.0", "airflow celery worker"),
         ],
     )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    def test_default_command_and_args_airflow_version(
+        self, airflow_version, expected_arg
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -699,7 +803,9 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert [
             "bash",
             "-c",
@@ -714,17 +820,28 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={"workers": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={
+                "workers": {
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
@@ -732,14 +849,19 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
         assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            c["name"]
+            for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
     def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            values={
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -748,7 +870,8 @@ class TestWorker:
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
         ]
         assert "git-sync-init" not in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            c["name"]
+            for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
     def test_persistence_volume_annotations(self):
@@ -756,7 +879,9 @@ class TestWorker:
             values={"workers": {"persistence": {"annotations": {"foo": "bar"}}}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
+        assert {"foo": "bar"} == jmespath.search(
+            "spec.volumeClaimTemplates[0].metadata.annotations", docs[0]
+        )
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
@@ -768,7 +893,10 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+        assert (
+            jmespath.search("metadata.annotations", docs[0])["test_annotation"]
+            == "test_annotation_value"
+        )
 
     @pytest.mark.parametrize(
         "globalScope, localScope, precedence",
@@ -779,7 +907,9 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+                    },
                     "safeToEvict": True,
                 },
                 "true",
@@ -787,7 +917,9 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+                    },
                     "safeToEvict": False,
                 },
                 "true",
@@ -795,7 +927,9 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+                    },
                     "safeToEvict": True,
                 },
                 "false",
@@ -803,7 +937,9 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+                    },
                     "safeToEvict": False,
                 },
                 "false",
@@ -831,7 +967,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+                    },
                     "safeToEvict": False,
                 },
                 "true",
@@ -839,7 +977,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+                    },
                     "safeToEvict": False,
                 },
                 "false",
@@ -847,7 +987,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+                    },
                     "safeToEvict": False,
                 },
                 "true",
@@ -855,7 +997,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+                    },
                     "safeToEvict": False,
                 },
                 "false",
@@ -863,7 +1007,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+                    },
                     "safeToEvict": True,
                 },
                 "true",
@@ -871,7 +1017,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+                    },
                     "safeToEvict": True,
                 },
                 "false",
@@ -879,7 +1027,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "true"
+                    },
                     "safeToEvict": True,
                 },
                 "true",
@@ -887,7 +1037,9 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "podAnnotations": {
+                        "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+                    },
                     "safeToEvict": True,
                 },
                 "false",
@@ -946,8 +1098,12 @@ class TestWorker:
         assert "storage-class-2" == jmespath.search(
             "spec.volumeClaimTemplates[2].spec.storageClassName", docs[0]
         )
-        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0])
-        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0])
+        assert ["ReadWriteOnce"] == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.accessModes", docs[0]
+        )
+        assert ["ReadWriteOnce"] == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.accessModes", docs[0]
+        )
         assert "10Gi" == jmespath.search(
             "spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]
         )
@@ -970,13 +1126,25 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         if precedence:
-            assert jmespath.search("spec.template.metadata.annotations", docs[0])["scope"] == precedence
+            assert (
+                jmespath.search("spec.template.metadata.annotations", docs[0])["scope"]
+                == precedence
+            )
         else:
-            assert jmespath.search("spec.template.metadata.annotations.scope", docs[0]) is None
+            assert (
+                jmespath.search("spec.template.metadata.annotations.scope", docs[0])
+                is None
+            )
 
     def test_worker_template_storage_class_name(self):
         docs = render_chart(
-            values={"workers": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            values={
+                "workers": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class"
+                    }
+                }
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert "release-name-storage-class" == jmespath.search(
@@ -1007,7 +1175,10 @@ class TestWorkerKedaAutoScaler:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -1064,7 +1235,9 @@ class TestWorkerKedaAutoScaler:
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+        assert expected_query == jmespath.search(
+            "spec.triggers[0].metadata.query", docs[0]
+        )
 
     def test_mysql_db_backend_keda_worker(self):
         docs = render_chart(
@@ -1077,10 +1250,17 @@ class TestWorkerKedaAutoScaler:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert "1" == jmespath.search("spec.triggers[0].metadata.queryValue", docs[0])
-        assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
+        assert (
+            jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
+        )
 
-        assert "KEDA_DB_CONN" == jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0])
-        assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
+        assert "KEDA_DB_CONN" == jmespath.search(
+            "spec.triggers[0].metadata.connectionStringFromEnv", docs[0]
+        )
+        assert (
+            jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0])
+            is None
+        )
 
 
 class TestWorkerHPAAutoScaler:
@@ -1102,7 +1282,10 @@ class TestWorkerHPAAutoScaler:
             ],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
         assert len(docs) == 1
 
     def test_should_add_component_specific_labels(self):
@@ -1118,7 +1301,10 @@ class TestWorkerHPAAutoScaler:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -1141,7 +1327,10 @@ class TestWorkerHPAAutoScaler:
                 "CeleryExecutor",
                 {
                     "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                    "resource": {
+                        "name": "cpu",
+                        "target": {"type": "Utilization", "averageUtilization": 80},
+                    },
                 },
             ),
             # custom metric
@@ -1195,7 +1384,10 @@ class TestWorkerNetworkPolicy:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
 
 class TestWorkerService:
@@ -1213,7 +1405,10 @@ class TestWorkerService:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
 
 class TestWorkerServiceAccount:
@@ -1232,7 +1427,10 @@ class TestWorkerServiceAccount:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     @pytest.mark.parametrize(
         "executor, creates_service_account",
@@ -1260,7 +1458,10 @@ class TestWorkerServiceAccount:
         if creates_service_account:
             assert jmespath.search("kind", docs[0]) == "ServiceAccount"
             assert "test_label" in jmespath.search("metadata.labels", docs[0])
-            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+            assert (
+                jmespath.search("metadata.labels", docs[0])["test_label"]
+                == "test_label_value"
+            )
         else:
             assert docs == []
 
@@ -1279,7 +1480,10 @@ class TestWorkerServiceAccount:
         docs = render_chart(
             values={
                 "workers": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],

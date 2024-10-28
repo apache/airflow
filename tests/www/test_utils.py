@@ -43,7 +43,11 @@ from airflow.www.utils import (
     json_f,
     wrapped_markdown,
 )
-from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
+from airflow.www.widgets import (
+    AirflowDateTimePickerROWidget,
+    BS3TextAreaROWidget,
+    BS3TextFieldROWidget,
+)
 
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
@@ -74,10 +78,16 @@ class TestUtils:
         else:
             html_str = utils.generate_pages(current_page, total_pages, search=search)
 
-        assert search not in html_str, "The raw search string shouldn't appear in the output"
-        assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" in html_str
+        assert (
+            search not in html_str
+        ), "The raw search string shouldn't appear in the output"
+        assert (
+            "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" in html_str
+        )
 
-        assert callable(html_str.__html__), "Should return something that is HTML-escaping aware"
+        assert callable(
+            html_str.__html__
+        ), "Should return something that is HTML-escaping aware"
 
         dom = BeautifulSoup(html_str, "html.parser")
         assert dom is not None
@@ -154,7 +164,9 @@ class TestUtils:
         assert ["a=0", "c=true"] == pairs
 
     def test_params_all(self):
-        query = utils.get_params(tags=["tag1", "tag2"], status="active", page=3, search="bash_")
+        query = utils.get_params(
+            tags=["tag1", "tag2"], status="active", page=3, search="bash_"
+        )
         assert {
             "tags": ["tag1", "tag2"],
             "page": ["3"],
@@ -163,8 +175,9 @@ class TestUtils:
         } == parse_qs(query)
 
     def test_params_escape(self):
-        assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" == utils.get_params(
-            search="'>\"/><img src=x onerror=alert(1)>"
+        assert (
+            "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E"
+            == utils.get_params(search="'>\"/><img src=x onerror=alert(1)>")
         )
 
     def test_state_token(self):
@@ -222,7 +235,9 @@ class TestUtils:
         with cached_app(testing=True).test_request_context(
             "/test/path", query_string={"key1": "value1", "key2": "value2"}
         ):
-            expected_args = str(hash(frozenset({"key1": "value1", "key2": "value2"}.items())))
+            expected_args = str(
+                hash(frozenset({"key1": "value1", "key2": "value2"}.items()))
+            )
             expected_cache_key = ("/test/path" + expected_args).encode("ascii", "ignore")
             result_cache_key = utils.make_cache_key()
             assert result_cache_key == expected_cache_key
@@ -235,13 +250,23 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "execution_date": datetime.now()}
+                    {
+                        "dag_id": "<a&1>",
+                        "task_id": "<b2>",
+                        "map_index": 1,
+                        "execution_date": datetime.now(),
+                    }
                 )
             )
 
             html_map_index_none = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "execution_date": datetime.now()}
+                    {
+                        "dag_id": "<a&1>",
+                        "task_id": "<b2>",
+                        "map_index": -1,
+                        "execution_date": datetime.now(),
+                    }
                 )
             )
 
@@ -263,7 +288,9 @@ class TestUtils:
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
-            html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
+            html = str(
+                utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()})
+            )
 
         assert "%3Ca%261%3E" in html
         assert "<a&1>" not in html
@@ -287,7 +314,13 @@ class TestUtils:
 
         with cached_app(testing=True).test_request_context():
             html = str(
-                utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "execution_date": datetime.now()})
+                utils.dag_run_link(
+                    {
+                        "dag_id": "<a&1>",
+                        "run_id": "<b2>",
+                        "execution_date": datetime.now(),
+                    }
+                )
             )
 
         assert "%3Ca%261%3E" in html
@@ -329,9 +362,7 @@ class TestAttrRenderer:
             "4": "à".encode("latin"),
             "5": datetime(2023, 1, 1),
         }
-        expected_encoded_dag_run_conf = (
-            '{"1": "string", "2": "bytes", "3": 123, "4": "à", "5": "2023-01-01T00:00:00+00:00"}'
-        )
+        expected_encoded_dag_run_conf = '{"1": "string", "2": "bytes", "3": 123, "4": "à", "5": "2023-01-01T00:00:00+00:00"}'
         encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
             dag_run_conf, json_encoder=utils_json.WebEncoder
         )
@@ -548,7 +579,9 @@ class TestFilter:
         self.mock_column_name = "test_column"
 
     def test_filter_is_null_apply(self):
-        filter_is_null = utils.FilterIsNull(datamodel=self.mock_datamodel, column_name=self.mock_column_name)
+        filter_is_null = utils.FilterIsNull(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
 
         self.mock_query, mock_field = get_field_setup_query(
             self.mock_query, self.mock_datamodel, self.mock_column_name
@@ -621,7 +654,9 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
     dag_ids = (f"test_dag_{x}" for x in range(1, 4))
     dates = (pendulum.datetime(2023, 1, x) for x in range(1, 4))
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     for dag_id, date in itertools.product(dag_ids, dates):
         with dag_maker(dag_id=dag_id) as dag:
             dag.create_dagrun(

@@ -134,13 +134,17 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         """Create a Azure Key Vault client."""
         credential: ClientSecretCredential | DefaultAzureCredential
         if all([self.tenant_id, self.client_id, self.client_secret]):
-            credential = ClientSecretCredential(self.tenant_id, self.client_id, self.client_secret)
+            credential = ClientSecretCredential(
+                self.tenant_id, self.client_id, self.client_secret
+            )
         else:
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=self.managed_identity_client_id,
                 workload_identity_tenant_id=self.workload_identity_tenant_id,
             )
-        client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
+        client = SecretClient(
+            vault_url=self.vault_url, credential=credential, **self.kwargs
+        )
         return client
 
     def get_conn_value(self, conn_id: str) -> str | None:

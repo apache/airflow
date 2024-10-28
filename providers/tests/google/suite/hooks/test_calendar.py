@@ -25,7 +25,9 @@ from unittest import mock
 
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 API_VERSION = "api_version"
 GCP_CONN_ID = "test"
@@ -52,13 +54,21 @@ class TestGoogleCalendarHook:
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.hook = GoogleCalendarHook(api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID)
+            self.hook = GoogleCalendarHook(
+                api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID
+            )
 
-    @mock.patch("airflow.providers.google.suite.hooks.calendar.GoogleCalendarHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.suite.hooks.calendar.GoogleCalendarHook.get_conn"
+    )
     def test_get_events(self, get_conn):
         get_method = get_conn.return_value.events.return_value.list
         execute_method = get_method.return_value.execute
-        execute_method.return_value = {"kind": "calendar#events", "nextPageToken": None, "items": [EVENT]}
+        execute_method.return_value = {
+            "kind": "calendar#events",
+            "nextPageToken": None,
+            "items": [EVENT],
+        }
         result = self.hook.get_events(calendar_id=CALENDAR_ID)
         assert result == [EVENT]
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
@@ -82,7 +92,9 @@ class TestGoogleCalendarHook:
             updatedMin=None,
         )
 
-    @mock.patch("airflow.providers.google.suite.hooks.calendar.GoogleCalendarHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.suite.hooks.calendar.GoogleCalendarHook.get_conn"
+    )
     def test_create_event(self, mock_get_conn):
         create_mock = mock_get_conn.return_value.events.return_value.insert
         create_mock.return_value.execute.return_value = API_RESPONSE

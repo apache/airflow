@@ -39,7 +39,9 @@ FARGATE_PROFILES = ["p1", "p2"]
 
 class TestEksTrigger:
     def setup_method(self):
-        self.async_conn_patcher = patch("airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn")
+        self.async_conn_patcher = patch(
+            "airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn"
+        )
         self.mock_async_conn = self.async_conn_patcher.start()
 
         self.mock_client = AsyncMock()
@@ -83,7 +85,9 @@ class TestEksCreateClusterTrigger(TestEksTrigger):
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "failed"})
-        self.trigger.log.error.assert_called_once_with("Error creating cluster: %s", EXCEPTION_MOCK)
+        self.trigger.log.error.assert_called_once_with(
+            "Error creating cluster: %s", EXCEPTION_MOCK
+        )
 
     @pytest.mark.asyncio
     async def test_run_parameterizes_async_wait_correctly(self):
@@ -108,13 +112,17 @@ class TestEksDeleteClusterTriggerRun(TestEksTrigger):
     def setup_method(self):
         super().setup_method()
 
-        self.delete_any_nodegroups_patcher = patch.object(EksDeleteClusterTrigger, "delete_any_nodegroups")
+        self.delete_any_nodegroups_patcher = patch.object(
+            EksDeleteClusterTrigger, "delete_any_nodegroups"
+        )
         self.mock_delete_any_nodegroups = self.delete_any_nodegroups_patcher.start()
 
         self.delete_any_fargate_profiles_patcher = patch.object(
             EksDeleteClusterTrigger, "delete_any_fargate_profiles"
         )
-        self.mock_delete_any_fargate_profiles = self.delete_any_fargate_profiles_patcher.start()
+        self.mock_delete_any_fargate_profiles = (
+            self.delete_any_fargate_profiles_patcher.start()
+        )
 
         self.trigger = EksDeleteClusterTrigger(
             cluster_name=CLUSTER_NAME,
@@ -138,14 +146,18 @@ class TestEksDeleteClusterTriggerRun(TestEksTrigger):
         response = await generator.asend(None)
 
         self.mock_delete_any_nodegroups.assert_called_once_with(client=self.mock_client)
-        self.mock_delete_any_fargate_profiles.assert_called_once_with(client=self.mock_client)
+        self.mock_delete_any_fargate_profiles.assert_called_once_with(
+            client=self.mock_client
+        )
 
         assert response == TriggerEvent({"status": "deleted"})
 
     @pytest.mark.asyncio
     async def test_when_resource_is_not_found_it_should_return_status_deleted(self):
         delete_cluster_mock = AsyncMock(
-            side_effect=ClientError({"Error": {"Code": "ResourceNotFoundException"}}, "delete_eks_cluster")
+            side_effect=ClientError(
+                {"Error": {"Code": "ResourceNotFoundException"}}, "delete_eks_cluster"
+            )
         )
         self.mock_client.delete_cluster = delete_cluster_mock
 
@@ -160,7 +172,9 @@ class TestEksDeleteClusterTriggerRun(TestEksTrigger):
     async def test_run_raises_client_error(self):
         response = {"Error": {"Code": "OtherException"}}
         operation_name = "delete_eks_cluster"
-        delete_cluster_mock = AsyncMock(side_effect=ClientError(response, "delete_eks_cluster"))
+        delete_cluster_mock = AsyncMock(
+            side_effect=ClientError(response, "delete_eks_cluster")
+        )
         self.mock_client.delete_cluster = delete_cluster_mock
 
         generator = self.trigger.run()
@@ -198,7 +212,8 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
         super().setup_method()
 
         self.get_waiter_patcher = patch(
-            "airflow.providers.amazon.aws.hooks.eks.EksHook.get_waiter", return_value="waiter"
+            "airflow.providers.amazon.aws.hooks.eks.EksHook.get_waiter",
+            return_value="waiter",
         )
         self.mock_waiter = self.get_waiter_patcher.start()
 
@@ -220,12 +235,16 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
     async def test_delete_nodegroups(self):
         mock_list_node_groups = AsyncMock(return_value={"nodegroups": ["g1", "g2"]})
         mock_delete_nodegroup = AsyncMock()
-        mock_client = AsyncMock(list_nodegroups=mock_list_node_groups, delete_nodegroup=mock_delete_nodegroup)
+        mock_client = AsyncMock(
+            list_nodegroups=mock_list_node_groups, delete_nodegroup=mock_delete_nodegroup
+        )
 
         await self.trigger.delete_any_nodegroups(mock_client)
 
         mock_list_node_groups.assert_called_once_with(clusterName=CLUSTER_NAME)
-        self.trigger.log.info.assert_has_calls([call("Deleting nodegroups"), call("All nodegroups deleted")])
+        self.trigger.log.info.assert_has_calls(
+            [call("Deleting nodegroups"), call("All nodegroups deleted")]
+        )
         self.mock_waiter.assert_called_once_with(
             "all_nodegroups_deleted", deferrable=True, client=mock_client
         )
@@ -249,7 +268,9 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
     async def test_when_there_are_no_nodegroups_it_should_only_log_message(self):
         mock_list_node_groups = AsyncMock(return_value={"nodegroups": []})
         mock_delete_nodegroup = AsyncMock()
-        mock_client = AsyncMock(list_nodegroups=mock_list_node_groups, delete_nodegroup=mock_delete_nodegroup)
+        mock_client = AsyncMock(
+            list_nodegroups=mock_list_node_groups, delete_nodegroup=mock_delete_nodegroup
+        )
 
         await self.trigger.delete_any_nodegroups(mock_client)
 
@@ -262,7 +283,9 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
 
     @pytest.mark.asyncio
     async def test_delete_any_fargate_profiles(self):
-        mock_list_fargate_profiles = AsyncMock(return_value={"fargateProfileNames": FARGATE_PROFILES})
+        mock_list_fargate_profiles = AsyncMock(
+            return_value={"fargateProfileNames": FARGATE_PROFILES}
+        )
         mock_delete_fargate_profile = AsyncMock()
         mock_client = AsyncMock(
             list_fargate_profiles=mock_list_fargate_profiles,
@@ -275,11 +298,15 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
         mock_list_fargate_profiles.assert_called_once_with(clusterName=CLUSTER_NAME)
         self.trigger.log.info.assert_has_calls(
             [
-                call("Waiting for Fargate profiles to delete.  This will take some time."),
+                call(
+                    "Waiting for Fargate profiles to delete.  This will take some time."
+                ),
                 call("All Fargate profiles deleted"),
             ]
         )
-        self.mock_waiter.assert_has_calls([call("fargate_profile_deleted"), call("fargate_profile_deleted")])
+        self.mock_waiter.assert_has_calls(
+            [call("fargate_profile_deleted"), call("fargate_profile_deleted")]
+        )
         mock_delete_fargate_profile.assert_has_calls(
             [
                 call(clusterName=CLUSTER_NAME, fargateProfileName="p1"),

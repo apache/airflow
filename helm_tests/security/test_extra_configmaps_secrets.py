@@ -46,7 +46,9 @@ class TestExtraConfigMapsSecrets:
         )
         values = yaml.safe_load(values_str)
         k8s_objects = render_chart(
-            RELEASE_NAME, values=values, show_only=["templates/configmaps/extra-configmaps.yaml"]
+            RELEASE_NAME,
+            values=values,
+            show_only=["templates/configmaps/extra-configmaps.yaml"],
         )
         k8s_objects_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
@@ -57,7 +59,10 @@ class TestExtraConfigMapsSecrets:
         assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
 
         all_expected_data = [
-            {"AIRFLOW_VAR_HELLO_MESSAGE": "Hi!", "AIRFLOW_VAR_KUBERNETES_NAMESPACE": "default"},
+            {
+                "AIRFLOW_VAR_HELLO_MESSAGE": "Hi!",
+                "AIRFLOW_VAR_KUBERNETES_NAMESPACE": "default",
+            },
             {"HELLO_WORLD": "Hi again!"},
         ]
         for expected_key, expected_data in zip(all_expected_keys, all_expected_data):
@@ -92,7 +97,9 @@ class TestExtraConfigMapsSecrets:
         )
         values = yaml.safe_load(values_str)
         k8s_objects = render_chart(
-            RELEASE_NAME, values=values, show_only=["templates/secrets/extra-secrets.yaml"]
+            RELEASE_NAME,
+            values=values,
+            show_only=["templates/secrets/extra-secrets.yaml"],
         )
         k8s_objects_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
@@ -122,7 +129,10 @@ class TestExtraConfigMapsSecrets:
         ]
         all_expected_types = [None, None, "kubernetes.io/dockerconfigjson"]
         for expected_key, expected_data, expected_string_data, expected_type in zip(
-            all_expected_keys, all_expected_data, all_expected_string_data, all_expected_types
+            all_expected_keys,
+            all_expected_data,
+            all_expected_string_data,
+            all_expected_types,
         ):
             configmap_obj = k8s_objects_by_key[expected_key]
             if expected_type:
@@ -137,10 +147,19 @@ class TestExtraConfigMapsSecrets:
             name=RELEASE_NAME,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "extraSecrets": {"{{ .Release.Name }}-extra-secret-1": {"stringData": "data: secretData"}},
-                "extraConfigMaps": {"{{ .Release.Name }}-extra-configmap-1": {"data": "data: configData"}},
+                "extraSecrets": {
+                    "{{ .Release.Name }}-extra-secret-1": {
+                        "stringData": "data: secretData"
+                    }
+                },
+                "extraConfigMaps": {
+                    "{{ .Release.Name }}-extra-configmap-1": {"data": "data: configData"}
+                },
             },
-            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+            show_only=[
+                "templates/configmaps/extra-configmaps.yaml",
+                "templates/secrets/extra-secrets.yaml",
+            ],
         )
         expected_labels = {
             "label1": "value1",
@@ -157,7 +176,10 @@ class TestExtraConfigMapsSecrets:
         [
             ({}, {"label3": "value3", "label4": "value4"}),
             ({"label1": "value1", "label2": "value2"}, {}),
-            ({"label1": "value1", "label2": "value2"}, {"label3": "value3", "label4": "value4"}),
+            (
+                {"label1": "value1", "label2": "value2"},
+                {"label3": "value3", "label4": "value4"},
+            ),
         ],
     )
     def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels):
@@ -178,7 +200,10 @@ class TestExtraConfigMapsSecrets:
                     }
                 },
             },
-            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+            show_only=[
+                "templates/configmaps/extra-configmaps.yaml",
+                "templates/secrets/extra-secrets.yaml",
+            ],
         )
         common_labels = {
             "release": RELEASE_NAME,
@@ -186,7 +211,11 @@ class TestExtraConfigMapsSecrets:
             "chart": mock.ANY,
         }
         for k8s_object in k8s_objects:
-            assert k8s_object["metadata"]["labels"] == {**common_labels, **chart_labels, **local_labels}
+            assert k8s_object["metadata"]["labels"] == {
+                **common_labels,
+                **chart_labels,
+                **local_labels,
+            }
 
     def test_extra_configmaps_secrets_additional_annotations(self):
         k8s_objects = render_chart(
@@ -205,7 +234,10 @@ class TestExtraConfigMapsSecrets:
                     }
                 },
             },
-            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+            show_only=[
+                "templates/configmaps/extra-configmaps.yaml",
+                "templates/secrets/extra-secrets.yaml",
+            ],
         )
 
         expected_annotations = {
@@ -237,7 +269,10 @@ class TestExtraConfigMapsSecrets:
                     }
                 },
             },
-            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+            show_only=[
+                "templates/configmaps/extra-configmaps.yaml",
+                "templates/secrets/extra-secrets.yaml",
+            ],
         )
 
         expected_annotations = {

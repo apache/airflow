@@ -64,7 +64,9 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 }
 
 
-def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:
+def context_to_airflow_vars(
+    context: Mapping[str, Any], in_env_var_format: bool = False
+) -> dict[str, str]:
     """
     Return values used to externally reconstruct relations between dags, dag_runs, tasks and task_instances.
 
@@ -160,7 +162,9 @@ class KeywordParameters:
         import itertools
 
         signature = inspect.signature(func)
-        has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
+        has_wildcard_kwargs = any(
+            p.kind == p.VAR_KEYWORD for p in signature.parameters.values()
+        )
 
         for name, param in itertools.islice(signature.parameters.items(), len(args)):
             # Keyword-only arguments can't be passed positionally and are not checked.
@@ -171,7 +175,9 @@ class KeywordParameters:
 
             # Check if args conflict with names in kwargs.
             if name in kwargs:
-                raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
+                raise ValueError(
+                    f"The key {name!r} in args is a part of kwargs and therefore reserved."
+                )
 
         if has_wildcard_kwargs:
             # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
@@ -268,10 +274,14 @@ class ExecutionCallableRunner:
                 self.outlet_events[metadata.uri].extra.update(metadata.extra)
 
                 if metadata.alias_name:
-                    self.outlet_events[metadata.alias_name].add(metadata.uri, extra=metadata.extra)
+                    self.outlet_events[metadata.alias_name].add(
+                        metadata.uri, extra=metadata.extra
+                    )
 
                 continue
-            self.logger.warning("Ignoring unknown data of %r received from task", type(metadata))
+            self.logger.warning(
+                "Ignoring unknown data of %r received from task", type(metadata)
+            )
             if self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.debug("Full yielded value: %r", metadata)
 

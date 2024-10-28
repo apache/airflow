@@ -31,7 +31,9 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator
+from airflow.providers.microsoft.azure.operators.cosmos import (
+    AzureCosmosInsertDocumentOperator,
+)
 from airflow.providers.microsoft.azure.sensors.cosmos import AzureCosmosDocumentSensor
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

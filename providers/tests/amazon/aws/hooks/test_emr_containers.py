@@ -29,7 +29,10 @@ SUBMIT_JOB_SUCCESS_RETURN = {
     "virtualClusterId": "vc1234",
 }
 
-CREATE_EMR_ON_EKS_CLUSTER_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "id": "vc1234"}
+CREATE_EMR_ON_EKS_CLUSTER_RETURN = {
+    "ResponseMetadata": {"HTTPStatusCode": 200},
+    "id": "vc1234",
+}
 
 JOB1_RUN_DESCRIPTION = {
     "jobRun": {
@@ -50,7 +53,9 @@ JOB2_RUN_DESCRIPTION = {
 
 @pytest.fixture
 def mocked_hook_client():
-    with mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.conn") as m:
+    with mock.patch(
+        "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.conn"
+    ) as m:
         yield m
 
 
@@ -63,12 +68,16 @@ class TestEmrContainerHook:
         assert self.emr_containers.virtual_cluster_id == "vc1234"
 
     def test_create_emr_on_eks_cluster(self, mocked_hook_client):
-        mocked_hook_client.create_virtual_cluster.return_value = CREATE_EMR_ON_EKS_CLUSTER_RETURN
+        mocked_hook_client.create_virtual_cluster.return_value = (
+            CREATE_EMR_ON_EKS_CLUSTER_RETURN
+        )
 
-        emr_on_eks_create_cluster_response = self.emr_containers.create_emr_on_eks_cluster(
-            virtual_cluster_name="test_virtual_cluster",
-            eks_cluster_name="test_eks_cluster",
-            eks_namespace="test_eks_namespace",
+        emr_on_eks_create_cluster_response = (
+            self.emr_containers.create_emr_on_eks_cluster(
+                virtual_cluster_name="test_virtual_cluster",
+                eks_cluster_name="test_eks_cluster",
+                eks_namespace="test_eks_namespace",
+            )
         )
         assert emr_on_eks_create_cluster_response == "vc1234"
 

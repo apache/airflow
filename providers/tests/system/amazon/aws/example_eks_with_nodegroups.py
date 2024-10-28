@@ -31,7 +31,10 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteNodegroupOperator,
     EksPodOperator,
 )
-from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+from airflow.providers.amazon.aws.sensors.eks import (
+    EksClusterStateSensor,
+    EksNodegroupStateSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -44,7 +47,10 @@ ROLE_ARN_KEY = "ROLE_ARN"
 SUBNETS_KEY = "SUBNETS"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).add_variable(SUBNETS_KEY, split_string=True).build()
+    SystemTestContextBuilder()
+    .add_variable(ROLE_ARN_KEY)
+    .add_variable(SUBNETS_KEY, split_string=True)
+    .build()
 )
 
 
@@ -109,7 +115,9 @@ with DAG(
     # The launch template enforces IMDSv2 and is required for internal compliance
     # when running these system tests on AWS infrastructure.  It is not required
     # for the operator to work, so I'm placing it outside the demo snippet.
-    create_nodegroup.create_nodegroup_kwargs = {"launchTemplate": {"name": launch_template_name}}
+    create_nodegroup.create_nodegroup_kwargs = {
+        "launchTemplate": {"name": launch_template_name}
+    }
 
     # [START howto_sensor_eks_nodegroup]
     await_create_nodegroup = EksNodegroupStateSensor(

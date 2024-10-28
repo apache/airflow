@@ -49,10 +49,14 @@ class TestAthenaSQLHookConn:
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = conn
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_credentials")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_credentials"
+    )
     def test_get_uri(self, mock_get_credentials):
         mock_get_credentials.return_value = mock.Mock(
-            access_key=AWS_ACCESS_KEY_ID, secret_key=AWS_SECRET_ACCESS_KEY, token=AWS_SESSION_TOKEN
+            access_key=AWS_ACCESS_KEY_ID,
+            secret_key=AWS_SECRET_ACCESS_KEY,
+            token=AWS_SESSION_TOKEN,
         )
 
         expected_athena_uri = "awsathena+rest://aws_access_key_id:aws_secret_access_key@athena.us-east-1.amazonaws.com:443/athena_sql_schema?aws_session_token=aws_session_token&region_name=us-east-1&work_group=test-work-group"
@@ -63,10 +67,15 @@ class TestAthenaSQLHookConn:
 
         assert str(athena_uri) == expected_athena_uri
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook._get_conn_params"
+    )
     def test_get_uri_change_driver(self, mock_get_conn_params):
         mock_get_conn_params.return_value = dict(
-            driver="arrow", schema_name=SCHEMA_NAME, region_name=REGION_NAME, aws_domain="amazonaws.com"
+            driver="arrow",
+            schema_name=SCHEMA_NAME,
+            region_name=REGION_NAME,
+            aws_domain="amazonaws.com",
         )
 
         athena_uri = self.db_hook.get_uri()
@@ -107,7 +116,11 @@ class TestAthenaSQLHookConn:
             (
                 {"schema": "athena_sql_schema1"},
                 {"region_name": "us-east-2"},
-                {"region_name": "us-east-2", "schema_name": "athena_sql_schema1", "session": mock.ANY},
+                {
+                    "region_name": "us-east-2",
+                    "schema_name": "athena_sql_schema1",
+                    "session": mock.ANY,
+                },
             ),
             (
                 {"schema": "athena_sql_schema2"},
@@ -132,10 +145,14 @@ class TestAthenaSQLHookConn:
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
-    def test_get_conn_passing_args(self, mock_connect, conn_params, conn_extra, expected_call_args):
+    def test_get_conn_passing_args(
+        self, mock_connect, conn_params, conn_extra, expected_call_args
+    ):
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.conn",
-            AwsConnectionWrapper(Connection(conn_type="athena", extra=conn_extra, **conn_params)),
+            AwsConnectionWrapper(
+                Connection(conn_type="athena", extra=conn_extra, **conn_params)
+            ),
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)

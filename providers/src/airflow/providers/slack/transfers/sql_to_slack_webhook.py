@@ -108,7 +108,11 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         if not slack_webhook_conn_id:
             raise ValueError("Got an empty `slack_webhook_conn_id` value.")
         super().__init__(
-            sql=sql, sql_conn_id=sql_conn_id, sql_hook_params=sql_hook_params, parameters=parameters, **kwargs
+            sql=sql,
+            sql_conn_id=sql_conn_id,
+            sql_hook_params=sql_hook_params,
+            parameters=parameters,
+            **kwargs,
         )
 
         self.slack_webhook_conn_id = slack_webhook_conn_id
@@ -138,7 +142,9 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
+            fields_to_render: Iterable[str] = (
+                x for x in self.template_fields if x != "slack_message"
+            )
         else:
             fields_to_render = self.template_fields
 

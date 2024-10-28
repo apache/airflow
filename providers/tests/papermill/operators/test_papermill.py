@@ -76,12 +76,21 @@ class TestPapermillOperator:
         output_as_object: bool,
     ):
         """Test different type of Input/Output notebooks arguments."""
-        from airflow.providers.papermill.operators.papermill import NoteBook, PapermillOperator
+        from airflow.providers.papermill.operators.papermill import (
+            NoteBook,
+            PapermillOperator,
+        )
 
-        input_nb: NoteBook | str = NoteBook(input_nb_url) if input_as_object else input_nb_url
-        output_nb: NoteBook | str = NoteBook(output_nb_url) if output_as_object else output_nb_url
+        input_nb: NoteBook | str = (
+            NoteBook(input_nb_url) if input_as_object else input_nb_url
+        )
+        output_nb: NoteBook | str = (
+            NoteBook(output_nb_url) if output_as_object else output_nb_url
+        )
 
-        op = PapermillOperator(task_id="test_notebooks_objects", input_nb=input_nb, output_nb=output_nb)
+        op = PapermillOperator(
+            task_id="test_notebooks_objects", input_nb=input_nb, output_nb=output_nb
+        )
 
         op.execute(context={})
 

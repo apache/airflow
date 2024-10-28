@@ -54,7 +54,16 @@ def pyspy():
     suffix = datetime.datetime.now().isoformat()
     filename = f"{PYSPY_OUTPUT}/flame-{suffix}-{pid}.html"
     pyspy_pid = os.spawnlp(
-        os.P_NOWAIT, "sudo", "sudo", "py-spy", "record", "--idle", "-o", filename, "-p", pid
+        os.P_NOWAIT,
+        "sudo",
+        "sudo",
+        "py-spy",
+        "record",
+        "--idle",
+        "-o",
+        filename,
+        "-p",
+        pid,
     )
     try:
         yield
@@ -96,7 +105,9 @@ if __name__ == "__main__":
 
         log = logging.getLogger(__name__)
         processor = DagFileProcessor(dag_ids=[], log=log)
-        dag_file = os.path.join(os.path.dirname(airflow.__file__), "example_dags", "example_complex.py")
+        dag_file = os.path.join(
+            os.path.dirname(airflow.__file__), "example_dags", "example_complex.py"
+        )
         processor.process_file(file_path=dag_file, callback_requests=[])
 
     # Load modules

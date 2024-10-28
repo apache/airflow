@@ -40,7 +40,10 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.auth.managers.utils.fab import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.auth.managers.utils.fab import (
+    get_fab_action_from_method_map,
+    get_method_from_fab_action_map,
+)
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -85,7 +88,10 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.version import version
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.www.extensions.init_views import (
+    _CustomErrorRequestBodyValidator,
+    _LazyResolver,
+)
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
@@ -93,7 +99,9 @@ if TYPE_CHECKING:
         CLICommand,
     )
     from airflow.providers.common.compat.assets import AssetDetails
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        FabAirflowSecurityManagerOverride,
+    )
     from airflow.security.permissions import RESOURCE_ASSET
 else:
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
@@ -157,7 +165,9 @@ class FabAuthManager(BaseAuthManager):
         if packaging.version.parse(
             packaging.version.parse(airflow_version).base_version
         ) >= packaging.version.parse("3.0.0"):
-            commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
+            commands.append(
+                GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS)
+            )
         return commands
 
     def get_api_endpoints(self) -> None | Blueprint:
@@ -168,7 +178,10 @@ class FabAuthManager(BaseAuthManager):
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
-            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+            options={
+                "swagger_ui": SWAGGER_ENABLED,
+                "swagger_path": SWAGGER_BUNDLE.__fspath__(),
+            },
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -208,7 +221,9 @@ class FabAuthManager(BaseAuthManager):
         details: ConfigurationDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_CONFIG, user=user)
+        return self._is_authorized(
+            method=method, resource_type=RESOURCE_CONFIG, user=user
+        )
 
     def is_authorized_connection(
         self,
@@ -217,7 +232,9 @@ class FabAuthManager(BaseAuthManager):
         details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_CONNECTION, user=user)
+        return self._is_authorized(
+            method=method, resource_type=RESOURCE_CONNECTION, user=user
+        )
 
     def is_authorized_dag(
         self,
@@ -261,35 +278,60 @@ class FabAuthManager(BaseAuthManager):
 
             return all(
                 self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                else self._is_authorized_dag_run(method=method, details=details, user=user)
+                if resource_type != RESOURCE_DAG_RUN
+                or not hasattr(permissions, "resource_name")
+                else self._is_authorized_dag_run(
+                    method=method, details=details, user=user
+                )
                 for resource_type in resource_types
             )
 
     def is_authorized_asset(
-        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
     def is_authorized_pool(
-        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_POOL, user=user)
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: VariableDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
+        return self._is_authorized(
+            method=method, resource_type=RESOURCE_VARIABLE, user=user
+        )
 
-    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: BaseUser | None = None
+    ) -> bool:
         # "Docs" are only links in the menu, there is no page associated
         method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
-            method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
+            method=method,
+            resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view],
+            user=user,
         )
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user: BaseUser | None = None,
     ):
         if not user:
             user = self.get_user()
@@ -323,7 +365,9 @@ class FabAuthManager(BaseAuthManager):
                 .options(
                     joinedload(User.roles)
                     .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
+                    .options(
+                        joinedload(Permission.action), joinedload(Permission.resource)
+                    )
                 )
                 .where(User.id == user.id)
             )
@@ -340,12 +384,16 @@ class FabAuthManager(BaseAuthManager):
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                        return {
+                            dag.dag_id for dag in session.execute(select(DagModel.dag_id))
+                        }
                     if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                     else:
                         resources.add(resource)
-        return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
+        return set(
+            session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
+        )
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
@@ -369,7 +417,9 @@ class FabAuthManager(BaseAuthManager):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if next_url := kwargs.get("next_url"):
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=next_url)
+            return url_for(
+                f"{self.security_manager.auth_view.endpoint}.login", next=next_url
+            )
         else:
             return url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
@@ -429,14 +479,18 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        is_global_authorized = self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user)
+        is_global_authorized = self._is_authorized(
+            method=method, resource_type=RESOURCE_DAG, user=user
+        )
         if is_global_authorized:
             return True
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG
             resource_dag_name = self._resource_name(details.id, RESOURCE_DAG)
-            return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
+            return self._is_authorized(
+                method=method, resource_type=resource_dag_name, user=user
+            )
 
         return False
 
@@ -455,14 +509,18 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        is_global_authorized = self._is_authorized(method=method, resource_type=RESOURCE_DAG_RUN, user=user)
+        is_global_authorized = self._is_authorized(
+            method=method, resource_type=RESOURCE_DAG_RUN, user=user
+        )
         if is_global_authorized:
             return True
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG Run permission on a DAG Level
             resource_dag_name = self._resource_name(details.id, RESOURCE_DAG_RUN)
-            return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
+            return self._is_authorized(
+                method=method, resource_type=resource_dag_name, user=user
+            )
 
         return False
 
@@ -527,7 +585,9 @@ class FabAuthManager(BaseAuthManager):
         """
         if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
-                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
+                select(DagModel.dag_id, DagModel.root_dag_id)
+                .where(DagModel.dag_id == dag_id)
+                .limit(1)
             )
         return dag_id
 

@@ -58,7 +58,8 @@ class OpenSearchHook(BaseHook):
         self,
         open_search_conn_id: str,
         log_query: bool,
-        open_search_conn_class: type[OpenSearchConnectionClass] | None = RequestsHttpConnection,
+        open_search_conn_class: type[OpenSearchConnectionClass]
+        | None = RequestsHttpConnection,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -66,7 +67,9 @@ class OpenSearchHook(BaseHook):
         self.log_query = log_query
 
         self.use_ssl = to_boolean(str(self.conn.extra_dejson.get("use_ssl", False)))
-        self.verify_certs = to_boolean(str(self.conn.extra_dejson.get("verify_certs", False)))
+        self.verify_certs = to_boolean(
+            str(self.conn.extra_dejson.get("verify_certs", False))
+        )
         self.connection_class = open_search_conn_class
         self.__SERVICE = "es"
 
@@ -109,7 +112,9 @@ class OpenSearchHook(BaseHook):
         """
         return self.client.index(index=index_name, id=doc_id, body=document, **kwargs)
 
-    def delete(self, index_name: str, query: dict | None = None, doc_id: int | None = None) -> Any:
+    def delete(
+        self, index_name: str, query: dict | None = None, doc_id: int | None = None
+    ) -> Any:
         """
         Delete from an index by either a query or by the document id.
 

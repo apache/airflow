@@ -52,7 +52,10 @@ class MockSearch(OpenSearchHook):
 
 class MockClient:
     def count(self, index: Any = None, body: Any = None):
-        return {"count": 1, "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0}}
+        return {
+            "count": 1,
+            "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+        }
 
     def search(self, index=None, body=None, sort=None, size=None, from_=None):
         return self.sample_log_response()

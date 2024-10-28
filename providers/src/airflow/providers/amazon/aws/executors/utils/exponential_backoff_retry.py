@@ -63,7 +63,9 @@ def exponential_backoff_retry(
         return
 
     next_retry_time = last_attempt_time + calculate_next_attempt_delay(
-        attempt_number=attempts_since_last_successful, max_delay=max_delay, exponent_base=exponent_base
+        attempt_number=attempts_since_last_successful,
+        max_delay=max_delay,
+        exponent_base=exponent_base,
     )
 
     current_time = timezone.utcnow()

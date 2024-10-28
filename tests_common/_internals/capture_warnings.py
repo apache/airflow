@@ -64,7 +64,11 @@ class CapturedWarning:
 
     @classmethod
     def from_record(
-        cls, warning_message: warnings.WarningMessage, root_path: Path, node_id: str | None, when: WhenTypeDef
+        cls,
+        warning_message: warnings.WarningMessage,
+        root_path: Path,
+        node_id: str | None,
+        when: WhenTypeDef,
     ) -> CapturedWarning:
         category = warning_message.category.__name__
         if (category_module := warning_message.category.__module__) != "builtins":
@@ -81,7 +85,9 @@ class CapturedWarning:
             node_id=node_id,
             param_id=param_id,
             when=when,
-            filename=_resolve_warning_filepath(warning_message.filename, os.fspath(root_path)),
+            filename=_resolve_warning_filepath(
+                warning_message.filename, os.fspath(root_path)
+            ),
             lineno=warning_message.lineno,
         )
 
@@ -94,12 +100,17 @@ class CapturedWarning:
         try:
             with warnings.catch_warnings(record=True) as records:
                 if not sys.warnoptions:
-                    warnings.filterwarnings("always", category=DeprecationWarning, append=True)
-                    warnings.filterwarnings("always", category=PendingDeprecationWarning, append=True)
+                    warnings.filterwarnings(
+                        "always", category=DeprecationWarning, append=True
+                    )
+                    warnings.filterwarnings(
+                        "always", category=PendingDeprecationWarning, append=True
+                    )
                 yield captured_records
         finally:
             captured_records.extend(
-                cls.from_record(rec, root_path=root_path, node_id=node_id, when=when) for rec in records
+                cls.from_record(rec, root_path=root_path, node_id=node_id, when=when)
+                for rec in records
             )
 
     @property
@@ -141,7 +152,9 @@ class CaptureWarningsPlugin:
     node_key: str = "capture_warnings_node"
 
     def __init__(self, config: pytest.Config, output_path: str | None = None):
-        output_path = output_path or os.environ.get("CAPTURE_WARNINGS_OUTPUT") or "warnings.txt"
+        output_path = (
+            output_path or os.environ.get("CAPTURE_WARNINGS_OUTPUT") or "warnings.txt"
+        )
         warning_output_path = Path(os.path.expandvars(os.path.expandvars(output_path)))
         if not warning_output_path.is_absolute():
             warning_output_path = TESTS_DIR.joinpath(output_path)
@@ -173,7 +186,9 @@ class CaptureWarningsPlugin:
 
     @pytest.hookimpl(hookwrapper=True, trylast=True)
     def pytest_runtest_protocol(self, item: pytest.Item):
-        with CapturedWarning.capture_warnings("runtest", self.root_path, item.nodeid) as records:
+        with CapturedWarning.capture_warnings(
+            "runtest", self.root_path, item.nodeid
+        ) as records:
             yield
         self.add_captured_warnings(records)
 
@@ -183,7 +198,11 @@ class CaptureWarningsPlugin:
         with CapturedWarning.capture_warnings("config", self.root_path, None) as records:
             yield
         self.add_captured_warnings(records)
-        if self.is_worker_node and self.captured_warnings and hasattr(self.config, "workeroutput"):
+        if (
+            self.is_worker_node
+            and self.captured_warnings
+            and hasattr(self.config, "workeroutput")
+        ):
             self.config.workeroutput[self.node_key] = tuple(
                 [(cw.dumps(), count) for cw, count in self.captured_warnings.items()]
             )
@@ -207,11 +226,15 @@ class CaptureWarningsPlugin:
     @staticmethod
     def sorted_groupby(it, grouping_key: Callable):
         """Sort and group by items by the grouping_key."""
-        for group, grouped_data in itertools.groupby(sorted(it, key=grouping_key), key=grouping_key):
+        for group, grouped_data in itertools.groupby(
+            sorted(it, key=grouping_key), key=grouping_key
+        ):
             yield group, list(grouped_data)
 
     @pytest.hookimpl(hookwrapper=True, trylast=True)
-    def pytest_terminal_summary(self, terminalreporter, exitstatus: int, config: pytest.Config):
+    def pytest_terminal_summary(
+        self, terminalreporter, exitstatus: int, config: pytest.Config
+    ):
         with CapturedWarning.capture_warnings("collect", self.root_path, None) as records:
             yield
         self.add_captured_warnings(records)
@@ -234,7 +257,9 @@ class CaptureWarningsPlugin:
             yellow=True,
             bold=True,
         )
-        for group, grouped_data in self.sorted_groupby(self.captured_warnings.items(), lambda x: x[0].group):
+        for group, grouped_data in self.sorted_groupby(
+            self.captured_warnings.items(), lambda x: x[0].group
+        ):
             color = {}
             if group in ("airflow", "providers"):
                 color["red"] = True

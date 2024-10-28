@@ -46,7 +46,9 @@ def generate_fab_auth_manager_airflow_diagram():
             webserver = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
 
             with Cluster("FAB provider"):
-                fab_auth_manager = Custom("FAB auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix())
+                fab_auth_manager = Custom(
+                    "FAB auth manager", PYTHON_MULTIPROCESS_LOGO.as_posix()
+                )
             with Cluster("Core Airflow"):
                 auth_manager_interface = Custom(
                     "Auth manager\ninterface", PYTHON_MULTIPROCESS_LOGO.as_posix()
@@ -54,10 +56,18 @@ def generate_fab_auth_manager_airflow_diagram():
 
             db = PostgreSQL("Metadata DB")
 
-        user >> Edge(color="black", style="solid", reverse=True, label="Access to the console") >> webserver
+        (
+            user
+            >> Edge(
+                color="black", style="solid", reverse=True, label="Access to the console"
+            )
+            >> webserver
+        )
         (
             webserver
-            >> Edge(color="black", style="solid", reverse=True, label="Is user authorized?")
+            >> Edge(
+                color="black", style="solid", reverse=True, label="Is user authorized?"
+            )
             >> fab_auth_manager
         )
         (fab_auth_manager >> Edge(color="black", style="solid", reverse=True) >> db)

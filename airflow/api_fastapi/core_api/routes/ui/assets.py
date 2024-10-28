@@ -25,7 +25,12 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.models import DagModel
-from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    DagScheduleAssetReference,
+)
 
 assets_router = AirflowRouter(tags=["Asset"])
 
@@ -56,7 +61,10 @@ async def next_run_assets(
                 AssetModel.uri,
                 func.max(AssetEvent.timestamp).label("lastUpdate"),
             )
-            .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
+            .join(
+                DagScheduleAssetReference,
+                DagScheduleAssetReference.asset_id == AssetModel.id,
+            )
             .join(
                 AssetDagRunQueue,
                 and_(

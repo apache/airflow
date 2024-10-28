@@ -44,12 +44,16 @@ class TestSequentialExecutor:
     @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+    def test_gauge_executor_metrics(
+        self, mock_stats_gauge, mock_trigger_tasks, mock_sync
+    ):
         executor = SequentialExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "SequentialExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "name": "SequentialExecutor"},
             ),
             mock.call(
                 "executor.queued_tasks",

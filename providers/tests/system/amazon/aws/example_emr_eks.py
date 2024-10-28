@@ -26,14 +26,23 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
-from airflow.providers.amazon.aws.operators.eks import EksCreateClusterOperator, EksDeleteClusterOperator
-from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
+from airflow.providers.amazon.aws.operators.eks import (
+    EksCreateClusterOperator,
+    EksDeleteClusterOperator,
+)
+from airflow.providers.amazon.aws.operators.emr import (
+    EmrContainerOperator,
+    EmrEksCreateClusterOperator,
+)
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
-from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+from airflow.providers.amazon.aws.sensors.eks import (
+    EksClusterStateSensor,
+    EksNodegroupStateSensor,
+)
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -130,7 +139,9 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
     # Remove any already existing trusted entities added with "update-role-trust-policy"
     # Prevent getting an error "Cannot exceed quota for ACLSizePerRole"
     client = boto3.client("iam")
-    role_trust_policy = client.get_role(RoleName=role_name)["Role"]["AssumeRolePolicyDocument"]
+    role_trust_policy = client.get_role(RoleName=role_name)["Role"][
+        "AssumeRolePolicyDocument"
+    ]
     # We assume if the action is sts:AssumeRoleWithWebIdentity, the statement had been added with
     # "update-role-trust-policy". Removing it to not exceed the quota
     role_trust_policy["Statement"] = [
@@ -306,7 +317,9 @@ with DAG(
         create_cluster_and_nodegroup,
         await_create_nodegroup,
         run_eksctl_commands(eks_cluster_name, eks_namespace),
-        update_trust_policy_execution_role(eks_cluster_name, eks_namespace, job_role_name),
+        update_trust_policy_execution_role(
+            eks_cluster_name, eks_namespace, job_role_name
+        ),
         # TEST BODY
         create_emr_eks_cluster,
         job_starter,

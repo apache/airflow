@@ -38,7 +38,9 @@ _AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
 
 
 @contextmanager
-def _airflow_parsing_context_manager(dag_id: str | None = None, task_id: str | None = None):
+def _airflow_parsing_context_manager(
+    dag_id: str | None = None, task_id: str | None = None
+):
     old_dag_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID)
     old_task_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID)
     if dag_id is not None:

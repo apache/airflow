@@ -106,7 +106,9 @@ class ImapHook(BaseHook):
                     f"be set to 'default' or 'none' and is '{ssl_context_string}'."
                 )
             if conn.port:
-                mail_client = imaplib.IMAP4_SSL(conn.host, conn.port, ssl_context=ssl_context)
+                mail_client = imaplib.IMAP4_SSL(
+                    conn.host, conn.port, ssl_context=ssl_context
+                )
             else:
                 mail_client = imaplib.IMAP4_SSL(conn.host, ssl_context=ssl_context)
         else:
@@ -118,7 +120,12 @@ class ImapHook(BaseHook):
         return mail_client
 
     def has_mail_attachment(
-        self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All"
+        self,
+        name: str,
+        *,
+        check_regex: bool = False,
+        mail_folder: str = "INBOX",
+        mail_filter: str = "All",
     ) -> bool:
         """
         Check the mail folder for mails containing attachments with the given name.
@@ -216,7 +223,12 @@ class ImapHook(BaseHook):
             self.log.warning("No mail attachments found!")
 
     def _retrieve_mails_attachments_by_name(
-        self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
+        self,
+        name: str,
+        check_regex: bool,
+        latest_only: bool,
+        mail_folder: str,
+        mail_filter: str,
     ) -> list:
         if not self.mail_client:
             raise RuntimeError("The 'mail_client' should be initialized before!")
@@ -227,7 +239,9 @@ class ImapHook(BaseHook):
 
         for mail_id in self._list_mail_ids_desc(mail_filter):
             response_mail_body = self._fetch_mail_body(mail_id)
-            matching_attachments = self._check_mail_body(response_mail_body, name, check_regex, latest_only)
+            matching_attachments = self._check_mail_body(
+                response_mail_body, name, check_regex, latest_only
+            )
 
             if matching_attachments:
                 all_matching_attachments.extend(matching_attachments)
@@ -266,7 +280,9 @@ class ImapHook(BaseHook):
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
-                self.log.error("Can not create file because it is escaping the current directory!")
+                self.log.error(
+                    "Can not create file because it is escaping the current directory!"
+                )
             else:
                 self._create_file(name, payload, local_output_directory)
 
@@ -327,7 +343,9 @@ class Mail(LoggingMixin):
 
         for attachment in self._iterate_attachments():
             found_attachment = (
-                attachment.has_matching_name(name) if check_regex else attachment.has_equal_name(name)
+                attachment.has_matching_name(name)
+                if check_regex
+                else attachment.has_equal_name(name)
             )
             if found_attachment:
                 file_name, file_payload = attachment.get_file()
@@ -361,7 +379,9 @@ class MailPart:
 
         :returns: True if it is an attachment and False if not.
         """
-        return self.part.get_content_maintype() != "multipart" and self.part.get("Content-Disposition")
+        return self.part.get_content_maintype() != "multipart" and self.part.get(
+            "Content-Disposition"
+        )
 
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """

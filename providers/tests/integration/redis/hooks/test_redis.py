@@ -35,5 +35,7 @@ class TestRedisHook:
         redis = hook.get_conn()
 
         assert redis.set("test_key", "test_value"), "Connection to Redis with SET works."
-        assert redis.get("test_key") == b"test_value", "Connection to Redis with GET works."
+        assert (
+            redis.get("test_key") == b"test_value"
+        ), "Connection to Redis with GET works."
         assert redis.delete("test_key") == 1, "Connection to Redis with DELETE works."

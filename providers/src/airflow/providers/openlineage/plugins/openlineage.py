@@ -38,7 +38,12 @@ class OpenLineageProviderPlugin(AirflowPlugin):
 
     name = "OpenLineageProviderPlugin"
     if not conf.is_disabled():
-        macros = [lineage_job_namespace, lineage_job_name, lineage_run_id, lineage_parent_id]
+        macros = [
+            lineage_job_namespace,
+            lineage_job_name,
+            lineage_run_id,
+            lineage_parent_id,
+        ]
         listeners = [get_openlineage_listener()]
         if IS_AIRFLOW_2_10_OR_HIGHER:
             from airflow.lineage.hook import HookLineageReader

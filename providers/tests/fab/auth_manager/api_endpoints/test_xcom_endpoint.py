@@ -30,7 +30,10 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
@@ -64,7 +67,9 @@ def configured_app(minimal_app_for_auth_api):
     )
     app.appbuilder.sm.sync_perm_for_dag(
         "test-dag-id-1",
-        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+        access_control={
+            "TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+        },
     )
 
     yield app
@@ -120,7 +125,9 @@ class TestGetXComEntries(TestXComEndpoint):
         execution_date = "2005-04-02T00:00:00+00:00"
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id_1 = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-        self._create_xcom_entries(dag_id_1, dag_run_id_1, execution_date_parsed, task_id_1)
+        self._create_xcom_entries(
+            dag_id_1, dag_run_id_1, execution_date_parsed, task_id_1
+        )
 
         dag_id_2 = "test-dag-id-2"
         task_id_2 = "test-task-id-2"
@@ -161,7 +168,9 @@ class TestGetXComEntries(TestXComEndpoint):
             },
         )
 
-    def _create_xcom_entries(self, dag_id, run_id, execution_date, task_id, mapped_ti=False):
+    def _create_xcom_entries(
+        self, dag_id, run_id, execution_date, task_id, mapped_ti=False
+    ):
         with create_session() as session:
             dag = DagModel(dag_id=dag_id)
             session.add(dag)
@@ -175,7 +184,9 @@ class TestGetXComEntries(TestXComEndpoint):
             session.add(dagrun)
             if mapped_ti:
                 for i in [0, 1]:
-                    ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, map_index=i)
+                    ti = TaskInstance(
+                        EmptyOperator(task_id=task_id), run_id=run_id, map_index=i
+                    )
                     ti.dag_id = dag_id
                     session.add(ti)
             else:
@@ -192,7 +203,12 @@ class TestGetXComEntries(TestXComEndpoint):
                 map_index = -1
 
             XCom.set(
-                key=key, value="TEST", run_id=run_id, task_id=task_id, dag_id=dag_id, map_index=map_index
+                key=key,
+                value="TEST",
+                run_id=run_id,
+                task_id=task_id,
+                dag_id=dag_id,
+                map_index=map_index,
             )
 
     def _create_invalid_xcom_entries(self, execution_date):
@@ -218,7 +234,9 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun1)
-            ti = TaskInstance(EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id")
+            ti = TaskInstance(
+                EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id"
+            )
             ti.dag_id = "invalid_dag"
             session.add(ti)
         for i in [1, 2]:

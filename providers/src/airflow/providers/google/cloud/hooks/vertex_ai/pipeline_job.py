@@ -40,14 +40,19 @@ from google.cloud.aiplatform_v1 import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import AsyncRetry, Retry
     from google.auth.credentials import Credentials
     from google.cloud.aiplatform.metadata import experiment_resources
-    from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListPipelineJobsPager
+    from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
+        ListPipelineJobsPager,
+    )
 
 
 class PipelineJobHook(GoogleBaseHook):
@@ -71,11 +76,15 @@ class PipelineJobHook(GoogleBaseHook):
     ) -> PipelineServiceClient:
         """Return PipelineServiceClient object."""
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
         return PipelineServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
         )
 
     def get_pipeline_job_object(
@@ -553,7 +562,9 @@ class PipelineJobAsyncHook(GoogleBaseAsyncHook):
         region: str | None = None,
     ) -> PipelineServiceAsyncClient:
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+            client_options = ClientOptions(
+                api_endpoint=f"{region}-aiplatform.googleapis.com:443"
+            )
         else:
             client_options = ClientOptions()
         return PipelineServiceAsyncClient(
@@ -618,7 +629,9 @@ class PipelineJobAsyncHook(GoogleBaseAsyncHook):
                     metadata=metadata,
                 )
             except Exception as ex:
-                self.log.exception("Exception occurred while requesting pipeline job %s", job_id)
+                self.log.exception(
+                    "Exception occurred while requesting pipeline job %s", job_id
+                )
                 raise AirflowException(ex)
 
             self.log.info("Status of the pipeline job %s is %s", job.name, job.state.name)

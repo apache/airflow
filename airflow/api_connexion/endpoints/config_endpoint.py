@@ -22,7 +22,12 @@ from flask import Response, request
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
-from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
+from airflow.api_connexion.schemas.config_schema import (
+    Config,
+    ConfigOption,
+    ConfigSection,
+    config_schema,
+)
 from airflow.configuration import conf
 from airflow.settings import json
 
@@ -34,7 +39,10 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
     config = Config(
         sections=[
             ConfigSection(
-                name=section, options=[ConfigOption(key=key, value=value) for key, value in options.items()]
+                name=section,
+                options=[
+                    ConfigOption(key=key, value=value) for key, value in options.items()
+                ],
             )
             for section, options in conf_dict.items()
         ]
@@ -85,7 +93,9 @@ def get_config(*, section: str | None = None) -> Response:
     elif expose_config:
         if section and not conf.has_section(section):
             raise NotFound("section not found.", detail=f"section={section} not found.")
-        conf_dict = conf.as_dict(display_source=False, display_sensitive=display_sensitive)
+        conf_dict = conf.as_dict(
+            display_source=False, display_sensitive=display_sensitive
+        )
         if section:
             conf_section_value = conf_dict[section]
             conf_dict.clear()
@@ -119,7 +129,8 @@ def get_value(*, section: str, option: str) -> Response:
     elif expose_config:
         if not conf.has_option(section, option):
             raise NotFound(
-                "Config not found.", detail=f"The option [{section}/{option}] is not found in config."
+                "Config not found.",
+                detail=f"The option [{section}/{option}] is not found in config.",
             )
 
         if (section.lower(), option.lower()) in conf.sensitive_config_values:
@@ -128,7 +139,11 @@ def get_value(*, section: str, option: str) -> Response:
             value = conf.get(section, option)
 
         config = Config(
-            sections=[ConfigSection(name=section, options=[ConfigOption(key=option, value=value)])]
+            sections=[
+                ConfigSection(
+                    name=section, options=[ConfigOption(key=option, value=value)]
+                )
+            ]
         )
         config_text = serializer[return_type](config)
         return Response(config_text, headers={"Content-Type": return_type})

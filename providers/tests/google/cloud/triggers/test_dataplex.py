@@ -33,7 +33,9 @@ TEST_GCP_CONN_ID = "test_conn"
 TEST_JOB_ID = "test_job_id"
 TEST_DATA_SCAN_ID = "test_data_scan_id"
 HOOK_STR = "airflow.providers.google.cloud.hooks.dataplex.DataplexAsyncHook.{}"
-TRIGGER_STR = "airflow.providers.google.cloud.triggers.dataplex.DataplexDataQualityJobTrigger.{}"
+TRIGGER_STR = (
+    "airflow.providers.google.cloud.triggers.dataplex.DataplexDataQualityJobTrigger.{}"
+)
 
 
 @pytest.fixture
@@ -62,9 +64,14 @@ def async_get_data_scan_job():
 
 
 class TestDataplexDataQualityJobTrigger:
-    def test_async_dataplex_job_trigger_serialization_should_execute_successfully(self, trigger):
+    def test_async_dataplex_job_trigger_serialization_should_execute_successfully(
+        self, trigger
+    ):
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.dataplex.DataplexDataQualityJobTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.dataplex.DataplexDataQualityJobTrigger"
+        )
         assert kwargs == {
             "job_id": TEST_JOB_ID,
             "data_scan_id": TEST_DATA_SCAN_ID,

@@ -59,7 +59,8 @@ class TestVertexAIWithDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = DatasetHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -80,7 +81,9 @@ class TestVertexAIWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(DATASET_STRING.format("DatasetHook.get_dataset_service_client"))
     def test_delete_dataset(self, mock_client) -> None:
@@ -260,7 +263,9 @@ class TestVertexAIWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(DATASET_STRING.format("DatasetHook.get_dataset_service_client"))
     def test_update_dataset(self, mock_client) -> None:
@@ -289,7 +294,8 @@ class TestVertexAIWithDefaultProjectIdHook:
 class TestVertexAIWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = DatasetHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
@@ -310,7 +316,9 @@ class TestVertexAIWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(DATASET_STRING.format("DatasetHook.get_dataset_service_client"))
     def test_delete_dataset(self, mock_client) -> None:
@@ -490,7 +498,9 @@ class TestVertexAIWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
     @mock.patch(DATASET_STRING.format("DatasetHook.get_dataset_service_client"))
     def test_update_dataset(self, mock_client) -> None:

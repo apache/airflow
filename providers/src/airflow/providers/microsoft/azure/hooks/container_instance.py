@@ -20,7 +20,10 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.common.client_factory import (
+    get_client_from_auth_file,
+    get_client_from_json_dict,
+)
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from deprecated import deprecated
@@ -58,7 +61,9 @@ class AzureContainerInstanceHook(AzureBaseHook):
     hook_name = "Azure Container Instance"
 
     def __init__(self, azure_conn_id: str = default_conn_name) -> None:
-        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=azure_conn_id)
+        super().__init__(
+            sdk_client=ContainerInstanceManagementClient, conn_id=azure_conn_id
+        )
 
     @cached_property
     def connection(self):
@@ -78,23 +83,35 @@ class AzureContainerInstanceHook(AzureBaseHook):
             if not key_path.endswith(".json"):
                 raise AirflowException("Unrecognised extension for key file.")
             self.log.info("Getting connection using a JSON key file.")
-            return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
+            return get_client_from_auth_file(
+                client_class=self.sdk_client, auth_path=key_path
+            )
 
         key_json = conn.extra_dejson.get("key_json")
         if key_json:
             self.log.info("Getting connection using a JSON config.")
-            return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
+            return get_client_from_json_dict(
+                client_class=self.sdk_client, config_dict=key_json
+            )
 
         credential: ClientSecretCredential | DefaultAzureCredential
         if all([conn.login, conn.password, tenant]):
-            self.log.info("Getting connection using specific credentials and subscription_id.")
+            self.log.info(
+                "Getting connection using specific credentials and subscription_id."
+            )
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=cast(str, tenant)
+                client_id=conn.login,
+                client_secret=conn.password,
+                tenant_id=cast(str, tenant),
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
-            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            managed_identity_client_id = conn.extra_dejson.get(
+                "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = conn.extra_dejson.get(
+                "workload_identity_tenant_id"
+            )
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
@@ -106,7 +123,9 @@ class AzureContainerInstanceHook(AzureBaseHook):
             subscription_id=subscription_id,
         )
 
-    def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
+    def create_or_update(
+        self, resource_group: str, name: str, container_group: ContainerGroup
+    ) -> None:
         """
         Create a new container group.
 
@@ -114,7 +133,9 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :param container_group: the properties of the container group
         """
-        self.connection.container_groups.begin_create_or_update(resource_group, name, container_group)
+        self.connection.container_groups.begin_create_or_update(
+            resource_group, name, container_group
+        )
 
     @deprecated(
         reason="get_state_exitcode_details() is deprecated. Related method is get_state()",
@@ -193,7 +214,9 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         """
-        for container in self.connection.container_groups.list_by_resource_group(resource_group):
+        for container in self.connection.container_groups.list_by_resource_group(
+            resource_group
+        ):
             if container.name == name:
                 return True
         return False

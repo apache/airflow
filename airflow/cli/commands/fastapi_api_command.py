@@ -69,7 +69,9 @@ def fastapi_api(args):
     from airflow.api_fastapi.app import create_app
 
     if args.debug:
-        print(f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug.")
+        print(
+            f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug."
+        )
         log.warning("Running in dev mode, ignoring gunicorn args")
 
         run_args = [
@@ -151,7 +153,9 @@ def fastapi_api(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        def kill_proc(signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen) -> NoReturn:
+        def kill_proc(
+            signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen
+        ) -> NoReturn:
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
@@ -164,10 +168,16 @@ def fastapi_api(args):
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_proc: psutil.Process | subprocess.Popen) -> NoReturn:
+        def monitor_gunicorn(
+            gunicorn_master_proc: psutil.Process | subprocess.Popen,
+        ) -> NoReturn:
             # Register signal handlers
-            signal.signal(signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
-            signal.signal(signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
+            signal.signal(
+                signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc)
+            )
+            signal.signal(
+                signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc)
+            )
 
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             GunicornMonitor(
@@ -204,7 +214,9 @@ def fastapi_api(args):
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)
-        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
+        monitor_pid_file = str(
+            pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}")
+        )
         run_command_with_daemon_option(
             args=args,
             process_name="fastapi-api",
@@ -227,8 +239,12 @@ def _get_ssl_cert_and_key_filepaths(cli_arguments) -> tuple[str | None, str | No
 
         return (ssl_cert, ssl_key)
     elif ssl_cert:
-        raise AirflowConfigException(error_template_1.format("SSL certificate", "SSL key"))
+        raise AirflowConfigException(
+            error_template_1.format("SSL certificate", "SSL key")
+        )
     elif ssl_key:
-        raise AirflowConfigException(error_template_1.format("SSL key", "SSL certificate"))
+        raise AirflowConfigException(
+            error_template_1.format("SSL key", "SSL certificate")
+        )
 
     return (None, None)

@@ -23,7 +23,10 @@ import pytest
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
 
-from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
+from airflow.providers.google.cloud.triggers.cloud_run import (
+    CloudRunJobFinishedTrigger,
+    RunJobStatus,
+)
 from airflow.triggers.base import TriggerEvent
 
 OPERATION_NAME = "operation"
@@ -55,7 +58,10 @@ def trigger():
 class TestCloudBatchJobFinishedTrigger:
     def test_serialization(self, trigger):
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.cloud_run.CloudRunJobFinishedTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.cloud_run.CloudRunJobFinishedTrigger"
+        )
         assert kwargs == {
             "project_id": PROJECT_ID,
             "operation_name": OPERATION_NAME,

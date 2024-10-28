@@ -62,7 +62,13 @@ def upgrade():
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
         batch_op.add_column(
-            sa.Column("group", _STRING_COLUMN_TYPE, default=str, server_default="", nullable=False)
+            sa.Column(
+                "group",
+                _STRING_COLUMN_TYPE,
+                default=str,
+                server_default="",
+                nullable=False,
+            )
         )
     # Fill name from uri column.
     with Session(bind=op.get_bind()) as session:

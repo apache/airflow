@@ -58,7 +58,9 @@ class TestPrestoHookConn:
     @patch("airflow.providers.presto.hooks.presto.prestodb.auth.BasicAuthentication")
     @patch("airflow.providers.presto.hooks.presto.prestodb.dbapi.connect")
     @patch("airflow.providers.presto.hooks.presto.PrestoHook.get_connection")
-    def test_get_conn_basic_auth(self, mock_get_connection, mock_connect, mock_basic_auth):
+    def test_get_conn_basic_auth(
+        self, mock_get_connection, mock_connect, mock_basic_auth
+    ):
         mock_get_connection.return_value = Connection(
             login="login", password="password", host="host", schema="hive"
         )
@@ -89,7 +91,8 @@ class TestPrestoHookConn:
             extra=json.dumps({"auth": "kerberos"}),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
+            AirflowException,
+            match=re.escape("Kerberos authorization doesn't support password."),
         ):
             PrestoHook().get_conn()
 
@@ -170,7 +173,9 @@ class TestPrestoHookConn:
         )
         http_headers = {"X-Presto-Client-Info": client}
 
-        mocked_generate_airflow_presto_client_info_header.return_value = http_headers["X-Presto-Client-Info"]
+        mocked_generate_airflow_presto_client_info_header.return_value = http_headers[
+            "X-Presto-Client-Info"
+        ]
 
         conn = PrestoHook().get_conn()
         mock_connect.assert_called_once_with(
@@ -199,12 +204,19 @@ class TestPrestoHookConn:
         ],
     )
     def test_get_conn_verify(self, current_verify, expected_verify):
-        patcher_connect = patch("airflow.providers.presto.hooks.presto.prestodb.dbapi.connect")
-        patcher_get_connections = patch("airflow.providers.presto.hooks.presto.PrestoHook.get_connection")
+        patcher_connect = patch(
+            "airflow.providers.presto.hooks.presto.prestodb.dbapi.connect"
+        )
+        patcher_get_connections = patch(
+            "airflow.providers.presto.hooks.presto.PrestoHook.get_connection"
+        )
 
         with patcher_connect as mock_connect, patcher_get_connections as mock_get_connection:
             mock_get_connection.return_value = Connection(
-                login="login", host="host", schema="hive", extra=json.dumps({"verify": current_verify})
+                login="login",
+                host="host",
+                schema="hive",
+                extra=json.dumps({"verify": current_verify}),
             )
             mock_verify = mock.PropertyMock()
             type(mock_connect.return_value._http_session).verify = mock_verify

@@ -61,7 +61,9 @@ class TestSnowflakeOperator:
         dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
-    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
+    @mock.patch(
+        "airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook"
+    )
     def test_snowflake_operator(self, mock_get_db_hook):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
@@ -69,7 +71,11 @@ class TestSnowflakeOperator:
         );
         """
         operator = SQLExecuteQueryOperator(
-            task_id="basic_snowflake", sql=sql, dag=self.dag, do_xcom_push=False, conn_id="snowflake_default"
+            task_id="basic_snowflake",
+            sql=sql,
+            dag=self.dag,
+            do_xcom_push=False,
+            conn_id="snowflake_default",
         )
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -112,8 +118,14 @@ class TestSnowflakeOperatorForParams:
     "operator_class, kwargs",
     [
         (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
-        (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
-        (SnowflakeIntervalCheckOperator, dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5})),
+        (
+            SnowflakeValueCheckOperator,
+            dict(sql="Select * from test_table", pass_value=95),
+        ),
+        (
+            SnowflakeIntervalCheckOperator,
+            dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5}),
+        ),
     ],
 )
 class TestSnowflakeCheckOperators:
@@ -124,7 +136,9 @@ class TestSnowflakeCheckOperators:
         operator_class,
         kwargs,
     ):
-        operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
+        operator = operator_class(
+            task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs
+        )
         operator.get_db_hook()
         mock_get_db_hook.assert_called_once()
 
@@ -133,8 +147,14 @@ class TestSnowflakeCheckOperators:
     "operator_class, kwargs",
     [
         (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
-        (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
-        (SnowflakeIntervalCheckOperator, dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5})),
+        (
+            SnowflakeValueCheckOperator,
+            dict(sql="Select * from test_table", pass_value=95),
+        ),
+        (
+            SnowflakeIntervalCheckOperator,
+            dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5}),
+        ),
     ],
 )
 class TestSnowflakeCheckOperatorsForParams:
@@ -235,7 +255,10 @@ class TestSnowflakeSqlApiOperator:
             do_xcom_push=False,
         )
         mock_execute_query.return_value = ["uuid1", "uuid2"]
-        mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "success"}]
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "success"},
+            {"status": "success"},
+        ]
         operator.execute(context=None)
 
     def test_snowflake_sql_api_to_fails_when_one_query_fails(
@@ -251,12 +274,19 @@ class TestSnowflakeSqlApiOperator:
             do_xcom_push=False,
         )
         mock_execute_query.return_value = ["uuid1", "uuid2"]
-        mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
+        mock_get_sql_api_query_status.side_effect = [
+            {"status": "error"},
+            {"status": "success"},
+        ]
         with pytest.raises(AirflowException):
             operator.execute(context=None)
 
-    @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    @pytest.mark.parametrize(
+        "mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)]
+    )
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query"
+    )
     def test_snowflake_sql_api_execute_operator_async(
         self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status
     ):
@@ -295,7 +325,11 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute_complete(
                 context=None,
-                event={"status": "error", "message": "Test failure message", "type": "FAILED_WITH_ERROR"},
+                event={
+                    "status": "error",
+                    "message": "Test failure message",
+                    "type": "FAILED_WITH_ERROR",
+                },
             )
 
     @pytest.mark.parametrize(
@@ -305,7 +339,9 @@ class TestSnowflakeSqlApiOperator:
             ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
         ],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output"
+    )
     def test_snowflake_sql_api_execute_complete(self, mock_conn, mock_event):
         """Tests execute_complete assert with successful message"""
 
@@ -321,7 +357,9 @@ class TestSnowflakeSqlApiOperator:
             operator.execute_complete(context=None, event=mock_event)
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
 
-    @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
+    @mock.patch(
+        "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer"
+    )
     def test_snowflake_sql_api_execute_operator_failed_before_defer(
         self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
     ):
@@ -341,7 +379,9 @@ class TestSnowflakeSqlApiOperator:
             operator.execute(create_context(operator))
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
+    @mock.patch(
+        "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer"
+    )
     def test_snowflake_sql_api_execute_operator_succeeded_before_defer(
         self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
     ):
@@ -361,7 +401,9 @@ class TestSnowflakeSqlApiOperator:
 
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
+    @mock.patch(
+        "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer"
+    )
     def test_snowflake_sql_api_execute_operator_running_before_defer(
         self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
     ):

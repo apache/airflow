@@ -22,7 +22,9 @@ import pytest
 import yaml
 from kubernetes.utils import FailToCreateError
 
-from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
+from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import (
+    k8s_resource_iterator,
+)
 
 TEST_VALID_LIST_RESOURCE_YAML = """
 apiVersion: v1
@@ -47,7 +49,8 @@ def test_k8s_resource_iterator():
 
     with pytest.raises(FailToCreateError) as exc_info:
         k8s_resource_iterator(
-            test_callback_failing, resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML)
+            test_callback_failing,
+            resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML),
         )
     assert (
         str(exc_info.value)
@@ -57,4 +60,6 @@ def test_k8s_resource_iterator():
     def callback_success(yml_doc: dict) -> None:
         return
 
-    k8s_resource_iterator(callback_success, resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML))
+    k8s_resource_iterator(
+        callback_success, resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML)
+    )

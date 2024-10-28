@@ -35,7 +35,11 @@ class RdsBaseSensor(BaseSensorOperator):
     ui_fgcolor = "#ffffff"
 
     def __init__(
-        self, *args, aws_conn_id: str | None = "aws_conn_id", hook_params: dict | None = None, **kwargs
+        self,
+        *args,
+        aws_conn_id: str | None = "aws_conn_id",
+        hook_params: dict | None = None,
+        **kwargs,
     ):
         self.hook_params = hook_params or {}
         self.aws_conn_id = aws_conn_id
@@ -81,13 +85,17 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
 
     def poke(self, context: Context):
         self.log.info(
-            "Poking for statuses : %s\nfor snapshot %s", self.target_statuses, self.db_snapshot_identifier
+            "Poking for statuses : %s\nfor snapshot %s",
+            self.target_statuses,
+            self.db_snapshot_identifier,
         )
         try:
             if self.db_type.value == "instance":
                 state = self.hook.get_db_snapshot_state(self.db_snapshot_identifier)
             else:
-                state = self.hook.get_db_cluster_snapshot_state(self.db_snapshot_identifier)
+                state = self.hook.get_db_cluster_snapshot_state(
+                    self.db_snapshot_identifier
+                )
         except AirflowNotFoundException:
             return False
         return state in self.target_statuses
@@ -131,7 +139,9 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
 
     def poke(self, context: Context):
         self.log.info(
-            "Poking for statuses : %s\nfor export task %s", self.target_statuses, self.export_task_identifier
+            "Poking for statuses : %s\nfor export task %s",
+            self.target_statuses,
+            self.export_task_identifier,
         )
         try:
             state = self.hook.get_export_task_state(self.export_task_identifier)
@@ -176,7 +186,9 @@ class RdsDbSensor(RdsBaseSensor):
     def poke(self, context: Context):
         db_type = RdsDbType(self.db_type)
         self.log.info(
-            "Poking for statuses : %s\nfor db instance %s", self.target_statuses, self.db_identifier
+            "Poking for statuses : %s\nfor db instance %s",
+            self.target_statuses,
+            self.db_identifier,
         )
         try:
             if db_type == RdsDbType.INSTANCE:

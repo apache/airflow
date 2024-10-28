@@ -114,7 +114,9 @@ class TestEcsBaseOperator(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.aws_conn_id == (
+            aws_conn_id if aws_conn_id is not NOTSET else "aws_default"
+        )
         assert op.region_name == (region_name if region_name is not NOTSET else None)
 
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
@@ -125,10 +127,14 @@ class TestEcsBaseOperator(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        assert op.hook.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.hook.aws_conn_id == (
+            aws_conn_id if aws_conn_id is not NOTSET else "aws_default"
+        )
         assert op.hook.region_name == (region_name if region_name is not NOTSET else None)
 
-        with mock.patch.object(EcsBaseOperator, "hook", new_callable=mock.PropertyMock) as m:
+        with mock.patch.object(
+            EcsBaseOperator, "hook", new_callable=mock.PropertyMock
+        ) as m:
             mocked_hook = mock.MagicMock(name="MockHook")
             mocked_client = mock.MagicMock(name="Mocklient")
             mocked_hook.conn = mocked_client
@@ -151,7 +157,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             ],
             "placement_strategy": [{"field": "memory", "type": "binpack"}],
             "network_configuration": {
-                "awsvpcConfiguration": {"securityGroups": ["sg-123abc"], "subnets": ["subnet-123456ab"]}
+                "awsvpcConfiguration": {
+                    "securityGroups": ["sg-123abc"],
+                    "subnets": ["subnet-123456ab"],
+                }
             },
             "propagate_tags": "TASK_DEFINITION",
         }
@@ -220,7 +229,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                 None,
                 None,
                 {"testTagKey": "testTagValue"},
-                {"launchType": "EC2", "tags": [{"key": "testTagKey", "value": "testTagValue"}]},
+                {
+                    "launchType": "EC2",
+                    "tags": [{"key": "testTagKey", "value": "testTagValue"}],
+                },
             ],
             [
                 "",
@@ -297,10 +309,15 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition="t",
             group="group",
-            placementConstraints=[{"expression": "attribute:ecs.instance-type =~ t2.*", "type": "memberOf"}],
+            placementConstraints=[
+                {"expression": "attribute:ecs.instance-type =~ t2.*", "type": "memberOf"}
+            ],
             placementStrategy=[{"field": "memory", "type": "binpack"}],
             networkConfiguration={
-                "awsvpcConfiguration": {"securityGroups": ["sg-123abc"], "subnets": ["subnet-123456ab"]}
+                "awsvpcConfiguration": {
+                    "securityGroups": ["sg-123abc"],
+                    "subnets": ["subnet-123456ab"],
+                }
             },
             propagateTags="TASK_DEFINITION",
             **expected_args,
@@ -311,7 +328,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
     def test_task_id_parsing(self):
-        id = EcsRunTaskOperator._get_ecs_task_id(f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}")
+        id = EcsRunTaskOperator._get_ecs_task_id(
+            f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        )
         assert id == TASK_ID
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -330,7 +349,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition="t",
             group="group",
-            placementConstraints=[{"expression": "attribute:ecs.instance-type =~ t2.*", "type": "memberOf"}],
+            placementConstraints=[
+                {"expression": "attribute:ecs.instance-type =~ t2.*", "type": "memberOf"}
+            ],
             placementStrategy=[{"field": "memory", "type": "binpack"}],
             networkConfiguration={
                 "awsvpcConfiguration": {
@@ -373,13 +394,17 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_check_success_tasks_raises_cloudwatch_logs(self, log_fetcher_mock, client_mock):
+    def test_check_success_tasks_raises_cloudwatch_logs(
+        self, log_fetcher_mock, client_mock
+    ):
         self.ecs.arn = "arn"
         self.ecs.task_log_fetcher = log_fetcher_mock
 
         log_fetcher_mock.get_last_log_messages.return_value = ["1", "2", "3", "4", "5"]
         client_mock.describe_tasks.return_value = {
-            "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}]
+            "tasks": [
+                {"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}
+            ]
         }
 
         with pytest.raises(Exception) as ctx:
@@ -392,19 +417,26 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_check_success_tasks_raises_cloudwatch_logs_empty(self, log_fetcher_mock, client_mock):
+    def test_check_success_tasks_raises_cloudwatch_logs_empty(
+        self, log_fetcher_mock, client_mock
+    ):
         self.ecs.arn = "arn"
         self.ecs.task_log_fetcher = log_fetcher_mock
 
         log_fetcher_mock.get_last_log_messages.return_value = []
         client_mock.describe_tasks.return_value = {
-            "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}]
+            "tasks": [
+                {"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}
+            ]
         }
 
         with pytest.raises(Exception) as ctx:
             self.ecs._check_success_task()
 
-        assert str(ctx.value) == "This task is not in success state - last 10 logs from Cloudwatch:\n"
+        assert (
+            str(ctx.value)
+            == "This task is not in success state - last 10 logs from Cloudwatch:\n"
+        )
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -412,7 +444,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.arn = "arn"
 
         client_mock.describe_tasks.return_value = {
-            "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}]
+            "tasks": [
+                {"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}
+            ]
         }
 
         with pytest.raises(Exception) as ctx:
@@ -447,7 +481,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
     def test_check_success_tasks_raises_pending(self, client_mock):
         self.ecs.arn = "arn"
         client_mock.describe_tasks.return_value = {
-            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "PENDING"}]}]
+            "tasks": [
+                {"containers": [{"name": "container-name", "lastStatus": "PENDING"}]}
+            ]
         }
         with pytest.raises(Exception) as ctx:
             self.ecs._check_success_task()
@@ -499,7 +535,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         with pytest.raises(AirflowException) as ctx:
             self.ecs._check_success_task()
 
-        assert "The task was stopped because the host instance terminated:" in str(ctx.value)
+        assert "The task was stopped because the host instance terminated:" in str(
+            ctx.value
+        )
         assert "Host EC2 (" in str(ctx.value)
         assert ") terminated" in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
@@ -508,7 +546,13 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
     def test_check_success_task_not_raises(self, client_mock):
         self.ecs.arn = "arn"
         client_mock.describe_tasks.return_value = {
-            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 0}]}]
+            "tasks": [
+                {
+                    "containers": [
+                        {"name": "container-name", "lastStatus": "STOPPED", "exitCode": 0}
+                    ]
+                }
+            ]
         }
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
@@ -548,7 +592,16 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
     @mock.patch.object(EcsRunTaskOperator, "_start_task")
     @mock.patch.object(EcsBaseOperator, "client")
     def test_reattach_successful(
-        self, client_mock, start_mock, check_mock, wait_mock, uuid_mock, launch_type, tags, arns, expected_arn
+        self,
+        client_mock,
+        start_mock,
+        check_mock,
+        wait_mock,
+        uuid_mock,
+        launch_type,
+        tags,
+        arns,
+        expected_arn,
     ):
         """Test reattach on first running Task ARN."""
         mock_ti = mock.MagicMock(name="MockedTaskInstance")
@@ -656,7 +709,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.execute(None) is None
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch.object(AwsTaskLogFetcher, "get_last_log_message", return_value="Log output")
+    @mock.patch.object(
+        AwsTaskLogFetcher, "get_last_log_message", return_value="Log output"
+    )
     def test_execute_xcom_disabled(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
@@ -672,7 +727,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             self.ecs.execute(None)
 
         assert isinstance(deferred.value.trigger, TaskDoneTrigger)
-        assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        assert (
+            deferred.value.trigger.task_arn
+            == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        )
 
     @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
     def test_execute_complete(self, client_mock):
@@ -682,12 +740,16 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.execute_complete(None, event)
 
         # task gets described to assert its success
-        client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])
+        client_mock().describe_tasks.assert_called_once_with(
+            cluster="test_cluster", tasks=["my_arn"]
+        )
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
-    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
+    def test_execute_with_waiter(
+        self, patch_hook_waiters, waiter_delay, waiter_max_attempts
+    ):
         mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
         patch_hook_waiters.return_value = mocked_waiters
         op = EcsCreateClusterOperator(
@@ -707,7 +769,9 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
             expected_waiter_config["Delay"] = waiter_delay
         if waiter_max_attempts:
             expected_waiter_config["MaxAttempts"] = waiter_max_attempts
-        mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
+        mocked_waiters.wait.assert_called_once_with(
+            clusters=mock.ANY, WaiterConfig=expected_waiter_config
+        )
         assert result is not None
 
     @mock.patch.object(EcsCreateClusterOperator, "client")
@@ -731,16 +795,22 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
 
     def test_execute_immediate_create(self, patch_hook_waiters):
         """Test if cluster created during initial request."""
-        op = EcsCreateClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=True)
+        op = EcsCreateClusterOperator(
+            task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=True
+        )
         with mock.patch.object(self.client, "create_cluster") as mock_client_method:
-            mock_client_method.return_value = {"cluster": {"status": "ACTIVE", "foo": "bar"}}
+            mock_client_method.return_value = {
+                "cluster": {"status": "ACTIVE", "foo": "bar"}
+            }
             result = op.execute({})
             mock_client_method.assert_called_once_with(clusterName=CLUSTER_NAME)
         patch_hook_waiters.assert_not_called()
         assert result == {"status": "ACTIVE", "foo": "bar"}
 
     def test_execute_without_waiter(self, patch_hook_waiters):
-        op = EcsCreateClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=False)
+        op = EcsCreateClusterOperator(
+            task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=False
+        )
         with mock.patch.object(self.client, "create_cluster") as mock_client_method:
             result = op.execute({})
             mock_client_method.assert_called_once_with(clusterName=CLUSTER_NAME)
@@ -761,7 +831,9 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
 
 class TestEcsDeleteClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
-    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
+    def test_execute_with_waiter(
+        self, patch_hook_waiters, waiter_delay, waiter_max_attempts
+    ):
         mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
         patch_hook_waiters.return_value = mocked_waiters
         op = EcsDeleteClusterOperator(
@@ -782,7 +854,9 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
             expected_waiter_config["Delay"] = waiter_delay
         if waiter_max_attempts:
             expected_waiter_config["MaxAttempts"] = waiter_max_attempts
-        mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
+        mocked_waiters.wait.assert_called_once_with(
+            clusters=mock.ANY, WaiterConfig=expected_waiter_config
+        )
         assert result is not None
 
     @mock.patch.object(EcsDeleteClusterOperator, "client")
@@ -806,16 +880,22 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
 
     def test_execute_immediate_delete(self, patch_hook_waiters):
         """Test if cluster deleted during initial request."""
-        op = EcsDeleteClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=True)
+        op = EcsDeleteClusterOperator(
+            task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=True
+        )
         with mock.patch.object(self.client, "delete_cluster") as mock_client_method:
-            mock_client_method.return_value = {"cluster": {"status": "INACTIVE", "foo": "bar"}}
+            mock_client_method.return_value = {
+                "cluster": {"status": "INACTIVE", "foo": "bar"}
+            }
             result = op.execute({})
             mock_client_method.assert_called_once_with(cluster=CLUSTER_NAME)
         patch_hook_waiters.assert_not_called()
         assert result == {"status": "INACTIVE", "foo": "bar"}
 
     def test_execute_without_waiter(self, patch_hook_waiters):
-        op = EcsDeleteClusterOperator(task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=False)
+        op = EcsDeleteClusterOperator(
+            task_id="task", cluster_name=CLUSTER_NAME, wait_for_completion=False
+        )
         with mock.patch.object(self.client, "delete_cluster") as mock_client_method:
             result = op.execute({})
             mock_client_method.assert_called_once_with(cluster=CLUSTER_NAME)
@@ -837,17 +917,25 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
 class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
     def test_execute_immediate_delete(self):
         """Test if task definition deleted during initial request."""
-        op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
-        with mock.patch.object(self.client, "deregister_task_definition") as mock_client_method:
+        op = EcsDeregisterTaskDefinitionOperator(
+            task_id="task", task_definition=TASK_DEFINITION_NAME
+        )
+        with mock.patch.object(
+            self.client, "deregister_task_definition"
+        ) as mock_client_method:
             mock_client_method.return_value = {
                 "taskDefinition": {"status": "INACTIVE", "taskDefinitionArn": "foo-bar"}
             }
             result = op.execute({})
-            mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
+            mock_client_method.assert_called_once_with(
+                taskDefinition=TASK_DEFINITION_NAME
+            )
         assert result == "foo-bar"
 
     def test_template_fields(self):
-        op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
+        op = EcsDeregisterTaskDefinitionOperator(
+            task_id="task", task_definition=TASK_DEFINITION_NAME
+        )
 
         validate_template_fields(op)
 
@@ -873,14 +961,18 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
         }
         op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
 
-        with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
+        with mock.patch.object(
+            self.client, "register_task_definition"
+        ) as mock_client_method:
             mock_client_method.return_value = {
                 "taskDefinition": {"status": "ACTIVE", "taskDefinitionArn": "foo-bar"}
             }
             result = op.execute({"ti": mock_ti})
             mock_client_method.assert_called_once_with(**expected_task_definition_config)
 
-        mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value="foo-bar")
+        mock_ti.xcom_push.assert_called_once_with(
+            key="task_definition_arn", value="foo-bar"
+        )
         assert result == "foo-bar"
 
     def test_template_fields(self):

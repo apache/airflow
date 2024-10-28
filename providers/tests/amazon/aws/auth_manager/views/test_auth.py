@@ -73,7 +73,9 @@ def aws_app():
         ):
             mock_is_policy_store_schema_up_to_date.return_value = True
             mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
-            return application.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})
+            return application.create_app(
+                testing=True, config={"WTF_CSRF_ENABLED": False}
+            )
 
 
 @pytest.mark.db_test
@@ -82,13 +84,17 @@ class TestAwsAuthManagerAuthenticationViews:
         with aws_app.test_client() as client:
             response = client.get("/login")
             assert response.status_code == 302
-            assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/assertion/")
+            assert response.location.startswith(
+                "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/"
+            )
 
     def test_logout_redirect_to_identity_center(self, aws_app):
         with aws_app.test_client() as client:
             response = client.post("/logout")
             assert response.status_code == 302
-            assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/logout/")
+            assert response.location.startswith(
+                "https://portal.sso.us-east-1.amazonaws.com/saml/logout/"
+            )
 
     def test_login_metadata_return_xml_file(self, aws_app):
         with aws_app.test_client() as client:

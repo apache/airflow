@@ -98,7 +98,9 @@ def test_exists_message():
 
 
 def test_empty_copy_profile_error_message():
-    expected_msg = "Please provide a valid name for the source and target compute profile."
+    expected_msg = (
+        "Please provide a valid name for the source and target compute profile."
+    )
     assert Constants.CC_OPR_EMPTY_COPY_PROFILE_ERROR_MSG == expected_msg
 
 

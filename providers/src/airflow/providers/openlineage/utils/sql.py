@@ -62,7 +62,9 @@ class TableSchema:
     database: str | None
     fields: list[schema_dataset.SchemaDatasetFacetFields]
 
-    def to_dataset(self, namespace: str, database: str | None = None, schema: str | None = None) -> Dataset:
+    def to_dataset(
+        self, namespace: str, database: str | None = None, schema: str | None = None
+    ) -> Dataset:
         # Prefix the table name with database and schema name using
         # the format: {database_name}.{table_schema}.{table_name}.
         name = ".".join(
@@ -73,7 +75,9 @@ class TableSchema:
         return Dataset(
             namespace=namespace,
             name=name,
-            facets={"schema": schema_dataset.SchemaDatasetFacet(fields=self.fields)} if self.fields else {},
+            facets={"schema": schema_dataset.SchemaDatasetFacet(fields=self.fields)}
+            if self.fields
+            else {},
         )
 
 
@@ -99,12 +103,18 @@ def get_table_schemas(
     with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
         if in_query:
             cursor.execute(in_query)
-            in_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
+            in_datasets = [
+                x.to_dataset(namespace, database, schema)
+                for x in parse_query_result(cursor)
+            ]
         else:
             in_datasets = []
         if out_query:
             cursor.execute(out_query)
-            out_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
+            out_datasets = [
+                x.to_dataset(namespace, database, schema)
+                for x in parse_query_result(cursor)
+            ]
         else:
             out_datasets = []
     log.debug("Got table schema query result from database.")
@@ -134,7 +144,9 @@ def parse_query_result(cursor) -> list[TableSchema]:
             table_database = None
 
         # Attempt to get table schema
-        table_key = ".".join(filter(None, [table_database, table_schema_name, table_name]))
+        table_key = ".".join(
+            filter(None, [table_database, table_schema_name, table_name])
+        )
 
         schemas[table_key] = TableSchema(
             table=table_name, schema=table_schema_name, database=table_database, fields=[]
@@ -197,9 +209,13 @@ def create_information_schema_query(
                 information_schema_table,
                 uppercase_names=uppercase_names,
             )
-            select_statements.append(information_schema_table.select().filter(filter_clauses))
+            select_statements.append(
+                information_schema_table.select().filter(filter_clauses)
+            )
     return str(
-        union_all(*select_statements).compile(sqlalchemy_engine, compile_kwargs={"literal_binds": True})
+        union_all(*select_statements).compile(
+            sqlalchemy_engine, compile_kwargs={"literal_binds": True}
+        )
     )
 
 
@@ -220,7 +236,9 @@ def create_filter_clauses(
     table_schema_column_name = information_schema_table.columns[ColumnIndex.SCHEMA].name
     table_name_column_name = information_schema_table.columns[ColumnIndex.TABLE_NAME].name
     try:
-        table_database_column_name = information_schema_table.columns[ColumnIndex.DATABASE].name
+        table_database_column_name = information_schema_table.columns[
+            ColumnIndex.DATABASE
+        ].name
     except IndexError:
         table_database_column_name = ""
 
@@ -234,13 +252,15 @@ def create_filter_clauses(
             if schema:
                 schema = schema.upper() if uppercase_names else schema
                 filter_clause = and_(
-                    information_schema_table.c[table_schema_column_name] == schema, filter_clause
+                    information_schema_table.c[table_schema_column_name] == schema,
+                    filter_clause,
                 )
             schema_level_clauses.append(filter_clause)
         if db and table_database_column_name:
             db = db.upper() if uppercase_names else db
             filter_clause = and_(
-                information_schema_table.c[table_database_column_name] == db, or_(*schema_level_clauses)
+                information_schema_table.c[table_database_column_name] == db,
+                or_(*schema_level_clauses),
             )
             filter_clauses.append(filter_clause)
         else:

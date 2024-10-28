@@ -47,7 +47,12 @@ TEST_ALERT_POLICY_1 = {
         {
             "condition_threshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignment_eriod": {"seconds": 60}, "per_series_aligner": "ALIGN_RATE"}],
+                "aggregations": [
+                    {
+                        "alignment_eriod": {"seconds": 60},
+                        "per_series_aligner": "ALIGN_RATE",
+                    }
+                ],
             },
             "display_name": "Condition display",
             "name": "projects/sd-project/alertPolicies/123/conditions/456",
@@ -64,7 +69,12 @@ TEST_ALERT_POLICY_2 = {
         {
             "condition_threshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignment_period": {"seconds": 60}, "per_series_aligner": "ALIGN_RATE"}],
+                "aggregations": [
+                    {
+                        "alignment_period": {"seconds": 60},
+                        "per_series_aligner": "ALIGN_RATE",
+                    }
+                ],
             },
             "display_name": "Condition display",
             "name": "projects/sd-project/alertPolicies/456/conditions/789",
@@ -92,8 +102,12 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 class TestStackdriverListAlertPoliciesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
-        operator = StackdriverListAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        mock_hook.return_value.list_alert_policies.return_value = [AlertPolicy(name="test-name")]
+        operator = StackdriverListAlertPoliciesOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER
+        )
+        mock_hook.return_value.list_alert_policies.return_value = [
+            AlertPolicy(name="test-name")
+        ]
         result = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list_alert_policies.assert_called_once_with(
             project_id=None,
@@ -121,7 +135,9 @@ class TestStackdriverListAlertPoliciesOperator:
 class TestStackdriverEnableAlertPoliciesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
-        operator = StackdriverEnableAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
+        operator = StackdriverEnableAlertPoliciesOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER
+        )
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.enable_alert_policies.assert_called_once_with(
             project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
@@ -131,7 +147,9 @@ class TestStackdriverEnableAlertPoliciesOperator:
 class TestStackdriverDisableAlertPoliciesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
-        operator = StackdriverDisableAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
+        operator = StackdriverDisableAlertPoliciesOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER
+        )
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.disable_alert_policies.assert_called_once_with(
             project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
@@ -142,7 +160,8 @@ class TestStackdriverUpsertAlertsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
         operator = StackdriverUpsertAlertOperator(
-            task_id=TEST_TASK_ID, alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]})
+            task_id=TEST_TASK_ID,
+            alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]}),
         )
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.upsert_alert.assert_called_once_with(
@@ -170,7 +189,9 @@ class TestStackdriverDeleteAlertOperator:
 class TestStackdriverListNotificationChannelsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
-        operator = StackdriverListNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
+        operator = StackdriverListNotificationChannelsOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER
+        )
         mock_hook.return_value.list_notification_channels.return_value = [
             NotificationChannel(name="test-123")
         ]
@@ -218,7 +239,9 @@ class TestStackdriverListNotificationChannelsOperator:
 class TestStackdriverEnableNotificationChannelsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
-        operator = StackdriverEnableNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
+        operator = StackdriverEnableNotificationChannelsOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER
+        )
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.enable_notification_channels.assert_called_once_with(
             project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
@@ -228,7 +251,9 @@ class TestStackdriverEnableNotificationChannelsOperator:
 class TestStackdriverDisableNotificationChannelsOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
     def test_execute(self, mock_hook):
-        operator = StackdriverDisableNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
+        operator = StackdriverDisableNotificationChannelsOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER
+        )
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.disable_notification_channels.assert_called_once_with(
             project_id=None, filter_=TEST_FILTER, retry=DEFAULT, timeout=None, metadata=()
@@ -240,11 +265,15 @@ class TestStackdriverUpsertChannelOperator:
     def test_execute(self, mock_hook):
         operator = StackdriverUpsertNotificationChannelOperator(
             task_id=TEST_TASK_ID,
-            channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
+            channels=json.dumps(
+                {"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}
+            ),
         )
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.upsert_channel.assert_called_once_with(
-            channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
+            channels=json.dumps(
+                {"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}
+            ),
             project_id=None,
             retry=DEFAULT,
             timeout=None,

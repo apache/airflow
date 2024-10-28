@@ -39,7 +39,9 @@ class NotInRetryPeriodDep(BaseTIDep):
             return
 
         if ti.state != TaskInstanceState.UP_FOR_RETRY:
-            yield self._passing_status(reason="The task instance was not marked for retrying.")
+            yield self._passing_status(
+                reason="The task instance was not marked for retrying."
+            )
             return
 
         # Calculate the date first so that it is always smaller than the timestamp used by

@@ -57,13 +57,17 @@ def check_system_test_entry_hidden(provider_index: Path):
     System Tests <_api/tests/system/{provider_path}/index>
 """
     index_text = provider_index.read_text()
-    system_tests_path = AIRFLOW_SOURCES_ROOT / "providers" / "tests" / "system" / provider_path
+    system_tests_path = (
+        AIRFLOW_SOURCES_ROOT / "providers" / "tests" / "system" / provider_path
+    )
     index_text_manual = index_text.split(
         ".. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!"
     )[0]
     if system_tests_path.exists():
         if expected_text not in index_text_manual:
-            console.print(f"[red]The {provider_index} does not contain System Tests TOC.\n")
+            console.print(
+                f"[red]The {provider_index} does not contain System Tests TOC.\n"
+            )
             console.print(
                 f"[yellow]Make sure to add those lines to {provider_index} BEFORE (!) the line "
                 f"starting with  '.. THE REMINDER OF THE FILE':\n"
@@ -73,7 +77,9 @@ def check_system_test_entry_hidden(provider_index: Path):
         else:
             console.print(f"[green]All ok. The {provider_index} contains hidden index.\n")
     else:
-        console.print(f"[yellow]All ok. The {provider_index} does not contain system tests.\n")
+        console.print(
+            f"[yellow]All ok. The {provider_index} does not contain system tests.\n"
+        )
 
 
 if __name__ == "__main__":

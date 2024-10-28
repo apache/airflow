@@ -85,9 +85,7 @@ class TestMSGraphTrigger(Base):
         response = mock_response(200, content)
 
         with self.patch_hook_and_request_adapter(response):
-            url = (
-                "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
-            )
+            url = "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
             trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
             actual = next(iter(self.run_trigger(trigger)))
 
@@ -108,7 +106,10 @@ class TestMSGraphTrigger(Base):
             actual = trigger.serialize()
 
             assert isinstance(actual, tuple)
-            assert actual[0] == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+            assert (
+                actual[0]
+                == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+            )
             assert actual[1] == {
                 "url": "https://graph.microsoft.com/v1.0/me/drive/items",
                 "path_parameters": None,
@@ -126,7 +127,9 @@ class TestMSGraphTrigger(Base):
             }
 
     def test_template_fields(self):
-        trigger = MSGraphTrigger("users/delta", response_type="bytes", conn_id="msgraph_api")
+        trigger = MSGraphTrigger(
+            "users/delta", response_type="bytes", conn_id="msgraph_api"
+        )
 
         for template_field in MSGraphTrigger.template_fields:
             getattr(trigger, template_field)

@@ -40,7 +40,9 @@ def send_email(
 ) -> None:
     """Email backend for SES."""
     if from_email is None:
-        raise RuntimeError("The `from_email' configuration has to be set for the SES emailer.")
+        raise RuntimeError(
+            "The `from_email' configuration has to be set for the SES emailer."
+        )
     hook = SesHook(aws_conn_id=conn_id)
     hook.send_email(
         mail_from=from_email,

@@ -58,13 +58,18 @@ async def generate_messages(count: int) -> list[ReceivedMessage]:
 
 
 class TestPubsubPullTrigger:
-    def test_async_pubsub_pull_trigger_serialization_should_execute_successfully(self, trigger):
+    def test_async_pubsub_pull_trigger_serialization_should_execute_successfully(
+        self, trigger
+    ):
         """
         Asserts that the PubsubPullTrigger correctly serializes its arguments
         and classpath.
         """
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger"
+        )
         assert kwargs == {
             "project_id": PROJECT_ID,
             "subscription": "subscription",

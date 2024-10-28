@@ -58,7 +58,9 @@ class WebHDFSHook(BaseHook):
     default_conn_name = "webhdfs_default"
     hook_name = "Apache WebHDFS"
 
-    def __init__(self, webhdfs_conn_id: str = default_conn_name, proxy_user: str | None = None):
+    def __init__(
+        self, webhdfs_conn_id: str = default_conn_name, proxy_user: str | None = None
+    ):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
@@ -97,20 +99,34 @@ class WebHDFSHook(BaseHook):
                     host_socket.close()
                     return client
                 else:
-                    self.log.warning("Could not connect to %s:%s", namenode, connection.port)
+                    self.log.warning(
+                        "Could not connect to %s:%s", namenode, connection.port
+                    )
             except HdfsError as hdfs_error:
-                self.log.info("Read operation on namenode %s failed with error: %s", namenode, hdfs_error)
+                self.log.info(
+                    "Read operation on namenode %s failed with error: %s",
+                    namenode,
+                    hdfs_error,
+                )
         return None
 
     def _get_client(
-        self, namenode: str, port: int, login: str, password: str | None, schema: str, extra_dejson: dict
+        self,
+        namenode: str,
+        port: int,
+        login: str,
+        password: str | None,
+        schema: str,
+        extra_dejson: dict,
     ) -> Any:
         connection_str = f"http://{namenode}"
         session = requests.Session()
         if password is not None:
             session.auth = (login, password)
 
-        if extra_dejson.get("use_ssl", "False") == "True" or extra_dejson.get("use_ssl", False):
+        if extra_dejson.get("use_ssl", "False") == "True" or extra_dejson.get(
+            "use_ssl", False
+        ):
             connection_str = f"https://{namenode}"
             session.verify = extra_dejson.get("verify", False)
 
@@ -138,7 +154,12 @@ class WebHDFSHook(BaseHook):
         return bool(status)
 
     def load_file(
-        self, source: str, destination: str, overwrite: bool = True, parallelism: int = 1, **kwargs: Any
+        self,
+        source: str,
+        destination: str,
+        overwrite: bool = True,
+        parallelism: int = 1,
+        **kwargs: Any,
     ) -> None:
         """
         Upload a file to HDFS.
@@ -157,7 +178,11 @@ class WebHDFSHook(BaseHook):
         conn = self.get_conn()
 
         conn.upload(
-            hdfs_path=destination, local_path=source, overwrite=overwrite, n_threads=parallelism, **kwargs
+            hdfs_path=destination,
+            local_path=source,
+            overwrite=overwrite,
+            n_threads=parallelism,
+            **kwargs,
         )
         self.log.debug("Uploaded file %s to %s", source, destination)
 

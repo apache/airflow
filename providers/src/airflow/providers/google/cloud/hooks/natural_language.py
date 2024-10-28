@@ -80,7 +80,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :return: Cloud Natural Language service object
         """
         if not self._conn:
-            self._conn = LanguageServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._conn = LanguageServiceClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._conn
 
     @GoogleBaseHook.quota_retry()
@@ -111,7 +113,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         if isinstance(document, dict):
             document = Document(document)
         return client.analyze_entities(
-            document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
+            document=document,
+            encoding_type=encoding_type,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.quota_retry()
@@ -140,7 +146,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         if isinstance(document, dict):
             document = Document(document)
         return client.analyze_entity_sentiment(
-            document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
+            document=document,
+            encoding_type=encoding_type,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.quota_retry()
@@ -169,7 +179,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         if isinstance(document, dict):
             document = Document(document)
         return client.analyze_sentiment(
-            document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
+            document=document,
+            encoding_type=encoding_type,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.quota_retry()
@@ -201,7 +215,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         if isinstance(document, dict):
             document = Document(document)
         return client.analyze_syntax(
-            document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
+            document=document,
+            encoding_type=encoding_type,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.quota_retry()
@@ -267,4 +285,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         if isinstance(document, dict):
             document = Document(document)
-        return client.classify_text(document=document, retry=retry, timeout=timeout, metadata=metadata)
+        return client.classify_text(
+            document=document, retry=retry, timeout=timeout, metadata=metadata
+        )

@@ -44,7 +44,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "stackdriver"
 
 ALERT_1_NAME = f"alert_{ENV_ID}_1"
@@ -73,7 +75,11 @@ TEST_ALERT_POLICY_1 = {
                         "alignment_period": {"seconds": 60},
                         "per_series_aligner": "ALIGN_MEAN",
                         "cross_series_reducer": "REDUCE_MEAN",
-                        "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
+                        "group_by_fields": [
+                            "project",
+                            "resource.label.instance_id",
+                            "resource.label.zone",
+                        ],
                     }
                 ],
             },
@@ -103,7 +109,11 @@ TEST_ALERT_POLICY_2 = {
                         "alignment_period": {"seconds": 60},
                         "per_series_aligner": "ALIGN_MEAN",
                         "cross_series_reducer": "REDUCE_MEAN",
-                        "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
+                        "group_by_fields": [
+                            "project",
+                            "resource.label.instance_id",
+                            "resource.label.zone",
+                        ],
                     }
                 ],
             },
@@ -136,7 +146,9 @@ with DAG(
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]
     create_notification_channel = StackdriverUpsertNotificationChannelOperator(
         task_id="create-notification-channel",
-        channels=json.dumps({"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}),
+        channels=json.dumps(
+            {"channels": [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]}
+        ),
     )
     # [END howto_operator_gcp_stackdriver_upsert_notification_channel]
 

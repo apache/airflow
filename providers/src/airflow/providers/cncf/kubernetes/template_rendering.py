@@ -48,7 +48,9 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
         pod_override_object=PodGenerator.from_obj(task_instance.executor_config),
         scheduler_job_id="0",
         namespace=kube_config.executor_namespace,
-        base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
+        base_worker_pod=PodGenerator.deserialize_model_file(
+            kube_config.pod_template_file
+        ),
         with_mutation_hook=True,
     )
     sanitized_pod = ApiClient().sanitize_for_serialization(pod)
@@ -56,14 +58,20 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
 
 
 @provide_session
-def get_rendered_k8s_spec(task_instance: TaskInstance, session=NEW_SESSION) -> dict | None:
+def get_rendered_k8s_spec(
+    task_instance: TaskInstance, session=NEW_SESSION
+) -> dict | None:
     """Fetch rendered template fields from DB."""
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-    rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(task_instance, session=session)
+    rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(
+        task_instance, session=session
+    )
     if not rendered_k8s_spec:
         try:
             rendered_k8s_spec = render_k8s_pod_yaml(task_instance)
         except (TemplateAssertionError, UndefinedError) as e:
-            raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
+            raise AirflowException(
+                f"Unable to render a k8s spec for this taskinstance: {e}"
+            ) from e
     return rendered_k8s_spec

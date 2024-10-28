@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from airflow import settings
 from airflow.timetables.base import DataInterval, Timetable
-from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.interval import (
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+)
 
 
 def cron_timetable(expr: str) -> CronDataIntervalTimetable:

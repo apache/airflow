@@ -20,7 +20,9 @@ from __future__ import annotations
 import os
 import subprocess
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
+ruff_format_cmd = (
+    "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
+)
 envcopy = os.environ.copy()
 envcopy["CLICOLOR_FORCE"] = "1"
 subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)

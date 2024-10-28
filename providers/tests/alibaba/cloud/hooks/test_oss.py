@@ -41,11 +41,18 @@ class TestOSSHook:
             self.hook = OSSHook(oss_conn_id=MOCK_OSS_CONN_ID)
 
     def test_parse_oss_url(self):
-        parsed = self.hook.parse_oss_url(f"oss://{MOCK_BUCKET_NAME}/this/is/not/a-real-key.txt")
-        assert parsed == (MOCK_BUCKET_NAME, "this/is/not/a-real-key.txt"), "Incorrect parsing of the oss url"
+        parsed = self.hook.parse_oss_url(
+            f"oss://{MOCK_BUCKET_NAME}/this/is/not/a-real-key.txt"
+        )
+        assert parsed == (
+            MOCK_BUCKET_NAME,
+            "this/is/not/a-real-key.txt",
+        ), "Incorrect parsing of the oss url"
 
     def test_parse_oss_object_directory(self):
-        parsed = self.hook.parse_oss_url(f"oss://{MOCK_BUCKET_NAME}/this/is/not/a-real-oss-directory/")
+        parsed = self.hook.parse_oss_url(
+            f"oss://{MOCK_BUCKET_NAME}/this/is/not/a-real-oss-directory/"
+        )
         assert parsed == (
             MOCK_BUCKET_NAME,
             "this/is/not/a-real-oss-directory/",
@@ -54,7 +61,9 @@ class TestOSSHook:
     @mock.patch(OSS_STRING.format("oss2"))
     def test_get_credential(self, mock_oss2):
         self.hook.get_credential()
-        mock_oss2.Auth.assert_called_once_with("mock_access_key_id", "mock_access_key_secret")
+        mock_oss2.Auth.assert_called_once_with(
+            "mock_access_key_id", "mock_access_key_secret"
+        )
 
     @mock.patch(OSS_STRING.format("OSSHook.get_credential"))
     @mock.patch(OSS_STRING.format("oss2"))
@@ -62,7 +71,9 @@ class TestOSSHook:
         self.hook.get_bucket("mock_bucket_name")
         mock_get_credential.assert_called_once_with()
         mock_oss2.Bucket.assert_called_once_with(
-            mock_get_credential.return_value, "https://oss-mock_region.aliyuncs.com", MOCK_BUCKET_NAME
+            mock_get_credential.return_value,
+            "https://oss-mock_region.aliyuncs.com",
+            MOCK_BUCKET_NAME,
         )
 
     @mock.patch(OSS_STRING.format("OSSHook.get_bucket"))
@@ -84,19 +95,25 @@ class TestOSSHook:
     def test_load_string(self, mock_service):
         self.hook.load_string(MOCK_KEY, MOCK_CONTENT, MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.put_object.assert_called_once_with(MOCK_KEY, MOCK_CONTENT)
+        mock_service.return_value.put_object.assert_called_once_with(
+            MOCK_KEY, MOCK_CONTENT
+        )
 
     @mock.patch(OSS_STRING.format("OSSHook.get_bucket"))
     def test_upload_local_file(self, mock_service):
         self.hook.upload_local_file(MOCK_KEY, MOCK_FILE_PATH, MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.put_object_from_file.assert_called_once_with(MOCK_KEY, MOCK_FILE_PATH)
+        mock_service.return_value.put_object_from_file.assert_called_once_with(
+            MOCK_KEY, MOCK_FILE_PATH
+        )
 
     @mock.patch(OSS_STRING.format("OSSHook.get_bucket"))
     def test_download_file(self, mock_service):
         self.hook.download_file(MOCK_KEY, MOCK_FILE_PATH, MOCK_BUCKET_NAME)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.get_object_to_file.assert_called_once_with(MOCK_KEY, MOCK_FILE_PATH)
+        mock_service.return_value.get_object_to_file.assert_called_once_with(
+            MOCK_KEY, MOCK_FILE_PATH
+        )
 
     @mock.patch(OSS_STRING.format("OSSHook.get_bucket"))
     def test_delete_object(self, mock_service):
@@ -126,7 +143,9 @@ class TestOSSHook:
     def test_append_string(self, mock_service):
         self.hook.append_string(MOCK_BUCKET_NAME, MOCK_CONTENT, MOCK_KEY, 0)
         mock_service.assert_called_once_with(MOCK_BUCKET_NAME)
-        mock_service.return_value.append_object.assert_called_once_with(MOCK_KEY, 0, MOCK_CONTENT)
+        mock_service.return_value.append_object.assert_called_once_with(
+            MOCK_KEY, 0, MOCK_CONTENT
+        )
 
     @mock.patch(OSS_STRING.format("OSSHook.get_bucket"))
     def test_read_key(self, mock_service):

@@ -29,9 +29,13 @@ from kubernetes.utils import create_from_yaml
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    should_retry_creation,
+)
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
-from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
+from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import (
+    k8s_resource_iterator,
+)
 
 if TYPE_CHECKING:
     from kubernetes.client import ApiClient, CustomObjectsApi
@@ -80,7 +84,9 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self.config_file = config_file
 
         if not any([self.yaml_conf, self.yaml_conf_file]):
-            raise AirflowException("One of `yaml_conf` or `yaml_conf_file` arguments must be provided")
+            raise AirflowException(
+                "One of `yaml_conf` or `yaml_conf_file` arguments must be provided"
+            )
 
     @cached_property
     def client(self) -> ApiClient:
@@ -92,7 +98,9 @@ class KubernetesResourceBaseOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> KubernetesHook:
-        hook = KubernetesHook(conn_id=self.kubernetes_conn_id, config_file=self.config_file)
+        hook = KubernetesHook(
+            conn_id=self.kubernetes_conn_id, config_file=self.config_file
+        )
         return hook
 
     def get_namespace(self) -> str:
@@ -124,9 +132,13 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
     def create_custom_from_yaml_object(self, body: dict):
         group, version, namespace, plural = self.get_crd_fields(body)
         if self.namespaced:
-            self.custom_object_client.create_namespaced_custom_object(group, version, namespace, plural, body)
+            self.custom_object_client.create_namespaced_custom_object(
+                group, version, namespace, plural, body
+            )
         else:
-            self.custom_object_client.create_cluster_custom_object(group, version, plural, body)
+            self.custom_object_client.create_cluster_custom_object(
+                group, version, plural, body
+            )
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
@@ -163,9 +175,13 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
         name = body["metadata"]["name"]
         group, version, namespace, plural = self.get_crd_fields(body)
         if self.namespaced:
-            self.custom_object_client.delete_namespaced_custom_object(group, version, namespace, plural, name)
+            self.custom_object_client.delete_namespaced_custom_object(
+                group, version, namespace, plural, name
+            )
         else:
-            self.custom_object_client.delete_cluster_custom_object(group, version, plural, name)
+            self.custom_object_client.delete_cluster_custom_object(
+                group, version, plural, name
+            )
 
     def _delete_objects(self, objects):
         if not self.custom_resource_definition:

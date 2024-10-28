@@ -89,11 +89,15 @@ def _iter_template_context_keys_from_documentation() -> typing.Iterator[str]:
     # We can use docutils to actually parse, but regex is good enough for now.
     # This should find names in the "Variable" and "Deprecated Variable" tables.
     content = TEMPLATES_REF_RST.read_text("utf-8")
-    for match in re.finditer(r"^``{{ (?P<name>\w+)(?P<subname>\.\w+)* }}`` ", content, re.MULTILINE):
+    for match in re.finditer(
+        r"^``{{ (?P<name>\w+)(?P<subname>\.\w+)* }}`` ", content, re.MULTILINE
+    ):
         yield match.group("name")
 
 
-def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str], docs_keys: set[str]) -> int:
+def _compare_keys(
+    retn_keys: set[str], decl_keys: set[str], hint_keys: set[str], docs_keys: set[str]
+) -> int:
     # Added by PythonOperator and commonly used.
     # Not listed in templates-ref (but in operator docs).
     retn_keys.add("templates_dict")
@@ -113,7 +117,11 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
 
     def _check_one(identifier: str, keys: set[str]) -> int:
         if missing := canonical_keys.difference(retn_keys):
-            print("Missing template variables from", f"{identifier}:", ", ".join(sorted(missing)))
+            print(
+                "Missing template variables from",
+                f"{identifier}:",
+                ", ".join(sorted(missing)),
+            )
         return len(missing)
 
     return sum(_check_one(identifier, keys) for identifier, keys in check_candidates)

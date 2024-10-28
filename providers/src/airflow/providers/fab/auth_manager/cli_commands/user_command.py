@@ -58,7 +58,9 @@ def users_list(args):
         fields = ["id", "username", "email", "first_name", "last_name", "roles"]
 
         AirflowConsole().print_as(
-            data=users, output=args.output, mapper=lambda x: {f: x.__getattribute__(f) for f in fields}
+            data=users,
+            output=args.output,
+            mapper=lambda x: {f: x.__getattribute__(f) for f in fields},
         )
 
 
@@ -70,7 +72,9 @@ def users_create(args):
         role = appbuilder.sm.find_role(args.role)
         if not role:
             valid_roles = appbuilder.sm.get_all_roles()
-            raise SystemExit(f"{args.role} is not a valid role. Valid roles are: {valid_roles}")
+            raise SystemExit(
+                f"{args.role} is not a valid role. Valid roles are: {valid_roles}"
+            )
         password = _create_password(args)
         if appbuilder.sm.find_user(args.username):
             print(f"{args.username} already exist in the db")
@@ -89,7 +93,9 @@ def _find_user(args):
         raise SystemExit("Missing args: must supply one of --username or --email")
 
     if args.username and args.email:
-        raise SystemExit("Conflicting args: must supply either --username or --email, but not both")
+        raise SystemExit(
+            "Conflicting args: must supply either --username or --email, but not both"
+        )
 
     with get_application_builder() as appbuilder:
         user = appbuilder.sm.find_user(username=args.username, email=args.email)
@@ -150,18 +156,24 @@ def users_manage_role(args, remove=False):
         role = appbuilder.sm.find_role(args.role)
         if not role:
             valid_roles = appbuilder.sm.get_all_roles()
-            raise SystemExit(f'"{args.role}" is not a valid role. Valid roles are: {valid_roles}')
+            raise SystemExit(
+                f'"{args.role}" is not a valid role. Valid roles are: {valid_roles}'
+            )
 
         if remove:
             if role not in user.roles:
-                raise SystemExit(f'User "{user.username}" is not a member of role "{args.role}"')
+                raise SystemExit(
+                    f'User "{user.username}" is not a member of role "{args.role}"'
+                )
 
             user.roles = [r for r in user.roles if r != role]
             appbuilder.sm.update_user(user)
             print(f'User "{user.username}" removed from role "{args.role}"')
         else:
             if role in user.roles:
-                raise SystemExit(f'User "{user.username}" is already a member of role "{args.role}"')
+                raise SystemExit(
+                    f'User "{user.username}" is already a member of role "{args.role}"'
+                )
 
             user.roles.append(role)
             appbuilder.sm.update_user(user)
@@ -234,7 +246,9 @@ def _import_users(users_list: list[dict[str, Any]]):
                 for key, value in failure.items():
                     msg.append(f"\t{key}: {value}")
             msg_str = "\n".join(msg)
-            raise SystemExit(f"Error: Input file didn't pass validation. See below:\n{msg_str}")
+            raise SystemExit(
+                f"Error: Input file didn't pass validation. See below:\n{msg_str}"
+            )
 
         for user in users_list:
             roles = []

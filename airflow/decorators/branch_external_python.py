@@ -26,7 +26,9 @@ if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
 
 
-class _BranchExternalPythonDecoratedOperator(_PythonDecoratedOperator, BranchExternalPythonOperator):
+class _BranchExternalPythonDecoratedOperator(
+    _PythonDecoratedOperator, BranchExternalPythonOperator
+):
     """Wraps a Python callable and captures args/kwargs when called for execution."""
 
     template_fields = BranchExternalPythonOperator.template_fields
@@ -34,7 +36,9 @@ class _BranchExternalPythonDecoratedOperator(_PythonDecoratedOperator, BranchExt
 
 
 def branch_external_python_task(
-    python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
+    **kwargs,
 ) -> TaskDecorator:
     """
     Wrap a python function into a BranchExternalPythonOperator.

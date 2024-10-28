@@ -57,7 +57,11 @@ class OtelTrace:
     When OTEL is enabled, the Trace class will be replaced by this class.
     """
 
-    def __init__(self, span_exporter: ConsoleSpanExporter | OTLPSpanExporter, tag_string: str | None = None):
+    def __init__(
+        self,
+        span_exporter: ConsoleSpanExporter | OTLPSpanExporter,
+        tag_string: str | None = None,
+    ):
         self.span_exporter = span_exporter
         self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
@@ -67,11 +71,14 @@ class OtelTrace:
         self, component: str, trace_id: int | None = None, span_id: int | None = None
     ) -> OpenTelemetryTracer | Tracer:
         """Tracer that will use special AirflowOtelIdGenerator to control producing certain span and trace id."""
-        resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service})
+        resource = Resource.create(
+            attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service}
+        )
         if trace_id or span_id:
             # in case where trace_id or span_id was given
             tracer_provider = TracerProvider(
-                resource=resource, id_generator=AirflowOtelIdGenerator(span_id=span_id, trace_id=trace_id)
+                resource=resource,
+                id_generator=AirflowOtelIdGenerator(span_id=span_id, trace_id=trace_id),
             )
         else:
             tracer_provider = TracerProvider(resource=resource)
@@ -118,7 +125,11 @@ class OtelTrace:
         if parent_sc is not None:
             ctx = trace.set_span_in_context(NonRecordingSpan(parent_sc))
             span = tracer.start_as_current_span(
-                span_name, context=ctx, attributes=attributes, links=_links, start_time=start_time
+                span_name,
+                context=ctx,
+                attributes=attributes,
+                links=_links,
+                start_time=start_time,
             )
         else:
             span = tracer.start_as_current_span(
@@ -138,7 +149,9 @@ class OtelTrace:
         tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
 
         tag_string = self.tag_string if self.tag_string else ""
-        tag_string = tag_string + ("," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else "")
+        tag_string = tag_string + (
+            "," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else ""
+        )
 
         if span_name is None:
             span_name = dagrun.dag_id
@@ -157,7 +170,10 @@ class OtelTrace:
             _links.append(gen_link_from_traceparent(conf.get(TRACEPARENT)))
 
         span_ctx = SpanContext(
-            trace_id=INVALID_TRACE_ID, span_id=INVALID_SPAN_ID, is_remote=True, trace_flags=TraceFlags(0x01)
+            trace_id=INVALID_TRACE_ID,
+            span_id=INVALID_SPAN_ID,
+            is_remote=True,
+            trace_flags=TraceFlags(0x01),
         )
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
         span = tracer.start_as_current_span(
@@ -189,10 +205,15 @@ class OtelTrace:
         if span_name is None:
             span_name = ti.task_id
 
-        parent_id = span_id if child else int(gen_dag_span_id(dag_run=dagrun, as_int=True))
+        parent_id = (
+            span_id if child else int(gen_dag_span_id(dag_run=dagrun, as_int=True))
+        )
 
         span_ctx = SpanContext(
-            trace_id=trace_id, span_id=parent_id, is_remote=True, trace_flags=TraceFlags(0x01)
+            trace_id=trace_id,
+            span_id=parent_id,
+            is_remote=True,
+            trace_flags=TraceFlags(0x01),
         )
 
         _links = gen_links_from_kv_list(links) if links else []
@@ -210,12 +231,16 @@ class OtelTrace:
         )
 
         if child is False:
-            tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
+            tracer = self.get_tracer(
+                component=component, span_id=span_id, trace_id=trace_id
+            )
         else:
             tracer = self.get_tracer(component=component)
 
         tag_string = self.tag_string if self.tag_string else ""
-        tag_string = tag_string + ("," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else "")
+        tag_string = tag_string + (
+            "," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else ""
+        )
 
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
         span = tracer.start_as_current_span(
@@ -230,7 +255,9 @@ class OtelTrace:
 
 def gen_context(trace_id: int, span_id: int):
     """Generate a remote span context for given trace and span id."""
-    span_ctx = SpanContext(trace_id=trace_id, span_id=span_id, is_remote=True, trace_flags=TraceFlags(0x01))
+    span_ctx = SpanContext(
+        trace_id=trace_id, span_id=span_id, is_remote=True, trace_flags=TraceFlags(0x01)
+    )
     return span_ctx
 
 
@@ -258,7 +285,10 @@ def gen_link_from_traceparent(traceparent: str):
     trace_id = trace_ctx["trace_id"]
     span_id = trace_ctx["parent_id"]
     span_ctx = gen_context(int(trace_id, 16), int(span_id, 16))
-    return Link(context=span_ctx, attributes={"meta.annotation_type": "link", "from": "traceparent"})
+    return Link(
+        context=span_ctx,
+        attributes={"meta.annotation_type": "link", "from": "traceparent"},
+    )
 
 
 def get_otel_tracer(cls) -> OtelTrace:
@@ -275,9 +305,13 @@ def get_otel_tracer(cls) -> OtelTrace:
     else:
         protocol = "https" if ssl_active else "http"
         endpoint = f"{protocol}://{host}:{port}/v1/traces"
-        log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+        log.info(
+            "[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint
+        )
         return OtelTrace(
-            span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
+            span_exporter=OTLPSpanExporter(
+                endpoint=endpoint, headers={"Content-Type": "application/json"}
+            ),
             tag_string=tag_string,
         )
 

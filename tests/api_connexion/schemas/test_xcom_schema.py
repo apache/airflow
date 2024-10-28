@@ -151,7 +151,11 @@ class TestXComCollectionSchema:
         )
         xcom_models = session.scalars(
             select(XCom)
-            .where(or_(XCom.execution_date == self.time_1, XCom.execution_date == self.time_2))
+            .where(
+                or_(
+                    XCom.execution_date == self.time_1, XCom.execution_date == self.time_2
+                )
+            )
             .order_by(XCom.dag_run_id)
         ).all()
         deserialized_xcoms = xcom_collection_schema.dump(

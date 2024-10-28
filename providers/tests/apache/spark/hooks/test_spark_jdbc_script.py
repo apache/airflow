@@ -34,7 +34,9 @@ from airflow.providers.apache.spark.hooks.spark_jdbc_script import (
 
 @pytest.fixture
 def mock_spark_session():
-    with mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.SparkSession") as mok:
+    with mock.patch(
+        "airflow.providers.apache.spark.hooks.spark_jdbc_script.SparkSession"
+    ) as mok:
         yield mok
 
 
@@ -108,11 +110,19 @@ class TestSparkJDBCScrip:
         for argument_name, argument_value in self.default_arguments.items():
             assert getattr(parsed_arguments, argument_name) == argument_value
 
-    @mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_write_to_jdbc")
+    @mock.patch(
+        "airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_write_to_jdbc"
+    )
     def test_run_spark_write_to_jdbc(self, mock_spark_write_to_jdbc, mock_spark_session):
         # Given
-        arguments = _parse_arguments(["-cmdType", SPARK_WRITE_TO_JDBC] + self.jdbc_arguments[2:])
-        spark_session = mock_spark_session.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
+        arguments = _parse_arguments(
+            ["-cmdType", SPARK_WRITE_TO_JDBC] + self.jdbc_arguments[2:]
+        )
+        spark_session = (
+            mock_spark_session.builder.appName(arguments.name)
+            .enableHiveSupport()
+            .getOrCreate()
+        )
 
         # When
         _run_spark(arguments=arguments)
@@ -133,11 +143,21 @@ class TestSparkJDBCScrip:
             arguments.create_table_column_types,
         )
 
-    @mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_read_from_jdbc")
-    def test_run_spark_read_from_jdbc(self, mock_spark_read_from_jdbc, mock_spark_session):
+    @mock.patch(
+        "airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_read_from_jdbc"
+    )
+    def test_run_spark_read_from_jdbc(
+        self, mock_spark_read_from_jdbc, mock_spark_session
+    ):
         # Given
-        arguments = _parse_arguments(["-cmdType", SPARK_READ_FROM_JDBC] + self.jdbc_arguments[2:])
-        spark_session = mock_spark_session.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
+        arguments = _parse_arguments(
+            ["-cmdType", SPARK_READ_FROM_JDBC] + self.jdbc_arguments[2:]
+        )
+        spark_session = (
+            mock_spark_session.builder.appName(arguments.name)
+            .enableHiveSupport()
+            .getOrCreate()
+        )
 
         # When
         _run_spark(arguments=arguments)
@@ -166,7 +186,9 @@ class TestSparkJDBCScrip:
         # Given
         arguments = _parse_arguments(self.jdbc_arguments)
         spark_session = _create_spark_session(arguments)
-        spark_session.sql(f"CREATE TABLE IF NOT EXISTS {arguments.metastore_table} (key INT)")
+        spark_session.sql(
+            f"CREATE TABLE IF NOT EXISTS {arguments.metastore_table} (key INT)"
+        )
 
         # When
 
@@ -194,7 +216,9 @@ class TestSparkJDBCScrip:
         # Given
         arguments = _parse_arguments(self.jdbc_arguments)
         spark_session = _create_spark_session(arguments)
-        spark_session.sql(f"CREATE TABLE IF NOT EXISTS {arguments.metastore_table} (key INT)")
+        spark_session.sql(
+            f"CREATE TABLE IF NOT EXISTS {arguments.metastore_table} (key INT)"
+        )
 
         # When
         spark_read_from_jdbc(
@@ -216,5 +240,7 @@ class TestSparkJDBCScrip:
 
         # Then
         mock_reader_load().write.saveAsTable.assert_called_once_with(
-            arguments.metastore_table, format=arguments.save_format, mode=arguments.save_mode
+            arguments.metastore_table,
+            format=arguments.save_format,
+            mode=arguments.save_mode,
         )

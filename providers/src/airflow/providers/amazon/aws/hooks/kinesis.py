@@ -53,4 +53,6 @@ class FirehoseHook(AwsBaseHook):
 
         :param records: list of records
         """
-        return self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)
+        return self.get_conn().put_record_batch(
+            DeliveryStreamName=self.delivery_stream, Records=records
+        )

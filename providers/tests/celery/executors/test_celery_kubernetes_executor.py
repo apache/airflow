@@ -24,8 +24,12 @@ import pytest
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.providers.celery.executors.celery_kubernetes_executor import (
+    CeleryKubernetesExecutor,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+    KubernetesExecutor,
+)
 
 KUBERNETES_QUEUE = "kubernetes"
 
@@ -189,7 +193,9 @@ class TestCeleryKubernetesExecutor:
         simple_task_instance = mock.MagicMock()
         simple_task_instance.queue = KUBERNETES_QUEUE
         cke.get_task_log(ti=simple_task_instance, try_number=1)
-        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance, try_number=1)
+        k8s_executor_mock.get_task_log.assert_called_once_with(
+            ti=simple_task_instance, try_number=1
+        )
 
         k8s_executor_mock.reset_mock()
 
@@ -205,7 +211,9 @@ class TestCeleryKubernetesExecutor:
 
         dag_ids = ["dag_ids"]
 
-        events_in_celery = {("dag_id", "task_id", "2020-08-30", 1): ("failed", "failed task")}
+        events_in_celery = {
+            ("dag_id", "task_id", "2020-08-30", 1): ("failed", "failed task")
+        }
         events_in_k8s = {("dag_id_2", "task_id_2", "2020-08-30", 1): ("success", None)}
 
         celery_executor_mock.get_event_buffer.return_value = events_in_celery

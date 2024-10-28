@@ -26,7 +26,11 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
+from airflow.providers.amazon.aws.hooks.ecs import (
+    EcsClusterStates,
+    EcsHook,
+    should_retry_eni,
+)
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ecs import (
@@ -64,7 +68,9 @@ class EcsBaseOperator(AwsBaseOperator[EcsHook]):
     def _complete_exec_with_cluster_desc(self, context, event=None):
         """To be used as trigger callback for operators that return the cluster description."""
         if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+            raise AirflowException(
+                f"Error while waiting for operation on cluster to complete: {event}"
+            )
         cluster_arn = event.get("arn")
         # We cannot get the cluster definition from the waiter on success, so we have to query it here.
         details = self.hook.conn.describe_clusters(clusters=[cluster_arn])["clusters"][0]
@@ -107,7 +113,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -124,7 +132,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             self.cluster_name,
             self.create_cluster_kwargs,
         )
-        result = self.client.create_cluster(clusterName=self.cluster_name, **self.create_cluster_kwargs)
+        result = self.client.create_cluster(
+            clusterName=self.cluster_name, **self.create_cluster_kwargs
+        )
         cluster_details = result["cluster"]
         cluster_state = cluster_details.get("status")
 
@@ -144,7 +154,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                timeout=timedelta(
+                    seconds=self.waiter_max_attempts * self.waiter_delay + 60
+                ),
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_active")
@@ -189,7 +201,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -221,7 +235,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                timeout=timedelta(
+                    seconds=self.waiter_max_attempts * self.waiter_delay + 60
+                ),
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_inactive")
@@ -263,11 +279,15 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
 
     def execute(self, context: Context):
         self.log.info("Deregistering task definition %s.", self.task_definition)
-        result = self.client.deregister_task_definition(taskDefinition=self.task_definition)
+        result = self.client.deregister_task_definition(
+            taskDefinition=self.task_definition
+        )
         task_definition_details = result["taskDefinition"]
         task_definition_arn = task_definition_details["taskDefinitionArn"]
         self.log.info(
-            "Task Definition %r in state: %r.", task_definition_arn, task_definition_details.get("status")
+            "Task Definition %r in state: %r.",
+            task_definition_arn,
+            task_definition_details.get("status"),
         )
         return task_definition_arn
 
@@ -321,7 +341,9 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         task_definition_arn = task_definition_details["taskDefinitionArn"]
 
         self.log.info(
-            "Task Definition %r in state: %r.", task_definition_arn, task_definition_details.get("status")
+            "Task Definition %r in state: %r.",
+            task_definition_arn,
+            task_definition_details.get("status"),
         )
         context["ti"].xcom_push(key="task_definition_arn", value=task_definition_arn)
         return task_definition_arn
@@ -451,7 +473,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         waiter_max_attempts: int = 1000000,
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -503,7 +527,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
     def execute(self, context):
         self.log.info(
-            "Running ECS Task - Task definition: %s - on cluster %s", self.task_definition, self.cluster
+            "Running ECS Task - Task definition: %s - on cluster %s",
+            self.task_definition,
+            self.cluster,
         )
         self.log.info("EcsOperator overrides: %s", self.overrides)
 
@@ -536,7 +562,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                timeout=timedelta(
+                    seconds=self.waiter_max_attempts * self.waiter_delay + 60
+                ),
             )
             # self.defer raises a special exception, so execution stops here in this case.
 
@@ -563,17 +591,23 @@ class EcsRunTaskOperator(EcsBaseOperator):
         else:
             return None
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str | None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
-        self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
+        self.arn = event[
+            "task_arn"
+        ]  # restore arn to its updated value, needed for next steps
         self.cluster = event["cluster"]
         self._after_execution()
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
-            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name).conn
+            logs_client = AwsLogsHook(
+                aws_conn_id=self.aws_conn_id, region_name=self.region_name
+            ).conn
             one_log = logs_client.get_log_events(
                 logGroupName=self.awslogs_group,
                 logStreamName=self._get_logs_stream_name(),
@@ -635,7 +669,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         running_tasks = list_tasks_resp["taskArns"]
         if running_tasks:
             if len(running_tasks) > 1:
-                self.log.warning("Found more then one previously launched tasks: %s", running_tasks)
+                self.log.warning(
+                    "Found more then one previously launched tasks: %s", running_tasks
+                )
             self.arn = running_tasks[0]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
@@ -692,30 +728,42 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 # I'm not resetting it for other exceptions here because
                 # EcsTaskFailToStart is the only exception that's being retried at the moment
                 self.arn = None
-                raise EcsTaskFailToStart(f"The task failed to start due to: {task.get('stoppedReason', '')}")
+                raise EcsTaskFailToStart(
+                    f"The task failed to start due to: {task.get('stoppedReason', '')}"
+                )
 
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
             # in the response.
             # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
-            if re.match(r"Host EC2 \(instance .+?\) (stopped|terminated)\.", task.get("stoppedReason", "")):
+            if re.match(
+                r"Host EC2 \(instance .+?\) (stopped|terminated)\.",
+                task.get("stoppedReason", ""),
+            ):
                 raise AirflowException(
                     f"The task was stopped because the host instance terminated:"
                     f" {task.get('stoppedReason', '')}"
                 )
             containers = task["containers"]
             for container in containers:
-                if container.get("lastStatus") == "STOPPED" and container.get("exitCode", 1) != 0:
+                if (
+                    container.get("lastStatus") == "STOPPED"
+                    and container.get("exitCode", 1) != 0
+                ):
                     if self.task_log_fetcher:
                         last_logs = "\n".join(
-                            self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
+                            self.task_log_fetcher.get_last_log_messages(
+                                self.number_logs_exception
+                            )
                         )
                         raise AirflowException(
                             f"This task is not in success state - last {self.number_logs_exception} "
                             f"logs from Cloudwatch:\n{last_logs}"
                         )
                     else:
-                        raise AirflowException(f"This task is not in success state {task}")
+                        raise AirflowException(
+                            f"This task is not in success state {task}"
+                        )
                 elif container.get("lastStatus") == "PENDING":
                     raise AirflowException(f"This task is still pending {task}")
                 elif "error" in container.get("reason", "").lower():

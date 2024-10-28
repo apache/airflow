@@ -44,7 +44,10 @@ from airflow.www.views import (
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
-from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -76,7 +79,9 @@ def test_configuration_expose_config(admin_client):
 
 
 @mock.patch("airflow.configuration.WEBSERVER_CONFIG")
-def test_webserver_configuration_config_file(mock_webserver_config_global, admin_client, tmp_path):
+def test_webserver_configuration_config_file(
+    mock_webserver_config_global, admin_client, tmp_path
+):
     import airflow.configuration
 
     config_file = str(tmp_path / "my_custom_webserver_config.py")
@@ -120,7 +125,8 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
     mock_plugin = AirflowPlugin()
     mock_plugin.name = "test_plugin"
     mock_plugin.source = EntryPointSource(
-        mock.Mock(), mock.Mock(version="1.0.0", metadata={"Name": "test-entrypoint-testpluginview"})
+        mock.Mock(),
+        mock.Mock(version="1.0.0", metadata={"Name": "test-entrypoint-testpluginview"}),
     )
     with mock_plugin_manager(plugins=[mock_plugin]):
         resp = admin_client.get("/plugin")
@@ -128,7 +134,9 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
     check_content_in_response("test_plugin", resp)
     check_content_in_response("Airflow Plugins", resp)
     check_content_in_response("source", resp)
-    check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
+    check_content_in_response(
+        "<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp
+    )
 
 
 def test_plugin_endpoint_should_not_be_unauthenticated(app):
@@ -139,11 +147,11 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app):
 
 def test_should_list_providers_on_page_with_details(admin_client):
     resp = admin_client.get("/provider")
-    beam_href = '<a href="https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/'
-    beam_text = "apache-airflow-providers-apache-beam</a>"
-    beam_description = (
-        '<a href="https://beam.apache.org/" target="_blank" rel="noopener noreferrer">Apache Beam</a>'
+    beam_href = (
+        '<a href="https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/'
     )
+    beam_text = "apache-airflow-providers-apache-beam</a>"
+    beam_description = '<a href="https://beam.apache.org/" target="_blank" rel="noopener noreferrer">Apache Beam</a>'
     check_content_in_response(beam_href, resp)
     check_content_in_response(beam_text, resp)
     check_content_in_response(beam_description, resp)
@@ -155,7 +163,9 @@ def test_should_list_providers_on_page_with_details(admin_client):
     [
         (
             "`Airbyte <https://airbyte.com/>`__",
-            Markup('<a href="https://airbyte.com/" target="_blank" rel="noopener noreferrer">Airbyte</a>'),
+            Markup(
+                '<a href="https://airbyte.com/" target="_blank" rel="noopener noreferrer">Airbyte</a>'
+            ),
         ),
         (
             "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).",
@@ -333,7 +343,9 @@ def test_mark_task_instance_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_instance_state", start_date=start_date, schedule="0 0 * * *") as dag:
+    with DAG(
+        "test_mark_task_instance_state", start_date=start_date, schedule="0 0 * * *"
+    ) as dag:
         task_1 = EmptyOperator(task_id="task_1")
         task_2 = EmptyOperator(task_id="task_2")
         task_3 = EmptyOperator(task_id="task_3")
@@ -342,7 +354,9 @@ def test_mark_task_instance_state(test_app):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dagrun = dag.create_dagrun(
         start_date=start_date,
         execution_date=start_date,
@@ -427,7 +441,9 @@ def test_mark_task_group_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_group_state", start_date=start_date, schedule="0 0 * * *") as dag:
+    with DAG(
+        "test_mark_task_group_state", start_date=start_date, schedule="0 0 * * *"
+    ) as dag:
         start = EmptyOperator(task_id="start")
 
         with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
@@ -445,7 +461,9 @@ def test_mark_task_group_state(test_app):
 
         start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
 
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by_kwargs = (
+        {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    )
     dagrun = dag.create_dagrun(
         start_date=start_date,
         execution_date=start_date,
@@ -518,7 +536,8 @@ TEST_CONTENT_DICT = {"key1": {"key2": "val2", "key3": "val3", "key4": {"key5": "
 
 
 @pytest.mark.parametrize(
-    "test_content_dict, expected_paths", [(TEST_CONTENT_DICT, ("key1.key2", "key1.key3", "key1.key4.key5"))]
+    "test_content_dict, expected_paths",
+    [(TEST_CONTENT_DICT, ("key1.key2", "key1.key3", "key1.key4.key5"))],
 )
 def test_generate_key_paths(test_content_dict, expected_paths):
     for key_path in get_key_paths(test_content_dict):

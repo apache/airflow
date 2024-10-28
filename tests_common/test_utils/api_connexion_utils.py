@@ -24,7 +24,9 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        EXISTING_ROLES,
+    )
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -34,7 +36,9 @@ if TYPE_CHECKING:
 def create_test_client(app, user_name, role_name, permissions):
     """Create a client with a temporary user which will be deleted once done."""
     client = app.test_client()
-    with create_user_scope(app, username=user_name, role_name=role_name, permissions=permissions) as _:
+    with create_user_scope(
+        app, username=user_name, role_name=role_name, permissions=permissions
+    ) as _:
         resp = client.post("/login/", data={"username": user_name, "password": user_name})
         assert resp.status_code == 302
         yield client

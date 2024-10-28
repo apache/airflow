@@ -86,7 +86,9 @@ class ExtractorManager(LoggingMixin):
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor
 
-    def extract_metadata(self, dagrun, task, complete: bool = False, task_instance=None) -> OperatorLineage:
+    def extract_metadata(
+        self, dagrun, task, complete: bool = False, task_instance=None
+    ) -> OperatorLineage:
         extractor = self._get_extractor(task)
         task_info = (
             f"task_type={task.task_type} "
@@ -121,7 +123,9 @@ class ExtractorManager(LoggingMixin):
                             task_metadata.inputs = inputs
                             task_metadata.outputs = outputs
                         else:
-                            self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
+                            self.extract_inlets_and_outlets(
+                                task_metadata, task.inlets, task.outlets
+                            )
                     return task_metadata
 
             except Exception as e:
@@ -205,12 +209,18 @@ class ExtractorManager(LoggingMixin):
             [
                 asset
                 for asset_info in get_hook_lineage_collector().collected_assets.inputs
-                if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
+                if (
+                    asset := translate_airflow_asset(asset_info.asset, asset_info.context)
+                )
+                is not None
             ],
             [
                 asset
                 for asset_info in get_hook_lineage_collector().collected_assets.outputs
-                if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
+                if (
+                    asset := translate_airflow_asset(asset_info.asset, asset_info.context)
+                )
+                is not None
             ],
         )
 

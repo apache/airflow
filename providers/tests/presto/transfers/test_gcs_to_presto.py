@@ -62,7 +62,9 @@ class TestGCSToPrestoOperator:
 
         mock_download = mock_gcs_hook.return_value.download
 
-        mock_download.assert_called_once_with(bucket_name=BUCKET, object_name=PATH, filename=filename)
+        mock_download.assert_called_once_with(
+            bucket_name=BUCKET, object_name=PATH, filename=filename
+        )
 
         mock_insert = mock_presto_hook.return_value.insert_rows
 
@@ -98,7 +100,9 @@ class TestGCSToPrestoOperator:
 
         mock_download = mock_gcs_hook.return_value.download
 
-        mock_download.assert_called_once_with(bucket_name=BUCKET, object_name=PATH, filename=filename)
+        mock_download.assert_called_once_with(
+            bucket_name=BUCKET, object_name=PATH, filename=filename
+        )
 
         mock_insert = mock_presto_hook.return_value.insert_rows
 
@@ -108,7 +112,9 @@ class TestGCSToPrestoOperator:
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.PrestoHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.GCSHook")
     @mock.patch("airflow.providers.presto.transfers.gcs_to_presto.NamedTemporaryFile")
-    def test_execute_schema_json(self, mock_tempfile, mock_gcs_hook, mock_presto_hook, mock_json_loader):
+    def test_execute_schema_json(
+        self, mock_tempfile, mock_gcs_hook, mock_presto_hook, mock_json_loader
+    ):
         filename = "file://97g23r"
         file_handle = mock.MagicMock()
         mock_tempfile.return_value.__enter__.return_value = file_handle

@@ -35,7 +35,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "gcs_to_bigquery_operator_async"
 
 DATASET_NAME_STR = f"dataset_{DAG_ID}_{ENV_ID}_STR"
@@ -57,15 +59,21 @@ with DAG(
     tags=["example", "gcs"],
 ) as dag:
     create_test_dataset_for_string_fields = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_airflow_test_dataset_str", dataset_id=DATASET_NAME_STR, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset_str",
+        dataset_id=DATASET_NAME_STR,
+        project_id=PROJECT_ID,
     )
 
     create_test_dataset_for_date_fields = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_airflow_test_dataset_date", dataset_id=DATASET_NAME_DATE, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset_date",
+        dataset_id=DATASET_NAME_DATE,
+        project_id=PROJECT_ID,
     )
 
     create_test_dataset_for_json_fields = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_airflow_test_dataset_json", dataset_id=DATASET_NAME_JSON, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset_json",
+        dataset_id=DATASET_NAME_JSON,
+        project_id=PROJECT_ID,
     )
 
     create_test_dataset_for_delimiter_fields = BigQueryCreateEmptyDatasetOperator(

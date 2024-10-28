@@ -145,7 +145,9 @@ class JWTGenerator:
             }
 
             # Regenerate the actual token
-            token = jwt.encode(payload, key=self.private_key, algorithm=JWTGenerator.ALGORITHM)
+            token = jwt.encode(
+                payload, key=self.private_key, algorithm=JWTGenerator.ALGORITHM
+            )
 
             if isinstance(token, bytes):
                 token = token.decode("utf-8")

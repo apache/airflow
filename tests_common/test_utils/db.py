@@ -41,7 +41,11 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
-from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
+from airflow.utils.db import (
+    add_default_pool_if_not_exists,
+    create_default_connections,
+    reflect_tables,
+)
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import (
@@ -213,7 +217,11 @@ def clear_db_dag_parsing_requests():
 
 def clear_dag_specific_permissions():
     try:
-        from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
+        from airflow.providers.fab.auth_manager.models import (
+            Permission,
+            Resource,
+            assoc_permission_role,
+        )
     except ImportError:
         # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
         from airflow.auth.managers.fab.models import (  # type: ignore[no-redef]
@@ -232,19 +240,29 @@ def clear_dag_specific_permissions():
         else:
             raise
     with create_session() as session:
-        dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
+        dag_resources = (
+            session.query(Resource)
+            .filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%"))
+            .all()
+        )
         dag_resource_ids = [d.id for d in dag_resources]
 
-        dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
+        dag_permissions = (
+            session.query(Permission)
+            .filter(Permission.resource_id.in_(dag_resource_ids))
+            .all()
+        )
         dag_permission_ids = [d.id for d in dag_permissions]
 
         session.query(assoc_permission_role).filter(
             assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
         ).delete(synchronize_session=False)
-        session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
+        session.query(Permission).filter(
+            Permission.resource_id.in_(dag_resource_ids)
+        ).delete(synchronize_session=False)
+        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(
             synchronize_session=False
         )
-        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
 
 
 def clear_all():

@@ -20,13 +20,18 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator
+from airflow.providers.slack.operators.slack import (
+    SlackAPIFileOperator,
+    SlackAPIPostOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "slack_api_example_dag"
 SLACK_API_CONN_ID = os.environ.get("SLACK_API_CONN_ID", "slack_conn_id")
 SLACK_CHANNEL = os.environ.get("SLACK_CHANNEL", "#general")
-IMAGE_URL = "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+IMAGE_URL = (
+    "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+)
 
 with DAG(
     dag_id=DAG_ID,
@@ -62,7 +67,11 @@ with DAG(
                         "and monitoring batch-oriented workflows."
                     ),
                 },
-                "accessory": {"type": "image", "image_url": IMAGE_URL, "alt_text": "Pinwheel"},
+                "accessory": {
+                    "type": "image",
+                    "image_url": IMAGE_URL,
+                    "alt_text": "Pinwheel",
+                },
             }
         ],
         text="Fallback message",

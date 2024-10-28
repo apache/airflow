@@ -33,7 +33,8 @@ class LogGroomerTestBase:
             values = None
 
         docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
         assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
@@ -68,11 +69,16 @@ class LogGroomerTestBase:
             values = None
 
         docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
-        assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+        assert (
+            jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
+        )
+        assert ["bash", "/clean-logs"] == jmespath.search(
+            "spec.template.spec.containers[1].args", docs[0]
+        )
 
     def test_log_groomer_collector_default_retention_days(self):
         if self.obj_name == "dag-processor":
@@ -81,13 +87,16 @@ class LogGroomerTestBase:
             values = None
 
         docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
         assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
             "spec.template.spec.containers[1].env[0].name", docs[0]
         )
-        assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0])
+        assert "15" == jmespath.search(
+            "spec.template.spec.containers[1].env[0].value", docs[0]
+        )
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
@@ -100,14 +109,20 @@ class LogGroomerTestBase:
                 }
             }
         else:
-            values = {f"{self.folder}": {"logGroomerSidecar": {"command": command, "args": args}}}
+            values = {
+                f"{self.folder}": {
+                    "logGroomerSidecar": {"command": command, "args": args}
+                }
+            }
 
         docs = render_chart(
             values=values,
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[1].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     def test_log_groomer_command_and_args_overrides_are_templated(self):
@@ -136,17 +151,28 @@ class LogGroomerTestBase:
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[1].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[1].args", docs[0]
+        )
 
-    @pytest.mark.parametrize("retention_days, retention_result", [(None, None), (30, "30")])
+    @pytest.mark.parametrize(
+        "retention_days, retention_result", [(None, None), (30, "30")]
+    )
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
         if self.obj_name == "dag-processor":
             values = {
-                "dagProcessor": {"enabled": True, "logGroomerSidecar": {"retentionDays": retention_days}}
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"retentionDays": retention_days},
+                }
             }
         else:
-            values = {f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}}
+            values = {
+                f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}
+            }
 
         docs = render_chart(
             values=values,
@@ -161,7 +187,9 @@ class LogGroomerTestBase:
                 "spec.template.spec.containers[1].env[0].value", docs[0]
             )
         else:
-            assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
+            assert (
+                jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
+            )
 
     def test_log_groomer_resources(self):
         if self.obj_name == "dag-processor":
@@ -211,7 +239,10 @@ class LogGroomerTestBase:
             values = None
 
         docs = render_chart(
-            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
-        assert "AIRFLOW_HOME" == jmespath.search("spec.template.spec.containers[1].env[1].name", docs[0])
+        assert "AIRFLOW_HOME" == jmespath.search(
+            "spec.template.spec.containers[1].env[1].name", docs[0]
+        )

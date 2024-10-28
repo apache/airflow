@@ -39,7 +39,9 @@ class TestGoogleDisplayVideo360RunQuerySensor:
     def test_poke(self, mock_base_op, hook_mock):
         query_id = "QUERY_ID"
         report_id = "REPORT_ID"
-        op = GoogleDisplayVideo360RunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
+        op = GoogleDisplayVideo360RunQuerySensor(
+            query_id=query_id, report_id=report_id, task_id="test_task"
+        )
         op.poke(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -47,7 +49,9 @@ class TestGoogleDisplayVideo360RunQuerySensor:
             api_version="v2",
             impersonation_chain=None,
         )
-        hook_mock.return_value.get_report.assert_called_once_with(query_id=query_id, report_id=report_id)
+        hook_mock.return_value.get_report.assert_called_once_with(
+            query_id=query_id, report_id=report_id
+        )
 
 
 class TestGoogleDisplayVideo360Sensor:
@@ -84,7 +88,11 @@ class TestGoogleDisplayVideo360Sensor:
             api_version=API_VERSION,
             task_id="test_task",
         )
-        hook_mock.return_value.get_sdf_download_operation.return_value = {"error": "error"}
+        hook_mock.return_value.get_sdf_download_operation.return_value = {
+            "error": "error"
+        }
 
-        with pytest.raises(AirflowException, match="The operation finished in error with error"):
+        with pytest.raises(
+            AirflowException, match="The operation finished in error with error"
+        ):
             op.poke(context={})

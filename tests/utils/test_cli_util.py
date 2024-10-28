@@ -46,7 +46,9 @@ class TestCliUtil:
     def test_metrics_build(self):
         func_name = "test"
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(
+            dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date
+        )
         metrics = cli._build_metrics(func_name, namespace)
 
         expected = {
@@ -80,7 +82,9 @@ class TestCliUtil:
             success_func(Namespace())
 
     def test_process_subdir_path_with_placeholder(self):
-        assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
+        assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir(
+            "DAGS_FOLDER/abc"
+        )
 
     def test_get_dags(self):
         dags = cli.get_dags(None, "example_bash_operator")
@@ -132,7 +136,9 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(
+            dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date
+        )
         with mock.patch.object(sys, "argv", args), mock.patch(
             "airflow.utils.session.create_session"
         ) as mock_create_session:
@@ -140,7 +146,9 @@ class TestCliUtil:
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead
             mock_create_session.return_value = session.begin_nested()
-            mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
+            mock_create_session.return_value.bulk_insert_mappings = (
+                session.bulk_insert_mappings
+            )
             cli_action_loggers.default_action_log(**metrics)
 
             log = session.query(Log).order_by(Log.dttm.desc()).first()
@@ -165,7 +173,9 @@ class TestCliUtil:
 
     def test_setup_locations_none_pid_path(self):
         process_name = "fake_process"
-        default_pid_path = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process_name}.pid")
+        default_pid_path = os.path.join(
+            settings.AIRFLOW_HOME, f"airflow-{process_name}.pid"
+        )
         pid, _, _, _ = cli.setup_locations(process=process_name)
         assert pid == default_pid_path
 
@@ -206,7 +216,9 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(
+            dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date
+        )
         with mock.patch.object(sys, "argv", args), mock.patch(
             "airflow.utils.session.create_session"
         ) as mock_create_session:
@@ -214,7 +226,9 @@ class TestCliUtil:
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead
             mock_create_session.return_value = session.begin_nested()
-            mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
+            mock_create_session.return_value.bulk_insert_mappings = (
+                session.bulk_insert_mappings
+            )
             cli_action_loggers.default_action_log(**metrics)
 
             log = session.query(Log).order_by(Log.dttm.desc()).first()

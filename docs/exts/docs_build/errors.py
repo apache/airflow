@@ -62,7 +62,9 @@ class DocBuildError(NamedTuple):
 def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None:
     """Displays summary of errors"""
     console.print()
-    console.print("[red]" + "#" * 30 + " Start docs build errors summary " + "#" * 30 + "[/]")
+    console.print(
+        "[red]" + "#" * 30 + " Start docs build errors summary " + "#" * 30 + "[/]"
+    )
     console.print()
     for package_name, errors in build_errors.items():
         if package_name:
@@ -73,7 +75,11 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
             console.print("-" * 30, f"[red]Error {warning_no:3}[/]", "-" * 20)
             console.print(error.message)
             console.print()
-            if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
+            if (
+                error.file_path
+                and not error.file_path.endswith("<unknown>")
+                and error.line_no
+            ):
                 console.print(
                     f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)} ({error.line_no})"
                 )
@@ -83,7 +89,9 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
             elif error.file_path:
                 console.print(f"File path: {error.file_path}")
     console.print()
-    console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
+    console.print(
+        "[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]"
+    )
     console.print()
 
 
@@ -115,5 +123,7 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildErro
                     DocBuildError(file_path=None, line_no=None, message=sphinx_warning)
                 )
         else:
-            sphinx_build_errors.append(DocBuildError(file_path=None, line_no=None, message=sphinx_warning))
+            sphinx_build_errors.append(
+                DocBuildError(file_path=None, line_no=None, message=sphinx_warning)
+            )
     return sphinx_build_errors

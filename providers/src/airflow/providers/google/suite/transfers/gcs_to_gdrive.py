@@ -141,7 +141,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
                 raise AirflowException(error_msg)
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
-            objects = self.gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            objects = self.gcs_hook.list(
+                self.source_bucket, prefix=prefix, delimiter=delimiter
+            )
             # TODO: After deprecating delimiter and wildcards in source objects,
             #       remove the previous line and uncomment the following:
             # match_glob = f"**/*{delimiter}" if delimiter else None
@@ -151,12 +153,17 @@ class GCSToGoogleDriveOperator(BaseOperator):
                 if self.destination_object is None:
                     destination_object = source_object
                 else:
-                    destination_object = source_object.replace(prefix, self.destination_object, 1)
+                    destination_object = source_object.replace(
+                        prefix, self.destination_object, 1
+                    )
 
-                self._copy_single_object(source_object=source_object, destination_object=destination_object)
+                self._copy_single_object(
+                    source_object=source_object, destination_object=destination_object
+                )
         else:
             self._copy_single_object(
-                source_object=self.source_object, destination_object=self.destination_object
+                source_object=self.source_object,
+                destination_object=self.destination_object,
             )
 
     def _copy_single_object(self, source_object, destination_object):
@@ -170,7 +177,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
         with tempfile.NamedTemporaryFile() as file:
             filename = file.name
             self.gcs_hook.download(
-                bucket_name=self.source_bucket, object_name=source_object, filename=filename
+                bucket_name=self.source_bucket,
+                object_name=source_object,
+                filename=filename,
             )
             self.gdrive_hook.upload_file(
                 local_location=filename,

@@ -76,7 +76,11 @@ class GlueJobSensor(BaseSensorOperator):
         return GlueJobHook(aws_conn_id=self.aws_conn_id)
 
     def poke(self, context: Context):
-        self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
+        self.log.info(
+            "Poking for job run status :for Glue Job %s and ID %s",
+            self.job_name,
+            self.run_id,
+        )
         job_state = self.hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
 
         try:
@@ -143,7 +147,9 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
         evaluation_run_id: str,
         show_results: bool = True,
         verify_result_status: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poke_interval: int = 120,
         max_retries: int = 60,
         aws_conn_id: str | None = "aws_default",
@@ -172,7 +178,9 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
         else:
             super().execute(context=context)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -189,10 +197,13 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
 
     def poke(self, context: Context):
         self.log.info(
-            "Poking for AWS Glue data quality ruleset evaluation run RunId: %s", self.evaluation_run_id
+            "Poking for AWS Glue data quality ruleset evaluation run RunId: %s",
+            self.evaluation_run_id,
         )
 
-        response = self.hook.conn.get_data_quality_ruleset_evaluation_run(RunId=self.evaluation_run_id)
+        response = self.hook.conn.get_data_quality_ruleset_evaluation_run(
+            RunId=self.evaluation_run_id
+        )
 
         status = response.get("Status")
 
@@ -265,7 +276,9 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
         *,
         recommendation_run_id: str,
         show_results: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poke_interval: int = 120,
         max_retries: int = 60,
         aws_conn_id: str | None = "aws_default",
@@ -293,7 +306,9 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
         else:
             super().execute(context=context)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -307,10 +322,13 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            "Poking for AWS Glue data quality recommendation run RunId: %s", self.recommendation_run_id
+            "Poking for AWS Glue data quality recommendation run RunId: %s",
+            self.recommendation_run_id,
         )
 
-        response = self.hook.conn.get_data_quality_rule_recommendation_run(RunId=self.recommendation_run_id)
+        response = self.hook.conn.get_data_quality_rule_recommendation_run(
+            RunId=self.recommendation_run_id
+        )
 
         status = response.get("Status")
 

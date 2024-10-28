@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
-from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_sql import (
+    BigQueryToSqlBaseOperator,
+)
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:

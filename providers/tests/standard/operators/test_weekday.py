@@ -50,7 +50,10 @@ TEST_CASE_BRANCH_FOLLOW_TRUE = {
     "with-enum-dict": {WeekDay.MONDAY: "some_value"},
     "with-enum-set-2-items": {WeekDay.MONDAY, WeekDay.FRIDAY},
     "with-enum-list-2-items": [WeekDay.MONDAY, WeekDay.FRIDAY],
-    "with-enum-dict-2-items": {WeekDay.MONDAY: "some_value", WeekDay.FRIDAY: "some_value_2"},
+    "with-enum-dict-2-items": {
+        WeekDay.MONDAY: "some_value",
+        WeekDay.FRIDAY: "some_value_2",
+    },
     "with-string-set": {"Monday"},
     "with-string-set-2-items": {"Monday", "Friday"},
     "with-set-mix-types": {"Monday", WeekDay.FRIDAY},
@@ -84,13 +87,18 @@ class TestBranchDayOfWeekOperator:
                 assert ti.state == expected_state, assert_msg
 
     @pytest.mark.parametrize(
-        "weekday", TEST_CASE_BRANCH_FOLLOW_TRUE.values(), ids=TEST_CASE_BRANCH_FOLLOW_TRUE.keys()
+        "weekday",
+        TEST_CASE_BRANCH_FOLLOW_TRUE.values(),
+        ids=TEST_CASE_BRANCH_FOLLOW_TRUE.keys(),
     )
     @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true(self, weekday, dag_maker):
         """Checks if BranchDayOfWeekOperator follows true branch"""
         with dag_maker(
-            "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
+            "branch_day_of_week_operator_test",
+            start_date=DEFAULT_DATE,
+            schedule=INTERVAL,
+            serialized=True,
         ):
             branch_op = BranchDayOfWeekOperator(
                 task_id="make_choice",
@@ -105,7 +113,9 @@ class TestBranchDayOfWeekOperator:
             branch_2.set_upstream(branch_op)
             branch_3.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
@@ -131,7 +141,10 @@ class TestBranchDayOfWeekOperator:
     def test_branch_follow_true_with_execution_date(self, dag_maker):
         """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
         with dag_maker(
-            "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
+            "branch_day_of_week_operator_test",
+            start_date=DEFAULT_DATE,
+            schedule=INTERVAL,
+            serialized=True,
         ):
             branch_op = BranchDayOfWeekOperator(
                 task_id="make_choice",
@@ -145,7 +158,9 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = dag_maker.create_dagrun(
             run_id="manual__",
@@ -171,7 +186,10 @@ class TestBranchDayOfWeekOperator:
     def test_branch_follow_false(self, dag_maker):
         """Checks if BranchDayOfWeekOperator follow false branch"""
         with dag_maker(
-            "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
+            "branch_day_of_week_operator_test",
+            start_date=DEFAULT_DATE,
+            schedule=INTERVAL,
+            serialized=True,
         ):
             branch_op = BranchDayOfWeekOperator(
                 task_id="make_choice",
@@ -184,7 +202,9 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = dag_maker.create_dagrun(
             run_id="manual__",
@@ -253,7 +273,9 @@ class TestBranchDayOfWeekOperator:
     )
     def test_weekday_branch_invalid_weekday_value(self, _, week_day, fail_msg, dag_maker):
         """Check if BranchDayOfWeekOperator raises exception on wrong value of weekday"""
-        with pytest.raises(AttributeError, match=f'Invalid Week Day passed: "{fail_msg}"'):
+        with pytest.raises(
+            AttributeError, match=f'Invalid Week Day passed: "{fail_msg}"'
+        ):
             with dag_maker(
                 "branch_day_of_week_operator_test",
                 start_date=DEFAULT_DATE,
@@ -271,7 +293,10 @@ class TestBranchDayOfWeekOperator:
     def test_branch_xcom_push_true_branch(self, dag_maker):
         """Check if BranchDayOfWeekOperator push to xcom value of follow_task_ids_if_true"""
         with dag_maker(
-            "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
+            "branch_day_of_week_operator_test",
+            start_date=DEFAULT_DATE,
+            schedule=INTERVAL,
+            serialized=True,
         ):
             branch_op = BranchDayOfWeekOperator(
                 task_id="make_choice",
@@ -284,7 +309,9 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
 
         dr = dag_maker.create_dagrun(
             run_id="manual__",

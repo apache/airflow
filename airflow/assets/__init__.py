@@ -21,7 +21,16 @@ import logging
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Iterable,
+    Iterator,
+    cast,
+    overload,
+)
 
 import attr
 from sqlalchemy import select
@@ -93,7 +102,9 @@ def _sanitize_uri(uri: str) -> str:
             stacklevel=3,
         )
     if parsed.query:
-        normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
+        normalized_query = urllib.parse.urlencode(
+            sorted(urllib.parse.parse_qsl(parsed.query))
+        )
     else:
         normalized_query = ""
     parsed = parsed._replace(
@@ -124,11 +135,17 @@ def _validate_identifier(instance, attribute, value):
     if not isinstance(value, str):
         raise ValueError(f"{type(instance).__name__} {attribute.name} must be a string")
     if len(value) > 1500:
-        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
+        raise ValueError(
+            f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters"
+        )
     if value.isspace():
-        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
+        raise ValueError(
+            f"{type(instance).__name__} {attribute.name} cannot be just whitespace"
+        )
     if not value.isascii():
-        raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
+        raise ValueError(
+            f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters"
+        )
     return value
 
 
@@ -159,7 +176,9 @@ def extract_event_key(value: str | Asset | AssetAlias) -> str:
 
 @internal_api_call
 @provide_session
-def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
+def expand_alias_to_assets(
+    alias: str | AssetAlias, *, session: Session = NEW_SESSION
+) -> list[BaseAsset]:
     """Expand asset alias to resolved assets."""
     from airflow.models.asset import AssetAliasModel
 
@@ -213,7 +232,9 @@ class BaseAsset:
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         raise NotImplementedError
 
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(
+        self, *, source: str, target: str
+    ) -> Iterator[DagDependency]:
         """
         Iterate a base asset as dag dependency.
 
@@ -239,7 +260,9 @@ class AssetAlias(BaseAsset):
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, self
 
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(
+        self, *, source: str, target: str
+    ) -> Iterator[DagDependency]:
         """
         Iterate an asset alias as dag dependency.
 
@@ -286,7 +309,9 @@ class Asset(os.PathLike, BaseAsset):
     __version__: ClassVar[int] = 1
 
     @overload
-    def __init__(self, name: str, uri: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self, name: str, uri: str, *, group: str = "", extra: dict | None = None
+    ) -> None:
         """Canonical; both name and uri are provided."""
 
     @overload
@@ -314,7 +339,11 @@ class Asset(os.PathLike, BaseAsset):
         fields = attr.fields_dict(Asset)
         self.name = _validate_non_empty_identifier(self, fields["name"], name)
         self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
-        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
+        self.group = (
+            _validate_identifier(self, fields["group"], group)
+            if group
+            else self.asset_type
+        )
         self.extra = _set_extra_default(extra)
 
     def __fspath__(self) -> str:
@@ -359,7 +388,9 @@ class Asset(os.PathLike, BaseAsset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(
+        self, *, source: str, target: str
+    ) -> Iterator[DagDependency]:
         """
         Iterate an asset as dag dependency.
 
@@ -395,7 +426,8 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
 
         self.objects = [
-            _AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj for obj in objects
+            _AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj
+            for obj in objects
         ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -415,7 +447,9 @@ class _AssetBooleanCondition(BaseAsset):
         for o in self.objects:
             yield from o.iter_asset_aliases()
 
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(
+        self, *, source: str, target: str
+    ) -> Iterator[DagDependency]:
         """
         Iterate asset, asset aliases and their resolved assets  as dag dependency.
 
@@ -473,7 +507,9 @@ class _AssetAliasCondition(AssetAny):
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, AssetAlias(self.name)
 
-    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+    def iter_dag_dependencies(
+        self, *, source: str = "", target: str = ""
+    ) -> Iterator[DagDependency]:
         """
         Iterate an asset alias and its resolved assets as dag dependency.
 

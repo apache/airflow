@@ -182,7 +182,9 @@ with DAG(
     @task
     def get_public_ip() -> str:
         hook = ComputeEngineHook()
-        address = hook.get_instance_address(resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        address = hook.get_instance_address(
+            resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID
+        )
         return address
 
     get_public_ip_task = get_public_ip()
@@ -208,7 +210,9 @@ with DAG(
         session.commit()
         log.info("Connection %s created", connection_id)
 
-    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
+    create_connection_task = create_connection(
+        connection_id=CONNECTION_ID, ip_address=get_public_ip_task
+    )
 
     create_sql_table = SQLExecuteQueryOperator(
         task_id="create_sql_table",
@@ -278,7 +282,11 @@ with DAG(
     # TEST SETUP
     create_gce_instance >> get_public_ip_task >> create_connection_task
     [create_gce_instance, create_firewall_rule] >> setup_postgres
-    [setup_postgres, create_connection_task, create_firewall_rule] >> create_sql_table >> insert_sql_data
+    (
+        [setup_postgres, create_connection_task, create_firewall_rule]
+        >> create_sql_table
+        >> insert_sql_data
+    )
 
     (
         [create_gcs_bucket, insert_sql_data]
@@ -287,7 +295,12 @@ with DAG(
     )
 
     # TEST TEARDOWN
-    postgres_to_gcs >> [delete_gcs_bucket, delete_firewall_rule, delete_gce_instance, delete_connection_task]
+    postgres_to_gcs >> [
+        delete_gcs_bucket,
+        delete_firewall_rule,
+        delete_gce_instance,
+        delete_connection_task,
+    ]
     delete_gce_instance >> delete_persistent_disk
 
     from tests_common.test_utils.watcher import watcher

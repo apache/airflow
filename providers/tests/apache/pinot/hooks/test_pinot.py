@@ -165,7 +165,11 @@ class TestPinotAdminHook:
         self.db_hook.run_cli(params)
         params.insert(0, "pinot-admin.sh")
         mock_popen.assert_called_once_with(
-            params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
+            params,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            close_fds=True,
+            env=None,
         )
 
     @mock.patch("subprocess.Popen")
@@ -180,7 +184,11 @@ class TestPinotAdminHook:
             self.db_hook.run_cli(params)
         params.insert(0, "pinot-admin.sh")
         mock_popen.assert_called_once_with(
-            params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=None
+            params,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            close_fds=True,
+            env=None,
         )
 
     @mock.patch("subprocess.Popen")
@@ -198,7 +206,11 @@ class TestPinotAdminHook:
         env = os.environ.copy()
         env.update({"JAVA_OPTS": "-Dpinot.admin.system.exit=true "})
         mock_popen.assert_called_once_with(
-            params, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, close_fds=True, env=env
+            params,
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            close_fds=True,
+            env=env,
         )
 
 

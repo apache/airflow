@@ -122,7 +122,9 @@ class TestSmtpNotifier:
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_defaults(self, mock_smtphook_hook, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        ti = create_task_instance(
+            dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1)
+        )
         context = {"dag": ti.dag_run.dag, "ti": ti}
         notifier = SmtpNotifier(
             from_email=conf.get("smtp", "smtp_mail_from"),
@@ -142,12 +144,20 @@ class TestSmtpNotifier:
             mime_charset="utf-8",
             custom_headers=None,
         )
-        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        content = (
+            mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs[
+                "html_content"
+            ]
+        )
         assert f"{NUM_TRY} of 1" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+    def test_notifier_with_nondefault_conf_vars(
+        self, mock_smtphook_hook, create_task_instance
+    ):
+        ti = create_task_instance(
+            dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1)
+        )
         context = {"dag": ti.dag_run.dag, "ti": ti}
 
         with (

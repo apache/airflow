@@ -89,7 +89,9 @@ class TestS3ToRedshiftTransfer:
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
-    def test_execute_with_column_list(self, mock_run, mock_session, mock_connection, mock_hook):
+    def test_execute_with_column_list(
+        self, mock_run, mock_session, mock_connection, mock_hook
+    ):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -182,7 +184,9 @@ class TestS3ToRedshiftTransfer:
                     {copy_statement}
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces("\n".join(mock_run.call_args.args[0]), transaction)
+        assert_equal_ignore_multiple_spaces(
+            "\n".join(mock_run.call_args.args[0]), transaction
+        )
 
         assert mock_run.call_count == 1
 
@@ -237,7 +241,9 @@ class TestS3ToRedshiftTransfer:
                     INSERT INTO {schema}.{table} SELECT * FROM #{table};
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces("\n".join(mock_run.call_args.args[0]), transaction)
+        assert_equal_ignore_multiple_spaces(
+            "\n".join(mock_run.call_args.args[0]), transaction
+        )
 
         assert mock_run.call_count == 1
 
@@ -425,7 +431,9 @@ class TestS3ToRedshiftTransfer:
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_using_redshift_data_api(self, mock_rs, mock_run, mock_session, mock_connection, mock_hook):
+    def test_using_redshift_data_api(
+        self, mock_rs, mock_run, mock_session, mock_connection, mock_hook
+    ):
         """
         Using the Redshift Data API instead of the SQL-based connection
         """
@@ -509,7 +517,9 @@ class TestS3ToRedshiftTransfer:
     @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
-    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    @mock.patch(
+        "airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table"
+    )
     def test_get_openlineage_facets_on_complete_default(
         self, mock_get_facets, mock_run, mock_session, mock_connection, mock_hook
     ):
@@ -521,10 +531,15 @@ class TestS3ToRedshiftTransfer:
         mock_session.return_value.token = None
 
         mock_connection.return_value = mock.MagicMock(
-            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
+            schema="database",
+            port=5439,
+            host="cluster.id.region.redshift.amazonaws.com",
+            extra_dejson={},
         )
         mock_facets = {
-            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "schema": SchemaDatasetFacet(
+                fields=[SchemaDatasetFacetFields(name="col", type="STRING")]
+            ),
             "documentation": DocumentationDatasetFacet(description="mock_description"),
         }
         mock_get_facets.return_value = mock_facets
@@ -565,7 +580,9 @@ class TestS3ToRedshiftTransfer:
     @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
-    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    @mock.patch(
+        "airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table"
+    )
     def test_get_openlineage_facets_on_complete_replace(
         self, mock_get_facets, mock_run, mock_session, mock_connection, mock_hook
     ):
@@ -577,10 +594,15 @@ class TestS3ToRedshiftTransfer:
         mock_session.return_value.token = None
 
         mock_connection.return_value = mock.MagicMock(
-            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
+            schema="database",
+            port=5439,
+            host="cluster.id.region.redshift.amazonaws.com",
+            extra_dejson={},
         )
         mock_facets = {
-            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "schema": SchemaDatasetFacet(
+                fields=[SchemaDatasetFacetFields(name="col", type="STRING")]
+            ),
             "documentation": DocumentationDatasetFacet(description="mock_description"),
         }
         mock_get_facets.return_value = mock_facets
@@ -629,9 +651,17 @@ class TestS3ToRedshiftTransfer:
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.region_name",
         new_callable=mock.PropertyMock,
     )
-    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    @mock.patch(
+        "airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table"
+    )
     def test_get_openlineage_facets_on_complete_using_redshift_data_api(
-        self, mock_get_facets, mock_rs_region, mock_rs, mock_session, mock_connection, mock_hook
+        self,
+        mock_get_facets,
+        mock_rs_region,
+        mock_rs,
+        mock_session,
+        mock_connection,
+        mock_hook,
     ):
         """
         Using the Redshift Data API instead of the SQL-based connection
@@ -649,7 +679,9 @@ class TestS3ToRedshiftTransfer:
 
         mock_rs_region.return_value = "region"
         mock_facets = {
-            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "schema": SchemaDatasetFacet(
+                fields=[SchemaDatasetFacetFields(name="col", type="STRING")]
+            ),
             "documentation": DocumentationDatasetFacet(description="mock_description"),
         }
         mock_get_facets.return_value = mock_facets
@@ -713,9 +745,18 @@ class TestS3ToRedshiftTransfer:
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.region_name",
         new_callable=mock.PropertyMock,
     )
-    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    @mock.patch(
+        "airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table"
+    )
     def test_get_openlineage_facets_on_complete_data_and_sql_hooks_aligned(
-        self, mock_get_facets, mock_rs_region, mock_rs, mock_run, mock_session, mock_connection, mock_hook
+        self,
+        mock_get_facets,
+        mock_rs_region,
+        mock_rs,
+        mock_run,
+        mock_session,
+        mock_connection,
+        mock_hook,
     ):
         """
         Ensuring both supported hooks - RedshiftDataHook and RedshiftSQLHook return same lineage.
@@ -728,7 +769,10 @@ class TestS3ToRedshiftTransfer:
         mock_session.return_value.token = None
 
         mock_connection.return_value = mock.MagicMock(
-            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
+            schema="database",
+            port=5439,
+            host="cluster.id.region.redshift.amazonaws.com",
+            extra_dejson={},
         )
         mock_hook.return_value = Connection()
         mock_rs.execute_statement.return_value = {"Id": "STATEMENT_ID"}
@@ -736,7 +780,9 @@ class TestS3ToRedshiftTransfer:
 
         mock_rs_region.return_value = "region"
         mock_facets = {
-            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "schema": SchemaDatasetFacet(
+                fields=[SchemaDatasetFacetFields(name="col", type="STRING")]
+            ),
             "documentation": DocumentationDatasetFacet(description="mock_description"),
         }
         mock_get_facets.return_value = mock_facets

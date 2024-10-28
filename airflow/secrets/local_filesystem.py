@@ -97,7 +97,9 @@ def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSynt
     return secrets, errors
 
 
-def _parse_yaml_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSyntaxError]]:
+def _parse_yaml_file(
+    file_path: str,
+) -> tuple[dict[str, list[str]], list[FileSyntaxError]]:
     """
     Parse a file in the YAML format.
 
@@ -115,7 +117,9 @@ def _parse_yaml_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSyn
         err_line_no = e.problem_mark.line if e.problem_mark else -1
         return {}, [FileSyntaxError(line_no=err_line_no, message=str(e))]
     if not isinstance(secrets, dict):
-        return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
+        return {}, [
+            FileSyntaxError(line_no=1, message="The file should contain the object.")
+        ]
 
     return secrets, []
 
@@ -137,7 +141,9 @@ def _parse_json_file(file_path: str) -> tuple[dict[str, Any], list[FileSyntaxErr
     except JSONDecodeError as e:
         return {}, [FileSyntaxError(line_no=int(e.lineno), message=e.msg)]
     if not isinstance(secrets, dict):
-        return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
+        return {}, [
+            FileSyntaxError(line_no=1, message="The file should contain the object.")
+        ]
 
     return secrets, []
 
@@ -174,11 +180,17 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
 
-    log.debug("Parsed file: len(parse_errors)=%d, len(secrets)=%d", len(parse_errors), len(secrets))
+    log.debug(
+        "Parsed file: len(parse_errors)=%d, len(secrets)=%d",
+        len(parse_errors),
+        len(secrets),
+    )
 
     if parse_errors:
         raise AirflowFileParseException(
-            "Failed to load the secret file.", file_path=file_path, parse_errors=parse_errors
+            "Failed to load the secret file.",
+            file_path=file_path,
+            parse_errors=parse_errors,
         )
 
     return secrets
@@ -233,10 +245,19 @@ def load_variables(file_path: str) -> dict[str, str]:
     log.debug("Loading variables from a text file")
 
     secrets = _parse_secret_file(file_path)
-    invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
+    invalid_keys = [
+        key
+        for key, values in secrets.items()
+        if isinstance(values, list) and len(values) != 1
+    ]
     if invalid_keys:
-        raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
-    variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
+        raise AirflowException(
+            f'The "{file_path}" file contains multiple values for keys: {invalid_keys}'
+        )
+    variables = {
+        key: values[0] if isinstance(values, list) else values
+        for key, values in secrets.items()
+    }
     log.debug("Loaded %d variables: ", len(variables))
     return variables
 
@@ -256,7 +277,9 @@ def load_connections_dict(file_path: str) -> dict[str, Any]:
     for key, secret_values in list(secrets.items()):
         if isinstance(secret_values, list):
             if len(secret_values) > 1:
-                raise ConnectionNotUnique(f"Found multiple values for {key} in {file_path}.")
+                raise ConnectionNotUnique(
+                    f"Found multiple values for {key} in {file_path}."
+                )
 
             for secret_value in secret_values:
                 connection_by_conn_id[key] = _create_connection(key, secret_value)
@@ -279,7 +302,11 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     :param connections_file_path: File location with connection data.
     """
 
-    def __init__(self, variables_file_path: str | None = None, connections_file_path: str | None = None):
+    def __init__(
+        self,
+        variables_file_path: str | None = None,
+        connections_file_path: str | None = None,
+    ):
         super().__init__()
         self.variables_file = variables_file_path
         self.connections_file = connections_file_path

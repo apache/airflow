@@ -74,7 +74,9 @@ class TestInfluxDbHook:
         self.influxdb_hook.client = mock.Mock()
         self.influxdb_hook.client.write_api = mock.Mock()
 
-        self.influxdb_hook.write("test_bucket", "test_point", "location", "Prague", "temperature", 25.3, True)
+        self.influxdb_hook.write(
+            "test_bucket", "test_point", "location", "Prague", "temperature", 25.3, True
+        )
 
         self.influxdb_hook.client.write_api.assert_called()
 

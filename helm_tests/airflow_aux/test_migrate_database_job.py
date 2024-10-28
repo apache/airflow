@@ -28,8 +28,12 @@ class TestMigrateDatabaseJob:
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
         assert "Job" == docs[0]["kind"]
-        assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
-        assert 50000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+        assert "run-airflow-migrations" == jmespath.search(
+            "spec.template.spec.containers[0].name", docs[0]
+        )
+        assert 50000 == jmespath.search(
+            "spec.template.spec.securityContext.runAsUser", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "migrate_database_job_enabled,created",
@@ -50,7 +54,12 @@ class TestMigrateDatabaseJob:
 
     def test_should_support_annotations(self):
         docs = render_chart(
-            values={"migrateDatabaseJob": {"annotations": {"foo": "bar"}, "jobAnnotations": {"fiz": "fuz"}}},
+            values={
+                "migrateDatabaseJob": {
+                    "annotations": {"foo": "bar"},
+                    "jobAnnotations": {"fiz": "fuz"},
+                }
+            },
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
         annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
@@ -70,7 +79,10 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_merge_common_labels_and_component_specific_labels(self):
         docs = render_chart(
@@ -82,14 +94,20 @@ class TestMigrateDatabaseJob:
             },
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
-        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert "test_common_label" in jmespath.search(
+            "spec.template.metadata.labels", docs[0]
+        )
         assert (
             jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
             == "test_common_label_value"
         )
-        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert "test_specific_label" in jmespath.search(
+            "spec.template.metadata.labels", docs[0]
+        )
         assert (
-            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
+            jmespath.search("spec.template.metadata.labels", docs[0])[
+                "test_specific_label"
+            ]
             == "test_specific_label_value"
         )
 
@@ -103,7 +121,11 @@ class TestMigrateDatabaseJob:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -111,7 +133,12 @@ class TestMigrateDatabaseJob:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 }
@@ -171,14 +198,19 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert expected_image == jmespath.search("spec.template.spec.containers[0].image", docs[0])
+        assert expected_image == jmespath.search(
+            "spec.template.spec.containers[0].image", docs[0]
+        )
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name }}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -195,7 +227,10 @@ class TestMigrateDatabaseJob:
             values={
                 "migrateDatabaseJob": {
                     "extraInitContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name }}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -272,7 +307,9 @@ class TestMigrateDatabaseJob:
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {
-                    "extraVolumes": [{"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                 },
             },
             show_only=["templates/jobs/migrate-database-job.yaml"],
@@ -286,7 +323,9 @@ class TestMigrateDatabaseJob:
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {
-                    "extraVolumeMounts": [{"name": "foobar-{{ .Chart.Name }}", "mountPath": "foo/bar"}],
+                    "extraVolumeMounts": [
+                        {"name": "foobar-{{ .Chart.Name }}", "mountPath": "foo/bar"}
+                    ],
                 },
             },
             show_only=["templates/jobs/migrate-database-job.yaml"],
@@ -344,7 +383,9 @@ class TestMigrateDatabaseJob:
             ("2.7.1", "airflow db migrate"),
         ],
     )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    def test_default_command_and_args_airflow_version(
+        self, airflow_version, expected_arg
+    ):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -352,7 +393,9 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert [
             "bash",
             "-c",
@@ -367,25 +410,37 @@ class TestMigrateDatabaseJob:
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                "migrateDatabaseJob": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}
+                "migrateDatabaseJob": {
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
             },
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/jobs/migrate-database-job.yaml"]
+            values={"airflowLocalSettings": None},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
         )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts)
 
     def test_airflow_local_settings(self):
@@ -415,7 +470,10 @@ class TestMigrateDatabaseJobServiceAccount:
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_merge_common_labels_and_component_specific_labels(self):
         docs = render_chart(
@@ -428,10 +486,14 @@ class TestMigrateDatabaseJobServiceAccount:
             show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
         )
         assert "test_common_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_common_label"] == "test_common_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_common_label"]
+            == "test_common_label_value"
+        )
         assert "test_specific_label" in jmespath.search("metadata.labels", docs[0])
         assert (
-            jmespath.search("metadata.labels", docs[0])["test_specific_label"] == "test_specific_label_value"
+            jmespath.search("metadata.labels", docs[0])["test_specific_label"]
+            == "test_specific_label_value"
         )
 
     def test_default_automount_service_account_token(self):
@@ -449,7 +511,10 @@ class TestMigrateDatabaseJobServiceAccount:
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],

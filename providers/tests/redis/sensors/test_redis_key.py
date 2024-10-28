@@ -37,7 +37,10 @@ class TestRedisPublishOperator:
     @patch("airflow.providers.redis.hooks.redis.RedisHook.get_conn")
     def test_execute_operator(self, mock_redis_conn):
         sensor = RedisKeySensor(
-            key="test_key", redis_conn_id="redis_default", task_id="test_task", dag=self.dag
+            key="test_key",
+            redis_conn_id="redis_default",
+            task_id="test_task",
+            dag=self.dag,
         )
         sensor.poke(self.mock_context)
 

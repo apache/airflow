@@ -20,7 +20,11 @@ from __future__ import annotations
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 from airflow.hooks.base import BaseHook
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook

@@ -66,22 +66,31 @@ class TestStepFunctionExecutionSensor:
     @pytest.mark.parametrize("status", StepFunctionExecutionSensor.INTERMEDIATE_STATES)
     def test_running(self, mocked_hook, status, mocked_context):
         mocked_hook.describe_execution.return_value = {"status": status}
-        sensor = StepFunctionExecutionSensor(task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None)
+        sensor = StepFunctionExecutionSensor(
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None
+        )
         assert sensor.poke(mocked_context) is False
 
     @mock.patch.object(StepFunctionExecutionSensor, "hook")
     @pytest.mark.parametrize("status", StepFunctionExecutionSensor.SUCCESS_STATES)
     def test_succeeded(self, mocked_hook, status, mocked_context):
         mocked_hook.describe_execution.return_value = {"status": status}
-        sensor = StepFunctionExecutionSensor(task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None)
+        sensor = StepFunctionExecutionSensor(
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None
+        )
         assert sensor.poke(mocked_context) is True
 
     @mock.patch.object(StepFunctionExecutionSensor, "hook")
     @pytest.mark.parametrize("status", StepFunctionExecutionSensor.FAILURE_STATES)
     def test_failure(self, mocked_hook, status, mocked_context):
         output = {"test": "test"}
-        mocked_hook.describe_execution.return_value = {"status": status, "output": json.dumps(output)}
-        sensor = StepFunctionExecutionSensor(task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None)
+        mocked_hook.describe_execution.return_value = {
+            "status": status,
+            "output": json.dumps(output),
+        }
+        sensor = StepFunctionExecutionSensor(
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None
+        )
         message = f"Step Function sensor failed. State Machine Output: {output}"
         with pytest.raises(AirflowException, match=message):
             sensor.poke(mocked_context)

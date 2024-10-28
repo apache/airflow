@@ -21,7 +21,11 @@ from unittest.mock import patch
 
 import pytest
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -72,10 +76,15 @@ class TestGetConfig:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
-            "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/config",
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=True)
         assert response.status_code == 200
@@ -91,11 +100,16 @@ class TestGetConfig:
         )
         assert expected == response.data.decode()
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
     def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict):
         response = self.client.get(
-            "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/config",
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
         )
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=False)
         assert response.status_code == 200
@@ -111,7 +125,10 @@ class TestGetConfig:
         )
         assert expected == response.data.decode()
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
@@ -139,7 +156,10 @@ class TestGetConfig:
         }
         assert expected == response.json
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_200_single_section_as_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=smtp",
@@ -157,7 +177,10 @@ class TestGetConfig:
         )
         assert expected == response.data.decode()
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_200_single_section_as_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=smtp",
@@ -179,7 +202,10 @@ class TestGetConfig:
         }
         assert expected == response.json
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_404_when_section_not_exist(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=smtp1",
@@ -190,7 +216,10 @@ class TestGetConfig:
         assert response.status_code == 404
         assert "section=smtp1 not found." in response.json["detail"]
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
@@ -200,7 +229,9 @@ class TestGetConfig:
         assert response.status_code == 406
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/api/v1/config", headers={"Accept": "application/json"})
+        response = self.client.get(
+            "/api/v1/config", headers={"Accept": "application/json"}
+        )
 
         assert_401(response)
 
@@ -230,7 +261,10 @@ class TestGetValue:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
@@ -260,7 +294,9 @@ class TestGetValue:
             ("DATABASE", "sql_alchemy_conn"),
         ],
     )
-    def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict, section, option):
+    def test_should_respond_200_text_plain_with_non_sensitive_only(
+        self, mock_as_dict, section, option
+    ):
         response = self.client.get(
             f"/api/v1/config/section/{section}/option/{option}",
             headers={"Accept": "text/plain"},
@@ -275,7 +311,10 @@ class TestGetValue:
         )
         assert expected == response.data.decode()
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
@@ -295,7 +334,10 @@ class TestGetValue:
         }
         assert expected == response.json
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_404_when_option_not_exist(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from1",
@@ -304,9 +346,15 @@ class TestGetValue:
         )
 
         assert response.status_code == 404
-        assert "The option [smtp/smtp_mail_from1] is not found in config." in response.json["detail"]
+        assert (
+            "The option [smtp/smtp_mail_from1] is not found in config."
+            in response.json["detail"]
+        )
 
-    @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=MOCK_CONF,
+    )
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
@@ -317,7 +365,8 @@ class TestGetValue:
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
-            "/api/v1/config/section/smtp/option/smtp_mail_from", headers={"Accept": "application/json"}
+            "/api/v1/config/section/smtp/option/smtp_mail_from",
+            headers={"Accept": "application/json"},
         )
 
         assert_401(response)

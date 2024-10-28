@@ -25,4 +25,6 @@ from airflow.providers.standard.operators.bash import BashOperator
 DEFAULT_DATE = datetime(2019, 12, 1)
 
 dag = DAG(dag_id="test_dag_under_subdir2", start_date=DEFAULT_DATE, schedule=None)
-task = BashOperator(task_id="task1", bash_command='echo "test dag under sub directory subdir2"', dag=dag)
+task = BashOperator(
+    task_id="task1", bash_command='echo "test dag under sub directory subdir2"', dag=dag
+)

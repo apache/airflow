@@ -108,7 +108,12 @@ class TestHistoricalMetricsDataEndpoint:
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
-            "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
+            "dag_run_types": {
+                "backfill": 0,
+                "asset_triggered": 1,
+                "manual": 0,
+                "scheduled": 2,
+            },
             "task_instance_states": {
                 "deferred": 0,
                 "failed": 2,
@@ -133,7 +138,12 @@ class TestHistoricalMetricsDataEndpoint:
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
-            "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
+            "dag_run_types": {
+                "backfill": 0,
+                "asset_triggered": 1,
+                "manual": 0,
+                "scheduled": 0,
+            },
             "task_instance_states": {
                 "deferred": 0,
                 "failed": 2,

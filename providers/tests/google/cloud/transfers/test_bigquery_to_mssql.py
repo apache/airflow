@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_mssql import (
+    BigQueryToMsSqlOperator,
+)
 
 TASK_ID = "test-bq-create-table-operator"
 TEST_DATASET = "test-dataset"
@@ -29,7 +31,9 @@ TEST_PROJECT = "test-project"
 
 
 class TestBigQueryToMsSqlOperator:
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryTableLink")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryTableLink"
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook, mock_link):
         destination_table = "table"
@@ -64,9 +68,13 @@ class TestBigQueryToMsSqlOperator:
         hook_actual = operator.get_sql_hook()
 
         assert hook_actual == hook_expected
-        mock_hook.assert_called_once_with(schema=operator.database, mssql_conn_id=operator.mssql_conn_id)
+        mock_hook.assert_called_once_with(
+            schema=operator.database, mssql_conn_id=operator.mssql_conn_id
+        )
 
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryTableLink")
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryTableLink"
+    )
     def test_persist_links(self, mock_link):
         mock_context = mock.MagicMock()
 

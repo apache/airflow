@@ -41,7 +41,9 @@ MINIMAL_TEST_TICKET = {
 
 @pytest.fixture
 def mocked_jira_client():
-    with mock.patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True) as m:
+    with mock.patch(
+        "airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True
+    ) as m:
         m.return_value = mock.Mock(name="jira_client_for_test")
         yield m
 

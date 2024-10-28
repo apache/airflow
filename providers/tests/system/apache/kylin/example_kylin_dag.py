@@ -101,7 +101,15 @@ with DAG(
         end_time="1328730000000",
     )
 
-    build_task1 >> build_task2 >> refresh_task1 >> merge_task >> disable_task >> purge_task >> build_task3
+    (
+        build_task1
+        >> build_task2
+        >> refresh_task1
+        >> merge_task
+        >> disable_task
+        >> purge_task
+        >> build_task3
+    )
 
     # Task dependency created via `XComArgs`:
     #   gen_build_time >> build_task1

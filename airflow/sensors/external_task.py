@@ -58,7 +58,10 @@ class ExternalDagLink(BaseOperatorLink):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         ti = TaskInstance.get_task_instance(
-            dag_id=ti_key.dag_id, run_id=ti_key.run_id, task_id=ti_key.task_id, map_index=ti_key.map_index
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            task_id=ti_key.task_id,
+            map_index=ti_key.map_index,
         )
 
         if TYPE_CHECKING:
@@ -66,7 +69,9 @@ class ExternalDagLink(BaseOperatorLink):
 
         template_fields = RenderedTaskInstanceFields.get_templated_fields(ti)
         external_dag_id = (
-            template_fields["external_dag_id"] if template_fields else operator.external_dag_id  # type: ignore[attr-defined]
+            template_fields["external_dag_id"]
+            if template_fields
+            else operator.external_dag_id  # type: ignore[attr-defined]
         )
         query = {
             "dag_id": external_dag_id,
@@ -145,7 +150,12 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param deferrable: Run sensor in deferrable mode
     """
 
-    template_fields = ["external_dag_id", "external_task_id", "external_task_ids", "external_task_group_id"]
+    template_fields = [
+        "external_dag_id",
+        "external_task_id",
+        "external_task_ids",
+        "external_task_group_id",
+    ]
     ui_color = "#4db7db"
     operator_extra_links = [ExternalDagLink()]
 
@@ -163,18 +173,24 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
         poll_interval: float = 2.0,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        self.allowed_states = (
+            list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        )
         self.skipped_states = list(skipped_states) if skipped_states else []
         self.failed_states = list(failed_states) if failed_states else []
 
         total_states = set(self.allowed_states + self.skipped_states + self.failed_states)
 
-        if len(total_states) != len(self.allowed_states) + len(self.skipped_states) + len(self.failed_states):
+        if len(total_states) != len(self.allowed_states) + len(self.skipped_states) + len(
+            self.failed_states
+        ):
             raise AirflowException(
                 "Duplicate values provided across allowed_states, skipped_states and failed_states."
             )
@@ -246,7 +262,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     @provide_session
     def poke(self, context: Context, session: Session = NEW_SESSION) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
-        if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
+        if self.external_task_ids and len(self.external_task_ids) > len(
+            set(self.external_task_ids)
+        ):
             raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
 
         dttm_filter = self._get_dttm_filter(context)
@@ -268,7 +286,11 @@ class ExternalTaskSensor(BaseSensorOperator):
                 serialized_dttm_filter,
             )
 
-        if self.external_dag_id and not self.external_task_group_id and not self.external_task_ids:
+        if (
+            self.external_dag_id
+            and not self.external_task_group_id
+            and not self.external_task_ids
+        ):
             self.log.info(
                 "Poking for DAG '%s' on %s ... ",
                 self.external_dag_id,
@@ -362,7 +384,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     def execute_complete(self, context, event=None):
         """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
-            self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
+            self.log.info(
+                "External tasks %s has executed successfully.", self.external_task_ids
+            )
         elif event["status"] == "skipped":
             raise AirflowSkipException("External job has skipped skipping.")
         else:
@@ -378,10 +402,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
         if not dag_to_wait:
-            raise AirflowException(f"The external DAG {self.external_dag_id} does not exist.")
+            raise AirflowException(
+                f"The external DAG {self.external_dag_id} does not exist."
+            )
 
         if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
-            raise AirflowException(f"The external DAG {self.external_dag_id} was deleted.")
+            raise AirflowException(
+                f"The external DAG {self.external_dag_id} was deleted."
+            )
 
         if self.external_task_ids:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
@@ -412,7 +440,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         :return: count of record against the filters
         """
         warnings.warn(
-            "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
+            "This method is deprecated and will be removed in future.",
+            DeprecationWarning,
+            stacklevel=2,
         )
         return _get_count(
             dttm_filter,
@@ -425,7 +455,9 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def get_external_task_group_task_ids(self, session, dttm_filter):
         warnings.warn(
-            "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
+            "This method is deprecated and will be removed in future.",
+            DeprecationWarning,
+            stacklevel=2,
         )
         return _get_external_task_group_task_ids(
             dttm_filter, self.external_task_group_id, self.external_dag_id, session
@@ -444,7 +476,11 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         # Remove "logical_date" because it is already a mandatory positional argument
         logical_date = context["logical_date"]
-        kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
+        kwargs = {
+            k: v
+            for k, v in context.items()
+            if k not in {"execution_date", "logical_date"}
+        }
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)
         kwargs["context"] = context
@@ -507,5 +543,7 @@ class ExternalTaskMarker(EmptyOperator):
     def get_serialized_fields(cls):
         """Serialize ExternalTaskMarker to contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
+            cls.__serialized_fields = frozenset(
+                super().get_serialized_fields() | {"recursion_depth"}
+            )
         return cls.__serialized_fields

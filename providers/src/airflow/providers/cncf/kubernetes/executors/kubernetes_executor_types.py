@@ -28,10 +28,14 @@ if TYPE_CHECKING:
     KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
 
     # key, pod state, pod_name, namespace, resource_version
-    KubernetesResultsType = Tuple[TaskInstanceKey, Optional[Union[TaskInstanceState, str]], str, str, str]
+    KubernetesResultsType = Tuple[
+        TaskInstanceKey, Optional[Union[TaskInstanceState, str]], str, str, str
+    ]
 
     # pod_name, namespace, pod state, annotations, resource_version
-    KubernetesWatchType = Tuple[str, str, Optional[Union[TaskInstanceState, str]], Dict[str, str], str]
+    KubernetesWatchType = Tuple[
+        str, str, Optional[Union[TaskInstanceState, str]], Dict[str, str], str
+    ]
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"

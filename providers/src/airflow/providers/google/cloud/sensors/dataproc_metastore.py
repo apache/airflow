@@ -86,7 +86,10 @@ class MetastoreHivePartitionSensor(BaseSensorOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         operation: Operation = hook.list_hive_partitions(
-            region=self.region, service_id=self.service_id, table=self.table, partition_names=self.partitions
+            region=self.region,
+            service_id=self.service_id,
+            table=self.table,
+            partition_names=self.partitions,
         )
         metadata = hook.wait_for_operation(timeout=self.timeout, operation=operation)
         result_manifest_uri: str = metadata.result_manifest_uri
@@ -111,7 +114,9 @@ class MetastoreHivePartitionSensor(BaseSensorOperator):
 
         # Extract actual query results
         result_base_uri = result_manifest_uri.rsplit("/", 1)[0]
-        results = (f"{result_base_uri}//{filename}" for filename in manifest.get("filenames", []))
+        results = (
+            f"{result_base_uri}//{filename}" for filename in manifest.get("filenames", [])
+        )
         found_partitions = sum(
             len(
                 parse_json_from_gcs(

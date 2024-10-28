@@ -18,7 +18,10 @@ from __future__ import annotations
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils.dates import datetime
 from airflow.utils.trigger_rule import TriggerRule
@@ -32,7 +35,10 @@ MONGO_DATABASE_KEY = "MONGO_DATABASE"
 MONGO_COLLECTION_KEY = "MONGO_COLLECTION"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(MONGO_DATABASE_KEY).add_variable(MONGO_COLLECTION_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(MONGO_DATABASE_KEY)
+    .add_variable(MONGO_COLLECTION_KEY)
+    .build()
 )
 
 with DAG(
@@ -50,7 +56,9 @@ with DAG(
     s3_bucket = f"{env_id}-mongo-to-s3-bucket"
     s3_key = f"{env_id}-mongo-to-s3-key"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket
+    )
 
     # [START howto_transfer_mongo_to_s3]
     mongo_to_s3_job = MongoToS3Operator(

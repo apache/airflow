@@ -18,7 +18,11 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
+from airflow.api_connexion.schemas.pool_schema import (
+    PoolCollection,
+    pool_collection_schema,
+    pool_schema,
+)
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 
@@ -58,7 +62,9 @@ class TestPoolSchema:
     def test_deserialize(self, session):
         pool_dict = {"name": "test_pool", "slots": 3, "include_deferred": True}
         deserialized_pool = pool_schema.load(pool_dict, session=session)
-        assert not isinstance(deserialized_pool, Pool)  # Checks if load_instance is set to True
+        assert not isinstance(
+            deserialized_pool, Pool
+        )  # Checks if load_instance is set to True
 
 
 class TestPoolCollectionSchema:

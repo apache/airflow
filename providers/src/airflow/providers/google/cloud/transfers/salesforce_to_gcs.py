@@ -93,7 +93,9 @@ class SalesforceToGcsOperator(BaseOperator):
     def execute(self, context: Context):
         salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
-            query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
+            query=self.query,
+            include_deleted=self.include_deleted,
+            query_params=self.query_params,
         )
 
         with tempfile.TemporaryDirectory() as tmp:

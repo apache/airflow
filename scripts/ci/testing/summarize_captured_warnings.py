@@ -37,7 +37,16 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 
-REQUIRED_FIELDS = ("category", "message", "node_id", "filename", "lineno", "group", "count", "when")
+REQUIRED_FIELDS = (
+    "category",
+    "message",
+    "node_id",
+    "filename",
+    "lineno",
+    "group",
+    "count",
+    "when",
+)
 CONSOLE_SIZE = shutil.get_terminal_size((80, 20)).columns
 # Use as prefix/suffix in report output
 IMPORTANT_WARNING_SIGN = {
@@ -85,7 +94,9 @@ def count_groups(
     records: Iterable, grouping_key: Callable, *, reverse=True, top: int = 0
 ) -> Iterator[tuple[Any, int]]:
     it = sorted_groupby(records, grouping_key)
-    for ix, (group, r) in enumerate(sorted(it, key=lambda k: len(k[1]), reverse=reverse), start=1):
+    for ix, (group, r) in enumerate(
+        sorted(it, key=lambda k: len(k[1]), reverse=reverse), start=1
+    ):
         if top and top < ix:
             return
         yield group, len(r)
@@ -106,7 +117,9 @@ class CapturedWarnings:
 
     @property
     def unique_key(self) -> str:
-        return _unique_key(self.node_id, self.category, self.message, self.filename, str(self.lineno))
+        return _unique_key(
+            self.node_id, self.category, self.message, self.filename, str(self.lineno)
+        )
 
     @classmethod
     def from_dict(cls, d: dict) -> CapturedWarnings:
@@ -118,13 +131,19 @@ class CapturedWarnings:
 
 
 def find_files(directory: Path, glob_pattern: str) -> Iterator[tuple[Path, str]]:
-    print(f" Process directory {directory} with pattern {glob_pattern!r} ".center(CONSOLE_SIZE, "="))
+    print(
+        f" Process directory {directory} with pattern {glob_pattern!r} ".center(
+            CONSOLE_SIZE, "="
+        )
+    )
     directory = Path(directory)
     for filepath in directory.rglob(glob_pattern):
         yield from resolve_file(filepath, directory)
 
 
-def resolve_file(filepath: Path, directory: Path | None = None) -> Iterator[tuple[Path, str]]:
+def resolve_file(
+    filepath: Path, directory: Path | None = None
+) -> Iterator[tuple[Path, str]]:
     if not filepath.is_file():
         raise SystemExit("Provided path {filepath} is not a file.")
     if directory:
@@ -155,7 +174,9 @@ def merge_files(files: Iterator[tuple[Path, str]], output_directory: Path) -> Pa
                             raise ValueError
                     except Exception:
                         bad_records += 1
-                        dump = json.dumps({"source": source_filename, "lineno": lineno, "record": line})
+                        dump = json.dumps(
+                            {"source": source_filename, "lineno": lineno, "record": line}
+                        )
                         badwfp.write(f"{dump}\n")
                     else:
                         records += 1
@@ -177,7 +198,9 @@ def merge_files(files: Iterator[tuple[Path, str]], output_directory: Path) -> Pa
     return output_file
 
 
-def group_report_warnings(group, when: str, group_records, output_directory: Path) -> None:
+def group_report_warnings(
+    group, when: str, group_records, output_directory: Path
+) -> None:
     output_filepath = output_directory / warnings_filename(f"{group}-{when}")
 
     group_warnings: dict[str, CapturedWarnings] = {}
@@ -198,7 +221,11 @@ def group_report_warnings(group, when: str, group_records, output_directory: Pat
     if when == "runtest":  # Node id exists only during runtest
         print(f"Unique warnings within the test cases: {len(group_warnings):,}\n")
         print("Top 10 Tests Cases:")
-        it = count_groups(group_warnings.values(), grouping_key=lambda cw: (cw.category, cw.node_id), top=10)
+        it = count_groups(
+            group_warnings.values(),
+            grouping_key=lambda cw: (cw.category, cw.node_id),
+            top=10,
+        )
         for (category, node_id), count in it:
             if suffix := IMPORTANT_WARNING_SIGN.get(category, ""):
                 suffix = f" ({suffix})"
@@ -207,7 +234,9 @@ def group_report_warnings(group, when: str, group_records, output_directory: Pat
 
     print(f"Unique warnings: {len(unique_group_warnings):,}\n")
     print("Warnings grouped by category:")
-    for category, count in count_groups(unique_group_warnings.values(), grouping_key=lambda cw: cw.category):
+    for category, count in count_groups(
+        unique_group_warnings.values(), grouping_key=lambda cw: cw.category
+    ):
         if suffix := IMPORTANT_WARNING_SIGN.get(category, ""):
             suffix = f" ({suffix})"
         print(f"  {category} - {count:,}{suffix}")
@@ -215,7 +244,9 @@ def group_report_warnings(group, when: str, group_records, output_directory: Pat
 
     print("Top 10 Warnings:")
     it = count_groups(
-        unique_group_warnings.values(), grouping_key=lambda cw: (cw.category, cw.filename, cw.lineno), top=10
+        unique_group_warnings.values(),
+        grouping_key=lambda cw: (cw.category, cw.filename, cw.lineno),
+        top=10,
     )
     for (category, filename, lineno), count in it:
         if suffix := IMPORTANT_WARNING_SIGN.get(category, ""):
@@ -223,7 +254,11 @@ def group_report_warnings(group, when: str, group_records, output_directory: Pat
         print(f"  {filename}:{lineno}:{category} - {count:,}{suffix}")
     print()
 
-    always = list(filter(lambda w: w.category in ALWAYS_SHOW_WARNINGS, unique_group_warnings.values()))
+    always = list(
+        filter(
+            lambda w: w.category in ALWAYS_SHOW_WARNINGS, unique_group_warnings.values()
+        )
+    )
     if always:
         print(f" Always reported warnings {len(always):,}".center(CONSOLE_SIZE, "-"))
         for cw in always:
@@ -247,7 +282,9 @@ def main(_input: str, _output: str | None, pattern: str | None) -> int | str:
     print(f"Current Working Directory: {cwd.as_posix()}")
 
     try:
-        input_path = Path(os.path.expanduser(os.path.expandvars(_input))).resolve(strict=True)
+        input_path = Path(os.path.expanduser(os.path.expandvars(_input))).resolve(
+            strict=True
+        )
     except OSError as ex:
         return f"Unable to resolve {_input!r} path. {type(ex).__name__}: {ex}"
 

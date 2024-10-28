@@ -70,7 +70,9 @@ class TestLambdaCreateFunctionOperator:
 
     @mock.patch.object(LambdaHook, "create_lambda")
     @mock.patch.object(LambdaHook, "conn")
-    def test_create_lambda_without_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda):
+    def test_create_lambda_without_wait_for_completion(
+        self, mock_hook_conn, mock_hook_create_lambda
+    ):
         operator = LambdaCreateFunctionOperator(
             task_id="task_test",
             function_name=FUNCTION_NAME,
@@ -96,7 +98,9 @@ class TestLambdaCreateFunctionOperator:
             ),
         ],
     )
-    def test_create_lambda_with_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda, op_kwargs):
+    def test_create_lambda_with_wait_for_completion(
+        self, mock_hook_conn, mock_hook_create_lambda, op_kwargs
+    ):
         operator = LambdaCreateFunctionOperator(
             task_id="task_test",
             function_name=FUNCTION_NAME,
@@ -135,7 +139,10 @@ class TestLambdaCreateFunctionOperator:
             pytest.param(
                 {
                     "architectures": ["arm64"],
-                    "logging_config": {"LogFormat": "Text", "LogGroup": "/custom/log-group/"},
+                    "logging_config": {
+                        "LogFormat": "Text",
+                        "LogGroup": "/custom/log-group/",
+                    },
                     "snap_start": {"ApplyOn": "PublishedVersions"},
                     "ephemeral_storage": {"Size": 1024},
                 },
@@ -143,7 +150,9 @@ class TestLambdaCreateFunctionOperator:
             ),
         ],
     )
-    def test_create_lambda_using_config_argument(self, mock_hook_conn, mock_hook_create_lambda, config):
+    def test_create_lambda_using_config_argument(
+        self, mock_hook_conn, mock_hook_create_lambda, config
+    ):
         operator = LambdaCreateFunctionOperator(
             task_id="task_test",
             function_name=FUNCTION_NAME,
@@ -199,7 +208,8 @@ class TestLambdaInvokeFunctionOperator:
     @mock.patch.object(LambdaHook, "invoke_lambda")
     @mock.patch.object(LambdaHook, "conn")
     @pytest.mark.parametrize(
-        "keep_empty_log_lines", [pytest.param(True, id="keep"), pytest.param(False, id="truncate")]
+        "keep_empty_log_lines",
+        [pytest.param(True, id="keep"), pytest.param(False, id="truncate")],
     )
     @pytest.mark.parametrize(
         "log_result, expected_execution_logs",
@@ -273,7 +283,10 @@ class TestLambdaInvokeFunctionOperator:
             task_id="task_test",
             function_name="a",
         )
-        hook_mock().invoke_lambda.return_value = {"ResponseMetadata": "", "StatusCode": 404}
+        hook_mock().invoke_lambda.return_value = {
+            "ResponseMetadata": "",
+            "StatusCode": 404,
+        }
 
         with pytest.raises(ValueError):
             operator.execute(None)

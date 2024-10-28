@@ -73,7 +73,9 @@ class GoogleDataprepHook(BaseHook):
     conn_type = "dataprep"
     hook_name = "Google Dataprep"
 
-    def __init__(self, dataprep_conn_id: str = default_conn_name, api_version: str = "v4") -> None:
+    def __init__(
+        self, dataprep_conn_id: str = default_conn_name, api_version: str = "v4"
+    ) -> None:
         super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
         self.api_version = api_version
@@ -104,7 +106,9 @@ class GoogleDataprepHook(BaseHook):
         return response.json()
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
-    def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> dict[str, Any]:
+    def get_job_group(
+        self, job_group_id: int, embed: str, include_deleted: bool
+    ) -> dict[str, Any]:
         """
         Get the specified job group.
 
@@ -135,7 +139,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint_path = f"{self.api_version}/jobGroups"
         url: str = urljoin(self._base_url, endpoint_path)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -149,13 +155,20 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/flows"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def copy_flow(
-        self, *, flow_id: int, name: str = "", description: str = "", copy_datasources: bool = False
+        self,
+        *,
+        flow_id: int,
+        name: str = "",
+        description: str = "",
+        copy_datasources: bool = False,
     ) -> dict:
         """
         Create a copy of the provided flow id, as well as all contained recipes.
@@ -172,7 +185,9 @@ class GoogleDataprepHook(BaseHook):
             "description": description,
             "copyDatasources": copy_datasources,
         }
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -198,7 +213,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"{self.api_version}/flows/{flow_id}/run"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -232,7 +249,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/importedDatasets"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -247,7 +266,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/wrangledDatasets"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -262,7 +283,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/outputObjects"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 
@@ -277,7 +300,9 @@ class GoogleDataprepHook(BaseHook):
         """
         endpoint = f"/{self.api_version}/writeSettings"
         url: str = urljoin(self._base_url, endpoint)
-        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        response = requests.post(
+            url, headers=self._headers, data=json.dumps(body_request)
+        )
         self._raise_for_status(response)
         return response.json()
 

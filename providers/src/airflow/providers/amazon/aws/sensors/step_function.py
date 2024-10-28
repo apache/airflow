@@ -71,10 +71,16 @@ class StepFunctionExecutionSensor(AwsBaseSensor[StepFunctionHook]):
     def poke(self, context: Context):
         execution_status = self.hook.describe_execution(self.execution_arn)
         state = execution_status["status"]
-        output = json.loads(execution_status["output"]) if "output" in execution_status else None
+        output = (
+            json.loads(execution_status["output"])
+            if "output" in execution_status
+            else None
+        )
 
         if state in self.FAILURE_STATES:
-            raise AirflowException(f"Step Function sensor failed. State Machine Output: {output}")
+            raise AirflowException(
+                f"Step Function sensor failed. State Machine Output: {output}"
+            )
 
         if state in self.INTERMEDIATE_STATES:
             return False

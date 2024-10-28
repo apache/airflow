@@ -23,14 +23,16 @@ from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.operators.dataplex import DataplexHook
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPLEX_STRING = "airflow.providers.google.cloud.hooks.dataplex.{}"
-DATAPLEX_HOOK_CLIENT = "airflow.providers.google.cloud.hooks.dataplex.DataplexHook.get_dataplex_client"
-DATAPLEX_HOOK_DS_CLIENT = (
-    "airflow.providers.google.cloud.hooks.dataplex.DataplexHook.get_dataplex_data_scan_client"
+DATAPLEX_HOOK_CLIENT = (
+    "airflow.providers.google.cloud.hooks.dataplex.DataplexHook.get_dataplex_client"
 )
+DATAPLEX_HOOK_DS_CLIENT = "airflow.providers.google.cloud.hooks.dataplex.DataplexHook.get_dataplex_data_scan_client"
 
 PROJECT_ID = "project-id"
 REGION = "region"
@@ -46,7 +48,9 @@ ASSET_ID = "test_asset_id"
 ZONE_ID = "test_zone_id"
 JOB_ID = "job_id"
 DATA_SCAN_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/dataScans/{DATA_SCAN_ID}"
-DATA_SCAN_JOB_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/dataScans/{DATA_SCAN_ID}/jobs/{JOB_ID}"
+DATA_SCAN_JOB_NAME = (
+    f"projects/{PROJECT_ID}/locations/{REGION}/dataScans/{DATA_SCAN_ID}/jobs/{JOB_ID}"
+)
 ZONE_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
 ZONE_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}"
 ASSET_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/assets/{ASSET_ID}"
@@ -94,7 +98,10 @@ class TestDataplexHook:
     @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_delete_task(self, mock_client):
         self.hook.delete_task(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            dataplex_task_id=DATAPLEX_TASK_ID,
         )
 
         name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}"
@@ -128,7 +135,10 @@ class TestDataplexHook:
     @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_get_task(self, mock_client):
         self.hook.get_task(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            dataplex_task_id=DATAPLEX_TASK_ID,
         )
 
         name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}"
@@ -193,7 +203,13 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_create_zone(self, mock_client):
-        self.hook.create_zone(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID, body={})
+        self.hook.create_zone(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            zone_id=ZONE_ID,
+            body={},
+        )
 
         mock_client.return_value.create_zone.assert_called_once_with(
             request=dict(
@@ -208,7 +224,9 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_delete_zone(self, mock_client):
-        self.hook.delete_zone(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID)
+        self.hook.delete_zone(
+            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID
+        )
 
         mock_client.return_value.delete_zone.assert_called_once_with(
             request=dict(
@@ -244,7 +262,11 @@ class TestDataplexHook:
     @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_delete_asset(self, mock_client):
         self.hook.delete_asset(
-            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID, asset_id=ASSET_ID
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            zone_id=ZONE_ID,
+            asset_id=ASSET_ID,
         )
 
         mock_client.return_value.delete_asset.assert_called_once_with(
@@ -258,7 +280,9 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
     def test_create_data_scan(self, mock_client):
-        self.hook.create_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID, body={})
+        self.hook.create_data_scan(
+            project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID, body={}
+        )
 
         mock_client.return_value.create_data_scan.assert_called_once_with(
             request=dict(parent=DATASCAN_PARENT, data_scan_id=DATA_SCAN_ID, data_scan={}),
@@ -269,7 +293,9 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
     def test_run_data_scan(self, mock_client):
-        self.hook.run_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID)
+        self.hook.run_data_scan(
+            project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID
+        )
 
         mock_client.return_value.run_data_scan.assert_called_once_with(
             request=dict(
@@ -295,7 +321,9 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
     def test_delete_data_scan(self, mock_client):
-        self.hook.delete_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID)
+        self.hook.delete_data_scan(
+            project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID
+        )
 
         mock_client.return_value.delete_data_scan.assert_called_once_with(
             request=dict(
@@ -308,7 +336,9 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
     def test_get_data_scan(self, mock_client):
-        self.hook.get_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID)
+        self.hook.get_data_scan(
+            project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID
+        )
 
         mock_client.return_value.get_data_scan.assert_called_once_with(
             request=dict(name=DATA_SCAN_NAME, view="FULL"),

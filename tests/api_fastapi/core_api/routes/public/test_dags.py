@@ -28,7 +28,11 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -158,9 +162,21 @@ class TestGetDags(TestDagEndpoint):
             ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
-            ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
-            ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
-            ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            (
+                {"order_by": "next_dagrun", "only_active": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "last_run_state", "only_active": False},
+                3,
+                [DAG1_ID, DAG3_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "-last_run_state", "only_active": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
             (
                 {"order_by": "last_run_start_date", "only_active": False},
                 3,
@@ -176,7 +192,9 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
         ],
     )
-    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
+    def test_get_dags(
+        self, test_client, query_params, expected_total_entries, expected_ids
+    ):
         response = test_client.get("/public/dags", params=query_params)
 
         assert response.status_code == 200
@@ -193,7 +211,13 @@ class TestPatchDag(TestDagEndpoint):
         "query_params, dag_id, body, expected_status_code, expected_is_paused",
         [
             ({}, "fake_dag_id", {"is_paused": True}, 404, None),
-            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
+            (
+                {"update_mask": ["field_1", "is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                400,
+                None,
+            ),
             ({}, DAG1_ID, {"is_paused": True}, 200, True),
             ({}, DAG1_ID, {"is_paused": False}, 200, False),
             ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
@@ -201,9 +225,17 @@ class TestPatchDag(TestDagEndpoint):
         ],
     )
     def test_patch_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        body,
+        expected_status_code,
+        expected_is_paused,
     ):
-        response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
+        response = test_client.patch(
+            f"/public/dags/{dag_id}", json=body, params=query_params
+        )
 
         assert response.status_code == expected_status_code
         if expected_status_code == 200:
@@ -217,7 +249,13 @@ class TestPatchDags(TestDagEndpoint):
     @pytest.mark.parametrize(
         "query_params, body, expected_status_code, expected_ids, expected_paused_ids",
         [
-            ({"update_mask": ["field_1", "is_paused"]}, {"is_paused": True}, 400, None, None),
+            (
+                {"update_mask": ["field_1", "is_paused"]},
+                {"is_paused": True},
+                400,
+                None,
+                None,
+            ),
             (
                 {"only_active": False},
                 {"is_paused": True},
@@ -256,7 +294,13 @@ class TestPatchDags(TestDagEndpoint):
         ],
     )
     def test_patch_dags(
-        self, test_client, query_params, body, expected_status_code, expected_ids, expected_paused_ids
+        self,
+        test_client,
+        query_params,
+        body,
+        expected_status_code,
+        expected_ids,
+        expected_paused_ids,
     ):
         response = test_client.patch("/public/dags", json=body, params=query_params)
 
@@ -274,12 +318,24 @@ class TestDagDetails(TestDagEndpoint):
     @pytest.mark.parametrize(
         "query_params, dag_id, expected_status_code, dag_display_name, start_date",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
+            (
+                {},
+                "fake_dag_id",
+                404,
+                "fake_dag",
+                datetime(2023, 12, 31, tzinfo=timezone.utc),
+            ),
             ({}, DAG2_ID, 200, DAG2_ID, DAG2_START_DATE),
         ],
     )
     def test_dag_details(
-        self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        expected_status_code,
+        dag_display_name,
+        start_date,
     ):
         response = test_client.get(f"/public/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
@@ -333,7 +389,8 @@ class TestDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": None,
-            "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
+            "start_date": start_date.replace(tzinfo=None).isoformat()
+            + "Z",  # pydantic datetime format
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
@@ -352,7 +409,9 @@ class TestGetDag(TestDagEndpoint):
             ({}, DAG2_ID, 200, DAG2_ID),
         ],
     )
-    def test_get_dag(self, test_client, query_params, dag_id, expected_status_code, dag_display_name):
+    def test_get_dag(
+        self, test_client, query_params, dag_id, expected_status_code, dag_display_name
+    ):
         response = test_client.get(f"/public/dags/{dag_id}", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -491,7 +550,12 @@ class TestGetDagTags(TestDagEndpoint):
         ],
     )
     def test_get_dag_tags(
-        self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
+        self,
+        test_client,
+        query_params,
+        expected_status_code,
+        expected_dag_tags,
+        expected_total_entries,
     ):
         response = test_client.get("/public/dags/tags", params=query_params)
         assert response.status_code == expected_status_code
@@ -533,7 +597,14 @@ class TestDeleteDAG(TestDagEndpoint):
     @pytest.mark.parametrize(
         "dag_id, dag_display_name, status_code_delete, status_code_details, has_running_dagruns, is_create_dag",
         [
-            ("test_nonexistent_dag_id", "nonexistent_display_name", 404, 404, False, False),
+            (
+                "test_nonexistent_dag_id",
+                "nonexistent_display_name",
+                404,
+                404,
+                False,
+                False,
+            ),
             (DAG4_ID, DAG4_DISPLAY_NAME, 204, 404, False, True),
             (DAG5_ID, DAG5_DISPLAY_NAME, 409, 200, True, True),
         ],

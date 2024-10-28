@@ -82,14 +82,18 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.job_id = job_id
         self.expected_statuses = (
-            {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
+            {expected_statuses}
+            if isinstance(expected_statuses, str)
+            else expected_statuses
         )
         self.project_id = project_id
         self.location = location
@@ -117,7 +121,9 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         if job_status in self.expected_statuses:
             return True
         elif job_status in DataflowJobStatus.TERMINAL_STATES:
-            message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+            message = (
+                f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+            )
             raise AirflowException(message)
 
         return False
@@ -151,7 +157,9 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info(event["message"])
             return True
-        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+        raise AirflowException(
+            f"Sensor failed with the following message: {event['message']}"
+        )
 
     @cached_property
     def hook(self) -> DataflowHook:
@@ -205,7 +213,9 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -237,7 +247,11 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
-        return result["metrics"] if self.callback is None else self.callback(result["metrics"])
+        return (
+            result["metrics"]
+            if self.callback is None
+            else self.callback(result["metrics"])
+        )
 
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
@@ -269,8 +283,14 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         """
         if event["status"] == "success":
             self.log.info(event["message"])
-            return event["result"] if self.callback is None else self.callback(event["result"])
-        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+            return (
+                event["result"]
+                if self.callback is None
+                else self.callback(event["result"])
+            )
+        raise AirflowException(
+            f"Sensor failed with the following message: {event['message']}"
+        )
 
     @cached_property
     def hook(self) -> DataflowHook:
@@ -326,7 +346,9 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -391,8 +413,14 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         """
         if event["status"] == "success":
             self.log.info(event["message"])
-            return event["result"] if self.callback is None else self.callback(event["result"])
-        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+            return (
+                event["result"]
+                if self.callback is None
+                else self.callback(event["result"])
+            )
+        raise AirflowException(
+            f"Sensor failed with the following message: {event['message']}"
+        )
 
     @cached_property
     def hook(self) -> DataflowHook:
@@ -448,7 +476,9 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 60,
         **kwargs,
     ) -> None:
@@ -512,8 +542,14 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         """
         if event["status"] == "success":
             self.log.info(event["message"])
-            return event["result"] if self.callback is None else self.callback(event["result"])
-        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+            return (
+                event["result"]
+                if self.callback is None
+                else self.callback(event["result"])
+            )
+        raise AirflowException(
+            f"Sensor failed with the following message: {event['message']}"
+        )
 
     @cached_property
     def hook(self) -> DataflowHook:

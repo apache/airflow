@@ -48,7 +48,9 @@ def change_ownership_of_files(path: Path) -> None:
         try:
             if file.is_symlink() and file.lstat().st_uid == root_uid:
                 # Change ownership of symlink itself (by default stat/chown follow the symlinks)
-                os.chown(file, int(host_user_id), int(host_group_id), follow_symlinks=False)
+                os.chown(
+                    file, int(host_user_id), int(host_group_id), follow_symlinks=False
+                )
                 count_files += 1
                 if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
                     print(f"Changed ownership of symlink {file}")
@@ -64,7 +66,9 @@ def change_ownership_of_files(path: Path) -> None:
             if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
                 print(f"Could not change ownership of {file}")
     if count_files:
-        print(f"Changed ownership of {count_files} files back to {host_user_id}:{host_group_id}.")
+        print(
+            f"Changed ownership of {count_files} files back to {host_user_id}:{host_group_id}."
+        )
 
 
 if __name__ == "__main__":
@@ -75,7 +79,9 @@ if __name__ == "__main__":
         print("Since host OS is not Linux, we don't need to fix ownership.")
         sys.exit(0)
     if DOCKER_IS_ROOTLESS:
-        print("Since Docker is in rootless mode , we don't need to fix ownership even on Linux.")
+        print(
+            "Since Docker is in rootless mode , we don't need to fix ownership even on Linux."
+        )
         sys.exit(0)
 
     change_ownership_of_files(Path("/opt/airflow"))

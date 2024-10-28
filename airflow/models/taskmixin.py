@@ -59,14 +59,18 @@ class DependencyMixin:
 
     @abstractmethod
     def set_upstream(
-        self, other: DependencyMixin | Sequence[DependencyMixin], edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ):
         """Set a task or a task list to be directly upstream from the current task."""
         raise NotImplementedError()
 
     @abstractmethod
     def set_downstream(
-        self, other: DependencyMixin | Sequence[DependencyMixin], edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ):
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
@@ -85,7 +89,10 @@ class DependencyMixin:
         raise NotImplementedError()
 
     def update_relative(
-        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin,
+        upstream: bool = True,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """
         Update relationship information about another DependencyMixin. Default is no-op.
@@ -206,10 +213,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
-        dags: set[DAG] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
+        dags: set[DAG] = {
+            task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag
+        }
 
         if len(dags) > 1:
-            raise AirflowException(f"Tried to set relationships between tasks in more than one DAG: {dags}")
+            raise AirflowException(
+                f"Tried to set relationships between tasks in more than one DAG: {dags}"
+            )
         elif len(dags) == 1:
             dag = dags.pop()
         else:
@@ -243,7 +254,9 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Set a node (or nodes) to be directly downstream from the current node."""
-        self._set_relatives(task_or_task_list, upstream=False, edge_modifier=edge_modifier)
+        self._set_relatives(
+            task_or_task_list, upstream=False, edge_modifier=edge_modifier
+        )
 
     def set_upstream(
         self,

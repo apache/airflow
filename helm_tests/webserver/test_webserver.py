@@ -91,15 +91,21 @@ class TestWebserverDeployment:
         )
 
         assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.path", docs[0])
+            jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.httpGet.path", docs[0]
+            )
             == "/mypath/path/health"
         )
         assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0])
+            jmespath.search(
+                "spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0]
+            )
             == "/mypath/path/health"
         )
         assert (
-            jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.path", docs[0])
+            jmespath.search(
+                "spec.template.spec.containers[0].startupProbe.httpGet.path", docs[0]
+            )
             == "/mypath/path/health"
         )
 
@@ -107,7 +113,9 @@ class TestWebserverDeployment:
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+    def test_revision_history_limit(
+        self, revision_history_limit, global_revision_history_limit
+    ):
         values = {"webserver": {}}
         if revision_history_limit:
             values["webserver"]["revisionHistoryLimit"] = revision_history_limit
@@ -117,24 +125,39 @@ class TestWebserverDeployment:
             values=values,
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = (
+            revision_history_limit
+            if revision_history_limit
+            else global_revision_history_limit
+        )
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     @pytest.mark.parametrize("values", [{"config": {"webserver": {"base_url": ""}}}, {}])
     def test_should_not_contain_host_header(self, values):
         print(values)
-        docs = render_chart(values=values, show_only=["templates/webserver/webserver-deployment.yaml"])
+        docs = render_chart(
+            values=values, show_only=["templates/webserver/webserver-deployment.yaml"]
+        )
 
         assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
+            jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders",
+                docs[0],
+            )
             is None
         )
         assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
+            jmespath.search(
+                "spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders",
+                docs[0],
+            )
             is None
         )
         assert (
-            jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.httpHeaders", docs[0])
+            jmespath.search(
+                "spec.template.spec.containers[0].startupProbe.httpGet.httpHeaders",
+                docs[0],
+            )
             is None
         )
 
@@ -160,9 +183,15 @@ class TestWebserverDeployment:
         assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
             "startupProbe.httpGet.httpHeaders", container
         )
-        assert "/mypath/release-name/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
-        assert "/mypath/release-name/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
-        assert "/mypath/release-name/path/health" == jmespath.search("startupProbe.httpGet.path", container)
+        assert "/mypath/release-name/path/health" == jmespath.search(
+            "livenessProbe.httpGet.path", container
+        )
+        assert "/mypath/release-name/path/health" == jmespath.search(
+            "readinessProbe.httpGet.path", container
+        )
+        assert "/mypath/release-name/path/health" == jmespath.search(
+            "startupProbe.httpGet.path", container
+        )
 
     def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
@@ -210,7 +239,10 @@ class TestWebserverDeployment:
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
-                        {"name": "{{.Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{.Chart.Name}}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -245,11 +277,18 @@ class TestWebserverDeployment:
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
                             "name": "TEST_ENV_2",
-                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "my-secret", "key": "my-key"}
+                            },
                         },
                         {
                             "name": "TEST_ENV_3",
-                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "my-config-map",
+                                    "key": "my-key",
+                                }
+                            },
                         },
                     ],
                 },
@@ -273,16 +312,23 @@ class TestWebserverDeployment:
         docs = render_chart(
             values={
                 "webserver": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumes": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}
+                    ],
                     "extraVolumeMounts": [
-                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                        {
+                            "name": "test-volume-{{ .Chart.Name }}",
+                            "mountPath": "/opt/test",
+                        }
                     ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[-1].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.volumes[-1].name", docs[0]
+        )
         assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1].name", docs[0]
         )
@@ -299,7 +345,9 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[-1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.volumes[-1].name", docs[0]
+        )
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1].name", docs[0]
         )
@@ -323,8 +371,14 @@ class TestWebserverDeployment:
     @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [
-            ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
-            ("2.1.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
+            (
+                "2.0.0",
+                ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"],
+            ),
+            (
+                "2.1.0",
+                ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"],
+            ),
             ("1.10.2", ["python", "-c"]),
         ],
     )
@@ -349,7 +403,8 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         actual = jmespath.search(
-            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']",
+            docs[0],
         )
         assert actual is None
 
@@ -358,7 +413,10 @@ class TestWebserverDeployment:
             values={
                 "webserver": {
                     "extraInitContainers": [
-                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "test-init-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -374,7 +432,9 @@ class TestWebserverDeployment:
         docs = render_chart(
             values={
                 "webserver": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-init-container"}],
+                    "extraInitContainers": [
+                        {"name": "{{ .Release.Name }}-init-container"}
+                    ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -395,7 +455,10 @@ class TestWebserverDeployment:
         )
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -407,7 +470,11 @@ class TestWebserverDeployment:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -415,7 +482,12 @@ class TestWebserverDeployment:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 }
@@ -451,7 +523,9 @@ class TestWebserverDeployment:
             docs[0],
         )
 
-    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
+    def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(
+        self,
+    ):
         """When given both global and webserver affinity etc, webserver affinity etc is used."""
         expected_affinity = {
             "nodeAffinity": {
@@ -477,7 +551,12 @@ class TestWebserverDeployment:
                 "webserver": {
                     "affinity": expected_affinity,
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "topologySpreadConstraints": [expected_topology_spread_constraints],
                     "nodeSelector": {"type": "ssd"},
@@ -489,7 +568,11 @@ class TestWebserverDeployment:
                                 "weight": 1,
                                 "preference": {
                                     "matchExpressions": [
-                                        {"key": "not-me", "operator": "In", "values": ["true"]},
+                                        {
+                                            "key": "not-me",
+                                            "operator": "In",
+                                            "values": ["true"],
+                                        },
                                     ]
                                 },
                             }
@@ -497,7 +580,12 @@ class TestWebserverDeployment:
                     }
                 },
                 "tolerations": [
-                    {"key": "not-me", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    {
+                        "key": "not-me",
+                        "operator": "Equal",
+                        "value": "true",
+                        "effect": "NoSchedule",
+                    }
                 ],
                 "topologySpreadConstraints": [
                     {
@@ -512,7 +600,9 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
+        assert expected_affinity == jmespath.search(
+            "spec.template.spec.affinity", docs[0]
+        )
         assert "ssd" == jmespath.search(
             "spec.template.spec.nodeSelector.type",
             docs[0],
@@ -543,7 +633,9 @@ class TestWebserverDeployment:
             ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
         ],
     )
-    def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
+    def test_logs_persistence_adds_volume_and_mount(
+        self, log_persistence_values, expected_claim_name
+    ):
         docs = render_chart(
             values={"logs": {"persistence": log_persistence_values}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -559,9 +651,14 @@ class TestWebserverDeployment:
                 "mountPath": "/opt/airflow/logs",
             } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         else:
-            assert "logs" not in [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
             assert "logs" not in [
-                v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+                v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])
+            ]
+            assert "logs" not in [
+                v["name"]
+                for v in jmespath.search(
+                    "spec.template.spec.containers[0].volumeMounts", docs[0]
+                )
             ]
 
     @pytest.mark.parametrize(
@@ -610,19 +707,27 @@ class TestWebserverDeployment:
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.cpu", docs[0]
+        )
 
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.cpu", docs[0]
+        )
 
         # initContainer wait-for-airflow-migrations
         assert "128Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
         )
-        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+        assert "200m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]
+        )
 
         assert "169Mi" == jmespath.search(
             "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
@@ -651,9 +756,10 @@ class TestWebserverDeployment:
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
-            "spec.template.spec.containers[0].securityContext", docs[0]
-        )
+        assert {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+        } == jmespath.search("spec.template.spec.containers[0].securityContext", docs[0])
 
         assert {
             "runAsUser": 2000,
@@ -688,16 +794,33 @@ class TestWebserverDeployment:
         docs = render_chart(
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
-        assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
+        assert (
+            jmespath.search("spec.template.spec.initContainers[0].resources", docs[0])
+            == {}
+        )
 
     @pytest.mark.parametrize(
         "airflow_version, expected_strategy",
         [
-            ("2.0.2", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
+            (
+                "2.0.2",
+                {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0},
+                },
+            ),
             ("1.10.14", {"type": "Recreate"}),
             ("1.9.0", {"type": "Recreate"}),
-            ("2.1.0", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
+            (
+                "2.1.0",
+                {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0},
+                },
+            ),
         ],
     )
     def test_default_update_strategy(self, airflow_version, expected_strategy):
@@ -709,7 +832,10 @@ class TestWebserverDeployment:
         assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
 
     def test_update_strategy(self):
-        expected_strategy = {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}}
+        expected_strategy = {
+            "type": "RollingUpdate",
+            "rollingUpdate": {"maxUnavailable": 1},
+        }
         docs = render_chart(
             values={"webserver": {"strategy": expected_strategy}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -719,11 +845,16 @@ class TestWebserverDeployment:
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": None}, show_only=["templates/webserver/webserver-deployment.yaml"]
+            values={"airflowLocalSettings": None},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts)
-        volume_mounts_init = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        volume_mounts_init = jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
         assert "airflow_local_settings.py" not in str(volume_mounts_init)
 
     def test_airflow_local_settings(self):
@@ -737,13 +868,19 @@ class TestWebserverDeployment:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         }
-        assert volume_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert volume_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts", docs[0]
+        )
+        assert volume_mount in jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts", docs[0]
+        )
 
     def test_default_command_and_args(self):
         docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert (
+            jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        )
         assert ["bash", "-c", "exec airflow webserver"] == jmespath.search(
             "spec.template.spec.containers[0].args", docs[0]
         )
@@ -756,24 +893,38 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={"webserver": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={
+                "webserver": {
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "airflow_version, dag_values",
         [
             ("1.10.15", {"gitSync": {"enabled": False}}),
             ("1.10.15", {"persistence": {"enabled": False}}),
-            ("1.10.15", {"gitSync": {"enabled": False}, "persistence": {"enabled": False}}),
+            (
+                "1.10.15",
+                {"gitSync": {"enabled": False}, "persistence": {"enabled": False}},
+            ),
             ("2.0.0", {"gitSync": {"enabled": True}}),
             ("2.0.0", {"gitSync": {"enabled": False}}),
             ("2.0.0", {"persistence": {"enabled": True}}),
@@ -781,16 +932,23 @@ class TestWebserverDeployment:
             ("2.0.0", {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}),
         ],
     )
-    def test_no_dags_mount_or_volume_or_gitsync_sidecar_expected(self, airflow_version, dag_values):
+    def test_no_dags_mount_or_volume_or_gitsync_sidecar_expected(
+        self, airflow_version, dag_values
+    ):
         docs = render_chart(
             values={"dags": dag_values, "airflowVersion": airflow_version},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
         assert "dags" not in [
-            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            vm["name"]
+            for vm in jmespath.search(
+                "spec.template.spec.containers[0].volumeMounts", docs[0]
+            )
         ]
-        assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+        assert "dags" not in [
+            vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])
+        ]
         assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
 
     @pytest.mark.parametrize(
@@ -798,7 +956,11 @@ class TestWebserverDeployment:
         [
             ("1.10.15", {"gitSync": {"enabled": True}}, True),
             ("1.10.15", {"persistence": {"enabled": True}}, False),
-            ("1.10.15", {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}, True),
+            (
+                "1.10.15",
+                {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+                True,
+            ),
         ],
     )
     def test_dags_mount(self, airflow_version, dag_values, expected_read_only):
@@ -819,18 +981,29 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert {"name": "dags", "emptyDir": {}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+        assert "git-sync" in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
         assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            c["name"]
+            for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
     @pytest.mark.parametrize(
         "dags_values, expected_claim_name",
         [
             ({"persistence": {"enabled": True}}, "release-name-dags"),
-            ({"persistence": {"enabled": True, "existingClaim": "test-claim"}}, "test-claim"),
-            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "release-name-dags"),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
+                "test-claim",
+            ),
+            (
+                {"persistence": {"enabled": True}, "gitSync": {"enabled": True}},
+                "release-name-dags",
+            ),
         ],
     )
     def test_dags_persistence_volume_no_sidecar(self, dags_values, expected_claim_name):
@@ -857,7 +1030,10 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+        assert (
+            jmespath.search("metadata.annotations", docs[0])["test_annotation"]
+            == "test_annotation_value"
+        )
 
     def test_webserver_pod_hostaliases(self):
         docs = render_chart(
@@ -869,8 +1045,12 @@ class TestWebserverDeployment:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
-        assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+        assert "127.0.0.1" == jmespath.search(
+            "spec.template.spec.hostAliases[0].ip", docs[0]
+        )
+        assert "foo.local" == jmespath.search(
+            "spec.template.spec.hostAliases[0].hostnames[0]", docs[0]
+        )
 
     def test_should_add_annotations_to_webserver_configmap(self):
         docs = render_chart(
@@ -884,7 +1064,10 @@ class TestWebserverDeployment:
         )
 
         assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+        assert (
+            jmespath.search("metadata.annotations", docs[0])["test_annotation"]
+            == "test_annotation_value"
+        )
 
     @pytest.mark.parametrize(
         "webserver_values, expected",
@@ -898,7 +1081,9 @@ class TestWebserverDeployment:
             values=webserver_values,
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+        assert expected == jmespath.search(
+            "spec.template.spec.terminationGracePeriodSeconds", docs[0]
+        )
 
 
 class TestWebserverService:
@@ -911,11 +1096,15 @@ class TestWebserverService:
 
         assert "release-name-webserver" == jmespath.search("metadata.name", docs[0])
         assert jmespath.search("metadata.annotations", docs[0]) is None
-        assert {"tier": "airflow", "component": "webserver", "release": "release-name"} == jmespath.search(
-            "spec.selector", docs[0]
-        )
+        assert {
+            "tier": "airflow",
+            "component": "webserver",
+            "release": "release-name",
+        } == jmespath.search("spec.selector", docs[0])
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
-        assert {"name": "airflow-ui", "port": 8080} in jmespath.search("spec.ports", docs[0])
+        assert {"name": "airflow-ui", "port": 8080} in jmespath.search(
+            "spec.ports", docs[0]
+        )
 
     def test_overrides(self):
         docs = render_chart(
@@ -935,19 +1124,32 @@ class TestWebserverService:
 
         assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
-        assert {"name": "airflow-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
+        assert {"name": "airflow-ui", "port": 9000} in jmespath.search(
+            "spec.ports", docs[0]
+        )
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
-        assert ["10.123.0.0/16"] == jmespath.search("spec.loadBalancerSourceRanges", docs[0])
+        assert ["10.123.0.0/16"] == jmespath.search(
+            "spec.loadBalancerSourceRanges", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
         [
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
-                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
+                [
+                    {
+                        "name": "{{ .Release.Name }}",
+                        "protocol": "UDP",
+                        "port": "{{ .Values.ports.airflowUI }}",
+                    }
+                ],
                 [{"name": "release-name", "protocol": "UDP", "port": 8080}],
             ),
-            ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
+            (
+                [{"name": "only_sidecar", "port": "{{ int 9000 }}"}],
+                [{"name": "only_sidecar", "port": 9000}],
+            ),
             (
                 [
                     {"name": "airflow-ui", "port": "{{ .Values.ports.airflowUI }}"},
@@ -980,7 +1182,10 @@ class TestWebserverService:
             show_only=["templates/webserver/webserver-service.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
@@ -1033,12 +1238,18 @@ class TestWebserverConfigmap:
 
     def test_webserver_config_configmap(self):
         docs = render_chart(
-            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"
+                }
+            },
             show_only=["templates/configmaps/webserver-configmap.yaml"],
         )
 
         assert "ConfigMap" == docs[0]["kind"]
-        assert "release-name-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-webserver-config" == jmespath.search(
+            "metadata.name", docs[0]
+        )
         assert (
             "CSRF_ENABLED = True  # release-name"
             == jmespath.search('data."webserver_config.py"', docs[0]).strip()
@@ -1061,7 +1272,13 @@ class TestWebserverNetworkPolicy:
                 "webserver": {
                     "networkPolicy": {
                         "ingress": {
-                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                            "from": [
+                                {
+                                    "namespaceSelector": {
+                                        "matchLabels": {"release": "myrelease"}
+                                    }
+                                }
+                            ]
                         }
                     }
                 },
@@ -1071,9 +1288,9 @@ class TestWebserverNetworkPolicy:
 
         assert 1 == len(docs)
         assert "NetworkPolicy" == docs[0]["kind"]
-        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
-            "spec.ingress[0].from", docs[0]
-        )
+        assert [
+            {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
+        ] == jmespath.search("spec.ingress[0].from", docs[0])
         assert [{"port": 8080}] == jmespath.search("spec.ingress[0].ports", docs[0])
 
     @pytest.mark.parametrize(
@@ -1099,7 +1316,13 @@ class TestWebserverNetworkPolicy:
                 "webserver": {
                     "networkPolicy": {
                         "ingress": {
-                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
+                            "from": [
+                                {
+                                    "namespaceSelector": {
+                                        "matchLabels": {"release": "myrelease"}
+                                    }
+                                }
+                            ],
                             "ports": ports,
                         }
                     }
@@ -1115,15 +1338,17 @@ class TestWebserverNetworkPolicy:
             values={
                 "networkPolicies": {"enabled": True},
                 "webserver": {
-                    "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                    "extraNetworkPolicies": [
+                        {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
+                    ]
                 },
             },
             show_only=["templates/webserver/webserver-networkpolicy.yaml"],
         )
 
-        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
-            "spec.ingress[0].from", docs[0]
-        )
+        assert [
+            {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
+        ] == jmespath.search("spec.ingress[0].from", docs[0])
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
@@ -1136,7 +1361,10 @@ class TestWebserverNetworkPolicy:
             show_only=["templates/webserver/webserver-networkpolicy.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
 
 class TestWebserverServiceAccount:
@@ -1153,7 +1381,10 @@ class TestWebserverServiceAccount:
             show_only=["templates/webserver/webserver-serviceaccount.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_label"]
+            == "test_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
@@ -1170,7 +1401,10 @@ class TestWebserverServiceAccount:
         docs = render_chart(
             values={
                 "webserver": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/webserver/webserver-serviceaccount.yaml"],

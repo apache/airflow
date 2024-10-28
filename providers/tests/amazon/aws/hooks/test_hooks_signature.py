@@ -94,12 +94,18 @@ def get_aws_hooks_from_module(hook_module: str) -> list[tuple[type[AwsGenericHoo
             if name in BASE_AWS_HOOKS:
                 continue
 
-            if isinstance(o, type) and o.__module__ != "builtins" and issubclass(o, AwsGenericHook):
+            if (
+                isinstance(o, type)
+                and o.__module__ != "builtins"
+                and issubclass(o, AwsGenericHook)
+            ):
                 hooks.append((o, name))
         return hooks
 
 
-def validate_hook(hook: type[AwsGenericHook], hook_name: str, hook_module: str) -> tuple[bool, str | None]:
+def validate_hook(
+    hook: type[AwsGenericHook], hook_name: str, hook_module: str
+) -> tuple[bool, str | None]:
     hook_extra_parameters = set()
     for k, v in inspect.signature(hook.__init__).parameters.items():
         if v.kind == inspect.Parameter.VAR_POSITIONAL:
@@ -188,11 +194,15 @@ def test_expected_thin_hooks(hook_module: str):
     """
     hooks = get_aws_hooks_from_module(hook_module)
     if not hooks:
-        pytest.skip(reason=f"Module {hook_module!r} doesn't contain subclasses of `AwsGenericHook`.")
+        pytest.skip(
+            reason=f"Module {hook_module!r} doesn't contain subclasses of `AwsGenericHook`."
+        )
 
     errors = [
         message
-        for valid, message in (validate_hook(hook, hook_name, hook_module) for hook, hook_name in hooks)
+        for valid, message in (
+            validate_hook(hook, hook_name, hook_module) for hook, hook_name in hooks
+        )
         if not valid and message
     ]
 

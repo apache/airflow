@@ -30,7 +30,11 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from airflow.providers.common.compat.openlineage.facet import BaseFacet, Dataset, DatasetFacet
+    from airflow.providers.common.compat.openlineage.facet import (
+        BaseFacet,
+        Dataset,
+        DatasetFacet,
+    )
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
@@ -97,7 +101,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         sleep_time: int = 30,
         max_polling_attempts: int | None = None,
         log_query: bool = True,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         catalog: str = "AwsDataCatalog",
         **kwargs: Any,
     ) -> None:
@@ -175,11 +181,15 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         return self.query_execution_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> str:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+            raise AirflowException(
+                f"Error while waiting for operation on cluster to complete: {event}"
+            )
 
         # Save query_execution_id to be later used by listeners
         self.query_execution_id = event["value"]
@@ -195,16 +205,20 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 http_status_code = response["ResponseMetadata"]["HTTPStatusCode"]
             except Exception:
                 self.log.exception(
-                    "Exception while cancelling query. Query execution id: %s", self.query_execution_id
+                    "Exception while cancelling query. Query execution id: %s",
+                    self.query_execution_id,
                 )
             finally:
                 if http_status_code is None or http_status_code != 200:
                     self.log.error("Unable to request query cancel on athena. Exiting")
                 else:
                     self.log.info(
-                        "Polling Athena for query with id %s to reach final state", self.query_execution_id
+                        "Polling Athena for query with id %s to reach final state",
+                        self.query_execution_id,
                     )
-                    self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)
+                    self.hook.poll_query_status(
+                        self.query_execution_id, sleep_time=self.sleep_time
+                    )
 
     def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
         """
@@ -227,7 +241,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         sql_parser = SQLParser(dialect="generic")
 
-        job_facets: dict[str, BaseFacet] = {"sql": SQLJobFacet(query=sql_parser.normalize_sql(self.query))}
+        job_facets: dict[str, BaseFacet] = {
+            "sql": SQLJobFacet(query=sql_parser.normalize_sql(self.query))
+        }
         parse_result = sql_parser.parse(sql=self.query)
 
         if not parse_result:
@@ -253,7 +269,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             filter(
                 None,
                 [
-                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    self.get_openlineage_dataset(
+                        table.schema or self.database, table.name
+                    )
                     for table in parse_result.in_tables
                 ],
             )
@@ -263,7 +281,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             filter(
                 None,
                 [
-                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    self.get_openlineage_dataset(
+                        table.schema or self.database, table.name
+                    )
                     for table in parse_result.out_tables
                 ],
             )
@@ -276,9 +296,16 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if self.output_location:
             parsed = urlparse(self.output_location)
-            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path or "/"))
+            outputs.append(
+                Dataset(
+                    namespace=f"{parsed.scheme}://{parsed.netloc}",
+                    name=parsed.path or "/",
+                )
+            )
 
-        return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
+        return OperatorLineage(
+            job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs
+        )
 
     def get_openlineage_dataset(self, database, table) -> Dataset | None:
         from airflow.providers.common.compat.openlineage.facet import (
@@ -311,7 +338,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             }
             fields = [
                 SchemaDatasetFacetFields(
-                    name=column["Name"], type=column["Type"], description=column["Comment"]
+                    name=column["Name"],
+                    type=column["Type"],
+                    description=column["Comment"],
                 )
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]

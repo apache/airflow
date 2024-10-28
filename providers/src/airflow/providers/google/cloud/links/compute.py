@@ -29,11 +29,15 @@ if TYPE_CHECKING:
 
 COMPUTE_BASE_LINK = "https://console.cloud.google.com/compute"
 COMPUTE_LINK = (
-    COMPUTE_BASE_LINK + "/instancesDetail/zones/{location_id}/instances/{resource_id}?project={project_id}"
+    COMPUTE_BASE_LINK
+    + "/instancesDetail/zones/{location_id}/instances/{resource_id}?project={project_id}"
 )
-COMPUTE_TEMPLATE_LINK = COMPUTE_BASE_LINK + "/instanceTemplates/details/{resource_id}?project={project_id}"
+COMPUTE_TEMPLATE_LINK = (
+    COMPUTE_BASE_LINK + "/instanceTemplates/details/{resource_id}?project={project_id}"
+)
 COMPUTE_GROUP_MANAGER_LINK = (
-    COMPUTE_BASE_LINK + "/instanceGroups/details/{location_id}/{resource_id}?project={project_id}"
+    COMPUTE_BASE_LINK
+    + "/instanceGroups/details/{location_id}/{resource_id}?project={project_id}"
 )
 
 

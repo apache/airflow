@@ -25,9 +25,15 @@ from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+)
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.providers.dbt.cloud.utils.openlineage import (
+    generate_openlineage_events_from_dbt_cloud_run,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -57,7 +63,9 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         account_id: int | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         if deferrable:
@@ -90,7 +98,9 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         return DbtCloudHook(self.dbt_cloud_conn_id)
 
     def poke(self, context: Context) -> bool:
-        job_run_status = self.hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
+        job_run_status = self.hook.get_job_run_status(
+            run_id=self.run_id, account_id=self.account_id
+        )
 
         if job_run_status == DbtCloudJobRunStatus.ERROR.value:
             message = f"Job run {self.run_id} has failed."
@@ -141,7 +151,9 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Implement _on_complete because job_run needs to be triggered first in execute method."""
-        return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
+        return generate_openlineage_events_from_dbt_cloud_run(
+            operator=self, task_instance=task_instance
+        )
 
 
 @deprecated(

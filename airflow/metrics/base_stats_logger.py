@@ -85,11 +85,25 @@ class NoStatsLogger:
     """If no StatsLogger is configured, NoStatsLogger is used as a fallback."""
 
     @classmethod
-    def incr(cls, stat: str, count: int = 1, rate: int = 1, *, tags: dict[str, str] | None = None) -> None:
+    def incr(
+        cls,
+        stat: str,
+        count: int = 1,
+        rate: int = 1,
+        *,
+        tags: dict[str, str] | None = None,
+    ) -> None:
         """Increment stat."""
 
     @classmethod
-    def decr(cls, stat: str, count: int = 1, rate: int = 1, *, tags: dict[str, str] | None = None) -> None:
+    def decr(
+        cls,
+        stat: str,
+        count: int = 1,
+        rate: int = 1,
+        *,
+        tags: dict[str, str] | None = None,
+    ) -> None:
         """Decrement stat."""
 
     @classmethod
@@ -105,7 +119,9 @@ class NoStatsLogger:
         """Gauge stat."""
 
     @classmethod
-    def timing(cls, stat: str, dt: DeltaType, *, tags: dict[str, str] | None = None) -> None:
+    def timing(
+        cls, stat: str, dt: DeltaType, *, tags: dict[str, str] | None = None
+    ) -> None:
         """Stats timing."""
 
     @classmethod

@@ -72,7 +72,9 @@ class TaskInstanceSchema(SQLAlchemySchema):
 
     def get_attribute(self, obj, attr, default):
         if attr == "rendered_fields":
-            return get_value(obj, "rendered_task_instance_fields.rendered_fields", default)
+            return get_value(
+                obj, "rendered_task_instance_fields.rendered_fields", default
+            )
         return get_value(obj, attr, default)
 
 
@@ -184,11 +186,17 @@ class ClearTaskInstanceFormSchema(Schema):
             if data["start_date"] > data["end_date"]:
                 raise ValidationError("end_date is sooner than start_date")
         if data["start_date"] and data["end_date"] and data["dag_run_id"]:
-            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+            raise ValidationError(
+                "Exactly one of dag_run_id or (start_date and end_date) must be provided"
+            )
         if data["start_date"] and data["dag_run_id"]:
-            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+            raise ValidationError(
+                "Exactly one of dag_run_id or start_date must be provided"
+            )
         if data["end_date"] and data["dag_run_id"]:
-            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
+            raise ValidationError(
+                "Exactly one of dag_run_id or end_date must be provided"
+            )
 
 
 class SetTaskInstanceStateFormSchema(Schema):
@@ -205,7 +213,11 @@ class SetTaskInstanceStateFormSchema(Schema):
     new_state = TaskInstanceStateField(
         required=True,
         validate=validate.OneOf(
-            [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+            [
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.FAILED,
+                TaskInstanceState.SKIPPED,
+            ]
         ),
     )
 
@@ -213,7 +225,9 @@ class SetTaskInstanceStateFormSchema(Schema):
     def validate_form(self, data, **kwargs):
         """Validate set task instance state form."""
         if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
-            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
+            raise ValidationError(
+                "Exactly one of execution_date or dag_run_id must be provided"
+            )
 
 
 class SetSingleTaskInstanceStateFormSchema(Schema):
@@ -223,7 +237,11 @@ class SetSingleTaskInstanceStateFormSchema(Schema):
     new_state = TaskInstanceStateField(
         required=True,
         validate=validate.OneOf(
-            [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+            [
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.FAILED,
+                TaskInstanceState.SKIPPED,
+            ]
         ),
     )
 

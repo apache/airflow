@@ -94,7 +94,12 @@ class DataFusionHook(GoogleBaseHook):
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             time.sleep(time_to_wait)
             operation = (
-                self.get_conn().projects().locations().operations().get(name=operation.get("name")).execute()
+                self.get_conn()
+                .projects()
+                .locations()
+                .operations()
+                .get(name=operation.get("name"))
+                .execute()
             )
             if operation.get("done"):
                 break
@@ -157,17 +162,25 @@ class DataFusionHook(GoogleBaseHook):
         return os.path.join(instance_url, "v3", "namespaces", quote(namespace), "apps")
 
     def _cdap_request(
-        self, url: str, method: str, body: list | dict | None = None, params: dict | None = None
+        self,
+        url: str,
+        method: str,
+        body: list | dict | None = None,
+        params: dict | None = None,
     ) -> google.auth.transport.Response:
         headers: dict[str, str] = {"Content-Type": "application/json"}
         request = google.auth.transport.requests.Request()
 
         credentials = self.get_credentials()
-        credentials.before_request(request=request, method=method, url=url, headers=headers)
+        credentials.before_request(
+            request=request, method=method, url=url, headers=headers
+        )
 
         payload = json.dumps(body) if body else None
 
-        response = request(method=method, url=url, headers=headers, body=payload, params=params)
+        response = request(
+            method=method, url=url, headers=headers, body=payload, params=params
+        )
         return response
 
     @staticmethod
@@ -197,7 +210,9 @@ class DataFusionHook(GoogleBaseHook):
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def restart_instance(self, instance_name: str, location: str, project_id: str) -> Operation:
+    def restart_instance(
+        self, instance_name: str, location: str, project_id: str
+    ) -> Operation:
         """
         Restart a single Data Fusion instance.
 
@@ -218,7 +233,9 @@ class DataFusionHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_instance(self, instance_name: str, location: str, project_id: str) -> Operation:
+    def delete_instance(
+        self, instance_name: str, location: str, project_id: str
+    ) -> Operation:
         """
         Delete a single Date Fusion instance.
 
@@ -268,7 +285,9 @@ class DataFusionHook(GoogleBaseHook):
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance(self, instance_name: str, location: str, project_id: str) -> dict[str, Any]:
+    def get_instance(
+        self, instance_name: str, location: str, project_id: str
+    ) -> dict[str, Any]:
         """
         Get details of a single Data Fusion instance.
 
@@ -298,7 +317,8 @@ class DataFusionHook(GoogleBaseHook):
         )
         response = self._cdap_request(url=url, method="GET", params={"scope": scope})
         self._check_response_status_and_data(
-            response, f"Retrieving an instance artifacts failed with code {response.status}"
+            response,
+            f"Retrieving an instance artifacts failed with code {response.status}",
         )
         content = json.loads(response.data)
         return content
@@ -362,7 +382,8 @@ class DataFusionHook(GoogleBaseHook):
         url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         response = self._cdap_request(url=url, method="PUT", body=pipeline)
         self._check_response_status_and_data(
-            response, f"Creating a pipeline failed with code {response.status} while calling {url}"
+            response,
+            f"Creating a pipeline failed with code {response.status} while calling {url}",
         )
 
     def delete_pipeline(
@@ -390,7 +411,8 @@ class DataFusionHook(GoogleBaseHook):
             try:
                 response = self._cdap_request(url=url, method="DELETE", body=None)
                 self._check_response_status_and_data(
-                    response, f"Deleting a pipeline failed with code {response.status}: {response.data}"
+                    response,
+                    f"Deleting a pipeline failed with code {response.status}: {response.data}",
                 )
             except ConflictException as exc:
                 self.log.info(exc)
@@ -499,7 +521,9 @@ class DataFusionHook(GoogleBaseHook):
         response_json = json.loads(response.data)
         return response_json[0]["runId"]
 
-    def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
+    def stop_pipeline(
+        self, pipeline_name: str, instance_url: str, namespace: str = "default"
+    ) -> None:
         """
         Stop a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
@@ -600,7 +624,8 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         program_id = self.sync_hook_class.cdap_program_id(pipeline_type=pipeline_type)
         base_url_link = self._base_url(instance_url, namespace)
         url = urljoin(
-            base_url_link, f"{quote(pipeline_name)}/{program_type}s/{program_id}/runs/{quote(pipeline_id)}"
+            base_url_link,
+            f"{quote(pipeline_name)}/{program_type}s/{program_id}/runs/{quote(pipeline_id)}",
         )
         return await self._get_link(url=url, session=session)
 

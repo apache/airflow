@@ -102,7 +102,14 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 
 
 def _format_airflow_moved_table_name(source_table, version, category):
-    return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), category, source_table])
+    return "__".join(
+        [
+            settings.AIRFLOW_MOVED_TABLE_PREFIX,
+            version.replace(".", "_"),
+            category,
+            source_table,
+        ]
+    )
 
 
 @provide_session
@@ -398,12 +405,18 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
-    merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
+    merge_conn(
+        Connection(
+            conn_id="impala_default", conn_type="impala", host="localhost", port=21050
+        )
+    )
     merge_conn(
         Connection(
             conn_id="kafka_default",
             conn_type="kafka",
-            extra=json.dumps({"bootstrap.servers": "broker:29092", "group.id": "my-group"}),
+            extra=json.dumps(
+                {"bootstrap.servers": "broker:29092", "group.id": "my-group"}
+            ),
         ),
         session,
     )
@@ -433,7 +446,10 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
-    merge_conn(Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998), session)
+    merge_conn(
+        Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998),
+        session,
+    )
     merge_conn(
         Connection(
             conn_id="local_mysql",
@@ -455,7 +471,10 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
-    merge_conn(Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017), session)
+    merge_conn(
+        Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
+        session,
+    )
     merge_conn(
         Connection(
             conn_id="mssql_default",
@@ -838,7 +857,9 @@ def check_migrations(timeout):
         for ticker in range(timeout):
             source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
-            if source_heads == db_heads and external_db_manager.check_migration(settings.Session()):
+            if source_heads == db_heads and external_db_manager.check_migration(
+                settings.Session()
+            ):
                 return
             time.sleep(1)
             log.info("Waiting for migrations... %s second(s)", ticker)
@@ -923,7 +944,9 @@ def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
     from airflow.models.serialized_dag import SerializedDagModel
 
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
+    session.execute(
+        delete(SerializedDagModel).execution_options(synchronize_session=False)
+    )
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -947,7 +970,9 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
 
     if log_template_table is None:
-        log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
+        log.info(
+            "Log template table does not exist (added in 2.3.0); skipping log template sync."
+        )
         return
 
     filename = conf.get("logging", "log_filename_template")
@@ -965,8 +990,12 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # If we have an empty table, and the default values exist, we will seed the
     # table with values from pre 2.3.0, so old logs will still be retrievable.
     if not stored:
-        is_default_log_id = elasticsearch_id == conf.get_default_value("elasticsearch", "log_id_template")
-        is_default_filename = filename == conf.get_default_value("logging", "log_filename_template")
+        is_default_log_id = elasticsearch_id == conf.get_default_value(
+            "elasticsearch", "log_id_template"
+        )
+        is_default_filename = filename == conf.get_default_value(
+            "logging", "log_filename_template"
+        )
         if is_default_log_id and is_default_filename:
             session.add(
                 LogTemplate(
@@ -977,11 +1006,16 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
-    pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
+    pre_upgrade_filename = conf.upgraded_values.get(
+        ("logging", "log_filename_template"), filename
+    )
     pre_upgrade_elasticsearch_id = conf.upgraded_values.get(
         ("elasticsearch", "log_id_template"), elasticsearch_id
     )
-    if pre_upgrade_filename != filename or pre_upgrade_elasticsearch_id != elasticsearch_id:
+    if (
+        pre_upgrade_filename != filename
+        or pre_upgrade_elasticsearch_id != elasticsearch_id
+    ):
         # The previous non-upgraded value likely won't be the _latest_ value (as after we've recorded the
         # recorded the upgraded value it will be second-to-newest), so we'll have to just search which is okay
         # as this is a table with a tiny number of rows
@@ -998,10 +1032,17 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         ).first()
         if not row:
             session.add(
-                LogTemplate(filename=pre_upgrade_filename, elasticsearch_id=pre_upgrade_elasticsearch_id)
+                LogTemplate(
+                    filename=pre_upgrade_filename,
+                    elasticsearch_id=pre_upgrade_elasticsearch_id,
+                )
             )
 
-    if not stored or stored.filename != filename or stored.elasticsearch_id != elasticsearch_id:
+    if (
+        not stored
+        or stored.filename != filename
+        or stored.elasticsearch_id != elasticsearch_id
+    ):
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
@@ -1023,7 +1064,9 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(bind=bind, only=[table_name], extend_existing=True, resolve_fks=False)
+                metadata.reflect(
+                    bind=bind, only=[table_name], extend_existing=True, resolve_fks=False
+                )
             except exc.InvalidRequestError:
                 continue
     return metadata
@@ -1125,7 +1168,9 @@ def upgradedb(
 
     # alembic adds significant import time, so we import it lazily
     if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
+        raise RuntimeError(
+            "The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion."
+        )
     from alembic import command
 
     import_all_models()
@@ -1144,7 +1189,9 @@ def upgradedb(
             print_happy_cat("No migrations to apply; nothing to do.")
             return
 
-        _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
+        _revisions_above_min_for_offline(
+            config=config, revisions=[from_revision, to_revision]
+        )
 
         _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
         return  # only running sql; our job is done
@@ -1202,7 +1249,9 @@ def upgradedb(
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
     if not settings.engine:
-        raise RuntimeError("The settings.engine must be set. This is a critical assertion")
+        raise RuntimeError(
+            "The settings.engine must be set. This is a critical assertion"
+        )
     log.info("Dropping tables that exist")
     original_logging_level = logging.root.level
     try:
@@ -1210,7 +1259,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
         connection = settings.engine.connect()
 
-        with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        with create_global_lock(
+            session=session, lock=DBLocks.MIGRATIONS
+        ), connection.begin():
             drop_airflow_models(connection)
             drop_airflow_moved_tables(connection)
             external_db_manager = RunDBManager()
@@ -1236,7 +1287,13 @@ def bootstrap_dagbag(session: Session = NEW_SESSION):
 
 
 @provide_session
-def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: Session = NEW_SESSION):
+def downgrade(
+    *,
+    to_revision,
+    from_revision=None,
+    show_sql_only=False,
+    session: Session = NEW_SESSION,
+):
     """
     Downgrade the airflow metastore schema to a prior version.
 
@@ -1301,7 +1358,11 @@ def drop_airflow_moved_tables(connection):
     from airflow.settings import AIRFLOW_MOVED_TABLE_PREFIX
 
     tables = set(inspect(connection).get_table_names())
-    to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
+    to_delete = [
+        Table(x, Base.metadata)
+        for x in tables
+        if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)
+    ]
     for tbl in to_delete:
         tbl.drop(settings.engine, checkfirst=False)
         Base.metadata.remove(tbl)
@@ -1348,20 +1409,27 @@ def create_global_lock(
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
             conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
-            conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
+            conn.execute(
+                text("SELECT GET_LOCK(:id, :timeout)"),
+                {"id": str(lock), "timeout": lock_timeout},
+            )
 
         yield
     finally:
         if dialect.name == "postgresql":
             conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
-            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            (unlocked,) = conn.execute(
+                text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}
+            ).fetchone()
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
 
-def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
+def compare_type(
+    context, inspected_column, metadata_column, inspected_type, metadata_type
+):
     """
     Compare types between ORM and DB .
 
@@ -1374,7 +1442,9 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
         from sqlalchemy import String
         from sqlalchemy.dialects import mysql
 
-        if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
+        if isinstance(inspected_type, mysql.VARCHAR) and isinstance(
+            metadata_type, String
+        ):
             # This is a hack to get around MySQL VARCHAR collation
             # not being possible to change from utf8_bin to utf8mb3_bin.
             # We only make sure lengths are the same
@@ -1385,7 +1455,12 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
 
 
 def compare_server_default(
-    context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default
+    context,
+    inspected_column,
+    metadata_column,
+    inspected_default,
+    metadata_default,
+    rendered_metadata_default,
 ):
     """
     Compare server defaults between ORM and DB .
@@ -1496,7 +1571,9 @@ class LazySelectSequence(Sequence[T]):
 
     _select_asc: ClauseElement
     _select_desc: ClauseElement
-    _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
+    _session: Session = attrs.field(
+        kw_only=True, factory=get_current_task_instance_session
+    )
     _len: int | None = attrs.field(init=False, default=None)
 
     @classmethod
@@ -1545,8 +1622,16 @@ class LazySelectSequence(Sequence[T]):
         # string to simplify cross-process commuinication as much as possible.
         # Theoratically we can do the same for count(), but I think it should be
         # performant enough to calculate only that eagerly.
-        s1 = str(self._select_asc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
-        s2 = str(self._select_desc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
+        s1 = str(
+            self._select_asc.compile(
+                self._session.get_bind(), compile_kwargs={"literal_binds": True}
+            )
+        )
+        s2 = str(
+            self._select_desc.compile(
+                self._session.get_bind(), compile_kwargs={"literal_binds": True}
+            )
+        )
         return (s1, s2, len(self))
 
     def __setstate__(self, state: Any) -> None:
@@ -1565,7 +1650,9 @@ class LazySelectSequence(Sequence[T]):
         return all(x == y for x, y in z)
 
     def __reversed__(self) -> Iterator[T]:
-        return iter(self._process_row(r) for r in self._session.execute(self._select_desc))
+        return iter(
+            self._process_row(r) for r in self._session.execute(self._select_desc)
+        )
 
     def __iter__(self) -> Iterator[T]:
         return iter(self._process_row(r) for r in self._session.execute(self._select_asc))
@@ -1617,7 +1704,9 @@ class LazySelectSequence(Sequence[T]):
                 if not reverse:
                     rows.reverse()
             return rows
-        raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
+        raise TypeError(
+            f"Sequence indices must be integers or slices, not {type(key).__name__}"
+        )
 
 
 def _coerce_index(value: Any) -> int | None:

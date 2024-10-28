@@ -22,7 +22,10 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator,
     CloudVisionCreateProductOperator,
@@ -60,7 +63,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcp_vision_explicit_id"
 
@@ -135,7 +140,9 @@ with DAG(
 
     # [START howto_operator_vision_product_set_get_2]
     product_set_get_2 = CloudVisionGetProductSetOperator(
-        location=LOCATION, product_set_id=GCP_VISION_PRODUCT_SET_ID, task_id="product_set_get_2"
+        location=LOCATION,
+        product_set_id=GCP_VISION_PRODUCT_SET_ID,
+        task_id="product_set_get_2",
     )
     # [END howto_operator_vision_product_set_get_2]
 
@@ -150,7 +157,9 @@ with DAG(
 
     # [START howto_operator_vision_product_set_delete_2]
     product_set_delete_2 = CloudVisionDeleteProductSetOperator(
-        location=LOCATION, product_set_id=GCP_VISION_PRODUCT_SET_ID, task_id="product_set_delete_2"
+        location=LOCATION,
+        product_set_id=GCP_VISION_PRODUCT_SET_ID,
+        task_id="product_set_delete_2",
     )
     # [END howto_operator_vision_product_set_delete_2]
 
@@ -185,7 +194,9 @@ with DAG(
     product_update_2 = CloudVisionUpdateProductOperator(
         location=LOCATION,
         product_id=GCP_VISION_PRODUCT_ID,
-        product=Product(display_name="My Product 2", description="My updated description"),
+        product=Product(
+            display_name="My Product 2", description="My updated description"
+        ),
         task_id="product_update_2",
     )
     # [END howto_operator_vision_product_update_2]
@@ -253,7 +264,9 @@ with DAG(
     # [END howto_operator_vision_remove_product_from_product_set_2]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

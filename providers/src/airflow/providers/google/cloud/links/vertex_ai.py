@@ -29,13 +29,19 @@ VERTEX_AI_MODEL_LINK = (
     + "/models/locations/{region}/models/{model_id}/versions/default/properties?project={project_id}"
 )
 VERTEX_AI_MODEL_LIST_LINK = VERTEX_AI_BASE_LINK + "/models?project={project_id}"
-VERTEX_AI_MODEL_EXPORT_LINK = "/storage/browser/{bucket_name}/model-{model_id}?project={project_id}"
-VERTEX_AI_TRAINING_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/training/{training_id}/cpu?project={project_id}"
+VERTEX_AI_MODEL_EXPORT_LINK = (
+    "/storage/browser/{bucket_name}/model-{model_id}?project={project_id}"
 )
-VERTEX_AI_TRAINING_PIPELINES_LINK = VERTEX_AI_BASE_LINK + "/training/training-pipelines?project={project_id}"
+VERTEX_AI_TRAINING_LINK = (
+    VERTEX_AI_BASE_LINK
+    + "/locations/{region}/training/{training_id}/cpu?project={project_id}"
+)
+VERTEX_AI_TRAINING_PIPELINES_LINK = (
+    VERTEX_AI_BASE_LINK + "/training/training-pipelines?project={project_id}"
+)
 VERTEX_AI_DATASET_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/datasets/{dataset_id}/analyze?project={project_id}"
+    VERTEX_AI_BASE_LINK
+    + "/locations/{region}/datasets/{dataset_id}/analyze?project={project_id}"
 )
 VERTEX_AI_DATASET_LIST_LINK = VERTEX_AI_BASE_LINK + "/datasets?project={project_id}"
 VERTEX_AI_HYPERPARAMETER_TUNING_JOB_LIST_LINK = (
@@ -45,15 +51,21 @@ VERTEX_AI_BATCH_PREDICTION_JOB_LINK = (
     VERTEX_AI_BASE_LINK
     + "/locations/{region}/batch-predictions/{batch_prediction_job_id}?project={project_id}"
 )
-VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/batch-predictions?project={project_id}"
+VERTEX_AI_BATCH_PREDICTION_JOB_LIST_LINK = (
+    VERTEX_AI_BASE_LINK + "/batch-predictions?project={project_id}"
+)
 VERTEX_AI_ENDPOINT_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/endpoints/{endpoint_id}?project={project_id}"
+    VERTEX_AI_BASE_LINK
+    + "/locations/{region}/endpoints/{endpoint_id}?project={project_id}"
 )
 VERTEX_AI_ENDPOINT_LIST_LINK = VERTEX_AI_BASE_LINK + "/endpoints?project={project_id}"
 VERTEX_AI_PIPELINE_JOB_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/pipelines/runs/{pipeline_id}?project={project_id}"
+    VERTEX_AI_BASE_LINK
+    + "/locations/{region}/pipelines/runs/{pipeline_id}?project={project_id}"
 )
-VERTEX_AI_PIPELINE_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/pipelines/runs?project={project_id}"
+VERTEX_AI_PIPELINE_JOB_LIST_LINK = (
+    VERTEX_AI_BASE_LINK + "/pipelines/runs?project={project_id}"
+)
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -124,7 +136,9 @@ class VertexAIModelExportLink(BaseGoogleLink):
             value={
                 "project_id": task_instance.project_id,
                 "model_id": task_instance.model_id,
-                "bucket_name": VertexAIModelExportLink.extract_bucket_name(task_instance.output_config),
+                "bucket_name": VertexAIModelExportLink.extract_bucket_name(
+                    task_instance.output_config
+                ),
             },
         )
 

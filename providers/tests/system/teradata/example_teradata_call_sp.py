@@ -36,7 +36,10 @@ try:
         TeradataStoredProcedureOperator,
     )
 except ImportError:
-    pytest.skip("Teradata provider apache-airflow-provider-teradata not available", allow_module_level=True)
+    pytest.skip(
+        "Teradata provider apache-airflow-provider-teradata not available",
+        allow_module_level=True,
+    )
 
 # [START howto_teradata_operator_for_sp]
 CONN_ID = "teradata_sp_call"

@@ -32,7 +32,11 @@ from google.cloud.dataproc_v1 import (
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.dataproc import (
+    DataprocAsyncHook,
+    DataprocHook,
+    DataProcJobBuilder,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
 
@@ -153,7 +157,9 @@ class TestDataprocHook:
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_batch_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
+            credentials=mock_get_credentials.return_value,
+            client_info=CLIENT_INFO,
+            client_options=ANY,
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
@@ -180,7 +186,9 @@ class TestDataprocHook:
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_delete_cluster(self, mock_client):
-        self.hook.delete_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
+        self.hook.delete_cluster(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.delete_cluster.assert_called_once_with(
             request=dict(
@@ -220,7 +228,9 @@ class TestDataprocHook:
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_get_cluster(self, mock_client):
-        self.hook.get_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
+        self.hook.get_cluster(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.get_cluster.assert_called_once_with(
             request=dict(
@@ -237,7 +247,9 @@ class TestDataprocHook:
     def test_list_clusters(self, mock_client):
         filter_ = "filter"
 
-        self.hook.list_clusters(project_id=GCP_PROJECT, region=GCP_LOCATION, filter_=filter_)
+        self.hook.list_clusters(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, filter_=filter_
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.list_clusters.assert_called_once_with(
             request=dict(
@@ -333,9 +345,14 @@ class TestDataprocHook:
     def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
         parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
-        self.hook.create_workflow_template(region=GCP_LOCATION, template=template, project_id=GCP_PROJECT)
+        self.hook.create_workflow_template(
+            region=GCP_LOCATION, template=template, project_id=GCP_PROJECT
+        )
         mock_client.return_value.create_workflow_template.assert_called_once_with(
-            request=dict(parent=parent, template=template), retry=DEFAULT, timeout=None, metadata=()
+            request=dict(parent=parent, template=template),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
@@ -355,7 +372,9 @@ class TestDataprocHook:
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
-            self.hook.instantiate_workflow_template(template_name="template_name", project_id=GCP_PROJECT)
+            self.hook.instantiate_workflow_template(
+                template_name="template_name", project_id=GCP_PROJECT
+            )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_inline_workflow_template(self, mock_client):
@@ -374,7 +393,9 @@ class TestDataprocHook:
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_inline_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
-            self.hook.instantiate_inline_workflow_template(template={"test": "test"}, project_id=GCP_PROJECT)
+            self.hook.instantiate_inline_workflow_template(
+                template={"test": "test"}, project_id=GCP_PROJECT
+            )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job"))
     def test_wait_for_job(self, mock_get_job):
@@ -383,7 +404,9 @@ class TestDataprocHook:
             mock.MagicMock(status=mock.MagicMock(state=JobStatus.State.ERROR)),
         ]
         with pytest.raises(AirflowException):
-            self.hook.wait_for_job(job_id=JOB_ID, region=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0)
+            self.hook.wait_for_job(
+                job_id=JOB_ID, region=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0
+            )
         calls = [
             mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
             mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
@@ -633,7 +656,9 @@ class TestDataprocAsyncHook:
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_batch_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
+            credentials=mock_get_credentials.return_value,
+            client_info=CLIENT_INFO,
+            client_options=ANY,
         )
 
     @pytest.mark.asyncio
@@ -666,7 +691,9 @@ class TestDataprocAsyncHook:
     async def test_delete_cluster(self, mock_client):
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
-        await self.hook.delete_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
+        await self.hook.delete_cluster(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.delete_cluster.assert_called_once_with(
             request=dict(
@@ -710,7 +737,9 @@ class TestDataprocAsyncHook:
     async def test_get_cluster(self, mock_client):
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
-        await self.hook.get_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
+        await self.hook.get_cluster(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.get_cluster.assert_called_once_with(
             request=dict(
@@ -729,7 +758,9 @@ class TestDataprocAsyncHook:
         filter_ = "filter"
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
-        await self.hook.list_clusters(project_id=GCP_PROJECT, region=GCP_LOCATION, filter_=filter_)
+        await self.hook.list_clusters(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, filter_=filter_
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.list_clusters.assert_called_once_with(
             request=dict(
@@ -793,7 +824,10 @@ class TestDataprocAsyncHook:
             region=GCP_LOCATION, template=template, project_id=GCP_PROJECT
         )
         mock_client.return_value.create_workflow_template.assert_called_once_with(
-            request=dict(parent=parent, template=template), retry=DEFAULT, timeout=None, metadata=()
+            request=dict(parent=parent, template=template),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
         )
 
     @pytest.mark.asyncio
@@ -818,15 +852,21 @@ class TestDataprocAsyncHook:
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
     async def test_get_operation(self, mock_client):
         mock_client.return_value = None
-        hook = DataprocAsyncHook(gcp_conn_id="google_cloud_default", impersonation_chain=None)
+        hook = DataprocAsyncHook(
+            gcp_conn_id="google_cloud_default", impersonation_chain=None
+        )
         await hook.get_operation(region=GCP_LOCATION, operation_name="operation_name")
         mock_client.assert_called_once()
-        mock_client.assert_called_with(region=GCP_LOCATION, operation_name="operation_name")
+        mock_client.assert_called_with(
+            region=GCP_LOCATION, operation_name="operation_name"
+        )
 
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     def test_instantiate_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
-            self.hook.instantiate_workflow_template(template_name="template_name", project_id=GCP_PROJECT)
+            self.hook.instantiate_workflow_template(
+                template_name="template_name", project_id=GCP_PROJECT
+            )
 
     @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
@@ -848,14 +888,18 @@ class TestDataprocAsyncHook:
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     def test_instantiate_inline_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
-            self.hook.instantiate_inline_workflow_template(template={"test": "test"}, project_id=GCP_PROJECT)
+            self.hook.instantiate_inline_workflow_template(
+                template={"test": "test"}, project_id=GCP_PROJECT
+            )
 
     @pytest.mark.asyncio
     @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
     async def test_get_job(self, mock_client):
         mock_job_client = AsyncMock(JobControllerAsyncClient)
         mock_client.return_value = mock_job_client
-        await self.hook.get_job(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
+        await self.hook.get_job(
+            region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.get_job.assert_called_once_with(
             request=dict(
@@ -902,7 +946,9 @@ class TestDataprocAsyncHook:
     async def test_cancel_job(self, mock_client):
         mock_job_client = AsyncMock(JobControllerAsyncClient)
         mock_client.return_value = mock_job_client
-        await self.hook.cancel_job(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
+        await self.hook.cancel_job(
+            region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT
+        )
         mock_client.assert_called_once_with(region=GCP_LOCATION)
         mock_client.return_value.cancel_job.assert_called_once_with(
             request=dict(
@@ -1056,7 +1102,9 @@ class TestDataProcJobBuilder:
     def test_add_query(self):
         query = ["query"]
         self.builder.add_query(query)
-        assert {"queries": [query]} == self.builder.job["job"][self.job_type]["query_list"]
+        assert {"queries": [query]} == self.builder.job["job"][self.job_type][
+            "query_list"
+        ]
 
     def test_add_query_uri(self):
         query_uri = "query_uri"
@@ -1081,7 +1129,9 @@ class TestDataProcJobBuilder:
     def test_add_python_file_uris(self):
         python_file_uris = ["python_file_uris"]
         self.builder.add_python_file_uris(python_file_uris)
-        assert python_file_uris == self.builder.job["job"][self.job_type]["python_file_uris"]
+        assert (
+            python_file_uris == self.builder.job["job"][self.job_type]["python_file_uris"]
+        )
 
     def test_set_main_error(self):
         with pytest.raises(ValueError):

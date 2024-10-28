@@ -52,7 +52,9 @@ class MockPowerShell(MagicMock):
             return Mock(MESSAGE_TYPE=message_type, message=message, **kwargs)
 
         self.streams.debug.append(informational(MessageType.DEBUG_RECORD, "debug1"))
-        self.streams.debug.append(informational(MessageType.DEBUG_RECORD, "debug2\r\n", command_name=None))
+        self.streams.debug.append(
+            informational(MessageType.DEBUG_RECORD, "debug2\r\n", command_name=None)
+        )
         self.streams.verbose.append(informational(MessageType.VERBOSE_RECORD, "verbose"))
         self.streams.warning.append(informational(MessageType.WARNING_RECORD, "warning"))
         self.streams.information.append(
@@ -64,7 +66,11 @@ class MockPowerShell(MagicMock):
             )
         )
         self.streams.progress.append(
-            Mock(MESSAGE_TYPE=MessageType.PROGRESS_RECORD, activity="activity", description="description")
+            Mock(
+                MESSAGE_TYPE=MessageType.PROGRESS_RECORD,
+                activity="activity",
+                description="description",
+            )
         )
 
         if self.had_errors:
@@ -123,7 +129,9 @@ class TestPsrpHook:
             return conn
 
         hook.get_connection = get_connection
-        with pytest.raises(AirflowException, match="Unexpected extra configuration keys: foo"):
+        with pytest.raises(
+            AirflowException, match="Unexpected extra configuration keys: foo"
+        ):
             hook.get_conn()
 
     @pytest.mark.parametrize(

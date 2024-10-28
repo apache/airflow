@@ -93,7 +93,9 @@ class TestRpcApiEndpoint:
     def signer(self) -> JWTSigner:
         return JWTSigner(
             secret_key=conf.get("core", "internal_api_secret_key"),
-            expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+            expiration_time_in_seconds=conf.getint(
+                "core", "internal_api_clock_grace", fallback=30
+            ),
             audience="api",
         )
 
@@ -116,8 +118,13 @@ class TestRpcApiEndpoint:
             ),
             (
                 {},
-                TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
-                lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
+                TaskInstance(
+                    task=EmptyOperator(task_id="task"),
+                    run_id="run_id",
+                    state=State.RUNNING,
+                ),
+                lambda a, b: a.model_dump()
+                == TaskInstancePydantic.model_validate(b).model_dump()
                 and isinstance(a.task, BaseOperator),
                 {},
             ),
@@ -130,7 +137,13 @@ class TestRpcApiEndpoint:
         ],
     )
     def test_method(
-        self, input_params, method_result, result_cmp_func, method_params, setup_attrs, signer: JWTSigner
+        self,
+        input_params,
+        method_result,
+        result_cmp_func,
+        method_params,
+        setup_attrs,
+        signer: JWTSigner,
     ):
         mock_test_method.return_value = method_result
         headers = {
@@ -150,7 +163,9 @@ class TestRpcApiEndpoint:
         )
         assert response.status_code == 200
         if method_result:
-            response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
+            response_data = BaseSerialization.deserialize(
+                json.loads(response.data), use_pydantic_models=True
+            )
         else:
             response_data = response.data
 
@@ -167,7 +182,9 @@ class TestRpcApiEndpoint:
         mock_test_method.side_effect = ValueError("Error!!!")
         data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
+        response = self.client.post(
+            "/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data)
+        )
         assert response.status_code == 500
         assert response.data, b"Error executing method: test_method."
         mock_test_method.assert_called_once()
@@ -181,7 +198,9 @@ class TestRpcApiEndpoint:
         }
         data = {"jsonrpc": "2.0", "method": UNKNOWN_METHOD, "params": {}}
 
-        response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
+        response = self.client.post(
+            "/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data)
+        )
         assert response.status_code == 400
         assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
         mock_test_method.assert_not_called()
@@ -194,7 +213,9 @@ class TestRpcApiEndpoint:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
+        response = self.client.post(
+            "/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data)
+        )
         assert response.status_code == 400
         assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
         mock_test_method.assert_not_called()
@@ -207,10 +228,15 @@ class TestRpcApiEndpoint:
             "method": TEST_METHOD_NAME,
             "params": {},
         }
-        with pytest.raises(PermissionDenied, match="Unable to authenticate API via token."):
+        with pytest.raises(
+            PermissionDenied, match="Unable to authenticate API via token."
+        ):
             self.client.post(
                 "/internal_api/v1/rpcapi",
-                headers={"Content-Type": "application/json", "Accept": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
                 data=json.dumps(input_data),
             )
 
@@ -218,32 +244,45 @@ class TestRpcApiEndpoint:
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+            "Authorization": signer.generate_signed_token(
+                {"method": "WRONG_METHOD_NAME"}
+            ),
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
         with pytest.raises(
-            PermissionDenied, match="Bad Signature. Please use only the tokens provided by the API."
+            PermissionDenied,
+            match="Bad Signature. Please use only the tokens provided by the API.",
         ):
-            self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
+            self.client.post(
+                "/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data)
+            )
 
     def test_missing_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
-            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+            "Authorization": signer.generate_signed_token(
+                {"method": "WRONG_METHOD_NAME"}
+            ),
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
         with pytest.raises(PermissionDenied, match="Expected Accept: application/json"):
-            self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
+            self.client.post(
+                "/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data)
+            )
 
     def test_wrong_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/html",
-            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+            "Authorization": signer.generate_signed_token(
+                {"method": "WRONG_METHOD_NAME"}
+            ),
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
         with pytest.raises(PermissionDenied, match="Expected Accept: application/json"):
-            self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
+            self.client.post(
+                "/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data)
+            )

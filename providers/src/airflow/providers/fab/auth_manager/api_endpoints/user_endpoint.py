@@ -35,7 +35,9 @@ from airflow.providers.fab.auth_manager.schemas.user_schema import (
     user_collection_schema,
     user_schema,
 )
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+)
 from airflow.security import permissions
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -47,18 +49,27 @@ if TYPE_CHECKING:
 @requires_access_custom_view("GET", permissions.RESOURCE_USER)
 def get_user(*, username: str) -> APIResponse:
     """Get a user."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
     user = security_manager.find_user(username=username)
     if not user:
-        raise NotFound(title="User not found", detail=f"The User with username `{username}` was not found")
+        raise NotFound(
+            title="User not found",
+            detail=f"The User with username `{username}` was not found",
+        )
     return user_collection_item_schema.dump(user)
 
 
 @requires_access_custom_view("GET", permissions.RESOURCE_USER)
 @format_parameters({"limit": check_limit})
-def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
+def get_users(
+    *, limit: int, order_by: str = "id", offset: str | None = None
+) -> APIResponse:
     """Get users."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
     session = security_manager.get_session
     total_entries = session.execute(select(func.count(User.id))).scalar()
     direction = desc if order_by.startswith("-") else asc
@@ -80,10 +91,17 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
             f"the attribute does not exist on the model"
         )
 
-    query = select(User).order_by(direction(getattr(User, order_param))).offset(offset).limit(limit)
+    query = (
+        select(User)
+        .order_by(direction(getattr(User, order_param)))
+        .offset(offset)
+        .limit(limit)
+    )
     users = session.scalars(query).all()
 
-    return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
+    return user_collection_schema.dump(
+        UserCollection(users=users, total_entries=total_entries)
+    )
 
 
 @requires_access_custom_view("POST", permissions.RESOURCE_USER)
@@ -94,7 +112,9 @@ def post_user() -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
     username = data["username"]
     email = data["email"]
 
@@ -118,8 +138,12 @@ def post_user() -> APIResponse:
         detail = f"Unknown roles: {', '.join(repr(n) for n in missing_role_names)}"
         raise BadRequest(detail=detail)
 
-    if not roles_to_add:  # No roles provided, use the F.A.B's default registered user role.
-        roles_to_add.append(security_manager.find_role(security_manager.auth_user_registration_role))
+    if (
+        not roles_to_add
+    ):  # No roles provided, use the F.A.B's default registered user role.
+        roles_to_add.append(
+            security_manager.find_role(security_manager.auth_user_registration_role)
+        )
 
     user = security_manager.add_user(role=roles_to_add, **data)
     if not user:
@@ -137,7 +161,9 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     except ValidationError as e:
         raise BadRequest(detail=str(e.messages))
 
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
 
     user = security_manager.find_user(username=username)
     if user is None:
@@ -166,7 +192,9 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
             except KeyError:
                 missing_mask_names.append(field)
         if missing_mask_names:
-            detail = f"Unknown update masks: {', '.join(repr(n) for n in missing_mask_names)}"
+            detail = (
+                f"Unknown update masks: {', '.join(repr(n) for n in missing_mask_names)}"
+            )
             raise BadRequest(detail=detail)
         data = masked_data
 
@@ -201,7 +229,9 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 @requires_access_custom_view("DELETE", permissions.RESOURCE_USER)
 def delete_user(*, username: str) -> APIResponse:
     """Delete a user."""
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
 
     user = security_manager.find_user(username=username)
     if user is None:

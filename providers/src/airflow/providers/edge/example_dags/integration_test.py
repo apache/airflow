@@ -83,7 +83,14 @@ with DAG(
 
     @task.branch
     def branching():
-        return ["bash", "virtualenv", "variable", "connection", "classic_bash", "classic_python"]
+        return [
+            "bash",
+            "virtualenv",
+            "variable",
+            "connection",
+            "classic_bash",
+            "classic_python",
+        ]
 
     @task.bash
     def bash():
@@ -112,7 +119,8 @@ with DAG(
     @task_group(prefix_group_id=False)
     def standard_tasks_group():
         classic_bash = BashOperator(
-            task_id="classic_bash", bash_command="echo Parameter is {{ params.mapping_count }}"
+            task_id="classic_bash",
+            bash_command="echo Parameter is {{ params.mapping_count }}",
         )
 
         empty = EmptyOperator(task_id="not_executed")
@@ -122,7 +130,15 @@ with DAG(
 
         classic_py = PythonOperator(task_id="classic_python", python_callable=python_call)
 
-        branching() >> [bash(), virtualenv(), variable(), connection(), classic_bash, classic_py, empty]
+        branching() >> [
+            bash(),
+            virtualenv(),
+            variable(),
+            connection(),
+            classic_bash,
+            classic_py,
+            empty,
+        ]
 
     @task
     def long_running():

@@ -25,7 +25,10 @@ from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
+from airflow.providers.standard.sensors.time_delta import (
+    TimeDeltaSensor,
+    TimeDeltaSensorAsync,
+)
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.sensors.filesystem import FileSensor
 from airflow.sensors.python import PythonSensor
@@ -57,42 +60,57 @@ with DAG(
     # [END example_time_delta_sensor]
 
     # [START example_time_delta_sensor_async]
-    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=datetime.timedelta(seconds=2))
+    t0a = TimeDeltaSensorAsync(
+        task_id="wait_some_seconds_async", delta=datetime.timedelta(seconds=2)
+    )
     # [END example_time_delta_sensor_async]
 
     # [START example_time_sensors]
     t1 = TimeSensor(
-        task_id="fire_immediately", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+        task_id="fire_immediately",
+        target_time=datetime.datetime.now(tz=datetime.timezone.utc).time(),
     )
 
     t2 = TimeSensor(
         task_id="timeout_after_second_date_in_the_future",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
+        target_time=(
+            datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)
+        ).time(),
     )
     # [END example_time_sensors]
 
     # [START example_time_sensors_async]
     t1a = TimeSensorAsync(
-        task_id="fire_immediately_async", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+        task_id="fire_immediately_async",
+        target_time=datetime.datetime.now(tz=datetime.timezone.utc).time(),
     )
 
     t2a = TimeSensorAsync(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
+        target_time=(
+            datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)
+        ).time(),
     )
     # [END example_time_sensors_async]
 
     # [START example_bash_sensors]
     t3 = BashSensor(task_id="Sensor_succeeds", bash_command="exit 0")
 
-    t4 = BashSensor(task_id="Sensor_fails_after_3_seconds", timeout=3, soft_fail=True, bash_command="exit 1")
+    t4 = BashSensor(
+        task_id="Sensor_fails_after_3_seconds",
+        timeout=3,
+        soft_fail=True,
+        bash_command="exit 1",
+    )
     # [END example_bash_sensors]
 
-    t5 = BashOperator(task_id="remove_file", bash_command="rm -rf /tmp/temporary_file_for_testing")
+    t5 = BashOperator(
+        task_id="remove_file", bash_command="rm -rf /tmp/temporary_file_for_testing"
+    )
 
     # [START example_file_sensor]
     t6 = FileSensor(task_id="wait_for_file", filepath="/tmp/temporary_file_for_testing")
@@ -100,25 +118,34 @@ with DAG(
 
     # [START example_file_sensor_async]
     t7 = FileSensor(
-        task_id="wait_for_file_async", filepath="/tmp/temporary_file_for_testing", deferrable=True
+        task_id="wait_for_file_async",
+        filepath="/tmp/temporary_file_for_testing",
+        deferrable=True,
     )
     # [END example_file_sensor_async]
 
     t8 = BashOperator(
-        task_id="create_file_after_3_seconds", bash_command="sleep 3; touch /tmp/temporary_file_for_testing"
+        task_id="create_file_after_3_seconds",
+        bash_command="sleep 3; touch /tmp/temporary_file_for_testing",
     )
 
     # [START example_python_sensors]
     t9 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
 
     t10 = PythonSensor(
-        task_id="failure_timeout_sensor_python", timeout=3, soft_fail=True, python_callable=failure_callable
+        task_id="failure_timeout_sensor_python",
+        timeout=3,
+        soft_fail=True,
+        python_callable=failure_callable,
     )
     # [END example_python_sensors]
 
     # [START example_day_of_week_sensor]
     t11 = DayOfWeekSensor(
-        task_id="week_day_sensor_failing_on_timeout", timeout=3, soft_fail=True, week_day=WeekDay.MONDAY
+        task_id="week_day_sensor_failing_on_timeout",
+        timeout=3,
+        soft_fail=True,
+        week_day=WeekDay.MONDAY,
     )
     # [END example_day_of_week_sensor]
 

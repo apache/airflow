@@ -25,7 +25,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Sequence, cast
 import requests
 import weaviate
 import weaviate.exceptions
-from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
+from tenacity import (
+    Retrying,
+    retry,
+    retry_if_exception,
+    retry_if_exception_type,
+    stop_after_attempt,
+)
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
 from weaviate.classes.query import Filter
@@ -40,7 +46,10 @@ if TYPE_CHECKING:
     import pandas as pd
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
-    from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
+    from weaviate.collections.classes.config import (
+        CollectionConfig,
+        CollectionConfigSimple,
+    )
     from weaviate.collections.classes.internal import (
         Object,
         QueryReturnType,
@@ -96,17 +105,27 @@ class WeaviateHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "http_secure": BooleanField(lazy_gettext("Use https"), default=False),
-            "token": PasswordField(lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()),
-            "grpc_host": StringField(lazy_gettext("gRPC host"), widget=BS3TextFieldWidget()),
-            "grpc_port": StringField(lazy_gettext("gRPC port"), widget=BS3TextFieldWidget()),
+            "token": PasswordField(
+                lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()
+            ),
+            "grpc_host": StringField(
+                lazy_gettext("gRPC host"), widget=BS3TextFieldWidget()
+            ),
+            "grpc_port": StringField(
+                lazy_gettext("gRPC port"), widget=BS3TextFieldWidget()
+            ),
             "grpc_secure": BooleanField(
-                lazy_gettext("Use a secure channel for the underlying gRPC API"), default=False
+                lazy_gettext("Use a secure channel for the underlying gRPC API"),
+                default=False,
             ),
         }
 
@@ -149,7 +168,9 @@ class WeaviateHook(BaseHook):
             refresh_token = extras.get("refresh_token", None)
             expires_in = extras.get("expires_in", 60)
             return Auth.bearer_token(
-                access_token=access_token, expires_in=expires_in, refresh_token=refresh_token
+                access_token=access_token,
+                expires_in=expires_in,
+                refresh_token=refresh_token,
             )
 
         scope = extras.get("scope", None) or extras.get("oidc_scope", None)
@@ -203,7 +224,9 @@ class WeaviateHook(BaseHook):
         """
         client = self.get_conn()
         collection_names = (
-            [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
+            [collection_names]
+            if collection_names and isinstance(collection_names, str)
+            else collection_names
         )
 
         failed_collection_list = []
@@ -238,7 +261,9 @@ class WeaviateHook(BaseHook):
             | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
         ),
     )
-    def get_collection_configuration(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
+    def get_collection_configuration(
+        self, collection_name: str
+    ) -> CollectionConfig | CollectionConfigSimple:
         """
         Get the collection configuration from Weaviate.
 
@@ -253,7 +278,9 @@ class WeaviateHook(BaseHook):
         collection.config.update(**kwargs)
 
     @staticmethod
-    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
+    def _convert_dataframe_to_list(
+        data: list[dict[str, Any]] | pd.DataFrame | None,
+    ) -> list[dict[str, Any]]:
         """
         Convert dataframe to list of dicts.
 
@@ -335,12 +362,21 @@ class WeaviateHook(BaseHook):
         client = self.conn
         collection = client.collections.get(collection_name)
         response = collection.query.near_vector(
-            near_vector=embeddings, certainty=certainty, limit=limit, return_properties=properties, **kwargs
+            near_vector=embeddings,
+            certainty=certainty,
+            limit=limit,
+            return_properties=properties,
+            **kwargs,
         )
         return response
 
     def query_with_text(
-        self, search_text: str, collection_name: str, properties: list[str], limit: int = 1, **kwargs
+        self,
+        search_text: str,
+        collection_name: str,
+        properties: list[str],
+        limit: int = 1,
+        **kwargs,
     ) -> QuerySearchReturnType:
         """
         Query using near text.
@@ -356,7 +392,9 @@ class WeaviateHook(BaseHook):
         )
         return response
 
-    def create_object(self, data_object: dict, collection_name: str, **kwargs) -> UUID | None:
+    def create_object(
+        self, data_object: dict, collection_name: str, **kwargs
+    ) -> UUID | None:
         """
         Create a new object.
 
@@ -394,10 +432,16 @@ class WeaviateHook(BaseHook):
         obj = self.get_object(collection_name=collection_name, **kwargs)
         if not obj:
             if not (data_object and collection_name):
-                raise ValueError("data_object and collection are required to create a new object")
+                raise ValueError(
+                    "data_object and collection are required to create a new object"
+                )
             uuid = kwargs.pop("uuid", generate_uuid5(data_object))
             return self.create_object(
-                data_object=data_object, collection_name=collection_name, uuid=uuid, vector=vector, **kwargs
+                data_object=data_object,
+                collection_name=collection_name,
+                uuid=uuid,
+                vector=vector,
+                **kwargs,
             )
         return obj
 
@@ -411,7 +455,11 @@ class WeaviateHook(BaseHook):
         return collection.query.fetch_objects(**kwargs)
 
     def get_all_objects(
-        self, collection_name: str, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
+        self,
+        collection_name: str,
+        after: str | UUID | None = None,
+        as_dataframe: bool = False,
+        **kwargs,
     ) -> list[Object] | pd.DataFrame:
         """
         Get all objects from weaviate.
@@ -425,7 +473,9 @@ class WeaviateHook(BaseHook):
         all_objects: list[Object] = []
         after = kwargs.pop("after", after)
         while True:
-            results = self.get_object(collection_name=collection_name, after=after, **kwargs)
+            results = self.get_object(
+                collection_name=collection_name, after=after, **kwargs
+            )
             if not results or not results.objects:
                 break
             all_objects.extend(results.objects)
@@ -460,7 +510,11 @@ class WeaviateHook(BaseHook):
         return collection.data.delete_by_id(uuid=uuid)
 
     def update_object(
-        self, collection_name: str, uuid: UUID | str, properties: Properties | None = None, **kwargs
+        self,
+        collection_name: str,
+        uuid: UUID | str,
+        properties: Properties | None = None,
+        **kwargs,
     ) -> None:
         """
         Update an object in weaviate.
@@ -491,7 +545,9 @@ class WeaviateHook(BaseHook):
         :param kwargs: Optional parameters to be passed to collection.data.replace()
         """
         collection = self.get_collection(collection_name)
-        collection.data.replace(uuid=uuid, properties=properties, references=references, **kwargs)
+        collection.data.replace(
+            uuid=uuid, properties=properties, references=references, **kwargs
+        )
 
     def object_exists(self, collection_name: str, uuid: str | UUID) -> bool:
         """
@@ -529,9 +585,14 @@ class WeaviateHook(BaseHook):
                         self.log.debug("Deleted object with uuid %s", uuid)
                     except weaviate.exceptions.UnexpectedStatusCodeException as e:
                         if e.status_code == 404:
-                            self.log.debug("Tried to delete a non existent object with uuid %s", uuid)
+                            self.log.debug(
+                                "Tried to delete a non existent object with uuid %s", uuid
+                            )
                         else:
-                            self.log.debug("Error occurred while trying to delete object with uuid %s", uuid)
+                            self.log.debug(
+                                "Error occurred while trying to delete object with uuid %s",
+                                uuid,
+                            )
                             raise e
 
         self.log.info("Deleted %s objects.", len(uuids))
@@ -562,10 +623,14 @@ class WeaviateHook(BaseHook):
 
         difference_columns = set(unique_columns).difference(set(df.columns.to_list()))
         if difference_columns:
-            raise ValueError(f"Columns {', '.join(difference_columns)} don't exist in dataframe")
+            raise ValueError(
+                f"Columns {', '.join(difference_columns)} don't exist in dataframe"
+            )
 
         if uuid_column is None:
-            self.log.info("No uuid_column provided. Generating UUIDs as column name `id`.")
+            self.log.info(
+                "No uuid_column provided. Generating UUIDs as column name `id`."
+            )
             if "id" in column_names:
                 raise ValueError(
                     "Property 'id' already in dataset. Consider renaming or specify 'uuid_column'."
@@ -582,7 +647,12 @@ class WeaviateHook(BaseHook):
         df[uuid_column] = (
             df[unique_columns]
             .drop(columns=[vector_column], inplace=False, errors="ignore")
-            .apply(lambda row: generate_uuid5(identifier=row.to_dict(), namespace=collection_name), axis=1)
+            .apply(
+                lambda row: generate_uuid5(
+                    identifier=row.to_dict(), namespace=collection_name
+                ),
+                axis=1,
+            )
         )
 
         return df, uuid_column
@@ -612,7 +682,10 @@ class WeaviateHook(BaseHook):
             collection = self.get_collection(collection_name)
             data_objects = collection.query.fetch_objects(
                 filters=Filter.any_of(
-                    [Filter.by_property(document_column).equal(key) for key in document_keys]
+                    [
+                        Filter.by_property(document_column).equal(key)
+                        for key in document_keys
+                    ]
                 ),
                 return_properties=[document_column],
                 limit=limit,
@@ -656,7 +729,11 @@ class WeaviateHook(BaseHook):
         return grouped_key_to_set
 
     def _get_segregated_documents(
-        self, data: pd.DataFrame, document_column: str, collection_name: str, uuid_column: str
+        self,
+        data: pd.DataFrame,
+        document_column: str,
+        collection_name: str,
+        uuid_column: str,
     ) -> tuple[dict[str, set], set, set, set]:
         """
         Segregate documents into changed, unchanged and new document, when compared to Weaviate db.
@@ -691,7 +768,12 @@ class WeaviateHook(BaseHook):
             else:
                 new_documents.add(str(doc_url))
 
-        return existing_documents_to_uuid, changed_documents, unchanged_docs, new_documents
+        return (
+            existing_documents_to_uuid,
+            changed_documents,
+            unchanged_docs,
+            new_documents,
+        )
 
     def _delete_all_documents_objects(
         self,
@@ -720,7 +802,9 @@ class WeaviateHook(BaseHook):
 
         collection = self.get_collection(collection_name)
         delete_many_return = collection.data.delete_many(
-            where=Filter.any_of([Filter.by_property(document_column).equal(key) for key in document_keys]),
+            where=Filter.any_of(
+                [Filter.by_property(document_column).equal(key) for key in document_keys]
+            ),
             verbose=verbose,
             dry_run=False,
         )
@@ -777,7 +861,9 @@ class WeaviateHook(BaseHook):
         :return: list of UUID which failed to create
         """
         if existing not in ["skip", "replace", "error"]:
-            raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
+            raise ValueError(
+                "Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'."
+            )
 
         import pandas as pd
 
@@ -837,7 +923,9 @@ class WeaviateHook(BaseHook):
             )
             for document in changed_documents:
                 self.log.info(
-                    "Changed document: %s has %s objects.", document, len(documents_to_uuid_map[document])
+                    "Changed document: %s has %s objects.",
+                    document,
+                    len(documents_to_uuid_map[document]),
                 )
             self.log.info("Non-existing document: %s", ", ".join(new_documents))
 
@@ -850,10 +938,13 @@ class WeaviateHook(BaseHook):
             data = data[data[document_column].isin(new_documents)]
             if verbose:
                 self.log.info(
-                    "Since existing=skip, ingesting only non-existing document's object %s", data.shape[0]
+                    "Since existing=skip, ingesting only non-existing document's object %s",
+                    data.shape[0],
                 )
         elif existing == "replace":
-            total_objects_count = sum([len(documents_to_uuid_map[doc]) for doc in changed_documents])
+            total_objects_count = sum(
+                [len(documents_to_uuid_map[doc]) for doc in changed_documents]
+            )
             if verbose:
                 self.log.info(
                     "Since existing='replace', deleting %s objects belonging changed documents %s",
@@ -869,8 +960,13 @@ class WeaviateHook(BaseHook):
                     batch_delete_error=batch_delete_error,
                     verbose=verbose,
                 )
-            data = data[data[document_column].isin(new_documents.union(changed_documents))]
-            self.log.info("Batch inserting %s objects for non-existing and changed documents.", data.shape[0])
+            data = data[
+                data[document_column].isin(new_documents.union(changed_documents))
+            ]
+            self.log.info(
+                "Batch inserting %s objects for non-existing and changed documents.",
+                data.shape[0],
+            )
 
         if data.shape[0]:
             self.batch_data(

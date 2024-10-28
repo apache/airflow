@@ -54,7 +54,9 @@ PY311 = sys.version_info >= (3, 11)
 # files contain a DAG (otherwise Airflow will skip them)
 PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
 UNPARSEABLE_DAG_FILE_CONTENTS = "airflow DAG"
-INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
+INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = (
+    "def something():\n    return airflow_DAG\nsomething()"
+)
 
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
@@ -147,7 +149,9 @@ class TestDagFileProcessor:
         self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_1 = (
-            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError)
+            .filter(ParseImportError.filename == filename_to_parse)
+            .one()
         )
 
         # process the file multiple times
@@ -155,7 +159,9 @@ class TestDagFileProcessor:
             self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_2 = (
-            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError)
+            .filter(ParseImportError.filename == filename_to_parse)
+            .one()
         )
 
         # assert that the ID of the import error did not change

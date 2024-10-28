@@ -66,7 +66,9 @@ def mock_remove_docker_networks():
     ["mock_get_suspended_provider_folders", "mock_get_excluded_provider_folders"],
     ids=["suspended provider", "excluded provider"],
 )
-def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_command, mock_fixture, request):
+def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(
+    mock_run_command, mock_fixture, request
+):
     """When a provider is suspended or excluded, we expect "--ignore" switches to wind up in the cmd args"""
     fake_provider_name = "unittestingprovider"
 
@@ -103,7 +105,9 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     test_provider_not_skipped = "ftp"
     _run_test(
-        shell_params=ShellParams(test_type=f"Providers[{test_provider},{test_provider_not_skipped}]"),
+        shell_params=ShellParams(
+            test_type=f"Providers[{test_provider},{test_provider_not_skipped}]"
+        ),
         extra_pytest_args=(f"--ignore=providers/tests/{test_provider}",),
         python_version="3.9",
         output=None,
@@ -135,7 +139,9 @@ def test_test_is_skipped_if_all_are_ignored(mock_run_command):
     ]  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     _run_test(
         shell_params=ShellParams(test_type=f"Providers[{','.join(test_providers)}]"),
-        extra_pytest_args=[f"--ignore=providers/tests/{provider}" for provider in test_providers],
+        extra_pytest_args=[
+            f"--ignore=providers/tests/{provider}" for provider in test_providers
+        ],
         python_version="3.9",
         output=None,
         test_timeout=60,

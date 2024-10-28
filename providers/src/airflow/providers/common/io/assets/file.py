@@ -27,7 +27,9 @@ except ModuleNotFoundError:
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset as OpenLineageDataset,
+    )
 
 
 def create_asset(*, path: str, extra=None) -> Asset:
@@ -47,7 +49,9 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
 
     Windows paths are not standardized and can produce unexpected behaviour.
     """
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset as OpenLineageDataset,
+    )
 
     parsed = urllib.parse.urlsplit(asset.uri)
     return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)

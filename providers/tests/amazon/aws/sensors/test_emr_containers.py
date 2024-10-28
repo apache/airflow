@@ -69,7 +69,9 @@ class TestEmrContainerSensor:
             self.sensor.poke(None)
         assert "EMR Containers sensor failed" in str(ctx.value)
 
-    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("CANCEL_PENDING",))
+    @mock.patch.object(
+        EmrContainerHook, "check_query_status", side_effect=("CANCEL_PENDING",)
+    )
     def test_poke_cancel_pending(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
@@ -95,6 +97,8 @@ class TestEmrContainerSensor:
             self.sensor.execute(context=None)
 
         trigger = e.value.trigger
-        assert isinstance(trigger, EmrContainerTrigger), f"{trigger} is not a EmrContainerTrigger"
+        assert isinstance(
+            trigger, EmrContainerTrigger
+        ), f"{trigger} is not a EmrContainerTrigger"
         assert trigger.waiter_delay == self.sensor.poll_interval
         assert trigger.attempts == self.sensor.max_retries

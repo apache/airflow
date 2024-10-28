@@ -126,13 +126,35 @@ ALLOWED_EXECUTORS = [
 ]
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
-START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR, SEQUENTIAL_EXECUTOR]
+START_AIRFLOW_ALLOWED_EXECUTORS = [
+    LOCAL_EXECUTOR,
+    CELERY_EXECUTOR,
+    EDGE_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
+]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
 
-ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
-ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
+ALLOWED_KIND_OPERATIONS = [
+    "start",
+    "stop",
+    "restart",
+    "status",
+    "deploy",
+    "test",
+    "shell",
+    "k9s",
+]
+ALLOWED_CONSTRAINTS_MODES_CI = [
+    "constraints-source-providers",
+    "constraints",
+    "constraints-no-providers",
+]
+ALLOWED_CONSTRAINTS_MODES_PROD = [
+    "constraints",
+    "constraints-no-providers",
+    "constraints-source-providers",
+]
 
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
@@ -191,7 +213,13 @@ def all_selective_test_types() -> tuple[str, ...]:
 
 @cache
 def all_selective_test_types_except_providers() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+    return tuple(
+        sorted(
+            e.value
+            for e in SelectiveUnitTestTypes
+            if e != SelectiveUnitTestTypes.PROVIDERS
+        )
+    )
 
 
 class SelectiveUnitTestTypes(Enum):
@@ -295,7 +323,10 @@ WEBSERVER_HOST_PORT = "28080"
 VITE_DEV_PORT = "5173"
 FASTAPI_API_HOST_PORT = "29091"
 
-CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
+CELERY_BROKER_URLS_MAP = {
+    "rabbitmq": "amqp://guest:guest@rabbitmq:5672",
+    "redis": "redis://redis:6379/0",
+}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
@@ -466,8 +497,12 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
-PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob(
+    "provider.yaml"
+)
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = (
+    AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
+)
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)

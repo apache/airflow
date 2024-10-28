@@ -86,7 +86,9 @@ class TestFileToS3Operator:
         )
         operator.execute(None)
 
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
+        objects_in_dest_bucket = conn.list_objects(
+            Bucket=self.dest_bucket, Prefix=self.dest_key
+        )
         # there should be object found, and there should only be one object found
         assert len(objects_in_dest_bucket["Contents"]) == 1
         # the object found should be consistent with dest_key specified earlier
@@ -105,7 +107,9 @@ class TestFileToS3Operator:
         )
         operator.execute(None)
 
-        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
+        objects_in_dest_bucket = conn.list_objects(
+            Bucket=self.dest_bucket, Prefix=self.dest_key
+        )
         # there should be object found, and there should only be one object found
         assert len(objects_in_dest_bucket["Contents"]) == 1
         # the object found should be consistent with dest_key specified earlier

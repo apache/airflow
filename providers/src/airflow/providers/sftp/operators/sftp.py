@@ -138,7 +138,9 @@ class SFTPOperator(BaseOperator):
 
         if self.ssh_hook is not None:
             if not isinstance(self.ssh_hook, SSHHook):
-                self.log.info("ssh_hook is invalid. Trying ssh_conn_id to create SFTPHook.")
+                self.log.info(
+                    "ssh_hook is invalid. Trying ssh_conn_id to create SFTPHook."
+                )
                 self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
             if self.sftp_hook is None:
                 warnings.warn(
@@ -154,7 +156,9 @@ class SFTPOperator(BaseOperator):
         try:
             if self.ssh_conn_id:
                 if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
-                    self.log.info("ssh_conn_id is ignored when sftp_hook/ssh_hook is provided.")
+                    self.log.info(
+                        "ssh_conn_id is ignored when sftp_hook/ssh_hook is provided."
+                    )
                 else:
                     self.log.info(
                         "sftp_hook/ssh_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook."
@@ -172,7 +176,9 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook.remote_host = self.remote_host
 
-            for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
+            for _local_filepath, _remote_filepath in zip(
+                local_filepath_array, remote_filepath_array
+            ):
                 if self.operation.lower() == SFTPOperation.GET:
                     local_folder = os.path.dirname(_local_filepath)
                     if self.create_intermediate_dirs:
@@ -186,7 +192,9 @@ class SFTPOperator(BaseOperator):
                         self.sftp_hook.create_directory(remote_folder)
                     file_msg = f"from {_local_filepath} to {_remote_filepath}"
                     self.log.info("Starting to transfer file %s", file_msg)
-                    self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
+                    self.sftp_hook.store_file(
+                        _remote_filepath, _local_filepath, confirm=self.confirm
+                    )
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
@@ -251,11 +259,16 @@ class SFTPOperator(BaseOperator):
             remote_filepath = self.remote_filepath
 
         local_datasets = [
-            Dataset(namespace=self._get_namespace(scheme, local_host, None, path), name=path)
+            Dataset(
+                namespace=self._get_namespace(scheme, local_host, None, path), name=path
+            )
             for path in local_filepath
         ]
         remote_datasets = [
-            Dataset(namespace=self._get_namespace(scheme, remote_host, remote_port, path), name=path)
+            Dataset(
+                namespace=self._get_namespace(scheme, remote_host, remote_port, path),
+                name=path,
+            )
             for path in remote_filepath
         ]
 

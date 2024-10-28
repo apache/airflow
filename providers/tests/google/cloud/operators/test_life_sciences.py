@@ -21,9 +21,13 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
+from airflow.providers.google.cloud.operators.life_sciences import (
+    LifeSciencesRunPipelineOperator,
+)
 
-TEST_BODY = {"pipeline": {"actions": [{}], "resources": {}, "environment": {}, "timeout": "3.5s"}}
+TEST_BODY = {
+    "pipeline": {"actions": [{}], "resources": {}, "environment": {}, "timeout": "3.5s"}
+}
 
 TEST_OPERATION = {
     "name": "operation-name",
@@ -41,7 +45,10 @@ class TestLifeSciencesRunPipelineOperator:
         mock_instance = mock_hook.return_value
         mock_instance.run_pipeline.return_value = TEST_OPERATION
         operator = LifeSciencesRunPipelineOperator(
-            task_id="task-id", body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
+            task_id="task-id",
+            body=TEST_BODY,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
         )
         context = mock.MagicMock()
         result = operator.execute(context=context)

@@ -45,7 +45,9 @@ from tests_common.test_utils.gcp_system_helpers import (
 class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
     def setup_method(self) -> None:
         clear_db_runs()
-        self.log_name = "stackdriver-tests-".join(random.sample(string.ascii_lowercase, 16))
+        self.log_name = "stackdriver-tests-".join(
+            random.sample(string.ascii_lowercase, 16)
+        )
 
     def teardown_method(self) -> None:
         from airflow.config_templates import airflow_local_settings
@@ -64,9 +66,20 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
-        ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
+            assert (
+                0
+                == subprocess.Popen(
+                    ["airflow", "dags", "trigger", "example_complex"]
+                ).wait()
+            )
+            assert (
+                0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            )
+        ti = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == "create_entry_group")
+            .first()
+        )
 
         self.assert_remote_logs("terminated with exit code 0", ti)
 
@@ -80,9 +93,20 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
             GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDRIVER),
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
-        ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
+            assert (
+                0
+                == subprocess.Popen(
+                    ["airflow", "dags", "trigger", "example_complex"]
+                ).wait()
+            )
+            assert (
+                0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            )
+        ti = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == "create_entry_group")
+            .first()
+        )
 
         self.assert_remote_logs("terminated with exit code 0", ti)
 
@@ -92,7 +116,10 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
             conf_vars(
                 {
                     ("logging", "remote_logging"): "True",
-                    ("logging", "remote_base_log_folder"): f"stackdriver://{self.log_name}",
+                    (
+                        "logging",
+                        "remote_base_log_folder",
+                    ): f"stackdriver://{self.log_name}",
                 }
             ),
         ):
@@ -102,7 +129,9 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
             settings.configure_logging()
 
             task_log_reader = TaskLogReader()
-            logs = "\n".join(task_log_reader.read_log_stream(ti, try_number=None, metadata={}))
+            logs = "\n".join(
+                task_log_reader.read_log_stream(ti, try_number=None, metadata={})
+            )
             # Preview content
             print("=" * 80)
             print(logs)

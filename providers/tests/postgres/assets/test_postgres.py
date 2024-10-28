@@ -57,7 +57,9 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
         pytest.param("postgres:///database/schema/table", id="no-host"),
         pytest.param("postgres://example.com/database/table", id="missing-component"),
         pytest.param("postgres://example.com:abcd/database/schema/table", id="non-port"),
-        pytest.param("postgres://example.com/database/schema/table/column", id="extra-component"),
+        pytest.param(
+            "postgres://example.com/database/schema/table/column", id="extra-component"
+        ),
     ],
 )
 def test_sanitize_uri_fail(value: str) -> None:

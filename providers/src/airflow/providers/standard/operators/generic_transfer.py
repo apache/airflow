@@ -96,7 +96,9 @@ class GenericTransfer(BaseOperator):
         return connection.get_hook(hook_params=hook_params)
 
     def execute(self, context: Context):
-        source_hook = self.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
+        source_hook = self.get_hook(
+            conn_id=self.source_conn_id, hook_params=self.source_hook_params
+        )
         destination_hook = self.get_hook(
             conn_id=self.destination_conn_id, hook_params=self.destination_hook_params
         )

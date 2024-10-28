@@ -58,7 +58,9 @@ class TestCloudFirestoreHookWithPassedProjectId:
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook._authorize"
+    )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build_from_document")
     def test_client_creation(self, mock_build_from_document, mock_build, mock_authorize):
@@ -70,14 +72,16 @@ class TestCloudFirestoreHookWithPassedProjectId:
         assert mock_build_from_document.return_value == result
         assert self.hook._conn == result
 
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     def test_immediately_complete(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
-        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
+        mock_export_documents = (
+            service_mock.projects.return_value.databases.return_value.exportDocuments
         )
+        mock_operation_get = service_mock.projects.return_value.databases.return_value.operations.return_value.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         (mock_operation_get.return_value.execute.return_value) = TEST_DONE_OPERATION
@@ -85,46 +89,62 @@ class TestCloudFirestoreHookWithPassedProjectId:
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
         mock_export_documents.assert_called_once_with(
-            body=EXPORT_DOCUMENT_BODY, name="projects/firestore--project-id/databases/(default)"
+            body=EXPORT_DOCUMENT_BODY,
+            name="projects/firestore--project-id/databases/(default)",
         )
 
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
-        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
+        mock_export_documents = (
+            service_mock.projects.return_value.databases.return_value.exportDocuments
         )
+        mock_operation_get = service_mock.projects.return_value.databases.return_value.operations.return_value.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         execute_mock = mock.Mock(
-            **{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION, TEST_DONE_OPERATION]}
+            **{
+                "side_effect": [
+                    TEST_WAITING_OPERATION,
+                    TEST_DONE_OPERATION,
+                    TEST_DONE_OPERATION,
+                ]
+            }
         )
         mock_operation_get.return_value.execute = execute_mock
 
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
         mock_export_documents.assert_called_once_with(
-            body=EXPORT_DOCUMENT_BODY, name="projects/firestore--project-id/databases/(default)"
+            body=EXPORT_DOCUMENT_BODY,
+            name="projects/firestore--project-id/databases/(default)",
         )
 
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.time.sleep")
     def test_error_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
-        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
+        mock_export_documents = (
+            service_mock.projects.return_value.databases.return_value.exportDocuments
         )
+        mock_operation_get = service_mock.projects.return_value.databases.return_value.operations.return_value.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
-        execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
+        execute_mock = mock.Mock(
+            **{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]}
+        )
         mock_operation_get.return_value.execute = execute_mock
         with pytest.raises(AirflowException, match="error"):
-            self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
+            self.hook.export_documents(
+                body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID
+            )
 
 
 class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
@@ -137,7 +157,9 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         ):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook._authorize"
+    )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build")
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build_from_document")
     def test_client_creation(self, mock_build_from_document, mock_build, mock_authorize):
@@ -154,14 +176,16 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     def test_immediately_complete(self, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
-        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
+        mock_export_documents = (
+            service_mock.projects.return_value.databases.return_value.exportDocuments
         )
+        mock_operation_get = service_mock.projects.return_value.databases.return_value.operations.return_value.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         mock_operation_get.return_value.execute.return_value = TEST_DONE_OPERATION
@@ -177,19 +201,27 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
-        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
+        mock_export_documents = (
+            service_mock.projects.return_value.databases.return_value.exportDocuments
         )
+        mock_operation_get = service_mock.projects.return_value.databases.return_value.operations.return_value.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
         execute_mock = mock.Mock(
-            **{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION, TEST_DONE_OPERATION]}
+            **{
+                "side_effect": [
+                    TEST_WAITING_OPERATION,
+                    TEST_DONE_OPERATION,
+                    TEST_DONE_OPERATION,
+                ]
+            }
         )
         mock_operation_get.return_value.execute = execute_mock
 
@@ -204,18 +236,22 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.time.sleep")
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
-        mock_export_documents = service_mock.projects.return_value.databases.return_value.exportDocuments
-        mock_operation_get = (
-            service_mock.projects.return_value.databases.return_value.operations.return_value.get
+        mock_export_documents = (
+            service_mock.projects.return_value.databases.return_value.exportDocuments
         )
+        mock_operation_get = service_mock.projects.return_value.databases.return_value.operations.return_value.get
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
-        execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
+        execute_mock = mock.Mock(
+            **{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]}
+        )
         mock_operation_get.return_value.execute = execute_mock
         with pytest.raises(AirflowException, match="error"):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
@@ -236,7 +272,9 @@ class TestCloudFirestoreHookWithoutProjectId:
         new_callable=PropertyMock,
         return_value=None,
     )
-    @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn"
+    )
     def test_create_build(self, mock_get_conn, mock_project_id):
         with pytest.raises(AirflowException) as ctx:
             self.hook.export_documents(body={})

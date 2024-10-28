@@ -48,7 +48,9 @@ class ArangoDBHook(BaseHook):
     conn_type = "arangodb"
     hook_name = "ArangoDB"
 
-    def __init__(self, arangodb_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+    def __init__(
+        self, arangodb_conn_id: str = default_conn_name, *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.arangodb_conn_id = arangodb_conn_id
 
@@ -60,7 +62,9 @@ class ArangoDBHook(BaseHook):
     @cached_property
     def db_conn(self) -> StandardDatabase:
         """Connect to an ArangoDB database and return the database API wrapper."""
-        return self.client.db(name=self.database, username=self.username, password=self.password)
+        return self.client.db(
+            name=self.database, username=self.username, password=self.password
+        )
 
     @cached_property
     def _conn(self) -> Connection:
@@ -69,19 +73,25 @@ class ArangoDBHook(BaseHook):
     @property
     def hosts(self) -> list[str]:
         if not self._conn.host:
-            raise AirflowException(f"No ArangoDB Host(s) provided in connection: {self.arangodb_conn_id!r}.")
+            raise AirflowException(
+                f"No ArangoDB Host(s) provided in connection: {self.arangodb_conn_id!r}."
+            )
         return self._conn.host.split(",")
 
     @property
     def database(self) -> str:
         if not self._conn.schema:
-            raise AirflowException(f"No ArangoDB Database provided in connection: {self.arangodb_conn_id!r}.")
+            raise AirflowException(
+                f"No ArangoDB Database provided in connection: {self.arangodb_conn_id!r}."
+            )
         return self._conn.schema
 
     @property
     def username(self) -> str:
         if not self._conn.login:
-            raise AirflowException(f"No ArangoDB Username provided in connection: {self.arangodb_conn_id!r}.")
+            raise AirflowException(
+                f"No ArangoDB Username provided in connection: {self.arangodb_conn_id!r}."
+            )
         return self._conn.login
 
     @property

@@ -41,9 +41,17 @@ CREATE_TUNING_PARAMS: dict = {
     "HyperParameterTuningJobName": "job_name",
     "HyperParameterTuningJobConfig": {
         "Strategy": "Bayesian",
-        "HyperParameterTuningJobObjective": {"Type": "Maximize", "MetricName": "test_metric"},
-        "ResourceLimits": {"MaxNumberOfTrainingJobs": "123", "MaxParallelTrainingJobs": "123"},
-        "ParameterRanges": {"IntegerParameterRanges": [{"Name": "k", "MinValue": "2", "MaxValue": "10"}]},
+        "HyperParameterTuningJobObjective": {
+            "Type": "Maximize",
+            "MetricName": "test_metric",
+        },
+        "ResourceLimits": {
+            "MaxNumberOfTrainingJobs": "123",
+            "MaxParallelTrainingJobs": "123",
+        },
+        "ParameterRanges": {
+            "IntegerParameterRanges": [{"Name": "k", "MinValue": "2", "MaxValue": "10"}]
+        },
     },
     "TrainingJobDefinition": {
         "StaticHyperParameters": {
@@ -52,7 +60,10 @@ CREATE_TUNING_PARAMS: dict = {
             "mini_batch_size": "500",
             "force_dense": "True",
         },
-        "AlgorithmSpecification": {"TrainingImage": "image_name", "TrainingInputMode": "File"},
+        "AlgorithmSpecification": {
+            "TrainingImage": "image_name",
+            "TrainingInputMode": "File",
+        },
         "RoleArn": "arn:aws:iam:role/test-role",
         "InputDataConfig": [
             {
@@ -69,7 +80,11 @@ CREATE_TUNING_PARAMS: dict = {
             }
         ],
         "OutputDataConfig": {"S3OutputPath": "output_path"},
-        "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": "50"},
+        "ResourceConfig": {
+            "InstanceCount": "2",
+            "InstanceType": "ml.c4.8xlarge",
+            "VolumeSizeInGB": "50",
+        },
         "StoppingCondition": {"MaxRuntimeInSeconds": "3600"},
     },
 }
@@ -88,26 +103,40 @@ class TestSageMakerTuningOperator:
     @mock.patch.object(SageMakerHook, "create_tuning_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_integer_fields(self, serialize, mock_tuning, mock_client):
-        mock_tuning.return_value = {"TrainingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_tuning.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for key1, key2, key3 in EXPECTED_INTEGER_FIELDS:
-            assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
+            assert self.sagemaker.config[key1][key2][key3] == int(
+                self.sagemaker.config[key1][key2][key3]
+            )
 
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "create_tuning_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute(self, serialize, mock_tuning, mock_client):
-        mock_tuning.return_value = {"TrainingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_tuning.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
         self.sagemaker.execute(None)
         mock_tuning.assert_called_once_with(
-            CREATE_TUNING_PARAMS, wait_for_completion=False, check_interval=5, max_ingestion_time=None
+            CREATE_TUNING_PARAMS,
+            wait_for_completion=False,
+            check_interval=5,
+            max_ingestion_time=None,
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "create_tuning_job")
     def test_execute_with_failure(self, mock_tuning, mock_client):
-        mock_tuning.return_value = {"TrainingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 404}}
+        mock_tuning.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 404},
+        }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
 

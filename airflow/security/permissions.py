@@ -41,7 +41,9 @@ RESOURCE_JOB = "Jobs"
 RESOURCE_MY_PASSWORD = "My Password"
 RESOURCE_MY_PROFILE = "My Profile"
 RESOURCE_PASSWORD = "Passwords"
-RESOURCE_PERMISSION = "Permission Views"  # Refers to a Perm <-> View mapping, not an MVC View.
+RESOURCE_PERMISSION = (
+    "Permission Views"  # Refers to a Perm <-> View mapping, not an MVC View.
+)
 RESOURCE_PLUGIN = "Plugins"
 RESOURCE_POOL = "Pools"
 RESOURCE_PROVIDER = "Providers"
@@ -80,15 +82,23 @@ DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG: ResourceDetails(
-        actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
+        actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE},
+        prefix=RESOURCE_DAG_PREFIX,
     ),
     RESOURCE_DAG_RUN: ResourceDetails(
-        actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
+        actions={
+            ACTION_CAN_READ,
+            ACTION_CAN_CREATE,
+            ACTION_CAN_DELETE,
+            ACTION_CAN_ACCESS_MENU,
+        },
         prefix=RESOURCE_DAG_RUN_PREFIX,
     ),
 }
 PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
-PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
+PREFIX_RESOURCES_MAP = {
+    details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()
+}
 
 
 def resource_name(root_dag_id: str, resource: str) -> str:

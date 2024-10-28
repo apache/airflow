@@ -23,5 +23,7 @@ from airflow.utils.timezone import datetime
 
 # This invalid DAG has a schedule specified with an INVALID cron expression.
 # It will be used to test whether dagbag.process_file() can identify this.
-dag1 = DAG(dag_id="test_invalid_cron", start_date=datetime(2015, 1, 1), schedule="0 100 * * *")
+dag1 = DAG(
+    dag_id="test_invalid_cron", start_date=datetime(2015, 1, 1), schedule="0 100 * * *"
+)
 dag1_task1 = EmptyOperator(task_id="task1", dag=dag1, owner="airflow")

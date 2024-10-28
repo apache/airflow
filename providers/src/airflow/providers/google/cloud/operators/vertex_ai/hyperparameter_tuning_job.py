@@ -37,11 +37,17 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAITrainingLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.vertex_ai import CreateHyperparameterTuningJobTrigger
+from airflow.providers.google.cloud.triggers.vertex_ai import (
+    CreateHyperparameterTuningJobTrigger,
+)
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform import HyperparameterTuningJob, gapic, hyperparameter_tuning
+    from google.cloud.aiplatform import (
+        HyperparameterTuningJob,
+        gapic,
+        hyperparameter_tuning,
+    )
 
     from airflow.utils.context import Context
 
@@ -184,7 +190,9 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         # END: run param
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -265,9 +273,16 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
 
         hyperparameter_tuning_job.wait_for_resource_creation()
         hyperparameter_tuning_job_id = hyperparameter_tuning_job.name
-        self.log.info("Hyperparameter Tuning job was created. Job id: %s", hyperparameter_tuning_job_id)
+        self.log.info(
+            "Hyperparameter Tuning job was created. Job id: %s",
+            hyperparameter_tuning_job_id,
+        )
 
-        self.xcom_push(context, key="hyperparameter_tuning_job_id", value=hyperparameter_tuning_job_id)
+        self.xcom_push(
+            context,
+            key="hyperparameter_tuning_job_id",
+            value=hyperparameter_tuning_job_id,
+        )
         VertexAITrainingLink.persist(
             context=context, task_instance=self, training_id=hyperparameter_tuning_job_id
         )
@@ -298,7 +313,10 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
         job: dict[str, Any] = event["job"]
-        self.log.info("Hyperparameter tuning job %s created and completed successfully.", job["name"])
+        self.log.info(
+            "Hyperparameter tuning job %s created and completed successfully.",
+            job["name"],
+        )
         return job
 
 
@@ -323,7 +341,12 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "hyperparameter_tuning_job_id", "project_id", "impersonation_chain")
+    template_fields = (
+        "region",
+        "hyperparameter_tuning_job_id",
+        "project_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (VertexAITrainingLink(),)
 
     def __init__(
@@ -356,7 +379,9 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         )
 
         try:
-            self.log.info("Get hyperparameter tuning job: %s", self.hyperparameter_tuning_job_id)
+            self.log.info(
+                "Get hyperparameter tuning job: %s", self.hyperparameter_tuning_job_id
+            )
             result = hook.get_hyperparameter_tuning_job(
                 project_id=self.project_id,
                 region=self.region,
@@ -366,13 +391,16 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             VertexAITrainingLink.persist(
-                context=context, task_instance=self, training_id=self.hyperparameter_tuning_job_id
+                context=context,
+                task_instance=self,
+                training_id=self.hyperparameter_tuning_job_id,
             )
             self.log.info("Hyperparameter tuning job was gotten.")
             return types.HyperparameterTuningJob.to_dict(result)
         except NotFound:
             self.log.info(
-                "The Hyperparameter tuning job %s does not exist.", self.hyperparameter_tuning_job_id
+                "The Hyperparameter tuning job %s does not exist.",
+                self.hyperparameter_tuning_job_id,
             )
 
 
@@ -389,7 +417,12 @@ class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     :param metadata: Strings which should be sent along with the request as metadata.
     """
 
-    template_fields = ("region", "project_id", "hyperparameter_tuning_job_id", "impersonation_chain")
+    template_fields = (
+        "region",
+        "project_id",
+        "hyperparameter_tuning_job_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -420,7 +453,10 @@ class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting Hyperparameter Tuning job: %s", self.hyperparameter_tuning_job_id)
+            self.log.info(
+                "Deleting Hyperparameter Tuning job: %s",
+                self.hyperparameter_tuning_job_id,
+            )
             operation = hook.delete_hyperparameter_tuning_job(
                 region=self.region,
                 project_id=self.project_id,
@@ -433,7 +469,8 @@ class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
             self.log.info("Hyperparameter Tuning job was deleted.")
         except NotFound:
             self.log.info(
-                "The Hyperparameter Tuning Job ID %s does not exist.", self.hyperparameter_tuning_job_id
+                "The Hyperparameter Tuning Job ID %s does not exist.",
+                self.hyperparameter_tuning_job_id,
             )
 
 
@@ -513,5 +550,7 @@ class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        VertexAIHyperparameterTuningJobListLink.persist(context=context, task_instance=self)
+        VertexAIHyperparameterTuningJobListLink.persist(
+            context=context, task_instance=self
+        )
         return [types.HyperparameterTuningJob.to_dict(result) for result in results]

@@ -88,7 +88,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def hook(self):
         """Returns AwsLogsHook."""
         return AwsLogsHook(
-            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), region_name=self.region_name
+            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"),
+            region_name=self.region_name,
         )
 
     def _render_filename(self, ti, try_number):
@@ -97,7 +98,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None):
         super().set_context(ti)
-        _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
+        _json_serialize = conf.getimport(
+            "aws", "cloudwatch_task_handler_json_serializer", fallback=None
+        )
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=self._render_filename(ti, ti.try_number),

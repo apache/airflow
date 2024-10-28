@@ -241,7 +241,11 @@ class BaseAuthManager(LoggingMixin):
 
     @abstractmethod
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user: BaseUser | None = None,
     ):
         """
         Return whether the user is authorized to perform a given action on a custom view.
@@ -272,7 +276,9 @@ class BaseAuthManager(LoggingMixin):
         :param requests: a list of requests containing the parameters for ``is_authorized_connection``
         """
         return all(
-            self.is_authorized_connection(method=request["method"], details=request.get("details"))
+            self.is_authorized_connection(
+                method=request["method"], details=request.get("details")
+            )
             for request in requests
         )
 
@@ -312,7 +318,9 @@ class BaseAuthManager(LoggingMixin):
         :param requests: a list of requests containing the parameters for ``is_authorized_pool``
         """
         return all(
-            self.is_authorized_pool(method=request["method"], details=request.get("details"))
+            self.is_authorized_pool(
+                method=request["method"], details=request.get("details")
+            )
             for request in requests
         )
 
@@ -330,7 +338,9 @@ class BaseAuthManager(LoggingMixin):
         :param requests: a list of requests containing the parameters for ``is_authorized_variable``
         """
         return all(
-            self.is_authorized_variable(method=request["method"], details=request.get("details"))
+            self.is_authorized_variable(
+                method=request["method"], details=request.get("details")
+            )
             for request in requests
         )
 
@@ -379,7 +389,9 @@ class BaseAuthManager(LoggingMixin):
             # If user is authorized to read/edit all DAGs, return all DAGs
             return dag_ids
 
-        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
+        def _is_permitted_dag_id(
+            method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str
+        ):
             return method in methods and self.is_authorized_dag(
                 method=method, details=DagDetails(id=dag_id), user=user
             )
@@ -387,7 +399,8 @@ class BaseAuthManager(LoggingMixin):
         return {
             dag_id
             for dag_id in dag_ids
-            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
+            if _is_permitted_dag_id("GET", methods, dag_id)
+            or _is_permitted_dag_id("PUT", methods, dag_id)
         }
 
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
@@ -397,7 +410,10 @@ class BaseAuthManager(LoggingMixin):
         :param menu_items: list of all menu items
         """
         items = filter(
-            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
+            lambda item: self.security_manager.has_access(
+                ACTION_CAN_ACCESS_MENU, item.name
+            ),
+            menu_items,
         )
         accessible_items = []
         for menu_item in items:
@@ -410,7 +426,9 @@ class BaseAuthManager(LoggingMixin):
             if menu_item.childs:
                 accessible_children = []
                 for child in menu_item.childs:
-                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
+                    if self.security_manager.has_access(
+                        ACTION_CAN_ACCESS_MENU, child.name
+                    ):
                         accessible_children.append(child)
                 menu_item_copy.childs = accessible_children
             accessible_items.append(menu_item_copy)

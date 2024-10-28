@@ -26,7 +26,11 @@ class TestLimitRanges:
 
     def test_limit_ranges_template(self):
         docs = render_chart(
-            values={"limits": [{"max": {"cpu": "500m"}, "min": {"min": "200m"}, "type": "Container"}]},
+            values={
+                "limits": [
+                    {"max": {"cpu": "500m"}, "min": {"min": "200m"}, "type": "Container"}
+                ]
+            },
             show_only=["templates/limitrange.yaml"],
         )
         assert "LimitRange" == jmespath.search("kind", docs[0])

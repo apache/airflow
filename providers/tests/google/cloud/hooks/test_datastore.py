@@ -43,7 +43,8 @@ class TestDatastoreHook:
 
     def setup_method(self):
         with patch(
-            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__", new=mock_init
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+            new=mock_init,
         ):
             self.datastore_hook = DatastoreHook()
 
@@ -63,12 +64,16 @@ class TestDatastoreHook:
         self.datastore_hook.connection = mock_get_conn.return_value
         partial_keys = []
 
-        keys = self.datastore_hook.allocate_ids(partial_keys=partial_keys, project_id=GCP_PROJECT_ID)
+        keys = self.datastore_hook.allocate_ids(
+            partial_keys=partial_keys, project_id=GCP_PROJECT_ID
+        )
 
         projects = self.datastore_hook.connection.projects
         projects.assert_called_once_with()
         allocate_ids = projects.return_value.allocateIds
-        allocate_ids.assert_called_once_with(projectId=GCP_PROJECT_ID, body={"keys": partial_keys})
+        allocate_ids.assert_called_once_with(
+            projectId=GCP_PROJECT_ID, body={"keys": partial_keys}
+        )
         execute = allocate_ids.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         assert keys == execute.return_value["keys"]
@@ -99,7 +104,9 @@ class TestDatastoreHook:
         projects = self.datastore_hook.connection.projects
         projects.assert_called_once_with()
         begin_transaction = projects.return_value.beginTransaction
-        begin_transaction.assert_called_once_with(projectId=GCP_PROJECT_ID, body={"transactionOptions": {}})
+        begin_transaction.assert_called_once_with(
+            projectId=GCP_PROJECT_ID, body={"transactionOptions": {}}
+        )
         execute = begin_transaction.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         assert transaction == execute.return_value["transaction"]
@@ -153,7 +160,10 @@ class TestDatastoreHook:
         transaction = "transaction"
 
         resp = self.datastore_hook.lookup(
-            keys=keys, read_consistency=read_consistency, transaction=transaction, project_id=GCP_PROJECT_ID
+            keys=keys,
+            read_consistency=read_consistency,
+            transaction=transaction,
+            project_id=GCP_PROJECT_ID,
         )
 
         projects = self.datastore_hook.connection.projects
@@ -161,7 +171,11 @@ class TestDatastoreHook:
         lookup = projects.return_value.lookup
         lookup.assert_called_once_with(
             projectId=GCP_PROJECT_ID,
-            body={"keys": keys, "readConsistency": read_consistency, "transaction": transaction},
+            body={
+                "keys": keys,
+                "readConsistency": read_consistency,
+                "transaction": transaction,
+            },
         )
         execute = lookup.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
@@ -197,7 +211,9 @@ class TestDatastoreHook:
         projects = self.datastore_hook.connection.projects
         projects.assert_called_once_with()
         rollback = projects.return_value.rollback
-        rollback.assert_called_once_with(projectId=GCP_PROJECT_ID, body={"transaction": transaction})
+        rollback.assert_called_once_with(
+            projectId=GCP_PROJECT_ID, body={"transaction": transaction}
+        )
         execute = rollback.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
 
@@ -290,7 +306,9 @@ class TestDatastoreHook:
         name = "name"
         polling_interval_in_seconds = 10
 
-        result = self.datastore_hook.poll_operation_until_done(name, polling_interval_in_seconds)
+        result = self.datastore_hook.poll_operation_until_done(
+            name, polling_interval_in_seconds
+        )
 
         mock_get_operation.assert_has_calls([call(name), call(name)])
         mock_time_sleep.assert_called_once_with(polling_interval_in_seconds)
@@ -388,7 +406,9 @@ class TestDatastoreHook:
         return_value=None,
     )
     @patch("airflow.providers.google.cloud.hooks.datastore.DatastoreHook.get_conn")
-    def test_import_from_storage_bucket_no_project_id(self, mock_get_conn, mock_project_id):
+    def test_import_from_storage_bucket_no_project_id(
+        self, mock_get_conn, mock_project_id
+    ):
         self.datastore_hook.admin_connection = mock_get_conn.return_value
         bucket = "bucket"
         file = "file"

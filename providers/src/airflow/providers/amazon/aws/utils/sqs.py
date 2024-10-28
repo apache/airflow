@@ -51,7 +51,10 @@ def process_response(
 
     if num_messages and message_filtering:
         messages = filter_messages(
-            messages, message_filtering, message_filtering_match_values, message_filtering_config
+            messages,
+            message_filtering,
+            message_filtering_match_values,
+            message_filtering_config,
         )
         num_messages = len(messages)
         log.info("There are %d messages left after filtering", num_messages)
@@ -65,18 +68,28 @@ def filter_messages(
         return filter_messages_literal(messages, message_filtering_match_values)
     if message_filtering == "jsonpath":
         return filter_messages_jsonpath(
-            messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.parse
+            messages,
+            message_filtering_match_values,
+            message_filtering_config,
+            jsonpath_ng.parse,
         )
     if message_filtering == "jsonpath-ext":
         return filter_messages_jsonpath(
-            messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.ext.parse
+            messages,
+            message_filtering_match_values,
+            message_filtering_config,
+            jsonpath_ng.ext.parse,
         )
     else:
         raise NotImplementedError("Override this method to define custom filters")
 
 
 def filter_messages_literal(messages, message_filtering_match_values) -> list[Any]:
-    return [message for message in messages if message["Body"] in message_filtering_match_values]
+    return [
+        message
+        for message in messages
+        if message["Body"] in message_filtering_match_values
+    ]
 
 
 def filter_messages_jsonpath(

@@ -24,7 +24,10 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.orchestration.airflow.service_v1 import EnvironmentsAsyncClient
 
-from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook, CloudComposerHook
+from airflow.providers.google.cloud.hooks.cloud_composer import (
+    CloudComposerAsyncHook,
+    CloudComposerHook,
+)
 
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"
@@ -107,7 +110,9 @@ class TestCloudComposerHook:
         mock_client.assert_called_once()
         mock_client.return_value.delete_environment.assert_called_once_with(
             request={
-                "name": self.hook.get_environment_name(TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID)
+                "name": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                )
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -127,7 +132,9 @@ class TestCloudComposerHook:
         mock_client.assert_called_once()
         mock_client.return_value.get_environment.assert_called_once_with(
             request={
-                "name": self.hook.get_environment_name(TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID)
+                "name": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                )
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -311,7 +318,9 @@ class TestCloudComposerAsyncHook:
         mock_client.assert_called_once()
         mock_client.return_value.delete_environment.assert_called_once_with(
             request={
-                "name": self.hook.get_environment_name(TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID)
+                "name": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                )
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,

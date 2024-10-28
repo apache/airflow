@@ -39,7 +39,9 @@ class PigCliHook(BaseHook):
     hook_name = "Pig Client Wrapper"
 
     def __init__(
-        self, pig_cli_conn_id: str = default_conn_name, pig_properties: list[str] | None = None
+        self,
+        pig_cli_conn_id: str = default_conn_name,
+        pig_properties: list[str] | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
@@ -65,7 +67,9 @@ class PigCliHook(BaseHook):
         >>> ("hdfs://" in result)
         True
         """
-        with TemporaryDirectory(prefix="airflow_pigop_") as tmp_dir, NamedTemporaryFile(dir=tmp_dir) as f:
+        with TemporaryDirectory(prefix="airflow_pigop_") as tmp_dir, NamedTemporaryFile(
+            dir=tmp_dir
+        ) as f:
             f.write(pig.encode("utf-8"))
             f.flush()
             fname = f.name
@@ -85,7 +89,11 @@ class PigCliHook(BaseHook):
             if verbose:
                 self.log.info("%s", " ".join(pig_cmd))
             sub_process: Any = subprocess.Popen(
-                pig_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
+                pig_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=tmp_dir,
+                close_fds=True,
             )
             self.sub_process = sub_process
             stdout = ""

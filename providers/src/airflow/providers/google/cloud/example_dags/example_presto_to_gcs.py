@@ -36,7 +36,9 @@ from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOp
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = os.environ.get("GCP_PRESTO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
-DATASET_NAME = os.environ.get("GCP_PRESTO_TO_GCS_DATASET_NAME", "test_presto_to_gcs_dataset")
+DATASET_NAME = os.environ.get(
+    "GCP_PRESTO_TO_GCS_DATASET_NAME", "test_presto_to_gcs_dataset"
+)
 
 SOURCE_MULTIPLE_TYPES = "memory.default.test_multiple_types"
 SOURCE_CUSTOMER_TABLE = "tpch.sf1.customer"
@@ -55,7 +57,9 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create-dataset", dataset_id=DATASET_NAME
+    )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
@@ -185,8 +189,16 @@ with DAG(
     create_dataset >> presto_to_gcs_many_chunks
     create_dataset >> presto_to_gcs_csv
 
-    presto_to_gcs_multiple_types >> create_external_table_multiple_types >> read_data_from_gcs_multiple_types
-    presto_to_gcs_many_chunks >> create_external_table_many_chunks >> read_data_from_gcs_many_chunks
+    (
+        presto_to_gcs_multiple_types
+        >> create_external_table_multiple_types
+        >> read_data_from_gcs_multiple_types
+    )
+    (
+        presto_to_gcs_many_chunks
+        >> create_external_table_many_chunks
+        >> read_data_from_gcs_many_chunks
+    )
 
     presto_to_gcs_basic >> delete_dataset
     presto_to_gcs_csv >> delete_dataset

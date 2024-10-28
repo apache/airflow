@@ -39,7 +39,9 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_spark_async"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
@@ -91,7 +93,11 @@ with DAG(
 
     # [START cloud_dataproc_async_submit_sensor]
     spark_task_async = DataprocSubmitJobOperator(
-        task_id="spark_task_async", job=SPARK_JOB, region=REGION, project_id=PROJECT_ID, asynchronous=True
+        task_id="spark_task_async",
+        job=SPARK_JOB,
+        region=REGION,
+        project_id=PROJECT_ID,
+        asynchronous=True,
     )
 
     spark_task_async_sensor = DataprocJobSensor(

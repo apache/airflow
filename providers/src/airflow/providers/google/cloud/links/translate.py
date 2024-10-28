@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 TRANSLATION_BASE_LINK = BASE_LINK + "/translation"
 TRANSLATION_LEGACY_DATASET_LINK = (
-    TRANSLATION_BASE_LINK + "/locations/{location}/datasets/{dataset_id}/sentences?project={project_id}"
+    TRANSLATION_BASE_LINK
+    + "/locations/{location}/datasets/{dataset_id}/sentences?project={project_id}"
 )
 TRANSLATION_DATASET_LIST_LINK = TRANSLATION_BASE_LINK + "/datasets?project={project_id}"
 TRANSLATION_LEGACY_MODEL_LINK = (
@@ -36,7 +37,8 @@ TRANSLATION_LEGACY_MODEL_LINK = (
     + "/locations/{location}/datasets/{dataset_id}/evaluate;modelId={model_id}?project={project_id}"
 )
 TRANSLATION_LEGACY_MODEL_TRAIN_LINK = (
-    TRANSLATION_BASE_LINK + "/locations/{location}/datasets/{dataset_id}/train?project={project_id}"
+    TRANSLATION_BASE_LINK
+    + "/locations/{location}/datasets/{dataset_id}/train?project={project_id}"
 )
 TRANSLATION_LEGACY_MODEL_PREDICT_LINK = (
     TRANSLATION_BASE_LINK
@@ -65,7 +67,11 @@ class TranslationLegacyDatasetLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=TranslationLegacyDatasetLink.key,
-            value={"location": task_instance.location, "dataset_id": dataset_id, "project_id": project_id},
+            value={
+                "location": task_instance.location,
+                "dataset_id": dataset_id,
+                "project_id": project_id,
+            },
         )
 
 

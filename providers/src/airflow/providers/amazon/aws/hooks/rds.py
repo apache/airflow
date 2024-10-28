@@ -67,7 +67,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return response["DBSnapshots"][0]["Status"].lower()
 
     def wait_for_db_snapshot_state(
-        self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
+        self,
+        snapshot_id: str,
+        target_state: str,
+        check_interval: int = 30,
+        max_attempts: int = 40,
     ) -> None:
         """
         Poll DB Snapshots until target_state is reached; raise AirflowException after max_attempts.
@@ -93,7 +97,9 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             )
         else:
             self._wait_for_state(poke, target_state, check_interval, max_attempts)
-            self.log.info("DB snapshot '%s' reached the '%s' state", snapshot_id, target_state)
+            self.log.info(
+                "DB snapshot '%s' reached the '%s' state", snapshot_id, target_state
+            )
 
     def get_db_cluster_snapshot_state(self, snapshot_id: str) -> str:
         """
@@ -107,13 +113,19 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the DB cluster snapshot does not exist.
         """
         try:
-            response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
+            response = self.conn.describe_db_cluster_snapshots(
+                DBClusterSnapshotIdentifier=snapshot_id
+            )
         except self.conn.exceptions.DBClusterSnapshotNotFoundFault as e:
             raise AirflowNotFoundException(e)
         return response["DBClusterSnapshots"][0]["Status"].lower()
 
     def wait_for_db_cluster_snapshot_state(
-        self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
+        self,
+        snapshot_id: str,
+        target_state: str,
+        check_interval: int = 30,
+        max_attempts: int = 40,
     ) -> None:
         """
         Poll DB Cluster Snapshots until target_state is reached; raise AirflowException after a max_attempts.
@@ -139,7 +151,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             )
         else:
             self._wait_for_state(poke, target_state, check_interval, max_attempts)
-            self.log.info("DB cluster snapshot '%s' reached the '%s' state", snapshot_id, target_state)
+            self.log.info(
+                "DB cluster snapshot '%s' reached the '%s' state",
+                snapshot_id,
+                target_state,
+            )
 
     def get_export_task_state(self, export_task_id: str) -> str:
         """
@@ -153,15 +169,24 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the export task does not exist.
         """
         try:
-            response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
+            response = self.conn.describe_export_tasks(
+                ExportTaskIdentifier=export_task_id
+            )
         except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] in ("ExportTaskNotFound", "ExportTaskNotFoundFault"):
+            if e.response["Error"]["Code"] in (
+                "ExportTaskNotFound",
+                "ExportTaskNotFoundFault",
+            ):
                 raise AirflowNotFoundException(e)
             raise e
         return response["ExportTasks"][0]["Status"].lower()
 
     def wait_for_export_task_state(
-        self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
+        self,
+        export_task_id: str,
+        target_state: str,
+        check_interval: int = 30,
+        max_attempts: int = 40,
     ) -> None:
         """
         Poll export tasks until target_state is reached; raise AirflowException after max_attempts.
@@ -180,7 +205,9 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         self._wait_for_state(poke, target_state, check_interval, max_attempts)
-        self.log.info("export task '%s' reached the '%s' state", export_task_id, target_state)
+        self.log.info(
+            "export task '%s' reached the '%s' state", export_task_id, target_state
+        )
 
     def get_event_subscription_state(self, subscription_name: str) -> str:
         """
@@ -194,15 +221,24 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the event subscription does not exist.
         """
         try:
-            response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
+            response = self.conn.describe_event_subscriptions(
+                SubscriptionName=subscription_name
+            )
         except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] in ("SubscriptionNotFoundFault", "SubscriptionNotFound"):
+            if e.response["Error"]["Code"] in (
+                "SubscriptionNotFoundFault",
+                "SubscriptionNotFound",
+            ):
                 raise AirflowNotFoundException(e)
             raise e
         return response["EventSubscriptionsList"][0]["Status"].lower()
 
     def wait_for_event_subscription_state(
-        self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
+        self,
+        subscription_name: str,
+        target_state: str,
+        check_interval: int = 30,
+        max_attempts: int = 40,
     ) -> None:
         """
         Poll Event Subscriptions until target_state is reached; raise AirflowException after max_attempts.
@@ -221,7 +257,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
         target_state = target_state.lower()
         self._wait_for_state(poke, target_state, check_interval, max_attempts)
-        self.log.info("event subscription '%s' reached the '%s' state", subscription_name, target_state)
+        self.log.info(
+            "event subscription '%s' reached the '%s' state",
+            subscription_name,
+            target_state,
+        )
 
     def get_db_instance_state(self, db_instance_id: str) -> str:
         """
@@ -235,13 +275,19 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :raises AirflowNotFoundException: If the DB instance does not exist.
         """
         try:
-            response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
+            response = self.conn.describe_db_instances(
+                DBInstanceIdentifier=db_instance_id
+            )
         except self.conn.exceptions.DBInstanceNotFoundFault as e:
             raise AirflowNotFoundException(e)
         return response["DBInstances"][0]["DBInstanceStatus"].lower()
 
     def wait_for_db_instance_state(
-        self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
+        self,
+        db_instance_id: str,
+        target_state: str,
+        check_interval: int = 30,
+        max_attempts: int = 40,
     ) -> None:
         """
         Poll DB Instances until target_state is reached; raise AirflowException after max_attempts.
@@ -272,7 +318,9 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             )
         else:
             self._wait_for_state(poke, target_state, check_interval, max_attempts)
-            self.log.info("DB cluster '%s' reached the '%s' state", db_instance_id, target_state)
+            self.log.info(
+                "DB cluster '%s' reached the '%s' state", db_instance_id, target_state
+            )
 
     def get_db_cluster_state(self, db_cluster_id: str) -> str:
         """
@@ -292,7 +340,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         return response["DBClusters"][0]["Status"].lower()
 
     def wait_for_db_cluster_state(
-        self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
+        self,
+        db_cluster_id: str,
+        target_state: str,
+        check_interval: int = 30,
+        max_attempts: int = 40,
     ) -> None:
         """
         Poll DB Clusters until target_state is reached; raise AirflowException after max_attempts.
@@ -318,7 +370,11 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             )
         else:
             self._wait_for_state(poke, target_state, check_interval, max_attempts)
-            self.log.info("DB cluster snapshot '%s' reached the '%s' state", db_cluster_id, target_state)
+            self.log.info(
+                "DB cluster snapshot '%s' reached the '%s' state",
+                db_cluster_id,
+                target_state,
+            )
 
     def _wait_for_state(
         self,

@@ -68,7 +68,10 @@ class TestKerberos:
                 ],
             ),
             (
-                {("kerberos", "forwardable"): "False", ("kerberos", "include_ip"): "False"},
+                {
+                    ("kerberos", "forwardable"): "False",
+                    ("kerberos", "include_ip"): "False",
+                },
                 [
                     "kinit",
                     "-F",
@@ -86,13 +89,19 @@ class TestKerberos:
         ],
     )
     @mock.patch("time.sleep", return_value=None)
-    @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
+    @mock.patch(
+        "airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:")
+    )
     @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.subprocess")
-    def test_renew_from_kt(self, mock_subprocess, mock_sleep, kerberos_config, expected_cmd, caplog):
+    def test_renew_from_kt(
+        self, mock_subprocess, mock_sleep, kerberos_config, expected_cmd, caplog
+    ):
         expected_cmd_text = " ".join(shlex.quote(f) for f in expected_cmd)
 
-        with conf_vars(kerberos_config), caplog.at_level(logging.INFO, logger=kerberos.log.name):
+        with conf_vars(kerberos_config), caplog.at_level(
+            logging.INFO, logger=kerberos.log.name
+        ):
             caplog.clear()
             mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
             mock_subprocess.call.return_value = 0
@@ -116,7 +125,9 @@ class TestKerberos:
             mock.call.Popen().__enter__(),
             mock.call.Popen().__enter__().wait(),
             mock.call.Popen().__exit__(None, None, None),
-            mock.call.call(["kinit", "-c", "/tmp/airflow_krb5_ccache", "-R"], close_fds=True),
+            mock.call.call(
+                ["kinit", "-c", "/tmp/airflow_krb5_ccache", "-R"], close_fds=True
+            ),
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
@@ -165,15 +176,21 @@ class TestKerberos:
     def test_renew_from_kt_failed(self, mock_subprocess, caplog):
         mock_subp = mock_subprocess.Popen.return_value.__enter__.return_value
         mock_subp.returncode = 1
-        mock_subp.stdout = mock.MagicMock(name="stdout", **{"readlines.return_value": ["STDOUT"]})
-        mock_subp.stderr = mock.MagicMock(name="stderr", **{"readlines.return_value": ["STDERR"]})
+        mock_subp.stdout = mock.MagicMock(
+            name="stdout", **{"readlines.return_value": ["STDOUT"]}
+        )
+        mock_subp.stderr = mock.MagicMock(
+            name="stderr", **{"readlines.return_value": ["STDERR"]}
+        )
 
         caplog.clear()
         with pytest.raises(SystemExit) as ctx:
             renew_from_kt(principal="test-principal", keytab="keytab")
         assert ctx.value.code == 1
 
-        log_records = [record for record in caplog.record_tuples if record[0] == kerberos.log.name]
+        log_records = [
+            record for record in caplog.record_tuples if record[0] == kerberos.log.name
+        ]
         assert len(log_records) == 2, log_records
         assert [lr[1] for lr in log_records] == [logging.INFO, logging.ERROR]
         assert [lr[2] for lr in log_records] == [
@@ -210,10 +227,14 @@ class TestKerberos:
 
     @mock.patch("airflow.security.kerberos.subprocess")
     @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
-    @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
+    @mock.patch(
+        "airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:")
+    )
     @mock.patch("airflow.security.kerberos.get_hostname", return_value="HOST")
     @mock.patch("time.sleep", return_value=None)
-    def test_renew_from_kt_failed_workaround(self, mock_sleep, mock_getfqdn, mock_subprocess, caplog):
+    def test_renew_from_kt_failed_workaround(
+        self, mock_sleep, mock_getfqdn, mock_subprocess, caplog
+    ):
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
         mock_subprocess.call.return_value = 1
 
@@ -222,9 +243,15 @@ class TestKerberos:
             renew_from_kt(principal="test-principal", keytab="keytab")
         assert ctx.value.code == 1
 
-        log_records = [record for record in caplog.record_tuples if record[0] == kerberos.log.name]
+        log_records = [
+            record for record in caplog.record_tuples if record[0] == kerberos.log.name
+        ]
         assert len(log_records) == 3, log_records
-        assert [lr[1] for lr in log_records] == [logging.INFO, logging.INFO, logging.ERROR]
+        assert [lr[1] for lr in log_records] == [
+            logging.INFO,
+            logging.INFO,
+            logging.ERROR,
+        ]
         assert [lr[2] for lr in log_records] == [
             "Re-initialising kerberos from keytab: "
             "kinit -f -a -r 3600m -k -t keytab -c /tmp/airflow_krb5_ccache test-principal",
@@ -261,7 +288,9 @@ class TestKerberos:
             mock.call.Popen().__enter__(),
             mock.call.Popen().__enter__().wait(),
             mock.call.Popen().__exit__(None, None, None),
-            mock.call.call(["kinit", "-c", "/tmp/airflow_krb5_ccache", "-R"], close_fds=True),
+            mock.call.call(
+                ["kinit", "-c", "/tmp/airflow_krb5_ccache", "-R"], close_fds=True
+            ),
         ]
 
     def test_run_without_keytab(self, caplog):
@@ -291,7 +320,12 @@ class TestKerberos:
         assert principal == expected_principal
 
     @mock.patch("airflow.security.kerberos.get_hostname", return_value="REPLACEMENT_HOST")
-    @mock.patch("airflow.security.kerberos.conf.get_mandatory_value", return_value="test-principal/_HOST")
-    def test_get_kerberos_principle_resolve_null_principal(self, get_madantory_value_mock, get_hostname_mock):
+    @mock.patch(
+        "airflow.security.kerberos.conf.get_mandatory_value",
+        return_value="test-principal/_HOST",
+    )
+    def test_get_kerberos_principle_resolve_null_principal(
+        self, get_madantory_value_mock, get_hostname_mock
+    ):
         principal = get_kerberos_principle(principal=None)
         assert principal == "test-principal/REPLACEMENT_HOST"

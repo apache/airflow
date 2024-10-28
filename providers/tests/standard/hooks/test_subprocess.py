@@ -58,7 +58,9 @@ class TestSubprocessHook:
             """
             return "\n".join(f"echo {k}=${k}>> {filename}" for k in [*keys, OS_ENV_KEY])
 
-        with TemporaryDirectory() as tmp_dir, mock.patch.dict("os.environ", {OS_ENV_KEY: OS_ENV_VAL}):
+        with TemporaryDirectory() as tmp_dir, mock.patch.dict(
+            "os.environ", {OS_ENV_KEY: OS_ENV_VAL}
+        ):
             tmp_file = Path(tmp_dir, "test.txt")
             command = build_cmd(env and env.keys() or [], tmp_file.as_posix())
             hook.run_command(command=["bash", "-c", command], env=env)
@@ -86,7 +88,9 @@ class TestSubprocessHook:
     )
     @mock.patch(
         "airflow.providers.standard.hooks.subprocess.Popen",
-        return_value=MagicMock(stdout=MagicMock(readline=MagicMock(side_effect=StopIteration), returncode=0)),
+        return_value=MagicMock(
+            stdout=MagicMock(readline=MagicMock(side_effect=StopIteration), returncode=0)
+        ),
     )
     def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
         hook = SubprocessHook()
@@ -103,7 +107,11 @@ class TestSubprocessHook:
 
     def test_task_decode(self):
         hook = SubprocessHook()
-        command = ["bash", "-c", 'printf "This will cause a coding error \\xb1\\xa6\\x01\n"']
+        command = [
+            "bash",
+            "-c",
+            'printf "This will cause a coding error \\xb1\\xa6\\x01\n"',
+        ]
         result = hook.run_command(command=command)
         assert result.exit_code == 0
 

@@ -72,7 +72,9 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
                 f"Failed to read task status, task with ARN {self.replication_task_arn} not found"
             )
 
-        self.log.info("DMS Replication task (%s) has status: %s", self.replication_task_arn, status)
+        self.log.info(
+            "DMS Replication task (%s) has status: %s", self.replication_task_arn, status
+        )
 
         if status in self.target_statuses:
             return True

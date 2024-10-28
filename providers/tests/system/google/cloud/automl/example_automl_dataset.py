@@ -87,7 +87,9 @@ with DAG(
         contents = blob.download_as_string().decode()
 
         # update file content
-        updated_contents = contents.replace("template-bucket", DATA_SAMPLE_GCS_BUCKET_NAME)
+        updated_contents = contents.replace(
+            "template-bucket", DATA_SAMPLE_GCS_BUCKET_NAME
+        )
 
         # upload updated content to bucket
         destination_bucket = storage_client.bucket(DATA_SAMPLE_GCS_BUCKET_NAME)

@@ -72,7 +72,12 @@ class FacebookAdsReportingHook(BaseHook):
         super().__init__()
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
-        self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]
+        self.client_required_fields = [
+            "app_id",
+            "app_secret",
+            "access_token",
+            "account_id",
+        ]
 
     def _get_service(self) -> FacebookAdsApi:
         """Return Facebook Ads Client using a service account."""
@@ -135,10 +140,15 @@ class FacebookAdsReportingHook(BaseHook):
             all_insights = {}
             for account_id in self.facebook_ads_config["account_id"]:
                 all_insights[account_id] = self._facebook_report(
-                    account_id=account_id, api=api, params=params, fields=fields, sleep_time=sleep_time
+                    account_id=account_id,
+                    api=api,
+                    params=params,
+                    fields=fields,
+                    sleep_time=sleep_time,
                 )
                 self.log.info(
-                    "%s Account Id used to extract data from Facebook Ads Iterators successfully", account_id
+                    "%s Account Id used to extract data from Facebook Ads Iterators successfully",
+                    account_id,
                 )
             return all_insights
         else:

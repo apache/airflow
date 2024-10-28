@@ -64,7 +64,9 @@ TEST_KEY_FILE = "~/.ssh/id_rsa"
 class TestSFTPHook:
     @provide_session
     def update_connection(self, login, session=None):
-        connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
+        connection = (
+            session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
+        )
         old_login = connection.login
         connection.login = login
         connection.extra = ""  # clear out extra so it doesn't look for a key file
@@ -86,7 +88,9 @@ class TestSFTPHook:
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
             with open(os.path.join(temp_dir, file_name), "a") as file:
                 file.write("Test file")
-        with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
+        with open(
+            os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a"
+        ) as file:
             file.write("Test file")
         os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
@@ -114,75 +118,119 @@ class TestSFTPHook:
         assert TMP_DIR_FOR_TESTS in output
 
     def test_list_directory(self):
-        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_mkdir(self):
         new_dir_name = "mk_dir"
         self.hook.mkdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        output = self.hook.describe_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert new_dir_name in output
         # test the directory has default permissions to 777 - umask
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.get_conn().lstat(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name)
+        )
         assert output.st_mode & 0o777 == 0o777 - umask
 
     def test_create_and_delete_directory(self):
         new_dir_name = "new_dir"
-        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        self.hook.create_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name)
+        )
+        output = self.hook.describe_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert new_dir_name in output
         # test the directory has default permissions to 777
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.get_conn().lstat(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name)
+        )
         assert output.st_mode & 0o777 == 0o777 - umask
         # test directory already exists for code coverage, should not raise an exception
-        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+        self.hook.create_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name)
+        )
         # test path already exists and is a file, should raise an exception
         with pytest.raises(AirflowException, match="already exists and is a file"):
             self.hook.create_directory(
-                os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)
+                os.path.join(
+                    self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS
+                )
             )
-        self.hook.delete_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        self.hook.delete_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name)
+        )
+        output = self.hook.describe_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert new_dir_name not in output
 
     def test_create_and_delete_directories(self):
         base_dir = "base_dir"
         sub_dir = "sub_dir"
         new_dir_path = os.path.join(base_dir, sub_dir)
-        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_path))
-        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        self.hook.create_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_path)
+        )
+        output = self.hook.describe_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert base_dir in output
-        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, base_dir))
+        output = self.hook.describe_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, base_dir)
+        )
         assert sub_dir in output
-        self.hook.delete_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_path))
-        self.hook.delete_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, base_dir))
-        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        self.hook.delete_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_path)
+        )
+        self.hook.delete_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, base_dir)
+        )
+        output = self.hook.describe_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert new_dir_path not in output
         assert base_dir not in output
 
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
-            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            remote_full_path=os.path.join(
+                self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS
+            ),
             local_full_path=os.path.join(self.temp_dir, TMP_FILE_FOR_TESTS),
         )
-        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
         retrieved_file_name = "retrieved.txt"
         self.hook.retrieve_file(
-            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            remote_full_path=os.path.join(
+                self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS
+            ),
             local_full_path=os.path.join(self.temp_dir, retrieved_file_name),
         )
         assert retrieved_file_name in os.listdir(self.temp_dir)
         os.remove(os.path.join(self.temp_dir, retrieved_file_name))
-        self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
-        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        self.hook.delete_file(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS)
+        )
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_get_mod_time(self):
         self.hook.store_file(
-            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            remote_full_path=os.path.join(
+                self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS
+            ),
             local_full_path=os.path.join(self.temp_dir, TMP_FILE_FOR_TESTS),
         )
         output = self.hook.get_mod_time(
@@ -199,7 +247,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_enabled(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"no_host_key_check": true}')
+        connection = Connection(
+            login="login", host="host", extra='{"no_host_key_check": true}'
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -207,7 +257,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_disabled(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"no_host_key_check": false}')
+        connection = Connection(
+            login="login", host="host", extra='{"no_host_key_check": false}'
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -215,7 +267,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_ciphers(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"ciphers": ["A", "B", "C"]}')
+        connection = Connection(
+            login="login", host="host", extra='{"ciphers": ["A", "B", "C"]}'
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -223,7 +277,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_disabled_for_all_but_true(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"no_host_key_check": "foo"}')
+        connection = Connection(
+            login="login", host="host", extra='{"no_host_key_check": "foo"}'
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -231,7 +287,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_ignore(self, get_connection):
-        connection = Connection(login="login", host="host", extra='{"ignore_hostkey_verification": true}')
+        connection = Connection(
+            login="login", host="host", extra='{"ignore_hostkey_verification": true}'
+        )
 
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -268,7 +326,9 @@ class TestSFTPHook:
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key_with_no_host_key_check(self, get_connection):
-        connection = Connection(login="login", host="host", extra=json.dumps({"host_key": TEST_HOST_KEY}))
+        connection = Connection(
+            login="login", host="host", extra=json.dumps({"host_key": TEST_HOST_KEY})
+        )
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.host_key is not None
@@ -344,12 +404,18 @@ class TestSFTPHook:
         assert result == match
 
     def test_get_tree_map(self):
-        tree_map = self.hook.get_tree_map(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        tree_map = self.hook.get_tree_map(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS)
+        )
         files, dirs, unknowns = tree_map
 
-        assert files == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
+        assert files == [
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)
+        ]
         assert dirs == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR)]
-        assert unknowns == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)]
+        assert unknowns == [
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)
+        ]
 
     @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_connection_failure(self, mock_get_connection):
@@ -388,13 +454,22 @@ class TestSFTPHook:
         connection = Connection(conn_id="ftp_default", login="login", host="host")
         mock_get_connection.return_value = connection
         # If `ftp_conn_id` is provided, it will be used but would show a deprecation warning.
-        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Parameter `ftp_conn_id` is deprecated",
+        ):
             assert SFTPHook(ftp_conn_id="ftp_default").ssh_conn_id == "ftp_default"
 
         # If both are provided, ftp_conn_id  will be used but would show a deprecation warning.
-        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ftp_conn_id` is deprecated"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Parameter `ftp_conn_id` is deprecated",
+        ):
             assert (
-                SFTPHook(ftp_conn_id="ftp_default", ssh_conn_id="sftp_default").ssh_conn_id == "ftp_default"
+                SFTPHook(
+                    ftp_conn_id="ftp_default", ssh_conn_id="sftp_default"
+                ).ssh_conn_id
+                == "ftp_default"
             )
 
         # If `ssh_conn_id` is provided, it should use it for ssh_conn_id
@@ -407,8 +482,13 @@ class TestSFTPHook:
         connection = Connection(conn_id="sftp_default", login="root", host="localhost")
         mock_get_connection.return_value = connection
         with (
-            pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"),
-            pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"),
+            pytest.raises(
+                AirflowException, match="ssh_hook must be an instance of SSHHook"
+            ),
+            pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match=r"Parameter `ssh_hook` is deprecated.*",
+            ),
         ):
             SFTPHook(ssh_hook="invalid_hook")
 
@@ -416,7 +496,10 @@ class TestSFTPHook:
     def test_valid_ssh_hook(self, mock_get_connection):
         connection = Connection(conn_id="sftp_test", login="root", host="localhost")
         mock_get_connection.return_value = connection
-        with pytest.warns(AirflowProviderDeprecationWarning, match=r"Parameter `ssh_hook` is deprecated.*"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Parameter `ssh_hook` is deprecated.*",
+        ):
             hook = SFTPHook(ssh_hook=SSHHook(ssh_conn_id="sftp_test"))
         assert hook.ssh_conn_id == "sftp_test"
         assert isinstance(hook.get_conn(), paramiko.SFTPClient)
@@ -518,12 +601,16 @@ class MockAirflowConnection:
 
 
 class MockAirflowConnectionWithHostKey:
-    def __init__(self, host_key: str | None = None, no_host_key_check: bool = False, port: int = 22):
+    def __init__(
+        self, host_key: str | None = None, no_host_key_check: bool = False, port: int = 22
+    ):
         self.host = "localhost"
         self.port = port
         self.login = "username"
         self.password = "password"
-        self.extra = f'{{ "no_host_key_check": {no_host_key_check}, "host_key": {host_key} }}'
+        self.extra = (
+            f'{{ "no_host_key_check": {no_host_key_check}, "host_key": {host_key} }}'
+        )
         self.extra_dejson = {  # type: ignore
             "no_host_key_check": no_host_key_check,
             "host_key": host_key,
@@ -584,8 +671,14 @@ class TestSFTPHookAsync:
     @pytest.mark.parametrize(
         "mock_port, mock_host_key",
         [
-            (22, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
-            (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
+            (
+                22,
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY",
+            ),
+            (
+                2222,
+                "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY",
+            ),
             (
                 2222,
                 "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDDsXFe87LsBA1Hfi+mtw"
@@ -637,7 +730,9 @@ class TestSFTPHookAsync:
         with pytest.raises(ValueError) as exc:
             await hook._get_conn()
 
-        assert str(exc.value) == "Host key check was skipped, but `host_key` value was given"
+        assert (
+            str(exc.value) == "Host key check was skipped, but `host_key` value was given"
+        )
 
     @patch("paramiko.SSHClient.connect")
     @patch("asyncssh.import_private_key")
@@ -645,19 +740,31 @@ class TestSFTPHookAsync:
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
     @pytest.mark.asyncio
     async def test_no_host_key_check_set_logs_warning(
-        self, mock_get_connection, mock_connect, mock_import_pkey, mock_ssh_connect, caplog
+        self,
+        mock_get_connection,
+        mock_connect,
+        mock_import_pkey,
+        mock_ssh_connect,
+        caplog,
     ):
         """Assert that when no_host_key_check is set, a warning is logged for MITM attacks possibility."""
-        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(no_host_key_check=True)
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            no_host_key_check=True
+        )
 
         hook = SFTPHookAsync()
         await hook._get_conn()
-        assert "No Host Key Verification. This won't protect against Man-In-The-Middle attacks" in caplog.text
+        assert (
+            "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
+            in caplog.text
+        )
 
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
     @pytest.mark.asyncio
-    async def test_extra_dejson_fields_for_connection_building(self, mock_get_connection, mock_connect):
+    async def test_extra_dejson_fields_for_connection_building(
+        self, mock_get_connection, mock_connect
+    ):
         """
         Assert that connection details passed through the extra field in the Airflow connection
         are properly passed when creating SFTP connection
@@ -684,7 +791,9 @@ class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("asyncssh.import_private_key")
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
-    async def test_connection_private(self, mock_get_connection, mock_import_private_key, mock_connect):
+    async def test_connection_private(
+        self, mock_get_connection, mock_import_private_key, mock_connect
+    ):
         """
         Assert that connection details with private key passed through the extra field in the Airflow connection
         are properly passed when creating SFTP connection
@@ -759,7 +868,9 @@ class TestSFTPHookAsync:
         mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
         hook = SFTPHookAsync()
 
-        files = await hook.get_files_and_attrs_by_pattern(path="/path/exists/", fnmatch_pattern="file")
+        files = await hook.get_files_and_attrs_by_pattern(
+            path="/path/exists/", fnmatch_pattern="file"
+        )
 
         assert len(files) == 1
         assert files[0].filename == "file"
@@ -774,7 +885,9 @@ class TestSFTPHookAsync:
         mock_hook_get_conn.return_value.start_sftp_client.return_value = MockSFTPClient()
         hook = SFTPHookAsync()
         mod_time = await hook.get_mod_time("/path/exists/file")
-        expected_value = datetime.datetime.fromtimestamp(1667302566).strftime("%Y%m%d%H%M%S")
+        expected_value = datetime.datetime.fromtimestamp(1667302566).strftime(
+            "%Y%m%d%H%M%S"
+        )
         assert mod_time == expected_value
 
     @pytest.mark.asyncio

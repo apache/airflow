@@ -47,7 +47,9 @@ async def get_session() -> Session:
         yield session
 
 
-def apply_filters_to_select(base_select: Select, filters: Sequence[BaseParam | None]) -> Select:
+def apply_filters_to_select(
+    base_select: Select, filters: Sequence[BaseParam | None]
+) -> Select:
     base_select = base_select
     for filter in filters:
         if filter is None:

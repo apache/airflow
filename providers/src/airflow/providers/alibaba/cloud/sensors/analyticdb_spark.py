@@ -23,7 +23,10 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated.classic import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook, AppState
+from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import (
+    AnalyticDBSparkHook,
+    AppState,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -57,9 +60,13 @@ class AnalyticDBSparkSensor(BaseSensorOperator):
     @cached_property
     def hook(self) -> AnalyticDBSparkHook:
         """Get valid hook."""
-        return AnalyticDBSparkHook(adb_spark_conn_id=self._adb_spark_conn_id, region=self._region)
+        return AnalyticDBSparkHook(
+            adb_spark_conn_id=self._adb_spark_conn_id, region=self._region
+        )
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> AnalyticDBSparkHook:
         """Get valid hook."""
         return self.hook

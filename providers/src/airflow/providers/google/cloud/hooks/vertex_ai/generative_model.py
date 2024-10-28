@@ -33,7 +33,10 @@ from vertexai.preview.tuning import sft
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.cloud.aiplatform_v1 import types as types_v1
@@ -54,7 +57,9 @@ class GenerativeModelHook(GoogleBaseHook):
                 "The `delegate_to` parameter has been deprecated before and finally removed in this version"
                 " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs
+        )
 
     def get_text_generation_model(self, pretrained_model: str):
         """Return a Model Garden Model object based on Text Generation."""
@@ -105,7 +110,9 @@ class GenerativeModelHook(GoogleBaseHook):
         """Return a Generative Model with Cached Context."""
         cached_content = CachedContent(cached_content_name=cached_content_name)
 
-        cached_context_model = preview_generative_model.from_cached_content(cached_content)
+        cached_context_model = preview_generative_model.from_cached_content(
+            cached_content
+        )
         return cached_context_model
 
     @deprecated(
@@ -115,7 +122,9 @@ class GenerativeModelHook(GoogleBaseHook):
         "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
-    def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
+    def get_generative_model_part(
+        self, content_gcs_path: str, content_mime_type: str | None = None
+    ) -> Part:
         """Return a Generative Model Part object."""
         part = Part.from_uri(content_gcs_path, mime_type=content_mime_type)
         return part
@@ -157,7 +166,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         parameters = {
             "temperature": temperature,
@@ -197,7 +208,9 @@ class GenerativeModelHook(GoogleBaseHook):
             to the Vertex AI PaLM API, in order to elicit a specific response.
         :param pretrained_model: A pre-trained model optimized for generating text embeddings.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
         model = self.get_text_embedding_model(pretrained_model)
 
         response = model.get_embeddings([prompt])[0]  # single prompt
@@ -234,11 +247,15 @@ class GenerativeModelHook(GoogleBaseHook):
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         model = self.get_generative_model(pretrained_model)
         response = model.generate_content(
-            contents=[prompt], generation_config=generation_config, safety_settings=safety_settings
+            contents=[prompt],
+            generation_config=generation_config,
+            safety_settings=safety_settings,
         )
 
         return response.text
@@ -278,12 +295,16 @@ class GenerativeModelHook(GoogleBaseHook):
             Can be passed to the multi-modal model as part of the prompt. Used with vision models.
         :param mime_type: Validates the media type presented by the file in the media_gcs_path.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         model = self.get_generative_model(pretrained_model)
         part = self.get_generative_model_part(media_gcs_path, mime_type)
         response = model.generate_content(
-            contents=[prompt, part], generation_config=generation_config, safety_settings=safety_settings
+            contents=[prompt, part],
+            generation_config=generation_config,
+            safety_settings=safety_settings,
         )
 
         return response.text
@@ -319,7 +340,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         parameters = {
             "temperature": temperature,
@@ -353,7 +376,9 @@ class GenerativeModelHook(GoogleBaseHook):
             to the Vertex AI PaLM API, in order to elicit a specific response.
         :param pretrained_model: A pre-trained model optimized for generating text embeddings.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
         model = self.get_text_embedding_model(pretrained_model)
 
         response = model.get_embeddings([prompt])[0]  # single prompt
@@ -388,7 +413,9 @@ class GenerativeModelHook(GoogleBaseHook):
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         model = self.get_generative_model(
             pretrained_model=pretrained_model, system_instruction=system_instruction
@@ -436,7 +463,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param adapter_size: Optional. Adapter size for tuning.
         :param learning_rate_multiplier: Optional. Multiplier for adjusting the default learning rate.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         sft_tuning_job = sft.train(
             source_model=source_model,
@@ -475,7 +504,9 @@ class GenerativeModelHook(GoogleBaseHook):
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         model = self.get_generative_model(pretrained_model=pretrained_model)
         response = model.count_tokens(
@@ -518,7 +549,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param system_instruction: Optional. An instruction given to the model to guide its behavior.
         :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         model = self.get_generative_model(
             pretrained_model=pretrained_model,
@@ -564,7 +597,9 @@ class GenerativeModelHook(GoogleBaseHook):
             Defaults to one hour.
         :param display_name: The user-generated meaningful display name of the cached content
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
         response = CachedContent.create(
             model_name=model_name,
@@ -596,9 +631,13 @@ class GenerativeModelHook(GoogleBaseHook):
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        vertexai.init(
+            project=project_id, location=location, credentials=self.get_credentials()
+        )
 
-        cached_context_model = self.get_cached_context_model(cached_content_name=cached_content_name)
+        cached_context_model = self.get_cached_context_model(
+            cached_content_name=cached_content_name
+        )
 
         response = cached_context_model.generate_content(
             contents=contents,

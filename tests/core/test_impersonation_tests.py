@@ -37,7 +37,11 @@ from tests_common.test_utils import db
 
 # The entire module into the quarantined mark, this might have unpredictable side effects to other tests
 # and should be moved into the isolated environment into the future.
-pytestmark = [pytest.mark.platform("breeze"), pytest.mark.db_test, pytest.mark.quarantined]
+pytestmark = [
+    pytest.mark.platform("breeze"),
+    pytest.mark.db_test,
+    pytest.mark.quarantined,
+]
 
 DEV_NULL = "/dev/null"
 TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -61,7 +65,9 @@ def set_permissions(settings: dict[Path | str, int]):
             if isinstance(path, str):
                 path = Path(path)
             if len(path.parts) <= 1:
-                raise SystemError(f"Unable to change permission for the root directory: {path}.")
+                raise SystemError(
+                    f"Unable to change permission for the root directory: {path}."
+                )
 
             st_mode = os.stat(path).st_mode
             new_st_mode = st_mode | mode
@@ -73,9 +79,13 @@ def set_permissions(settings: dict[Path | str, int]):
             parent_path = path.parent
             while len(parent_path.parts) > 1:
                 st_mode = os.stat(parent_path).st_mode
-                new_st_mode = st_mode | 0o755  # grant r/o access to the parent directories
+                new_st_mode = (
+                    st_mode | 0o755
+                )  # grant r/o access to the parent directories
                 if new_st_mode > st_mode:
-                    print(f"Path={parent_path}, mode={oct(st_mode)}, new_mode={oct(new_st_mode)}")
+                    print(
+                        f"Path={parent_path}, mode={oct(st_mode)}, new_mode={oct(new_st_mode)}"
+                    )
                     orig_permissions.append((parent_path, st_mode))
                     os.chmod(parent_path, new_st_mode)
 
@@ -103,7 +113,8 @@ def check_original_docker_image():
 def create_user(check_original_docker_image):
     try:
         subprocess.check_output(
-            ["sudo", "useradd", "-m", TEST_USER, "-g", str(os.getegid())], stderr=subprocess.STDOUT
+            ["sudo", "useradd", "-m", TEST_USER, "-g", str(os.getegid())],
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
         command = e.cmd[1]
@@ -147,7 +158,9 @@ def create_airflow_home(create_user, tmp_path, monkeypatch):
     monkeypatch.setenv("AIRFLOW_HOME", str(airflow_home))
 
     with set_permissions(permissions):
-        subprocess.check_call(["sudo", "chown", f"{username}:root", str(airflow_home), "-R"], close_fds=True)
+        subprocess.check_call(
+            ["sudo", "chown", f"{username}:root", str(airflow_home), "-R"], close_fds=True
+        )
         yield airflow_home
 
 

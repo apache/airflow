@@ -31,10 +31,12 @@ class TestDates:
         execution_date_str_w_ms = "2017-11-05 16:18:30.989729"
         bad_execution_date_str = "2017-11-06TXX:00:00Z"
 
-        assert timezone.datetime(2017, 11, 2, 0, 0, 0) == dates.parse_execution_date(execution_date_str_wo_ms)
-        assert timezone.datetime(2017, 11, 5, 16, 18, 30, 989729) == dates.parse_execution_date(
-            execution_date_str_w_ms
+        assert timezone.datetime(2017, 11, 2, 0, 0, 0) == dates.parse_execution_date(
+            execution_date_str_wo_ms
         )
+        assert timezone.datetime(
+            2017, 11, 5, 16, 18, 30, 989729
+        ) == dates.parse_execution_date(execution_date_str_w_ms)
         with pytest.raises(ValueError):
             dates.parse_execution_date(bad_execution_date_str)
 
@@ -46,22 +48,30 @@ class TestDates:
         assert timezone.datetime(2015, 1, 1, 0, 0) == rt2
 
         rt3 = dates.round_time(
-            timezone.datetime(2015, 9, 16, 0, 0), timedelta(1), timezone.datetime(2015, 9, 14, 0, 0)
+            timezone.datetime(2015, 9, 16, 0, 0),
+            timedelta(1),
+            timezone.datetime(2015, 9, 14, 0, 0),
         )
         assert timezone.datetime(2015, 9, 16, 0, 0) == rt3
 
         rt4 = dates.round_time(
-            timezone.datetime(2015, 9, 15, 0, 0), timedelta(1), timezone.datetime(2015, 9, 14, 0, 0)
+            timezone.datetime(2015, 9, 15, 0, 0),
+            timedelta(1),
+            timezone.datetime(2015, 9, 14, 0, 0),
         )
         assert timezone.datetime(2015, 9, 15, 0, 0) == rt4
 
         rt5 = dates.round_time(
-            timezone.datetime(2015, 9, 14, 0, 0), timedelta(1), timezone.datetime(2015, 9, 14, 0, 0)
+            timezone.datetime(2015, 9, 14, 0, 0),
+            timedelta(1),
+            timezone.datetime(2015, 9, 14, 0, 0),
         )
         assert timezone.datetime(2015, 9, 14, 0, 0) == rt5
 
         rt6 = dates.round_time(
-            timezone.datetime(2015, 9, 13, 0, 0), timedelta(1), timezone.datetime(2015, 9, 14, 0, 0)
+            timezone.datetime(2015, 9, 13, 0, 0),
+            timedelta(1),
+            timezone.datetime(2015, 9, 14, 0, 0),
         )
         assert timezone.datetime(2015, 9, 14, 0, 0) == rt6
 

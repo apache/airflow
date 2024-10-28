@@ -71,9 +71,13 @@ def create_app(config=None, testing=False):
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
-    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
+        minutes=settings.get_session_lifetime_config()
+    )
 
-    flask_app.config["MAX_CONTENT_LENGTH"] = conf.getfloat("webserver", "allowed_payload_size") * 1024 * 1024
+    flask_app.config["MAX_CONTENT_LENGTH"] = (
+        conf.getfloat("webserver", "allowed_payload_size") * 1024 * 1024
+    )
 
     webserver_config = conf.get_mandatory_value("webserver", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
@@ -106,10 +110,14 @@ def create_app(config=None, testing=False):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
-    flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
+    flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean(
+        "webserver", "COOKIE_SECURE"
+    )
 
     # Note: Ensure "Lax" is the default if config not specified
-    flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("webserver", "COOKIE_SAMESITE") or "Lax"
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = (
+        conf.get("webserver", "COOKIE_SAMESITE") or "Lax"
+    )
 
     # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
     # for static file caching, it needs to set value explicitly.
@@ -164,7 +172,9 @@ def create_app(config=None, testing=False):
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
             init_api_internal(flask_app)
         init_api_auth_provider(flask_app)
-        init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
+        init_api_error_handlers(
+            flask_app
+        )  # needs to be after all api inits to let them add their path first
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_cache_control(flask_app)

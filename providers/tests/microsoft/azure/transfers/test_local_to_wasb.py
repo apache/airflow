@@ -23,7 +23,9 @@ from unittest import mock
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
+from airflow.providers.microsoft.azure.transfers.local_to_wasb import (
+    LocalFilesystemToWasbOperator,
+)
 
 
 class TestLocalFilesystemToWasbOperator:
@@ -40,7 +42,9 @@ class TestLocalFilesystemToWasbOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
-        operator = LocalFilesystemToWasbOperator(task_id="wasb_operator_1", dag=self.dag, **self._config)
+        operator = LocalFilesystemToWasbOperator(
+            task_id="wasb_operator_1", dag=self.dag, **self._config
+        )
         assert operator.file_path == self._config["file_path"]
         assert operator.container_name == self._config["container_name"]
         assert operator.blob_name == self._config["blob_name"]
@@ -49,12 +53,18 @@ class TestLocalFilesystemToWasbOperator:
         assert operator.retries == self._config["retries"]
 
         operator = LocalFilesystemToWasbOperator(
-            task_id="wasb_operator_2", dag=self.dag, load_options={"timeout": 2}, **self._config
+            task_id="wasb_operator_2",
+            dag=self.dag,
+            load_options={"timeout": 2},
+            **self._config,
         )
         assert operator.load_options == {"timeout": 2}
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_wasb.WasbHook", autospec=True)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.transfers.local_to_wasb.WasbHook",
+        autospec=True,
+    )
     def test_execute(self, mock_hook, create_container):
         mock_instance = mock_hook.return_value
         operator = LocalFilesystemToWasbOperator(

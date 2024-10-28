@@ -51,7 +51,12 @@ SPARK_PYTHON_TASK = {"python_file": "test.py", "parameters": ["--param", "123"]}
 PIPELINE_ID_TASK = {"pipeline_id": "1234abcd"}
 PIPELINE_NAME_TASK = {"pipeline_name": "This is a test pipeline"}
 SPARK_SUBMIT_TASK = {
-    "parameters": ["--class", "org.apache.spark.examples.SparkPi", "dbfs:/path/to/examples.jar", "10"]
+    "parameters": [
+        "--class",
+        "org.apache.spark.examples.SparkPi",
+        "dbfs:/path/to/examples.jar",
+        "10",
+    ]
 }
 NEW_CLUSTER = {
     "spark_version": "2.0.x-scala2.10",
@@ -244,7 +249,10 @@ WEBHOOK_NOTIFICATIONS = {
         }
     ],
 }
-NOTIFICATION_SETTINGS = {"no_alert_for_canceled_runs": True, "no_alert_for_skipped_runs": True}
+NOTIFICATION_SETTINGS = {
+    "no_alert_for_canceled_runs": True,
+    "no_alert_for_skipped_runs": True,
+}
 TIMEOUT_SECONDS = 86400
 SCHEDULE = {
     "quartz_cron_expression": "20 30 * * * ?",
@@ -272,7 +280,11 @@ def mock_dict(d: dict):
 
 
 def make_run_with_state_mock(
-    lifecycle_state: str, result_state: str, state_message: str = "", run_id=1, job_id=JOB_ID
+    lifecycle_state: str,
+    result_state: str,
+    state_message: str = "",
+    run_id=1,
+    job_id=JOB_ID,
 ):
     return mock_dict(
         {
@@ -579,7 +591,9 @@ class TestDatabricksCreateJobsOperator:
 
         op.execute({})
 
-        expected = utils.normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
+        expected = utils.normalise_json_content(
+            {"access_control_list": ACCESS_CONTROL_LIST}
+        )
 
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -634,7 +648,11 @@ class TestDatabricksSubmitRunOperator:
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, notebook_task=NOTEBOOK_TASK
         )
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
 
         assert expected == utils.normalise_json_content(op.json)
@@ -647,7 +665,11 @@ class TestDatabricksSubmitRunOperator:
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_python_task=SPARK_PYTHON_TASK
         )
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "spark_python_task": SPARK_PYTHON_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "spark_python_task": SPARK_PYTHON_TASK,
+                "run_name": TASK_ID,
+            }
         )
 
         assert expected == utils.normalise_json_content(op.json)
@@ -656,8 +678,12 @@ class TestDatabricksSubmitRunOperator:
         """
         Test the initializer with the named parameters.
         """
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_NAME_TASK)
-        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID})
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, pipeline_task=PIPELINE_NAME_TASK
+        )
+        expected = utils.normalise_json_content(
+            {"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID}
+        )
 
         assert expected == utils.normalise_json_content(op.json)
 
@@ -666,7 +692,9 @@ class TestDatabricksSubmitRunOperator:
         Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_ID_TASK)
-        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
+        expected = utils.normalise_json_content(
+            {"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID}
+        )
 
         assert expected == utils.normalise_json_content(op.json)
 
@@ -678,7 +706,11 @@ class TestDatabricksSubmitRunOperator:
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_submit_task=SPARK_SUBMIT_TASK
         )
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "spark_submit_task": SPARK_SUBMIT_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "spark_submit_task": SPARK_SUBMIT_TASK,
+                "run_name": TASK_ID,
+            }
         )
 
         assert expected == utils.normalise_json_content(op.json)
@@ -693,10 +725,18 @@ class TestDatabricksSubmitRunOperator:
             "git_branch": "main",
         }
         op = DatabricksSubmitRunOperator(
-            task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK, git_source=git_source
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            dbt_task=DBT_TASK,
+            git_source=git_source,
         )
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "dbt_task": DBT_TASK, "git_source": git_source, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "dbt_task": DBT_TASK,
+                "git_source": git_source,
+                "run_name": TASK_ID,
+            }
         )
 
         assert expected == utils.normalise_json_content(op.json)
@@ -715,7 +755,12 @@ class TestDatabricksSubmitRunOperator:
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK, json=json
         )
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "dbt_task": DBT_TASK, "git_source": git_source, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "dbt_task": DBT_TASK,
+                "git_source": git_source,
+                "run_name": TASK_ID,
+            }
         )
 
         assert expected == utils.normalise_json_content(op.json)
@@ -726,7 +771,9 @@ class TestDatabricksSubmitRunOperator:
         """
         exception_message = "git_source is required for dbt_task"
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK)
+            DatabricksSubmitRunOperator(
+                task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK
+            )
 
     def test_init_with_dbt_task_json_without_git_source_raises_error(self):
         """
@@ -745,12 +792,18 @@ class TestDatabricksSubmitRunOperator:
         json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_tasks(self):
-        tasks = [{"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}]
+        tasks = [
+            {"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
+        ]
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, tasks=tasks)
         expected = utils.normalise_json_content({"run_name": TASK_ID, "tasks": tasks})
         assert expected == utils.normalise_json_content(op.json)
@@ -759,10 +812,18 @@ class TestDatabricksSubmitRunOperator:
         """
         Test the initializer with a specified run_name.
         """
-        json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
+        json = {
+            "new_cluster": NEW_CLUSTER,
+            "notebook_task": NOTEBOOK_TASK,
+            "run_name": RUN_NAME,
+        }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": RUN_NAME,
+            }
         )
         assert expected == utils.normalise_json_content(op.json)
 
@@ -771,10 +832,18 @@ class TestDatabricksSubmitRunOperator:
         Test the initializer with a pipeline task.
         """
         pipeline_task = {"pipeline_id": "test-dlt"}
-        json = {"new_cluster": NEW_CLUSTER, "run_name": RUN_NAME, "pipeline_task": pipeline_task}
+        json = {
+            "new_cluster": NEW_CLUSTER,
+            "run_name": RUN_NAME,
+            "pipeline_task": pipeline_task,
+        }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "pipeline_task": pipeline_task, "run_name": RUN_NAME}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "pipeline_task": pipeline_task,
+                "run_name": RUN_NAME,
+            }
         )
         assert expected == utils.normalise_json_content(op.json)
 
@@ -789,7 +858,9 @@ class TestDatabricksSubmitRunOperator:
             "new_cluster": NEW_CLUSTER,
             "notebook_task": NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json=json, new_cluster=override_new_cluster
+        )
         expected = utils.normalise_json_content(
             {
                 "new_cluster": override_new_cluster,
@@ -818,13 +889,19 @@ class TestDatabricksSubmitRunOperator:
         assert expected == utils.normalise_json_content(op.json)
 
     def test_init_with_git_source(self):
-        json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
+        json = {
+            "new_cluster": NEW_CLUSTER,
+            "notebook_task": NOTEBOOK_TASK,
+            "run_name": RUN_NAME,
+        }
         git_source = {
             "git_url": "https://github.com/apache/airflow",
             "git_provider": "github",
             "git_branch": "main",
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, git_source=git_source, json=json)
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, git_source=git_source, json=json
+        )
         expected = utils.normalise_json_content(
             {
                 "new_cluster": NEW_CLUSTER,
@@ -863,7 +940,11 @@ class TestDatabricksSubmitRunOperator:
         op.execute(None)
 
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -892,7 +973,9 @@ class TestDatabricksSubmitRunOperator:
 
         op.execute(None)
 
-        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
+        expected = utils.normalise_json_content(
+            {"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID}
+        )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             retry_limit=op.databricks_retry_limit,
@@ -900,7 +983,9 @@ class TestDatabricksSubmitRunOperator:
             retry_args=None,
             caller="DatabricksSubmitRunOperator",
         )
-        db_mock.find_pipeline_id_by_name.assert_called_once_with("This is a test pipeline")
+        db_mock.find_pipeline_id_by_name.assert_called_once_with(
+            "This is a test pipeline"
+        )
 
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -973,7 +1058,11 @@ class TestDatabricksSubmitRunOperator:
         op.execute(None)
 
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -993,7 +1082,9 @@ class TestDatabricksSubmitRunOperator:
             "new_cluster": NEW_CLUSTER,
             "notebook_task": NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, wait_for_termination=False, json=run)
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, wait_for_termination=False, json=run
+        )
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
 
@@ -1002,7 +1093,11 @@ class TestDatabricksSubmitRunOperator:
         op.execute(None)
 
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -1036,7 +1131,11 @@ class TestDatabricksSubmitRunOperator:
         assert exc.value.method_name == "execute_complete"
 
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -1094,7 +1193,10 @@ class TestDatabricksSubmitRunOperator:
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
-        with pytest.raises(AirflowException, match=f"Job run failed with terminal state: {run_state_failed}"):
+        with pytest.raises(
+            AirflowException,
+            match=f"Job run failed with terminal state: {run_state_failed}",
+        ):
             op.execute_complete(context=None, event=event)
 
     def test_execute_complete_incorrect_event_validation_failure(self):
@@ -1104,8 +1206,12 @@ class TestDatabricksSubmitRunOperator:
             op.execute_complete(context=None, event=event)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
-    def test_databricks_submit_run_deferrable_operator_failed_before_defer(self, mock_defer, db_mock_class):
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer"
+    )
+    def test_databricks_submit_run_deferrable_operator_failed_before_defer(
+        self, mock_defer, db_mock_class
+    ):
         """Asserts that a task is not deferred when its failed"""
         run = {
             "new_cluster": NEW_CLUSTER,
@@ -1118,7 +1224,11 @@ class TestDatabricksSubmitRunOperator:
         op.execute(None)
 
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -1134,8 +1244,12 @@ class TestDatabricksSubmitRunOperator:
         assert not mock_defer.called
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
-    def test_databricks_submit_run_deferrable_operator_success_before_defer(self, mock_defer, db_mock_class):
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer"
+    )
+    def test_databricks_submit_run_deferrable_operator_success_before_defer(
+        self, mock_defer, db_mock_class
+    ):
         """Asserts that a task is not deferred when it succeeds"""
         run = {
             "new_cluster": NEW_CLUSTER,
@@ -1148,7 +1262,11 @@ class TestDatabricksSubmitRunOperator:
         op.execute(None)
 
         expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "run_name": TASK_ID,
+            }
         )
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -1264,7 +1382,11 @@ class TestDatabricksRunNowOperator:
         """
         Test the execute function in case where the run is successful.
         """
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1298,7 +1420,11 @@ class TestDatabricksRunNowOperator:
         """
         Test the execute function in case where the run failed.
         """
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1332,7 +1458,11 @@ class TestDatabricksRunNowOperator:
         """
         Test the execute function in case where the run failed.
         """
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1358,7 +1488,9 @@ class TestDatabricksRunNowOperator:
                 ],
             }
         )
-        db_mock.get_run_output = mock_dict({"error": "Exception: Something went wrong..."})
+        db_mock.get_run_output = mock_dict(
+            {"error": "Exception: Something went wrong..."}
+        )
 
         with pytest.raises(AirflowException, match="Exception: Something went wrong"):
             op.execute(None)
@@ -1388,7 +1520,11 @@ class TestDatabricksRunNowOperator:
         """
         Test the execute function in case where the run failed.
         """
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1423,7 +1559,9 @@ class TestDatabricksRunNowOperator:
                 ],
             }
         )
-        db_mock.get_run_output = mock_dict({"error": "Exception: Something went wrong..."})
+        db_mock.get_run_output = mock_dict(
+            {"error": "Exception: Something went wrong..."}
+        )
 
         with pytest.raises(
             AirflowException,
@@ -1455,7 +1593,11 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_on_kill(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         op.run_id = RUN_ID
@@ -1465,7 +1607,11 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_wait_for_termination(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1497,8 +1643,14 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_no_wait_for_termination(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, wait_for_termination=False, json=run)
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID, job_id=JOB_ID, wait_for_termination=False, json=run
+        )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
 
@@ -1542,7 +1694,11 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_with_job_name(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = JOB_ID
@@ -1575,7 +1731,11 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure_if_job_id_not_found(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = None
@@ -1588,9 +1748,17 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_cancel_previous_runs(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(
-            task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True, wait_for_termination=False, json=run
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            cancel_previous_runs=True,
+            wait_for_termination=False,
+            json=run,
         )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1622,9 +1790,17 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_no_cancel_previous_runs(self, db_mock_class):
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         op = DatabricksRunNowOperator(
-            task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=False, wait_for_termination=False, json=run
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            cancel_previous_runs=False,
+            wait_for_termination=False,
+            json=run,
         )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
@@ -1659,8 +1835,14 @@ class TestDatabricksRunNowOperator:
         """
         Test the execute function in case where the run is successful.
         """
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
+        op = DatabricksRunNowOperator(
+            deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run
+        )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
@@ -1695,7 +1877,11 @@ class TestDatabricksRunNowOperator:
         """
         Test `execute_complete` function in case the Trigger has returned a successful completion event.
         """
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         event = {
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
@@ -1704,7 +1890,9 @@ class TestDatabricksRunNowOperator:
             "errors": [],
         }
 
-        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(
+            deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run
+        )
         assert op.execute_complete(context=None, event=event) is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -1713,7 +1901,11 @@ class TestDatabricksRunNowOperator:
         Test `execute_complete` function in case the Trigger has returned a failure completion event.
         """
         run_state_failed = RunState("TERMINATED", "FAILED", "")
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         event = {
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
@@ -1722,7 +1914,9 @@ class TestDatabricksRunNowOperator:
             "errors": [],
         }
 
-        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(
+            deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run
+        )
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
 
@@ -1730,7 +1924,10 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
-        with pytest.raises(AirflowException, match=f"Job run failed with terminal state: {run_state_failed}"):
+        with pytest.raises(
+            AirflowException,
+            match=f"Job run failed with terminal state: {run_state_failed}",
+        ):
             op.execute_complete(context=None, event=event)
 
     @mock.patch(
@@ -1744,7 +1941,11 @@ class TestDatabricksRunNowOperator:
         Test `execute_complete` function in case the Trigger has returned a failure event with repair_run=True.
         """
         run_state_failed = RunState("TERMINATED", "FAILED", "")
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         event = {
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
@@ -1753,7 +1954,9 @@ class TestDatabricksRunNowOperator:
             "errors": [],
         }
 
-        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(
+            deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run
+        )
         op.execute_complete(context=None, event=event)
 
         db_mock = db_mock_class.return_value
@@ -1783,7 +1986,11 @@ class TestDatabricksRunNowOperator:
             "FAILED",
             state_message,
         )
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         event = {
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
@@ -1810,13 +2017,17 @@ class TestDatabricksRunNowOperator:
         db_mock.update_job.assert_called_with(
             job_id=JOB_ID,
             json=utils.normalise_json_content(
-                DATABRICKS_REPAIR_REASON_NEW_SETTINGS["AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE"]
+                DATABRICKS_REPAIR_REASON_NEW_SETTINGS[
+                    "AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE"
+                ]
             ),
         )
         db_mock.repair_run.assert_called_once()
         mock_handle_deferrable_databricks_operator_execution.assert_called_once()
 
-    @mock.patch("airflow.providers.databricks.operators.databricks.is_repair_reason_match_exist")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.is_repair_reason_match_exist"
+    )
     @mock.patch(
         "airflow.providers.databricks.operators.databricks._handle_deferrable_databricks_operator_execution"
     )
@@ -1840,7 +2051,11 @@ class TestDatabricksRunNowOperator:
             "FAILED",
             state_message,
         )
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
         event = {
             "run_id": RUN_ID,
             "run_page_url": RUN_PAGE_URL,
@@ -1875,11 +2090,21 @@ class TestDatabricksRunNowOperator:
             op.execute_complete(context=None, event=event)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
-    def test_databricks_run_now_deferrable_operator_failed_before_defer(self, mock_defer, db_mock_class):
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer"
+    )
+    def test_databricks_run_now_deferrable_operator_failed_before_defer(
+        self, mock_defer, db_mock_class
+    ):
         """Asserts that a task is not deferred when its failed"""
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
+        op = DatabricksRunNowOperator(
+            deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run
+        )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
@@ -1908,11 +2133,21 @@ class TestDatabricksRunNowOperator:
         assert not mock_defer.called
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
-    def test_databricks_run_now_deferrable_operator_success_before_defer(self, mock_defer, db_mock_class):
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer"
+    )
+    def test_databricks_run_now_deferrable_operator_success_before_defer(
+        self, mock_defer, db_mock_class
+    ):
         """Asserts that a task is not deferred when its succeeds"""
-        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
+        run = {
+            "notebook_params": NOTEBOOK_PARAMS,
+            "notebook_task": NOTEBOOK_TASK,
+            "jar_params": JAR_PARAMS,
+        }
+        op = DatabricksRunNowOperator(
+            deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run
+        )
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
@@ -2016,7 +2251,9 @@ class TestDatabricksNotebookOperator:
     @mock.patch(
         "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
     )
-    def test_execute_with_deferrable_early_termination(self, mock_get_current_task, mock_databricks_hook):
+    def test_execute_with_deferrable_early_termination(
+        self, mock_get_current_task, mock_databricks_hook
+    ):
         mock_databricks_hook.return_value.get_run.return_value = {
             "state": {
                 "life_cycle_state": "TERMINATED",
@@ -2066,9 +2303,15 @@ class TestDatabricksNotebookOperator:
     @mock.patch(
         "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._get_current_databricks_task"
     )
-    def test_monitor_databricks_job_failed(self, mock_get_current_task, mock_databricks_hook):
+    def test_monitor_databricks_job_failed(
+        self, mock_get_current_task, mock_databricks_hook
+    ):
         mock_databricks_hook.return_value.get_run.return_value = {
-            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": "FAILURE"},
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "FAILURE",
+            },
             "run_page_url": "test_url",
         }
 
@@ -2112,7 +2355,9 @@ class TestDatabricksNotebookOperator:
         )
         with pytest.raises(ValueError) as exc_info:
             operator._get_run_json()
-        exception_message = "Both new_cluster and existing_cluster_id are set. Only one should be set."
+        exception_message = (
+            "Both new_cluster and existing_cluster_id are set. Only one should be set."
+        )
         assert str(exc_info.value) == exception_message
 
     def test_both_new_and_existing_cluster_unset(self):

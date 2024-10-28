@@ -25,7 +25,11 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
-from airflow.providers.amazon.aws.utils.mixins import AwsBaseHookMixin, AwsHookParams, aws_template_fields
+from airflow.providers.amazon.aws.utils.mixins import (
+    AwsBaseHookMixin,
+    AwsHookParams,
+    aws_template_fields,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (
@@ -67,7 +71,9 @@ class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
 
     aws_hook_class = AppflowHook
     ui_color = "#2bccbd"
-    template_fields = aws_template_fields("flow_name", "source", "source_field", "filter_date")
+    template_fields = aws_template_fields(
+        "flow_name", "source", "source_field", "filter_date"
+    )
 
     UPDATE_PROPAGATION_TIME: int = 15
 
@@ -85,7 +91,9 @@ class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
     ) -> None:
         super().__init__(**kwargs)
         if source is not None and source not in SUPPORTED_SOURCES:
-            raise ValueError(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
+            raise ValueError(
+                f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!"
+            )
         self.filter_date = filter_date
         self.flow_name = flow_name
         self.source = source
@@ -113,11 +121,15 @@ class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
         response = self.hook.conn.describe_flow(flowName=self.flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
         if self.source != connector_type.lower():
-            raise ValueError(f"Incompatible source ({self.source} and connector type ({connector_type})!")
+            raise ValueError(
+                f"Incompatible source ({self.source} and connector type ({connector_type})!"
+            )
         return connector_type
 
     def _update_flow(self) -> None:
-        self.hook.update_flow_filter(flow_name=self.flow_name, filter_tasks=[], set_trigger_ondemand=True)
+        self.hook.update_flow_filter(
+            flow_name=self.flow_name, filter_tasks=[], set_trigger_ondemand=True
+        )
 
     def _run_flow(self, context) -> str:
         execution_id = self.hook.run_flow(
@@ -191,7 +203,11 @@ class AppflowRunFullOperator(AppflowBaseOperator):
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
-            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunFullOperator"))
+            raise ValueError(
+                NOT_SUPPORTED_SOURCE_MSG.format(
+                    source=source, entity="AppflowRunFullOperator"
+                )
+            )
         super().__init__(
             source=source,
             flow_name=flow_name,
@@ -237,10 +253,14 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
         **kwargs,
     ) -> None:
         if not filter_date:
-            raise ValueError(MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunBeforeOperator"))
+            raise ValueError(
+                MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunBeforeOperator")
+            )
         if source != "salesforce":
             raise ValueError(
-                NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunBeforeOperator")
+                NOT_SUPPORTED_SOURCE_MSG.format(
+                    source=source, entity="AppflowRunBeforeOperator"
+                )
             )
         super().__init__(
             source=source,
@@ -255,7 +275,9 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
 
     def _update_flow(self) -> None:
         if not self.filter_date_parsed:
-            raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
+            raise ValueError(
+                f"Invalid filter_date argument parser value: {self.filter_date_parsed}"
+            )
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         filter_task: TaskTypeDef = {
@@ -268,7 +290,9 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
             },  # NOT inclusive
         }
         self.hook.update_flow_filter(
-            flow_name=self.flow_name, filter_tasks=[filter_task], set_trigger_ondemand=True
+            flow_name=self.flow_name,
+            filter_tasks=[filter_task],
+            set_trigger_ondemand=True,
         )
 
 
@@ -299,9 +323,15 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
         **kwargs,
     ) -> None:
         if not filter_date:
-            raise ValueError(MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunAfterOperator"))
+            raise ValueError(
+                MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunAfterOperator")
+            )
         if source not in {"salesforce", "zendesk"}:
-            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunAfterOperator"))
+            raise ValueError(
+                NOT_SUPPORTED_SOURCE_MSG.format(
+                    source=source, entity="AppflowRunAfterOperator"
+                )
+            )
         super().__init__(
             source=source,
             flow_name=flow_name,
@@ -315,7 +345,9 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
 
     def _update_flow(self) -> None:
         if not self.filter_date_parsed:
-            raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
+            raise ValueError(
+                f"Invalid filter_date argument parser value: {self.filter_date_parsed}"
+            )
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         filter_task: TaskTypeDef = {
@@ -328,7 +360,9 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
             },  # NOT inclusive
         }
         self.hook.update_flow_filter(
-            flow_name=self.flow_name, filter_tasks=[filter_task], set_trigger_ondemand=True
+            flow_name=self.flow_name,
+            filter_tasks=[filter_task],
+            set_trigger_ondemand=True,
         )
 
 
@@ -359,9 +393,15 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         **kwargs,
     ) -> None:
         if not filter_date:
-            raise ValueError(MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunDailyOperator"))
+            raise ValueError(
+                MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunDailyOperator")
+            )
         if source != "salesforce":
-            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunDailyOperator"))
+            raise ValueError(
+                NOT_SUPPORTED_SOURCE_MSG.format(
+                    source=source, entity="AppflowRunDailyOperator"
+                )
+            )
         super().__init__(
             source=source,
             flow_name=flow_name,
@@ -375,7 +415,9 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
 
     def _update_flow(self) -> None:
         if not self.filter_date_parsed:
-            raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
+            raise ValueError(
+                f"Invalid filter_date argument parser value: {self.filter_date_parsed}"
+            )
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         start_filter_date = self.filter_date_parsed - timedelta(milliseconds=1)
@@ -386,16 +428,24 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "LOWER_BOUND": str(datetime_to_epoch_ms(start_filter_date)),  # NOT inclusive
-                "UPPER_BOUND": str(datetime_to_epoch_ms(end_filter_date)),  # NOT inclusive
+                "LOWER_BOUND": str(
+                    datetime_to_epoch_ms(start_filter_date)
+                ),  # NOT inclusive
+                "UPPER_BOUND": str(
+                    datetime_to_epoch_ms(end_filter_date)
+                ),  # NOT inclusive
             },
         }
         self.hook.update_flow_filter(
-            flow_name=self.flow_name, filter_tasks=[filter_task], set_trigger_ondemand=True
+            flow_name=self.flow_name,
+            filter_tasks=[filter_task],
+            set_trigger_ondemand=True,
         )
 
 
-class AppflowRecordsShortCircuitOperator(ShortCircuitOperator, AwsBaseHookMixin[AppflowHook]):
+class AppflowRecordsShortCircuitOperator(
+    ShortCircuitOperator, AwsBaseHookMixin[AppflowHook]
+):
     """
     Short-circuit in case of an empty AppFlow's run.
 
@@ -468,9 +518,13 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator, AwsBaseHookMixin[
         self.log.info("flow_name: %s", flow_name)
         af_client = self.hook.conn
         task_instance = kwargs["task_instance"]
-        execution_id = task_instance.xcom_pull(task_ids=appflow_task_id, key="execution_id")  # type: ignore
+        execution_id = task_instance.xcom_pull(
+            task_ids=appflow_task_id, key="execution_id"
+        )  # type: ignore
         if not execution_id:
-            raise AirflowException(f"No execution_id found from task_id {appflow_task_id}!")
+            raise AirflowException(
+                f"No execution_id found from task_id {appflow_task_id}!"
+            )
         self.log.info("execution_id: %s", execution_id)
         args = {"flowName": flow_name, "maxResults": 100}
         response: DescribeFlowExecutionRecordsResponseTypeDef = cast(
@@ -480,18 +534,24 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator, AwsBaseHookMixin[
 
         while not record:
             if "nextToken" in response:
-                response = af_client.describe_flow_execution_records(nextToken=response["nextToken"], **args)
+                response = af_client.describe_flow_execution_records(
+                    nextToken=response["nextToken"], **args
+                )
             else:
                 response = af_client.describe_flow_execution_records(**args)
             record = AppflowRecordsShortCircuitOperator._get_target_execution_id(
                 response["flowExecutions"], execution_id
             )
             if not record and "nextToken" not in response:
-                raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info.")
+                raise AirflowException(
+                    f"Flow ({execution_id}) without recordsProcessed info."
+                )
 
         execution = record.get("executionResult", {})
         if "recordsProcessed" not in execution:
-            raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info!")
+            raise AirflowException(
+                f"Flow ({execution_id}) without recordsProcessed info!"
+            )
         records_processed = execution["recordsProcessed"]
         self.log.info("records_processed: %d", records_processed)
         task_instance.xcom_push("records_processed", records_processed)  # type: ignore

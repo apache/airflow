@@ -34,7 +34,11 @@ from airflow_breeze.utils.cache import (
 from airflow_breeze.utils.coertions import coerce_bool_value
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.shared_options import set_dry_run, set_forced_answer, set_verbose
+from airflow_breeze.utils.shared_options import (
+    set_dry_run,
+    set_forced_answer,
+    set_verbose,
+)
 
 
 class BetterChoice(click.Choice):
@@ -89,7 +93,8 @@ class NotVerifiedBetterChoice(BetterChoice):
         if not self.case_sensitive:
             normed_value = normed_value.casefold()
             normed_choices = {
-                normed_choice.casefold(): original for normed_choice, original in normed_choices.items()
+                normed_choice.casefold(): original
+                for normed_choice, original in normed_choices.items()
             }
 
         if normed_value in normed_choices:
@@ -149,9 +154,13 @@ class CacheableChoice(click.Choice):
     def convert(self, value, param, ctx):
         param_name = param.envvar if param.envvar else param.name.upper()
         if isinstance(value, CacheableDefault):
-            is_cached, new_value = read_and_validate_value_from_cache(param_name, value.value)
+            is_cached, new_value = read_and_validate_value_from_cache(
+                param_name, value.value
+            )
             if not is_cached:
-                get_console().print(f"\n[info]Default value of {param.name} parameter {new_value} used.[/]\n")
+                get_console().print(
+                    f"\n[info]Default value of {param.name} parameter {new_value} used.[/]\n"
+                )
         else:
             allowed, allowed_values = check_if_values_allowed(param_name, value)
             if allowed:
@@ -170,13 +179,16 @@ class CacheableChoice(click.Choice):
     def get_metavar(self, param) -> str:
         param_name = param.envvar if param.envvar else param.name.upper()
         current_value = (
-            read_from_cache_file(param_name) if not generating_command_images() else param.default.value
+            read_from_cache_file(param_name)
+            if not generating_command_images()
+            else param.default.value
         )
         if not current_value:
             current_choices = self.choices
         else:
             current_choices = [
-                f">{choice}<" if choice == current_value else choice for choice in self.choices
+                f">{choice}<" if choice == current_value else choice
+                for choice in self.choices
             ]
         choices_str = " | ".join(current_choices)
         # Use curly braces to indicate a required argument.
@@ -236,7 +248,14 @@ class MySQLBackendVersionChoice(BackendVersionChoice):
         return super().convert(value, param, ctx)
 
 
-ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
+ALLOWED_VCS_PROTOCOLS = (
+    "git+file://",
+    "git+https://",
+    "git+ssh://",
+    "git+http://",
+    "git+git://",
+    "git://",
+)
 
 
 class UseAirflowVersionType(BetterChoice):

@@ -120,14 +120,20 @@ class S3ToRedshiftOperator(BaseOperator):
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:
                 if arg in self.redshift_data_api_kwargs:
-                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
+                    raise AirflowException(
+                        f"Cannot include param '{arg}' in Redshift Data API kwargs"
+                    )
 
     @property
     def use_redshift_data(self):
         return bool(self.redshift_data_api_kwargs)
 
     def _build_copy_query(
-        self, copy_destination: str, credentials_block: str, region_info: str, copy_options: str
+        self,
+        copy_destination: str,
+        credentials_block: str,
+        region_info: str,
+        copy_options: str,
     ) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ""
         return f"""
@@ -141,14 +147,18 @@ class S3ToRedshiftOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         if self.method not in AVAILABLE_METHODS:
-            raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
+            raise AirflowException(
+                f"Method not found! Available methods: {AVAILABLE_METHODS}"
+            )
 
         if self.use_redshift_data:
             redshift_data_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
         else:
             redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
 
-        conn = S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
+        conn = (
+            S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
+        )
         region_info = ""
         if conn and conn.extra_dejson.get("region", False):
             region_info = f"region '{conn.extra_dejson['region']}'"
@@ -177,12 +187,16 @@ class S3ToRedshiftOperator(BaseOperator):
                     table=self.table, schema=self.schema, **self.redshift_data_api_kwargs
                 )
             else:
-                keys = self.upsert_keys or redshift_sql_hook.get_table_primary_key(self.table, self.schema)
+                keys = self.upsert_keys or redshift_sql_hook.get_table_primary_key(
+                    self.table, self.schema
+                )
             if not keys:
                 raise AirflowException(
                     f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
                 )
-            where_statement = " AND ".join([f"{self.table}.{k} = {copy_destination}.{k}" for k in keys])
+            where_statement = " AND ".join(
+                [f"{self.table}.{k} = {copy_destination}.{k}" for k in keys]
+            )
 
             sql = [
                 f"CREATE TABLE {copy_destination} (LIKE {destination} INCLUDING DEFAULTS);",
@@ -229,19 +243,25 @@ class S3ToRedshiftOperator(BaseOperator):
         else:
             redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
             database = redshift_sql_hook.conn.schema
-            authority = redshift_sql_hook.get_openlineage_database_info(redshift_sql_hook.conn).authority
+            authority = redshift_sql_hook.get_openlineage_database_info(
+                redshift_sql_hook.conn
+            ).authority
             output_dataset_facets = get_facets_from_redshift_table(
                 redshift_sql_hook, self.table, {}, self.schema
             )
 
         if self.method == "REPLACE":
-            output_dataset_facets["lifecycleStateChange"] = LifecycleStateChangeDatasetFacet(
-                lifecycleStateChange=LifecycleStateChange.OVERWRITE
+            output_dataset_facets["lifecycleStateChange"] = (
+                LifecycleStateChangeDatasetFacet(
+                    lifecycleStateChange=LifecycleStateChange.OVERWRITE
+                )
             )
 
         output_dataset = Dataset(
             namespace=f"redshift://{authority}",
-            name=f"{database}.{self.schema}.{self.table}" if database else f"{self.schema}.{self.table}",
+            name=f"{database}.{self.schema}.{self.table}"
+            if database
+            else f"{self.schema}.{self.table}",
             facets=output_dataset_facets,
         )
 

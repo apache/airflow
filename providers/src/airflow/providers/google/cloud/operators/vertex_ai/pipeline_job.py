@@ -135,7 +135,9 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         experiment: str | experiment_resources.Experiment | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 5 * 60,
         **kwargs,
     ) -> None:
@@ -184,7 +186,9 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         pipeline_job_id = pipeline_job_obj.job_id
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
         self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
-        VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=pipeline_job_id)
+        VertexAIPipelineJobLink.persist(
+            context=context, task_instance=self, pipeline_id=pipeline_job_id
+        )
 
         if self.deferrable:
             pipeline_job_obj.wait_for_resource_creation()

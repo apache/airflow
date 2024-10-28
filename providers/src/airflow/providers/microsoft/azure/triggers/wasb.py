@@ -150,7 +150,9 @@ class WasbPrefixSensorTrigger(BaseTrigger):
             async with await hook.get_async_conn():
                 while not prefix_exists:
                     prefix_exists = await hook.check_for_prefix_async(
-                        container_name=self.container_name, prefix=self.prefix, **self.check_options
+                        container_name=self.container_name,
+                        prefix=self.prefix,
+                        **self.check_options,
                     )
                     if prefix_exists:
                         message = f"Prefix {self.prefix} found in container {self.container_name}."

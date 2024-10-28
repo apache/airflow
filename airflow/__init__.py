@@ -100,7 +100,15 @@ def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
     module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
-        if name.startswith("PY3") and (py_minor := name[3:]) in ("6", "7", "8", "9", "10", "11", "12"):
+        if name.startswith("PY3") and (py_minor := name[3:]) in (
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+        ):
             warnings.warn(
                 f"Python version constraint {name!r} is deprecated and will be removed in the future. "
                 f"Please get version info from the 'sys.version_info'.",

@@ -37,7 +37,10 @@ def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
     :return: a path to a temporary file
     """
     cfg_dict = conf.as_dict(
-        display_sensitive=True, raw=True, include_cmds=include_cmds, include_env=include_env
+        display_sensitive=True,
+        raw=True,
+        include_cmds=include_cmds,
+        include_env=include_env,
     )
     temp_fd, cfg_path = mkstemp()
 

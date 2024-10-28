@@ -51,7 +51,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "cloudsql"
 
 INSTANCE_NAME = f"{DAG_ID}-{ENV_ID}-instance".replace("_", "-")
@@ -73,7 +75,11 @@ body = {
     "name": INSTANCE_NAME,
     "settings": {
         "tier": "db-n1-standard-1",
-        "backupConfiguration": {"binaryLogEnabled": True, "enabled": True, "startTime": "05:00"},
+        "backupConfiguration": {
+            "binaryLogEnabled": True,
+            "enabled": True,
+            "startTime": "05:00",
+        },
         "activationPolicy": "ALWAYS",
         "dataDiskSizeGb": 30,
         "dataDiskType": "PD_SSD",
@@ -140,7 +146,9 @@ with DAG(
     tags=["example", "cloud_sql"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, resource={"predefined_acl": "public_read_write"}
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        resource={"predefined_acl": "public_read_write"},
     )
 
     # ############################################## #
@@ -234,7 +242,9 @@ with DAG(
     # ############################################## #
     # [START howto_operator_cloudsql_clone]
     sql_instance_clone = CloudSQLCloneInstanceOperator(
-        instance=INSTANCE_NAME, destination_instance_name=CLONED_INSTANCE_NAME, task_id="sql_instance_clone"
+        instance=INSTANCE_NAME,
+        destination_instance_name=CLONED_INSTANCE_NAME,
+        task_id="sql_instance_clone",
     )
     # [END howto_operator_cloudsql_clone]
 
@@ -263,12 +273,16 @@ with DAG(
 
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSQLDeleteInstanceOperator(
-        instance=INSTANCE_NAME, task_id="sql_instance_delete_task", trigger_rule=TriggerRule.ALL_DONE
+        instance=INSTANCE_NAME,
+        task_id="sql_instance_delete_task",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_cloudsql_delete]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

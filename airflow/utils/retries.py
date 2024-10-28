@@ -30,7 +30,9 @@ F = TypeVar("F", bound=Callable)
 MAX_DB_RETRIES = conf.getint("database", "max_db_retries", fallback=3)
 
 
-def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logger | None = None, **kwargs):
+def run_with_db_retries(
+    max_retries: int = MAX_DB_RETRIES, logger: logging.Logger | None = None, **kwargs
+):
     """Return Tenacity Retrying object with project specific default."""
     import tenacity
 
@@ -43,7 +45,9 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logge
         **kwargs,
     )
     if logger and isinstance(logger, logging.Logger):
-        retry_kwargs["before_sleep"] = tenacity.before_sleep_log(logger, logging.DEBUG, True)
+        retry_kwargs["before_sleep"] = tenacity.before_sleep_log(
+            logger, logging.DEBUG, True
+        )
 
     return tenacity.Retrying(**retry_kwargs)
 
@@ -56,7 +60,9 @@ def retry_db_transaction(*, retries: int = MAX_DB_RETRIES) -> Callable[[F], F]: 
 def retry_db_transaction(_func: F) -> F: ...
 
 
-def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs):
+def retry_db_transaction(
+    _func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs
+):
     """
     Retry functions in case of ``DBAPIError`` from DB.
 
@@ -90,7 +96,9 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
             else:
                 raise TypeError(f"session is a required argument for {func.__qualname__}")
 
-            for attempt in run_with_db_retries(max_retries=retries, logger=logger, **retry_kwargs):
+            for attempt in run_with_db_retries(
+                max_retries=retries, logger=logger, **retry_kwargs
+            ):
                 with attempt:
                     logger.debug(
                         "Running %s with retries. Try %d of %d",

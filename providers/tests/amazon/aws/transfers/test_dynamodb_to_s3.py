@@ -35,7 +35,9 @@ from airflow.utils.types import DagRunType
 
 
 class TestJSONEncoder:
-    @pytest.mark.parametrize("value", ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128])
+    @pytest.mark.parametrize(
+        "value", ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128]
+    )
     def test_jsonencoder_with_decimal(self, value):
         """Test JSONEncoder correctly encodes and decodes decimal values."""
 
@@ -88,7 +90,9 @@ class TestDynamodbToS3:
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
-    def test_dynamodb_to_s3_success_with_decimal(self, mock_aws_dynamodb_hook, mock_s3_hook):
+    def test_dynamodb_to_s3_success_with_decimal(
+        self, mock_aws_dynamodb_hook, mock_s3_hook
+    ):
         a = Decimal(10.028)
         b = Decimal("10.048")
         responses = [
@@ -117,7 +121,9 @@ class TestDynamodbToS3:
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
-    def test_dynamodb_to_s3_default_connection(self, mock_aws_dynamodb_hook, mock_s3_hook):
+    def test_dynamodb_to_s3_default_connection(
+        self, mock_aws_dynamodb_hook, mock_s3_hook
+    ):
         responses = [
             {
                 "Items": [{"a": 1}, {"b": 2}],
@@ -150,7 +156,9 @@ class TestDynamodbToS3:
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
-    def test_dynamodb_to_s3_with_different_aws_conn_id(self, mock_aws_dynamodb_hook, mock_s3_hook):
+    def test_dynamodb_to_s3_with_different_aws_conn_id(
+        self, mock_aws_dynamodb_hook, mock_s3_hook
+    ):
         responses = [
             {
                 "Items": [{"a": 1}, {"b": 2}],
@@ -186,7 +194,9 @@ class TestDynamodbToS3:
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
-    def test_dynamodb_to_s3_with_two_different_connections(self, mock_aws_dynamodb_hook, mock_s3_hook):
+    def test_dynamodb_to_s3_with_two_different_connections(
+        self, mock_aws_dynamodb_hook, mock_s3_hook
+    ):
         responses = [
             {
                 "Items": [{"a": 1}, {"b": 2}],
@@ -224,7 +234,9 @@ class TestDynamodbToS3:
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
-    def test_dynamodb_to_s3_with_just_dest_aws_conn_id(self, mock_aws_dynamodb_hook, mock_s3_hook):
+    def test_dynamodb_to_s3_with_just_dest_aws_conn_id(
+        self, mock_aws_dynamodb_hook, mock_s3_hook
+    ):
         responses = [
             {
                 "Items": [{"a": 1}, {"b": 2}],
@@ -260,7 +272,9 @@ class TestDynamodbToS3:
 
     @pytest.mark.db_test
     def test_render_template(self, session):
-        dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
+        dag = DAG(
+            "test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1)
+        )
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
             dag=dag,
@@ -287,7 +301,9 @@ class TestDynamodbToS3:
         assert "2020-01-01" == getattr(operator, "dynamodb_table_name")
         assert "2020-01-01" == getattr(operator, "s3_key_prefix")
 
-    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator._export_entire_data")
+    @patch(
+        "airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator._export_entire_data"
+    )
     def test_dynamodb_execute_calling_export_entire_data(self, _export_entire_data):
         """Test that DynamoDBToS3Operator when called without export_time will call _export_entire_data"""
         dynamodb_to_s3_operator = DynamoDBToS3Operator(
@@ -303,7 +319,9 @@ class TestDynamodbToS3:
         "airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator."
         "_export_table_to_point_in_time"
     )
-    def test_dynamodb_execute_calling_export_table_to_point_in_time(self, _export_table_to_point_in_time):
+    def test_dynamodb_execute_calling_export_table_to_point_in_time(
+        self, _export_table_to_point_in_time
+    ):
         """Test that DynamoDBToS3Operator when called without export_time will call
         _export_table_to_point_in_time. Which implements point in time recovery logic"""
         dynamodb_to_s3_operator = DynamoDBToS3Operator(
@@ -320,7 +338,9 @@ class TestDynamodbToS3:
     def test_dynamodb_with_future_date(self):
         """Test that DynamoDBToS3Operator should raise a exception when future date is passed in
         export_time parameter"""
-        with pytest.raises(ValueError, match="The export_time parameter cannot be a future time."):
+        with pytest.raises(
+            ValueError, match="The export_time parameter cannot be a future time."
+        ):
             DynamoDBToS3Operator(
                 task_id="dynamodb_to_s3",
                 dynamodb_table_name="airflow_rocks",

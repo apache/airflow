@@ -33,7 +33,9 @@ def example_bash_decorator():
     def run_me(sleep_seconds: int, task_instance_key_str: str) -> str:
         return f"echo {task_instance_key_str} && sleep {sleep_seconds}"
 
-    run_me_loop = [run_me.override(task_id=f"runme_{i}")(sleep_seconds=i) for i in range(3)]
+    run_me_loop = [
+        run_me.override(task_id=f"runme_{i}")(sleep_seconds=i) for i in range(3)
+    ]
 
     # [START howto_decorator_bash]
     @task.bash
@@ -67,7 +69,9 @@ def example_bash_decorator():
     this_skips = this_will_skip()
     # [END howto_decorator_bash_skip]
 
-    run_this_last = EmptyOperator(task_id="run_this_last", trigger_rule=TriggerRule.ALL_DONE)
+    run_this_last = EmptyOperator(
+        task_id="run_this_last", trigger_rule=TriggerRule.ALL_DONE
+    )
 
     # [START howto_decorator_bash_conditional]
     @task.bash
@@ -81,7 +85,10 @@ def example_bash_decorator():
     # [END howto_decorator_bash_conditional]
 
     # [START howto_decorator_bash_parametrize]
-    @task.bash(env={"BASE_DIR": "{{ dag_run.logical_date.strftime('%Y/%m/%d') }}"}, append_env=True)
+    @task.bash(
+        env={"BASE_DIR": "{{ dag_run.logical_date.strftime('%Y/%m/%d') }}"},
+        append_env=True,
+    )
     def make_dynamic_dirs(new_dirs: str) -> str:
         return f"mkdir -p $AIRFLOW_HOME/$BASE_DIR/{new_dirs}"
 

@@ -84,7 +84,14 @@ class TestLogView:
         with open(settings_file, "w") as handle:
             new_logging_file = f"LOGGING_CONFIG = {logging_config}"
             handle.writelines(new_logging_file)
-        with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
+        with conf_vars(
+            {
+                (
+                    "logging",
+                    "logging_config_class",
+                ): "airflow_local_settings_test.LOGGING_CONFIG"
+            }
+        ):
             settings.configure_logging()
         yield
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -125,7 +132,9 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=1, metadata={})
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=ti, try_number=1, metadata={}
+        )
         assert logs[0] == [
             (
                 "localhost",
@@ -140,7 +149,9 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=ti, try_number=None, metadata={}
+        )
 
         assert logs == [
             [
@@ -183,7 +194,9 @@ class TestLogView:
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
         task_log_reader = TaskLogReader()
-        self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
+        self.ti.state = (
+            TaskInstanceState.SUCCESS
+        )  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert list(stream) == [
             "localhost\n*** Found local files:\n"
@@ -210,7 +223,9 @@ class TestLogView:
 
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS
-        log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
+        log_stream = task_log_reader.read_log_stream(
+            ti=self.ti, try_number=1, metadata={}
+        )
         assert ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"] == list(log_stream)
 
         mock_read.assert_has_calls(
@@ -231,8 +246,12 @@ class TestLogView:
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
-        log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"] == list(log_stream)
+        log_stream = task_log_reader.read_log_stream(
+            ti=self.ti, try_number=None, metadata={}
+        )
+        assert ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"] == list(
+            log_stream
+        )
 
         mock_read.assert_has_calls(
             [
@@ -308,4 +327,6 @@ class TestLogView:
         manual_ti.refresh_from_task(dag.get_task(task_id))
 
         reader = TaskLogReader()
-        assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
+        assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(
+            manual_ti, 1
+        )

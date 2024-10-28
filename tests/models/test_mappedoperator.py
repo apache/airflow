@@ -81,7 +81,9 @@ def test_task_mapping_with_dag():
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
         def __bool__(self):
-            raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
+            raise ValueError(
+                "Similar to Pandas DataFrames, this class raises an exception."
+            )
 
     class CustomOperator(BaseOperator):
         template_fields = ("arg",)
@@ -124,7 +126,9 @@ def test_task_mapping_without_dag_context():
 
 def test_task_mapping_default_args():
     default_args = {"start_date": DEFAULT_DATE.now(), "owner": "test"}
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
+    with DAG(
+        "test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args
+    ):
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -137,7 +141,9 @@ def test_task_mapping_default_args():
 
 def test_task_mapping_override_default_args():
     default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
+    with DAG(
+        "test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args
+    ):
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
 
@@ -184,8 +190,12 @@ def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
         upstream_return = [1, 2, 3]
         task1 = PushExtraXComOperator(return_value=upstream_return, task_id="task_1")
-        task2 = PushExtraXComOperator.partial(task_id="task_2").expand(return_value=task1.output)
-        task3 = PushExtraXComOperator.partial(task_id="task_3").expand(return_value=task2.output)
+        task2 = PushExtraXComOperator.partial(task_id="task_2").expand(
+            return_value=task1.output
+        )
+        task3 = PushExtraXComOperator.partial(task_id="task_3").expand(
+            return_value=task2.output
+        )
 
     dr = dag_maker.create_dagrun()
     ti_1 = dr.get_task_instance("task_1", session)
@@ -231,8 +241,12 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
 
     i.e. if the value is not an integer, an error is raised at import time."""
 
-    with pytest.raises(TypeError, match="'<' not supported between instances of 'str' and 'int'"):
-        MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
+    with pytest.raises(
+        TypeError, match="'<' not supported between instances of 'str' and 'int'"
+    ):
+        MockOperator.partial(
+            task_id="pool_slots_test", pool="test", pool_slots="a"
+        ).expand(arg1=[1, 2, 3])
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -287,7 +301,9 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+        )
         session.add(ti)
     session.flush()
 
@@ -330,7 +346,9 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
 
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+        )
         session.add(ti)
     session.flush()
 
@@ -411,9 +429,13 @@ def test_mapped_task_applies_default_args_taskflow(dag_maker):
         pytest.param({"a": -1}, {"b": -2}, ParamsDict({"a": -1, "b": -2}), id="merge"),
     ],
 )
-def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expected_partial_params):
+def test_mapped_expand_against_params(
+    dag_maker, dag_params, task_params, expected_partial_params
+):
     with dag_maker(params=dag_params) as dag:
-        MockOperator.partial(task_id="t", params=task_params).expand(params=[{"c": "x"}, {"d": 1}])
+        MockOperator.partial(task_id="t", params=task_params).expand(
+            params=[{"c": "x"}, {"d": 1}]
+        )
 
     t = dag.get_task("t")
     assert isinstance(t, MappedOperator)
@@ -435,10 +457,24 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
             template_ext = (".ext",)
 
             def __init__(
-                self, partial_template, partial_static, map_template, map_static, file_template, **kwargs
+                self,
+                partial_template,
+                partial_static,
+                map_template,
+                map_static,
+                file_template,
+                **kwargs,
             ):
-                for value in [partial_template, partial_static, map_template, map_static, file_template]:
-                    assert isinstance(value, str), "value should have been resolved before unmapping"
+                for value in [
+                    partial_template,
+                    partial_static,
+                    map_template,
+                    map_static,
+                    file_template,
+                ]:
+                    assert isinstance(
+                        value, str
+                    ), "value should have been resolved before unmapping"
                     super().__init__(**kwargs)
                     self.partial_template = partial_template
                 self.partial_static = partial_static
@@ -453,8 +489,14 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
             task1 = BaseOperator(task_id="op1")
             output1 = task1.output
             mapped = MyOperator.partial(
-                task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
-            ).expand(map_template=output1, map_static=output1, file_template=["/path/to/file.ext"])
+                task_id="a",
+                partial_template="{{ ti.task_id }}",
+                partial_static="{{ ti.task_id }}",
+            ).expand(
+                map_template=output1,
+                map_static=output1,
+                file_template=["/path/to/file.ext"],
+            )
 
         dr = dag_maker.create_dagrun()
         ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -477,18 +519,24 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
         mapped_ti.map_index = 0
 
         assert isinstance(mapped_ti.task, MappedOperator)
-        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        mapped.render_template_fields(
+            context=mapped_ti.get_template_context(session=session)
+        )
         assert isinstance(mapped_ti.task, MyOperator)
 
         assert mapped_ti.task.partial_template == "a", "Should be templated!"
-        assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
+        assert (
+            mapped_ti.task.partial_static == "{{ ti.task_id }}"
+        ), "Should not be templated!"
         assert mapped_ti.task.map_template == "{{ ds }}", "Should not be templated!"
         assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
         assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, tmp_path):
+def test_mapped_expand_kwargs_render_template_fields_validating_operator(
+    dag_maker, session, tmp_path
+):
     file_template_dir = tmp_path / "path" / "to"
     file_template_dir.mkdir(parents=True, exist_ok=True)
     file_template = file_template_dir / "file.ext"
@@ -501,10 +549,24 @@ def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_mak
             template_ext = (".ext",)
 
             def __init__(
-                self, partial_template, partial_static, map_template, map_static, file_template, **kwargs
+                self,
+                partial_template,
+                partial_static,
+                map_template,
+                map_static,
+                file_template,
+                **kwargs,
             ):
-                for value in [partial_template, partial_static, map_template, map_static, file_template]:
-                    assert isinstance(value, str), "value should have been resolved before unmapping"
+                for value in [
+                    partial_template,
+                    partial_static,
+                    map_template,
+                    map_static,
+                    file_template,
+                ]:
+                    assert isinstance(
+                        value, str
+                    ), "value should have been resolved before unmapping"
                 super().__init__(**kwargs)
                 self.partial_template = partial_template
                 self.partial_static = partial_static
@@ -517,21 +579,35 @@ def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_mak
 
         with dag_maker(session=session, template_searchpath=tmp_path.__fspath__()):
             mapped = MyOperator.partial(
-                task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
+                task_id="a",
+                partial_template="{{ ti.task_id }}",
+                partial_static="{{ ti.task_id }}",
             ).expand_kwargs(
-                [{"map_template": "{{ ds }}", "map_static": "{{ ds }}", "file_template": "/path/to/file.ext"}]
+                [
+                    {
+                        "map_template": "{{ ds }}",
+                        "map_static": "{{ ds }}",
+                        "file_template": "/path/to/file.ext",
+                    }
+                ]
             )
 
         dr = dag_maker.create_dagrun()
 
-        mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session, map_index=0)
+        mapped_ti: TaskInstance = dr.get_task_instance(
+            mapped.task_id, session=session, map_index=0
+        )
 
         assert isinstance(mapped_ti.task, MappedOperator)
-        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        mapped.render_template_fields(
+            context=mapped_ti.get_template_context(session=session)
+        )
         assert isinstance(mapped_ti.task, MyOperator)
 
         assert mapped_ti.task.partial_template == "a", "Should be templated!"
-        assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
+        assert (
+            mapped_ti.task.partial_static == "{{ ti.task_id }}"
+        ), "Should not be templated!"
         assert mapped_ti.task.map_template == "2016-01-01", "Should be templated!"
         assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
         assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
@@ -585,7 +661,9 @@ def test_mapped_render_nested_template_fields(dag_maker, session):
         ),
     ),
 )
-def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
+def test_expand_kwargs_mapped_task_instance(
+    dag_maker, session, num_existing_tis, expected
+):
     literal = [{"arg1": "a"}, {"arg1": "b"}, {"arg1": "c"}]
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
@@ -614,7 +692,9 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS
+        )
         session.add(ti)
     session.flush()
 
@@ -688,8 +768,12 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
     [
         pytest.param(None, [None, None], id="unset"),
         pytest.param("", ["", ""], id="constant"),
-        pytest.param("{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"),
-        pytest.param("{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"),
+        pytest.param(
+            "{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"
+        ),
+        pytest.param(
+            "{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"
+        ),
     ],
 )
 @pytest.mark.parametrize(
@@ -697,8 +781,12 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
     [
         pytest.param(_create_mapped_with_name_template_classic, id="classic"),
         pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
-        pytest.param(_create_named_map_index_renders_on_failure_classic, id="classic-failure"),
-        pytest.param(_create_named_map_index_renders_on_failure_taskflow, id="taskflow-failure"),
+        pytest.param(
+            _create_named_map_index_renders_on_failure_classic, id="classic-failure"
+        ),
+        pytest.param(
+            _create_named_map_index_renders_on_failure_taskflow, id="taskflow-failure"
+        ),
     ],
 )
 def test_expand_mapped_task_instance_with_named_index(
@@ -739,7 +827,9 @@ def test_expand_mapped_task_instance_with_named_index(
         pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
     ],
 )
-def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, create_mapped_task) -> None:
+def test_expand_mapped_task_task_instance_mutation_hook(
+    dag_maker, session, create_mapped_task
+) -> None:
     """Test that the tast_instance_mutation_hook is called."""
     expected_map_index = [0, 1, 2]
 
@@ -750,7 +840,13 @@ def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, crea
     dr = dag_maker.create_dagrun()
 
     with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_hook:
-        expand_mapped_task(mapped, dr.run_id, task1.task_id, length=len(expected_map_index), session=session)
+        expand_mapped_task(
+            mapped,
+            dr.run_id,
+            task1.task_id,
+            length=len(expected_map_index),
+            session=session,
+        )
 
         for index, call in enumerate(mock_hook.call_args_list):
             assert call.args[0].map_index == expected_map_index[index]
@@ -764,16 +860,24 @@ def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, crea
         pytest.param(1, 2, id="1"),
     ],
 )
-def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, map_index, expected):
+def test_expand_kwargs_render_template_fields_validating_operator(
+    dag_maker, session, map_index, expected
+):
     with set_current_task_instance_session(session=session):
         with dag_maker(session=session):
             task1 = BaseOperator(task_id="op1")
-            mapped = MockOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand_kwargs(task1.output)
+            mapped = MockOperator.partial(
+                task_id="a", arg2="{{ ti.task_id }}"
+            ).expand_kwargs(task1.output)
 
         dr = dag_maker.create_dagrun()
         ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
 
-        ti.xcom_push(key=XCOM_RETURN_KEY, value=[{"arg1": "{{ ds }}"}, {"arg1": 2}], session=session)
+        ti.xcom_push(
+            key=XCOM_RETURN_KEY,
+            value=[{"arg1": "{{ ds }}"}, {"arg1": 2}],
+            session=session,
+        )
 
         session.add(
             TaskMap(
@@ -870,7 +974,9 @@ def test_task_mapping_with_explicit_task_group():
 
         group = TaskGroup("test-group")
         literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task_2", task_group=group).expand(arg2=literal)
+        mapped = MockOperator.partial(task_id="task_2", task_group=group).expand(
+            arg2=literal
+        )
 
         task1 >> group >> finish
 
@@ -1039,7 +1145,9 @@ class TestMappedSetupTeardown:
                 my_teardown = self.classic_operator("my_teardown")
 
                 my_setup = self.classic_operator("my_setup", partial=True, fail=True)
-                s = my_setup.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = my_setup.expand(
+                    op_args=[["data1.json"], ["data2.json"], ["data3.json"]]
+                )
                 o_setup = self.classic_operator("other_setup")
                 o_teardown = self.classic_operator("other_teardown")
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1136,7 +1244,9 @@ class TestMappedSetupTeardown:
                     print(f"work: {val}")
 
                 my_setup = self.classic_operator("my_setup", partial=True, fail=True)
-                s = my_setup.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = my_setup.expand(
+                    op_args=[["data1.json"], ["data2.json"], ["data3.json"]]
+                )
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
@@ -1238,7 +1348,9 @@ class TestMappedSetupTeardown:
                     print(f"setup: {val}")
                     return val
 
-                my_setup = PythonOperator.partial(task_id="my_setup", python_callable=my_setup_callable)
+                my_setup = PythonOperator.partial(
+                    task_id="my_setup", python_callable=my_setup_callable
+                )
 
                 @task
                 def my_work(val):
@@ -1247,13 +1359,17 @@ class TestMappedSetupTeardown:
                 def my_teardown_callable(val):
                     print(f"teardown: {val}")
 
-                s = my_setup.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                s = my_setup.expand(
+                    op_args=[["data1.json"], ["data2.json"], ["data3.json"]]
+                )
                 o_setup = other_setup()
                 o_teardown = other_teardown()
                 with o_teardown.as_teardown(setups=o_setup):
                     other_work()
                 my_teardown = PythonOperator(
-                    task_id="my_teardown", op_args=[s.output], python_callable=my_teardown_callable
+                    task_id="my_teardown",
+                    op_args=[s.output],
+                    python_callable=my_teardown_callable,
                 )
                 t = my_teardown.as_teardown(setups=s)
                 with t:
@@ -1359,7 +1475,9 @@ class TestMappedSetupTeardown:
                         raise ValueError("failure")
 
                 s = my_setup()
-                t = my_teardown.expand(val=s).as_teardown(setups=s, on_failure_fail_dagrun=True)
+                t = my_teardown.expand(val=s).as_teardown(
+                    setups=s, on_failure_fail_dagrun=True
+                )
                 with t:
                     my_work(s)
                 # todo: if on_failure_fail_dagrun=True, should we still regard the WORK task as a leaf?
@@ -1428,7 +1546,9 @@ class TestMappedSetupTeardown:
                     with t:
                         my_work(filename)
 
-                file_transforms.expand(filename=["data1.json", "data2.json", "data3.json"])
+                file_transforms.expand(
+                    filename=["data1.json", "data2.json", "data3.json"]
+                )
         else:
             with dag_maker() as dag:
 
@@ -1449,21 +1569,31 @@ class TestMappedSetupTeardown:
                 @task_group
                 def file_transforms(filename):
                     s = PythonOperator(
-                        task_id="my_setup", python_callable=my_setup_callable, op_args=filename
+                        task_id="my_setup",
+                        python_callable=my_setup_callable,
+                        op_args=filename,
                     )
                     t = PythonOperator(
-                        task_id="my_teardown", python_callable=my_teardown_callable, op_args=filename
+                        task_id="my_teardown",
+                        python_callable=my_teardown_callable,
+                        op_args=filename,
                     )
                     with t.as_teardown(setups=s):
                         my_work(filename)
 
-                file_transforms.expand(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
+                file_transforms.expand(
+                    filename=[["data1.json"], ["data2.json"], ["data3.json"]]
+                )
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
             "file_transforms.my_setup": {0: "success", 1: "failed", 2: "skipped"},
             "file_transforms.my_work": {0: "success", 1: "upstream_failed", 2: "skipped"},
-            "file_transforms.my_teardown": {0: "success", 1: "upstream_failed", 2: "skipped"},
+            "file_transforms.my_teardown": {
+                0: "success",
+                1: "upstream_failed",
+                2: "skipped",
+            },
         }
 
         assert states == expected
@@ -1502,7 +1632,9 @@ class TestMappedSetupTeardown:
                     with t:
                         my_work(filename)
 
-                file_transforms.expand(filename=["data1.json", "data2.json", "data3.json"])
+                file_transforms.expand(
+                    filename=["data1.json", "data2.json", "data3.json"]
+                )
         else:
             with dag_maker() as dag:
 
@@ -1524,13 +1656,23 @@ class TestMappedSetupTeardown:
 
                 @task_group
                 def file_transforms(filename):
-                    s = PythonOperator(task_id="my_setup", python_callable=null_callable, op_args=filename)
-                    t = PythonOperator(task_id="my_teardown", python_callable=null_callable, op_args=filename)
+                    s = PythonOperator(
+                        task_id="my_setup",
+                        python_callable=null_callable,
+                        op_args=filename,
+                    )
+                    t = PythonOperator(
+                        task_id="my_teardown",
+                        python_callable=null_callable,
+                        op_args=filename,
+                    )
                     t = t.as_teardown(setups=s)
                     with t:
                         my_work(filename)
 
-                file_transforms.expand(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
+                file_transforms.expand(
+                    filename=[["data1.json"], ["data2.json"], ["data3.json"]]
+                )
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -1586,7 +1728,9 @@ class TestMappedSetupTeardown:
                 def my_work(val):
                     print(f"work: {val}")
 
-                s = PythonOperator.partial(task_id="my_setup", python_callable=my_setup_callable)
+                s = PythonOperator.partial(
+                    task_id="my_setup", python_callable=my_setup_callable
+                )
                 s = s.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
                 t = self.classic_operator("my_teardown")
                 with t.as_teardown(setups=s):
@@ -1682,7 +1826,9 @@ class TestMappedSetupTeardown:
         assert states == expected
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_one_to_many_with_teardown_and_fail_stop_more_tasks_mapped_setup(self, dag_maker):
+    def test_one_to_many_with_teardown_and_fail_stop_more_tasks_mapped_setup(
+        self, dag_maker
+    ):
         """
         when fail_stop enabled, teardowns should run according to their setups.
         in this case, the second teardown skips because its setup skips.

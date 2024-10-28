@@ -35,7 +35,9 @@ from google.cloud.aiplatform_v1 import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
-from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobAsyncHook
+from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import (
+    PipelineJobAsyncHook,
+)
 from airflow.providers.google.cloud.triggers.vertex_ai import (
     BaseVertexAIJobTrigger,
     CreateBatchPredictionJobTrigger,
@@ -47,7 +49,9 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
 )
 from airflow.triggers.base import TriggerEvent
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 TEST_CONN_ID = "test_connection"
 TEST_PROJECT_ID = "test_propject_id"
@@ -55,9 +59,7 @@ TEST_LOCATION = "us-central-1"
 TEST_HPT_JOB_ID = "test_job_id"
 TEST_POLL_INTERVAL = 20
 TEST_IMPERSONATION_CHAIN = "test_chain"
-TEST_HPT_JOB_NAME = (
-    f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/hyperparameterTuningJobs/{TEST_HPT_JOB_ID}"
-)
+TEST_HPT_JOB_NAME = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/hyperparameterTuningJobs/{TEST_HPT_JOB_ID}"
 VERTEX_AI_TRIGGER_PATH = "airflow.providers.google.cloud.triggers.vertex_ai.{}"
 TEST_ERROR_MESSAGE = "Error"
 
@@ -216,7 +218,8 @@ class TestBaseVertexAIJobTrigger:
         mock_serialize_job.return_value = mock_serialized_job
 
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             with mock.patch.object(self.trigger, "_wait_job") as mock_wait_job:
                 mock_wait_job.side_effect = mock.AsyncMock(return_value=mock_job)
@@ -237,7 +240,8 @@ class TestBaseVertexAIJobTrigger:
     @pytest.mark.asyncio
     async def test_run_exception(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             with mock.patch.object(self.trigger, "_wait_job") as mock_wait_job:
                 mock_wait_job.side_effect = AirflowException(TEST_ERROR_MESSAGE)
@@ -257,7 +261,9 @@ class TestBaseVertexAIJobTrigger:
         with pytest.raises(NotImplementedError):
             await self.trigger._wait_job()
 
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("BaseVertexAIJobTrigger.job_serializer_class"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("BaseVertexAIJobTrigger.job_serializer_class")
+    )
     def test_serialize_job(self, mock_job_serializer_class):
         mock_job = mock.MagicMock()
         mock_job_serialized = mock.MagicMock()
@@ -300,7 +306,9 @@ class TestCreateHyperparameterTuningJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(
-        VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook.wait_hyperparameter_tuning_job")
+        VERTEX_AI_TRIGGER_PATH.format(
+            "HyperparameterTuningJobAsyncHook.wait_hyperparameter_tuning_job"
+        )
     )
     async def test_wait_job(self, mock_wait_hyperparameter_tuning_job):
         job_expected = mock.MagicMock()
@@ -308,7 +316,8 @@ class TestCreateHyperparameterTuningJobTrigger:
         mock_wait_hyperparameter_tuning_job.side_effect = async_mock
 
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             job_actual = await self.trigger._wait_job()
 
@@ -365,14 +374,19 @@ class TestCreateBatchPredictionJobTrigger:
         assert async_hook_actual == mock_async_hook.return_value
 
     @pytest.mark.asyncio
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("BatchPredictionJobAsyncHook.wait_batch_prediction_job"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format(
+            "BatchPredictionJobAsyncHook.wait_batch_prediction_job"
+        )
+    )
     async def test_wait_job(self, mock_wait_batch_prediction_job):
         job_expected = mock.MagicMock()
         async_mock = mock.AsyncMock(return_value=job_expected)
         mock_wait_batch_prediction_job.side_effect = async_mock
 
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             job_actual = await self.trigger._wait_job()
 
@@ -387,7 +401,8 @@ class TestCreateBatchPredictionJobTrigger:
     def test_serialize(self):
         classpath, kwargs = self.trigger.serialize()
         assert (
-            classpath == "airflow.providers.google.cloud.triggers.vertex_ai.CreateBatchPredictionJobTrigger"
+            classpath
+            == "airflow.providers.google.cloud.triggers.vertex_ai.CreateBatchPredictionJobTrigger"
         )
         assert kwargs == dict(
             conn_id=TEST_CONN_ID,
@@ -420,7 +435,10 @@ class TestRunPipelineJobTrigger:
         hook = run_pipeline_job_trigger.async_hook
         actual_conn_id = hook._hook_kwargs.get("gcp_conn_id")
         actual_imp_chain = hook._hook_kwargs.get("impersonation_chain")
-        assert (actual_conn_id, actual_imp_chain) == (TEST_CONN_ID, TEST_IMPERSONATION_CHAIN)
+        assert (actual_conn_id, actual_imp_chain) == (
+            TEST_CONN_ID,
+            TEST_IMPERSONATION_CHAIN,
+        )
 
     @pytest.mark.parametrize(
         "pipeline_state_value",
@@ -516,8 +534,12 @@ class TestRunPipelineJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("PipelineJobAsyncHook.get_pipeline_job"))
-    async def test_run_raises_exception(self, mock_get_pipeline_job, run_pipeline_job_trigger):
-        mock_get_pipeline_job.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+    async def test_run_raises_exception(
+        self, mock_get_pipeline_job, run_pipeline_job_trigger
+    ):
+        mock_get_pipeline_job.side_effect = mock.AsyncMock(
+            side_effect=Exception("Test exception")
+        )
         expected_event = TriggerEvent(
             {
                 "status": "error",
@@ -528,7 +550,9 @@ class TestRunPipelineJobTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("PipelineJobAsyncHook.wait_for_pipeline_job"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("PipelineJobAsyncHook.wait_for_pipeline_job")
+    )
     async def test_wait_job(self, mock_wait_for_pipeline_job, run_pipeline_job_trigger):
         await run_pipeline_job_trigger._wait_job()
         mock_wait_for_pipeline_job.assert_awaited_once_with(
@@ -565,7 +589,9 @@ class TestCustomTrainingJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.TrainingPipeline.to_dict")
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_yields_success_event_on_successful_pipeline_state(
         self,
         mock_get_pipeline_service_client,
@@ -604,7 +630,9 @@ class TestCustomTrainingJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.TrainingPipeline.to_dict")
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_yields_error_event_on_failed_pipeline_state(
         self,
         mock_get_pipeline_service_client,
@@ -645,7 +673,9 @@ class TestCustomTrainingJobTrigger:
     )
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_test_run_loop_is_still_running_if_pipeline_is_running(
         self,
         mock_get_pipeline_service_client,
@@ -653,7 +683,9 @@ class TestCustomTrainingJobTrigger:
         pipeline_state_value,
         custom_training_job_trigger,
     ):
-        mock_get_training_pipeline.return_value = types.TrainingPipeline(state=pipeline_state_value)
+        mock_get_training_pipeline.return_value = types.TrainingPipeline(
+            state=pipeline_state_value
+        )
         task = asyncio.create_task(custom_training_job_trigger.run().__anext__())
         await asyncio.sleep(0.5)
         mock_get_pipeline_service_client.assert_awaited_once_with(region=TEST_LOCATION)
@@ -662,11 +694,18 @@ class TestCustomTrainingJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_raises_exception(
-        self, mock_get_pipeline_service_client, mock_get_training_pipeline, custom_training_job_trigger
+        self,
+        mock_get_pipeline_service_client,
+        mock_get_training_pipeline,
+        custom_training_job_trigger,
     ):
-        mock_get_training_pipeline.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+        mock_get_training_pipeline.side_effect = mock.AsyncMock(
+            side_effect=Exception("Test exception")
+        )
         expected_event = TriggerEvent(
             {
                 "status": "error",
@@ -678,8 +717,12 @@ class TestCustomTrainingJobTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.wait_for_training_pipeline"))
-    async def test_wait_training_pipeline(self, mock_wait_for_training_pipeline, custom_training_job_trigger):
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.wait_for_training_pipeline")
+    )
+    async def test_wait_training_pipeline(
+        self, mock_wait_for_training_pipeline, custom_training_job_trigger
+    ):
         await custom_training_job_trigger._wait_job()
         mock_wait_for_training_pipeline.assert_awaited_once_with(
             project_id=custom_training_job_trigger.project_id,
@@ -715,7 +758,9 @@ class TestCustomContainerTrainingJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.TrainingPipeline.to_dict")
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_yields_success_event_on_successful_pipeline_state(
         self,
         mock_get_pipeline_service_client,
@@ -754,7 +799,9 @@ class TestCustomContainerTrainingJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.TrainingPipeline.to_dict")
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_yields_error_event_on_failed_pipeline_state(
         self,
         mock_get_pipeline_service_client,
@@ -795,7 +842,9 @@ class TestCustomContainerTrainingJobTrigger:
     )
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_test_run_loop_is_still_running_if_pipeline_is_running(
         self,
         mock_get_pipeline_service_client,
@@ -803,8 +852,12 @@ class TestCustomContainerTrainingJobTrigger:
         pipeline_state_value,
         custom_container_training_job_trigger,
     ):
-        mock_get_training_pipeline.return_value = types.TrainingPipeline(state=pipeline_state_value)
-        task = asyncio.create_task(custom_container_training_job_trigger.run().__anext__())
+        mock_get_training_pipeline.return_value = types.TrainingPipeline(
+            state=pipeline_state_value
+        )
+        task = asyncio.create_task(
+            custom_container_training_job_trigger.run().__anext__()
+        )
         await asyncio.sleep(0.5)
         mock_get_pipeline_service_client.assert_awaited_once_with(region=TEST_LOCATION)
         assert task.done() is False
@@ -812,14 +865,18 @@ class TestCustomContainerTrainingJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_raises_exception(
         self,
         mock_get_pipeline_service_client,
         mock_get_training_pipeline,
         custom_container_training_job_trigger,
     ):
-        mock_get_training_pipeline.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+        mock_get_training_pipeline.side_effect = mock.AsyncMock(
+            side_effect=Exception("Test exception")
+        )
         expected_event = TriggerEvent(
             {
                 "status": "error",
@@ -831,7 +888,9 @@ class TestCustomContainerTrainingJobTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.wait_for_training_pipeline"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.wait_for_training_pipeline")
+    )
     async def test_wait_training_pipeline(
         self, mock_wait_for_training_pipeline, custom_container_training_job_trigger
     ):
@@ -870,7 +929,9 @@ class TestCustomPythonPackageTrainingJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.TrainingPipeline.to_dict")
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_yields_success_event_on_successful_pipeline_state(
         self,
         mock_get_pipeline_service_client,
@@ -909,7 +970,9 @@ class TestCustomPythonPackageTrainingJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.TrainingPipeline.to_dict")
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_yields_error_event_on_failed_pipeline_state(
         self,
         mock_get_pipeline_service_client,
@@ -950,7 +1013,9 @@ class TestCustomPythonPackageTrainingJobTrigger:
     )
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_test_run_loop_is_still_running_if_pipeline_is_running(
         self,
         mock_get_pipeline_service_client,
@@ -958,8 +1023,12 @@ class TestCustomPythonPackageTrainingJobTrigger:
         pipeline_state_value,
         custom_python_package_training_job_trigger,
     ):
-        mock_get_training_pipeline.return_value = types.TrainingPipeline(state=pipeline_state_value)
-        task = asyncio.create_task(custom_python_package_training_job_trigger.run().__anext__())
+        mock_get_training_pipeline.return_value = types.TrainingPipeline(
+            state=pipeline_state_value
+        )
+        task = asyncio.create_task(
+            custom_python_package_training_job_trigger.run().__anext__()
+        )
         await asyncio.sleep(0.5)
         mock_get_pipeline_service_client.assert_awaited_once_with(region=TEST_LOCATION)
         assert task.done() is False
@@ -967,14 +1036,18 @@ class TestCustomPythonPackageTrainingJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_training_pipeline"))
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.get_pipeline_service_client")
+    )
     async def test_run_raises_exception(
         self,
         mock_get_pipeline_service_client,
         mock_get_training_pipeline,
         custom_python_package_training_job_trigger,
     ):
-        mock_get_training_pipeline.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+        mock_get_training_pipeline.side_effect = mock.AsyncMock(
+            side_effect=Exception("Test exception")
+        )
         expected_event = TriggerEvent(
             {
                 "status": "error",
@@ -986,7 +1059,9 @@ class TestCustomPythonPackageTrainingJobTrigger:
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
-    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.wait_for_training_pipeline"))
+    @mock.patch(
+        VERTEX_AI_TRIGGER_PATH.format("CustomJobAsyncHook.wait_for_training_pipeline")
+    )
     async def test_wait_training_pipeline(
         self, mock_wait_for_training_pipeline, custom_python_package_training_job_trigger
     ):

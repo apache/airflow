@@ -22,7 +22,9 @@ from unittest import mock
 import pytest
 from google.cloud.batch_v1 import Job, JobStatus
 
-from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
+from airflow.providers.google.cloud.triggers.cloud_batch import (
+    CloudBatchJobFinishedTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 JOB_NAME = "jobName"
@@ -50,7 +52,10 @@ def trigger():
 class TestCloudBatchJobFinishedTrigger:
     def test_serialization(self, trigger):
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchJobFinishedTrigger"
+        assert (
+            classpath
+            == "airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchJobFinishedTrigger"
+        )
         assert kwargs == {
             "project_id": PROJECT_ID,
             "job_name": JOB_NAME,
@@ -70,7 +75,9 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudBatchJobFinishedTrigger fires once the job execution reaches a successful state.
         """
         state = JobStatus.State(JobStatus.State.SUCCEEDED)
-        mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(state)
+        mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(
+            state
+        )
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
@@ -93,7 +100,9 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudBatchJobFinishedTrigger fires once the job execution reaches a successful state.
         """
         state = JobStatus.State(JobStatus.State.DELETION_IN_PROGRESS)
-        mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(state)
+        mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(
+            state
+        )
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
@@ -109,7 +118,9 @@ class TestCloudBatchJobFinishedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
-    async def test_trigger_on_deleted_yield_exception(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
+    async def test_trigger_on_deleted_yield_exception(
+        self, mock_hook, trigger: CloudBatchJobFinishedTrigger
+    ):
         """
         Tests the CloudBatchJobFinishedTrigger fires once the job execution
         reaches an state with an error message.
@@ -129,7 +140,9 @@ class TestCloudBatchJobFinishedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
-    async def test_trigger_timeout(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
+    async def test_trigger_timeout(
+        self, mock_hook, trigger: CloudBatchJobFinishedTrigger
+    ):
         """
         Tests the CloudBatchJobFinishedTrigger fires once the job execution times out with an error message.
         """

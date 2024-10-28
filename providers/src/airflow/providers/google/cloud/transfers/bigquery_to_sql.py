@@ -103,7 +103,9 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         try:
             self.dataset_id, self.table_id = dataset_table.split(".")
         except ValueError:
-            raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
+            raise ValueError(
+                f"Could not parse {dataset_table} as <dataset>.<table>"
+            ) from None
 
     @abc.abstractmethod
     def get_sql_hook(self) -> DbApiHook:

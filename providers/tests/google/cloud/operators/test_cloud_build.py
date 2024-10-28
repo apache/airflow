@@ -28,7 +28,12 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource, StorageSource
+from google.cloud.devtools.cloudbuild_v1.types import (
+    Build,
+    BuildTrigger,
+    RepoSource,
+    StorageSource,
+)
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
@@ -48,23 +53,37 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildRunBuildTriggerOperator,
     CloudBuildUpdateBuildTriggerOperator,
 )
-from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
+from airflow.providers.google.cloud.triggers.cloud_build import (
+    CloudBuildCreateBuildTrigger,
+)
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 GCP_CONN_ID = "google_cloud_default"
 PROJECT_ID = "cloud-build-project"
-CLOUD_BUILD_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook"
+CLOUD_BUILD_HOOK_PATH = (
+    "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook"
+)
 BUILD_ID = "test-build-id-9832661"
 REPO_SOURCE = {"repo_source": {"repo_name": "test_repo", "branch_name": "main"}}
 BUILD = {
     "source": REPO_SOURCE,
-    "steps": [{"name": "gcr.io/cloud-builders/gcloud", "entrypoint": "/bin/sh", "args": ["-c", "ls"]}],
+    "steps": [
+        {
+            "name": "gcr.io/cloud-builders/gcloud",
+            "entrypoint": "/bin/sh",
+            "args": ["-c", "ls"],
+        }
+    ],
     "status": "SUCCESS",
 }
 BUILD_TRIGGER = {
     "name": "test-cloud-build-trigger",
-    "trigger_template": {"project_id": PROJECT_ID, "repo_name": "test_repo", "branch_name": "master"},
+    "trigger_template": {
+        "project_id": PROJECT_ID,
+        "repo_name": "test_repo",
+        "branch_name": "master",
+    },
     "filename": "cloudbuild.yaml",
 }
 OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
@@ -111,29 +130,50 @@ class TestCloudBuildOperator:
         operator = CloudBuildCancelBuildOperator(id_=TRIGGER_ID, task_id="id")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.cancel_build.assert_called_once_with(
-            id_=TRIGGER_ID, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
+            id_=TRIGGER_ID,
+            project_id=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+            location="global",
         )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_create_build(self, mock_hook):
-        mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
+        mock_hook.return_value.create_build_without_waiting_for_result.return_value = (
+            BUILD,
+            BUILD_ID,
+        )
         mock_hook.return_value.wait_for_operation.return_value = Build()
 
         operator = CloudBuildCreateBuildOperator(build=BUILD, task_id="id")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         build = Build(BUILD)
         mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
-            build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
+            build=build,
+            project_id=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+            location="global",
         )
-        mock_hook.return_value.wait_for_operation.assert_called_once_with(timeout=None, operation=BUILD)
+        mock_hook.return_value.wait_for_operation.assert_called_once_with(
+            timeout=None, operation=BUILD
+        )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_create_build_with_missing_build(self, mock_hook):
-        mock_hook.return_value.create_build_without_waiting_for_result.return_value = Build()
+        mock_hook.return_value.create_build_without_waiting_for_result.return_value = (
+            Build()
+        )
         with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
             CloudBuildCreateBuildOperator(task_id="id")
 
@@ -142,7 +182,16 @@ class TestCloudBuildOperator:
         [
             (
                 ".json",
-                json.dumps({"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}),
+                json.dumps(
+                    {
+                        "steps": [
+                            {
+                                "name": "ubuntu",
+                                "args": ["echo", "Hello {{ params.name }}!"],
+                            }
+                        ]
+                    }
+                ),
             ),
             (
                 ".yaml",
@@ -163,17 +212,25 @@ class TestCloudBuildOperator:
                 build=f.name, task_id="task-id", params={"name": "airflow"}
             )
             operator.prepare_template()
-            expected_body = {"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}
+            expected_body = {
+                "steps": [
+                    {"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}
+                ]
+            }
             assert expected_body == operator.build
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_create_build_trigger(self, mock_hook):
         mock_hook.return_value.create_build_trigger.return_value = BuildTrigger()
 
-        operator = CloudBuildCreateBuildTriggerOperator(trigger=BUILD_TRIGGER, task_id="id")
+        operator = CloudBuildCreateBuildTriggerOperator(
+            trigger=BUILD_TRIGGER, task_id="id"
+        )
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.create_build_trigger.assert_called_once_with(
             trigger=BUILD_TRIGGER,
             project_id=None,
@@ -187,10 +244,14 @@ class TestCloudBuildOperator:
     def test_delete_build_trigger(self, mock_hook):
         mock_hook.return_value.delete_build_trigger.return_value = None
 
-        operator = CloudBuildDeleteBuildTriggerOperator(trigger_id=TRIGGER_ID, task_id="id")
+        operator = CloudBuildDeleteBuildTriggerOperator(
+            trigger_id=TRIGGER_ID, task_id="id"
+        )
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.delete_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             project_id=None,
@@ -207,9 +268,16 @@ class TestCloudBuildOperator:
         operator = CloudBuildGetBuildOperator(id_=BUILD_ID, task_id="id")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.get_build.assert_called_once_with(
-            id_=BUILD_ID, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
+            id_=BUILD_ID,
+            project_id=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+            location="global",
         )
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -219,7 +287,9 @@ class TestCloudBuildOperator:
         operator = CloudBuildGetBuildTriggerOperator(trigger_id=TRIGGER_ID, task_id="id")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.get_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             project_id=None,
@@ -236,7 +306,9 @@ class TestCloudBuildOperator:
         operator = CloudBuildListBuildTriggersOperator(task_id="id", location="global")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.list_build_triggers.assert_called_once_with(
             project_id=None,
             location="global",
@@ -254,7 +326,9 @@ class TestCloudBuildOperator:
         operator = CloudBuildListBuildsOperator(task_id="id", location="global")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.list_builds.assert_called_once_with(
             project_id=None,
             location="global",
@@ -272,7 +346,9 @@ class TestCloudBuildOperator:
         operator = CloudBuildRetryBuildOperator(id_=BUILD_ID, task_id="id")
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.retry_build.assert_called_once_with(
             id_=BUILD_ID,
             project_id=None,
@@ -287,10 +363,14 @@ class TestCloudBuildOperator:
     def test_run_build_trigger(self, mock_hook):
         mock_hook.return_value.run_build_trigger.return_value = Build()
 
-        operator = CloudBuildRunBuildTriggerOperator(trigger_id=TRIGGER_ID, source=REPO_SOURCE, task_id="id")
+        operator = CloudBuildRunBuildTriggerOperator(
+            trigger_id=TRIGGER_ID, source=REPO_SOURCE, task_id="id"
+        )
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.run_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             source=REPO_SOURCE,
@@ -311,7 +391,9 @@ class TestCloudBuildOperator:
         )
         operator.execute(context=mock.MagicMock())
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
+        )
         mock_hook.return_value.update_build_trigger.assert_called_once_with(
             trigger_id=TRIGGER_ID,
             trigger=BUILD_TRIGGER,
@@ -327,7 +409,9 @@ class TestBuildProcessor:
     def test_verify_source(self):
         error_message = r"The source could not be determined."
         with pytest.raises(AirflowException, match=error_message):
-            BuildProcessor(build={"source": {"storage_source": {}, "repo_source": {}}}).process_body()
+            BuildProcessor(
+                build={"source": {"storage_source": {}, "repo_source": {}}}
+            ).process_body()
 
         with pytest.raises(AirflowException, match=error_message):
             BuildProcessor(build={"source": {}}).process_body()
@@ -337,11 +421,19 @@ class TestBuildProcessor:
         [
             (
                 "https://source.cloud.google.com/airflow-project/airflow-repo",
-                {"project_id": "airflow-project", "repo_name": "airflow-repo", "branch_name": "master"},
+                {
+                    "project_id": "airflow-project",
+                    "repo_name": "airflow-repo",
+                    "branch_name": "master",
+                },
             ),
             (
                 "https://source.cloud.google.com/airflow-project/airflow-repo/+/branch-name:",
-                {"project_id": "airflow-project", "repo_name": "airflow-repo", "branch_name": "branch-name"},
+                {
+                    "project_id": "airflow-project",
+                    "repo_name": "airflow-repo",
+                    "branch_name": "branch-name",
+                },
             ),
             (
                 "https://source.cloud.google.com/airflow-project/airflow-repo/+/feature/branch:",
@@ -380,7 +472,11 @@ class TestBuildProcessor:
             ),
             (
                 "gs://bucket-name/airflow-object.tar.gz#1231231",
-                {"bucket": "bucket-name", "object_": "airflow-object.tar.gz", "generation": 1231231},
+                {
+                    "bucket": "bucket-name",
+                    "object_": "airflow-object.tar.gz",
+                    "generation": 1231231,
+                },
             ),
         ],
     )
@@ -389,7 +485,9 @@ class TestBuildProcessor:
         body = BuildProcessor(build=body).process_body()
         assert body.source.storage_source == StorageSource(expected_dict)
 
-    @pytest.mark.parametrize("url", ["///object", "gsXXa:///object", "gs://bucket-name/", "gs://bucket-name"])
+    @pytest.mark.parametrize(
+        "url", ["///object", "gsXXa:///object", "gs://bucket-name/", "gs://bucket-name"]
+    )
     def test_convert_storage_url_to_dict_invalid(self, url):
         body = {"source": {"storage_source": url}}
         with pytest.raises(AirflowException, match="Invalid URL."):
@@ -406,7 +504,10 @@ class TestBuildProcessor:
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_fires_correct_trigger_should_execute_successfully(mock_hook):
-    mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
+    mock_hook.return_value.create_build_without_waiting_for_result.return_value = (
+        BUILD,
+        BUILD_ID,
+    )
 
     operator = CloudBuildCreateBuildOperator(
         build=BUILD,
@@ -424,7 +525,10 @@ def test_async_create_build_fires_correct_trigger_should_execute_successfully(mo
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
-    mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
+    mock_hook.return_value.create_build_without_waiting_for_result.return_value = (
+        BUILD,
+        BUILD_ID,
+    )
     mock_hook.return_value.get_build.return_value = Build()
 
     operator = CloudBuildCreateBuildOperator(
@@ -438,14 +542,24 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
     mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
     build = Build(BUILD)
     mock_hook.return_value.create_build_without_waiting_for_result.assert_called_once_with(
-        build=build, project_id=None, retry=DEFAULT, timeout=None, metadata=(), location="global"
+        build=build,
+        project_id=None,
+        retry=DEFAULT,
+        timeout=None,
+        metadata=(),
+        location="global",
     )
-    mock_hook.return_value.get_build.assert_called_once_with(id_=BUILD_ID, project_id=None, location="global")
+    mock_hook.return_value.get_build.assert_called_once_with(
+        id_=BUILD_ID, project_id=None, location="global"
+    )
 
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_correct_logging_should_execute_successfully(mock_hook):
-    mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
+    mock_hook.return_value.create_build_without_waiting_for_result.return_value = (
+        BUILD,
+        BUILD_ID,
+    )
     mock_hook.return_value.get_build.return_value = Build()
 
     operator = CloudBuildCreateBuildOperator(
@@ -463,7 +577,9 @@ def test_async_create_build_correct_logging_should_execute_successfully(mock_hoo
                 "id_": BUILD_ID,
             },
         )
-    mock_log_info.assert_called_with("Cloud Build completed with response %s ", "Build completed")
+    mock_log_info.assert_called_with(
+        "Cloud Build completed with response %s ", "Build completed"
+    )
 
 
 def test_async_create_build_error_event_should_throw_exception():
@@ -473,7 +589,9 @@ def test_async_create_build_error_event_should_throw_exception():
         deferrable=True,
     )
     with pytest.raises(AirflowException):
-        operator.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
+        operator.execute_complete(
+            context=None, event={"status": "error", "message": "test failure message"}
+        )
 
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -488,7 +606,13 @@ def test_async_create_build_with_missing_build_should_throw_exception(mock_hook)
     [
         (
             ".json",
-            json.dumps({"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}),
+            json.dumps(
+                {
+                    "steps": [
+                        {"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}
+                    ]
+                }
+            ),
         ),
         (
             ".yaml",
@@ -512,7 +636,9 @@ def test_async_load_templated_should_execute_successfully(file_type, file_conten
             deferrable=True,
         )
         operator.prepare_template()
-        expected_body = {"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}
+        expected_body = {
+            "steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]
+        }
         assert expected_body == operator.build
 
 

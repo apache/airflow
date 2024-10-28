@@ -42,9 +42,15 @@ class TestKerberosIntegration:
         [
             pytest.param({}, id="default-config"),
             pytest.param({("kerberos", "include_ip"): "True"}, id="explicit-include-ip"),
-            pytest.param({("kerberos", "include_ip"): "False"}, id="explicit-not-include-ip"),
-            pytest.param({("kerberos", "forwardable"): "True"}, id="explicit-forwardable"),
-            pytest.param({("kerberos", "forwardable"): "False"}, id="explicit-not-forwardable"),
+            pytest.param(
+                {("kerberos", "include_ip"): "False"}, id="explicit-not-include-ip"
+            ),
+            pytest.param(
+                {("kerberos", "forwardable"): "True"}, id="explicit-forwardable"
+            ),
+            pytest.param(
+                {("kerberos", "forwardable"): "False"}, id="explicit-not-forwardable"
+            ),
         ],
     )
     def test_renew_from_kt(self, kerberos_config):
@@ -64,11 +70,15 @@ class TestKerberosIntegration:
         keytab = "/not/exists/keytab"
         result = None
 
-        with mock.patch.dict(os.environ, KRB5_KTNAME=keytab), conf_vars({("kerberos", "keytab"): keytab}):
+        with mock.patch.dict(os.environ, KRB5_KTNAME=keytab), conf_vars(
+            {("kerberos", "keytab"): keytab}
+        ):
             with expected_context as ctx:
                 with caplog.at_level(logging.ERROR, logger=kerberos.log.name):
                     caplog.clear()
-                    result = renew_from_kt(principal=None, keytab=keytab, exit_on_fail=exit_on_fail)
+                    result = renew_from_kt(
+                        principal=None, keytab=keytab, exit_on_fail=exit_on_fail
+                    )
 
         # If `exit_on_fail` set to True than exit code in exception, otherwise in function return
         exit_code = ctx.value.code if exit_on_fail else result

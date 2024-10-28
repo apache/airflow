@@ -29,7 +29,13 @@ from airflow.exceptions import (
 pytest.importorskip("google.cloud.aiplatform_v1")
 from datetime import timedelta
 
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
+from vertexai.generative_models import (
+    HarmBlockThreshold,
+    HarmCategory,
+    Part,
+    Tool,
+    grounding,
+)
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
@@ -70,7 +76,9 @@ TEST_TOOLS = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval(
 
 TEST_MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
 TEST_VISION_PROMPT = "In 10 words or less, describe this content."
-TEST_MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+TEST_MEDIA_GCS_PATH = (
+    "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+)
 TEST_MIME_TYPE = "image/jpeg"
 
 SOURCE_MODEL = "gemini-1.0-pro-002"
@@ -130,7 +138,9 @@ TEST_CACHED_TTL = 1
 TEST_CACHED_DISPLAY_NAME = "test-example-cache"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
-GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
+GENERATIVE_MODEL_STRING = (
+    "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
+)
 
 
 def assert_warning(msg: str, warnings):
@@ -143,12 +153,15 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model")
+    )
     def test_prompt_language_model(self, mock_model) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             self.hook.prompt_language_model(
@@ -163,7 +176,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             )
             assert_warning("text_generation_model_predict", warnings)
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model")
+    )
     def test_generate_text_embeddings(self, mock_model) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             self.hook.generate_text_embeddings(
@@ -174,7 +189,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             )
             assert_warning("text_embedding_model_get_embeddings", warnings)
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model")
+    )
     def test_prompt_multimodal_model(self, mock_model) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             self.hook.prompt_multimodal_model(
@@ -187,8 +204,12 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             )
             assert_warning("generative_model_generate_content", warnings)
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model_part"))
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model_part")
+    )
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model")
+    )
     def test_prompt_multimodal_model_with_media(self, mock_model, mock_part) -> None:
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             self.hook.prompt_multimodal_model_with_media(
@@ -203,7 +224,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             )
             assert_warning("generative_model_generate_content", warnings)
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model")
+    )
     def test_text_generation_model_predict(self, mock_model) -> None:
         self.hook.text_generation_model_predict(
             project_id=GCP_PROJECT,
@@ -224,7 +247,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             top_k=TEST_TOP_K,
         )
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model")
+    )
     def test_text_embedding_model_get_embeddings(self, mock_model) -> None:
         self.hook.text_embedding_model_get_embeddings(
             project_id=GCP_PROJECT,
@@ -235,7 +260,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         mock_model.assert_called_once_with(TEST_TEXT_EMBEDDING_MODEL)
         mock_model.return_value.get_embeddings.assert_called_once_with([TEST_PROMPT])
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model")
+    )
     def test_generative_model_generate_content(self, mock_model) -> None:
         self.hook.generative_model_generate_content(
             project_id=GCP_PROJECT,
@@ -276,7 +303,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             tuned_model_display_name=None,
         )
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model")
+    )
     def test_count_tokens(self, mock_model) -> None:
         self.hook.count_tokens(
             project_id=GCP_PROJECT,
@@ -291,7 +320,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             contents=TEST_CONTENTS,
         )
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model")
+    )
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_eval_task"))
     def test_run_evaluation(self, mock_eval_task, mock_model) -> None:
         self.hook.run_evaluation(
@@ -343,7 +374,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             display_name=TEST_CACHED_DISPLAY_NAME,
         )
 
-    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_cached_context_model"))
+    @mock.patch(
+        GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_cached_context_model")
+    )
     def test_generate_from_cached_content(self, mock_cached_context_model) -> None:
         self.hook.generate_from_cached_content(
             project_id=GCP_PROJECT,

@@ -61,7 +61,9 @@ class BatchSensor(BaseSensorOperator):
         job_id: str,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poke_interval: float = 30,
         max_retries: int = 4200,
         **kwargs,
@@ -175,7 +177,9 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
         if not response["computeEnvironments"]:
-            raise AirflowException(f"AWS Batch compute environment {self.compute_environment} not found")
+            raise AirflowException(
+                f"AWS Batch compute environment {self.compute_environment} not found"
+            )
 
         status = response["computeEnvironments"][0]["status"]
 

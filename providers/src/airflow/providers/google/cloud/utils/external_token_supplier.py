@@ -60,10 +60,15 @@ def cache_token_decorator(get_subject_token_method):
         cache_key = supplier_instance.get_subject_key()
         token: dict[str, str | float] = {}
 
-        if cache_key not in cache or cache[cache_key]["expiration_time"] < time.monotonic():
+        if (
+            cache_key not in cache
+            or cache[cache_key]["expiration_time"] < time.monotonic()
+        ):
             supplier_instance.log.info("OIDC token missing or expired")
             try:
-                access_token, expires_in = get_subject_token_method(supplier_instance, *args, **kwargs)
+                access_token, expires_in = get_subject_token_method(
+                    supplier_instance, *args, **kwargs
+                )
                 if not isinstance(expires_in, int) or not isinstance(access_token, str):
                     raise RefreshError  # assume error if strange values are provided
 
@@ -76,7 +81,9 @@ def cache_token_decorator(get_subject_token_method):
             token["expiration_time"] = expiration_time
             cache[cache_key] = token
 
-            supplier_instance.log.info("New OIDC token retrieved, expires in %s seconds.", expires_in)
+            supplier_instance.log.info(
+                "New OIDC token retrieved, expires in %s seconds.", expires_in
+            )
 
         return cache[cache_key]["access_token"]
 
@@ -131,7 +138,9 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
         self.extra_params_kwargs = extra_params_kwargs
 
     @cache_token_decorator
-    def get_subject_token(self, context: SupplierContext, request: Request) -> tuple[str, int]:
+    def get_subject_token(
+        self, context: SupplierContext, request: Request
+    ) -> tuple[str, int]:
         """Perform Client Credentials Grant flow with IdP and retrieves an OIDC token and expiration time."""
         self.log.info("Requesting new OIDC token from external IdP.")
         try:

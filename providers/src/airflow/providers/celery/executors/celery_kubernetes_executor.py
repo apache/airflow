@@ -25,7 +25,9 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 try:
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+        KubernetesExecutor,
+    )
 except ImportError as e:
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
@@ -73,7 +75,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def kubernetes_queue(self) -> str:
         return conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
-    def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
+    def __init__(
+        self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor
+    ):
         super().__init__()
         self._job_id: int | str | None = None
         self.celery_executor = celery_executor
@@ -152,7 +156,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
     ) -> None:
         """Queues command via celery or kubernetes executor."""
         executor = self._router(task_instance)
-        self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
+        self.log.debug(
+            "Using executor: %s for %s", executor.__class__.__name__, task_instance.key
+        )
         executor.queue_command(task_instance, command, priority, queue)
 
     def queue_task_instance(
@@ -173,7 +179,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
 
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
-            "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
+            "Using executor: %s to queue_task_instance for %s",
+            executor.__class__.__name__,
+            task_instance.key,
         )
         executor.queue_task_instance(
             task_instance=task_instance,
@@ -188,7 +196,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
             cfg_path=cfg_path,
         )
 
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+    def get_task_log(
+        self, ti: TaskInstance, try_number: int
+    ) -> tuple[list[str], list[str]]:
         """Fetch task log from Kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
@@ -201,9 +211,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
-        return self.celery_executor.has_task(task_instance) or self.kubernetes_executor.has_task(
+        return self.celery_executor.has_task(
             task_instance
-        )
+        ) or self.kubernetes_executor.has_task(task_instance)
 
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs in celery and kubernetes executor."""
@@ -220,11 +230,15 @@ class CeleryKubernetesExecutor(BaseExecutor):
         :return: a dict of events
         """
         cleared_events_from_celery = self.celery_executor.get_event_buffer(dag_ids)
-        cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
+        cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(
+            dag_ids
+        )
 
         return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -258,7 +272,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.celery_executor.terminate()
         self.kubernetes_executor.terminate()
 
-    def _router(self, simple_task_instance: SimpleTaskInstance) -> CeleryExecutor | KubernetesExecutor:
+    def _router(
+        self, simple_task_instance: SimpleTaskInstance
+    ) -> CeleryExecutor | KubernetesExecutor:
         """
         Return either celery_executor or kubernetes_executor.
 

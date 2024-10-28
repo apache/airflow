@@ -50,8 +50,13 @@ class TestSageMakerModelOperator:
     @patch.object(SageMakerHook, "describe_model", return_value="")
     @patch.object(SageMakerHook, "create_model")
     def test_execute(self, mock_create_model, _):
-        sagemaker = SageMakerModelOperator(task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS)
-        mock_create_model.return_value = {"ModelArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
+        sagemaker = SageMakerModelOperator(
+            task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS
+        )
+        mock_create_model.return_value = {
+            "ModelArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
 
         sagemaker.execute(None)
 
@@ -60,8 +65,13 @@ class TestSageMakerModelOperator:
 
     @patch.object(SageMakerHook, "create_model")
     def test_execute_with_failure(self, mock_create_model):
-        sagemaker = SageMakerModelOperator(task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS)
-        mock_create_model.return_value = {"ModelArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 404}}
+        sagemaker = SageMakerModelOperator(
+            task_id="test_sagemaker_operator", config=CREATE_MODEL_PARAMS
+        )
+        mock_create_model.return_value = {
+            "ModelArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 404},
+        }
 
         with pytest.raises(AirflowException):
             sagemaker.execute(None)
@@ -85,7 +95,10 @@ class TestSageMakerDeleteModelOperator:
 
 class TestSageMakerRegisterModelVersionOperator:
     @patch.object(SageMakerHook, "create_model_package_group")
-    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    @patch(
+        "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
+        new_callable=mock.PropertyMock,
+    )
     def test_execute(self, conn_mock, create_group_mock):
         image = "257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1"
         model = "s3://your-bucket-name/model.tar.gz"
@@ -104,14 +117,21 @@ class TestSageMakerRegisterModelVersionOperator:
         conn_mock().create_model_package.assert_called_once()
         args_dict = conn_mock().create_model_package.call_args.kwargs
         assert args_dict["InferenceSpecification"]["Containers"][0]["Image"] == image
-        assert args_dict["InferenceSpecification"]["Containers"][0]["ModelDataUrl"] == model
+        assert (
+            args_dict["InferenceSpecification"]["Containers"][0]["ModelDataUrl"] == model
+        )
         assert args_dict["ModelPackageGroupName"] == group
         assert args_dict["ModelApprovalStatus"] == "Approved"
 
     @pytest.mark.parametrize("group_created", [True, False])
     @patch.object(SageMakerHook, "create_model_package_group")
-    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
-    def test_group_deleted_if_error_when_adding_model(self, conn_mock, create_group_mock, group_created):
+    @patch(
+        "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_group_deleted_if_error_when_adding_model(
+        self, conn_mock, create_group_mock, group_created
+    ):
         group = "group-name"
         op = SageMakerRegisterModelVersionOperator(
             task_id="test",
@@ -130,13 +150,18 @@ class TestSageMakerRegisterModelVersionOperator:
 
         if group_created:
             # delete group if it was created and there was an error in the second step (create model package)
-            conn_mock().delete_model_package_group.assert_called_once_with(ModelPackageGroupName=group)
+            conn_mock().delete_model_package_group.assert_called_once_with(
+                ModelPackageGroupName=group
+            )
         else:
             # if the group already existed, we don't want to delete it in case of error on second step
             conn_mock().delete_model_package_group.assert_not_called()
 
     @patch.object(SageMakerHook, "create_model_package_group")
-    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    @patch(
+        "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
+        new_callable=mock.PropertyMock,
+    )
     def test_can_override_parameters_using_extras(self, conn_mock, _):
         response_type = ["test/test"]
         op = SageMakerRegisterModelVersionOperator(
@@ -144,14 +169,19 @@ class TestSageMakerRegisterModelVersionOperator:
             image_uri="257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1",
             model_url="s3://your-bucket-name/model.tar.gz",
             package_group_name="group-name",
-            extras={"InferenceSpecification": {"SupportedResponseMIMETypes": response_type}},
+            extras={
+                "InferenceSpecification": {"SupportedResponseMIMETypes": response_type}
+            },
         )
 
         op.execute(None)
 
         conn_mock().create_model_package.assert_called_once()
         args_dict = conn_mock().create_model_package.call_args.kwargs
-        assert args_dict["InferenceSpecification"]["SupportedResponseMIMETypes"] == response_type
+        assert (
+            args_dict["InferenceSpecification"]["SupportedResponseMIMETypes"]
+            == response_type
+        )
 
     def test_template_fields(self):
         response_type = ["test/test"]
@@ -160,6 +190,8 @@ class TestSageMakerRegisterModelVersionOperator:
             image_uri="257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1",
             model_url="s3://your-bucket-name/model.tar.gz",
             package_group_name="group-name",
-            extras={"InferenceSpecification": {"SupportedResponseMIMETypes": response_type}},
+            extras={
+                "InferenceSpecification": {"SupportedResponseMIMETypes": response_type}
+            },
         )
         validate_template_fields(op)

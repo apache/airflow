@@ -28,7 +28,9 @@ class TestKerberos:
 
     def test_kerberos_not_mentioned_in_render_if_disabled(self):
         # the name is deliberately shorter as we look for "kerberos" in the rendered chart
-        k8s_objects = render_chart(name="no-krbros", values={"kerberos": {"enabled": False}})
+        k8s_objects = render_chart(
+            name="no-krbros", values={"kerberos": {"enabled": False}}
+        )
         # ignore airflow config map
         k8s_objects_to_consider = [
             obj for obj in k8s_objects if obj["metadata"]["name"] != "no-krbros-config"
@@ -59,9 +61,10 @@ class TestKerberos:
         assert {"name": "KRB5_CONFIG", "value": "/etc/krb5.conf"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
-        assert {"name": "KRB5CCNAME", "value": "/var/kerberos-ccache/ccache"} in jmespath.search(
-            "spec.template.spec.containers[0].env", docs[0]
-        )
+        assert {
+            "name": "KRB5CCNAME",
+            "value": "/var/kerberos-ccache/ccache",
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_kerberos_sidecar_resources(self):
         docs = render_chart(
@@ -86,18 +89,38 @@ class TestKerberos:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[2].resources.requests.cpu", docs[0]) == "200m"
         assert (
-            jmespath.search("spec.template.spec.containers[2].resources.requests.memory", docs[0]) == "200Mi"
+            jmespath.search(
+                "spec.template.spec.containers[2].resources.requests.cpu", docs[0]
+            )
+            == "200m"
         )
-        assert jmespath.search("spec.template.spec.containers[2].resources.limits.cpu", docs[0]) == "201m"
-        assert jmespath.search("spec.template.spec.containers[2].resources.limits.memory", docs[0]) == "201Mi"
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[2].resources.requests.memory", docs[0]
+            )
+            == "200Mi"
+        )
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[2].resources.limits.cpu", docs[0]
+            )
+            == "201m"
+        )
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[2].resources.limits.memory", docs[0]
+            )
+            == "201Mi"
+        )
 
     def test_keberos_sidecar_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
 
     def test_kerberos_keytab_exists_in_worker_when_enable(self):
         docs = render_chart(

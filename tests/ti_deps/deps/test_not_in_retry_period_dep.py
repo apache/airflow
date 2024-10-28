@@ -43,7 +43,9 @@ class TestNotInRetryPeriodDep:
         """
         Task instances that are in their retry period should fail this dep
         """
-        ti = self._get_task_instance(State.UP_FOR_RETRY, end_date=datetime(2016, 1, 1, 15, 30))
+        ti = self._get_task_instance(
+            State.UP_FOR_RETRY, end_date=datetime(2016, 1, 1, 15, 30)
+        )
         assert ti.is_premature
         assert not NotInRetryPeriodDep().is_met(ti=ti)
 

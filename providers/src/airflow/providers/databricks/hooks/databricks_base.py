@@ -220,13 +220,17 @@ class BaseDatabricksHook(BaseHook):
         if sp_token and self._is_oauth_token_valid(sp_token):
             return sp_token["access_token"]
 
-        self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
+        self.log.info(
+            "Existing Service Principal token is expired, or going to expire soon. Refreshing..."
+        )
         try:
             for attempt in self._get_retry_object():
                 with attempt:
                     resp = requests.post(
                         resource,
-                        auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        auth=HTTPBasicAuth(
+                            self.databricks_conn.login, self.databricks_conn.password
+                        ),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -243,7 +247,9 @@ class BaseDatabricksHook(BaseHook):
                     self.oauth_tokens[resource] = jsn
                     break
         except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times. Giving up."
+            )
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -256,13 +262,17 @@ class BaseDatabricksHook(BaseHook):
         if sp_token and self._is_oauth_token_valid(sp_token):
             return sp_token["access_token"]
 
-        self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
+        self.log.info(
+            "Existing Service Principal token is expired, or going to expire soon. Refreshing..."
+        )
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     async with self._session.post(
                         resource,
-                        auth=aiohttp.BasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        auth=aiohttp.BasicAuth(
+                            self.databricks_conn.login, self.databricks_conn.password
+                        ),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -278,7 +288,9 @@ class BaseDatabricksHook(BaseHook):
                     self.oauth_tokens[resource] = jsn
                     break
         except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times. Giving up."
+            )
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -297,19 +309,27 @@ class BaseDatabricksHook(BaseHook):
         if aad_token and self._is_oauth_token_valid(aad_token):
             return aad_token["access_token"]
 
-        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        self.log.info(
+            "Existing AAD token is expired, or going to expire soon. Refreshing..."
+        )
         try:
             from azure.identity import ClientSecretCredential, ManagedIdentityCredential
 
             for attempt in self._get_retry_object():
                 with attempt:
-                    if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        token = ManagedIdentityCredential().get_token(f"{resource}/.default")
+                    if self.databricks_conn.extra_dejson.get(
+                        "use_azure_managed_identity", False
+                    ):
+                        token = ManagedIdentityCredential().get_token(
+                            f"{resource}/.default"
+                        )
                     else:
                         credential = ClientSecretCredential(
                             client_id=self.databricks_conn.login,
                             client_secret=self.databricks_conn.password,
-                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            tenant_id=self.databricks_conn.extra_dejson[
+                                "azure_tenant_id"
+                            ],
                         )
                         token = credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -323,7 +343,9 @@ class BaseDatabricksHook(BaseHook):
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
-            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+            raise AirflowException(
+                f"API requests to Azure failed {self.retry_limit} times. Giving up."
+            )
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
@@ -341,7 +363,9 @@ class BaseDatabricksHook(BaseHook):
         if aad_token and self._is_oauth_token_valid(aad_token):
             return aad_token["access_token"]
 
-        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        self.log.info(
+            "Existing AAD token is expired, or going to expire soon. Refreshing..."
+        )
         try:
             from azure.identity.aio import (
                 ClientSecretCredential as AsyncClientSecretCredential,
@@ -350,13 +374,19 @@ class BaseDatabricksHook(BaseHook):
 
             async for attempt in self._a_get_retry_object():
                 with attempt:
-                    if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        token = await AsyncManagedIdentityCredential().get_token(f"{resource}/.default")
+                    if self.databricks_conn.extra_dejson.get(
+                        "use_azure_managed_identity", False
+                    ):
+                        token = await AsyncManagedIdentityCredential().get_token(
+                            f"{resource}/.default"
+                        )
                     else:
                         credential = AsyncClientSecretCredential(
                             client_id=self.databricks_conn.login,
                             client_secret=self.databricks_conn.password,
-                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            tenant_id=self.databricks_conn.extra_dejson[
+                                "azure_tenant_id"
+                            ],
                         )
                         token = await credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -370,7 +400,9 @@ class BaseDatabricksHook(BaseHook):
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
-            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+            raise AirflowException(
+                f"API requests to Azure failed {self.retry_limit} times. Giving up."
+            )
         except aiohttp.ClientResponseError as err:
             raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
 
@@ -385,9 +417,9 @@ class BaseDatabricksHook(BaseHook):
         headers = {}
         if "azure_resource_id" in self.databricks_conn.extra_dejson:
             mgmt_token = self._get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
-            headers["X-Databricks-Azure-Workspace-Resource-Id"] = self.databricks_conn.extra_dejson[
-                "azure_resource_id"
-            ]
+            headers["X-Databricks-Azure-Workspace-Resource-Id"] = (
+                self.databricks_conn.extra_dejson["azure_resource_id"]
+            )
             headers["X-Databricks-Azure-SP-Management-Token"] = mgmt_token
         return headers
 
@@ -400,9 +432,9 @@ class BaseDatabricksHook(BaseHook):
         headers = {}
         if "azure_resource_id" in self.databricks_conn.extra_dejson:
             mgmt_token = await self._a_get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
-            headers["X-Databricks-Azure-Workspace-Resource-Id"] = self.databricks_conn.extra_dejson[
-                "azure_resource_id"
-            ]
+            headers["X-Databricks-Azure-Workspace-Resource-Id"] = (
+                self.databricks_conn.extra_dejson["azure_resource_id"]
+            )
             headers["X-Databricks-Azure-SP-Management-Token"] = mgmt_token
         return headers
 
@@ -415,7 +447,11 @@ class BaseDatabricksHook(BaseHook):
         :param time_key: name of the key that holds the time of expiration
         :return: true if token is valid, false otherwise
         """
-        if "access_token" not in token or token.get("token_type", "") != "Bearer" or time_key not in token:
+        if (
+            "access_token" not in token
+            or token.get("token_type", "") != "Bearer"
+            or time_key not in token
+        ):
             raise AirflowException(f"Can't get necessary data from OAuth token: {token}")
 
         return int(token[time_key]) > (int(time.time()) + TOKEN_REFRESH_LEAD_TIME)
@@ -480,7 +516,9 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            return self._get_sp_token(
+                OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host)
+            )
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -508,14 +546,20 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            return await self._a_get_sp_token(
+                OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host)
+            )
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 
         return None
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
-        self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
+        self.log.error(
+            "Attempt %s API Request to Databricks failed with reason: %s",
+            attempt_num,
+            error,
+        )
 
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
@@ -551,7 +595,9 @@ class BaseDatabricksHook(BaseHook):
             auth = _TokenAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+            auth = HTTPBasicAuth(
+                self.databricks_conn.login, self.databricks_conn.password
+            )
 
         request_func: Any
         if method == "GET":
@@ -588,14 +634,18 @@ class BaseDatabricksHook(BaseHook):
                     response.raise_for_status()
                     return response.json()
         except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times. Giving up."
+            )
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
                 msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
                 raise AirflowException(msg)
             raise
 
-    async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
+    async def _a_do_api_call(
+        self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None
+    ):
         """
         Async version of `_do_api_call()`.
 
@@ -617,7 +667,9 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = aiohttp.BasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+            auth = aiohttp.BasicAuth(
+                self.databricks_conn.login, self.databricks_conn.password
+            )
 
         request_func: Any
         if method == "GET":
@@ -650,7 +702,9 @@ class BaseDatabricksHook(BaseHook):
                         response.raise_for_status()
                         return await response.json()
         except RetryError:
-            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+            raise AirflowException(
+                f"API requests to Databricks failed {self.retry_limit} times. Giving up."
+            )
         except aiohttp.ClientResponseError as err:
             raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
 
@@ -668,14 +722,18 @@ class BaseDatabricksHook(BaseHook):
     @staticmethod
     def _retryable_error(exception: BaseException) -> bool:
         if isinstance(exception, requests_exceptions.RequestException):
-            if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
+            if isinstance(
+                exception,
+                (requests_exceptions.ConnectionError, requests_exceptions.Timeout),
+            ) or (
                 exception.response is not None
                 and (
                     exception.response.status_code >= 500
                     or exception.response.status_code == 429
                     or (
                         exception.response.status_code == 400
-                        and BaseDatabricksHook._get_error_code(exception) == "COULD_NOT_ACQUIRE_LOCK"
+                        and BaseDatabricksHook._get_error_code(exception)
+                        == "COULD_NOT_ACQUIRE_LOCK"
                     )
                 )
             ):

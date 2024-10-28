@@ -46,9 +46,7 @@ REGION = "us-central1"
 IMAGE_DISPLAY_NAME = f"automl-vision-clss-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"automl-vision-clss-model-{ENV_ID}"
 
-RESOURCE_IMPORT_DATA_URI = (
-    "gs://airflow-system-tests-resources/automl/datasets/vision/img_classification_short.csv"
-)
+RESOURCE_IMPORT_DATA_URI = "gs://airflow-system-tests-resources/automl/datasets/vision/img_classification_short.csv"
 IMAGE_DATASET = {
     "display_name": f"automl-vision-clss-dataset-{ENV_ID}",
     "metadata_schema_uri": schema.dataset.metadata.image,

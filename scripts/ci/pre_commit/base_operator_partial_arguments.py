@@ -79,7 +79,9 @@ MO_CLS = next(
 )
 
 
-def _compare(a: set[str], b: set[str], *, excludes: set[str]) -> tuple[set[str], set[str]]:
+def _compare(
+    a: set[str], b: set[str], *, excludes: set[str]
+) -> tuple[set[str], set[str]]:
     only_in_a = {n for n in a if n not in b and n not in excludes and n[0] != "_"}
     only_in_b = {n for n in b if n not in a and n not in excludes and n[0] != "_"}
     return only_in_a, only_in_b
@@ -87,7 +89,9 @@ def _compare(a: set[str], b: set[str], *, excludes: set[str]) -> tuple[set[str],
 
 def _iter_arg_names(func: ast.FunctionDef) -> typing.Iterator[str]:
     func_args = func.args
-    for arg in itertools.chain(func_args.args, getattr(func_args, "posonlyargs", ()), func_args.kwonlyargs):
+    for arg in itertools.chain(
+        func_args.args, getattr(func_args, "posonlyargs", ()), func_args.kwonlyargs
+    ):
         yield arg.arg
 
 
@@ -98,17 +102,29 @@ def check_baseoperator_partial_arguments() -> bool:
         excludes=IGNORED,
     )
     if only_in_init:
-        print("Arguments in BaseOperator missing from partial():", ", ".join(sorted(only_in_init)))
+        print(
+            "Arguments in BaseOperator missing from partial():",
+            ", ".join(sorted(only_in_init)),
+        )
     if only_in_partial:
-        print("Arguments in partial() missing from BaseOperator:", ", ".join(sorted(only_in_partial)))
+        print(
+            "Arguments in partial() missing from BaseOperator:",
+            ", ".join(sorted(only_in_partial)),
+        )
     if only_in_init or only_in_partial:
         return False
     return True
 
 
-def _iter_assignment_to_self_attributes(targets: typing.Iterable[ast.expr]) -> typing.Iterator[str]:
+def _iter_assignment_to_self_attributes(
+    targets: typing.Iterable[ast.expr],
+) -> typing.Iterator[str]:
     for t in targets:
-        if isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name) and t.value.id == "self":
+        if (
+            isinstance(t, ast.Attribute)
+            and isinstance(t.value, ast.Name)
+            and t.value.id == "self"
+        ):
             yield t.attr  # Something like "self.foo = ...".
         else:
             # Recursively visit nodes in unpacking assignments like "a, b = ...".
@@ -143,14 +159,22 @@ def _iter_member_names(klass: ast.ClassDef) -> typing.Iterator[str]:
 
 def check_operator_member_parity() -> bool:
     only_in_base, only_in_mapped = _compare(
-        set(itertools.chain(_iter_assignment_targets(BO_INIT), _iter_member_names(BO_CLS))),
+        set(
+            itertools.chain(_iter_assignment_targets(BO_INIT), _iter_member_names(BO_CLS))
+        ),
         set(_iter_member_names(MO_CLS)),
         excludes=IGNORED,
     )
     if only_in_base:
-        print("Members on BaseOperator missing from MappedOperator:", ", ".join(sorted(only_in_base)))
+        print(
+            "Members on BaseOperator missing from MappedOperator:",
+            ", ".join(sorted(only_in_base)),
+        )
     if only_in_mapped:
-        print("Members on MappedOperator missing from BaseOperator:", ", ".join(sorted(only_in_mapped)))
+        print(
+            "Members on MappedOperator missing from BaseOperator:",
+            ", ".join(sorted(only_in_mapped)),
+        )
     if only_in_base or only_in_mapped:
         return False
     return True

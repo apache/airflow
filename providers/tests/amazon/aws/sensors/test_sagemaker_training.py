@@ -29,7 +29,11 @@ from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerTrainingSens
 
 DESCRIBE_TRAINING_COMPLETED_RESPONSE = {
     "TrainingJobStatus": "Completed",
-    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c4.xlarge", "VolumeSizeInGB": 10},
+    "ResourceConfig": {
+        "InstanceCount": 1,
+        "InstanceType": "ml.c4.xlarge",
+        "VolumeSizeInGB": 10,
+    },
     "TrainingStartTime": datetime(2018, 2, 17, 7, 15, 0, 103000),
     "TrainingEndTime": datetime(2018, 2, 17, 7, 19, 34, 953000),
     "ResponseMetadata": {
@@ -41,7 +45,9 @@ DESCRIBE_TRAINING_INPROGRESS_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONS
 DESCRIBE_TRAINING_INPROGRESS_RESPONSE.update({"TrainingJobStatus": "InProgress"})
 
 DESCRIBE_TRAINING_FAILED_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)
-DESCRIBE_TRAINING_FAILED_RESPONSE.update({"TrainingJobStatus": "Failed", "FailureReason": "Unknown"})
+DESCRIBE_TRAINING_FAILED_RESPONSE.update(
+    {"TrainingJobStatus": "Failed", "FailureReason": "Unknown"}
+)
 
 DESCRIBE_TRAINING_STOPPING_RESPONSE = dict(DESCRIBE_TRAINING_COMPLETED_RESPONSE)
 DESCRIBE_TRAINING_STOPPING_RESPONSE.update({"TrainingJobStatus": "Stopping"})
@@ -100,7 +106,12 @@ class TestSageMakerTrainingSensor:
     @mock.patch.object(SageMakerHook, "describe_training_job_with_log")
     @mock.patch.object(SageMakerHook, "describe_training_job")
     def test_sensor_with_log(
-        self, mock_describe_job, mock_describe_job_with_log, hook_init, mock_log_client, mock_client
+        self,
+        mock_describe_job,
+        mock_describe_job_with_log,
+        hook_init,
+        mock_log_client,
+        mock_client,
     ):
         hook_init.return_value = None
 

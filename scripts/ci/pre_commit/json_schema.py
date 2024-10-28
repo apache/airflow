@@ -35,7 +35,9 @@ if __name__ != "__main__":
         "To run this script, run the ./build_docs.py command"
     )
 
-AIRFLOW_SOURCES_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
+AIRFLOW_SOURCES_DIR = os.path.join(
+    os.path.dirname(__file__), os.pardir, os.pardir, os.pardir
+)
 
 
 def _cache_dir():
@@ -107,9 +109,13 @@ def load_file(file_path: str):
 
 
 def _get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Validates the file using JSON Schema specifications")
+    parser = argparse.ArgumentParser(
+        description="Validates the file using JSON Schema specifications"
+    )
     parser.add_argument(
-        "--enforce-defaults", action="store_true", help="Values must match the default in the schema"
+        "--enforce-defaults",
+        action="store_true",
+        help="Values must match the default in the schema",
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -148,9 +154,13 @@ def _default_validator(validator, default, instance, schema):
 
 def _load_spec(spec_file: str | None, spec_url: str | None):
     if spec_url:
-        spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
+        spec_file = fetch_and_cache(
+            url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url)
+        )
     if not spec_file:
-        raise ValueError(f"The {spec_file} was None and {spec_url} did not lead to any file loading.")
+        raise ValueError(
+            f"The {spec_file} was None and {spec_url} did not lead to any file loading."
+        )
     with open(spec_file) as schema_file:
         schema = json.loads(schema_file.read())
     return schema

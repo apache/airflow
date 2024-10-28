@@ -20,7 +20,9 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.salesforce.operators.salesforce_apex_rest import SalesforceApexRestOperator
+from airflow.providers.salesforce.operators.salesforce_apex_rest import (
+    SalesforceApexRestOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_gcs_to_trino"
@@ -33,7 +35,11 @@ with DAG(
     catchup=False,
 ) as dag:
     # [START howto_salesforce_apex_rest_operator]
-    payload = {"activity": [{"user": "12345", "action": "update page", "time": "2014-04-21T13:00:15Z"}]}
+    payload = {
+        "activity": [
+            {"user": "12345", "action": "update page", "time": "2014-04-21T13:00:15Z"}
+        ]
+    }
 
     apex_operator = SalesforceApexRestOperator(
         task_id="apex_task", method="POST", endpoint="User/Activity", payload=payload

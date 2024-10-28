@@ -32,7 +32,10 @@ JOB_STATUS = {"Action": "", "StatusCode": "Succeeded"}
 
 class TestAmazonGlacierHook:
     def setup_method(self):
-        with mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.__init__", return_value=None):
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.glacier.GlacierHook.__init__",
+            return_value=None,
+        ):
             self.hook = GlacierHook(aws_conn_id="aws_default")
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
@@ -80,7 +83,9 @@ class TestAmazonGlacierHook:
             mock_conn.return_value.get_job_output.return_value = REQUEST_RESULT
             self.hook.retrieve_inventory_results(VAULT_NAME, JOB_ID)
         # then
-        assert caplog.messages == [f"Retrieving the job results for vault: {VAULT_NAME}..."]
+        assert caplog.messages == [
+            f"Retrieving the job results for vault: {VAULT_NAME}..."
+        ]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_describe_job_should_return_status_succeeded(self, mock_conn):

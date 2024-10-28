@@ -45,7 +45,9 @@ def _file(_: str | None, storage_options: Properties) -> LocalFileSystem:
 
 
 # builtin supported filesystems
-_BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None, Properties], AbstractFileSystem]] = {
+_BUILTIN_SCHEME_TO_FS: dict[
+    str, Callable[[str | None, Properties], AbstractFileSystem]
+] = {
     "file": _file,
 }
 
@@ -54,7 +56,8 @@ _BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None, Properties], AbstractFile
 def _register_filesystems() -> (
     Mapping[
         str,
-        Callable[[str | None, Properties], AbstractFileSystem] | Callable[[str | None], AbstractFileSystem],
+        Callable[[str | None, Properties], AbstractFileSystem]
+        | Callable[[str | None], AbstractFileSystem],
     ]
 ):
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
@@ -68,7 +71,9 @@ def _register_filesystems() -> (
 
                 method = getattr(fs_module, "get_fs", None)
                 if method is None:
-                    raise ImportError(f"Filesystem {fs_module_name} does not have a get_fs method")
+                    raise ImportError(
+                        f"Filesystem {fs_module_name} does not have a get_fs method"
+                    )
                 scheme_to_fs[scheme] = method
 
     log.debug("loading filesystems from providers took %.3f seconds", timer.duration)

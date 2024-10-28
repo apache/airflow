@@ -33,12 +33,16 @@ def get_removed_provider_ids() -> list[str]:
         provider_yaml = yaml.safe_load(provider_path.read_text())
         if provider_yaml["state"] == "removed":
             removed_provider_ids.append(
-                provider_yaml["package-name"][len("apache-airflow-providers-") :].replace("-", ".")
+                provider_yaml["package-name"][len("apache-airflow-providers-") :].replace(
+                    "-", "."
+                )
             )
     return removed_provider_ids
 
 
-def process_package_filters(available_packages: list[str], package_filters: list[str] | None):
+def process_package_filters(
+    available_packages: list[str], package_filters: list[str] | None
+):
     """Filters the package list against a set of filters.
 
     A packet is returned if it matches at least one filter. The function keeps the order of the packages.
@@ -47,14 +51,21 @@ def process_package_filters(available_packages: list[str], package_filters: list
         return available_packages
 
     suspended_packages = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.','-')}"
+        for provider in get_removed_provider_ids()
     ]
     all_packages_with_suspended = available_packages + suspended_packages
     invalid_filters = [
-        f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in all_packages_with_suspended)
+        f
+        for f in package_filters
+        if not any(fnmatch.fnmatch(p, f) for p in all_packages_with_suspended)
     ]
     if invalid_filters:
         raise SystemExit(
             f"Some filters did not find any package: {invalid_filters}, Please check if they are correct."
         )
-    return [p for p in all_packages_with_suspended if any(fnmatch.fnmatch(p, f) for f in package_filters)]
+    return [
+        p
+        for p in all_packages_with_suspended
+        if any(fnmatch.fnmatch(p, f) for f in package_filters)
+    ]

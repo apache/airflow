@@ -41,7 +41,9 @@ FORMULA = """$curTime = time();
 
 @pytest.fixture
 def mocked_batch_service_client():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient") as m:
+    with mock.patch(
+        "airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient"
+    ) as m:
         yield m
 
 
@@ -211,7 +213,8 @@ class TestAzureBatchOperator:
         with pytest.raises(AirflowException) as ctx:
             self.operator_fail.execute(None)
         assert (
-            str(ctx.value) == "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
+            str(ctx.value)
+            == "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
         )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
@@ -219,7 +222,10 @@ class TestAzureBatchOperator:
         wait_mock.return_value = True
         with pytest.raises(AirflowException) as ctx:
             self.operator2_no_formula.execute(None)
-        assert str(ctx.value) == "The auto_scale_formula is required when enable_auto_scale is set"
+        assert (
+            str(ctx.value)
+            == "The auto_scale_formula is required when enable_auto_scale is set"
+        )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_mutual_exclusive(self, wait_mock):
@@ -227,7 +233,8 @@ class TestAzureBatchOperator:
         with pytest.raises(AirflowException) as ctx:
             self.operator_mutual_exclusive.execute(None)
         assert (
-            str(ctx.value) == "Cloud service configuration and virtual machine configuration "
+            str(ctx.value)
+            == "Cloud service configuration and virtual machine configuration "
             "are mutually exclusive. You must specify either of os_family and"
             " vm_publisher"
         )

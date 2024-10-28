@@ -124,7 +124,9 @@ class TestSambaHook:
             p_args, p_kwargs = tuple(p.call_args_list[0])
             for arg, provided in zip(args, p_args):
                 if arg in PATH_PARAMETER_NAMES:
-                    expected = "//" + CONNECTION.host + "/" + CONNECTION.schema + "/" + arg
+                    expected = (
+                        "//" + CONNECTION.host + "/" + CONNECTION.schema + "/" + arg
+                    )
                 else:
                     expected = arg
                 assert expected == provided

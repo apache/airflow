@@ -29,7 +29,9 @@ from azure.mgmt.containerinstance.models import (
 )
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
+from airflow.providers.microsoft.azure.hooks.container_instance import (
+    AzureContainerInstanceHook,
+)
 
 
 @pytest.fixture
@@ -58,7 +60,9 @@ class TestAzureContainerInstanceHook:
                 },
             )
         )
-        self.resources = ResourceRequirements(requests=ResourceRequests(memory_in_gb="4", cpu="1"))
+        self.resources = ResourceRequirements(
+            requests=ResourceRequests(memory_in_gb="4", cpu="1")
+        )
         self.hook = AzureContainerInstanceHook(azure_conn_id=mock_connection.conn_id)
         with (
             patch("azure.mgmt.containerinstance.ContainerInstanceManagementClient"),
@@ -71,10 +75,14 @@ class TestAzureContainerInstanceHook:
             yield
 
     @patch("azure.mgmt.containerinstance.models.ContainerGroup")
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_create_or_update")
+    @patch(
+        "azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_create_or_update"
+    )
     def test_create_or_update(self, create_or_update_mock, container_group_mock):
         self.hook.create_or_update("resource_group", "aci-test", container_group_mock)
-        create_or_update_mock.assert_called_once_with("resource_group", "aci-test", container_group_mock)
+        create_or_update_mock.assert_called_once_with(
+            "resource_group", "aci-test", container_group_mock
+        )
 
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get")
     def test_get_state(self, get_state_mock):
@@ -91,27 +99,37 @@ class TestAzureContainerInstanceHook:
 
         assert logs == expected_messages
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_delete")
+    @patch(
+        "azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_delete"
+    )
     def test_delete(self, delete_mock):
         self.hook.delete("resource_group", "aci-test")
         delete_mock.assert_called_once_with("resource_group", "aci-test")
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group")
+    @patch(
+        "azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group"
+    )
     def test_exists_with_existing(self, list_mock):
         list_mock.return_value = [
             ContainerGroup(
                 os_type="Linux",
-                containers=[Container(name="test1", image="hello-world", resources=self.resources)],
+                containers=[
+                    Container(name="test1", image="hello-world", resources=self.resources)
+                ],
             )
         ]
         assert not self.hook.exists("test", "test1")
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group")
+    @patch(
+        "azure.mgmt.containerinstance.operations.ContainerGroupsOperations.list_by_resource_group"
+    )
     def test_exists_with_not_existing(self, list_mock):
         list_mock.return_value = [
             ContainerGroup(
                 os_type="Linux",
-                containers=[Container(name="test1", image="hello-world", resources=self.resources)],
+                containers=[
+                    Container(name="test1", image="hello-world", resources=self.resources)
+                ],
             )
         ]
         assert not self.hook.exists("test", "not found")
@@ -132,9 +150,13 @@ class TestAzureContainerInstanceHook:
 
 
 class TestAzureContainerInstanceHookWithoutSetupCredential:
-    @patch("airflow.providers.microsoft.azure.hooks.container_instance.ContainerInstanceManagementClient")
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.ContainerInstanceManagementClient"
+    )
     @patch("azure.common.credentials.ServicePrincipalCredentials")
-    @patch("airflow.providers.microsoft.azure.hooks.container_instance.get_sync_default_azure_credential")
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.get_sync_default_azure_credential"
+    )
     def test_get_conn_fallback_to_default_azure_credential(
         self,
         mock_default_azure_credential,
@@ -148,7 +170,9 @@ class TestAzureContainerInstanceHookWithoutSetupCredential:
         mock_client_instance = MagicMock()
         mock_client_cls.return_value = mock_client_instance
 
-        hook = AzureContainerInstanceHook(azure_conn_id=connection_without_login_password_tenant_id.conn_id)
+        hook = AzureContainerInstanceHook(
+            azure_conn_id=connection_without_login_password_tenant_id.conn_id
+        )
         conn = hook.get_conn()
 
         mock_default_azure_credential.assert_called_with(

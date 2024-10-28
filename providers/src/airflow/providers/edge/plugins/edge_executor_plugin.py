@@ -36,7 +36,10 @@ from airflow.utils.yaml import safe_load
 from airflow.www import utils as wwwutils
 from airflow.www.auth import has_access_view
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.www.extensions.init_views import (
+    _CustomErrorRequestBodyValidator,
+    _LazyResolver,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -50,7 +53,10 @@ def _get_api_endpoints() -> Blueprint:
         specification=specification,
         resolver=_LazyResolver(),
         base_path="/edge_worker/v1",
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+        options={
+            "swagger_ui": SWAGGER_ENABLED,
+            "swagger_path": SWAGGER_BUNDLE.__fspath__(),
+        },
         strict_validation=True,
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -81,11 +87,16 @@ class EdgeWorkerJobs(BaseView):
     def jobs(self, session: Session = NEW_SESSION):
         from airflow.providers.edge.models.edge_job import EdgeJobModel
 
-        jobs = session.scalars(select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)).all()
+        jobs = session.scalars(
+            select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)
+        ).all()
         html_states = {
-            str(state): wwwutils.state_token(str(state)) for state in TaskInstanceState.__members__.values()
+            str(state): wwwutils.state_token(str(state))
+            for state in TaskInstanceState.__members__.values()
         }
-        return self.render_template("edge_worker_jobs.html", jobs=jobs, html_states=html_states)
+        return self.render_template(
+            "edge_worker_jobs.html", jobs=jobs, html_states=html_states
+        )
 
 
 class EdgeWorkerHosts(BaseView):
@@ -99,9 +110,13 @@ class EdgeWorkerHosts(BaseView):
     def status(self, session: Session = NEW_SESSION):
         from airflow.providers.edge.models.edge_worker import EdgeWorkerModel
 
-        hosts = session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
+        hosts = session.scalars(
+            select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)
+        ).all()
         five_min_ago = datetime.now() - timedelta(minutes=5)
-        return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
+        return self.render_template(
+            "edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago
+        )
 
 
 # Check if EdgeExecutor is actually loaded

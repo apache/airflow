@@ -72,7 +72,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version(
+    "2.10.0"
+)
 
 
 def try_import_from_string(string: str) -> Any:
@@ -98,19 +100,25 @@ def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]
         "Use information from AirflowRunFacet instead."
     )
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
+        return {
+            "airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(
+                task_instance
+            )
+        }
     return {}
 
 
-def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) -> dict[str, RunFacet]:
+def get_user_provided_run_facets(
+    ti: TaskInstance, ti_state: TaskInstanceState
+) -> dict[str, RunFacet]:
     custom_facets = {}
 
     # Append custom run facets by executing the custom_run_facet functions.
     for custom_facet_func in conf.custom_run_facets():
         try:
-            func: Callable[[TaskInstance, TaskInstanceState], dict[str, RunFacet]] | None = (
-                try_import_from_string(custom_facet_func)
-            )
+            func: (
+                Callable[[TaskInstance, TaskInstanceState], dict[str, RunFacet]] | None
+            ) = try_import_from_string(custom_facet_func)
             if not func:
                 log.warning(
                     "OpenLineage is unable to import custom facet function `%s`; will ignore it.",
@@ -119,7 +127,9 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
                 continue
             facets: dict[str, RunFacet] | None = func(ti, ti_state)
             if facets and isinstance(facets, dict):
-                duplicate_facet_keys = [facet_key for facet_key in facets if facet_key in custom_facets]
+                duplicate_facet_keys = [
+                    facet_key for facet_key in facets if facet_key in custom_facets
+                ]
                 if duplicate_facet_keys:
                     log.warning(
                         "Duplicate OpenLineage custom facets key(s) found: `%s` from function `%s`; "
@@ -164,7 +174,9 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
     elif isinstance(obj, (BaseOperator, MappedOperator)):
         return is_task_lineage_enabled(obj)
     else:
-        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
+        raise TypeError(
+            "is_selective_lineage_enabled can only be used on DAG or Operator objects"
+        )
 
 
 class InfoJsonEncodable(dict):
@@ -198,7 +210,10 @@ class InfoJsonEncodable(dict):
         self._include_fields()
         dict.__init__(
             self,
-            **{field: InfoJsonEncodable._cast_basic_types(getattr(self, field)) for field in self._fields},
+            **{
+                field: InfoJsonEncodable._cast_basic_types(getattr(self, field))
+                for field in self._fields
+            },
         )
 
     @staticmethod
@@ -233,9 +248,12 @@ class InfoJsonEncodable(dict):
         else:
             if hasattr(self.obj, "__dict__"):
                 obj_fields = self.obj.__dict__
-            elif attrs.has(self.obj.__class__):  # e.g. attrs.define class with slots=True has no __dict__
+            elif attrs.has(
+                self.obj.__class__
+            ):  # e.g. attrs.define class with slots=True has no __dict__
                 obj_fields = {
-                    field.name: getattr(self.obj, field.name) for field in attrs.fields(self.obj.__class__)
+                    field.name: getattr(self.obj, field.name)
+                    for field in attrs.fields(self.obj.__class__)
                 }
             else:
                 raise ValueError(
@@ -244,7 +262,11 @@ class InfoJsonEncodable(dict):
                     "nor is defined as an attrs class."
                 )
             for field, val in obj_fields.items():
-                if field not in self._fields and field not in self.excludes and field not in self.renames:
+                if (
+                    field not in self._fields
+                    and field not in self.excludes
+                    and field not in self.renames
+                ):
                     setattr(self, field, val)
                     self._fields.append(field)
 
@@ -262,7 +284,11 @@ class DagInfo(InfoJsonEncodable):
         "start_date",
         "tags",
     ]
-    casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
+    casts = {
+        "timetable": lambda dag: dag.timetable.serialize()
+        if getattr(dag, "timetable", None)
+        else None
+    }
     renames = {"_dag_id": "dag_id"}
 
 
@@ -287,7 +313,9 @@ class TaskInstanceInfo(InfoJsonEncodable):
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
         "map_index": lambda ti: (
-            ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
+            ti.map_index
+            if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1
+            else None
         )
     }
 
@@ -344,8 +372,12 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
-        "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
-        "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "inlets": lambda task: [
+            AssetInfo(i) for i in task.inlets if isinstance(i, Asset)
+        ],
+        "outlets": lambda task: [
+            AssetInfo(o) for o in task.outlets if isinstance(o, Asset)
+        ],
     }
 
 
@@ -409,7 +441,9 @@ def _get_all_packages_installed() -> dict[str, str]:
 def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
     if not conf.debug_mode():
         return {}
-    log.warning("OpenLineage debug_mode is enabled. Be aware that this may log and emit extensive details.")
+    log.warning(
+        "OpenLineage debug_mode is enabled. Be aware that this may log and emit extensive details."
+    )
     return {
         "debug": AirflowDebugRunFacet(
             packages=_get_all_packages_installed(),
@@ -429,7 +463,9 @@ def get_airflow_run_facet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
             taskInstance=TaskInstanceInfo(task_instance),
-            task=TaskInfoComplete(task) if conf.include_full_task_info() else TaskInfo(task),
+            task=TaskInfoComplete(task)
+            if conf.include_full_task_info()
+            else TaskInfo(task),
             taskUuid=task_uuid,
         )
     }
@@ -463,7 +499,9 @@ def _get_tasks_details(dag: DAG) -> dict:
     tasks = {
         single_task.task_id: {
             "operator": get_fully_qualified_class_name(single_task),
-            "task_group": single_task.task_group.group_id if single_task.task_group else None,
+            "task_group": single_task.task_group.group_id
+            if single_task.task_group
+            else None,
             "emits_ol_events": _emits_ol_events(single_task),
             "ui_color": single_task.ui_color,
             "ui_fgcolor": single_task.ui_fgcolor,
@@ -552,7 +590,9 @@ class OpenLineageRedactor(SecretsMasker):
         instance.replacer = other.replacer
         return instance
 
-    def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+    def _redact(
+        self, item: Redactable, name: str | None, depth: int, max_depth: int
+    ) -> Redacted:
         if depth > max_depth:
             return item
         try:
@@ -602,7 +642,9 @@ class OpenLineageRedactor(SecretsMasker):
                 else:
                     return super()._redact(item, name, depth, max_depth)
         except Exception as exc:
-            log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
+            log.warning(
+                "Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc
+            )
         return item
 
 
@@ -639,7 +681,11 @@ def print_warning(log):
 
 def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     not_required_keys = {"dag", "task_group"}
-    return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
+    return {
+        attr: value
+        for attr, value in operator.__dict__.items()
+        if attr not in not_required_keys
+    }
 
 
 @deprecated(
@@ -685,7 +731,9 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     try:
         from airflow.providers_manager import ProvidersManager
 
-        ol_converters = getattr(ProvidersManager(), "asset_to_openlineage_converters", None)
+        ol_converters = getattr(
+            ProvidersManager(), "asset_to_openlineage_converters", None
+        )
         if not ol_converters:
             ol_converters = ProvidersManager().dataset_to_openlineage_converters  # type: ignore[attr-defined]
 
@@ -702,4 +750,6 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
         return None
 
-    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=asset.extra), lineage_context)
+    return airflow_to_ol_converter(
+        Asset(uri=normalized_uri, extra=asset.extra), lineage_context
+    )

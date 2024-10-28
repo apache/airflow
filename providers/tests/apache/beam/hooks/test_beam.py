@@ -78,7 +78,10 @@ except ImportError:
 
 class TestBeamHook:
     @mock.patch(BEAM_STRING.format("run_beam_command"))
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.subprocess.check_output",
+        return_value=b"2.39.0",
+    )
     def test_start_python_pipeline(self, mock_check_output, mock_runner):
         hook = BeamHook(runner=DEFAULT_RUNNER)
         process_line_callback = MagicMock()
@@ -108,13 +111,18 @@ class TestBeamHook:
             check_job_status_callback=check_job_status_callback,
         )
 
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.subprocess.check_output",
+        return_value=b"2.35.0",
+    )
     def test_start_python_pipeline_unsupported_option(self, mock_check_output):
         hook = BeamHook(runner=DEFAULT_RUNNER)
 
         with pytest.raises(
             AirflowException,
-            match=re.escape("The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."),
+            match=re.escape(
+                "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
+            ),
         ):
             hook.start_python_pipeline(
                 variables={
@@ -139,7 +147,10 @@ class TestBeamHook:
         ],
     )
     @mock.patch(BEAM_STRING.format("run_beam_command"))
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.subprocess.check_output",
+        return_value=b"2.39.0",
+    )
     def test_start_python_pipeline_with_custom_interpreter(
         self, mock_check_output, mock_runner, py_interpreter
     ):
@@ -175,14 +186,19 @@ class TestBeamHook:
     @pytest.mark.parametrize(
         "current_py_requirements, current_py_system_site_packages",
         [
-            pytest.param("foo-bar", False, id="requirements without system site-packages"),
+            pytest.param(
+                "foo-bar", False, id="requirements without system site-packages"
+            ),
             pytest.param("foo-bar", True, id="requirements with system site-packages"),
             pytest.param([], True, id="only system site-packages"),
         ],
     )
     @mock.patch(BEAM_STRING.format("prepare_virtualenv"))
     @mock.patch(BEAM_STRING.format("run_beam_command"))
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.subprocess.check_output",
+        return_value=b"2.39.0",
+    )
     def test_start_python_pipeline_with_non_empty_py_requirements_and_without_system_packages(
         self,
         mock_check_output,
@@ -229,7 +245,10 @@ class TestBeamHook:
         )
 
     @mock.patch(BEAM_STRING.format("run_beam_command"))
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.subprocess.check_output",
+        return_value=b"2.39.0",
+    )
     def test_start_python_pipeline_with_empty_py_requirements_and_without_system_packages(
         self, mock_check_output, mock_runner
     ):
@@ -419,17 +438,28 @@ class TestBeamRunner:
         mock_popen.return_value = mock_proc
 
         caplog.clear()
-        with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
+        with pytest.raises(
+            AirflowException, match="Apache Beam process failed with return code 1"
+        ):
             run_beam_command(cmd, fake_logger)
 
         mock_popen.assert_called_once_with(
-            cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
+            cmd,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True,
+            cwd=None,
         )
-        info_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 20]
+        info_messages = [
+            rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 20
+        ]
         assert "Running command: fake cmd" in info_messages
         assert "apache-beam-stdout" in info_messages
 
-        warn_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 30]
+        warn_messages = [
+            rt[2] for rt in caplog.record_tuples if rt[0] == logger_name and rt[1] == 30
+        ]
         assert "apache-beam-stderr-1" in warn_messages
         assert "apache-beam-stderr-2" in warn_messages
         assert "apache-beam-stderr-3" in warn_messages
@@ -460,18 +490,24 @@ def mocked_beam_version_async():
 
 class TestBeamAsyncHook:
     @pytest.mark.asyncio
-    @pytest.mark.skipif(APACHE_BEAM_VERSION is None, reason="Apache Beam not installed in current env")
+    @pytest.mark.skipif(
+        APACHE_BEAM_VERSION is None, reason="Apache Beam not installed in current env"
+    )
     async def test_beam_version(self):
         version = await BeamAsyncHook._beam_version(sys.executable)
         assert version == APACHE_BEAM_VERSION
 
     @pytest.mark.asyncio
     async def test_beam_version_error(self):
-        with pytest.raises(AirflowException, match="Unable to retrieve Apache Beam version"):
+        with pytest.raises(
+            AirflowException, match="Unable to retrieve Apache Beam version"
+        ):
             await BeamAsyncHook._beam_version("python1")
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async"
+    )
     async def test_start_pipline_async(self, mock_runner):
         expected_cmd = [
             *PIPELINE_COMMAND_PREFIX,
@@ -490,9 +526,13 @@ class TestBeamAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async"
+    )
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
-    async def test_start_python_pipeline(self, mock_create_dir, mock_runner, mocked_beam_version_async):
+    async def test_start_python_pipeline(
+        self, mock_create_dir, mock_runner, mocked_beam_version_async
+    ):
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
         mock_create_dir.return_value = AsyncMock()
         mock_runner.return_value = 0
@@ -519,13 +559,17 @@ class TestBeamAsyncHook:
         )
 
     @pytest.mark.asyncio
-    async def test_start_python_pipeline_unsupported_option(self, mocked_beam_version_async):
+    async def test_start_python_pipeline_unsupported_option(
+        self, mocked_beam_version_async
+    ):
         mocked_beam_version_async.return_value = "2.35.0"
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
 
         with pytest.raises(
             AirflowException,
-            match=re.escape("The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."),
+            match=re.escape(
+                "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
+            ),
         ):
             await hook.start_python_pipeline_async(
                 variables={
@@ -548,7 +592,9 @@ class TestBeamAsyncHook:
             pytest.param("python3.6", id="major.minor python version"),
         ],
     )
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async"
+    )
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
     async def test_start_python_pipeline_with_custom_interpreter(
         self,
@@ -586,13 +632,17 @@ class TestBeamAsyncHook:
     @pytest.mark.parametrize(
         "current_py_requirements, current_py_system_site_packages",
         [
-            pytest.param("foo-bar", False, id="requirements without system site-packages"),
+            pytest.param(
+                "foo-bar", False, id="requirements without system site-packages"
+            ),
             pytest.param("foo-bar", True, id="requirements with system site-packages"),
             pytest.param([], True, id="only system site-packages"),
         ],
     )
     @mock.patch(BEAM_STRING.format("prepare_virtualenv"))
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async"
+    )
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._cleanup_tmp_dir")
     async def test_start_python_pipeline_with_non_empty_py_requirements_and_without_system_packages(
@@ -664,11 +714,17 @@ class TestBeamAsyncHook:
             (None, ["java", "-jar", JAR_FILE]),
         ],
     )
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_pipeline_async")
-    async def test_start_java_pipeline_async(self, mock_start_pipeline, job_class, command_prefix):
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.start_pipeline_async"
+    )
+    async def test_start_java_pipeline_async(
+        self, mock_start_pipeline, job_class, command_prefix
+    ):
         variables = copy.deepcopy(BEAM_VARIABLES_JAVA)
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
-        await hook.start_java_pipeline_async(variables=variables, jar=JAR_FILE, job_class=job_class)
+        await hook.start_java_pipeline_async(
+            variables=variables, jar=JAR_FILE, job_class=job_class
+        )
 
         mock_start_pipeline.assert_called_once_with(
             variables=BEAM_VARIABLES_JAVA_STRING_LABELS, command_prefix=command_prefix

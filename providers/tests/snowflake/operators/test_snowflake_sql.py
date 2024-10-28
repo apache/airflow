@@ -132,11 +132,15 @@ DEFAULT_CONN_ID = "snowflake_default"
         ),
     ],
 )
-def test_exec_success(sql, return_last, split_statement, hook_results, hook_descriptions, expected_results):
+def test_exec_success(
+    sql, return_last, split_statement, hook_results, hook_descriptions, expected_results
+):
     """
     Test the execute function in case where SQL query was successful.
     """
-    with patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook") as get_db_hook_mock:
+    with patch(
+        "airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook"
+    ) as get_db_hook_mock:
         op = SQLExecuteQueryOperator(
             task_id=TASK_ID,
             sql=sql,
@@ -208,13 +212,27 @@ def test_execute_openlineage_events(should_use_external_connection):
                 "TIMESTAMP_NTZ",
                 ANOTHER_DB_NAME,
             ),
-            (ANOTHER_DB_SCHEMA, "POPULAR_ORDERS_DAY_OF_WEEK", "ORDERS_PLACED", 3, "NUMBER", ANOTHER_DB_NAME),
+            (
+                ANOTHER_DB_SCHEMA,
+                "POPULAR_ORDERS_DAY_OF_WEEK",
+                "ORDERS_PLACED",
+                3,
+                "NUMBER",
+                ANOTHER_DB_NAME,
+            ),
             (DB_SCHEMA_NAME, "LITTLE_TABLE", "ORDER_DAY_OF_WEEK", 1, "TEXT", DB_NAME),
             (DB_SCHEMA_NAME, "LITTLE_TABLE", "ADDITIONAL_CONSTANT", 2, "TEXT", DB_NAME),
         ],
         [
             (DB_SCHEMA_NAME, "TEST_TABLE", "ORDER_DAY_OF_WEEK", 1, "TEXT", DB_NAME),
-            (DB_SCHEMA_NAME, "TEST_TABLE", "ORDER_PLACED_ON", 2, "TIMESTAMP_NTZ", DB_NAME),
+            (
+                DB_SCHEMA_NAME,
+                "TEST_TABLE",
+                "ORDER_PLACED_ON",
+                2,
+                "TIMESTAMP_NTZ",
+                DB_NAME,
+            ),
             (DB_SCHEMA_NAME, "TEST_TABLE", "ORDERS_PLACED", 3, "NUMBER", DB_NAME),
             (DB_SCHEMA_NAME, "TEST_TABLE", "ADDITIONAL_CONSTANT", 4, "TEXT", DB_NAME),
         ],

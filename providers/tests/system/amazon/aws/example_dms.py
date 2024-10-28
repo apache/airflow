@@ -43,8 +43,14 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
     RdsDeleteDbInstanceOperator,
 )
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskCompletedSensor
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
+from airflow.providers.amazon.aws.sensors.dms import (
+    DmsTaskBaseSensor,
+    DmsTaskCompletedSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -111,7 +117,9 @@ def create_sample_table(instance_name: str, db_name: str, table_name: str):
     rds_endpoint = _get_rds_instance_endpoint(instance_name)
     hostname = rds_endpoint["Address"]
     port = rds_endpoint["Port"]
-    rds_url = f"{RDS_PROTOCOL}://{RDS_USERNAME}:{RDS_PASSWORD}@{hostname}:{port}/{db_name}"
+    rds_url = (
+        f"{RDS_PROTOCOL}://{RDS_USERNAME}:{RDS_PASSWORD}@{hostname}:{port}/{db_name}"
+    )
     engine = create_engine(rds_url)
 
     table = Table(
@@ -201,13 +209,17 @@ def delete_dms_assets(
     dms_client = boto3.client("dms")
 
     print("Deleting DMS assets.")
-    dms_client.delete_replication_instance(ReplicationInstanceArn=replication_instance_arn)
+    dms_client.delete_replication_instance(
+        ReplicationInstanceArn=replication_instance_arn
+    )
     dms_client.delete_endpoint(EndpointArn=source_endpoint_arn)
     dms_client.delete_endpoint(EndpointArn=target_endpoint_arn)
 
     print("Awaiting DMS assets tear-down.")
     dms_client.get_waiter("replication_instance_deleted").wait(
-        Filters=[{"Name": "replication-instance-id", "Values": [replication_instance_name]}]
+        Filters=[
+            {"Name": "replication-instance-id", "Values": [replication_instance_name]}
+        ]
     )
     dms_client.get_waiter("endpoint_deleted").wait(
         Filters=[
@@ -221,7 +233,9 @@ def delete_dms_assets(
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_security_group(security_group_id: str, security_group_name: str):
-    boto3.client("ec2").delete_security_group(GroupId=security_group_id, GroupName=security_group_name)
+    boto3.client("ec2").delete_security_group(
+        GroupId=security_group_id, GroupName=security_group_name
+    )
 
 
 with DAG(
@@ -258,7 +272,11 @@ with DAG(
                         "ColumnNullable": "false",
                         "ColumnIsPk": "true",
                     },
-                    {"ColumnName": TABLE_HEADERS[1], "ColumnType": "STRING", "ColumnLength": "4"},
+                    {
+                        "ColumnName": TABLE_HEADERS[1],
+                        "ColumnType": "STRING",
+                        "ColumnLength": "4",
+                    },
                 ],
                 "TableColumnsTotal": "2",
             }
@@ -279,7 +297,9 @@ with DAG(
         ]
     }
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=bucket_name)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=bucket_name
+    )
 
     get_vpc_id = get_default_vpc_id()
 

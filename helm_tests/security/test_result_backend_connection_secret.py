@@ -64,7 +64,9 @@ class TestResultBackendConnectionSecret:
             ("LocalExecutor", 0),
         ],
     )
-    def test_should_a_document_be_generated_for_executor(self, executor, expected_doc_count):
+    def test_should_a_document_be_generated_for_executor(
+        self, executor, expected_doc_count
+    ):
         docs = render_chart(
             values={
                 "executor": executor,
@@ -94,7 +96,9 @@ class TestResultBackendConnectionSecret:
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_default_connection_old_version(self, version):
-        connection = self._get_connection(self._get_values_with_version(version=version, values={}))
+        connection = self._get_connection(
+            self._get_values_with_version(version=version, values={})
+        )
         self._assert_for_old_version(
             version,
             value=connection,
@@ -103,12 +107,16 @@ class TestResultBackendConnectionSecret:
         )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
-    def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(self, version):
+    def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(
+        self, version
+    ):
         values = {
             "pgbouncer": {"enabled": True},
             "data": {"metadataConnection": {**self.non_chart_database_values}},
         }
-        connection = self._get_connection(self._get_values_with_version(values=values, version=version))
+        connection = self._get_connection(
+            self._get_values_with_version(values=values, version=version)
+        )
 
         # host, port, dbname still get overridden
         self._assert_for_old_version(
@@ -121,7 +129,9 @@ class TestResultBackendConnectionSecret:
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_should_set_pgbouncer_overrides_when_enabled(self, version):
         values = {"pgbouncer": {"enabled": True}}
-        connection = self._get_connection(self._get_values_with_version(values=values, version=version))
+        connection = self._get_connection(
+            self._get_values_with_version(values=values, version=version)
+        )
 
         # host, port, dbname get overridden
         self._assert_for_old_version(
@@ -145,11 +155,15 @@ class TestResultBackendConnectionSecret:
         )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
-    def test_should_default_to_custom_metadata_db_connection_in_old_version(self, version):
+    def test_should_default_to_custom_metadata_db_connection_in_old_version(
+        self, version
+    ):
         values = {
             "data": {"metadataConnection": {**self.non_chart_database_values}},
         }
-        connection = self._get_connection(self._get_values_with_version(values=values, version=version))
+        connection = self._get_connection(
+            self._get_values_with_version(values=values, version=version)
+        )
         self._assert_for_old_version(
             version,
             value=connection,
@@ -160,7 +174,10 @@ class TestResultBackendConnectionSecret:
         values = {"data": {"resultBackendConnection": {**self.non_chart_database_values}}}
         connection = self._get_connection(values)
 
-        assert "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow" == connection
+        assert (
+            "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow"
+            == connection
+        )
 
     def test_should_support_non_postgres_db(self):
         values = {
@@ -189,7 +206,10 @@ class TestResultBackendConnectionSecret:
         }
         connection = self._get_connection(values)
 
-        assert "db+postgresql://anotheruser:anotherpass@somehost:7777/somedb?sslmode=allow" == connection
+        assert (
+            "db+postgresql://anotheruser:anotherpass@somehost:7777/somedb?sslmode=allow"
+            == connection
+        )
 
     def test_should_correctly_handle_password_with_special_characters(self):
         values = {

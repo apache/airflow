@@ -32,9 +32,7 @@ TEST_GCP_CONN_ID = "test-project"
 HOOK_STR = "airflow.providers.google.cloud.hooks.cloud_sql.{}"
 PROJECT_ID = "test_project_id"
 OPERATION_NAME = "test_operation_name"
-OPERATION_URL = (
-    f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations/{OPERATION_NAME}"
-)
+OPERATION_URL = f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations/{OPERATION_NAME}"
 
 
 @pytest.fixture
@@ -49,7 +47,9 @@ def trigger():
 
 
 class TestCloudSQLExportTrigger:
-    def test_async_export_trigger_serialization_should_execute_successfully(self, trigger):
+    def test_async_export_trigger_serialization_should_execute_successfully(
+        self, trigger
+    ):
         """
         Asserts that the CloudSQLExportTrigger correctly serializes its arguments
         and classpath.
@@ -108,14 +108,19 @@ class TestCloudSQLExportTrigger:
         # TriggerEvent was not returned
         assert task.done() is False
 
-        assert f"Operation status is RUNNING, sleeping for {TEST_POLL_INTERVAL} seconds." in caplog.text
+        assert (
+            f"Operation status is RUNNING, sleeping for {TEST_POLL_INTERVAL} seconds."
+            in caplog.text
+        )
 
         # Prevents error when task is destroyed while in "pending" state
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
     @async_mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation"))
-    async def test_async_export_trigger_error_should_execute_successfully(self, mock_get_operation, trigger):
+    async def test_async_export_trigger_error_should_execute_successfully(
+        self, mock_get_operation, trigger
+    ):
         """
         Test that CloudSQLExportTrigger fires the correct event in case of an error.
         """

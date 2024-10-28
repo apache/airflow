@@ -74,7 +74,9 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             console.print(f"[blue]FastAPI API started at {pid_fastapi_api}")
             console.print("[blue]Running airflow fastapi-api process:")
             # Assert that the fastapi-api and gunicorn processes are running (by name rather than pid).
-            assert self._find_process(r"airflow fastapi-api --daemon", print_found_process=True)
+            assert self._find_process(
+                r"airflow fastapi-api --daemon", print_found_process=True
+            )
             console.print("[blue]Waiting for gunicorn processes:")
             # wait for gunicorn to start
             for _ in range(30):
@@ -91,7 +93,9 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             )
             self._terminate_multiple_process([pid_fastapi_api, pid_monitor])
             self._check_processes(ignore_running=False)
-            console.print("[magenta]All fastapi-api and gunicorn processes are terminated.")
+            console.print(
+                "[magenta]All fastapi-api and gunicorn processes are terminated."
+            )
         except Exception:
             console.print("[red]Exception occurred. Dumping all logs.")
             # Dump all logs
@@ -106,7 +110,9 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
         ):
             port = "9092"
             hostname = "somehost"
-            args = self.parser.parse_args(["fastapi-api", "--port", port, "--hostname", hostname, "--debug"])
+            args = self.parser.parse_args(
+                ["fastapi-api", "--port", port, "--hostname", hostname, "--debug"]
+            )
             fastapi_api_command.fastapi_api(args)
 
             Popen.assert_called_with(
@@ -136,7 +142,16 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
 
             # Parse the command line arguments
             args = self.parser.parse_args(
-                ["fastapi-api", "--port", port, "--hostname", hostname, "--apps", apps_value, "--debug"]
+                [
+                    "fastapi-api",
+                    "--port",
+                    port,
+                    "--hostname",
+                    hostname,
+                    "--apps",
+                    apps_value,
+                    "--debug",
+                ]
             )
 
             # Ensure AIRFLOW_API_APPS is not set initially
@@ -231,7 +246,9 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             (["--ssl-key", "_.key"], "Need both.*key.*certificate"),
         ],
     )
-    def test_get_ssl_cert_and_key_filepaths_with_incorrect_usage(self, ssl_arguments, error_pattern):
+    def test_get_ssl_cert_and_key_filepaths_with_incorrect_usage(
+        self, ssl_arguments, error_pattern
+    ):
         args = self.parser.parse_args(["fastapi-api"] + ssl_arguments)
         with pytest.raises(AirflowConfigException, match=error_pattern):
             fastapi_api_command._get_ssl_cert_and_key_filepaths(args)
@@ -242,7 +259,10 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
         args = self.parser.parse_args(
             ["fastapi-api"] + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path)]
         )
-        assert fastapi_api_command._get_ssl_cert_and_key_filepaths(args) == (str(cert_path), str(key_path))
+        assert fastapi_api_command._get_ssl_cert_and_key_filepaths(args) == (
+            str(cert_path),
+            str(key_path),
+        )
 
     @pytest.fixture
     def ssl_cert_and_key(self, tmp_path):

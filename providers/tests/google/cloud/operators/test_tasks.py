@@ -45,7 +45,9 @@ FULL_LOCATION_PATH = "projects/test-project/locations/asia-east2"
 QUEUE_ID = "test-queue"
 FULL_QUEUE_PATH = "projects/test-project/locations/asia-east2/queues/test-queue"
 TASK_NAME = "test-task"
-FULL_TASK_PATH = "projects/test-project/locations/asia-east2/queues/test-queue/tasks/test-task"
+FULL_TASK_PATH = (
+    "projects/test-project/locations/asia-east2/queues/test-queue/tasks/test-task"
+)
 TEST_QUEUE = Queue(name=FULL_QUEUE_PATH)
 TEST_TASK = Task(app_engine_http_request={})
 
@@ -54,7 +56,9 @@ class TestCloudTasksQueueCreate:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_create_queue(self, mock_hook):
         mock_hook.return_value.create_queue.return_value = TEST_QUEUE
-        operator = CloudTasksQueueCreateOperator(location=LOCATION, task_queue=TEST_QUEUE, task_id="id")
+        operator = CloudTasksQueueCreateOperator(
+            location=LOCATION, task_queue=TEST_QUEUE, task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -78,7 +82,9 @@ class TestCloudTasksQueueUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_update_queue(self, mock_hook):
         mock_hook.return_value.update_queue.return_value = TEST_QUEUE
-        operator = CloudTasksQueueUpdateOperator(task_queue=Queue(name=FULL_QUEUE_PATH), task_id="id")
+        operator = CloudTasksQueueUpdateOperator(
+            task_queue=Queue(name=FULL_QUEUE_PATH), task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -103,7 +109,9 @@ class TestCloudTasksQueueGet:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_get_queue(self, mock_hook):
         mock_hook.return_value.get_queue.return_value = TEST_QUEUE
-        operator = CloudTasksQueueGetOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
+        operator = CloudTasksQueueGetOperator(
+            location=LOCATION, queue_name=QUEUE_ID, task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -150,7 +158,9 @@ class TestCloudTasksQueueDelete:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_queue(self, mock_hook):
         mock_hook.return_value.delete_queue.return_value = None
-        operator = CloudTasksQueueDeleteOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
+        operator = CloudTasksQueueDeleteOperator(
+            location=LOCATION, queue_name=QUEUE_ID, task_id="id"
+        )
 
         operator.execute(context=mock.MagicMock())
 
@@ -172,7 +182,9 @@ class TestCloudTasksQueuePurge:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_queue(self, mock_hook):
         mock_hook.return_value.purge_queue.return_value = TEST_QUEUE
-        operator = CloudTasksQueuePurgeOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
+        operator = CloudTasksQueuePurgeOperator(
+            location=LOCATION, queue_name=QUEUE_ID, task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -195,7 +207,9 @@ class TestCloudTasksQueuePause:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_pause_queue(self, mock_hook):
         mock_hook.return_value.pause_queue.return_value = TEST_QUEUE
-        operator = CloudTasksQueuePauseOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
+        operator = CloudTasksQueuePauseOperator(
+            location=LOCATION, queue_name=QUEUE_ID, task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -218,7 +232,9 @@ class TestCloudTasksQueueResume:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_resume_queue(self, mock_hook):
         mock_hook.return_value.resume_queue.return_value = TEST_QUEUE
-        operator = CloudTasksQueueResumeOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
+        operator = CloudTasksQueueResumeOperator(
+            location=LOCATION, queue_name=QUEUE_ID, task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -248,7 +264,12 @@ class TestCloudTasksTaskCreate:
         result = operator.execute(context=mock.MagicMock())
 
         assert {
-            "app_engine_http_request": {"body": "", "headers": {}, "http_method": 0, "relative_uri": ""},
+            "app_engine_http_request": {
+                "body": "",
+                "headers": {},
+                "http_method": 0,
+                "relative_uri": "",
+            },
             "dispatch_count": 0,
             "name": "",
             "response_count": 0,
@@ -282,7 +303,12 @@ class TestCloudTasksTaskGet:
         result = operator.execute(context=mock.MagicMock())
 
         assert {
-            "app_engine_http_request": {"body": "", "headers": {}, "http_method": 0, "relative_uri": ""},
+            "app_engine_http_request": {
+                "body": "",
+                "headers": {},
+                "http_method": 0,
+                "relative_uri": "",
+            },
             "dispatch_count": 0,
             "name": "",
             "response_count": 0,
@@ -308,7 +334,9 @@ class TestCloudTasksTasksList:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_list_tasks(self, mock_hook):
         mock_hook.return_value.list_tasks.return_value = [TEST_TASK]
-        operator = CloudTasksTasksListOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
+        operator = CloudTasksTasksListOperator(
+            location=LOCATION, queue_name=QUEUE_ID, task_id="id"
+        )
 
         result = operator.execute(context=mock.MagicMock())
 
@@ -378,7 +406,12 @@ class TestCloudTasksTaskRun:
         result = operator.execute(context=mock.MagicMock())
 
         assert {
-            "app_engine_http_request": {"body": "", "headers": {}, "http_method": 0, "relative_uri": ""},
+            "app_engine_http_request": {
+                "body": "",
+                "headers": {},
+                "http_method": 0,
+                "relative_uri": "",
+            },
             "dispatch_count": 0,
             "name": "",
             "response_count": 0,

@@ -84,7 +84,9 @@ class GrpcOperator(BaseOperator):
         self.log.info("Calling gRPC service")
 
         # grpc hook always yield
-        responses = hook.run(self.stub_class, self.call_func, streaming=self.streaming, data=self.data)
+        responses = hook.run(
+            self.stub_class, self.call_func, streaming=self.streaming, data=self.data
+        )
 
         for response in responses:
             self._handle_response(response, context)

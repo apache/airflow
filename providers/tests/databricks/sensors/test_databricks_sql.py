@@ -71,7 +71,8 @@ class TestDatabricksSqlSensor:
         assert self.sensor.poke_interval == 15
 
     @pytest.mark.parametrize(
-        argnames=("sensor_poke_result", "expected_poke_result"), argvalues=[(True, True), (False, False)]
+        argnames=("sensor_poke_result", "expected_poke_result"),
+        argvalues=[(True, True), (False, False)],
     )
     @patch.object(DatabricksSqlSensor, "poke")
     def test_poke(self, mock_poke, sensor_poke_result, expected_poke_result):
@@ -81,7 +82,9 @@ class TestDatabricksSqlSensor:
     @pytest.mark.db_test
     def test_unsupported_conn_type(self):
         with pytest.raises(AirflowException):
-            self.sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            self.sensor.run(
+                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+            )
 
     def test_sql_warehouse_http_path(self):
         """Neither SQL warehouse name not HTTP path has been specified."""

@@ -40,15 +40,24 @@ from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.cloud.sensors.bigquery_dts import (
+    BigQueryDataTransferServiceTransferRunSensor,
+)
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "gcp_bigquery_dts"
 
@@ -100,7 +109,9 @@ with DAG(
         dst=FILE_NAME,
         bucket=BUCKET_NAME,
     )
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset", dataset_id=DATASET_NAME
+    )
 
     create_table = BigQueryCreateEmptyTableOperator(
         task_id="create_table",
@@ -119,7 +130,9 @@ with DAG(
         task_id="gcp_bigquery_create_transfer",
     )
 
-    transfer_config_id = cast(str, XComArg(gcp_bigquery_create_transfer, key="transfer_config_id"))
+    transfer_config_id = cast(
+        str, XComArg(gcp_bigquery_create_transfer, key="transfer_config_id")
+    )
     # [END howto_bigquery_create_data_transfer]
 
     # [START howto_bigquery_start_transfer]
@@ -155,7 +168,9 @@ with DAG(
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # Task dependencies created via `XComArgs`:

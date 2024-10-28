@@ -94,12 +94,20 @@ class TestWinRMHook:
             cert_pem=str(connection.extra_dejson["cert_pem"]),
             cert_key_pem=str(connection.extra_dejson["cert_key_pem"]),
             server_cert_validation=str(connection.extra_dejson["server_cert_validation"]),
-            kerberos_delegation=str(connection.extra_dejson["kerberos_delegation"]).lower() == "true",
+            kerberos_delegation=str(
+                connection.extra_dejson["kerberos_delegation"]
+            ).lower()
+            == "true",
             read_timeout_sec=int(connection.extra_dejson["read_timeout_sec"]),
             operation_timeout_sec=int(connection.extra_dejson["operation_timeout_sec"]),
-            kerberos_hostname_override=str(connection.extra_dejson["kerberos_hostname_override"]),
+            kerberos_hostname_override=str(
+                connection.extra_dejson["kerberos_hostname_override"]
+            ),
             message_encryption=str(connection.extra_dejson["message_encryption"]),
-            credssp_disable_tlsv1_2=str(connection.extra_dejson["credssp_disable_tlsv1_2"]).lower() == "true",
+            credssp_disable_tlsv1_2=str(
+                connection.extra_dejson["credssp_disable_tlsv1_2"]
+            ).lower()
+            == "true",
             send_cbt=str(connection.extra_dejson["send_cbt"]).lower() == "true",
         )
 
@@ -118,4 +126,7 @@ class TestWinRMHook:
 
         winrm_hook.get_conn()
 
-        assert f"http://{winrm_hook.remote_host}:{winrm_hook.remote_port}/wsman" == winrm_hook.endpoint
+        assert (
+            f"http://{winrm_hook.remote_host}:{winrm_hook.remote_port}/wsman"
+            == winrm_hook.endpoint
+        )

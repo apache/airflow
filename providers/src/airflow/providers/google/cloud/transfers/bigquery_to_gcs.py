@@ -119,7 +119,9 @@ class BigQueryToGCSOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = False,
         reattach_states: set[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -145,7 +147,9 @@ class BigQueryToGCSOperator(BaseOperator):
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
-            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
+            raise AirflowException(
+                f"BigQuery job {job.job_id} failed: {job.error_result}"
+            )
 
     def _prepare_configuration(self):
         source_project, source_dataset, source_table = self.hook.split_tablename(
@@ -245,7 +249,11 @@ class BigQueryToGCSOperator(BaseOperator):
 
         self.job_id = job.job_id
         conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
-        dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
+        dataset_id, project_id, table_id = (
+            conf["datasetId"],
+            conf["projectId"],
+            conf["tableId"],
+        )
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
@@ -310,7 +318,9 @@ class BigQueryToGCSOperator(BaseOperator):
             )
 
         project_id = self.project_id or self.hook.project_id
-        table_object = self.hook.get_client(project_id).get_table(self.source_project_dataset_table)
+        table_object = self.hook.get_client(project_id).get_table(
+            self.source_project_dataset_table
+        )
 
         input_dataset = Dataset(
             namespace="bigquery",
@@ -321,7 +331,8 @@ class BigQueryToGCSOperator(BaseOperator):
         output_dataset_facets = {
             "schema": input_dataset.facets["schema"],
             "columnLineage": get_identity_column_lineage_facet(
-                field_names=[field.name for field in table_object.schema], input_datasets=[input_dataset]
+                field_names=[field.name for field in table_object.schema],
+                input_datasets=[input_dataset],
             ),
         }
         output_datasets = []
@@ -334,7 +345,9 @@ class BigQueryToGCSOperator(BaseOperator):
                 # but we create a symlink to the full object path with wildcard.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
-                        identifiers=[Identifier(namespace=f"gs://{bucket}", name=blob, type="file")]
+                        identifiers=[
+                            Identifier(namespace=f"gs://{bucket}", name=blob, type="file")
+                        ]
                     ),
                 }
                 blob = Path(blob).parent.as_posix()
@@ -352,7 +365,11 @@ class BigQueryToGCSOperator(BaseOperator):
         run_facets = {}
         if self.job_id:
             run_facets = {
-                "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery"),
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId=self.job_id, source="bigquery"
+                ),
             }
 
-        return OperatorLineage(inputs=[input_dataset], outputs=output_datasets, run_facets=run_facets)
+        return OperatorLineage(
+            inputs=[input_dataset], outputs=output_datasets, run_facets=run_facets
+        )

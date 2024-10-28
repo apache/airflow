@@ -71,7 +71,9 @@ def example_python_context_decorator():
 
     # [START get_current_context_external]
     @task.external_python(
-        task_id="print_the_context_external", python=SOME_EXTERNAL_PYTHON, use_airflow_context=True
+        task_id="print_the_context_external",
+        python=SOME_EXTERNAL_PYTHON,
+        use_airflow_context=True,
     )
     def print_context_external() -> str:
         """Print the Airflow context in external python."""

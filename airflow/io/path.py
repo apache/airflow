@@ -56,9 +56,13 @@ class TrackingFileWrapper(LoggingMixin):
             def wrapper(*args, **kwargs):
                 self.log.debug("Calling method: %s", name)
                 if name == "read":
-                    get_hook_lineage_collector().add_input_asset(context=self._path, uri=str(self._path))
+                    get_hook_lineage_collector().add_input_asset(
+                        context=self._path, uri=str(self._path)
+                    )
                 elif name == "write":
-                    get_hook_lineage_collector().add_output_asset(context=self._path, uri=str(self._path))
+                    get_hook_lineage_collector().add_output_asset(
+                        context=self._path, uri=str(self._path)
+                    )
                 result = attr(*args, **kwargs)
                 return result
 
@@ -129,7 +133,8 @@ class ObjectStoragePath(CloudPath):
         return (
             isinstance(other, ObjectStoragePath)
             and self.protocol == other.protocol
-            and self.storage_options.get("conn_id") == other.storage_options.get("conn_id")
+            and self.storage_options.get("conn_id")
+            == other.storage_options.get("conn_id")
         )
 
     @property
@@ -259,7 +264,9 @@ class ObjectStoragePath(CloudPath):
         --------
         :func:`fsspec.utils.read_block`
         """
-        return self.fs.read_block(self.path, offset=offset, length=length, delimiter=delimiter)
+        return self.fs.read_block(
+            self.path, offset=offset, length=length, delimiter=delimiter
+        )
 
     def sign(self, expiration: int = 100, **kwargs):
         """
@@ -298,7 +305,9 @@ class ObjectStoragePath(CloudPath):
             # make use of system dependent buffer size
             shutil.copyfileobj(f1, f2, **kwargs)
 
-    def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
+    def copy(
+        self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs
+    ) -> None:
         """
         Copy file(s) from this path to another location.
 
@@ -367,7 +376,9 @@ class ObjectStoragePath(CloudPath):
         # remote file -> remote dir
         self._cp_file(dst, **kwargs)
 
-    def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
+    def move(
+        self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs
+    ) -> None:
         """
         Move file(s) from this path to another location.
 
@@ -402,7 +413,9 @@ class ObjectStoragePath(CloudPath):
     @classmethod
     def deserialize(cls, data: dict, version: int) -> ObjectStoragePath:
         if version > cls.__version__:
-            raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
+            raise ValueError(
+                f"Cannot deserialize version {version} with version {cls.__version__}."
+            )
 
         _kwargs = data.pop("kwargs")
         path = data.pop("path")

@@ -23,7 +23,10 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_pod_id, create_unique_id
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    create_pod_id,
+    create_unique_id,
+)
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
@@ -72,7 +75,11 @@ class TestCreateUniqueId:
             (".dag.id", ".---task.id", "dag-id-task-id"),  # leading dot invalid
             ("**dag.id", "**task.id", "dag-id-task-id"),  # leading dot invalid
             ("-90Abc*&", "-90Abc*&", "90abc-90abc"),  # invalid ends
-            ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a-90aclb-c-ssss-c-a"),  # ugly
+            (
+                "90AçLbˆˆç˙ßß˜˜˙c*a",
+                "90AçLbˆˆç˙ßß˜˜˙c*a",
+                "90aclb-c-ssss-c-a-90aclb-c-ssss-c-a",
+            ),  # ugly
         ],
     )
     def test_create_pod_id_dag_and_task(self, dag_id, task_id, expected):
@@ -120,7 +127,8 @@ class TestCreateUniqueId:
             "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.create_unique_id"
         ) as mocked_create_unique_id:
             with pytest.warns(
-                AirflowProviderDeprecationWarning, match=r"deprecated. Please use `create_unique_id`"
+                AirflowProviderDeprecationWarning,
+                match=r"deprecated. Please use `create_unique_id`",
             ):
                 create_pod_id(dag_id, task_id, max_length=max_length, unique=unique)
 

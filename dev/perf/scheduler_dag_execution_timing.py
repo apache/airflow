@@ -80,10 +80,14 @@ class ShortCircuitExecutorMixin:
         if not run:
             import airflow.models
 
-            run = airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
+            run = airflow.models.DagRun.find(
+                dag_id=dag_id, execution_date=execution_date
+            )[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run
 
-        if run and all(t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()):
+        if run and all(
+            t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()
+        ):
             self.dags_to_watch[dag_id].runs.pop(execution_date)
             self.dags_to_watch[dag_id].waiting_for -= 1
 
@@ -95,7 +99,8 @@ class ShortCircuitExecutorMixin:
                 self.job_runner.processor_agent._done = True
                 return
         self.log.warning(
-            "WAITING ON %d RUNS", sum(map(attrgetter("waiting_for"), self.dags_to_watch.values()))
+            "WAITING ON %d RUNS",
+            sum(map(attrgetter("waiting_for"), self.dags_to_watch.values())),
         )
 
 
@@ -185,7 +190,9 @@ def create_dag_runs(dag, num_runs, session):
 
 @click.command()
 @click.option("--num-runs", default=1, help="number of DagRun, to run for each DAG")
-@click.option("--repeat", default=3, help="number of times to run test, to reduce variance")
+@click.option(
+    "--repeat", default=3, help="number of times to run test, to reduce variance"
+)
 @click.option(
     "--pre-create-dag-runs",
     is_flag=True,
@@ -288,13 +295,26 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     if "PYSPY" in os.environ:
         pid = str(os.getpid())
         filename = os.environ.get("PYSPY_O", "flame-" + pid + ".html")
-        os.spawnlp(os.P_NOWAIT, "sudo", "sudo", "py-spy", "record", "-o", filename, "-p", pid, "--idle")
+        os.spawnlp(
+            os.P_NOWAIT,
+            "sudo",
+            "sudo",
+            "py-spy",
+            "record",
+            "-o",
+            filename,
+            "-p",
+            pid,
+            "--idle",
+        )
 
     times = []
 
     # Need a lambda to refer to the _latest_ value for scheduler_job, not just
     # the initial one
-    code_to_test = lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute)
+    code_to_test = lambda: run_job(
+        job=job_runner.job, execute_callable=job_runner._execute
+    )
 
     for count in range(repeat):
         if not count:
@@ -303,7 +323,9 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
                     reset_dag(dag, session)
             executor.reset(dag_ids)
             scheduler_job = Job(executor=executor)
-            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+            job_runner = SchedulerJobRunner(
+                job=scheduler_job, dag_ids=dag_ids, do_pickle=False
+            )
             executor.scheduler_job = scheduler_job
 
         gc.disable()
@@ -315,7 +337,10 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     print()
     print()
-    print(f"Time for {num_runs} dag runs of {len(dags)} dags with {total_tasks} total tasks: ", end="")
+    print(
+        f"Time for {num_runs} dag runs of {len(dags)} dags with {total_tasks} total tasks: ",
+        end="",
+    )
     if len(times) > 1:
         print(f"{statistics.mean(times):.4f}s (±{statistics.stdev(times):.3f}s)")
     else:

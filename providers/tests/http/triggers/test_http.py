@@ -108,7 +108,9 @@ class TestHttpTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
-    async def test_trigger_on_success_yield_successfully(self, mock_hook, trigger, client_response):
+    async def test_trigger_on_success_yield_successfully(
+        self, mock_hook, trigger, client_response
+    ):
         """
         Tests the HttpTrigger only fires once the job execution reaches a successful state.
         """
@@ -120,7 +122,9 @@ class TestHttpTrigger:
         assert actual == TriggerEvent(
             {
                 "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                "response": base64.standard_b64encode(pickle.dumps(response)).decode(
+                    "ascii"
+                ),
             }
         )
 
@@ -146,7 +150,9 @@ class TestHttpTrigger:
         assert response.status_code == client_response.status
         assert response.headers == CaseInsensitiveDict(client_response.headers)
         assert response.url == str(client_response.url)
-        assert response.history == [HttpTrigger._convert_response(h) for h in client_response.history]
+        assert response.history == [
+            HttpTrigger._convert_response(h) for h in client_response.history
+        ]
         assert response.encoding == client_response.get_encoding()
         assert response.reason == client_response.reason
         assert dict(response.cookies) == dict(client_response.cookies)

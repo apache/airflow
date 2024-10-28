@@ -124,7 +124,15 @@ class PiiAnonymizer(Anonymizer):
             else:
                 netloc = ""
 
-        return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
+        return urlunsplit(
+            (
+                url_parts.scheme,
+                netloc,
+                url_parts.path,
+                url_parts.query,
+                url_parts.fragment,
+            )
+        )
 
 
 class OperatingSystem(Enum):
@@ -196,7 +204,9 @@ class AirflowInfo:
     def _get_version(cmd: list[str], grep: bytes | None = None):
         """Return tools version."""
         try:
-            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
+            with subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            ) as proc:
                 stdoutdata, _ = proc.communicate()
                 data = [f for f in stdoutdata.split(b"\n") if f]
                 if grep:
@@ -220,7 +230,10 @@ class AirflowInfo:
                 return f"{module}.{o.__class__.__name__}"
 
         try:
-            handler_names = [get_fullname(handler) for handler in logging.getLogger("airflow.task").handlers]
+            handler_names = [
+                get_fullname(handler)
+                for handler in logging.getLogger("airflow.task").handlers
+            ]
             return ", ".join(handler_names)
         except Exception:
             return "NOT AVAILABLE"
@@ -229,7 +242,9 @@ class AirflowInfo:
     def _airflow_info(self):
         executor = configuration.conf.get("core", "executor")
         sql_alchemy_conn = self.anonymizer.process_url(
-            configuration.conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+            configuration.conf.get(
+                "database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE"
+            )
         )
         dags_folder = self.anonymizer.process_path(
             configuration.conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
@@ -241,7 +256,9 @@ class AirflowInfo:
             configuration.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
         )
         remote_base_log_folder = self.anonymizer.process_path(
-            configuration.conf.get("logging", "remote_base_log_folder", fallback="NOT AVAILABLE")
+            configuration.conf.get(
+                "logging", "remote_base_log_folder", fallback="NOT AVAILABLE"
+            )
         )
 
         return [
@@ -277,8 +294,12 @@ class AirflowInfo:
     def _tools_info(self):
         git_version = self._get_version(["git", "--version"])
         ssh_version = self._get_version(["ssh", "-V"])
-        kubectl_version = self._get_version(["kubectl", "version", "--short=True", "--client=True"])
-        gcloud_version = self._get_version(["gcloud", "version"], grep=b"Google Cloud SDK")
+        kubectl_version = self._get_version(
+            ["kubectl", "version", "--short=True", "--client=True"]
+        )
+        gcloud_version = self._get_version(
+            ["gcloud", "version"], grep=b"Google Cloud SDK"
+        )
         cloud_sql_proxy_version = self._get_version(["cloud_sql_proxy", "--version"])
         mysql_version = self._get_version(["mysql", "--version"])
         sqlite3_version = self._get_version(["sqlite3", "--version"])
@@ -301,7 +322,10 @@ class AirflowInfo:
         airflow_home = self.anonymizer.process_path(configuration.get_airflow_home())
         system_path = [self.anonymizer.process_path(p) for p in system_path]
         python_path = [self.anonymizer.process_path(p) for p in sys.path]
-        airflow_on_path = any(os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path)
+        airflow_on_path = any(
+            os.path.exists(os.path.join(path_elem, "airflow"))
+            for path_elem in system_path
+        )
 
         return [
             ("airflow_home", airflow_home),
@@ -312,7 +336,10 @@ class AirflowInfo:
 
     @property
     def _providers_info(self):
-        return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
+        return [
+            (p.data["package-name"], p.version)
+            for p in ProvidersManager().providers.values()
+        ]
 
     def show(self, output: str, console: AirflowConsole | None = None) -> None:
         """Show information about Airflow instance."""
@@ -329,11 +356,16 @@ class AirflowInfo:
             # Show each info as table with key, value column
             for key, info in all_info.items():
                 console.print(f"\n[bold][green]{key}[/bold][/green]", highlight=False)
-                console.print_as(data=[{"key": k, "value": v} for k, v in info], output=output)
+                console.print_as(
+                    data=[{"key": k, "value": v} for k, v in info], output=output
+                )
         else:
             # Render info in given format, change keys to snake_case
             console.print_as(
-                data=[{k.lower().replace(" ", "_"): dict(v)} for k, v in all_info.items()], output=output
+                data=[
+                    {k.lower().replace(" ", "_"): dict(v)} for k, v in all_info.items()
+                ],
+                output=output,
             )
 
     def render_text(self, output: str) -> str:

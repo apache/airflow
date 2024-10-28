@@ -108,8 +108,12 @@ class AzureContainerRegistryHook(BaseHook):
             extras = conn.extra_dejson
             subscription_id = self._get_field(extras, "subscription_id")
             resource_group = self._get_field(extras, "resource_group")
-            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            managed_identity_client_id = self._get_field(
+                extras, "managed_identity_client_id"
+            )
+            workload_identity_tenant_id = self._get_field(
+                extras, "workload_identity_tenant_id"
+            )
             credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
@@ -118,7 +122,11 @@ class AzureContainerRegistryHook(BaseHook):
                 credential=credential,
                 subscription_id=subscription_id,
             )
-            credentials = client.registries.list_credentials(resource_group, conn.login).as_dict()
+            credentials = client.registries.list_credentials(
+                resource_group, conn.login
+            ).as_dict()
             password = credentials["passwords"][0]["value"]
 
-        return ImageRegistryCredential(server=conn.host, username=conn.login, password=password)
+        return ImageRegistryCredential(
+            server=conn.host, username=conn.login, password=password
+        )

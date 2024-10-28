@@ -19,9 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
+from airflow.providers.google.marketing_platform.hooks.display_video import (
+    GoogleDisplayVideo360Hook,
+)
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 API_VERSION = "v2"
 GCP_CONN_ID = "google_cloud_default"
@@ -33,7 +37,9 @@ class TestGoogleDisplayVideo360Hook:
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.hook = GoogleDisplayVideo360Hook(api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID)
+            self.hook = GoogleDisplayVideo360Hook(
+                api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID
+            )
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -73,13 +79,13 @@ class TestGoogleDisplayVideo360Hook:
         body = {"body": "test"}
 
         return_value = "TEST"
-        get_conn_mock.return_value.queries.return_value.create.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.queries.return_value.create.return_value.execute.return_value = return_value
 
         result = self.hook.create_query(query=body)
 
-        get_conn_mock.return_value.queries.return_value.create.assert_called_once_with(body=body)
+        get_conn_mock.return_value.queries.return_value.create.assert_called_once_with(
+            body=body
+        )
 
         assert return_value == result
 
@@ -91,13 +97,13 @@ class TestGoogleDisplayVideo360Hook:
         query_id = "QUERY_ID"
 
         return_value = "TEST"
-        get_conn_mock.return_value.queries.return_value.delete.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.queries.return_value.delete.return_value.execute.return_value = return_value
 
         self.hook.delete_query(query_id=query_id)
 
-        get_conn_mock.return_value.queries.return_value.delete.assert_called_once_with(queryId=query_id)
+        get_conn_mock.return_value.queries.return_value.delete.assert_called_once_with(
+            queryId=query_id
+        )
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -111,7 +117,9 @@ class TestGoogleDisplayVideo360Hook:
 
         result = self.hook.get_query(query_id=query_id)
 
-        get_conn_mock.return_value.queries.return_value.get.assert_called_once_with(queryId=query_id)
+        get_conn_mock.return_value.queries.return_value.get.assert_called_once_with(
+            queryId=query_id
+        )
 
         assert return_value == result
 
@@ -244,7 +252,9 @@ class TestGoogleDisplayVideo360Hook:
         "airflow.providers.google.marketing_platform.hooks."
         "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
     )
-    def test_create_sdf_download_tasks_called_with_params(self, get_conn_to_display_video):
+    def test_create_sdf_download_tasks_called_with_params(
+        self, get_conn_to_display_video
+    ):
         body_request = {
             "version": "version",
             "partnerId": "partner_id",
@@ -282,7 +292,9 @@ class TestGoogleDisplayVideo360Hook:
         "airflow.providers.google.marketing_platform.hooks."
         "display_video.GoogleDisplayVideo360Hook.get_conn_to_display_video"
     )
-    def test_create_sdf_download_tasks_return_equal_values(self, get_conn_to_display_video):
+    def test_create_sdf_download_tasks_return_equal_values(
+        self, get_conn_to_display_video
+    ):
         response = ["name"]
         body_request = {
             "version": "version",
@@ -339,9 +351,7 @@ class TestGoogleDisplayVideo360Hook:
         operation_name = "operation"
         response = "response"
 
-        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.operations.return_value.get = (
-            response
-        )
+        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.operations.return_value.get = response
 
         result = self.hook.get_sdf_download_operation(operation_name=operation_name)
 
@@ -377,7 +387,9 @@ class TestGoogleDisplayVideo360v2Hook:
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.api_version = "v2"
-            self.hook = GoogleDisplayVideo360Hook(api_version=self.api_version, gcp_conn_id=GCP_CONN_ID)
+            self.hook = GoogleDisplayVideo360Hook(
+                api_version=self.api_version, gcp_conn_id=GCP_CONN_ID
+            )
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -417,13 +429,13 @@ class TestGoogleDisplayVideo360v2Hook:
         body = {"body": "test"}
 
         return_value = "TEST"
-        get_conn_mock.return_value.queries.return_value.create.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.queries.return_value.create.return_value.execute.return_value = return_value
 
         result = self.hook.create_query(query=body)
 
-        get_conn_mock.return_value.queries.return_value.create.assert_called_once_with(body=body)
+        get_conn_mock.return_value.queries.return_value.create.assert_called_once_with(
+            body=body
+        )
 
         assert return_value == result
 
@@ -435,13 +447,13 @@ class TestGoogleDisplayVideo360v2Hook:
         query_id = "QUERY_ID"
 
         return_value = "TEST"
-        get_conn_mock.return_value.queries.return_value.delete.return_value.execute.return_value = (
-            return_value
-        )
+        get_conn_mock.return_value.queries.return_value.delete.return_value.execute.return_value = return_value
 
         self.hook.delete_query(query_id=query_id)
 
-        get_conn_mock.return_value.queries.return_value.delete.assert_called_once_with(queryId=query_id)
+        get_conn_mock.return_value.queries.return_value.delete.assert_called_once_with(
+            queryId=query_id
+        )
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -455,7 +467,9 @@ class TestGoogleDisplayVideo360v2Hook:
 
         result = self.hook.get_query(query_id=query_id)
 
-        get_conn_mock.return_value.queries.return_value.get.assert_called_once_with(queryId=query_id)
+        get_conn_mock.return_value.queries.return_value.get.assert_called_once_with(
+            queryId=query_id
+        )
 
         assert return_value == result
 

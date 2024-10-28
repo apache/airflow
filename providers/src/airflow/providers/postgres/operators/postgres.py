@@ -55,7 +55,10 @@ class PostgresOperator(SQLExecuteQueryOperator):
         Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
-    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "postgresql"}
+    template_fields_renderers = {
+        **SQLExecuteQueryOperator.template_fields_renderers,
+        "sql": "postgresql",
+    }
     ui_color = "#ededed"
 
     def __init__(
@@ -78,7 +81,9 @@ class PostgresOperator(SQLExecuteQueryOperator):
                 stacklevel=2,
             )
             hook_params = kwargs.pop("hook_params", {})
-            options = " ".join(f"-c {param}={val}" for param, val in runtime_parameters.items())
+            options = " ".join(
+                f"-c {param}={val}" for param, val in runtime_parameters.items()
+            )
             kwargs["hook_params"] = {"options": options, **hook_params}
 
         super().__init__(conn_id=postgres_conn_id, **kwargs)

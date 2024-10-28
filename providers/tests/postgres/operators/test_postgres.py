@@ -64,7 +64,9 @@ class TestPostgres:
             autocommit=True,
             conn_id=POSTGRES_DEFAULT,
         )
-        autocommit_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        autocommit_task.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
 
     def test_postgres_operator_test_multi(self):
         sql = [
@@ -73,7 +75,10 @@ class TestPostgres:
             "INSERT INTO test_airflow VALUES ('X')",
         ]
         op = SQLExecuteQueryOperator(
-            task_id="postgres_operator_test_multi", sql=sql, dag=self.dag, conn_id=POSTGRES_DEFAULT
+            task_id="postgres_operator_test_multi",
+            sql=sql,
+            dag=self.dag,
+            conn_id=POSTGRES_DEFAULT,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -178,7 +183,9 @@ class TestPostgresOpenLineage:
         assert len(lineage_on_complete.inputs) == 0
         assert len(lineage_on_complete.outputs) == 1
         assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:5432"
-        assert lineage_on_complete.outputs[0].name == "airflow.another_schema.test_airflow"
+        assert (
+            lineage_on_complete.outputs[0].name == "airflow.another_schema.test_airflow"
+        )
         assert "schema" in lineage_on_complete.outputs[0].facets
 
     def test_postgres_operator_openlineage_explicit_schema(self):

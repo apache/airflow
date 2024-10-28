@@ -53,7 +53,9 @@ class TestCustomNeptuneWaiters:
         waiter.wait(DBClusterIdentifier="test_cluster")
 
     def test_cluster_available_failed(self, mock_describe_clusters):
-        mock_describe_clusters.return_value = {"DBClusters": [{"Status": "migration-failed"}]}
+        mock_describe_clusters.return_value = {
+            "DBClusters": [{"Status": "migration-failed"}]
+        }
         waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_available")
         with pytest.raises(botocore.exceptions.WaiterError):
             waiter.wait(DBClusterIdentifier="test_cluster")
@@ -66,7 +68,10 @@ class TestCustomNeptuneWaiters:
             self.get_status_response("available"),
         ]
         waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_available")
-        waiter.wait(cluster_identifier="test_cluster", WaiterConfig={"Delay": 0.2, "MaxAttempts": 4})
+        waiter.wait(
+            cluster_identifier="test_cluster",
+            WaiterConfig={"Delay": 0.2, "MaxAttempts": 4},
+        )
 
     def test_cluster_stopped(self, mock_describe_clusters):
         mock_describe_clusters.return_value = {"DBClusters": [{"Status": "stopped"}]}
@@ -74,7 +79,9 @@ class TestCustomNeptuneWaiters:
         waiter.wait(DBClusterIdentifier="test_cluster")
 
     def test_cluster_stopped_failed(self, mock_describe_clusters):
-        mock_describe_clusters.return_value = {"DBClusters": [{"Status": "migration-failed"}]}
+        mock_describe_clusters.return_value = {
+            "DBClusters": [{"Status": "migration-failed"}]
+        }
         waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_stopped")
         with pytest.raises(botocore.exceptions.WaiterError):
             waiter.wait(DBClusterIdentifier="test_cluster")
@@ -86,4 +93,7 @@ class TestCustomNeptuneWaiters:
             self.get_status_response("stopped"),
         ]
         waiter = NeptuneHook(aws_conn_id=None).get_waiter("cluster_stopped")
-        waiter.wait(cluster_identifier="test_cluster", WaiterConfig={"Delay": 0.2, "MaxAttempts": 4})
+        waiter.wait(
+            cluster_identifier="test_cluster",
+            WaiterConfig={"Delay": 0.2, "MaxAttempts": 4},
+        )

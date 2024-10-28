@@ -35,7 +35,9 @@ except ImportError:
 console = Console(width=400, color_system="standard")
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
 
-provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
+provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob(
+    "provider.yaml"
+)
 errors: list[str] = []
 
 OPERATORS: list[str] = ["sensors", "operators"]
@@ -134,7 +136,9 @@ def get_eligible_classes(all_classes):
 
     """
 
-    eligible_classes = [(name, cls) for name, cls in all_classes if is_class_eligible(name)]
+    eligible_classes = [
+        (name, cls) for name, cls in all_classes if is_class_eligible(name)
+    ]
     return eligible_classes
 
 
@@ -151,7 +155,9 @@ def iter_check_template_fields(module: str):
 
     for op_class_name, cls in op_classes:
         if cls.__module__ == module:
-            templated_fields, class_instance_fields = get_template_fields_and_class_instance_fields(cls)
+            templated_fields, class_instance_fields = (
+                get_template_fields_and_class_instance_fields(cls)
+            )
 
             for field in templated_fields:
                 if field not in class_instance_fields:

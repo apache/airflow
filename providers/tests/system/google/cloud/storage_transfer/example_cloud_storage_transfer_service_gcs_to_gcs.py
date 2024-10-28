@@ -34,7 +34,9 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -88,11 +90,15 @@ with DAG(
     # [END howto_operator_transfer_gcs_to_gcs]
 
     delete_bucket_dst = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME_DST,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # TEST SETUP

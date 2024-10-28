@@ -24,7 +24,9 @@ from pathlib import Path
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import insert_documentation
 
 sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
@@ -38,7 +40,10 @@ from hatch_build import (
 
 def get_header_and_footer(extra_type: str, file_format: str) -> tuple[str, str]:
     if file_format == "rst":
-        return f"  .. START {extra_type.upper()} HERE", f"  .. END {extra_type.upper()} HERE"
+        return (
+            f"  .. START {extra_type.upper()} HERE",
+            f"  .. END {extra_type.upper()} HERE",
+        )
     elif file_format == "txt":
         return f"# START {extra_type.upper()} HERE", f"# END {extra_type.upper()} HERE"
     else:
@@ -71,7 +76,13 @@ def get_extra_types_dict() -> dict[str, list[str]]:
 
 FILES_TO_UPDATE: list[tuple[Path, str, bool]] = [
     (AIRFLOW_ROOT_PATH / "INSTALL", "txt", False),
-    (AIRFLOW_ROOT_PATH / "contributing-docs" / "12_airflow_dependencies_and_extras.rst", "rst", False),
+    (
+        AIRFLOW_ROOT_PATH
+        / "contributing-docs"
+        / "12_airflow_dependencies_and_extras.rst",
+        "rst",
+        False,
+    ),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", "txt", True),
 ]
 

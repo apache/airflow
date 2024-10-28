@@ -210,7 +210,9 @@ class TestAzureDataLakeStorageV2Hook:
     def test_create_file_system(self, mock_conn):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.create_file_system("test_file_system")
-        expected_calls = [mock.call().create_file_system(file_system=self.file_system_name)]
+        expected_calls = [
+            mock.call().create_file_system(file_system=self.file_system_name)
+        ]
         mock_conn.assert_has_calls(expected_calls)
 
     @mock.patch(f"{MODULE}.FileSystemClient")
@@ -224,8 +226,12 @@ class TestAzureDataLakeStorageV2Hook:
     @mock.patch(f"{MODULE}.DataLakeDirectoryClient")
     @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
     @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
-    def test_create_directory(self, mock_conn, mock_get_file_system, mock_directory_client):
-        mock_get_file_system.return_value.create_directory.return_value = mock_directory_client
+    def test_create_directory(
+        self, mock_conn, mock_get_file_system, mock_directory_client
+    ):
+        mock_get_file_system.return_value.create_directory.return_value = (
+            mock_directory_client
+        )
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         result = hook.create_directory(self.file_system_name, self.directory_name)
         assert result == mock_directory_client
@@ -234,7 +240,9 @@ class TestAzureDataLakeStorageV2Hook:
     @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
     @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_get_directory(self, mock_conn, mock_get_file_system, mock_directory_client):
-        mock_get_file_system.return_value.get_directory_client.return_value = mock_directory_client
+        mock_get_file_system.return_value.get_directory_client.return_value = (
+            mock_directory_client
+        )
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         result = hook.get_directory_client(self.file_system_name, self.directory_name)
         assert result == mock_directory_client
@@ -282,7 +290,9 @@ class TestAzureDataLakeStorageV2Hook:
     def test_list_files_directory(self, mock_conn, mock_get_file_system):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.list_files_directory(self.file_system_name, self.directory_name)
-        mock_get_file_system.return_value.get_paths.assert_called_once_with(self.directory_name)
+        mock_get_file_system.return_value.get_paths.assert_called_once_with(
+            self.directory_name
+        )
 
     @pytest.mark.parametrize(
         argnames="list_file_systems_result",
@@ -300,7 +310,9 @@ class TestAzureDataLakeStorageV2Hook:
     @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_connection_failure(self, mock_conn):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
-        hook.get_conn().list_file_systems = PropertyMock(side_effect=Exception("Authentication failed."))
+        hook.get_conn().list_file_systems = PropertyMock(
+            side_effect=Exception("Authentication failed.")
+        )
         status, msg = hook.test_connection()
 
         assert status is False

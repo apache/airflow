@@ -80,10 +80,15 @@ class TestAthenaOperator:
             max_polling_attempts=3,
         )
         self.athena = AthenaOperator(
-            **self.default_op_kwargs, output_location="s3://test_s3_bucket/", aws_conn_id=None, dag=self.dag
+            **self.default_op_kwargs,
+            output_location="s3://test_s3_bucket/",
+            aws_conn_id=None,
+            dag=self.dag,
         )
 
-        with mock.patch("airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink.persist") as m:
+        with mock.patch(
+            "airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink.persist"
+        ) as m:
             self.mocked_athena_result_link = m
             yield
 
@@ -121,8 +126,13 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_hook_run_override_catalog(self, mock_conn, mock_run_query, mock_check_query_status):
-        query_context_catalog = {"Database": MOCK_DATA["database"], "Catalog": "MyCatalog"}
+    def test_hook_run_override_catalog(
+        self, mock_conn, mock_run_query, mock_check_query_status
+    ):
+        query_context_catalog = {
+            "Database": MOCK_DATA["database"],
+            "Catalog": "MyCatalog",
+        }
         self.athena.catalog = "MyCatalog"
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
@@ -137,7 +147,9 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_hook_run_small_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_hook_run_small_success_query(
+        self, mock_conn, mock_run_query, mock_check_query_status
+    ):
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -164,7 +176,9 @@ class TestAthenaOperator:
     )
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_hook_run_big_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_hook_run_big_success_query(
+        self, mock_conn, mock_run_query, mock_check_query_status
+    ):
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -199,7 +213,9 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", return_value="CANCELLED")
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_hook_run_cancelled_query(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_hook_run_cancelled_query(
+        self, mock_conn, mock_run_query, mock_check_query_status
+    ):
         with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
@@ -213,7 +229,9 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", return_value="RUNNING")
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_hook_run_failed_query_with_max_tries(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_hook_run_failed_query_with_max_tries(
+        self, mock_conn, mock_run_query, mock_check_query_status
+    ):
         with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
@@ -229,7 +247,12 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_return_value(
-        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
+        self,
+        mock_conn,
+        mock_run_query,
+        mock_check_query_status,
+        session,
+        clean_dags_and_dagruns,
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         dag_run = DagRun(
@@ -247,7 +270,9 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_optional_output_location(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_optional_output_location(
+        self, mock_conn, mock_run_query, mock_check_query_status
+    ):
         op = AthenaOperator(**self.default_op_kwargs, aws_conn_id=None)
 
         op.execute({})
@@ -397,7 +422,11 @@ class TestAthenaOperator:
                     query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
                 )
             },
-            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
+            run_facets={
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId="12345", source="awsathena"
+                )
+            },
         )
         assert op.get_openlineage_facets_on_complete(None) == expected_lineage
 

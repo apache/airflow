@@ -32,7 +32,9 @@ from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import Role
-    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        EXISTING_ROLES,
+    )
 
 pytestmark = pytest.mark.db_test
 
@@ -80,7 +82,9 @@ class TestRoleEndpoint:
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json["name"] == "Admin"
 
@@ -102,7 +106,8 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/auth/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/auth/fab/v1/roles/Admin",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -118,7 +123,9 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
 
 class TestGetRolesEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/roles", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/roles", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(["Test", "TestNoPermissions"])
@@ -132,7 +139,8 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
 
     def test_should_raises_400_for_invalid_order_by(self):
         response = self.client.get(
-            "/auth/fab/v1/roles?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
+            "/auth/fab/v1/roles?order_by=invalid",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
@@ -189,7 +197,9 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
 
 class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test"}
+        )
         actions = {i[0] for i in self.app.appbuilder.sm.get_all_permissions() if i}
         assert response.status_code == 200
         assert response.json["total_entries"] == len(actions)
@@ -202,7 +212,8 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/auth/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/auth/fab/v1/permissions",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -220,7 +231,9 @@ class TestPostRole(TestRoleEndpoint):
     def test_post_should_respond_200(self):
         payload = {
             "name": "Test2",
-            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            "actions": [
+                {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+            ],
         }
         response = self.client.post(
             "/auth/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"}
@@ -234,7 +247,12 @@ class TestPostRole(TestRoleEndpoint):
         [
             (
                 {
-                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_create"},
+                        }
+                    ],
                 },
                 "{'name': ['Missing data for required field.']}",
             ),
@@ -255,7 +273,9 @@ class TestPostRole(TestRoleEndpoint):
                     "name": "TestRole",
                     "actions": [
                         {
-                            "resources": {"name": "Connections"},  # resources is invalid, should be resource
+                            "resources": {
+                                "name": "Connections"
+                            },  # resources is invalid, should be resource
                             "action": {"name": "can_create"},
                         }
                     ],
@@ -266,7 +286,10 @@ class TestPostRole(TestRoleEndpoint):
                 {
                     "name": "TestRole",
                     "actions": [
-                        {"resource": {"name": "Connections"}, "actions": {"name": "can_create"}}
+                        {
+                            "resource": {"name": "Connections"},
+                            "actions": {"name": "can_create"},
+                        }
                     ],  # actions is invalid, should be action
                 },
                 "{'actions': {0: {'actions': ['Unknown field.']}}}",
@@ -287,7 +310,10 @@ class TestPostRole(TestRoleEndpoint):
                 {
                     "name": "TestRole",
                     "actions": [
-                        {"resource": {"name": "Connections"}, "action": {"name": "can_amend"}}
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_amend"},
+                        }
                     ],  # can_amend is not an action
                 },
                 "The specified action: 'can_amend' was not found",
@@ -309,7 +335,9 @@ class TestPostRole(TestRoleEndpoint):
     def test_post_should_respond_409_already_exist(self):
         payload = {
             "name": "Test",
-            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            "actions": [
+                {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+            ],
         }
         response = self.client.post(
             "/auth/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"}
@@ -327,7 +355,12 @@ class TestPostRole(TestRoleEndpoint):
             "/auth/fab/v1/roles",
             json={
                 "name": "Test2",
-                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                "actions": [
+                    {
+                        "resource": {"name": "Connections"},
+                        "action": {"name": "can_create"},
+                    }
+                ],
             },
         )
 
@@ -338,7 +371,12 @@ class TestPostRole(TestRoleEndpoint):
             "/auth/fab/v1/roles",
             json={
                 "name": "mytest2",
-                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                "actions": [
+                    {
+                        "resource": {"name": "Connections"},
+                        "action": {"name": "can_create"},
+                    }
+                ],
             },
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
@@ -352,7 +390,9 @@ class TestPostRole(TestRoleEndpoint):
     def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         payload = {
             "name": "Test2",
-            "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            "actions": [
+                {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+            ],
         }
         response = self.client.post("/auth/fab/v1/roles", json=payload)
         assert response.status_code == expected_status_code, response.json
@@ -370,7 +410,8 @@ class TestDeleteRole(TestRoleEndpoint):
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
-            "/auth/fab/v1/roles/invalidrolename", environ_overrides={"REMOTE_USER": "test"}
+            "/auth/fab/v1/roles/invalidrolename",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert response.json == {
@@ -387,7 +428,8 @@ class TestDeleteRole(TestRoleEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.delete(
-            "/auth/fab/v1/roles/test", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/auth/fab/v1/roles/test",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -410,7 +452,12 @@ class TestPatchRole(TestRoleEndpoint):
             (
                 {
                     "name": "mytest2",
-                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_create"},
+                        }
+                    ],
                 },
                 "mytest2",
                 [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
@@ -420,7 +467,9 @@ class TestPatchRole(TestRoleEndpoint):
     def test_patch_should_respond_200(self, payload, expected_name, expected_actions):
         role = create_role(self.app, "mytestrole")
         response = self.client.patch(
-            f"/auth/fab/v1/roles/{role.name}", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            f"/auth/fab/v1/roles/{role.name}",
+            json=payload,
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json["name"] == expected_name
@@ -434,13 +483,17 @@ class TestPatchRole(TestRoleEndpoint):
             "/auth/fab/v1/roles/role_to_change",
             json={
                 "name": "already_exists",
-                "actions": [{"action": {"name": "can_delete"}, "resource": {"name": "XComs"}}],
+                "actions": [
+                    {"action": {"name": "can_delete"}, "resource": {"name": "XComs"}}
+                ],
             },
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
 
-        updated_permissions = self.app.appbuilder.sm.find_role("role_to_change").permissions
+        updated_permissions = self.app.appbuilder.sm.find_role(
+            "role_to_change"
+        ).permissions
         assert len(updated_permissions) == 1
         assert updated_permissions[0].resource.name == "XComs"
         assert updated_permissions[0].action.name == "can_delete"
@@ -454,7 +507,12 @@ class TestPatchRole(TestRoleEndpoint):
                 "?update_mask=name",
                 {
                     "name": "mytest2",
-                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_create"},
+                        }
+                    ],
                 },
                 "mytest2",
                 [],
@@ -463,7 +521,12 @@ class TestPatchRole(TestRoleEndpoint):
                 "?update_mask=name, actions",  # both name and actions in update mask
                 {
                     "name": "mytest2",
-                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_create"},
+                        }
+                    ],
                 },
                 "mytest2",
                 [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
@@ -502,7 +565,10 @@ class TestPatchRole(TestRoleEndpoint):
                 {
                     "name": "testme",
                     "permissions": [  # Using permissions instead of actions should raise
-                        {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+                        {
+                            "resource": {"name": "Connections"},
+                            "action": {"name": "can_create"},
+                        }
                     ],
                 },
                 "{'permissions': ['Unknown field.']}",
@@ -512,7 +578,9 @@ class TestPatchRole(TestRoleEndpoint):
                     "name": "testme",
                     "actions": [
                         {
-                            "view_menu": {"name": "Connections"},  # Using view_menu instead of resource
+                            "view_menu": {
+                                "name": "Connections"
+                            },  # Using view_menu instead of resource
                             "action": {"name": "can_create"},
                         }
                     ],
@@ -536,7 +604,9 @@ class TestPatchRole(TestRoleEndpoint):
                     "name": "testme",
                     "actions": [
                         {
-                            "resource": {"name": "Connections"},  # Using wrong action name
+                            "resource": {
+                                "name": "Connections"
+                            },  # Using wrong action name
                             "action": {"name": "can_invalid"},
                         }
                     ],
@@ -560,7 +630,12 @@ class TestPatchRole(TestRoleEndpoint):
             "/auth/fab/v1/roles/test",
             json={
                 "name": "mytest2",
-                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                "actions": [
+                    {
+                        "resource": {"name": "Connections"},
+                        "action": {"name": "can_create"},
+                    }
+                ],
             },
         )
 
@@ -571,7 +646,12 @@ class TestPatchRole(TestRoleEndpoint):
             "/auth/fab/v1/roles/test",
             json={
                 "name": "mytest2",
-                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                "actions": [
+                    {
+                        "resource": {"name": "Connections"},
+                        "action": {"name": "can_create"},
+                    }
+                ],
             },
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )

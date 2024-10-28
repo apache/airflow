@@ -48,7 +48,10 @@ SECURITY_GROUP_KEY = "SECURITY_GROUP"
 CLUSTER_SUBNET_GROUP_KEY = "CLUSTER_SUBNET_GROUP"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(SECURITY_GROUP_KEY).add_variable(CLUSTER_SUBNET_GROUP_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(SECURITY_GROUP_KEY)
+    .add_variable(CLUSTER_SUBNET_GROUP_KEY)
+    .build()
 )
 
 DAG_ID = "example_s3_to_sql"
@@ -67,7 +70,9 @@ SAMPLE_DATA = r"""1,Caipirinha,Cachaca
 
 @task
 def create_connection(conn_id_name: str, cluster_id: str):
-    cluster_endpoint = RedshiftHook().conn.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    cluster_endpoint = RedshiftHook().conn.describe_clusters(
+        ClusterIdentifier=cluster_id
+    )["Clusters"][0]
     conn = Connection(
         conn_id=conn_id_name,
         conn_type="redshift",
@@ -118,7 +123,9 @@ with DAG(
         timeout=60 * 30,
     )
 
-    set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
+    set_up_connection = create_connection(
+        conn_id_name, cluster_id=redshift_cluster_identifier
+    )
 
     create_bucket = S3CreateBucketOperator(
         task_id="create_bucket",

@@ -27,7 +27,9 @@ from flask import Response, current_app, g, make_response, request
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+)
 from airflow.utils.net import getfqdn
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -95,7 +97,9 @@ def _gssapi_authenticate(token) -> _KerberosAuth | None:
         if return_code != kerberos.AUTH_GSS_COMPLETE:
             return _KerberosAuth(return_code=None)
 
-        if (return_code := kerberos.authGSSServerStep(state, token)) == kerberos.AUTH_GSS_COMPLETE:
+        if (
+            return_code := kerberos.authGSSServerStep(state, token)
+        ) == kerberos.AUTH_GSS_COMPLETE:
             return _KerberosAuth(
                 return_code=return_code,
                 user=kerberos.authGSSServerUserName(state),
@@ -115,11 +119,15 @@ T = TypeVar("T", bound=Callable)
 
 
 def find_user(username=None, email=None):
-    security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
+    security_manager = cast(
+        FabAirflowSecurityManagerOverride, get_auth_manager().security_manager
+    )
     return security_manager.find_user(username=username, email=email)
 
 
-def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | None = find_user):
+def requires_authentication(
+    function: T, find_user: Callable[[str], BaseUser] | None = find_user
+):
     """Decorate functions that require authentication with Kerberos."""
 
     @wraps(function)

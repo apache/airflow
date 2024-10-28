@@ -25,7 +25,9 @@ from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
 _PASSWORD = "snowflake42"
 
-key = rsa.generate_private_key(backend=crypto_default_backend(), public_exponent=65537, key_size=2048)
+key = rsa.generate_private_key(
+    backend=crypto_default_backend(), public_exponent=65537, key_size=2048
+)
 
 private_key = key.private_bytes(
     crypto_serialization.Encoding.PEM,

@@ -37,7 +37,9 @@ if TYPE_CHECKING:
 
 DEFAULT_CONN_ID = "aws_default"
 
-CLUSTER_TERMINAL_STATES = frozenset({ClusterStates.ACTIVE, ClusterStates.FAILED, ClusterStates.NONEXISTENT})
+CLUSTER_TERMINAL_STATES = frozenset(
+    {ClusterStates.ACTIVE, ClusterStates.FAILED, ClusterStates.NONEXISTENT}
+)
 FARGATE_TERMINAL_STATES = frozenset(
     {
         FargateProfileStates.ACTIVE,
@@ -138,7 +140,12 @@ class EksClusterStateSensor(EksBaseSensor):
          maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ("cluster_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "target_state",
+        "aws_conn_id",
+        "region",
+    )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -148,7 +155,9 @@ class EksClusterStateSensor(EksBaseSensor):
         target_state: ClusterStates = ClusterStates.ACTIVE,
         **kwargs,
     ):
-        super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
+        super().__init__(
+            target_state=target_state, target_state_type=ClusterStates, **kwargs
+        )
 
     def get_state(self) -> ClusterStates:
         return self.hook.get_cluster_state(clusterName=self.cluster_name)
@@ -194,7 +203,9 @@ class EksFargateProfileStateSensor(EksBaseSensor):
         target_state: FargateProfileStates = FargateProfileStates.ACTIVE,
         **kwargs,
     ):
-        super().__init__(target_state=target_state, target_state_type=FargateProfileStates, **kwargs)
+        super().__init__(
+            target_state=target_state, target_state_type=FargateProfileStates, **kwargs
+        )
         self.fargate_profile_name = fargate_profile_name
 
     def get_state(self) -> FargateProfileStates:
@@ -243,11 +254,15 @@ class EksNodegroupStateSensor(EksBaseSensor):
         target_state: NodegroupStates = NodegroupStates.ACTIVE,
         **kwargs,
     ):
-        super().__init__(target_state=target_state, target_state_type=NodegroupStates, **kwargs)
+        super().__init__(
+            target_state=target_state, target_state_type=NodegroupStates, **kwargs
+        )
         self.nodegroup_name = nodegroup_name
 
     def get_state(self) -> NodegroupStates:
-        return self.hook.get_nodegroup_state(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+        return self.hook.get_nodegroup_state(
+            clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+        )
 
     def get_terminal_states(self) -> frozenset:
         return NODEGROUP_TERMINAL_STATES

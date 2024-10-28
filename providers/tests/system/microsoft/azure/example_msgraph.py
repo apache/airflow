@@ -34,7 +34,9 @@ with models.DAG(
         task_id="news_site",
         conn_id="msgraph_api",
         url="sites/850v1v.sharepoint.com:/sites/news",
-        result_processor=lambda context, response: response["id"].split(",")[1],  # only keep site_id
+        result_processor=lambda context, response: response["id"].split(",")[
+            1
+        ],  # only keep site_id
     )
     # [END howto_operator_graph_site]
 

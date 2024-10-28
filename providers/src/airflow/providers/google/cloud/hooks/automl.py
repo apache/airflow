@@ -44,7 +44,10 @@ from google.cloud.automl_v1beta1 import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseHook,
+)
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -94,7 +97,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         :return: Google Cloud AutoML client object.
         """
         if self._client is None:
-            self._client = AutoMlClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = AutoMlClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
         return self._client
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
@@ -112,7 +117,9 @@ class CloudAutoMLHook(GoogleBaseHook):
 
         :return: Google Cloud AutoML PredictionServiceClient client object.
         """
-        return PredictionServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return PredictionServiceClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_model(
@@ -367,7 +374,12 @@ class CloudAutoMLHook(GoogleBaseHook):
             table_spec=table_spec_id,
         )
         result = client.list_column_specs(
-            request={"parent": parent, "field_mask": field_mask, "filter": filter_, "page_size": page_size},
+            request={
+                "parent": parent,
+                "field_mask": field_mask,
+                "filter": filter_,
+                "page_size": page_size,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -482,7 +494,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         model_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        image_detection_metadata: ImageObjectDetectionModelDeploymentMetadata | dict | None = None,
+        image_detection_metadata: ImageObjectDetectionModelDeploymentMetadata
+        | dict
+        | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),

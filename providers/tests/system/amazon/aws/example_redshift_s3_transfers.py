@@ -45,7 +45,10 @@ SECURITY_GROUP_KEY = "SECURITY_GROUP"
 CLUSTER_SUBNET_GROUP_KEY = "CLUSTER_SUBNET_GROUP"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(SECURITY_GROUP_KEY).add_variable(CLUSTER_SUBNET_GROUP_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(SECURITY_GROUP_KEY)
+    .add_variable(CLUSTER_SUBNET_GROUP_KEY)
+    .build()
 )
 
 DB_LOGIN = "adminuser"
@@ -177,7 +180,8 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql=_create_table(REDSHIFT_TMP_TABLE, is_temp=True) + _insert_data(REDSHIFT_TMP_TABLE),
+        sql=_create_table(REDSHIFT_TMP_TABLE, is_temp=True)
+        + _insert_data(REDSHIFT_TMP_TABLE),
         wait_for_completion=True,
         session_keep_alive_seconds=600,
     )

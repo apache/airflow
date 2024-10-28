@@ -22,7 +22,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
-from airflow.providers.google.cloud.links.dataprep import DataprepFlowLink, DataprepJobGroupLink
+from airflow.providers.google.cloud.links.dataprep import (
+    DataprepFlowLink,
+    DataprepJobGroupLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -296,7 +299,9 @@ class DataprepRunFlowOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> dict:
         self.log.info("Running the flow with id: %d...", self.flow_id)
         hooks = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
-        response = hooks.run_flow(flow_id=int(self.flow_id), body_request=self.body_request)
+        response = hooks.run_flow(
+            flow_id=int(self.flow_id), body_request=self.body_request
+        )
 
         if self.project_id:
             job_group_id = response["data"][0]["id"]

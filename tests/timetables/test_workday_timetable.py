@@ -64,7 +64,9 @@ def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime)
 def test_first_schedule(timetable: Timetable, restriction: TimeRestriction):
     """Since DAG starts on Saturday, and the first Monday is a holiday,
     the first ever run covers the next Tuesday and schedules on Wednesday."""
-    next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=None, restriction=restriction
+    )
     assert next_info == DagRunInfo.interval(WEEK_1_WEEKDAYS[1], WEEK_1_WEEKDAYS[2])
 
 

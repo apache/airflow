@@ -78,7 +78,9 @@ ACCOUNT_TEST_CASES = [
 
 @pytest.fixture
 def mocked_account_id():
-    with mock.patch.object(QuickSightHook, "account_id", new_callable=mock.PropertyMock) as m:
+    with mock.patch.object(
+        QuickSightHook, "account_id", new_callable=mock.PropertyMock
+    ) as m:
         m.return_value = DEFAULT_AWS_ACCOUNT_ID
         yield m
 
@@ -103,7 +105,13 @@ class TestQuicksight:
     )
     @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
     def test_get_job_status(
-        self, response, expected_status, aws_account_id, expected_account_id, mocked_account_id, mocked_client
+        self,
+        response,
+        expected_status,
+        aws_account_id,
+        expected_account_id,
+        mocked_account_id,
+        mocked_client,
     ):
         """Test get job status."""
         mocked_client.describe_ingestion.return_value = response
@@ -134,7 +142,9 @@ class TestQuicksight:
             ),
         ],
     )
-    def test_get_job_status_exception(self, exception, error_match, mocked_client, mocked_account_id):
+    def test_get_job_status_exception(
+        self, exception, error_match, mocked_client, mocked_account_id
+    ):
         mocked_client.describe_ingestion.side_effect = exception
 
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
@@ -154,7 +164,12 @@ class TestQuicksight:
     )
     @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
     def test_get_error_info(
-        self, error_info, aws_account_id, expected_account_id, mocked_client, mocked_account_id
+        self,
+        error_info,
+        aws_account_id,
+        expected_account_id,
+        mocked_client,
+        mocked_account_id,
     ):
         mocked_response = {"Ingestion": {}}
         if error_info:
@@ -164,7 +179,9 @@ class TestQuicksight:
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
         assert (
             hook.get_error_info(
-                data_set_id="DemoDataSet", ingestion_id="DemoDataSet_Ingestion", aws_account_id=None
+                data_set_id="DemoDataSet",
+                ingestion_id="DemoDataSet_Ingestion",
+                aws_account_id=None,
             )
             == error_info
         )
@@ -185,17 +202,31 @@ class TestQuicksight:
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
         with pytest.raises(AirflowException, match="Error info: Something Bad Happen"):
             hook.wait_for_state(
-                aws_account_id, "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=0
+                aws_account_id,
+                "data_set_id",
+                "ingestion_id",
+                target_state={"COMPLETED"},
+                check_interval=0,
             )
-        mocked_get_status.assert_called_with(expected_account_id, "data_set_id", "ingestion_id")
-        mocked_get_error_info.assert_called_with(expected_account_id, "data_set_id", "ingestion_id")
+        mocked_get_status.assert_called_with(
+            expected_account_id, "data_set_id", "ingestion_id"
+        )
+        mocked_get_error_info.assert_called_with(
+            expected_account_id, "data_set_id", "ingestion_id"
+        )
 
     @mock.patch.object(QuickSightHook, "get_status", return_value="CANCELLED")
     def test_wait_for_state_canceled(self, _):
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        with pytest.raises(AirflowException, match="The Amazon QuickSight SPICE ingestion cancelled"):
+        with pytest.raises(
+            AirflowException, match="The Amazon QuickSight SPICE ingestion cancelled"
+        ):
             hook.wait_for_state(
-                "aws_account_id", "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=0
+                "aws_account_id",
+                "data_set_id",
+                "ingestion_id",
+                target_state={"COMPLETED"},
+                check_interval=0,
             )
 
     @mock.patch.object(QuickSightHook, "get_status")
@@ -204,18 +235,28 @@ class TestQuicksight:
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
         assert (
             hook.wait_for_state(
-                "aws_account_id", "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=0
+                "aws_account_id",
+                "data_set_id",
+                "ingestion_id",
+                target_state={"COMPLETED"},
+                check_interval=0,
             )
             == "COMPLETED"
         )
         assert mocked_get_status.call_count == 4
 
     @pytest.mark.parametrize(
-        "wait_for_completion", [pytest.param(True, id="wait"), pytest.param(False, id="no-wait")]
+        "wait_for_completion",
+        [pytest.param(True, id="wait"), pytest.param(False, id="no-wait")],
     )
     @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
     def test_create_ingestion(
-        self, wait_for_completion, aws_account_id, expected_account_id, mocked_account_id, mocked_client
+        self,
+        wait_for_completion,
+        aws_account_id,
+        expected_account_id,
+        mocked_account_id,
+        mocked_client,
     ):
         mocked_client.create_ingestion.return_value = MOCK_CREATE_INGESTION_RESPONSE
 
@@ -243,7 +284,9 @@ class TestQuicksight:
             else:
                 mocked_wait_for_state.assert_not_called()
 
-        mocked_client.create_ingestion.assert_called_with(AwsAccountId=expected_account_id, **MOCK_DATA)
+        mocked_client.create_ingestion.assert_called_with(
+            AwsAccountId=expected_account_id, **MOCK_DATA
+        )
 
     def test_create_ingestion_exception(self, mocked_account_id, mocked_client, caplog):
         mocked_client.create_ingestion.side_effect = ValueError("Fake Error")

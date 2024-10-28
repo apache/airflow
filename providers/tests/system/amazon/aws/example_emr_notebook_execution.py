@@ -36,7 +36,10 @@ EDITOR_ID_KEY = "EDITOR_ID"
 CLUSTER_ID_KEY = "CLUSTER_ID"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(EDITOR_ID_KEY).add_variable(CLUSTER_ID_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(EDITOR_ID_KEY)
+    .add_variable(CLUSTER_ID_KEY)
+    .build()
 )
 
 with DAG(

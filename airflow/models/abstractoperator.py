@@ -21,7 +21,16 @@ import datetime
 import inspect
 from abc import abstractproperty
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Iterable,
+    Iterator,
+    Sequence,
+)
 
 import methodtools
 from sqlalchemy import select
@@ -270,7 +279,9 @@ class AbstractOperator(Templater, DAGNode):
             for task_id in task_ids_to_trace:
                 if task_id in relatives:
                     continue
-                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
+                task_ids_to_trace_next.update(
+                    dag.task_dict[task_id].get_direct_relative_ids(upstream)
+                )
                 relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
 
@@ -281,7 +292,10 @@ class AbstractOperator(Templater, DAGNode):
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+        return [
+            dag.task_dict[task_id]
+            for task_id in self.get_flat_relative_ids(upstream=upstream)
+        ]
 
     def get_upstreams_follow_setups(self) -> Iterable[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
@@ -308,9 +322,13 @@ class AbstractOperator(Templater, DAGNode):
         for task in self.get_flat_relatives(upstream=True):
             if not task.is_setup:
                 continue
-            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
+            has_no_teardowns = not any(
+                True for x in task.downstream_list if x.is_teardown
+            )
             # if task has no teardowns or has teardowns downstream of self
-            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
+            if has_no_teardowns or task.downstream_task_ids.intersection(
+                downstream_teardown_ids
+            ):
                 yield task
                 for t in task.downstream_list:
                     if t.is_teardown and t != self:
@@ -360,7 +378,9 @@ class AbstractOperator(Templater, DAGNode):
 
         dag = self.get_dag()
         if not dag:
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
+            raise RuntimeError(
+                "Cannot check for mapped dependants when not attached to a DAG"
+            )
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
@@ -381,7 +401,9 @@ class AbstractOperator(Templater, DAGNode):
         return (
             downstream
             for downstream in self._iter_all_mapped_downstreams()
-            if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
+            if any(
+                p.node_id == self.node_id for p in downstream.iter_mapped_dependencies()
+            )
         )
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
@@ -417,7 +439,9 @@ class AbstractOperator(Templater, DAGNode):
                 self._needs_expansion = False
         return self._needs_expansion
 
-    def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
+    def unmap(
+        self, resolve: None | dict[str, Any] | tuple[Context, Session]
+    ) -> BaseOperator:
         """
         Get the "normal" operator from current abstract operator.
 
@@ -439,7 +463,9 @@ class AbstractOperator(Templater, DAGNode):
         """
         raise NotImplementedError()
 
-    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+    def expand_start_trigger_args(
+        self, *, context: Context, session: Session
+    ) -> StartTriggerArgs | None:
         """
         Get the start_trigger_args value of the current abstract operator.
 
@@ -513,7 +539,9 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def extra_links(self) -> list[str]:
-        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+        return sorted(
+            set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict)
+        )
 
     def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
         """
@@ -534,7 +562,9 @@ class AbstractOperator(Templater, DAGNode):
                 return None
 
         parameters = inspect.signature(link.get_link).parameters
-        old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
+        old_signature = all(
+            name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD
+        )
 
         if old_signature:
             return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
@@ -577,7 +607,9 @@ class AbstractOperator(Templater, DAGNode):
             raise NotMapped
         return group.get_mapped_ti_count(run_id, session=session)
 
-    def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+    def expand_mapped_task(
+        self, run_id: str, *, session: Session
+    ) -> tuple[Sequence[TaskInstance], int]:
         """
         Create the mapped task instances for mapped task.
 
@@ -593,7 +625,9 @@ class AbstractOperator(Templater, DAGNode):
         from airflow.settings import task_instance_mutation_hook
 
         if not isinstance(self, (BaseOperator, MappedOperator)):
-            raise RuntimeError(f"cannot expand unrecognized operator type {type(self).__name__}")
+            raise RuntimeError(
+                f"cannot expand unrecognized operator type {type(self).__name__}"
+            )
 
         try:
             total_length: int | None = self.get_mapped_ti_count(run_id, session=session)
@@ -617,7 +651,9 @@ class AbstractOperator(Templater, DAGNode):
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
-                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+                or_(
+                    TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)
+                ),
             )
         ).one_or_none()
 
@@ -789,7 +825,9 @@ class AbstractOperator(Templater, DAGNode):
 
     def __enter__(self):
         if not self.is_setup and not self.is_teardown:
-            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+            raise AirflowException(
+                "Only setup/teardown tasks can be used as context managers."
+            )
         SetupTeardownContext.push_setup_teardown_task(self)
         return SetupTeardownContext
 

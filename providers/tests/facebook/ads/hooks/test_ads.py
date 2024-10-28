@@ -23,7 +23,12 @@ import pytest
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 
 API_VERSION = "api_version"
-EXTRAS = {"account_id": "act_12345", "app_id": "12345", "app_secret": "1fg444", "access_token": "Ab35gf7E"}
+EXTRAS = {
+    "account_id": "act_12345",
+    "app_id": "12345",
+    "app_secret": "1fg444",
+    "access_token": "Ab35gf7E",
+}
 EXTRAS_MULTIPLE = {
     "account_id": ["act_12345", "act_12346"],
     "app_id": "12345",
@@ -87,7 +92,9 @@ class TestFacebookAdsReportingHook:
 
     @mock.patch("airflow.providers.facebook.ads.hooks.ads.AdAccount")
     @mock.patch("airflow.providers.facebook.ads.hooks.ads.FacebookAdsApi")
-    def test_bulk_facebook_report_multiple_account_id(self, mock_client, mock_ad_account, mock_hook_multiple):
+    def test_bulk_facebook_report_multiple_account_id(
+        self, mock_client, mock_ad_account, mock_hook_multiple
+    ):
         mock_client = mock_client.init()
         ad_account = mock_ad_account().get_insights
         ad_account.return_value.api_get.return_value = {
@@ -97,7 +104,8 @@ class TestFacebookAdsReportingHook:
         }
         mock_hook_multiple.bulk_facebook_report(params=PARAMS, fields=FIELDS)
         mock_ad_account.assert_has_calls(
-            [mock.call(ACCOUNT_ID_1, api=mock_client)], [mock.call(ACCOUNT_ID_2, api=mock_client)]
+            [mock.call(ACCOUNT_ID_1, api=mock_client)],
+            [mock.call(ACCOUNT_ID_2, api=mock_client)],
         )
         ad_account.assert_has_calls(
             [mock.call(params=PARAMS, fields=FIELDS, is_async=True)],

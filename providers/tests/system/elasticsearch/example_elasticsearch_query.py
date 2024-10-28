@@ -26,7 +26,10 @@ from datetime import datetime
 from airflow import models
 from airflow.decorators import task
 from airflow.operators.python import PythonOperator
-from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook, ElasticsearchSQLHook
+from airflow.providers.elasticsearch.hooks.elasticsearch import (
+    ElasticsearchPythonHook,
+    ElasticsearchSQLHook,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "elasticsearch_dag"

@@ -57,7 +57,9 @@ FORECAST_DATASET = {
         {
             "input_config": {
                 "gcs_source": {
-                    "uri": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/forecast-dataset.csv"]
+                    "uri": [
+                        f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/forecast-dataset.csv"
+                    ]
                 }
             }
         },

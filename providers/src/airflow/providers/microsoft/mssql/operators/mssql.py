@@ -63,7 +63,11 @@ class MsSqlOperator(SQLExecuteQueryOperator):
     ui_color = "#ededed"
 
     def __init__(
-        self, *, mssql_conn_id: str = "mssql_default", database: str | None = None, **kwargs
+        self,
+        *,
+        mssql_conn_id: str = "mssql_default",
+        database: str | None = None,
+        **kwargs,
     ) -> None:
         if database is not None:
             hook_params = kwargs.pop("hook_params", {})

@@ -23,7 +23,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsReportingHook
+from airflow.providers.google.marketing_platform.hooks.search_ads import (
+    GoogleSearchAdsReportingHook,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -292,5 +294,7 @@ class GoogleSearchAdsListCustomColumnsOperator(_GoogleSearchAdsBaseOperator):
     def execute(self, context: Context):
         self.log.info("Listing the custom columns for %s", self.customer_id)
         response = self.hook.list_custom_columns(customer_id=self.customer_id)
-        self.log.info("Num of retrieved custom column: %d", len(response.get("customColumns")))
+        self.log.info(
+            "Num of retrieved custom column: %d", len(response.get("customColumns"))
+        )
         return response

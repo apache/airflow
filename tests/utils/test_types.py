@@ -41,9 +41,13 @@ def test_runtype_enum_escape():
     referenced in DB query
     """
     with create_session() as session:
-        dag = DAG(dag_id="test_enum_dags", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
+        dag = DAG(
+            dag_id="test_enum_dags", schedule=timedelta(days=1), start_date=DEFAULT_DATE
+        )
         data_interval = dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=State.RUNNING,

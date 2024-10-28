@@ -27,7 +27,9 @@ from datetime import datetime
 from google.cloud.dataform_v1beta1 import WorkflowInvocation, WorkflowInvocationAction
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
+from airflow.providers.google.cloud.operators.bigquery import (
+    BigQueryDeleteDatasetOperator,
+)
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
     DataformCreateCompilationResultOperator,
@@ -49,13 +51,17 @@ from airflow.providers.google.cloud.sensors.dataform import (
     DataformWorkflowInvocationActionStateSensor,
     DataformWorkflowInvocationStateSensor,
 )
-from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
+from airflow.providers.google.cloud.utils.dataform import (
+    make_initialization_workspace_flow,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "dataform"
 
@@ -92,14 +98,16 @@ with DAG(
     # [END howto_operator_create_workspace]
 
     # [START howto_initialize_workspace]
-    first_initialization_step, last_initialization_step = make_initialization_workspace_flow(
-        project_id=PROJECT_ID,
-        region=REGION,
-        repository_id=REPOSITORY_ID,
-        workspace_id=WORKSPACE_ID,
-        package_name=f"dataform_package_{ENV_ID}",
-        without_installation=True,
-        dataform_schema_name=DATAFORM_SCHEMA_NAME,
+    first_initialization_step, last_initialization_step = (
+        make_initialization_workspace_flow(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workspace_id=WORKSPACE_ID,
+            package_name=f"dataform_package_{ENV_ID}",
+            without_installation=True,
+            dataform_schema_name=DATAFORM_SCHEMA_NAME,
+        )
     )
     # [END howto_initialize_workspace]
 

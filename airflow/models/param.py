@@ -20,7 +20,15 @@ import contextlib
 import copy
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    ItemsView,
+    Iterable,
+    MutableMapping,
+    ValuesView,
+)
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.utils.mixins import ResolveMixin
@@ -121,14 +129,20 @@ class Param:
         return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
-        return {"value": self.value, "description": self.description, "schema": self.schema}
+        return {
+            "value": self.value,
+            "description": self.description,
+            "schema": self.schema,
+        }
 
     @staticmethod
     def deserialize(data: dict[str, Any], version: int) -> Param:
         if version > Param.__version__:
             raise TypeError("serialized version > class version")
 
-        return Param(default=data["value"], description=data["description"], schema=data["schema"])
+        return Param(
+            default=data["value"], description=data["description"], schema=data["schema"]
+        )
 
 
 class ParamsDict(MutableMapping[str, Any]):
@@ -147,7 +161,9 @@ class ParamsDict(MutableMapping[str, Any]):
     __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
-    def __init__(self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False):
+    def __init__(
+        self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False
+    ):
         params_dict: dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
@@ -204,7 +220,9 @@ class ParamsDict(MutableMapping[str, Any]):
             try:
                 param.resolve(value=value, suppress_exception=self.suppress_exception)
             except ParamValidationError as ve:
-                raise ParamValidationError(f"Invalid input for param {key}: {ve}") from None
+                raise ParamValidationError(
+                    f"Invalid input for param {key}: {ve}"
+                ) from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
@@ -345,7 +363,13 @@ def process_params(
         params.update(dag.params)
     if task.params:
         params.update(task.params)
-    if conf.getboolean("core", "dag_run_conf_overrides_params") and dag_run and dag_run.conf:
-        logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
+    if (
+        conf.getboolean("core", "dag_run_conf_overrides_params")
+        and dag_run
+        and dag_run.conf
+    ):
+        logger.debug(
+            "Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf
+        )
         params.update(dag_run.conf)
     return params.validate()

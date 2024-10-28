@@ -132,4 +132,6 @@ class TestRedshiftClusterSensor:
             deferrable_op.execute_complete(
                 context=None, event={"status": "success", "cluster_state": "available"}
             )
-        mock_log_info.assert_called_with("Cluster Identifier %s is in %s state", "test_cluster", "available")
+        mock_log_info.assert_called_with(
+            "Cluster Identifier %s is in %s state", "test_cluster", "available"
+        )

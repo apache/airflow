@@ -75,7 +75,10 @@ with DAG(
     one_week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
     find = AsanaFindTaskOperator(
         task_id="run_asana_find_task",
-        search_parameters={"project": ASANA_PROJECT_ID_OVERRIDE, "modified_since": one_week_ago},
+        search_parameters={
+            "project": ASANA_PROJECT_ID_OVERRIDE,
+            "modified_since": one_week_ago,
+        },
     )
     # [END run_asana_find_task_operator]
 

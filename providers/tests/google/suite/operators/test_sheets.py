@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
+from airflow.providers.google.suite.operators.sheets import (
+    GoogleSheetsCreateSpreadsheetOperator,
+)
 
 GCP_CONN_ID = "test"
 SPREADSHEET_URL = "https://example/sheets"
@@ -42,7 +44,9 @@ class TestGoogleSheetsCreateSpreadsheet:
         )
         op_execute_result = op.execute(context)
 
-        mock_hook.return_value.create_spreadsheet.assert_called_once_with(spreadsheet=spreadsheet)
+        mock_hook.return_value.create_spreadsheet.assert_called_once_with(
+            spreadsheet=spreadsheet
+        )
 
         assert op_execute_result["spreadsheetId"] == "1234567890"
         assert op_execute_result["spreadsheetUrl"] == "https://example/sheets"

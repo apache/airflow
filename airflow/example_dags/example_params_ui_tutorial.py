@@ -236,7 +236,10 @@ with DAG(
             title="JSON array field",
             items={
                 "type": "object",
-                "properties": {"name": {"type": "string"}, "country_name": {"type": "string"}},
+                "properties": {
+                    "name": {"type": "string"},
+                    "country_name": {"type": "string"},
+                },
                 "required": ["name"],
             },
             section="Special advanced stuff with form fields",
@@ -251,7 +254,9 @@ with DAG(
     @task(task_display_name="Show used parameters")
     def show_params(**kwargs) -> None:
         params: ParamsDict = kwargs["params"]
-        print(f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n")
+        print(
+            f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n"
+        )
 
     show_params()
 # [END section_3]

@@ -21,7 +21,10 @@ from unittest import mock
 import pytest
 
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.amazon.aws.notifications.sns import SnsNotifier, send_sns_notification
+from airflow.providers.amazon.aws.notifications.sns import (
+    SnsNotifier,
+    send_sns_notification,
+)
 from airflow.utils.types import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
@@ -31,7 +34,9 @@ class TestSnsNotifier:
     def test_class_and_notifier_are_same(self):
         assert send_sns_notification is SnsNotifier
 
-    @pytest.mark.parametrize("aws_conn_id", ["aws_test_conn_id", None, PARAM_DEFAULT_VALUE])
+    @pytest.mark.parametrize(
+        "aws_conn_id", ["aws_test_conn_id", None, PARAM_DEFAULT_VALUE]
+    )
     @pytest.mark.parametrize("region_name", ["eu-west-2", None, PARAM_DEFAULT_VALUE])
     def test_parameters_propagate_to_hook(self, aws_conn_id, region_name):
         """Test notifier attributes propagate to SnsHook."""
@@ -48,7 +53,9 @@ class TestSnsNotifier:
             notifier_kwargs["region_name"] = region_name
 
         notifier = SnsNotifier(**notifier_kwargs, **publish_kwargs)
-        with mock.patch("airflow.providers.amazon.aws.notifications.sns.SnsHook") as mock_hook:
+        with mock.patch(
+            "airflow.providers.amazon.aws.notifications.sns.SnsHook"
+        ) as mock_hook:
             hook = notifier.hook
             assert hook is notifier.hook, "Hook property not cached"
             mock_hook.assert_called_once_with(
@@ -58,7 +65,9 @@ class TestSnsNotifier:
 
             # Basic check for notifier
             notifier.notify({})
-            mock_hook.return_value.publish_to_target.assert_called_once_with(**publish_kwargs)
+            mock_hook.return_value.publish_to_target.assert_called_once_with(
+                **publish_kwargs
+            )
 
     @pytest.mark.db_test
     def test_sns_notifier_templated(self, dag_maker):
@@ -85,7 +94,9 @@ class TestSnsNotifier:
                 }
             )
             # Hook initialisation
-            m.assert_called_once_with(aws_conn_id="test_sns_notifier_templated", region_name="us-west-1")
+            m.assert_called_once_with(
+                aws_conn_id="test_sns_notifier_templated", region_name="us-west-1"
+            )
             # Publish message
             m.return_value.publish_to_target.assert_called_once_with(
                 target_arn="arn:aws:sns:us-west-1:000000000000:AwesomeTopic",

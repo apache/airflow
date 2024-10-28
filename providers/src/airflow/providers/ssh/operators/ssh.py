@@ -24,7 +24,11 @@ from typing import TYPE_CHECKING, Container, Sequence
 from deprecated.classic import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+)
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -121,7 +125,9 @@ class SSHOperator(BaseOperator):
     def ssh_hook(self) -> SSHHook:
         """Create SSHHook to run commands on remote host."""
         if self.ssh_conn_id:
-            self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
+            self.log.info(
+                "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
+            )
             hook = SSHHook(
                 ssh_conn_id=self.ssh_conn_id,
                 conn_timeout=self.conn_timeout,
@@ -142,7 +148,9 @@ class SSHOperator(BaseOperator):
     def hook(self) -> SSHHook:
         return self.ssh_hook
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> SSHHook:
         return self.ssh_hook
 
@@ -157,9 +165,15 @@ class SSHOperator(BaseOperator):
         ),
         category=AirflowProviderDeprecationWarning,
     )
-    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> tuple[int, bytes, bytes]:
+    def exec_ssh_client_command(
+        self, ssh_client: SSHClient, command: str
+    ) -> tuple[int, bytes, bytes]:
         return self.hook.exec_ssh_client_command(
-            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
+            ssh_client,
+            command,
+            timeout=self.cmd_timeout,
+            environment=self.environment,
+            get_pty=self.get_pty,
         )
 
     def raise_for_status(self, exit_status: int, stderr: bytes, context=None) -> None:
@@ -167,13 +181,21 @@ class SSHOperator(BaseOperator):
             ti = context.get("task_instance")
             ti.xcom_push(key="ssh_exit", value=exit_status)
         if exit_status in self.skip_on_exit_code:
-            raise AirflowSkipException(f"SSH command returned exit code {exit_status}. Skipping.")
+            raise AirflowSkipException(
+                f"SSH command returned exit code {exit_status}. Skipping."
+            )
         if exit_status != 0:
             raise AirflowException(f"SSH operator error: exit status = {exit_status}")
 
-    def run_ssh_client_command(self, ssh_client: SSHClient, command: str, context=None) -> bytes:
+    def run_ssh_client_command(
+        self, ssh_client: SSHClient, command: str, context=None
+    ) -> bytes:
         exit_status, agg_stdout, agg_stderr = self.hook.exec_ssh_client_command(
-            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
+            ssh_client,
+            command,
+            timeout=self.cmd_timeout,
+            environment=self.environment,
+            get_pty=self.get_pty,
         )
         self.raise_for_status(exit_status, agg_stderr, context=context)
         return agg_stdout
@@ -181,13 +203,17 @@ class SSHOperator(BaseOperator):
     def execute(self, context=None) -> bytes | str:
         result: bytes | str
         if self.command is None:
-            raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
+            raise AirflowException(
+                "SSH operator error: SSH command not specified. Aborting."
+            )
 
         # Forcing get_pty to True if the command begins with "sudo".
         self.get_pty = self.command.startswith("sudo") or self.get_pty
 
         with self.get_ssh_client() as ssh_client:
-            result = self.run_ssh_client_command(ssh_client, self.command, context=context)
+            result = self.run_ssh_client_command(
+                ssh_client, self.command, context=context
+            )
         enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
         if not enable_pickling:
             result = b64encode(result).decode("utf-8")

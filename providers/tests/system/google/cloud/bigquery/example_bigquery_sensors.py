@@ -81,7 +81,10 @@ with DAG(
 
     # [START howto_sensor_bigquery_table]
     check_table_exists = BigQueryTableExistenceSensor(
-        task_id="check_table_exists", project_id=PROJECT_ID, dataset_id=DATASET_NAME, table_id=TABLE_NAME
+        task_id="check_table_exists",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
     )
     # [END howto_sensor_bigquery_table]
 

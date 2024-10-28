@@ -38,7 +38,9 @@ class TestDatabricksReposUpdateOperator:
         """
         Test the execute function using Repo ID.
         """
-        op = DatabricksReposUpdateOperator(task_id=TASK_ID, branch="releases", repo_id="123")
+        op = DatabricksReposUpdateOperator(
+            task_id=TASK_ID, branch="releases", repo_id="123"
+        )
         db_mock = db_mock_class.return_value
         db_mock.update_repo.return_value = {"head_commit_id": "123456"}
 
@@ -81,19 +83,29 @@ class TestDatabricksReposUpdateOperator:
         Tests handling of incorrect parameters passed to ``__init__``
         """
         with pytest.raises(
-            AirflowException, match="Only one of repo_id or repo_path should be provided, but not both"
+            AirflowException,
+            match="Only one of repo_id or repo_path should be provided, but not both",
         ):
-            DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="abc", repo_path="path", branch="abc")
+            DatabricksReposUpdateOperator(
+                task_id=TASK_ID, repo_id="abc", repo_path="path", branch="abc"
+            )
 
-        with pytest.raises(AirflowException, match="One of repo_id or repo_path should be provided"):
+        with pytest.raises(
+            AirflowException, match="One of repo_id or repo_path should be provided"
+        ):
             DatabricksReposUpdateOperator(task_id=TASK_ID, branch="abc")
 
         with pytest.raises(
-            AirflowException, match="Only one of branch or tag should be provided, but not both"
+            AirflowException,
+            match="Only one of branch or tag should be provided, but not both",
         ):
-            DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123", branch="123", tag="123")
+            DatabricksReposUpdateOperator(
+                task_id=TASK_ID, repo_id="123", branch="123", tag="123"
+            )
 
-        with pytest.raises(AirflowException, match="One of branch or tag should be provided"):
+        with pytest.raises(
+            AirflowException, match="One of branch or tag should be provided"
+        ):
             DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123")
 
 
@@ -123,7 +135,9 @@ class TestDatabricksReposDeleteOperator:
         """
         Test the execute function using Repo path.
         """
-        op = DatabricksReposDeleteOperator(task_id=TASK_ID, repo_path="/Repos/user@domain.com/test-repo")
+        op = DatabricksReposDeleteOperator(
+            task_id=TASK_ID, repo_path="/Repos/user@domain.com/test-repo"
+        )
         db_mock = db_mock_class.return_value
         db_mock.get_repo_by_path.return_value = "123"
         db_mock.delete_repo.return_value = None
@@ -144,11 +158,16 @@ class TestDatabricksReposDeleteOperator:
         Tests handling of incorrect parameters passed to ``__init__``
         """
         with pytest.raises(
-            AirflowException, match="Only one of repo_id or repo_path should be provided, but not both"
+            AirflowException,
+            match="Only one of repo_id or repo_path should be provided, but not both",
         ):
-            DatabricksReposDeleteOperator(task_id=TASK_ID, repo_id="abc", repo_path="path")
+            DatabricksReposDeleteOperator(
+                task_id=TASK_ID, repo_id="abc", repo_path="path"
+            )
 
-        with pytest.raises(AirflowException, match="One of repo_id repo_path tag should be provided"):
+        with pytest.raises(
+            AirflowException, match="One of repo_id repo_path tag should be provided"
+        ):
             DatabricksReposDeleteOperator(task_id=TASK_ID)
 
 
@@ -177,7 +196,9 @@ class TestDatabricksReposCreateOperator:
             caller="DatabricksReposCreateOperator",
         )
 
-        db_mock.create_repo.assert_called_once_with({"url": git_url, "provider": "gitHub", "path": repo_path})
+        db_mock.create_repo.assert_called_once_with(
+            {"url": git_url, "provider": "gitHub", "path": repo_path}
+        )
         db_mock.update_repo.assert_called_once_with("123", {"branch": "releases"})
 
     @mock.patch("airflow.providers.databricks.operators.databricks_repos.DatabricksHook")
@@ -216,15 +237,18 @@ class TestDatabricksReposCreateOperator:
         """
         git_url = "https://github.com/test/test"
         repo_path = "/Repos/test-repo"
-        exception_message = (
-            f"repo_path should have form of /Repos/{{folder}}/{{repo-name}}, got '{repo_path}'"
-        )
+        exception_message = f"repo_path should have form of /Repos/{{folder}}/{{repo-name}}, got '{repo_path}'"
 
-        op = DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, repo_path=repo_path)
+        op = DatabricksReposCreateOperator(
+            task_id=TASK_ID, git_url=git_url, repo_path=repo_path
+        )
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
         with pytest.raises(
-            AirflowException, match="Only one of branch or tag should be provided, but not both"
+            AirflowException,
+            match="Only one of branch or tag should be provided, but not both",
         ):
-            DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, branch="123", tag="123")
+            DatabricksReposCreateOperator(
+                task_id=TASK_ID, git_url=git_url, branch="123", tag="123"
+            )

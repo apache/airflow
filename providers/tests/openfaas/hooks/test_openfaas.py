@@ -69,7 +69,9 @@ class TestOpenFaasHook:
     @mock.patch.object(BaseHook, "get_connection")
     def test_update_function_true(self, mock_get_connection, requests_mock):
         requests_mock.put(
-            "http://open-faas.io" + self.UPDATE_FUNCTION, json=self.mock_response, status_code=202
+            "http://open-faas.io" + self.UPDATE_FUNCTION,
+            json=self.mock_response,
+            status_code=202,
         )
         mock_connection = Connection(host="http://open-faas.io")
 
@@ -79,7 +81,9 @@ class TestOpenFaasHook:
     @mock.patch.object(BaseHook, "get_connection")
     def test_update_function_false(self, mock_get_connection, requests_mock):
         requests_mock.put(
-            "http://open-faas.io" + self.UPDATE_FUNCTION, json=self.mock_response, status_code=400
+            "http://open-faas.io" + self.UPDATE_FUNCTION,
+            json=self.mock_response,
+            status_code=400,
         )
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
@@ -139,9 +143,13 @@ class TestOpenFaasHook:
         assert self.hook.invoke_async_function({}) is None
 
     @mock.patch.object(BaseHook, "get_connection")
-    def test_deploy_function_function_already_exist(self, mock_get_connection, requests_mock):
+    def test_deploy_function_function_already_exist(
+        self, mock_get_connection, requests_mock
+    ):
         requests_mock.put(
-            "http://open-faas.io/" + self.UPDATE_FUNCTION, json=self.mock_response, status_code=202
+            "http://open-faas.io/" + self.UPDATE_FUNCTION,
+            json=self.mock_response,
+            status_code=202,
         )
         mock_connection = Connection(host="http://open-faas.io/")
         mock_get_connection.return_value = mock_connection
@@ -149,7 +157,9 @@ class TestOpenFaasHook:
 
     @mock.patch.object(BaseHook, "get_connection")
     def test_deploy_function_function_not_exist(self, mock_get_connection, requests_mock):
-        requests_mock.post("http://open-faas.io" + self.DEPLOY_FUNCTION, json={}, status_code=202)
+        requests_mock.post(
+            "http://open-faas.io" + self.DEPLOY_FUNCTION, json={}, status_code=202
+        )
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
         assert self.hook.deploy_function(False, {}) is None

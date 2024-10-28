@@ -105,7 +105,9 @@ def round_time(
         if start_date + (lower + 1) * delta >= dt:
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
-            if (start_date + (lower + 1) * delta) - dt <= dt - (start_date + lower * delta):
+            if (start_date + (lower + 1) * delta) - dt <= dt - (
+                start_date + lower * delta
+            ):
                 return start_date + (lower + 1) * delta
             else:
                 return start_date + lower * delta
@@ -145,7 +147,9 @@ def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
         return "days"
 
 
-def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Collection[float]:
+def scale_time_units(
+    time_seconds_arr: Collection[float], unit: TimeUnit
+) -> Collection[float]:
     """Convert an array of time durations in seconds to the specified time unit."""
     if unit == "minutes":
         factor = 60

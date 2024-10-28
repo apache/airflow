@@ -63,7 +63,9 @@ if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
     GCP_CONNECTION_WITHOUT_PROJECT_ID = None
 
 else:
-    GCP_CONNECTION_WITH_PROJECT_ID = Connection(extra=json.dumps({"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}))
+    GCP_CONNECTION_WITH_PROJECT_ID = Connection(
+        extra=json.dumps({"project": GCP_PROJECT_ID_HOOK_UNIT_TEST})
+    )
     GCP_CONNECTION_WITHOUT_PROJECT_ID = Connection(extra=json.dumps({}))
 
 

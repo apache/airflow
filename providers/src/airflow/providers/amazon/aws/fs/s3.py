@@ -45,7 +45,9 @@ class SignError(Exception):
     """Raises when unable to sign a S3 request."""
 
 
-def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -> AbstractFileSystem:
+def get_fs(
+    conn_id: str | None, storage_options: dict[str, str] | None = None
+) -> AbstractFileSystem:
     try:
         from s3fs import S3FileSystem
     except ImportError:
@@ -59,7 +61,9 @@ def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -
     session = s3_hook.get_session(deferrable=True)
     endpoint_url = s3_hook.conn_config.get_service_endpoint_url(service_name="s3")
 
-    config_kwargs: dict[str, Any] = s3_hook.conn_config.extra_config.get("config_kwargs", {})
+    config_kwargs: dict[str, Any] = s3_hook.conn_config.extra_config.get(
+        "config_kwargs", {}
+    )
     config_kwargs.update(storage_options or {})
 
     register_events: dict[str, Callable[[Properties], None]] = {}
@@ -93,7 +97,9 @@ def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -
         log.info("No credentials found, using anonymous access")
         anon = True
 
-    fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url, anon=anon)
+    fs = S3FileSystem(
+        session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url, anon=anon
+    )
 
     for event_name, event_function in register_events.items():
         fs.s3.meta.events.register_last(event_name, event_function, unique_id=1925)
@@ -114,12 +120,16 @@ def s3v4_rest_signer(properties: Properties, request: AWSRequest, **_: Any) -> A
         "headers": {key: [val] for key, val in request.headers.items()},
     }
 
-    response = requests.post(f"{signer_url}/v1/aws/s3/sign", headers=signer_headers, json=signer_body)
+    response = requests.post(
+        f"{signer_url}/v1/aws/s3/sign", headers=signer_headers, json=signer_body
+    )
     try:
         response.raise_for_status()
         response_json = response.json()
     except HTTPError as e:
-        raise SignError(f"Failed to sign request {response.status_code}: {signer_body}") from e
+        raise SignError(
+            f"Failed to sign request {response.status_code}: {signer_body}"
+        ) from e
 
     for key, value in response_json["headers"].items():
         request.headers.add_header(key, ", ".join(value))
@@ -129,4 +139,6 @@ def s3v4_rest_signer(properties: Properties, request: AWSRequest, **_: Any) -> A
     return request
 
 
-SIGNERS: dict[str, Callable[[Properties, AWSRequest], AWSRequest]] = {"S3V4RestSigner": s3v4_rest_signer}
+SIGNERS: dict[str, Callable[[Properties, AWSRequest], AWSRequest]] = {
+    "S3V4RestSigner": s3v4_rest_signer
+}

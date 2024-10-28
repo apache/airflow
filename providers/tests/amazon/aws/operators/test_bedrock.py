@@ -25,7 +25,11 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentHook,
+    BedrockHook,
+    BedrockRuntimeHook,
+)
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
@@ -141,7 +145,9 @@ class TestBedrockCustomizeModelOperator:
 
     conflict_msg = "The provided job name is currently in use."
     conflict_exception = ClientError(
-        error_response={"Error": {"Message": conflict_msg, "Code": "ValidationException"}},
+        error_response={
+            "Error": {"Message": conflict_msg, "Code": "ValidationException"}
+        },
         operation_name="UnitTest",
     )
     success = {"ResponseMetadata": {"HTTPStatusCode": 201}, "jobArn": CUSTOMIZE_JOB_ARN}
@@ -149,8 +155,12 @@ class TestBedrockCustomizeModelOperator:
     @pytest.mark.parametrize(
         "side_effect, ensure_unique_name",
         [
-            pytest.param([conflict_exception, success], True, id="conflict_and_ensure_unique"),
-            pytest.param([conflict_exception, success], False, id="conflict_and_not_ensure_unique"),
+            pytest.param(
+                [conflict_exception, success], True, id="conflict_and_ensure_unique"
+            ),
+            pytest.param(
+                [conflict_exception, success], False, id="conflict_and_not_ensure_unique"
+            ),
             pytest.param(
                 [conflict_exception, conflict_exception, success],
                 True,
@@ -166,7 +176,9 @@ class TestBedrockCustomizeModelOperator:
         ],
     )
     @mock.patch.object(BedrockHook, "get_waiter")
-    def test_ensure_unique_job_name(self, _, side_effect, ensure_unique_name, mock_conn, bedrock_hook):
+    def test_ensure_unique_job_name(
+        self, _, side_effect, ensure_unique_name, mock_conn, bedrock_hook
+    ):
         mock_conn.create_model_customization_job.side_effect = side_effect
         expected_call_count = len(side_effect) if ensure_unique_name else 1
         self.operator.wait_for_completion = False
@@ -188,7 +200,9 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(BedrockHook, "conn") as _conn:
-            _conn.create_provisioned_model_throughput.return_value = {"provisionedModelArn": self.MODEL_ARN}
+            _conn.create_provisioned_model_throughput.return_value = {
+                "provisionedModelArn": self.MODEL_ARN
+            }
             yield _conn
 
     @pytest.fixture
@@ -306,7 +320,9 @@ class TestBedrockCreateDataSourceOperator:
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(BedrockAgentHook, "conn") as _conn:
-            _conn.create_data_source.return_value = {"dataSource": {"dataSourceId": self.DATA_SOURCE_ID}}
+            _conn.create_data_source.return_value = {
+                "dataSource": {"dataSourceId": self.DATA_SOURCE_ID}
+            }
             yield _conn
 
     @pytest.fixture
@@ -367,7 +383,9 @@ class TestBedrockIngestDataOperator:
 
 
 class TestBedrockRaGOperator:
-    VECTOR_SEARCH_CONFIG = {"filter": {"equals": {"key": "some key", "value": "some value"}}}
+    VECTOR_SEARCH_CONFIG = {
+        "filter": {"equals": {"key": "some key", "value": "some value"}}
+    }
     KNOWLEDGE_BASE_ID = "knowledge_base_id"
     SOURCES = [{"sourceType": "S3", "s3Location": "bucket"}]
     MODEL_ARN = "model arn"
@@ -442,7 +460,12 @@ class TestBedrockRaGOperator:
         ],
     )
     def test_input_validation(
-        self, source_type, vector_search_config, knowledge_base_id, sources, expect_success
+        self,
+        source_type,
+        vector_search_config,
+        knowledge_base_id,
+        sources,
+        expect_success,
     ):
         op = BedrockRaGOperator(
             task_id="test_rag",
@@ -481,10 +504,14 @@ class TestBedrockRaGOperator:
         expected_config_without_template = {
             "knowledgeBaseId": self.KNOWLEDGE_BASE_ID,
             "modelArn": self.MODEL_ARN,
-            "retrievalConfiguration": {"vectorSearchConfiguration": self.VECTOR_SEARCH_CONFIG},
+            "retrievalConfiguration": {
+                "vectorSearchConfiguration": self.VECTOR_SEARCH_CONFIG
+            },
         }
         expected_config_template = {
-            "generationConfiguration": {"promptTemplate": {"textPromptTemplate": prompt_template}}
+            "generationConfiguration": {
+                "promptTemplate": {"textPromptTemplate": prompt_template}
+            }
         }
         config = op.build_rag_config()
 
@@ -493,7 +520,9 @@ class TestBedrockRaGOperator:
         assert config["type"] == expected_source_type
 
         if not prompt_template:
-            assert config["knowledgeBaseConfiguration"] == expected_config_without_template
+            assert (
+                config["knowledgeBaseConfiguration"] == expected_config_without_template
+            )
         else:
             assert config["knowledgeBaseConfiguration"] == {
                 **expected_config_without_template,
@@ -522,7 +551,9 @@ class TestBedrockRaGOperator:
             "sources": self.SOURCES,
         }
         expected_config_template = {
-            "generationConfiguration": {"promptTemplate": {"textPromptTemplate": prompt_template}}
+            "generationConfiguration": {
+                "promptTemplate": {"textPromptTemplate": prompt_template}
+            }
         }
         config = op.build_rag_config()
 
@@ -531,7 +562,9 @@ class TestBedrockRaGOperator:
         assert config["type"] == expected_source_type
 
         if not prompt_template:
-            assert config["externalSourcesConfiguration"] == expected_config_without_template
+            assert (
+                config["externalSourcesConfiguration"] == expected_config_without_template
+            )
         else:
             assert config["externalSourcesConfiguration"] == {
                 **expected_config_without_template,

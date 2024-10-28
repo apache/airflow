@@ -23,13 +23,18 @@ from unittest import mock
 import pytest
 
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.transfers.teradata_to_teradata import TeradataToTeradataOperator
+from airflow.providers.teradata.transfers.teradata_to_teradata import (
+    TeradataToTeradataOperator,
+)
 
 
 @pytest.fixture
 def mocked_src_hook():
     with mock.patch.object(
-        TeradataToTeradataOperator, "src_hook", spec=TeradataHook, name="TeradataSourceHook"
+        TeradataToTeradataOperator,
+        "src_hook",
+        spec=TeradataHook,
+        name="TeradataSourceHook",
     ) as m:
         yield m
 
@@ -37,7 +42,10 @@ def mocked_src_hook():
 @pytest.fixture
 def mocked_dest_hook():
     with mock.patch.object(
-        TeradataToTeradataOperator, "dest_hook", spec=TeradataHook, name="TeradataDestHook"
+        TeradataToTeradataOperator,
+        "dest_hook",
+        spec=TeradataHook,
+        name="TeradataDestHook",
     ) as m:
         yield m
 
@@ -83,7 +91,11 @@ class TestTeradataToTeradataTransfer:
             ["user_name", str, None, 60, None, None, True],
         ]
 
-        cursor_rows = [[Decimal("1"), "User1"], [Decimal("2"), "User2"], [Decimal("3"), "User3"]]
+        cursor_rows = [
+            [Decimal("1"), "User1"],
+            [Decimal("2"), "User2"],
+            [Decimal("3"), "User3"],
+        ]
 
         mock_src_conn = mocked_src_hook.get_conn.return_value.__enter__.return_value
         mock_cursor = mock_src_conn.cursor.return_value

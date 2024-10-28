@@ -44,7 +44,9 @@ def not_expected_tr_db_call():
     def side_effect(*args, **kwargs):
         raise SystemError("Not expected DB call to `TaskReschedule` statement.")
 
-    with patch("airflow.models.taskreschedule.TaskReschedule.stmt_for_task_instance") as m:
+    with patch(
+        "airflow.models.taskreschedule.TaskReschedule.stmt_for_task_instance"
+    ) as m:
         m.side_effect = side_effect
         yield m
 
@@ -101,7 +103,9 @@ class TestNotInReschedulePeriodDep:
             session.add_all(trs)
             session.commit()
 
-    def test_should_pass_if_ignore_in_reschedule_period_is_set(self, not_expected_tr_db_call):
+    def test_should_pass_if_ignore_in_reschedule_period_is_set(
+        self, not_expected_tr_db_call
+    ):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
@@ -140,12 +144,16 @@ class TestNotInReschedulePeriodDep:
         # Last TaskReschedule doesn't meet requirements
         assert not ReadyToRescheduleDep().is_met(ti=ti)
 
-    def test_mapped_task_should_pass_if_ignore_in_reschedule_period_is_set(self, not_expected_tr_db_call):
+    def test_mapped_task_should_pass_if_ignore_in_reschedule_period_is_set(
+        self, not_expected_tr_db_call
+    ):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
 
-    def test_mapped_task_should_pass_if_not_reschedule_mode(self, not_expected_tr_db_call):
+    def test_mapped_task_should_pass_if_not_reschedule_mode(
+        self, not_expected_tr_db_call
+    ):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
         del ti.task.reschedule
         assert ReadyToRescheduleDep().is_met(ti=ti)

@@ -42,12 +42,8 @@ PYPI_README_HEADER = (
 
 # Function to extract sections based on start and end comments
 def extract_section(content, section_name):
-    start_comment = (
-        f"<!-- START {section_name}, please keep comment here to allow auto update of PyPI readme.md -->"
-    )
-    end_comment = (
-        f"<!-- END {section_name}, please keep comment here to allow auto update of PyPI readme.md -->"
-    )
+    start_comment = f"<!-- START {section_name}, please keep comment here to allow auto update of PyPI readme.md -->"
+    end_comment = f"<!-- END {section_name}, please keep comment here to allow auto update of PyPI readme.md -->"
     section_match = re.search(
         rf"{re.escape(start_comment)}(.*?)\n{re.escape(end_comment)}", content, re.DOTALL
     )

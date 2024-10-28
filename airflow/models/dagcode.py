@@ -51,7 +51,9 @@ class DagCode(Base):
 
     __tablename__ = "dag_code"
 
-    fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
+    fileloc_hash = Column(
+        BigInteger, nullable=False, primary_key=True, autoincrement=False
+    )
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
@@ -74,7 +76,9 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, filelocs: Iterable[str], session: Session = NEW_SESSION) -> None:
+    def bulk_sync_to_db(
+        cls, filelocs: Iterable[str], session: Session = NEW_SESSION
+    ) -> None:
         """
         Write code in bulk into database.
 
@@ -82,7 +86,9 @@ class DagCode(Base):
         :param session: ORM Session
         """
         filelocs = set(filelocs)
-        filelocs_to_hashes = {fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs}
+        filelocs_to_hashes = {
+            fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs
+        }
         existing_orm_dag_codes = session.scalars(
             select(DagCode)
             .filter(DagCode.fileloc_hash.in_(filelocs_to_hashes.values()))
@@ -91,16 +97,23 @@ class DagCode(Base):
 
         if existing_orm_dag_codes:
             existing_orm_dag_codes_map = {
-                orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
+                orm_dag_code.fileloc: orm_dag_code
+                for orm_dag_code in existing_orm_dag_codes
             }
         else:
             existing_orm_dag_codes_map = {}
 
-        existing_orm_dag_codes_by_fileloc_hashes = {orm.fileloc_hash: orm for orm in existing_orm_dag_codes}
-        existing_orm_filelocs = {orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()}
+        existing_orm_dag_codes_by_fileloc_hashes = {
+            orm.fileloc_hash: orm for orm in existing_orm_dag_codes
+        }
+        existing_orm_filelocs = {
+            orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()
+        }
         if not existing_orm_filelocs.issubset(filelocs):
             conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
-            hashes_to_filelocs = {DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs}
+            hashes_to_filelocs = {
+                DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs
+            }
             message = ""
             for fileloc in conflicting_filelocs:
                 filename = hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)]
@@ -118,7 +131,9 @@ class DagCode(Base):
             session.add(orm_dag_code)
 
         for fileloc in existing_filelocs:
-            current_version = existing_orm_dag_codes_by_fileloc_hashes[filelocs_to_hashes[fileloc]]
+            current_version = existing_orm_dag_codes_by_fileloc_hashes[
+                filelocs_to_hashes[fileloc]
+            ]
             file_mod_time = datetime.fromtimestamp(
                 os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc
             )
@@ -145,7 +160,9 @@ class DagCode(Base):
         :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
-        alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+        alive_fileloc_hashes = [
+            cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs
+        ]
 
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
@@ -170,7 +187,9 @@ class DagCode(Base):
         """
         fileloc_hash = cls.dag_fileloc_hash(fileloc)
         return (
-            session.scalars(select(literal(True)).where(cls.fileloc_hash == fileloc_hash)).one_or_none()
+            session.scalars(
+                select(literal(True)).where(cls.fileloc_hash == fileloc_hash)
+            ).one_or_none()
             is not None
         )
 
@@ -203,7 +222,9 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def _get_code_from_db(cls, fileloc, session: Session = NEW_SESSION) -> str:
-        dag_code = session.scalar(select(cls).where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)))
+        dag_code = session.scalar(
+            select(cls).where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc))
+        )
         if not dag_code:
             raise DagCodeNotFound()
         else:
@@ -223,4 +244,9 @@ class DagCode(Base):
         import hashlib
 
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack(">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:])[0] >> 8
+        return (
+            struct.unpack(
+                ">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:]
+            )[0]
+            >> 8
+        )

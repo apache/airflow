@@ -90,7 +90,9 @@ def has_access_with_pk(f):
         ):
             return f(self, *args, **kwargs)
         else:
-            log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
+            log.warning(
+                LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__
+            )
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
         return redirect(get_auth_manager().get_url_login(next_url=request.url))
 
@@ -98,7 +100,9 @@ def has_access_with_pk(f):
     return functools.update_wrapper(wraps, f)
 
 
-def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callable[[T], T]:
+def _has_access_no_details(
+    is_authorized_callback: Callable[[], bool],
+) -> Callable[[T], T]:
     """
     Check current user's permissions against required permissions.
 
@@ -143,7 +147,9 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
         return (
             render_template(
                 "airflow/no_roles_permissions.html",
-                hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
+                hostname=get_hostname()
+                if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+                else "",
                 logout_url=get_auth_manager().get_url_logout(),
             ),
             403,
@@ -157,7 +163,9 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_configuration(method=method))
+    return _has_access_no_details(
+        lambda: get_auth_manager().is_authorized_configuration(method=method)
+    )
 
 
 def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
@@ -185,7 +193,9 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
     return has_access_decorator
 
 
-def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable[[T], T]:
+def has_access_dag(
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+) -> Callable[[T], T]:
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
@@ -198,7 +208,8 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
 
             if len(unique_dag_ids) > 1:
                 log.warning(
-                    "There are different dag_ids passed in the request: %s. Returning 403.", unique_dag_ids
+                    "There are different dag_ids passed in the request: %s. Returning 403.",
+                    unique_dag_ids,
                 )
                 log.warning(
                     "kwargs: %s, args: %s, form: %s, json: %s",
@@ -210,7 +221,9 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 return (
                     render_template(
                         "airflow/no_roles_permissions.html",
-                        hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
+                        hostname=get_hostname()
+                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+                        else "",
                         logout_url=get_auth_manager().get_url_logout(),
                     ),
                     403,
@@ -235,7 +248,9 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
     return has_access_decorator
 
 
-def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEntity) -> Callable[[T], T]:
+def has_access_dag_entities(
+    method: ResourceMethod, access_entity: DagAccessEntity
+) -> Callable[[T], T]:
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
@@ -264,7 +279,9 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
 
 def has_access_asset(method: ResourceMethod) -> Callable[[T], T]:
     """Check current user's permissions against required permissions for assets."""
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_asset(method=method))
+    return _has_access_no_details(
+        lambda: get_auth_manager().is_authorized_asset(method=method)
+    )
 
 
 def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
@@ -323,4 +340,6 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
 
 def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T], T]:
     """Check current user's permissions to access the website."""
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_view(access_view=access_view))
+    return _has_access_no_details(
+        lambda: get_auth_manager().is_authorized_view(access_view=access_view)
+    )

@@ -22,7 +22,9 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
+from airflow.providers.microsoft.azure.operators.wasb_delete_blob import (
+    WasbDeleteBlobOperator,
+)
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SFTPToWasbOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperator
@@ -73,7 +75,12 @@ with DAG(
         blob_name=BLOB_PREFIX + SAMPLE_FILENAME,
     )
 
-    transfer_files_to_sftp_step >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_file()
+    (
+        transfer_files_to_sftp_step
+        >> transfer_files_to_azure
+        >> delete_blob_file_step
+        >> delete_sftp_file()
+    )
 
     from tests_common.test_utils.watcher import watcher
 

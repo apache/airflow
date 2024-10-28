@@ -38,7 +38,9 @@ def dags(create_dummy_dag):
 def test_logging_pause_dag(admin_client, dags, session):
     dag, _ = dags
     # is_paused=false mean pause the dag
-    admin_client.post(f"/paused?is_paused=false&dag_id={dag.dag_id}", follow_redirects=True)
+    admin_client.post(
+        f"/paused?is_paused=false&dag_id={dag.dag_id}", follow_redirects=True
+    )
     dag_query = session.query(Log).filter(Log.dag_id == dag.dag_id)
     assert '{"is_paused": true}' in dag_query.first().extra
 
@@ -46,6 +48,8 @@ def test_logging_pause_dag(admin_client, dags, session):
 def test_logging_unpause_dag(admin_client, dags, session):
     _, paused_dag = dags
     # is_paused=true mean unpause the dag
-    admin_client.post(f"/paused?is_paused=true&dag_id={paused_dag.dag_id}", follow_redirects=True)
+    admin_client.post(
+        f"/paused?is_paused=true&dag_id={paused_dag.dag_id}", follow_redirects=True
+    )
     dag_query = session.query(Log).filter(Log.dag_id == paused_dag.dag_id)
     assert '{"is_paused": false}' in dag_query.first().extra

@@ -23,7 +23,10 @@ import pytest
 
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
-from airflow.providers.opsgenie.notifications.opsgenie import OpsgenieNotifier, send_opsgenie_notification
+from airflow.providers.opsgenie.notifications.opsgenie import (
+    OpsgenieNotifier,
+    send_opsgenie_notification,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -81,7 +84,9 @@ class TestOpsgenieNotifier:
             EmptyOperator(task_id="task1")
         notifier = send_opsgenie_notification(payload=self._config)
         notifier({"dag": dag})
-        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
+        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(
+            self.expected_payload_dict
+        )
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
     def test_notifier_with_notifier_class(self, mock_opsgenie_alert_hook, dag_maker):
@@ -89,7 +94,9 @@ class TestOpsgenieNotifier:
             EmptyOperator(task_id="task1")
         notifier = OpsgenieNotifier(payload=self._config)
         notifier({"dag": dag})
-        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
+        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(
+            self.expected_payload_dict
+        )
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
     def test_notifier_templated(self, mock_opsgenie_alert_hook, dag_maker):
@@ -97,7 +104,14 @@ class TestOpsgenieNotifier:
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task1")
 
-        template_fields = ("message", "alias", "description", "entity", "priority", "note")
+        template_fields = (
+            "message",
+            "alias",
+            "description",
+            "entity",
+            "priority",
+            "note",
+        )
         templated_config = {}
         for key, value in self._config.items():
             if key in template_fields:

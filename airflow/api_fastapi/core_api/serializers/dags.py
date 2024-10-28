@@ -89,7 +89,9 @@ class DAGResponse(BaseModel):
     @property
     def file_token(self) -> str:
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
+        serializer = URLSafeSerializer(
+            conf.get_mandatory_value("webserver", "secret_key")
+        )
         return serializer.dumps(self.fileloc)
 
 

@@ -103,7 +103,9 @@ class BigtableHook(GoogleBaseHook):
             instance.delete()
         else:
             self.log.warning(
-                "The instance '%s' does not exist in project '%s'. Exiting", instance_id, project_id
+                "The instance '%s' does not exist in project '%s'. Exiting",
+                instance_id,
+                project_id,
             )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -254,7 +256,9 @@ class BigtableHook(GoogleBaseHook):
         """
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance is None:
-            raise RuntimeError(f"Instance {instance_id} did not exist; unable to delete table {table_id}")
+            raise RuntimeError(
+                f"Instance {instance_id} did not exist; unable to delete table {table_id}"
+            )
         table = instance.table(table_id=table_id)
         table.delete()
 
@@ -276,7 +280,9 @@ class BigtableHook(GoogleBaseHook):
         cluster.update()
 
     @staticmethod
-    def get_column_families_for_table(instance: Instance, table_id: str) -> dict[str, ColumnFamily]:
+    def get_column_families_for_table(
+        instance: Instance, table_id: str
+    ) -> dict[str, ColumnFamily]:
         """
         Fetch Column Families for the specified table in Cloud Bigtable.
 
@@ -288,7 +294,9 @@ class BigtableHook(GoogleBaseHook):
         return table.list_column_families()
 
     @staticmethod
-    def get_cluster_states_for_table(instance: Instance, table_id: str) -> dict[str, ClusterState]:
+    def get_cluster_states_for_table(
+        instance: Instance, table_id: str
+    ) -> dict[str, ClusterState]:
         """
         Fetch Cluster States for the specified table in Cloud Bigtable.
 

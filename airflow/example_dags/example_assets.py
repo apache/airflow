@@ -181,7 +181,8 @@ with DAG(
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=AssetOrTimeSchedule(
-        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
+        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),
+        assets=(dag1_asset & dag2_asset),
     ),
     tags=["asset-time-based-timetable"],
 ) as dag8:

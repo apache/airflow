@@ -62,7 +62,9 @@ class TestKeda:
                 "behavior": {
                     "scaleDown": {
                         "stabilizationWindowSeconds": 300,
-                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                        "policies": [
+                            {"type": "Percent", "value": 100, "periodSeconds": 15}
+                        ],
                     }
                 }
             }
@@ -112,7 +114,9 @@ class TestKeda:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         expected_query = self.build_query(executor=executor, concurrency=concurrency)
-        assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+        assert (
+            jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+        )
 
     @pytest.mark.parametrize(
         "executor,queue,should_filter",
@@ -135,13 +139,17 @@ class TestKeda:
             "executor": executor,
         }
         if queue:
-            values.update({"config": {"celery_kubernetes_executor": {"kubernetes_queue": queue}}})
+            values.update(
+                {"config": {"celery_kubernetes_executor": {"kubernetes_queue": queue}}}
+            )
         docs = render_chart(
             values=values,
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         expected_query = self.build_query(executor=executor, queue=queue)
-        assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+        assert (
+            jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+        )
 
     @pytest.mark.parametrize(
         "enabled, kind",
@@ -155,7 +163,10 @@ class TestKeda:
         is_enabled = enabled == "enabled"
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": is_enabled}},
+                "workers": {
+                    "keda": {"enabled": True},
+                    "persistence": {"enabled": is_enabled},
+                },
                 "executor": "CeleryExecutor",
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -189,7 +200,10 @@ class TestKeda:
 
         secret_data = jmespath.search("data", metadata_connection_secret)
         assert "connection" in secret_data.keys()
-        assert "@release-name-postgresql" in base64.b64decode(secret_data["connection"]).decode()
+        assert (
+            "@release-name-postgresql"
+            in base64.b64decode(secret_data["connection"]).decode()
+        )
         assert "kedaConnection" not in secret_data.keys()
 
         autoscaler_connection_env_var = jmespath.search(
@@ -225,7 +239,10 @@ class TestKeda:
 
         secret_data = jmespath.search("data", metadata_connection_secret)
         assert "connection" in secret_data.keys()
-        assert "@release-name-pgbouncer" in base64.b64decode(secret_data["connection"]).decode()
+        assert (
+            "@release-name-pgbouncer"
+            in base64.b64decode(secret_data["connection"]).decode()
+        )
         assert "kedaConnection" not in secret_data.keys()
 
         autoscaler_connection_env_var = jmespath.search(
@@ -302,7 +319,9 @@ class TestKeda:
         assert "AIRFLOW_CONN_AIRFLOW_DB" in worker_container_env_vars
         assert "KEDA_DB_CONN" in worker_container_env_vars
 
-        keda_autoscaler_metadata = jmespath.search("spec.triggers[0].metadata", keda_autoscaler)
+        keda_autoscaler_metadata = jmespath.search(
+            "spec.triggers[0].metadata", keda_autoscaler
+        )
         assert "queryValue" in keda_autoscaler_metadata
 
         secret_data = jmespath.search("data", metadata_connection_secret)

@@ -20,7 +20,9 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
+from airflow.providers.databricks.operators.databricks_sql import (
+    DatabricksCopyIntoOperator,
+)
 from airflow.utils import timezone
 
 DATE = "2017-04-20"

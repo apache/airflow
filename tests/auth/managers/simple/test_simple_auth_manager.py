@@ -58,7 +58,9 @@ class TestSimpleAuthManager:
 
     @pytest.mark.db_test
     def test_init_with_users(self, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.appbuilder.app.config["SIMPLE_AUTH_MANAGER_USERS"] = [
+        auth_manager_with_appbuilder.appbuilder.app.config[
+            "SIMPLE_AUTH_MANAGER_USERS"
+        ] = [
             {
                 "username": "test",
                 "role": "admin",
@@ -79,7 +81,9 @@ class TestSimpleAuthManager:
         assert result
 
     @pytest.mark.db_test
-    def test_is_logged_in_return_false_when_no_user_in_session(self, auth_manager_with_appbuilder, app):
+    def test_is_logged_in_return_false_when_no_user_in_session(
+        self, auth_manager_with_appbuilder, app
+    ):
         with app.test_request_context():
             result = auth_manager_with_appbuilder.is_logged_in()
 
@@ -87,7 +91,9 @@ class TestSimpleAuthManager:
 
     @pytest.mark.db_test
     def test_is_logged_in_with_all_admins(self, auth_manager_with_appbuilder, app):
-        auth_manager_with_appbuilder.appbuilder.app.config["SIMPLE_AUTH_MANAGER_ALL_ADMINS"] = True
+        auth_manager_with_appbuilder.appbuilder.app.config[
+            "SIMPLE_AUTH_MANAGER_ALL_ADMINS"
+        ] = True
         with app.test_request_context():
             result = auth_manager_with_appbuilder.is_logged_in()
         assert result
@@ -100,11 +106,15 @@ class TestSimpleAuthManager:
     @patch("airflow.auth.managers.simple.simple_auth_manager.url_for")
     def test_get_url_logout(self, mock_url_for, auth_manager):
         auth_manager.get_url_logout()
-        mock_url_for.assert_called_once_with("SimpleAuthManagerAuthenticationViews.logout")
+        mock_url_for.assert_called_once_with(
+            "SimpleAuthManagerAuthenticationViews.logout"
+        )
 
     @pytest.mark.db_test
     @patch.object(SimpleAuthManager, "is_logged_in")
-    def test_get_user(self, mock_is_logged_in, auth_manager_with_appbuilder, app, test_user):
+    def test_get_user(
+        self, mock_is_logged_in, auth_manager_with_appbuilder, app, test_user
+    ):
         mock_is_logged_in.return_value = True
 
         with app.test_request_context():
@@ -115,10 +125,14 @@ class TestSimpleAuthManager:
 
     @pytest.mark.db_test
     @patch.object(SimpleAuthManager, "is_logged_in")
-    def test_get_user_with_all_admins(self, mock_is_logged_in, auth_manager_with_appbuilder, app):
+    def test_get_user_with_all_admins(
+        self, mock_is_logged_in, auth_manager_with_appbuilder, app
+    ):
         mock_is_logged_in.return_value = True
 
-        auth_manager_with_appbuilder.appbuilder.app.config["SIMPLE_AUTH_MANAGER_ALL_ADMINS"] = True
+        auth_manager_with_appbuilder.appbuilder.app.config[
+            "SIMPLE_AUTH_MANAGER_ALL_ADMINS"
+        ] = True
         with app.test_request_context():
             result = auth_manager_with_appbuilder.get_user()
 
@@ -126,7 +140,9 @@ class TestSimpleAuthManager:
         assert result.role == "admin"
 
     @patch.object(SimpleAuthManager, "is_logged_in")
-    def test_get_user_return_none_when_not_logged_in(self, mock_is_logged_in, auth_manager):
+    def test_get_user_return_none_when_not_logged_in(
+        self, mock_is_logged_in, auth_manager
+    ):
         mock_is_logged_in.return_value = False
         result = auth_manager.get_user()
 
@@ -157,7 +173,15 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_methods(
-        self, mock_is_logged_in, auth_manager_with_appbuilder, app, api, is_logged_in, role, method, result
+        self,
+        mock_is_logged_in,
+        auth_manager_with_appbuilder,
+        app,
+        api,
+        is_logged_in,
+        role,
+        method,
+        result,
     ):
         mock_is_logged_in.return_value = is_logged_in
 
@@ -191,7 +215,15 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_view_methods(
-        self, mock_is_logged_in, auth_manager_with_appbuilder, app, api, kwargs, is_logged_in, role, result
+        self,
+        mock_is_logged_in,
+        auth_manager_with_appbuilder,
+        app,
+        api,
+        kwargs,
+        is_logged_in,
+        role,
+        result,
     ):
         mock_is_logged_in.return_value = is_logged_in
 
@@ -221,7 +253,14 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_methods_op_role_required(
-        self, mock_is_logged_in, auth_manager_with_appbuilder, app, api, role, method, result
+        self,
+        mock_is_logged_in,
+        auth_manager_with_appbuilder,
+        app,
+        api,
+        role,
+        method,
+        result,
     ):
         mock_is_logged_in.return_value = True
 
@@ -246,7 +285,14 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_methods_user_role_required(
-        self, mock_is_logged_in, auth_manager_with_appbuilder, app, api, role, method, result
+        self,
+        mock_is_logged_in,
+        auth_manager_with_appbuilder,
+        app,
+        api,
+        role,
+        method,
+        result,
     ):
         mock_is_logged_in.return_value = True
 
@@ -271,7 +317,14 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_methods_viewer_role_required_for_get(
-        self, mock_is_logged_in, auth_manager_with_appbuilder, app, api, role, method, result
+        self,
+        mock_is_logged_in,
+        auth_manager_with_appbuilder,
+        app,
+        api,
+        role,
+        method,
+        result,
     ):
         mock_is_logged_in.return_value = True
 
@@ -281,7 +334,8 @@ class TestSimpleAuthManager:
 
     @pytest.mark.db_test
     @patch(
-        "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
+        "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value",
+        return_value="test",
     )
     def test_register_views(self, _, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.appbuilder.add_view_no_menu = Mock()

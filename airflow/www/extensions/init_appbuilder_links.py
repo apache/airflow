@@ -26,15 +26,24 @@ def init_appbuilder_links(app):
     appbuilder = app.appbuilder
 
     appbuilder.add_link(name="DAGs", href="Airflow.index")
-    appbuilder.menu.menu.insert(0, appbuilder.menu.menu.pop())  # Place in the first menu slot
+    appbuilder.menu.menu.insert(
+        0, appbuilder.menu.menu.pop()
+    )  # Place in the first menu slot
     appbuilder.add_link(name="Cluster Activity", href="Airflow.cluster_activity")
-    appbuilder.menu.menu.insert(1, appbuilder.menu.menu.pop())  # Place in the second menu slot
+    appbuilder.menu.menu.insert(
+        1, appbuilder.menu.menu.pop()
+    )  # Place in the second menu slot
     appbuilder.add_link(name="Assets", href="Airflow.assets")
-    appbuilder.menu.menu.insert(2, appbuilder.menu.menu.pop())  # Place in the third menu slot
+    appbuilder.menu.menu.insert(
+        2, appbuilder.menu.menu.pop()
+    )  # Place in the third menu slot
 
     # Docs links
     appbuilder.add_link(
-        name=RESOURCE_DOCS, label="Documentation", href=get_docs_url(), category=RESOURCE_DOCS_MENU
+        name=RESOURCE_DOCS,
+        label="Documentation",
+        href=get_docs_url(),
+        category=RESOURCE_DOCS_MENU,
     )
     appbuilder.add_link(
         name=RESOURCE_DOCS,

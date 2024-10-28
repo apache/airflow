@@ -58,7 +58,11 @@ def generate_basic_airflow_diagram():
         user = User("Airflow User")
 
         dag_files = Custom("DAG files", MULTIPLE_FILES_IMAGE.as_posix())
-        user >> Edge(color="brown", style="solid", reverse=False, label="author\n\n") >> dag_files
+        (
+            user
+            >> Edge(color="brown", style="solid", reverse=False, label="author\n\n")
+            >> dag_files
+        )
 
         with Cluster("Parsing, Scheduling & Executing"):
             scheduler = Python("Scheduler")
@@ -67,22 +71,40 @@ def generate_basic_airflow_diagram():
         scheduler >> Edge(color="red", style="dotted", reverse=True) >> metadata_db
 
         plugins_and_packages = Custom(
-            "Plugin folder\n& installed packages", PACKAGES_IMAGE.as_posix(), color="transparent"
+            "Plugin folder\n& installed packages",
+            PACKAGES_IMAGE.as_posix(),
+            color="transparent",
         )
 
-        user >> Edge(color="blue", style="solid", reverse=False, label="install\n\n") >> plugins_and_packages
+        (
+            user
+            >> Edge(color="blue", style="solid", reverse=False, label="install\n\n")
+            >> plugins_and_packages
+        )
 
         with Cluster("UI"):
             webserver = Python("Webserver")
 
-        webserver >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> user
+        (
+            webserver
+            >> Edge(color="black", style="solid", reverse=True, label="operate\n\n")
+            >> user
+        )
 
         metadata_db >> Edge(color="red", style="dotted", reverse=True) >> webserver
 
         dag_files >> Edge(color="brown", style="solid", label="read\n\n") >> scheduler
 
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> scheduler
-        plugins_and_packages >> Edge(color="blue", style="solid", label="install\n\n") >> webserver
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install\n\n")
+            >> scheduler
+        )
+        (
+            plugins_and_packages
+            >> Edge(color="blue", style="solid", label="install\n\n")
+            >> webserver
+        )
 
     console.print(f"[green]Generating architecture image {image_file}")
 

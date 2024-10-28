@@ -33,7 +33,11 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -72,7 +76,9 @@ class TestGetLog:
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
-        with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
+        with dag_maker(
+            self.DAG_ID, start_date=timezone.parse(self.default_time), session=session
+        ) as dag:
             EmptyOperator(task_id=self.TASK_ID)
 
             @task(task_id=self.MAPPED_TASK_ID)
@@ -92,7 +98,9 @@ class TestGetLog:
 
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
-            f"{self.DAG_ID}_copy", start_date=timezone.parse(self.default_time), session=session
+            f"{self.DAG_ID}_copy",
+            start_date=timezone.parse(self.default_time),
+            session=session,
         ) as dummy_dag:
             EmptyOperator(task_id=self.TASK_ID)
         dr2 = dag_maker.create_dagrun(
@@ -129,7 +137,12 @@ class TestGetLog:
         self.log_dir = tmp_path
 
         # TASK_ID
-        dir_path = tmp_path / f"dag_id={self.DAG_ID}" / f"run_id={self.RUN_ID}" / f"task_id={self.TASK_ID}"
+        dir_path = (
+            tmp_path
+            / f"dag_id={self.DAG_ID}"
+            / f"run_id={self.RUN_ID}"
+            / f"task_id={self.TASK_ID}"
+        )
         dir_path.mkdir(parents=True)
 
         log = dir_path / "attempt=1.log"
@@ -275,12 +288,16 @@ class TestGetLog:
             ),
         ],
     )
-    def test_get_logs_of_removed_task(self, request_url, expected_filename, extra_query_string, try_number):
+    def test_get_logs_of_removed_task(
+        self, request_url, expected_filename, extra_query_string, try_number
+    ):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
         dagbag = self.app.dag_bag
-        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
+        dag = DAG(
+            self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time)
+        )
         del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag)
 
@@ -324,12 +341,19 @@ class TestGetLog:
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_get_logs_with_metadata_as_download_large_file(self, try_number):
-        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
+        with mock.patch(
+            "airflow.utils.log.file_task_handler.FileTaskHandler.read"
+        ) as read_mock:
             first_return = ([[("", "1st line")]], [{}])
             second_return = ([[("", "2nd line")]], [{"end_of_log": False}])
             third_return = ([[("", "3rd line")]], [{"end_of_log": True}])
             fourth_return = ([[("", "should never be read")]], [{"end_of_log": True}])
-            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
+            read_mock.side_effect = [
+                first_return,
+                second_return,
+                third_return,
+                fourth_return,
+            ]
 
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
@@ -346,7 +370,9 @@ class TestGetLog:
     @pytest.mark.parametrize("try_number", [1, 2])
     @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader, try_number):
-        type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
+        type(mock_log_reader.return_value).supports_read = PropertyMock(
+            return_value=False
+        )
 
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
@@ -360,7 +386,9 @@ class TestGetLog:
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert 400 == response.status_code
-        assert "Task log handler does not support read logs." in response.data.decode("utf-8")
+        assert "Task log handler does not support read logs." in response.data.decode(
+            "utf-8"
+        )
 
     def test_bad_signature_raises(self):
         token = {"download_logs": False}

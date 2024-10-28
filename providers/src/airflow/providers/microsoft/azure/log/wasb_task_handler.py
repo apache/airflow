@@ -119,7 +119,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(
+        self, ti, try_number, metadata=None
+    ) -> tuple[list[str], list[str]]:
         messages = []
         logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
@@ -129,14 +131,21 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         prefix = os.path.join(self.remote_base, worker_log_relative_path)
         blob_names = []
         try:
-            blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
+            blob_names = self.hook.get_blobs_list(
+                container_name=self.wasb_container, prefix=prefix
+            )
         except HttpResponseError as e:
-            messages.append(f"tried listing blobs with prefix={prefix} and container={self.wasb_container}")
+            messages.append(
+                f"tried listing blobs with prefix={prefix} and container={self.wasb_container}"
+            )
             messages.append(f"could not list blobs {e}")
             self.log.exception("can't list blobs")
 
         if blob_names:
-            uris = [f"https://{self.wasb_container}.blob.core.windows.net/{b}" for b in blob_names]
+            uris = [
+                f"https://{self.wasb_container}.blob.core.windows.net/{b}"
+                for b in blob_names
+            ]
             messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
             messages.append(f"No logs found in WASB; ti=%s {ti}")
@@ -200,7 +209,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             log = f"{old_log}\n{log}" if old_log else log
 
         try:
-            self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
+            self.hook.load_string(
+                log, self.wasb_container, remote_log_location, overwrite=True
+            )
         except Exception:
             self.log.exception("Could not write logs to %s", remote_log_location)
             return False

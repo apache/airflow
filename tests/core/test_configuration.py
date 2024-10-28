@@ -56,7 +56,11 @@ HOME_DIR = os.path.expanduser("~")
 
 # The conf has been updated with sql_alchemy_con and deactivate_stale_dags_interval to test the
 # functionality of deprecated options support.
-conf.deprecated_options[("database", "sql_alchemy_conn")] = ("core", "sql_alchemy_conn", "2.3.0")
+conf.deprecated_options[("database", "sql_alchemy_conn")] = (
+    "core",
+    "sql_alchemy_conn",
+    "2.3.0",
+)
 conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
     "scheduler",
     "deactivate_stale_dags_interval",
@@ -108,7 +112,9 @@ class TestConf:
         with mock.patch.dict("os.environ"):
             if "AIRFLOW_CONFIG" in os.environ:
                 del os.environ["AIRFLOW_CONFIG"]
-            assert get_airflow_config("/home/airflow") == expand_env_var("/home/airflow/airflow.cfg")
+            assert get_airflow_config("/home/airflow") == expand_env_var(
+                "/home/airflow/airflow.cfg"
+            )
 
     def test_airflow_config_override(self):
         with mock.patch.dict("os.environ", AIRFLOW_CONFIG="/path/to/airflow/airflow.cfg"):
@@ -148,13 +154,17 @@ class TestConf:
         assert conf.has_option("testsection", "testkey")
 
         with mock.patch.dict(
-            "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
+            "os.environ",
+            AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested",
         ):
-            opt = conf.get("kubernetes_environment_variables", "AIRFLOW__TESTSECTION__TESTKEY")
+            opt = conf.get(
+                "kubernetes_environment_variables", "AIRFLOW__TESTSECTION__TESTKEY"
+            )
             assert opt == "nested"
 
     @mock.patch.dict(
-        "os.environ", AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested"
+        "os.environ",
+        AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY="nested",
     )
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
@@ -167,7 +177,10 @@ class TestConf:
 
         # test env vars
         assert cfg_dict["testsection"]["testkey"] == "testvalue"
-        assert cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"] == "nested"
+        assert (
+            cfg_dict["kubernetes_environment_variables"]["AIRFLOW__TESTSECTION__TESTKEY"]
+            == "nested"
+        )
 
     def test_conf_as_dict_source(self):
         # test display_source
@@ -219,7 +232,9 @@ key2 = airflow
 key6 = value6
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "key2"),
@@ -276,8 +291,14 @@ key1 = true
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            (
+                "secrets",
+                "backend_kwargs",
+            ): '{"url": "http://127.0.0.1:8200", "token": "token"}',
         }
     )
     def test_config_from_secret_backend(self, mock_hvac):
@@ -310,13 +331,17 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
         }
 
-        assert "sqlite:////Users/airflow/airflow/airflow.db" == test_conf.get("test", "sql_alchemy_conn")
+        assert "sqlite:////Users/airflow/airflow/airflow.db" == test_conf.get(
+            "test", "sql_alchemy_conn"
+        )
 
     def test_hidding_of_sensitive_config_values(self):
         test_config = """[test]
@@ -325,7 +350,9 @@ sql_alchemy_conn = airflow
         test_config_default = """[test]
                                  sql_alchemy_conn = airflow
                               """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -346,8 +373,14 @@ sql_alchemy_conn = airflow
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            (
+                "secrets",
+                "backend_kwargs",
+            ): '{"url": "http://127.0.0.1:8200", "token": "token"}',
         }
     )
     def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
@@ -364,7 +397,9 @@ sql_alchemy_conn_secret = sql_alchemy_conn
         test_config_default = """[test]
 sql_alchemy_conn = airflow
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -486,12 +521,14 @@ key3 = one;two;three
         assert len(semicolon) == 3
         with patch.object(test_conf, "get", return_value=None):
             with pytest.raises(
-                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+                AirflowConfigException,
+                match=re.escape("Failed to convert value None to list."),
             ):
                 test_conf.getlist("empty", "key0")
         with patch.object(test_conf, "get", return_value=None):
             with pytest.raises(
-                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+                AirflowConfigException,
+                match=re.escape("Failed to convert value None to list."),
             ):
                 test_conf.getlist("empty", "key0")
 
@@ -564,7 +601,9 @@ key1 = awesome
 key2 = airflow
 """
 
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
 
         assert "hello" == test_conf.get("test", "key1")
@@ -589,7 +628,9 @@ key2 = airflow
 [testsection]
 key3 = value3
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
 
         assert {"key1": "hello", "key2": "airflow"} == test_conf.getsection("test")
@@ -605,7 +646,9 @@ key3 = value3
 
     def test_get_section_should_respect_cmd_env_variable(self, tmp_path, monkeypatch):
         cmd_file = tmp_path / "testfile.sh"
-        cmd_file.write_text("#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n")
+        cmd_file.write_text(
+            "#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n"
+        )
         cmd_file.chmod(0o0555)
 
         monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
@@ -621,7 +664,9 @@ AIRFLOW_HOME = /root/airflow
         test_config_default = """
 [kubernetes_environment_variables]
 """
-        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(test_config_default)
+        )
         test_conf.read_string(test_config)
 
         assert {"key1": "hello", "AIRFLOW_HOME": "/root/airflow"} == test_conf.getsection(
@@ -657,7 +702,11 @@ AIRFLOW_HOME = /root/airflow
                 },
             }
             test_conf.read_dict(
-                {"api": {"auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}}
+                {
+                    "api": {
+                        "auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"
+                    }
+                }
             )
 
             with pytest.warns(FutureWarning):
@@ -685,8 +734,12 @@ notacommand = OK
             # the environment variable's echo command
             assert test_cmdenv_conf.get("testcmdenv", "notacommand") == "OK"
 
-    @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
-    def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
+    @pytest.mark.parametrize(
+        "display_sensitive, result", [(True, "OK"), (False, "< hidden >")]
+    )
+    def test_as_dict_display_sensitivewith_command_from_env(
+        self, display_sensitive, result
+    ):
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
@@ -812,8 +865,12 @@ notacommand = OK
         assert message == exception
 
     def test_as_dict_works_without_sensitive_cmds(self):
-        conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
-        conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+        conf_materialize_cmds = conf.as_dict(
+            display_sensitive=True, raw=True, include_cmds=True
+        )
+        conf_maintain_cmds = conf.as_dict(
+            display_sensitive=True, raw=True, include_cmds=False
+        )
 
         assert "sql_alchemy_conn" in conf_materialize_cmds["database"]
         assert "sql_alchemy_conn_cmd" not in conf_materialize_cmds["database"]
@@ -838,17 +895,27 @@ notacommand = OK
             )
         )
 
-        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
-        conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+        conf_materialize_cmds = test_conf.as_dict(
+            display_sensitive=True, raw=True, include_cmds=True
+        )
+        conf_maintain_cmds = test_conf.as_dict(
+            display_sensitive=True, raw=True, include_cmds=False
+        )
 
         assert "sql_alchemy_conn" in conf_materialize_cmds["database"]
         assert "sql_alchemy_conn_cmd" not in conf_materialize_cmds["database"]
 
         if conf_conn == test_conf._default_values["database"]["sql_alchemy_conn"]:
-            assert conf_materialize_cmds["database"]["sql_alchemy_conn"] == "my-super-secret-conn"
+            assert (
+                conf_materialize_cmds["database"]["sql_alchemy_conn"]
+                == "my-super-secret-conn"
+            )
 
         assert "sql_alchemy_conn_cmd" in conf_maintain_cmds["database"]
-        assert conf_maintain_cmds["database"]["sql_alchemy_conn_cmd"] == "echo -n my-super-secret-conn"
+        assert (
+            conf_maintain_cmds["database"]["sql_alchemy_conn_cmd"]
+            == "echo -n my-super-secret-conn"
+        )
 
         if conf_conn == test_conf._default_values["database"]["sql_alchemy_conn"]:
             assert "sql_alchemy_conn" not in conf_maintain_cmds["database"]
@@ -857,13 +924,17 @@ notacommand = OK
             assert conf_maintain_cmds["database"]["sql_alchemy_conn"] == conf_conn
 
     @mock.patch.dict(
-        "os.environ", {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+        "os.environ",
+        {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"},
+        clear=True,
     )
     def test_as_dict_respects_sensitive_cmds_from_env(self):
         test_conf = copy.deepcopy(conf)
         test_conf.read_string("")
 
-        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_materialize_cmds = test_conf.as_dict(
+            display_sensitive=True, raw=True, include_cmds=True
+        )
 
         assert "sql_alchemy_conn" in conf_materialize_cmds["database"]
         assert "sql_alchemy_conn_cmd" not in conf_materialize_cmds["database"]
@@ -954,16 +1025,26 @@ class TestDeprecatedConf:
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         with set_deprecated_options(
-            deprecated_options={("celery", "worker_concurrency"): ("celery", "celeryd_concurrency", "2.0.0")}
+            deprecated_options={
+                ("celery", "worker_concurrency"): (
+                    "celery",
+                    "celeryd_concurrency",
+                    "2.0.0",
+                )
+            }
         ):
             # Remove it so we are sure we use the right setting
             conf.remove_option("celery", "worker_concurrency")
 
             with pytest.warns(DeprecationWarning):
-                with mock.patch.dict("os.environ", AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
+                with mock.patch.dict(
+                    "os.environ", AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"
+                ):
                     assert conf.getint("celery", "worker_concurrency") == 99
 
-            with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
+            with pytest.warns(DeprecationWarning), conf_vars(
+                {("celery", "celeryd_concurrency"): "99"}
+            ):
                 assert conf.getint("celery", "worker_concurrency") == 99
 
     @conf_vars(
@@ -977,8 +1058,12 @@ class TestDeprecatedConf:
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         with set_deprecated_options(
-            deprecated_options={("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")}
-        ), set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}):
+            deprecated_options={
+                ("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")
+            }
+        ), set_sensitive_config_values(
+            sensitive_config_values={("celery", "celery_result_backend")}
+        ):
             conf.remove_option("celery", "result_backend")
             with conf_vars({("celery", "celery_result_backend_cmd"): "/bin/echo 99"}):
                 with pytest.warns(DeprecationWarning):
@@ -1007,7 +1092,9 @@ sql_alchemy_conn=sqlite://test
 
         with pytest.warns(FutureWarning):
             test_conf.validate()
-            assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
+            assert (
+                test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
+            )
 
     @pytest.mark.parametrize(
         "old, new",
@@ -1073,9 +1160,14 @@ sql_alchemy_conn=sqlite://test
             return test_conf
 
         with pytest.warns(FutureWarning):
-            with mock.patch.dict("os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"):
+            with mock.patch.dict(
+                "os.environ", AIRFLOW__CORE__HOSTNAME_CALLABLE="airflow.utils.net:getfqdn"
+            ):
                 test_conf = make_config()
-                assert test_conf.get("core", "hostname_callable") == "airflow.utils.net.getfqdn"
+                assert (
+                    test_conf.get("core", "hostname_callable")
+                    == "airflow.utils.net.getfqdn"
+                )
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
@@ -1090,7 +1182,9 @@ sql_alchemy_conn=sqlite://test
     @pytest.mark.parametrize(
         ("conf_dict", "environ", "expected"),
         [
-            pytest.param({"old_section": {"val": "old_val"}}, None, "old_val", id="old_config"),
+            pytest.param(
+                {"old_section": {"val": "old_val"}}, None, "old_val", id="old_config"
+            ),
             pytest.param(
                 {"old_section": {"val": "old_val"}},
                 ("AIRFLOW__OLD_SECTION__VAL", "old_env"),
@@ -1186,8 +1280,12 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == "mysql://"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
-    def test_conf_as_dict_when_deprecated_value_in_both_env_and_config(self, display_source: bool):
+    @mock.patch.dict(
+        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True
+    )
+    def test_conf_as_dict_when_deprecated_value_in_both_env_and_config(
+        self, display_source: bool
+    ):
         with use_config(config="deprecated.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1208,7 +1306,9 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    @mock.patch.dict(
+        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True
+    )
     def test_conf_as_dict_when_deprecated_value_in_both_env_and_config_exclude_env(
         self, display_source: bool
     ):
@@ -1232,11 +1332,16 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == "mysql://"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    @mock.patch.dict(
+        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True
+    )
     def test_conf_as_dict_when_deprecated_value_in_env(self, display_source: bool):
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
-                display_source=display_source, raw=True, display_sensitive=True, include_env=True
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
             )
             assert cfg_dict["core"].get("sql_alchemy_conn") == (
                 ("postgresql://", "env var") if display_source else "postgresql://"
@@ -1253,7 +1358,9 @@ sql_alchemy_conn=sqlite://test
     @mock.patch.dict("os.environ", {}, clear=True)
     def test_conf_as_dict_when_both_conf_and_env_are_empty(self, display_source: bool):
         with use_config(config="empty.cfg"):
-            cfg_dict = conf.as_dict(display_source=display_source, raw=True, display_sensitive=True)
+            cfg_dict = conf.as_dict(
+                display_source=display_source, raw=True, display_sensitive=True
+            )
             assert cfg_dict["core"].get("sql_alchemy_conn") is None
             # database should be taken from default because the deprecated value is missing in config
             assert cfg_dict["database"].get("sql_alchemy_conn") == (
@@ -1265,7 +1372,10 @@ sql_alchemy_conn=sqlite://test
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert (
+                    conf.get("database", "sql_alchemy_conn")
+                    == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                )
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
@@ -1291,7 +1401,9 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict(
-        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"},
+        clear=True,
     )
     def test_conf_as_dict_when_deprecated_value_in_cmd_env(self, display_source: bool):
         with use_config(config="empty.cfg"):
@@ -1315,9 +1427,13 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict(
-        "os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"},
+        clear=True,
     )
-    def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_env(self, display_source: bool):
+    def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_env(
+        self, display_source: bool
+    ):
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1336,11 +1452,16 @@ sql_alchemy_conn=sqlite://test
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert (
+                    conf.get("database", "sql_alchemy_conn")
+                    == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                )
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
-    def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_config(self, display_source: bool):
+    def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_config(
+        self, display_source: bool
+    ):
         with use_config(config="deprecated_cmd.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1359,10 +1480,17 @@ sql_alchemy_conn=sqlite://test
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert (
+                    conf.get("database", "sql_alchemy_conn")
+                    == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                )
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"},
+        clear=True,
+    )
     @mock.patch("airflow.configuration.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets(
         self, get_custom_secret_backend, display_source: bool
@@ -1388,7 +1516,11 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get("database", "sql_alchemy_conn") == "postgresql://"
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"},
+        clear=True,
+    )
     @mock.patch("airflow.configuration.get_custom_secret_backend")
     def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_env(
         self, get_custom_secret_backend, display_source: bool
@@ -1412,7 +1544,10 @@ sql_alchemy_conn=sqlite://test
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert (
+                    conf.get("database", "sql_alchemy_conn")
+                    == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                )
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch("airflow.configuration.get_custom_secret_backend")
@@ -1439,7 +1574,10 @@ sql_alchemy_conn=sqlite://test
                 remove_all_configurations()
                 conf.read_dict(dictionary=cfg_dict)
                 os.environ.clear()
-                assert conf.get("database", "sql_alchemy_conn") == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                assert (
+                    conf.get("database", "sql_alchemy_conn")
+                    == f"sqlite:///{HOME_DIR}/airflow/airflow.db"
+                )
 
     def test_as_dict_should_not_falsely_emit_future_warning(self):
         from airflow.configuration import AirflowConfigParser
@@ -1450,7 +1588,10 @@ sql_alchemy_conn=sqlite://test
         with warnings.catch_warnings(record=True) as captured:
             test_conf.as_dict()
         for w in captured:  # only one expected
-            assert "deactivate_stale_dags_interval option in [scheduler] has been renamed" in str(w.message)
+            assert (
+                "deactivate_stale_dags_interval option in [scheduler] has been renamed"
+                in str(w.message)
+            )
 
     def test_suppress_future_warnings_no_future_warning(self):
         from airflow.configuration import AirflowConfigParser
@@ -1524,12 +1665,16 @@ sql_alchemy_conn=sqlite://test
 
     def test_default_value_raw_with_fallback(self):
         test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "missing", fallback="aa %%", raw=True)
+        log_format = test_conf.get_default_value(
+            "logging", "missing", fallback="aa %%", raw=True
+        )
         assert "%%" in log_format
 
     def test_default_value_not_raw_with_fallback(self):
         test_conf = AirflowConfigParser()
-        log_format = test_conf.get_default_value("logging", "missing", fallback="aa %%", raw=False)
+        log_format = test_conf.get_default_value(
+            "logging", "missing", fallback="aa %%", raw=False
+        )
         # Note that fallback is never interpolated so we expect the value passed as-is
         assert "%%" in log_format
 
@@ -1563,7 +1708,10 @@ sql_alchemy_conn=sqlite://test
         all_sections_including_defaults = airflow_cfg.get_sections_including_defaults()
         assert "core" in all_sections_including_defaults
         assert "test-section" in all_sections_including_defaults
-        assert sum(1 for section in all_sections_including_defaults if section == "core") == 1
+        assert (
+            sum(1 for section in all_sections_including_defaults if section == "core")
+            == 1
+        )
 
     def test_get_options_including_defaults(self):
         airflow_cfg = AirflowConfigParser()
@@ -1582,12 +1730,21 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg.add_section("core")
         airflow_cfg.set("core", "new-test-key", "test-value")
         airflow_cfg.set("core", "task_runner", "test-runner")
-        all_core_options_including_defaults = airflow_cfg.get_options_including_defaults("core")
+        all_core_options_including_defaults = airflow_cfg.get_options_including_defaults(
+            "core"
+        )
         assert "new-test-key" in all_core_options_including_defaults
         assert "dags_folder" in all_core_options_including_defaults
         assert "test-value" == airflow_cfg.get("core", "new-test-key")
         assert "test-runner" == airflow_cfg.get("core", "task_runner")
-        assert sum(1 for option in all_core_options_including_defaults if option == "task_runner") == 1
+        assert (
+            sum(
+                1
+                for option in all_core_options_including_defaults
+                if option == "task_runner"
+            )
+            == 1
+        )
 
 
 def test_sensitive_values():
@@ -1613,12 +1770,21 @@ def test_sensitive_values():
         ("opensearch", "username"),
         ("opensearch", "password"),
     }
-    all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
-    suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
+    all_keys = {
+        (s, k)
+        for s, v in conf.configuration_description.items()
+        for k in v.get("options")
+    }
+    suspected_sensitive = {
+        (s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))
+    }
     exclude_list = {
         ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
-        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
+        (
+            "aws_ecs_executor",
+            "run_task_kwargs",
+        ),  # Only a constrained set of values, none are sensitive
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)
@@ -1629,14 +1795,20 @@ def test_restore_and_reload_provider_configuration():
     from airflow.settings import conf
 
     assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    assert (
+        conf.get("celery", "celery_app_name")
+        == "airflow.providers.celery.executors.celery_executor"
+    )
     conf.restore_core_default_configuration()
     assert conf.providers_configuration_loaded is False
     # built-in pre-2-7 celery executor
     assert conf.get("celery", "celery_app_name") == "airflow.executors.celery_executor"
     conf.load_providers_configuration()
     assert conf.providers_configuration_loaded is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    assert (
+        conf.get("celery", "celery_app_name")
+        == "airflow.providers.celery.executors.celery_executor"
+    )
 
 
 def test_error_when_contributing_to_existing_section():
@@ -1644,7 +1816,10 @@ def test_error_when_contributing_to_existing_section():
 
     with conf.make_sure_configuration_loaded(with_providers=True):
         assert conf.providers_configuration_loaded is True
-        assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+        assert (
+            conf.get("celery", "celery_app_name")
+            == "airflow.providers.celery.executors.celery_executor"
+        )
         conf.restore_core_default_configuration()
         assert conf.providers_configuration_loaded is False
         conf.configuration_description["celery"] = {
@@ -1689,10 +1864,14 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
-        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
+        self.monkeypatch.setattr(
+            "airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home)
+        )
 
     def patch_airflow_config(self, airflow_config):
-        self.monkeypatch.setattr("airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config))
+        self.monkeypatch.setattr(
+            "airflow.configuration.AIRFLOW_CONFIG", os.fspath(airflow_config)
+        )
 
     def test_default(self):
         """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
@@ -1750,7 +1929,9 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
         assert not test_airflow_config_parent.exists()
         assert not test_airflow_config.exists()
-        with pytest.raises(FileNotFoundError, match="not exists and it is not relative to"):
+        with pytest.raises(
+            FileNotFoundError, match="not exists and it is not relative to"
+        ):
             write_default_airflow_configuration_if_needed()
         assert not test_airflow_config.exists()
         assert not test_airflow_config_parent.exists()
@@ -1761,10 +1942,17 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         test_airflow_config.mkdir()
         self.patch_airflow_config(test_airflow_config)
 
-        with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
+        with pytest.raises(
+            IsADirectoryError, match="configuration file, but got a directory"
+        ):
             write_default_airflow_configuration_if_needed()
 
-    @conf_vars({("mysection1", "mykey1"): "supersecret1", ("mysection2", "mykey2"): "supersecret2"})
+    @conf_vars(
+        {
+            ("mysection1", "mykey1"): "supersecret1",
+            ("mysection2", "mykey2"): "supersecret2",
+        }
+    )
     @patch.object(
         conf,
         "sensitive_config_values",

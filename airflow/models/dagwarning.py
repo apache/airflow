@@ -20,7 +20,16 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, false, select
+from sqlalchemy import (
+    Column,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    Text,
+    delete,
+    false,
+    select,
+)
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
@@ -90,7 +99,9 @@ class DagWarning(Base):
             dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_active == false())
             query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))
         else:
-            query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
+            query = delete(cls).where(
+                cls.dag_id == DagModel.dag_id, DagModel.is_active == false()
+            )
 
         session.execute(query.execution_options(synchronize_session=False))
         session.commit()

@@ -61,7 +61,9 @@ def get_xcom_entries(
     """Get all XCom values."""
     query = select(XCom)
     if dag_id == "~":
-        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(
+            methods=["GET"], user=g.user
+        )
         query = query.where(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:
@@ -77,10 +79,14 @@ def get_xcom_entries(
     if xcom_key is not None:
         query = query.where(XCom.key == xcom_key)
     # Match idx_xcom_task_instance + idx_xcom_key for performance.
-    query = query.order_by(XCom.dag_id, XCom.task_id, XCom.run_id, XCom.map_index, XCom.key)
+    query = query.order_by(
+        XCom.dag_id, XCom.task_id, XCom.run_id, XCom.map_index, XCom.key
+    )
     total_entries = get_query_count(query, session=session)
     query = session.scalars(query.offset(offset).limit(limit))
-    return xcom_collection_schema.dump(XComCollection(xcom_entries=query, total_entries=total_entries))
+    return xcom_collection_schema.dump(
+        XComCollection(xcom_entries=query, total_entries=total_entries)
+    )
 
 
 @security.requires_access_dag("GET", DagAccessEntity.XCOM)
@@ -105,7 +111,10 @@ def get_xcom_entry(
         query = select(XCom)
 
     query = query.where(
-        XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key, XCom.map_index == map_index
+        XCom.dag_id == dag_id,
+        XCom.task_id == task_id,
+        XCom.key == xcom_key,
+        XCom.map_index == map_index,
     )
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     query = query.where(DR.run_id == dag_run_id)

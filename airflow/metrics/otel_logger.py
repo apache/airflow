@@ -27,7 +27,10 @@ from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.metrics import Observation
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics._internal.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
 
 from airflow.configuration import conf
@@ -73,7 +76,9 @@ DEFAULT_METRIC_NAME_PREFIX = "airflow"
 # Delimiter is placed between the universal metric prefix and the unique metric name.
 DEFAULT_METRIC_NAME_DELIMITER = "."
 
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+metrics_consistency_on = conf.getboolean(
+    "metrics", "metrics_consistency_on", fallback=True
+)
 if not metrics_consistency_on:
     warnings.warn(
         "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
@@ -169,7 +174,10 @@ class _OtelTimer(Timer):
         super().stop(send)
         if self.name and send:
             self.otel_logger.metrics_map.set_gauge_value(
-                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, False, self.tags
+                full_name(prefix=self.otel_logger.prefix, name=self.name),
+                self.duration,
+                False,
+                self.tags,
             )
 
 
@@ -210,7 +218,9 @@ class SafeOtelLogger:
             raise ValueError("count must be a positive value.")
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat), attributes=tags)
+            counter = self.metrics_map.get_counter(
+                full_name(prefix=self.prefix, name=stat), attributes=tags
+            )
             counter.add(count, attributes=tags)
             return counter
 
@@ -236,7 +246,9 @@ class SafeOtelLogger:
             raise ValueError("count must be a positive value.")
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat))
+            counter = self.metrics_map.get_counter(
+                full_name(prefix=self.prefix, name=stat)
+            )
             counter.add(-count, attributes=tags)
             return counter
 
@@ -272,7 +284,9 @@ class SafeOtelLogger:
             )
 
         if self.metrics_validator.test(stat):
-            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
+            self.metrics_map.set_gauge_value(
+                full_name(prefix=self.prefix, name=stat), value, delta, tags
+            )
 
     def timing(
         self,
@@ -288,7 +302,9 @@ class SafeOtelLogger:
                     dt = dt.total_seconds() * 1000.0
                 else:
                     dt = dt.total_seconds()
-            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
+            self.metrics_map.set_gauge_value(
+                full_name(prefix=self.prefix, name=stat), float(dt), False, tags
+            )
 
     def timer(
         self,
@@ -346,7 +362,9 @@ class MetricsMap:
         if key in self.map.keys():
             del self.map[key]
 
-    def set_gauge_value(self, name: str, value: float | None, delta: bool, tags: Attributes):
+    def set_gauge_value(
+        self, name: str, value: float | None, delta: bool, tags: Attributes
+    ):
         """
         Override the last reading for a Gauge with a new value.
 
@@ -407,11 +425,15 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
     ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
+    interval = conf.getint(
+        "metrics", "otel_interval_milliseconds", fallback=None
+    )  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
     service_name = conf.get("metrics", "otel_service")
 
-    resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
+    resource = Resource.create(
+        attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name}
+    )
 
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"

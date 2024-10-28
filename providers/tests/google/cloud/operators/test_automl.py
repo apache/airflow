@@ -26,11 +26,18 @@ import pytest
 pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
+from google.cloud.automl_v1beta1 import (
+    BatchPredictResult,
+    Dataset,
+    Model,
+    PredictResponse,
+)
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
+from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import (
+    PredictionServiceHook,
+)
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
     AutoMLCreateDatasetOperator,
@@ -83,7 +90,9 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 class TestAutoMLTrainModelOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
+        mock_hook.return_value.create_model.return_value.result.return_value = Model(
+            name=MODEL_PATH
+        )
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = Model()
         op = AutoMLTrainModelOperator(
@@ -141,10 +150,14 @@ class TestAutoMLTrainModelOperator:
 
 
 class TestAutoMLBatchPredictOperator:
-    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist")
+    @mock.patch(
+        "airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_link_persist):
-        mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
+        mock_hook.return_value.batch_predict.return_value.result.return_value = (
+            BatchPredictResult()
+        )
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
         mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
@@ -241,7 +254,9 @@ class TestAutoMLBatchPredictOperator:
 
 
 class TestAutoMLPredictOperator:
-    @mock.patch("airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist")
+    @mock.patch(
+        "airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink.persist"
+    )
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_link_persist):
         mock_hook.return_value.predict.return_value = PredictResponse()
@@ -799,7 +814,9 @@ class TestAutoMLTablesListTableSpecsOperator:
 class TestAutoMLDatasetListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
-        op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
+        op = AutoMLListDatasetOperator(
+            location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID
+        )
         op.execute(context=mock.MagicMock())
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
@@ -814,7 +831,9 @@ class TestAutoMLDatasetListOperator:
         not_valid_dataset = mock.MagicMock()
         del not_valid_dataset.translation_dataset_metadata
         mock_hook.return_value.list_datasets.return_value = [DATASET, not_valid_dataset]
-        op = AutoMLListDatasetOperator(location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID)
+        op = AutoMLListDatasetOperator(
+            location=GCP_LOCATION, project_id=GCP_PROJECT_ID, task_id=TASK_ID
+        )
         expected_warning_str = (
             "Class `AutoMLListDatasetOperator` has been deprecated and no longer available. "
             "Please use `ListDatasetsOperator` instead"

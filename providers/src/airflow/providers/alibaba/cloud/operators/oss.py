@@ -109,7 +109,9 @@ class OSSUploadObjectOperator(BaseOperator):
 
     def execute(self, context: Context):
         oss_hook = OSSHook(oss_conn_id=self.oss_conn_id, region=self.region)
-        oss_hook.upload_local_file(bucket_name=self.bucket_name, key=self.key, file=self.file)
+        oss_hook.upload_local_file(
+            bucket_name=self.bucket_name, key=self.key, file=self.file
+        )
 
 
 class OSSDownloadObjectOperator(BaseOperator):
@@ -141,7 +143,9 @@ class OSSDownloadObjectOperator(BaseOperator):
 
     def execute(self, context: Context):
         oss_hook = OSSHook(oss_conn_id=self.oss_conn_id, region=self.region)
-        oss_hook.download_file(bucket_name=self.bucket_name, key=self.key, local_file=self.file)
+        oss_hook.download_file(
+            bucket_name=self.bucket_name, key=self.key, local_file=self.file
+        )
 
 
 class OSSDeleteBatchObjectOperator(BaseOperator):

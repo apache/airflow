@@ -44,4 +44,9 @@ def upgrade():
 
 def downgrade():
     """Unapply Remove idx_last_scheduling_decision index on last_scheduling_decision in dag_run table."""
-    op.create_index("idx_last_scheduling_decision", "dag_run", ["last_scheduling_decision"], unique=False)
+    op.create_index(
+        "idx_last_scheduling_decision",
+        "dag_run",
+        ["last_scheduling_decision"],
+        unique=False,
+    )

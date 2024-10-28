@@ -43,11 +43,15 @@ def verify_all_commands_described_in_docs():
         command = file_path.stem[len("output_") :]
         if command != "breeze-commands":
             if file_path.name in doc_content:
-                console.print(f"[green]OK. The {command} screenshot is embedded in BREEZE documentation.")
+                console.print(
+                    f"[green]OK. The {command} screenshot is embedded in BREEZE documentation."
+                )
             else:
                 errors.append(command)
     if errors:
-        console.print("[red]Some of Breeze commands are not described in BREEZE documentation :[/]")
+        console.print(
+            "[red]Some of Breeze commands are not described in BREEZE documentation :[/]"
+        )
         for command in errors:
             console.print(f"  * [red]{command}[/]")
         console.print()

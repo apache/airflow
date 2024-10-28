@@ -74,25 +74,43 @@ class EmptyAuthManager(BaseAuthManager):
         raise NotImplementedError()
 
     def is_authorized_asset(
-        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_pool(
-        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: VariableDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: BaseUser | None = None
+    ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user: BaseUser | None = None,
     ):
         raise NotImplementedError()
 
@@ -157,7 +175,9 @@ class TestBaseAuthManager:
         ],
     )
     @patch.object(EmptyAuthManager, "is_authorized_dag")
-    def test_batch_is_authorized_dag(self, mock_is_authorized_dag, auth_manager, return_values, expected):
+    def test_batch_is_authorized_dag(
+        self, mock_is_authorized_dag, auth_manager, return_values, expected
+    ):
         mock_is_authorized_dag.side_effect = return_values
         result = auth_manager.batch_is_authorized_dag(
             [
@@ -197,7 +217,9 @@ class TestBaseAuthManager:
         ],
     )
     @patch.object(EmptyAuthManager, "is_authorized_pool")
-    def test_batch_is_authorized_pool(self, mock_is_authorized_pool, auth_manager, return_values, expected):
+    def test_batch_is_authorized_pool(
+        self, mock_is_authorized_pool, auth_manager, return_values, expected
+    ):
         mock_is_authorized_pool.side_effect = return_values
         result = auth_manager.batch_is_authorized_pool(
             [
@@ -261,7 +283,12 @@ class TestBaseAuthManager:
         ],
     )
     def test_get_permitted_dag_ids(
-        self, auth_manager, access_all: bool, access_per_dag: dict, dag_ids: list, expected: set
+        self,
+        auth_manager,
+        access_all: bool,
+        access_per_dag: dict,
+        dag_ids: list,
+        expected: set,
     ):
         def side_effect_func(
             *,

@@ -61,7 +61,12 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
 class HiveOperatorTest(TestHiveEnvironment):
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
-        op = HiveOperator(hiveconf_jinja_translate=True, task_id="dry_run_basic_hql", hql=hql, dag=self.dag)
+        op = HiveOperator(
+            hiveconf_jinja_translate=True,
+            task_id="dry_run_basic_hql",
+            hql=hql,
+            dag=self.dag,
+        )
         op.prepare_template()
         assert op.hql == "SELECT {{ num_col }} FROM {{ table }};"
 
@@ -76,7 +81,9 @@ class HiveOperatorTest(TestHiveEnvironment):
         op.prepare_template()
         assert op.hql == "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
 
-    @mock.patch("airflow.providers.apache.hive.operators.hive.HiveOperator.hook", mock.MagicMock())
+    @mock.patch(
+        "airflow.providers.apache.hive.operators.hive.HiveOperator.hook", mock.MagicMock()
+    )
     def test_mapred_job_name(self, mock_hook):
         op = HiveOperator(task_id="test_mapred_job_name", hql=self.hql, dag=self.dag)
 
@@ -96,7 +103,8 @@ class HiveOperatorTest(TestHiveEnvironment):
 
 
 @pytest.mark.skipif(
-    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+    "AIRFLOW_RUNALL_TESTS" not in os.environ,
+    reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
 )
 class TestHivePresto(TestHiveEnvironment):
     @mock.patch("tempfile.tempdir", "/tmp/")
@@ -106,7 +114,12 @@ class TestHivePresto(TestHiveEnvironment):
         mock_subprocess = MockSubProcess()
         mock_popen.return_value = mock_subprocess
         mock_temp_dir.return_value = "tst"
-        op = HiveOperator(task_id="basic_hql", hql=self.hql, dag=self.dag, mapred_job_name="test_job_name")
+        op = HiveOperator(
+            task_id="basic_hql",
+            hql=self.hql,
+            dag=self.dag,
+            mapred_job_name="test_job_name",
+        )
 
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         hive_cmd = [

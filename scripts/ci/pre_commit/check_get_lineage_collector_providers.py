@@ -64,7 +64,9 @@ def main() -> int:
                 if imp.module[:3] == ["airflow", "lineage", "hook"]:
                     local_error_count += 1
                     errors.append(f"{path}: ({'.'.join(imp.module)})")
-        console.print(f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}")
+        console.print(
+            f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}"
+        )
     if errors:
         console.print(
             "[red]Some providers files import directly top level from `airflow.lineage.hook` and they are not allowed.[/]\n"

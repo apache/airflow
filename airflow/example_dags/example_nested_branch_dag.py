@@ -43,12 +43,16 @@ with DAG(
         return task_id_to_return
 
     branch_1 = branch.override(task_id="branch_1")(task_id_to_return="true_1")
-    join_1 = EmptyOperator(task_id="join_1", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    join_1 = EmptyOperator(
+        task_id="join_1", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
     true_1 = EmptyOperator(task_id="true_1")
     false_1 = EmptyOperator(task_id="false_1")
 
     branch_2 = branch.override(task_id="branch_2")(task_id_to_return="true_2")
-    join_2 = EmptyOperator(task_id="join_2", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    join_2 = EmptyOperator(
+        task_id="join_2", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
     true_2 = EmptyOperator(task_id="true_2")
     false_2 = EmptyOperator(task_id="false_2")
     false_3 = EmptyOperator(task_id="false_3")

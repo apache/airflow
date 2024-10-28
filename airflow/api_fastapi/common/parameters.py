@@ -145,7 +145,9 @@ class _DagDisplayNamePatternSearch(_SearchParam):
     def __init__(self, skip_none: bool = True) -> None:
         super().__init__(DagModel.dag_display_name, skip_none)
 
-    def depends(self, dag_display_name_pattern: str | None = None) -> _DagDisplayNamePatternSearch:
+    def depends(
+        self, dag_display_name_pattern: str | None = None
+    ) -> _DagDisplayNamePatternSearch:
         dag_display_name_pattern = super().transform_aliases(dag_display_name_pattern)
         return self.set_value(dag_display_name_pattern)
 
@@ -214,7 +216,9 @@ class SortParam(BaseParam[str]):
 
     def dynamic_depends(self) -> Callable:
         def inner(order_by: str = self.get_primary_key_string()) -> SortParam:
-            return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
+            return self.set_value(
+                self.get_primary_key_string() if order_by == "" else order_by
+            )
 
         return inner
 
@@ -261,7 +265,9 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
             return select
         return select.where(DagRun.state == self.value)
 
-    def depends(self, last_dag_run_state: DagRunState | None = None) -> _LastDagRunStateFilter:
+    def depends(
+        self, last_dag_run_state: DagRunState | None = None
+    ) -> _LastDagRunStateFilter:
         return self.set_value(last_dag_run_state)
 
 
@@ -288,7 +294,8 @@ def _safe_parse_datetime(date_to_check: str) -> datetime:
         return timezone.parse(date_to_check, strict=True)
     except (TypeError, ParserError):
         raise HTTPException(
-            400, f"Invalid datetime: {date_to_check!r}. Please check the date parameter have this value."
+            400,
+            f"Invalid datetime: {date_to_check!r}. Please check the date parameter have this value.",
         )
 
 
@@ -299,7 +306,9 @@ QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
 QueryPausedFilter = Annotated[_PausedFilter, Depends(_PausedFilter().depends)]
 QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter().depends)]
-QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch().depends)]
+QueryDagIdPatternSearch = Annotated[
+    _DagIdPatternSearch, Depends(_DagIdPatternSearch().depends)
+]
 QueryDagDisplayNamePatternSearch = Annotated[
     _DagDisplayNamePatternSearch, Depends(_DagDisplayNamePatternSearch().depends)
 ]
@@ -309,6 +318,10 @@ QueryDagIdPatternSearchWithNone = Annotated[
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
-QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+QueryLastDagRunStateFilter = Annotated[
+    _LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)
+]
 # DAGTags
-QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
+QueryDagTagPatternSearch = Annotated[
+    _DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)
+]

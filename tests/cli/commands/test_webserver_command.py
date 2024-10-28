@@ -48,8 +48,12 @@ class TestGunicornMonitor:
             reload_on_plugin_change=True,
         )
         mock.patch.object(self.monitor, "_generate_plugin_state", return_value={}).start()
-        mock.patch.object(self.monitor, "_get_num_ready_workers_running", return_value=4).start()
-        mock.patch.object(self.monitor, "_get_num_workers_running", return_value=4).start()
+        mock.patch.object(
+            self.monitor, "_get_num_ready_workers_running", return_value=4
+        ).start()
+        mock.patch.object(
+            self.monitor, "_get_num_workers_running", return_value=4
+        ).start()
         mock.patch.object(self.monitor, "_spawn_new_workers", return_value=None).start()
         mock.patch.object(self.monitor, "_kill_old_workers", return_value=None).start()
         mock.patch.object(self.monitor, "_reload_gunicorn", return_value=None).start()
@@ -132,7 +136,8 @@ class TestGunicornMonitor:
 class TestGunicornMonitorGeneratePluginState:
     def test_should_detect_changes_in_directory(self, tmp_path):
         with mock.patch(
-            "airflow.cli.commands.webserver_command.settings.PLUGINS_FOLDER", os.fspath(tmp_path)
+            "airflow.cli.commands.webserver_command.settings.PLUGINS_FOLDER",
+            os.fspath(tmp_path),
         ):
             (tmp_path / "file1.txt").write_text("A" * 100)
             path2 = tmp_path / "nested/nested/nested/nested/file2.txt"
@@ -291,7 +296,9 @@ class TestCliWebServer(_CommonCLIGunicornTestClass):
                 proc.terminate()
                 assert proc.wait(120) in (0, None)
                 self._check_processes(ignore_running=False)
-                console.print("[magenta]All Webserver and gunicorn processes are terminated.")
+                console.print(
+                    "[magenta]All Webserver and gunicorn processes are terminated."
+                )
             except Exception:
                 console.print("[red]Exception occurred. Dumping all logs.")
                 # Dump all logs
@@ -302,7 +309,8 @@ class TestCliWebServer(_CommonCLIGunicornTestClass):
 
     # Patch for causing webserver timeout
     @mock.patch(
-        "airflow.cli.commands.webserver_command.GunicornMonitor._get_num_workers_running", return_value=0
+        "airflow.cli.commands.webserver_command.GunicornMonitor._get_num_workers_running",
+        return_value=0,
     )
     def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
         # Shorten timeout so that this test doesn't take too long time
@@ -313,9 +321,9 @@ class TestCliWebServer(_CommonCLIGunicornTestClass):
         assert ctx.value.code == 1
 
     def test_cli_webserver_debug(self, app):
-        with mock.patch("airflow.www.app.create_app", return_value=app), mock.patch.object(
-            app, "run"
-        ) as app_run:
+        with mock.patch(
+            "airflow.www.app.create_app", return_value=app
+        ), mock.patch.object(app, "run") as app_run:
             args = self.parser.parse_args(
                 [
                     "webserver",
@@ -333,7 +341,9 @@ class TestCliWebServer(_CommonCLIGunicornTestClass):
             )
 
     def test_cli_webserver_args(self):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, "GunicornMonitor"):
+        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
+            webserver_command, "GunicornMonitor"
+        ):
             args = self.parser.parse_args(
                 [
                     "webserver",

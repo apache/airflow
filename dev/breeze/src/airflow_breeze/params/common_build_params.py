@@ -22,7 +22,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import (
+    AIRFLOW_BRANCH,
+    DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+)
 from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
@@ -203,7 +206,10 @@ class CommonBuildParams:
 
         airflow_version = get_airflow_version()
         try:
-            if self.version_suffix_for_pypi and self.version_suffix_for_pypi not in airflow_version:
+            if (
+                self.version_suffix_for_pypi
+                and self.version_suffix_for_pypi not in airflow_version
+            ):
                 version = Version(airflow_version)
                 return version.base_version + f".{self.version_suffix_for_pypi}"
         except Exception:

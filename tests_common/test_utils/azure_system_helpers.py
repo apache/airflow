@@ -37,8 +37,12 @@ AZURE_DAG_FOLDER = os.path.join(
 )
 WASB_CONNECTION_ID = os.environ.get("WASB_CONNECTION_ID", "wasb_default")
 
-DATA_LAKE_CONNECTION_ID = os.environ.get("AZURE_DATA_LAKE_CONNECTION_ID", "azure_data_lake_default")
-DATA_LAKE_CONNECTION_TYPE = os.environ.get("AZURE_DATA_LAKE_CONNECTION_TYPE", "azure_data_lake")
+DATA_LAKE_CONNECTION_ID = os.environ.get(
+    "AZURE_DATA_LAKE_CONNECTION_ID", "azure_data_lake_default"
+)
+DATA_LAKE_CONNECTION_TYPE = os.environ.get(
+    "AZURE_DATA_LAKE_CONNECTION_TYPE", "azure_data_lake"
+)
 
 
 @contextmanager
@@ -94,7 +98,9 @@ def provide_azure_data_lake_default_connection(key_file_path: str):
 
 
 @contextmanager
-def provide_azure_fileshare(share_name: str, azure_fileshare_conn_id: str, file_name: str, directory: str):
+def provide_azure_fileshare(
+    share_name: str, azure_fileshare_conn_id: str, file_name: str, directory: str
+):
     AzureSystemTest.prepare_share(
         share_name=share_name,
         azure_fileshare_conn_id=azure_fileshare_conn_id,
@@ -102,7 +108,9 @@ def provide_azure_fileshare(share_name: str, azure_fileshare_conn_id: str, file_
         directory=directory,
     )
     yield
-    AzureSystemTest.delete_share(share_name=share_name, azure_fileshare_conn_id=azure_fileshare_conn_id)
+    AzureSystemTest.delete_share(
+        share_name=share_name, azure_fileshare_conn_id=azure_fileshare_conn_id
+    )
 
 
 @pytest.mark.system("azure")
@@ -120,9 +128,13 @@ class AzureSystemTest(SystemTest):
         hook.delete_share(share_name=share_name)
 
     @classmethod
-    def create_directory(cls, share_name: str, azure_fileshare_conn_id: str, directory: str):
+    def create_directory(
+        cls, share_name: str, azure_fileshare_conn_id: str, directory: str
+    ):
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id=azure_fileshare_conn_id, share_name=share_name, directory_path=directory
+            azure_fileshare_conn_id=azure_fileshare_conn_id,
+            share_name=share_name,
+            directory_path=directory,
         )
         hook.create_directory()
 
@@ -135,12 +147,16 @@ class AzureSystemTest(SystemTest):
         file_name: str,
     ):
         hook = AzureFileShareHook(
-            azure_fileshare_conn_id=azure_fileshare_conn_id, share_name=share_name, file_path=file_name
+            azure_fileshare_conn_id=azure_fileshare_conn_id,
+            share_name=share_name,
+            file_path=file_name,
         )
         hook.load_data(string_data=string_data)
 
     @classmethod
-    def prepare_share(cls, share_name: str, azure_fileshare_conn_id: str, file_name: str, directory: str):
+    def prepare_share(
+        cls, share_name: str, azure_fileshare_conn_id: str, file_name: str, directory: str
+    ):
         """Create share with a file in given directory. If directory is None, file is in root dir."""
         hook = AzureFileShareHook(
             azure_fileshare_conn_id=azure_fileshare_conn_id,

@@ -22,16 +22,24 @@ from datetime import datetime
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "example_s3_to_gcs"
 
 RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
@@ -47,7 +55,9 @@ def upload_file():
     """A callable to upload file from GCS to AWS bucket"""
     gcs_hook = GCSHook()
     s3_hook = S3Hook()
-    with gcs_hook.provide_file(bucket_name=RESOURCES_BUCKET_NAME, object_name=UPLOAD_FILE) as gcs_file:
+    with gcs_hook.provide_file(
+        bucket_name=RESOURCES_BUCKET_NAME, object_name=UPLOAD_FILE
+    ) as gcs_file:
         s3_hook.load_file_obj(file_obj=gcs_file, key=UPLOAD_FILE, bucket_name=BUCKET_NAME)
 
 
@@ -95,7 +105,9 @@ with DAG(
     )
 
     delete_gcs_bucket = GCSDeleteBucketOperator(
-        task_id="delete_gcs_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_gcs_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

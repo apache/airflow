@@ -85,7 +85,11 @@ class GlacierJobOperationSensor(AwsBaseSensor[GlacierHook]):
         response = self.hook.describe_job(vault_name=self.vault_name, job_id=self.job_id)
 
         if response["StatusCode"] == JobStatus.SUCCEEDED.value:
-            self.log.info("Job status: %s, code status: %s", response["Action"], response["StatusCode"])
+            self.log.info(
+                "Job status: %s, code status: %s",
+                response["Action"],
+                response["StatusCode"],
+            )
             self.log.info("Job finished successfully")
             return True
         elif response["StatusCode"] == JobStatus.IN_PROGRESS.value:

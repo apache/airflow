@@ -35,7 +35,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.dataform_v1beta1.services.dataform.pagers import QueryWorkflowInvocationActionsPager
+    from google.cloud.dataform_v1beta1.services.dataform.pagers import (
+        QueryWorkflowInvocationActionsPager,
+    )
 
 
 class DataformHook(GoogleBaseHook):
@@ -97,13 +99,16 @@ class DataformHook(GoogleBaseHook):
                 state = workflow_invocation.state
             except Exception as err:
                 self.log.info(
-                    "Retrying. Dataform API returned error when waiting for workflow invocation: %s", err
+                    "Retrying. Dataform API returned error when waiting for workflow invocation: %s",
+                    err,
                 )
 
         if state == WorkflowInvocation.State.FAILED:
             raise AirflowException(f"Workflow Invocation failed:\n{workflow_invocation}")
         if state == WorkflowInvocation.State.CANCELLED:
-            raise AirflowException(f"Workflow Invocation was cancelled:\n{workflow_invocation}")
+            raise AirflowException(
+                f"Workflow Invocation was cancelled:\n{workflow_invocation}"
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_compilation_result(

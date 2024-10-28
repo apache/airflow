@@ -36,7 +36,9 @@ log_level = logging.getLevelName(os.getenv("CUSTOM_AIRFLOW_BUILD_LOG_LEVEL", "IN
 log.setLevel(log_level)
 
 AIRFLOW_ROOT_PATH = Path(__file__).parent.resolve()
-GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+GENERATED_PROVIDERS_DEPENDENCIES_FILE = (
+    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+)
 PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 PRE_INSTALLED_PROVIDERS = [
@@ -467,10 +469,14 @@ def normalize_requirement(requirement: str):
     package_str = str(package)
     if req.extras:
         # Sort extras by name
-        package_str += f"[{','.join(sorted([normalize_extra(extra) for extra in req.extras]))}]"
+        package_str += (
+            f"[{','.join(sorted([normalize_extra(extra) for extra in req.extras]))}]"
+        )
     version_required = ""
     if req.specifier:
-        version_required = ",".join(map(str, sorted(req.specifier, key=lambda spec: spec.version)))
+        version_required = ",".join(
+            map(str, sorted(req.specifier, key=lambda spec: spec.version))
+        )
     if req.marker:
         version_required += f"; {req.marker}"
     return str(package_str + version_required)
@@ -499,7 +505,9 @@ def get_provider_id(provider_spec: str) -> str:
     """
     _provider_id = provider_spec.split(">=")[0]
     if _provider_id.startswith("apache-airflow-providers-"):
-        _provider_id = _provider_id.replace("apache-airflow-providers-", "").replace("-", ".")
+        _provider_id = _provider_id.replace("apache-airflow-providers-", "").replace(
+            "-", "."
+        )
     return _provider_id
 
 
@@ -574,7 +582,10 @@ for provider_spec in PRE_INSTALLED_PROVIDERS:
             )
             raise SystemExit(msg)
         if not dependency.startswith("apache-airflow"):
-            if PROVIDER_DEPENDENCIES[provider_id]["state"] not in ["suspended", "removed"]:
+            if PROVIDER_DEPENDENCIES[provider_id]["state"] not in [
+                "suspended",
+                "removed",
+            ]:
                 ALL_PREINSTALLED_PROVIDER_DEPS.append(dependency)
                 if PROVIDER_DEPENDENCIES[provider_id]["state"] in ["not-ready"]:
                     PREINSTALLED_NOT_READY_PROVIDER_DEPS.append(dependency)
@@ -640,7 +651,9 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
                 log.warning(".git directory not found: Cannot compute the git version")
                 return ""
             except git.InvalidGitRepositoryError:
-                log.warning("Invalid .git directory not found: Cannot compute the git version")
+                log.warning(
+                    "Invalid .git directory not found: Cannot compute the git version"
+                )
                 return ""
         except ImportError:
             log.warning("gitpython not found: Cannot compute the git version.")
@@ -681,7 +694,11 @@ def convert_to_extra_dependency(provider_requirement: str) -> str:
     # for editable installation
     if ">=" in provider_requirement:
         provider_requirement = provider_requirement.split(">=")[0]
-    extra = provider_requirement.replace("apache-airflow-providers-", "").replace("-", "_").replace(".", "_")
+    extra = (
+        provider_requirement.replace("apache-airflow-providers-", "")
+        .replace("-", "_")
+        .replace(".", "_")
+    )
     return f"apache-airflow[{extra}]"
 
 
@@ -798,7 +815,9 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
             for provider in PROVIDER_DEPENDENCIES.values():
                 for plugin in provider["plugins"]:
                     plugin_class: str = plugin["plugin-class"]
-                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[::-1]
+                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[
+                        ::-1
+                    ]
             entry_points["airflow.plugins"] = plugins
             self.metadata.core._entry_points = entry_points
 
@@ -815,7 +834,9 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         """
         for dep in deps:
             if not dep.startswith("apache-airflow"):
-                self.all_devel_ci_dependencies.add(normalize_requirement(dep) + python_exclusion)
+                self.all_devel_ci_dependencies.add(
+                    normalize_requirement(dep) + python_exclusion
+                )
 
     def _process_all_provider_extras(self, version: str) -> None:
         """
@@ -829,14 +850,20 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         for dependency_id in PROVIDER_DEPENDENCIES.keys():
             if PROVIDER_DEPENDENCIES[dependency_id]["state"] != "ready":
                 continue
-            excluded_python_versions = PROVIDER_DEPENDENCIES[dependency_id].get("excluded-python-versions")
-            if version != "standard" and skip_for_editable_build(excluded_python_versions):
+            excluded_python_versions = PROVIDER_DEPENDENCIES[dependency_id].get(
+                "excluded-python-versions"
+            )
+            if version != "standard" and skip_for_editable_build(
+                excluded_python_versions
+            ):
                 continue
             normalized_extra_name = normalize_extra(dependency_id)
             deps: list[str] = PROVIDER_DEPENDENCIES[dependency_id]["deps"]
 
             deps = [dep for dep in deps if not dep.startswith("apache-airflow>=")]
-            devel_deps: list[str] = PROVIDER_DEPENDENCIES[dependency_id].get("devel-deps", [])
+            devel_deps: list[str] = PROVIDER_DEPENDENCIES[dependency_id].get(
+                "devel-deps", []
+            )
 
             if version == "standard":
                 # add providers instead of dependencies for wheel builds
@@ -853,7 +880,9 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
                     if dep.startswith("apache-airflow-providers-"):
                         dep = convert_to_extra_dependency(dep)
                     editable_deps.append(dep)
-                self.optional_dependencies[normalized_extra_name] = sorted(set(editable_deps))
+                self.optional_dependencies[normalized_extra_name] = sorted(
+                    set(editable_deps)
+                )
                 self._add_devel_ci_dependencies(editable_deps, python_exclusion="")
             self.all_devel_extras.add(normalized_extra_name)
             self.all_non_devel_extras.add(normalized_extra_name)

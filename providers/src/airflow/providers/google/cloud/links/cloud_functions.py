@@ -55,7 +55,11 @@ class CloudFunctionsDetailsLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=CloudFunctionsDetailsLink.key,
-            value={"function_name": function_name, "location": location, "project_id": project_id},
+            value={
+                "function_name": function_name,
+                "location": location,
+                "project_id": project_id,
+            },
         )
 
 

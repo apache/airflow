@@ -26,8 +26,12 @@ from airflow.models.xcom_arg import XComArg
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="call-arg"
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
-from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
+from airflow.providers.microsoft.azure.operators.data_factory import (
+    AzureDataFactoryRunPipelineOperator,
+)
+from airflow.providers.microsoft.azure.sensors.data_factory import (
+    AzureDataFactoryPipelineRunStatusSensor,
+)
 from airflow.utils.edgemodifier import Label
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -103,7 +107,12 @@ with DAG(
         pipeline_run_async_sensor,
         run_pipeline3,
     ] >> end
-    [run_pipeline1, pipeline_run_sensor, pipeline_run_sensor_deferred, pipeline_run_async_sensor] >> end
+    [
+        run_pipeline1,
+        pipeline_run_sensor,
+        pipeline_run_sensor_deferred,
+        pipeline_run_async_sensor,
+    ] >> end
 
     # Task dependency created via `XComArgs`:
     #   run_pipeline2 >> pipeline_run_sensor

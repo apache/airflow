@@ -41,7 +41,9 @@ airflow_version = "2.9.0"
 def upgrade():
     """Apply add display name for dag and task instance."""
     op.add_column("dag", sa.Column("dag_display_name", sa.String(2000), nullable=True))
-    op.add_column("task_instance", sa.Column("task_display_name", sa.String(2000), nullable=True))
+    op.add_column(
+        "task_instance", sa.Column("task_display_name", sa.String(2000), nullable=True)
+    )
 
 
 def downgrade():

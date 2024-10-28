@@ -335,7 +335,10 @@ class FakeElasticsearch(Elasticsearch):
         i = 0
         for searchable_index in searchable_indexes:
             for document in self.__documents_dict[searchable_index]:
-                if not searchable_doc_types or document.get("_type") in searchable_doc_types:
+                if (
+                    not searchable_doc_types
+                    or document.get("_type") in searchable_doc_types
+                ):
                     i += 1
         result = {"count": i, "_shards": {"successful": 1, "failed": 0, "total": 1}}
 
@@ -402,7 +405,14 @@ class FakeElasticsearch(Elasticsearch):
         return result
 
     @query_params(
-        "consistency", "parent", "refresh", "replication", "routing", "timeout", "version", "version_type"
+        "consistency",
+        "parent",
+        "refresh",
+        "replication",
+        "routing",
+        "timeout",
+        "version",
+        "version_type",
     )
     def delete(self, index, doc_type, id, params=None, headers=None):
         found = False
@@ -427,7 +437,13 @@ class FakeElasticsearch(Elasticsearch):
         else:
             raise NotFoundError(404, json.dumps(result_dict))
 
-    @query_params("allow_no_indices", "expand_wildcards", "ignore_unavailable", "preference", "routing")
+    @query_params(
+        "allow_no_indices",
+        "expand_wildcards",
+        "ignore_unavailable",
+        "preference",
+        "routing",
+    )
     def suggest(self, body, index=None):
         if index is not None and index not in self.__documents_dict:
             raise NotFoundError(404, f"IndexMissingException[[{index}] missing]")
@@ -454,11 +470,15 @@ class FakeElasticsearch(Elasticsearch):
 
         matches = []
         for searchable_index in searchable_indexes:
-            self.find_document_in_searchable_index(matches, must, searchable_doc_types, searchable_index)
+            self.find_document_in_searchable_index(
+                matches, must, searchable_doc_types, searchable_index
+            )
 
         return matches
 
-    def find_document_in_searchable_index(self, matches, must, searchable_doc_types, searchable_index):
+    def find_document_in_searchable_index(
+        self, matches, must, searchable_doc_types, searchable_index
+    ):
         for document in self.__documents_dict[searchable_index]:
             if not searchable_doc_types or document.get("_type") in searchable_doc_types:
                 if "match_phrase" in must:
@@ -486,7 +506,9 @@ class FakeElasticsearch(Elasticsearch):
             elif "*" in target:
                 matches.update(fnmatch.filter(self.__documents_dict, target))
             elif target not in self.__documents_dict:
-                raise MissingIndexException(msg=f"IndexMissingException[[{target}] missing]", query=query)
+                raise MissingIndexException(
+                    msg=f"IndexMissingException[[{target}] missing]", query=query
+                )
         return matches
 
     def _normalize_index_to_list(self, index, query):
@@ -501,7 +523,9 @@ class FakeElasticsearch(Elasticsearch):
             # Is it the correct exception to use ?
             raise ValueError("Invalid param 'index'")
 
-        generator = (target for index in searchable_indexes for target in index.split(","))
+        generator = (
+            target for index in searchable_indexes for target in index.split(",")
+        )
         return list(self._validate_search_targets(generator, query=query))
 
     @staticmethod

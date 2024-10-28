@@ -66,5 +66,9 @@ with DAG(
     is_paused_upon_creation=False,
 ):
     zero_level_tasks = generate_parallel_tasks("l0", 1, [])
-    first_level_tasks = generate_parallel_tasks("l1", _FIRST_LEVEL_TASKS, zero_level_tasks)
-    second_level_tasks = generate_parallel_tasks("l2", _SECOND_LEVEL_TASKS, first_level_tasks)
+    first_level_tasks = generate_parallel_tasks(
+        "l1", _FIRST_LEVEL_TASKS, zero_level_tasks
+    )
+    second_level_tasks = generate_parallel_tasks(
+        "l2", _SECOND_LEVEL_TASKS, first_level_tasks
+    )

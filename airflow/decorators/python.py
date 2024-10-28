@@ -39,7 +39,11 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     """
 
     template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
-    template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
+    template_fields_renderers = {
+        "templates_dict": "json",
+        "op_args": "py",
+        "op_kwargs": "py",
+    }
 
     custom_operator_name: str = "@task"
 

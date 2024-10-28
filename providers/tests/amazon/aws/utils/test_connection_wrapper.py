@@ -27,7 +27,10 @@ from botocore.config import Config
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
+from airflow.providers.amazon.aws.utils.connection_wrapper import (
+    AwsConnectionWrapper,
+    _ConnectionMetadata,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -38,7 +41,9 @@ MOCK_ROLE_ARN = "arn:aws:iam::222222222222:role/awesome-role"
 
 
 def mock_connection_factory(
-    conn_id: str | None = MOCK_AWS_CONN_ID, conn_type: str | None = MOCK_CONN_TYPE, **kwargs
+    conn_id: str | None = MOCK_AWS_CONN_ID,
+    conn_type: str | None = MOCK_CONN_TYPE,
+    **kwargs,
 ) -> Connection | None:
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         return None
@@ -46,7 +51,9 @@ def mock_connection_factory(
 
 
 class TestsConnectionMetadata:
-    @pytest.mark.parametrize("extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None])
+    @pytest.mark.parametrize(
+        "extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None]
+    )
     def test_compat_with_connection(self, extra):
         """Simple compatibility test with `airflow.models.connection.Connection`."""
         conn_kwargs = {
@@ -75,7 +82,9 @@ class TestsConnectionMetadata:
 
 
 class TestAwsConnectionWrapper:
-    @pytest.mark.parametrize("extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None])
+    @pytest.mark.parametrize(
+        "extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None]
+    )
     def test_values_from_connection(self, extra):
         mock_conn = mock_connection_factory(
             login="mock-login",
@@ -112,20 +121,28 @@ class TestAwsConnectionWrapper:
 
     @pytest.mark.parametrize("conn_type", ["aws", None])
     def test_expected_aws_connection_type(self, conn_type):
-        wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
+        wrap_conn = AwsConnectionWrapper(
+            conn=mock_connection_factory(conn_type=conn_type)
+        )
         assert wrap_conn.conn_type == "aws"
 
-    @pytest.mark.parametrize("conn_type", ["AWS", "boto3", "emr", "google", "google-cloud-platform"])
+    @pytest.mark.parametrize(
+        "conn_type", ["AWS", "boto3", "emr", "google", "google-cloud-platform"]
+    )
     def test_unexpected_aws_connection_type(self, conn_type):
         warning_message = f"expected connection type 'aws', got '{conn_type}'"
         with pytest.warns(UserWarning, match=warning_message):
-            wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
+            wrap_conn = AwsConnectionWrapper(
+                conn=mock_connection_factory(conn_type=conn_type)
+            )
             assert wrap_conn.conn_type == conn_type
 
     @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
     @pytest.mark.parametrize("aws_secret_access_key", ["mock-aws-secret-access-key"])
     @pytest.mark.parametrize("aws_access_key_id", ["mock-aws-access-key-id"])
-    def test_get_credentials_from_login(self, aws_access_key_id, aws_secret_access_key, aws_session_token):
+    def test_get_credentials_from_login(
+        self, aws_access_key_id, aws_secret_access_key, aws_session_token
+    ):
         mock_conn = mock_connection_factory(
             login=aws_access_key_id,
             password=aws_secret_access_key,
@@ -140,14 +157,18 @@ class TestAwsConnectionWrapper:
     @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
     @pytest.mark.parametrize("aws_secret_access_key", ["mock-aws-secret-access-key"])
     @pytest.mark.parametrize("aws_access_key_id", ["mock-aws-access-key-id"])
-    def test_get_credentials_from_extra(self, aws_access_key_id, aws_secret_access_key, aws_session_token):
+    def test_get_credentials_from_extra(
+        self, aws_access_key_id, aws_secret_access_key, aws_session_token
+    ):
         mock_conn_extra = {
             "aws_access_key_id": aws_access_key_id,
             "aws_secret_access_key": aws_secret_access_key,
         }
         if aws_session_token:
             mock_conn_extra["aws_session_token"] = aws_session_token
-        mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
+        mock_conn = mock_connection_factory(
+            login=None, password=None, extra=mock_conn_extra
+        )
 
         wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.aws_access_key_id == aws_access_key_id
@@ -155,12 +176,19 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.aws_session_token == aws_session_token
 
     @pytest.mark.parametrize("aws_access_key_id", [None, "mock-aws-access-key-id"])
-    @pytest.mark.parametrize("aws_secret_access_key", [None, "mock-aws-secret-access-key"])
+    @pytest.mark.parametrize(
+        "aws_secret_access_key", [None, "mock-aws-secret-access-key"]
+    )
     @pytest.mark.parametrize("aws_session_token", [None, "mock-aws-session-token"])
     @pytest.mark.parametrize("profile_name", [None, "mock-profile"])
     @pytest.mark.parametrize("region_name", [None, "mock-region-name"])
     def test_get_session_kwargs_from_wrapper(
-        self, aws_access_key_id, aws_secret_access_key, aws_session_token, profile_name, region_name
+        self,
+        aws_access_key_id,
+        aws_secret_access_key,
+        aws_session_token,
+        profile_name,
+        region_name,
     ):
         mock_conn_extra = {
             "aws_access_key_id": aws_access_key_id,
@@ -209,7 +237,9 @@ class TestAwsConnectionWrapper:
         if region_name:
             assert wrap_conn.region_name == region_name, "Expected provided region_name"
         else:
-            assert wrap_conn.region_name == conn_region_name, "Expected connection region_name"
+            assert (
+                wrap_conn.region_name == conn_region_name
+            ), "Expected connection region_name"
 
     def test_warn_wrong_profile_param_used(self):
         mock_conn = mock_connection_factory(extra={"profile": "mock-profile"})
@@ -223,20 +253,29 @@ class TestAwsConnectionWrapper:
         "botocore_config, botocore_config_kwargs",
         [
             (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
-            (Config(region_name="ap-southeast-1"), {"user_agent": "Airflow Amazon Provider"}),
+            (
+                Config(region_name="ap-southeast-1"),
+                {"user_agent": "Airflow Amazon Provider"},
+            ),
             (None, {"user_agent": "Airflow Amazon Provider"}),
             (None, {"signature_version": "unsigned"}),
             (None, None),
         ],
     )
-    def test_get_botocore_config(self, mock_botocore_config, botocore_config, botocore_config_kwargs):
+    def test_get_botocore_config(
+        self, mock_botocore_config, botocore_config, botocore_config_kwargs
+    ):
         mock_conn = mock_connection_factory(
-            extra={"config_kwargs": botocore_config_kwargs} if botocore_config_kwargs else None
+            extra={"config_kwargs": botocore_config_kwargs}
+            if botocore_config_kwargs
+            else None
         )
         wrap_conn = AwsConnectionWrapper(conn=mock_conn, botocore_config=botocore_config)
 
         if botocore_config:
-            assert wrap_conn.botocore_config == botocore_config, "Expected provided botocore_config"
+            assert (
+                wrap_conn.botocore_config == botocore_config
+            ), "Expected provided botocore_config"
             assert mock_botocore_config.assert_not_called
         elif not botocore_config_kwargs:
             assert wrap_conn.botocore_config is None, "Expected default botocore_config"
@@ -247,7 +286,9 @@ class TestAwsConnectionWrapper:
                 botocore_config_kwargs["signature_version"] = UNSIGNED
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls
 
-    @pytest.mark.parametrize("aws_account_id, aws_iam_role", [(None, None), ("111111111111", "another-role")])
+    @pytest.mark.parametrize(
+        "aws_account_id, aws_iam_role", [(None, None), ("111111111111", "another-role")]
+    )
     def test_get_role_arn(self, aws_account_id, aws_iam_role):
         mock_conn = mock_connection_factory(
             extra={
@@ -266,7 +307,8 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.assume_role_kwargs == {}
 
     @pytest.mark.parametrize(
-        "assume_role_method", ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
+        "assume_role_method",
+        ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"],
     )
     def test_get_assume_role_method(self, assume_role_method):
         mock_conn = mock_connection_factory(
@@ -288,7 +330,10 @@ class TestAwsConnectionWrapper:
         mock_conn = mock_connection_factory(
             extra={"role_arn": MOCK_ROLE_ARN, "assume_role_method": "dummy_method"}
         )
-        with pytest.raises(NotImplementedError, match="Found assume_role_method='dummy_method' in .* extra"):
+        with pytest.raises(
+            NotImplementedError,
+            match="Found assume_role_method='dummy_method' in .* extra",
+        ):
             AwsConnectionWrapper(conn=mock_conn)
 
     @pytest.mark.parametrize("assume_role_kwargs", [None, {"DurationSeconds": 42}])
@@ -343,7 +388,9 @@ class TestAwsConnectionWrapper:
         ],
     )
     @pytest.mark.parametrize("region_name", [None, "ca-central-1"])
-    @pytest.mark.parametrize("botocore_config", [None, Config(region_name="ap-southeast-1")])
+    @pytest.mark.parametrize(
+        "botocore_config", [None, Config(region_name="ap-southeast-1")]
+    )
     def test_wrap_wrapper(self, orig_wrapper, region_name, botocore_config):
         wrap_kwargs = {}
         if region_name:
@@ -361,7 +408,9 @@ class TestAwsConnectionWrapper:
 
         # Test overwrite/inherit init fields
         assert wrap_conn.region_name == (region_name or orig_wrapper.region_name)
-        assert wrap_conn.botocore_config == (botocore_config or orig_wrapper.botocore_config)
+        assert wrap_conn.botocore_config == (
+            botocore_config or orig_wrapper.botocore_config
+        )
 
     @pytest.mark.parametrize("conn_id", [None, "mock-conn-id"])
     @pytest.mark.parametrize("profile_name", [None, "mock-profile"])
@@ -418,9 +467,17 @@ class TestAwsConnectionWrapper:
         [
             pytest.param(None, None, None, id="not-set"),
             pytest.param("https://global.service", None, None, id="global-only"),
-            pytest.param(None, "https://sts.service:1234", "https://sts.service:1234", id="service-only"),
             pytest.param(
-                "https://global.service", "https://sts.service:1234", "https://sts.service:1234", id="mixin"
+                None,
+                "https://sts.service:1234",
+                "https://sts.service:1234",
+                id="service-only",
+            ),
+            pytest.param(
+                "https://global.service",
+                "https://sts.service:1234",
+                "https://sts.service:1234",
+                id="mixin",
             ),
         ],
     )
@@ -431,16 +488,30 @@ class TestAwsConnectionWrapper:
         if global_endpoint_url:
             fake_extra["endpoint_url"] = global_endpoint_url
         if sts_service_endpoint_url:
-            fake_extra["service_config"] = {"sts": {"endpoint_url": sts_service_endpoint_url}}
+            fake_extra["service_config"] = {
+                "sts": {"endpoint_url": sts_service_endpoint_url}
+            }
 
         fake_conn = mock_connection_factory(conn_id="foo-bar", extra=fake_extra)
         wrap_conn = AwsConnectionWrapper(conn=fake_conn)
-        assert wrap_conn.get_service_endpoint_url("sts", sts_connection_assume=True) == expected_endpoint_url
-        assert wrap_conn.get_service_endpoint_url("sts", sts_test_connection=True) == expected_endpoint_url
+        assert (
+            wrap_conn.get_service_endpoint_url("sts", sts_connection_assume=True)
+            == expected_endpoint_url
+        )
+        assert (
+            wrap_conn.get_service_endpoint_url("sts", sts_test_connection=True)
+            == expected_endpoint_url
+        )
 
     def test_get_service_endpoint_url_sts_unsupported(self):
         wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory())
-        with pytest.raises(AirflowException, match=r"Can't resolve STS endpoint when both"):
-            wrap_conn.get_service_endpoint_url("sts", sts_test_connection=True, sts_connection_assume=True)
+        with pytest.raises(
+            AirflowException, match=r"Can't resolve STS endpoint when both"
+        ):
+            wrap_conn.get_service_endpoint_url(
+                "sts", sts_test_connection=True, sts_connection_assume=True
+            )
         # This check is only affects STS service endpoints
-        wrap_conn.get_service_endpoint_url("s3", sts_test_connection=True, sts_connection_assume=True)
+        wrap_conn.get_service_endpoint_url(
+            "s3", sts_test_connection=True, sts_connection_assume=True
+        )

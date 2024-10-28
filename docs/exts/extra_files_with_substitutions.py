@@ -37,13 +37,17 @@ def build_postprocess(app, exception):
     # Replace `|version|` in the docker-compose.yaml that requires manual substitutions
     for path in app.config.html_extra_with_substitutions:
         with open(path) as file:
-            with open(os.path.join(app.outdir, os.path.basename(path)), "w") as output_file:
+            with open(
+                os.path.join(app.outdir, os.path.basename(path)), "w"
+            ) as output_file:
                 for line in file:
                     output_file.write(_manual_substitution(line, global_substitutions))
 
     # Replace `|version|` in the installation files that requires manual substitutions (in links)
     for path in app.config.manual_substitutions_in_generated_html:
-        with open(os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path))) as input_file:
+        with open(
+            os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path))
+        ) as input_file:
             content = input_file.readlines()
         with open(
             os.path.join(app.outdir, os.path.dirname(path), os.path.basename(path)), "w"

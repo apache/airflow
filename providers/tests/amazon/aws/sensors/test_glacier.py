@@ -22,7 +22,10 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor, JobStatus
+from airflow.providers.amazon.aws.sensors.glacier import (
+    GlacierJobOperationSensor,
+    JobStatus,
+)
 
 SUCCEEDED = "Succeeded"
 IN_PROGRESS = "InProgress"
@@ -30,7 +33,9 @@ IN_PROGRESS = "InProgress"
 
 @pytest.fixture
 def mocked_describe_job():
-    with mock.patch("airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job") as m:
+    with mock.patch(
+        "airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job"
+    ) as m:
         yield m
 
 
@@ -65,11 +70,15 @@ class TestAmazonGlacierSensor:
         assert op.hook._config.read_timeout == 42
 
     def test_poke_succeeded(self, mocked_describe_job):
-        mocked_describe_job.side_effect = [{"Action": "", "StatusCode": JobStatus.SUCCEEDED.value}]
+        mocked_describe_job.side_effect = [
+            {"Action": "", "StatusCode": JobStatus.SUCCEEDED.value}
+        ]
         assert self.op.poke(None)
 
     def test_poke_in_progress(self, mocked_describe_job):
-        mocked_describe_job.side_effect = [{"Action": "", "StatusCode": JobStatus.IN_PROGRESS.value}]
+        mocked_describe_job.side_effect = [
+            {"Action": "", "StatusCode": JobStatus.IN_PROGRESS.value}
+        ]
         assert not self.op.poke(None)
 
     def test_poke_fail(self, mocked_describe_job):

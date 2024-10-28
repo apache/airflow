@@ -23,7 +23,13 @@ from unittest import mock
 
 import pytest
 from google.api_core.retry import Retry
-from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
+from google.cloud.datacatalog import (
+    CreateTagRequest,
+    CreateTagTemplateRequest,
+    Entry,
+    Tag,
+    TagTemplate,
+)
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
@@ -66,11 +72,13 @@ TEST_PARENT: str = "test-parent"
 TEST_NAME: str = "test-name"
 TEST_TAG_ID: str = "test-tag-id"
 TEST_LOCATION_PATH: str = f"projects/{{}}/locations/{TEST_LOCATION}"
-TEST_ENTRY_PATH: str = (
-    f"projects/{{}}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}"
+TEST_ENTRY_PATH: str = f"projects/{{}}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}"
+TEST_ENTRY_GROUP_PATH: str = (
+    f"projects/{{}}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}"
 )
-TEST_ENTRY_GROUP_PATH: str = f"projects/{{}}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}"
-TEST_TAG_TEMPLATE_PATH: str = f"projects/{{}}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}"
+TEST_TAG_TEMPLATE_PATH: str = (
+    f"projects/{{}}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}"
+)
 TEST_TAG_TEMPLATE_FIELD_PATH: str = (
     f"projects/{{}}/locations/{TEST_LOCATION}/tagTemplates/"
     f"{TEST_TAG_TEMPLATE_ID}/fields/{TEST_TAG_TEMPLATE_FIELD_ID}"
@@ -100,8 +108,12 @@ class TestCloudDataCatalog:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_lookup_entry_with_linked_resource(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_lookup_entry_with_linked_resource(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.lookup_entry(
             linked_resource=TEST_LINKED_RESOURCE,
             retry=TEST_RETRY,
@@ -119,10 +131,17 @@ class TestCloudDataCatalog:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_lookup_entry_with_sql_resource(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_lookup_entry_with_sql_resource(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.lookup_entry(
-            sql_resource=TEST_SQL_RESOURCE, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            sql_resource=TEST_SQL_RESOURCE,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.lookup_entry.assert_called_once_with(
             request=dict(sql_resource=TEST_SQL_RESOURCE),
@@ -135,18 +154,29 @@ class TestCloudDataCatalog:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_lookup_entry_without_resource(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_lookup_entry_without_resource(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(
-            AirflowException, match=re.escape("At least one of linked_resource, sql_resource should be set.")
+            AirflowException,
+            match=re.escape(
+                "At least one of linked_resource, sql_resource should be set."
+            ),
         ):
-            self.hook.lookup_entry(retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA)
+            self.hook.lookup_entry(
+                retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_search_catalog(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.search_catalog(
             scope=TEST_SCOPE,
@@ -159,7 +189,10 @@ class TestCloudDataCatalog:
         )
         mock_get_conn.return_value.search_catalog.assert_called_once_with(
             request=dict(
-                scope=TEST_SCOPE, query=TEST_QUERY, page_size=TEST_PAGE_SIZE, order_by=TEST_ORDER_BY
+                scope=TEST_SCOPE,
+                query=TEST_QUERY,
+                page_size=TEST_PAGE_SIZE,
+                order_by=TEST_ORDER_BY,
             ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -179,7 +212,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_create_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.create_entry(
             location=TEST_LOCATION,
@@ -205,8 +240,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_entry_group(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_entry_group(
             location=TEST_LOCATION,
             entry_group_id=TEST_ENTRY_GROUP_ID,
@@ -230,7 +269,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_create_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.create_tag(
             location=TEST_LOCATION,
@@ -256,8 +297,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_protobuff(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_protobuff(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_tag(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -282,8 +327,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_tag_template(
             location=TEST_LOCATION,
             tag_template_id=TEST_TAG_TEMPLATE_ID,
@@ -307,8 +356,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_tag_template_field(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -333,7 +386,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_delete_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.delete_entry(
             location=TEST_LOCATION,
@@ -356,8 +411,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_entry_group(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.delete_entry_group(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -378,7 +437,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_delete_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.delete_tag(
             location=TEST_LOCATION,
@@ -402,8 +463,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.delete_tag_template(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -413,7 +478,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1), force=TEST_FORCE),
+            request=dict(
+                name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1), force=TEST_FORCE
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -423,8 +490,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.delete_tag_template_field(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -448,7 +519,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.get_entry(
             location=TEST_LOCATION,
@@ -471,7 +544,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.get_entry_group(
             location=TEST_LOCATION,
@@ -495,7 +570,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.get_tag_template(
             location=TEST_LOCATION,
@@ -517,7 +594,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_list_tags(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.list_tags(
             location=TEST_LOCATION,
@@ -542,8 +621,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_get_tag_for_template_name(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_get_tag_for_template_name(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         tag_1 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format("invalid-project"))
         tag_2 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1))
 
@@ -572,8 +655,12 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_rename_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_rename_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.rename_tag_template_field(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -597,7 +684,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_update_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.update_entry(
             entry=TEST_ENTRY,
@@ -623,7 +712,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_update_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.update_tag(
             tag=deepcopy(TEST_TAG),
@@ -637,30 +728,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag.assert_called_once_with(
-            request=dict(tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1)), update_mask=TEST_UPDATE_MASK),
-            retry=TEST_RETRY,
-            timeout=TEST_TIMEOUT,
-            metadata=TEST_METADATA,
-        )
-
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
-        return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_update_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        self.hook.update_tag_template(
-            tag_template=TEST_TAG_TEMPLATE,
-            update_mask=TEST_UPDATE_MASK,
-            location=TEST_LOCATION,
-            tag_template_id=TEST_TAG_TEMPLATE_ID,
-            retry=TEST_RETRY,
-            timeout=TEST_TIMEOUT,
-            metadata=TEST_METADATA,
-        )
-        mock_get_conn.return_value.update_tag_template.assert_called_once_with(
             request=dict(
-                tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
+                tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1)),
                 update_mask=TEST_UPDATE_MASK,
             ),
             retry=TEST_RETRY,
@@ -672,8 +741,43 @@ class TestCloudDataCatalogWithDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_update_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_update_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
+        self.hook.update_tag_template(
+            tag_template=TEST_TAG_TEMPLATE,
+            update_mask=TEST_UPDATE_MASK,
+            location=TEST_LOCATION,
+            tag_template_id=TEST_TAG_TEMPLATE_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_get_conn.return_value.update_tag_template.assert_called_once_with(
+            request=dict(
+                tag_template=TagTemplate(
+                    name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)
+                ),
+                update_mask=TEST_UPDATE_MASK,
+            ),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
+        return_value=(TEST_CREDENTIALS, TEST_PROJECT_ID_1),
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_update_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.update_tag_template_field(
             tag_template_field=TEST_TAG_TEMPLATE_FIELD,
             update_mask=TEST_UPDATE_MASK,
@@ -708,7 +812,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_create_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.create_entry(
             location=TEST_LOCATION,
@@ -735,8 +841,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_entry_group(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_entry_group(
             location=TEST_LOCATION,
             entry_group_id=TEST_ENTRY_GROUP_ID,
@@ -761,7 +871,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_create_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.create_tag(
             location=TEST_LOCATION,
@@ -788,8 +900,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_protobuff(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_protobuff(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_tag(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -815,8 +931,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_tag_template(
             location=TEST_LOCATION,
             tag_template_id=TEST_TAG_TEMPLATE_ID,
@@ -841,8 +961,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.create_tag_template_field(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -868,7 +992,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_delete_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.delete_entry(
             location=TEST_LOCATION,
@@ -890,8 +1016,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_entry_group(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.delete_entry_group(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -911,7 +1041,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_delete_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.delete_tag(
             location=TEST_LOCATION,
@@ -934,8 +1066,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.delete_tag_template(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -946,7 +1082,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2), force=TEST_FORCE),
+            request=dict(
+                name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2), force=TEST_FORCE
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -956,8 +1094,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.delete_tag_template_field(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -969,7 +1111,10 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template_field.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2), force=TEST_FORCE),
+            request=dict(
+                name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2),
+                force=TEST_FORCE,
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -979,7 +1124,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.get_entry(
             location=TEST_LOCATION,
@@ -1001,7 +1148,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.get_entry_group(
             location=TEST_LOCATION,
@@ -1026,7 +1175,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.get_tag_template(
             location=TEST_LOCATION,
@@ -1047,7 +1198,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_list_tags(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.list_tags(
             location=TEST_LOCATION,
@@ -1060,7 +1213,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_tags.assert_called_once_with(
-            request=dict(parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2), page_size=TEST_PAGE_SIZE),
+            request=dict(
+                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2), page_size=TEST_PAGE_SIZE
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1070,8 +1225,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_get_tag_for_template_name(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_get_tag_for_template_name(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         tag_1 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format("invalid-project"))
         tag_2 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2))
 
@@ -1098,8 +1257,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_rename_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_rename_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.rename_tag_template_field(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1124,7 +1287,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_update_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.update_entry(
             entry=TEST_ENTRY,
@@ -1139,7 +1304,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         )
         mock_get_conn.return_value.update_entry.assert_called_once_with(
             request=dict(
-                entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)), update_mask=TEST_UPDATE_MASK
+                entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)),
+                update_mask=TEST_UPDATE_MASK,
             ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -1150,7 +1316,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_update_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         self.hook.update_tag(
             tag=deepcopy(TEST_TAG),
@@ -1165,7 +1333,10 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag.assert_called_once_with(
-            request=dict(tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2)), update_mask=TEST_UPDATE_MASK),
+            request=dict(
+                tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2)),
+                update_mask=TEST_UPDATE_MASK,
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1175,8 +1346,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_update_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_update_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.update_tag_template(
             tag_template=TEST_TAG_TEMPLATE,
             update_mask=TEST_UPDATE_MASK,
@@ -1189,7 +1364,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         )
         mock_get_conn.return_value.update_tag_template.assert_called_once_with(
             request=dict(
-                tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
+                tag_template=TagTemplate(
+                    name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)
+                ),
                 update_mask=TEST_UPDATE_MASK,
             ),
             retry=TEST_RETRY,
@@ -1201,8 +1378,12 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_update_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_update_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         self.hook.update_tag_template_field(
             tag_template_field=TEST_TAG_TEMPLATE_FIELD,
             update_mask=TEST_UPDATE_MASK,
@@ -1244,7 +1425,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_create_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_entry(
@@ -1261,8 +1444,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_entry_group(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_entry_group(
                 location=TEST_LOCATION,
@@ -1277,7 +1464,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_create_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_tag(
@@ -1295,8 +1484,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_protobuff(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_protobuff(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_tag(
                 location=TEST_LOCATION,
@@ -1313,8 +1506,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_tag_template(
                 location=TEST_LOCATION,
@@ -1329,8 +1526,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_create_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_create_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_tag_template_field(
                 location=TEST_LOCATION,
@@ -1346,7 +1547,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_delete_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_entry(
@@ -1362,8 +1565,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_entry_group(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_entry_group(
                 location=TEST_LOCATION,
@@ -1377,7 +1584,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_delete_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_tag(
@@ -1394,8 +1603,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_tag_template(
                 location=TEST_LOCATION,
@@ -1410,8 +1623,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_delete_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_delete_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_tag_template_field(
                 location=TEST_LOCATION,
@@ -1427,7 +1644,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_entry(
@@ -1443,7 +1662,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_entry_group(
@@ -1459,7 +1680,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_get_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_tag_template(
@@ -1474,7 +1697,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_list_tags(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.list_tags(
@@ -1491,8 +1716,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_get_tag_for_template_name(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_get_tag_for_template_name(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         tag_1 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format("invalid-project"))
         tag_2 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2))
 
@@ -1512,8 +1741,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_rename_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_rename_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.rename_tag_template_field(
                 location=TEST_LOCATION,
@@ -1529,7 +1762,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_update_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_entry(
@@ -1547,7 +1782,9 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
     def test_update_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_tag(
@@ -1566,8 +1803,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_update_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_update_tag_template(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_tag_template(
                 tag_template=TEST_TAG_TEMPLATE,
@@ -1583,8 +1824,12 @@ class TestCloudDataCatalogMissingProjectIdHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(TEST_CREDENTIALS, None),
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
-    def test_update_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn"
+    )
+    def test_update_tag_template_field(
+        self, mock_get_conn, mock_get_creds_and_project_id
+    ) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_tag_template_field(
                 tag_template_field=TEST_TAG_TEMPLATE_FIELD,

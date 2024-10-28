@@ -78,7 +78,9 @@ class TestDataPipelineHook:
         )
         assert mock_build.return_value == connection
 
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn"
+    )
     def test_create_data_pipeline(self, mock_connection):
         """
         Test that request are called with the correct params
@@ -100,7 +102,9 @@ class TestDataPipelineHook:
         )
         assert result == {"name": TEST_PARENT_NAME}
 
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn"
+    )
     def test_run_data_pipeline(self, mock_connection):
         """
         Test that run_data_pipeline is called with correct parameters and

@@ -21,7 +21,12 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
-with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1, 1), catchup=False) as dag:
+with DAG(
+    "example_cohere_embedding",
+    schedule=None,
+    start_date=datetime(2023, 1, 1),
+    catchup=False,
+) as dag:
     # [START howto_operator_cohere_embedding]
     texts = [
         "On Kernel-Target Alignment. We describe a family of global optimization procedures",

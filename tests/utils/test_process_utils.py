@@ -64,7 +64,8 @@ class TestReapProcessGroup:
         signal.signal(signal.SIGTERM, signal_handler)
         child_setup_done = multiprocessing.Semaphore(0)
         child = multiprocessing.Process(
-            target=TestReapProcessGroup._ignores_sigterm, args=[child_pid, child_setup_done]
+            target=TestReapProcessGroup._ignores_sigterm,
+            args=[child_pid, child_setup_done],
         )
         child.start()
         child_setup_done.acquire(timeout=5.0)
@@ -82,14 +83,18 @@ class TestReapProcessGroup:
         parent_pid = multiprocessing.Value("i", 0)
         child_pid = multiprocessing.Value("i", 0)
         args = [parent_pid, child_pid, parent_setup_done]
-        parent = multiprocessing.Process(target=TestReapProcessGroup._parent_of_ignores_sigterm, args=args)
+        parent = multiprocessing.Process(
+            target=TestReapProcessGroup._parent_of_ignores_sigterm, args=args
+        )
         try:
             parent.start()
             assert parent_setup_done.acquire(timeout=5.0)
             assert psutil.pid_exists(parent_pid.value)
             assert psutil.pid_exists(child_pid.value)
 
-            process_utils.reap_process_group(parent_pid.value, logging.getLogger(), timeout=1)
+            process_utils.reap_process_group(
+                parent_pid.value, logging.getLogger(), timeout=1
+            )
 
             assert not psutil.pid_exists(parent_pid.value)
             assert not psutil.pid_exists(child_pid.value)
@@ -107,10 +112,17 @@ class TestExecuteInSubProcess:
     def test_should_print_all_messages1(self, caplog):
         execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
         msgs = [record.getMessage() for record in caplog.records]
-        assert ["Executing cmd: bash -c 'echo CAT; echo KITTY;'", "Output:", "CAT", "KITTY"] == msgs
+        assert [
+            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+            "Output:",
+            "CAT",
+            "KITTY",
+        ] == msgs
 
     def test_should_print_all_messages_from_cwd(self, caplog, tmp_path):
-        execute_in_subprocess(["bash", "-c", "echo CAT; pwd; echo KITTY;"], cwd=str(tmp_path))
+        execute_in_subprocess(
+            ["bash", "-c", "echo CAT; pwd; echo KITTY;"], cwd=str(tmp_path)
+        )
         msgs = [record.getMessage() for record in caplog.records]
         assert [
             "Executing cmd: bash -c 'echo CAT; pwd; echo KITTY;'",
@@ -121,7 +133,9 @@ class TestExecuteInSubProcess:
         ] == msgs
 
     def test_using_env_works(self, caplog):
-        execute_in_subprocess(["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1"))
+        execute_in_subprocess(
+            ["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1")
+        )
         assert "My value is 1" in caplog.text
 
     def test_should_raise_exception(self):
@@ -129,7 +143,9 @@ class TestExecuteInSubProcess:
             process_utils.execute_in_subprocess(["bash", "-c", "exit 1"])
 
     def test_using_env_as_kwarg_works(self, caplog):
-        execute_in_subprocess_with_kwargs(["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1"))
+        execute_in_subprocess_with_kwargs(
+            ["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1")
+        )
         assert "My value is 1" in caplog.text
 
 
@@ -147,26 +163,36 @@ def my_sleep_subprocess_with_signals():
 @pytest.mark.db_test
 class TestKillChildProcessesByPids:
     def test_should_kill_process(self):
-        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        before_num_process = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        )
 
         process = multiprocessing.Process(target=my_sleep_subprocess, args=())
         process.start()
         sleep(0)
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        num_process = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        )
         assert before_num_process + 1 == num_process
 
         process_utils.kill_child_processes_by_pids([process.pid])
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        num_process = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        )
         assert before_num_process == num_process
 
     def test_should_force_kill_process(self, caplog):
-        process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
+        process = multiprocessing.Process(
+            target=my_sleep_subprocess_with_signals, args=()
+        )
         process.start()
         sleep(0)
 
-        all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
+        all_processes = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
+        )
         assert str(process.pid) in (x.strip() for x in all_processes)
 
         with caplog.at_level(logging.INFO, logger=process_utils.log.name):
@@ -174,19 +200,25 @@ class TestKillChildProcessesByPids:
             process_utils.kill_child_processes_by_pids([process.pid], timeout=0)
             assert f"Killing child PID: {process.pid}" in caplog.messages
         sleep(0)
-        all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
+        all_processes = (
+            subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
+        )
         assert str(process.pid) not in (x.strip() for x in all_processes)
 
 
 class TestPatchEnviron:
     def test_should_update_variable_and_restore_state_when_exit(self):
-        with mock.patch.dict("os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}):
+        with mock.patch.dict(
+            "os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}
+        ):
             del os.environ["TEST_NOT_EXISTS"]
 
             assert "BEFORE" == os.environ["TEST_EXISTS"]
             assert "TEST_NOT_EXISTS" not in os.environ
 
-            with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
+            with process_utils.patch_environ(
+                {"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}
+            ):
                 assert "AFTER" == os.environ["TEST_NOT_EXISTS"]
                 assert "AFTER" == os.environ["TEST_EXISTS"]
 
@@ -194,14 +226,18 @@ class TestPatchEnviron:
             assert "TEST_NOT_EXISTS" not in os.environ
 
     def test_should_restore_state_when_exception(self):
-        with mock.patch.dict("os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}):
+        with mock.patch.dict(
+            "os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}
+        ):
             del os.environ["TEST_NOT_EXISTS"]
 
             assert "BEFORE" == os.environ["TEST_EXISTS"]
             assert "TEST_NOT_EXISTS" not in os.environ
 
             with suppress(AirflowException):
-                with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
+                with process_utils.patch_environ(
+                    {"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}
+                ):
                     assert "AFTER" == os.environ["TEST_NOT_EXISTS"]
                     assert "AFTER" == os.environ["TEST_EXISTS"]
                     raise AirflowException("Unknown exception")

@@ -22,7 +22,10 @@ from airflow.models.dag import DagModel
 from airflow.security import permissions
 from airflow.utils import timezone
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.permissions import _resource_name
@@ -98,7 +101,8 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test_single_dag"}
+            f"/api/v1/importErrors/{import_error.id}",
+            environ_overrides={"REMOTE_USER": "test_single_dag"},
         )
 
         assert response.status_code == 403
@@ -115,7 +119,8 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test_single_dag"}
+            f"/api/v1/importErrors/{import_error.id}",
+            environ_overrides={"REMOTE_USER": "test_single_dag"},
         )
 
         assert response.status_code == 200
@@ -141,7 +146,8 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test_single_dag"}
+            f"/api/v1/importErrors/{import_error.id}",
+            environ_overrides={"REMOTE_USER": "test_single_dag"},
         )
 
         assert response.status_code == 200

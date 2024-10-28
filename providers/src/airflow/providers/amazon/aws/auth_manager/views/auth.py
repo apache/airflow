@@ -24,7 +24,10 @@ from flask_appbuilder import expose
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
+from airflow.providers.amazon.aws.auth_manager.constants import (
+    CONF_SAML_METADATA_URL_KEY,
+    CONF_SECTION_NAME,
+)
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.www.app import csrf
 from airflow.www.views import AirflowBaseView
@@ -52,7 +55,9 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
 
     @cached_property
     def idp_data(self) -> dict:
-        saml_metadata_url = conf.get_mandatory_value(CONF_SECTION_NAME, CONF_SAML_METADATA_URL_KEY)
+        saml_metadata_url = conf.get_mandatory_value(
+            CONF_SECTION_NAME, CONF_SAML_METADATA_URL_KEY
+        )
         return OneLogin_Saml2_IdPMetadataParser.parse_remote(saml_metadata_url)
 
     @expose("/login")
@@ -102,7 +107,9 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
     @csrf.exempt
     @expose("/logout_callback", methods=("GET", "POST"))
     def logout_callback(self):
-        raise NotImplementedError("AWS Identity center does not support SLO (Single Logout Service)")
+        raise NotImplementedError(
+            "AWS Identity center does not support SLO (Single Logout Service)"
+        )
 
     @expose("/login_metadata")
     def login_metadata(self):
@@ -147,5 +154,7 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
                 },
             },
         }
-        merged_settings = OneLogin_Saml2_IdPMetadataParser.merge_settings(settings, self.idp_data)
+        merged_settings = OneLogin_Saml2_IdPMetadataParser.merge_settings(
+            settings, self.idp_data
+        )
         return OneLogin_Saml2_Auth(request_data, merged_settings)

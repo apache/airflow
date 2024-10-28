@@ -98,7 +98,10 @@ If you want to count the operators/sensors in each providers package, you can us
 """
 
 parser = argparse.ArgumentParser(
-    prog=program, description=HELP, formatter_class=argparse.RawTextHelpFormatter, epilog=EPILOG
+    prog=program,
+    description=HELP,
+    formatter_class=argparse.RawTextHelpFormatter,
+    epilog=EPILOG,
 )
 # argparse handle `-h/--help/` internally
 parser.parse_args()
@@ -111,7 +114,11 @@ RESOURCE_TYPES = {
 }
 
 for integration_base_directory, integration_class in RESOURCE_TYPES.items():
-    for integration_directory in (AIRFLOW_ROOT / "airflow").rglob(integration_base_directory):
+    for integration_directory in (AIRFLOW_ROOT / "airflow").rglob(
+        integration_base_directory
+    ):
         if "contrib" not in integration_directory.parts:
-            for clazz_to_print in sorted(_find_clazzes(integration_directory, integration_class)):
+            for clazz_to_print in sorted(
+                _find_clazzes(integration_directory, integration_class)
+            ):
                 print(clazz_to_print)

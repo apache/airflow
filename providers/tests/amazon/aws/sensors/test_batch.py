@@ -46,33 +46,47 @@ def batch_sensor() -> BatchSensor:
 
 @pytest.fixture(scope="module")
 def deferrable_batch_sensor() -> BatchSensor:
-    return BatchSensor(task_id="task", job_id=JOB_ID, region_name=AWS_REGION, deferrable=True)
+    return BatchSensor(
+        task_id="task", job_id=JOB_ID, region_name=AWS_REGION, deferrable=True
+    )
 
 
 class TestBatchSensor:
     @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_poke_on_success_state(self, mock_get_job_description, batch_sensor: BatchSensor):
+    def test_poke_on_success_state(
+        self, mock_get_job_description, batch_sensor: BatchSensor
+    ):
         mock_get_job_description.return_value = {"status": "SUCCEEDED"}
         assert batch_sensor.poke({}) is True
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_poke_on_failure_state(self, mock_get_job_description, batch_sensor: BatchSensor):
+    def test_poke_on_failure_state(
+        self, mock_get_job_description, batch_sensor: BatchSensor
+    ):
         mock_get_job_description.return_value = {"status": "FAILED"}
-        with pytest.raises(AirflowException, match="Batch sensor failed. AWS Batch job status: FAILED"):
+        with pytest.raises(
+            AirflowException, match="Batch sensor failed. AWS Batch job status: FAILED"
+        ):
             batch_sensor.poke({})
 
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_poke_on_invalid_state(self, mock_get_job_description, batch_sensor: BatchSensor):
+    def test_poke_on_invalid_state(
+        self, mock_get_job_description, batch_sensor: BatchSensor
+    ):
         mock_get_job_description.return_value = {"status": "INVALID"}
-        with pytest.raises(AirflowException, match="Batch sensor failed. AWS Batch job status: INVALID"):
+        with pytest.raises(
+            AirflowException, match="Batch sensor failed. AWS Batch job status: INVALID"
+        ):
             batch_sensor.poke({})
 
         mock_get_job_description.assert_called_once_with(JOB_ID)
 
-    @pytest.mark.parametrize("job_status", ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"])
+    @pytest.mark.parametrize(
+        "job_status", ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]
+    )
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_intermediate_state(
         self, mock_get_job_description, job_status, batch_sensor: BatchSensor
@@ -90,13 +104,19 @@ class TestBatchSensor:
 
         with pytest.raises(TaskDeferred) as exc:
             deferrable_batch_sensor.execute({})
-        assert isinstance(exc.value.trigger, BatchJobTrigger), "Trigger is not a BatchJobTrigger"
+        assert isinstance(
+            exc.value.trigger, BatchJobTrigger
+        ), "Trigger is not a BatchJobTrigger"
 
-    def test_execute_failure_in_deferrable_mode(self, deferrable_batch_sensor: BatchSensor):
+    def test_execute_failure_in_deferrable_mode(
+        self, deferrable_batch_sensor: BatchSensor
+    ):
         """Tests that an AirflowException is raised in case of error event"""
 
         with pytest.raises(AirflowException):
-            deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
+            deferrable_batch_sensor.execute_complete(
+                context={}, event={"status": "failure"}
+            )
 
     @pytest.mark.parametrize(
         "state",
@@ -124,9 +144,13 @@ def batch_compute_environment_sensor() -> BatchComputeEnvironmentSensor:
 class TestBatchComputeEnvironmentSensor:
     @mock.patch.object(BatchClientHook, "client")
     def test_poke_no_environment(
-        self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
+        self,
+        mock_batch_client,
+        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
     ):
-        mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": []}
+        mock_batch_client.describe_compute_environments.return_value = {
+            "computeEnvironments": []
+        }
         with pytest.raises(AirflowException) as ctx:
             batch_compute_environment_sensor.poke({})
         mock_batch_client.describe_compute_environments.assert_called_once_with(
@@ -136,7 +160,9 @@ class TestBatchComputeEnvironmentSensor:
 
     @mock.patch.object(BatchClientHook, "client")
     def test_poke_valid(
-        self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
+        self,
+        mock_batch_client,
+        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
     ):
         mock_batch_client.describe_compute_environments.return_value = {
             "computeEnvironments": [{"status": "VALID"}]
@@ -148,7 +174,9 @@ class TestBatchComputeEnvironmentSensor:
 
     @mock.patch.object(BatchClientHook, "client")
     def test_poke_running(
-        self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
+        self,
+        mock_batch_client,
+        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
     ):
         mock_batch_client.describe_compute_environments.return_value = {
             "computeEnvironments": [
@@ -164,7 +192,9 @@ class TestBatchComputeEnvironmentSensor:
 
     @mock.patch.object(BatchClientHook, "client")
     def test_poke_invalid(
-        self, mock_batch_client, batch_compute_environment_sensor: BatchComputeEnvironmentSensor
+        self,
+        mock_batch_client,
+        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
     ):
         mock_batch_client.describe_compute_environments.return_value = {
             "computeEnvironments": [
@@ -198,7 +228,9 @@ class TestBatchComputeEnvironmentSensor:
         compute_env,
         error_message,
     ):
-        mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": compute_env}
+        mock_batch_client.describe_compute_environments.return_value = {
+            "computeEnvironments": compute_env
+        }
         with pytest.raises(AirflowException, match=error_message):
             batch_compute_environment_sensor.poke({})
 
@@ -213,7 +245,9 @@ def batch_job_queue_sensor() -> BatchJobQueueSensor:
 
 class TestBatchJobQueueSensor:
     @mock.patch.object(BatchClientHook, "client")
-    def test_poke_no_queue(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
+    def test_poke_no_queue(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor
+    ):
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": []}
         with pytest.raises(AirflowException) as ctx:
             batch_job_queue_sensor.poke({})
@@ -234,15 +268,21 @@ class TestBatchJobQueueSensor:
         )
 
     @mock.patch.object(BatchClientHook, "client")
-    def test_poke_valid(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
-        mock_batch_client.describe_job_queues.return_value = {"jobQueues": [{"status": "VALID"}]}
+    def test_poke_valid(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor
+    ):
+        mock_batch_client.describe_job_queues.return_value = {
+            "jobQueues": [{"status": "VALID"}]
+        }
         assert batch_job_queue_sensor.poke({}) is True
         mock_batch_client.describe_job_queues.assert_called_once_with(
             jobQueues=[JOB_QUEUE],
         )
 
     @mock.patch.object(BatchClientHook, "client")
-    def test_poke_running(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
+    def test_poke_running(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor
+    ):
         mock_batch_client.describe_job_queues.return_value = {
             "jobQueues": [
                 {
@@ -256,7 +296,9 @@ class TestBatchJobQueueSensor:
         )
 
     @mock.patch.object(BatchClientHook, "client")
-    def test_poke_invalid(self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor):
+    def test_poke_invalid(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor
+    ):
         mock_batch_client.describe_job_queues.return_value = {
             "jobQueues": [
                 {

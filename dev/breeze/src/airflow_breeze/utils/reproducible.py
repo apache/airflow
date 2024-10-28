@@ -42,7 +42,11 @@ from argparse import ArgumentParser
 from pathlib import Path
 from subprocess import CalledProcessError, CompletedProcess
 
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, OUT_DIR, REPRODUCIBLE_DIR
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    OUT_DIR,
+    REPRODUCIBLE_DIR,
+)
 from airflow_breeze.utils.python_versions import check_python_version
 from airflow_breeze.utils.run_utils import run_command
 
@@ -132,18 +136,24 @@ def repack_deterministically(
         # Use a temporary file and atomic rename to avoid partially-formed
         # packaging (in case of exceptional situations like running out of disk space).
         temp_file = f"{dest_archive}.temp~"
-        with os.fdopen(os.open(temp_file, os.O_WRONLY | os.O_CREAT, 0o644), "wb") as out_file:
+        with os.fdopen(
+            os.open(temp_file, os.O_WRONLY | os.O_CREAT, 0o644), "wb"
+        ) as out_file:
             with gzip.GzipFile(fileobj=out_file, mtime=0, mode="wb") as gzip_file:
                 with tarfile.open(fileobj=gzip_file, mode="w:") as tar_file:  # type: ignore
                     for entry in file_list:
                         arcname = entry
                         if prepend_path is not None:
-                            arcname = os.path.normpath(os.path.join(prepend_path, arcname))
+                            arcname = os.path.normpath(
+                                os.path.join(prepend_path, arcname)
+                            )
                         if arcname == ".":
                             continue
                         if arcname.startswith("./"):
                             arcname = arcname[2:]
-                        tar_file.add(entry, filter=reset, recursive=False, arcname=arcname)
+                        tar_file.add(
+                            entry, filter=reset, recursive=False, arcname=arcname
+                        )
         os.rename(temp_file, dest_archive)
     return result
 

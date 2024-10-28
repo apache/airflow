@@ -90,13 +90,15 @@ def get_task_instance(
         task_instance = session.scalar(query)
     except MultipleResultsFound:
         raise NotFound(
-            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+            "Task instance not found",
+            detail="Task instance is mapped, add the map_index value to the URL",
         )
     if task_instance is None:
         raise NotFound("Task instance not found")
     if task_instance.map_index != -1:
         raise NotFound(
-            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+            "Task instance not found",
+            detail="Task instance is mapped, add the map_index value to the URL",
         )
 
     return task_instance_schema.dump(task_instance)
@@ -115,7 +117,12 @@ def get_mapped_task_instance(
     """Get task instance."""
     query = (
         select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.map_index == map_index,
+        )
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
@@ -171,7 +178,12 @@ def get_mapped_task_instances(
 
     base_query = (
         select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.map_index >= 0,
+        )
         .join(TI.dag_run)
     )
 
@@ -200,8 +212,12 @@ def get_mapped_task_instances(
     base_query = _apply_range_filter(
         base_query, key=TI.start_date, value_range=(start_date_gte, start_date_lte)
     )
-    base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
-    base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    base_query = _apply_range_filter(
+        base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte)
+    )
+    base_query = _apply_range_filter(
+        base_query, key=TI.duration, value_range=(duration_gte, duration_lte)
+    )
     base_query = _apply_range_filter(
         base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte)
     )
@@ -225,20 +241,26 @@ def get_mapped_task_instances(
     )
 
 
-def _convert_ti_states(states: Iterable[str] | None) -> list[TaskInstanceState | None] | None:
+def _convert_ti_states(
+    states: Iterable[str] | None,
+) -> list[TaskInstanceState | None] | None:
     if not states:
         return None
     return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
 
 
-def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any] | None) -> Select:
+def _apply_array_filter(
+    query: Select, key: ClauseElement, values: Iterable[Any] | None
+) -> Select:
     if values is not None:
         cond = ((key == v) for v in values)
         query = query.where(or_(*cond))
     return query
 
 
-def _apply_range_filter(query: Select, key: ClauseElement, value_range: tuple[T, T]) -> Select:
+def _apply_range_filter(
+    query: Select, key: ClauseElement, value_range: tuple[T, T]
+) -> Select:
     gte_value, lte_value = value_range
     if gte_value is not None:
         query = query.where(key >= gte_value)
@@ -337,8 +359,12 @@ def get_task_instances(
     base_query = _apply_range_filter(
         base_query, key=TI.start_date, value_range=(start_date_gte, start_date_lte)
     )
-    base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
-    base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    base_query = _apply_range_filter(
+        base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte)
+    )
+    base_query = _apply_range_filter(
+        base_query, key=TI.duration, value_range=(duration_gte, duration_lte)
+    )
     base_query = _apply_range_filter(
         base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte)
     )
@@ -381,7 +407,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             for id in dag_ids
         ]
         if not get_auth_manager().batch_is_authorized_dag(requests):
-            raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
+            raise PermissionDenied(
+                detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}"
+            )
     else:
         dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
@@ -389,7 +417,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = select(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=dag_ids)
-    base_query = _apply_array_filter(base_query, key=TI.run_id, values=data["dag_run_ids"])
+    base_query = _apply_array_filter(
+        base_query, key=TI.run_id, values=data["dag_run_ids"]
+    )
     base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
@@ -402,10 +432,14 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         value_range=(data["start_date_gte"], data["start_date_lte"]),
     )
     base_query = _apply_range_filter(
-        base_query, key=TI.end_date, value_range=(data["end_date_gte"], data["end_date_lte"])
+        base_query,
+        key=TI.end_date,
+        value_range=(data["end_date_gte"], data["end_date_lte"]),
     )
     base_query = _apply_range_filter(
-        base_query, key=TI.duration, value_range=(data["duration_gte"], data["duration_lte"])
+        base_query,
+        key=TI.duration,
+        value_range=(data["duration_gte"], data["duration_lte"]),
     )
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=data["pool"])
@@ -436,7 +470,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
-def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def post_clear_task_instances(
+    *, dag_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Clear task instances."""
     body = get_json_request_dict()
     try:
@@ -457,7 +493,9 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     downstream = data.pop("include_downstream", False)
     upstream = data.pop("include_upstream", False)
     if dag_run_id is not None:
-        dag_run: DR | None = session.scalar(select(DR).where(DR.dag_id == dag_id, DR.run_id == dag_run_id))
+        dag_run: DR | None = session.scalar(
+            select(DR).where(DR.dag_id == dag_id, DR.run_id == dag_run_id)
+        )
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise NotFound(error_message)
@@ -479,7 +517,9 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
         if len(dag.task_dict) > 1:
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
-    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, task_ids=task_ids, **data)
+    task_instances = dag.clear(
+        dry_run=True, dag_bag=get_airflow_app().dag_bag, task_ids=task_ids, **data
+    )
 
     if not dry_run:
         clear_task_instances(
@@ -497,7 +537,9 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
-def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def post_set_task_instances_state(
+    *, dag_id: str, session: Session = NEW_SESSION
+) -> APIResponse:
     """Set a state of task instances."""
     body = get_json_request_dict()
     try:
@@ -524,7 +566,9 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         and (
             session.scalars(
                 select(TI).where(
-                    TI.task_id == task_id, TI.dag_id == dag_id, TI.execution_date == execution_date
+                    TI.task_id == task_id,
+                    TI.dag_id == dag_id,
+                    TI.execution_date == execution_date,
                 )
             ).one_or_none()
         )
@@ -535,11 +579,16 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         )
 
     select_stmt = select(TI).where(
-        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
+        TI.dag_id == dag_id,
+        TI.task_id == task_id,
+        TI.run_id == run_id,
+        TI.map_index == -1,
     )
 
     if run_id and not session.scalars(select_stmt).one_or_none():
-        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
+        error_message = (
+            f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
+        )
         raise NotFound(detail=error_message)
 
     tis = dag.set_task_instance_state(
@@ -554,21 +603,30 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         commit=not data["dry_run"],
         session=session,
     )
-    return task_instance_reference_collection_schema.dump(TaskInstanceReferenceCollection(task_instances=tis))
+    return task_instance_reference_collection_schema.dump(
+        TaskInstanceReferenceCollection(task_instances=tis)
+    )
 
 
 def set_mapped_task_instance_note(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
 ) -> APIResponse:
     """Set the note for a Mapped Task instance."""
-    return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
+    return set_task_instance_note(
+        dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+    )
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
 def patch_task_instance(
-    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Update the state of a task instance."""
     body = get_json_request_dict()
@@ -582,10 +640,15 @@ def patch_task_instance(
         raise NotFound("DAG not found", detail=f"DAG {dag_id!r} not found")
 
     if not dag.has_task(task_id):
-        raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
+        raise NotFound(
+            "Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}"
+        )
 
     select_stmt = select(TI).where(
-        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == dag_run_id, TI.map_index == map_index
+        TI.dag_id == dag_id,
+        TI.task_id == task_id,
+        TI.run_id == dag_run_id,
+        TI.map_index == map_index,
     )
 
     ti: TI | None = session.scalars(select_stmt).one_or_none()
@@ -611,11 +674,20 @@ def patch_task_instance(
 @action_logging
 @provide_session
 def patch_mapped_task_instance(
-    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: Session = NEW_SESSION
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Update the state of a mapped task instance."""
     return patch_task_instance(
-        dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index, session=session
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        map_index=map_index,
+        session=session,
     )
 
 
@@ -623,7 +695,12 @@ def patch_mapped_task_instance(
 @action_logging
 @provide_session
 def set_task_instance_note(
-    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Set the note for a Task instance. This supports both Mapped and non-Mapped Task instances."""
     try:
@@ -647,7 +724,8 @@ def set_task_instance_note(
         ti = session.scalar(query)
     except MultipleResultsFound:
         raise NotFound(
-            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+            "Task instance not found",
+            detail="Task instance is mapped, add the map_index value to the URL",
         )
     if ti is None:
         error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
@@ -666,7 +744,12 @@ def set_task_instance_note(
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_dependencies(
-    *, dag_id: str, dag_run_id: str, task_id: str, map_index: int = -1, session: Session = NEW_SESSION
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get dependencies blocking task from getting scheduled."""
     from airflow.exceptions import TaskNotFound
@@ -674,7 +757,9 @@ def get_task_instance_dependencies(
     from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
     from airflow.utils.airflow_flask_app import get_airflow_app
 
-    query = select(TI).where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+    query = select(TI).where(
+        TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id
+    )
 
     if map_index == -1:
         query = query.where(or_(TI.map_index == -1, TI.map_index is None))
@@ -685,7 +770,8 @@ def get_task_instance_dependencies(
         result = session.execute(query).one_or_none()
     except MultipleResultsFound:
         raise NotFound(
-            "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
+            "Task instance not found",
+            detail="Task instance is mapped, add the map_index value to the URL",
         )
 
     if result is None:
@@ -708,7 +794,9 @@ def get_task_instance_dependencies(
                 deps = sorted(
                     [
                         {"name": dep.dep_name, "reason": dep.reason}
-                        for dep in ti.get_failed_dep_statuses(dep_context=dep_context, session=session)
+                        for dep in ti.get_failed_dep_statuses(
+                            dep_context=dep_context, session=session
+                        )
                     ],
                     key=lambda x: x["name"],
                 )
@@ -804,9 +892,13 @@ def get_task_instance_tries(
         )
         return query
 
-    task_instances = session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    task_instances = (
+        session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    )
     return task_instance_history_collection_schema.dump(
-        TaskInstanceHistoryCollection(task_instances=task_instances, total_entries=len(task_instances))
+        TaskInstanceHistoryCollection(
+            task_instances=task_instances, total_entries=len(task_instances)
+        )
     )
 
 

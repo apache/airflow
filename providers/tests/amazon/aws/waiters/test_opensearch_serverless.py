@@ -22,7 +22,9 @@ import boto3
 import botocore
 import pytest
 
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
@@ -48,18 +50,26 @@ class TestCollectionAvailableWaiter(TestOpenSearchServerlessCustomWaitersBase):
         with mock.patch.object(self.client, "batch_get_collection") as getter:
             yield getter
 
-    @pytest.mark.parametrize("state", OpenSearchServerlessCollectionActiveSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize(
+        "state", OpenSearchServerlessCollectionActiveSensor.SUCCESS_STATES
+    )
     def test_model_customization_job_complete(self, state, mock_getter):
         mock_getter.return_value = {"collectionDetails": [{"status": state}]}
 
-        OpenSearchServerlessHook().get_waiter(self.WAITER_NAME).wait(collection_id="collection_id")
+        OpenSearchServerlessHook().get_waiter(self.WAITER_NAME).wait(
+            collection_id="collection_id"
+        )
 
-    @pytest.mark.parametrize("state", OpenSearchServerlessCollectionActiveSensor.FAILURE_STATES)
+    @pytest.mark.parametrize(
+        "state", OpenSearchServerlessCollectionActiveSensor.FAILURE_STATES
+    )
     def test_model_customization_job_failed(self, state, mock_getter):
         mock_getter.return_value = {"collectionDetails": [{"status": state}]}
 
         with pytest.raises(botocore.exceptions.WaiterError):
-            OpenSearchServerlessHook().get_waiter(self.WAITER_NAME).wait(collection_id="collection_id")
+            OpenSearchServerlessHook().get_waiter(self.WAITER_NAME).wait(
+                collection_id="collection_id"
+            )
 
     def test_model_customization_job_wait(self, mock_getter):
         wait = {"collectionDetails": [{"status": "CREATING"}]}

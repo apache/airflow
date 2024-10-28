@@ -30,9 +30,18 @@ from airflow.api.common.airflow_health import (
 pytestmark = pytest.mark.db_test
 
 
-@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=None)
-@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=None)
-@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=None)
+@patch(
+    "airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job",
+    return_value=None,
+)
+@patch(
+    "airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job",
+    return_value=None,
+)
+@patch(
+    "airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job",
+    return_value=None,
+)
 def test_get_airflow_health_only_metadatabase_healthy(
     latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
 ):
@@ -47,9 +56,18 @@ def test_get_airflow_health_only_metadatabase_healthy(
     assert health_status == expected_status
 
 
-@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=Exception)
-@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=Exception)
-@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=Exception)
+@patch(
+    "airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job",
+    return_value=Exception,
+)
+@patch(
+    "airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job",
+    return_value=Exception,
+)
+@patch(
+    "airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job",
+    return_value=Exception,
+)
 def test_get_airflow_health_metadatabase_unhealthy(
     latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
 ):
@@ -74,8 +92,14 @@ LATEST_SCHEDULER_JOB_MOCK.is_alive = MagicMock(return_value=True)
     "airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job",
     return_value=LATEST_SCHEDULER_JOB_MOCK,
 )
-@patch("airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job", return_value=None)
-@patch("airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job", return_value=None)
+@patch(
+    "airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job",
+    return_value=None,
+)
+@patch(
+    "airflow.api.common.airflow_health.DagProcessorJobRunner.most_recent_job",
+    return_value=None,
+)
 def test_get_airflow_health_scheduler_healthy_no_triggerer(
     latest_scheduler_job_mock, latest_triggerer_job_mock, latest_dag_processor_job_mock
 ):
@@ -103,7 +127,10 @@ LATEST_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat = datetime.now()
 LATEST_DAG_PROCESSOR_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
 
-@patch("airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job", return_value=None)
+@patch(
+    "airflow.api.common.airflow_health.SchedulerJobRunner.most_recent_job",
+    return_value=None,
+)
 @patch(
     "airflow.api.common.airflow_health.TriggererJobRunner.most_recent_job",
     return_value=LATEST_TRIGGERER_JOB_MOCK,

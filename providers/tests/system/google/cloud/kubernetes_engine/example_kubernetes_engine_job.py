@@ -94,7 +94,10 @@ with DAG(
 
     # [START howto_operator_gke_list_jobs]
     list_job_task = GKEListJobsOperator(
-        task_id="list_job_task", project_id=GCP_PROJECT_ID, location=GCP_LOCATION, cluster_name=CLUSTER_NAME
+        task_id="list_job_task",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
     )
     # [END howto_operator_gke_list_jobs]
 

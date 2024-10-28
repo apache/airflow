@@ -84,7 +84,9 @@ class FileTransferOperator(BaseOperator):
                 return Dataset(namespace=path.namespace, name=path.key)
             # manually recreating namespace
             return Dataset(
-                namespace=f"{path.protocol}://{path.bucket}" if path.bucket else path.protocol,
+                namespace=f"{path.protocol}://{path.bucket}"
+                if path.bucket
+                else path.protocol,
                 name=path.key.lstrip(path.sep),
             )
 
@@ -100,7 +102,9 @@ class FileTransferOperator(BaseOperator):
         )
 
     @staticmethod
-    def _get_path(path: str | ObjectStoragePath, conn_id: str | None) -> ObjectStoragePath:
+    def _get_path(
+        path: str | ObjectStoragePath, conn_id: str | None
+    ) -> ObjectStoragePath:
         if isinstance(path, str):
             return ObjectStoragePath(path, conn_id=conn_id)
         return path

@@ -27,7 +27,9 @@ from tests.charts.helm_template_generator import render_chart
 class TestPgbouncer:
     """Tests PgBouncer."""
 
-    @pytest.mark.parametrize("yaml_filename", ["pgbouncer-deployment", "pgbouncer-service"])
+    @pytest.mark.parametrize(
+        "yaml_filename", ["pgbouncer-deployment", "pgbouncer-service"]
+    )
     def test_pgbouncer_resources_not_created_by_default(self, yaml_filename):
         docs = render_chart(
             show_only=[f"templates/pgbouncer/{yaml_filename}.yaml"],
@@ -42,7 +44,9 @@ class TestPgbouncer:
 
         assert "Deployment" == jmespath.search("kind", docs[0])
         assert "release-name-pgbouncer" == jmespath.search("metadata.name", docs[0])
-        assert "pgbouncer" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "pgbouncer" == jmespath.search(
+            "spec.template.spec.containers[0].name", docs[0]
+        )
 
     def test_should_create_pgbouncer_service(self):
         docs = render_chart(
@@ -52,19 +56,26 @@ class TestPgbouncer:
 
         assert "Service" == jmespath.search("kind", docs[0])
         assert "release-name-pgbouncer" == jmespath.search("metadata.name", docs[0])
-        assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
-        assert "9127" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
-
-        assert {"prometheus.io/scrape": "true", "prometheus.io/port": "9127"} == jmespath.search(
-            "metadata.annotations", docs[0]
+        assert "true" == jmespath.search(
+            'metadata.annotations."prometheus.io/scrape"', docs[0]
         )
+        assert "9127" == jmespath.search(
+            'metadata.annotations."prometheus.io/port"', docs[0]
+        )
+
+        assert {
+            "prometheus.io/scrape": "true",
+            "prometheus.io/port": "9127",
+        } == jmespath.search("metadata.annotations", docs[0])
 
         assert {"name": "pgbouncer", "protocol": "TCP", "port": 6543} in jmespath.search(
             "spec.ports", docs[0]
         )
-        assert {"name": "pgb-metrics", "protocol": "TCP", "port": 9127} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "pgb-metrics",
+            "protocol": "TCP",
+            "port": 9127,
+        } in jmespath.search("spec.ports", docs[0])
 
     def test_pgbouncer_service_with_custom_ports(self):
         docs = render_chart(
@@ -75,19 +86,28 @@ class TestPgbouncer:
             show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
         )
 
-        assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
-        assert "2222" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
+        assert "true" == jmespath.search(
+            'metadata.annotations."prometheus.io/scrape"', docs[0]
+        )
+        assert "2222" == jmespath.search(
+            'metadata.annotations."prometheus.io/port"', docs[0]
+        )
         assert {"name": "pgbouncer", "protocol": "TCP", "port": 1111} in jmespath.search(
             "spec.ports", docs[0]
         )
-        assert {"name": "pgb-metrics", "protocol": "TCP", "port": 2222} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "pgb-metrics",
+            "protocol": "TCP",
+            "port": 2222,
+        } in jmespath.search("spec.ports", docs[0])
 
     def test_pgbouncer_service_extra_annotations(self):
         docs = render_chart(
             values={
-                "pgbouncer": {"enabled": True, "service": {"extraAnnotations": {"foo": "bar"}}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "service": {"extraAnnotations": {"foo": "bar"}},
+                },
             },
             show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
         )
@@ -112,7 +132,9 @@ class TestPgbouncer:
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
+    def test_revision_history_limit(
+        self, revision_history_limit, global_revision_history_limit
+    ):
         values = {
             "pgbouncer": {
                 "enabled": True,
@@ -151,7 +173,11 @@ class TestPgbouncer:
                                 "nodeSelectorTerms": [
                                     {
                                         "matchExpressions": [
-                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                            {
+                                                "key": "foo",
+                                                "operator": "In",
+                                                "values": ["true"],
+                                            },
                                         ]
                                     }
                                 ]
@@ -159,7 +185,12 @@ class TestPgbouncer:
                         }
                     },
                     "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                        {
+                            "key": "dynamic-pods",
+                            "operator": "Equal",
+                            "value": "true",
+                            "effect": "NoSchedule",
+                        }
                     ],
                     "nodeSelector": {"diskType": "ssd"},
                 }
@@ -202,7 +233,10 @@ class TestPgbouncer:
         docs = render_chart(
             "test-pgbouncer-config",
             values={
-                "pgbouncer": {"enabled": True, "configSecretName": "pgbouncer-config-secret"},
+                "pgbouncer": {
+                    "enabled": True,
+                    "configSecretName": "pgbouncer-config-secret",
+                },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
@@ -225,11 +259,15 @@ class TestPgbouncer:
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.limits.memory", docs[0]
+        )
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert "300m" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.cpu", docs[0]
+        )
 
     def test_pgbouncer_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -238,7 +276,9 @@ class TestPgbouncer:
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        )
 
     def test_metrics_exporter_resources(self):
         docs = render_chart(
@@ -273,9 +313,12 @@ class TestPgbouncer:
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"] == jmespath.search(
-            "spec.template.spec.containers[0].command", docs[0]
-        )
+        assert [
+            "pgbouncer",
+            "-u",
+            "nobody",
+            "/etc/pgbouncer/pgbouncer.ini",
+        ] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) is None
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
@@ -286,7 +329,9 @@ class TestPgbouncer:
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert command == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
@@ -301,8 +346,12 @@ class TestPgbouncer:
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert ["release-name"] == jmespath.search(
+            "spec.template.spec.containers[0].command", docs[0]
+        )
+        assert ["Helm"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -346,7 +395,10 @@ class TestPgbouncer:
                     }
                 ],
                 "volumeMounts": [
-                    {"name": "pgbouncer-client-certificates", "mountPath": "/etc/pgbouncer/certs"}
+                    {
+                        "name": "pgbouncer-client-certificates",
+                        "mountPath": "/etc/pgbouncer/certs",
+                    }
                 ],
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
@@ -382,7 +434,10 @@ class TestPgbouncer:
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+        assert (
+            jmespath.search("metadata.annotations", docs[0])["test_annotation"]
+            == "test_annotation_value"
+        )
 
 
 class TestPgbouncerConfig:
@@ -425,7 +480,11 @@ class TestPgbouncerConfig:
                 "extraIniResultBackend": "reserve_pool = 3",
             },
             "data": {
-                "metadataConnection": {"host": "meta_host", "db": "meta_db", "port": 1111},
+                "metadataConnection": {
+                    "host": "meta_host",
+                    "db": "meta_db",
+                    "port": 1111,
+                },
                 "resultBackendConnection": {
                     "protocol": "postgresql",
                     "host": "rb_host",
@@ -502,7 +561,11 @@ class TestPgbouncerConfig:
 
     def test_auth_type_file_overrides(self):
         values = {
-            "pgbouncer": {"enabled": True, "auth_type": "any", "auth_file": "/home/auth.txt"},
+            "pgbouncer": {
+                "enabled": True,
+                "auth_type": "any",
+                "auth_file": "/home/auth.txt",
+            },
             "ports": {"pgbouncer": 7777},
             "data": {"metadataConnection": {"user": "someuser"}},
         }
@@ -521,7 +584,10 @@ class TestPgbouncerConfig:
 
     def test_ssl_config(self):
         values = {
-            "pgbouncer": {"enabled": True, "ssl": {"ca": "someca", "cert": "somecert", "key": "somekey"}}
+            "pgbouncer": {
+                "enabled": True,
+                "ssl": {"ca": "someca", "cert": "somecert", "key": "somekey"},
+            }
         }
         ini = self._get_pgbouncer_ini(values)
 
@@ -534,13 +600,22 @@ class TestPgbouncerConfig:
             show_only=["templates/secrets/pgbouncer-certificates-secret.yaml"],
         )
 
-        for key, expected in [("root.crt", "someca"), ("server.crt", "somecert"), ("server.key", "somekey")]:
+        for key, expected in [
+            ("root.crt", "someca"),
+            ("server.crt", "somecert"),
+            ("server.key", "somekey"),
+        ]:
             encoded = jmespath.search(f'data."{key}"', docs[0])
             value = base64.b64decode(encoded).decode()
             assert expected == value
 
     def test_extra_ini_configs(self):
-        values = {"pgbouncer": {"enabled": True, "extraIni": "server_round_robin = 1\nstats_period = 30"}}
+        values = {
+            "pgbouncer": {
+                "enabled": True,
+                "extraIni": "server_round_robin = 1\nstats_period = 30",
+            }
+        }
         ini = self._get_pgbouncer_ini(values)
 
         assert "server_round_robin = 1" in ini
@@ -567,7 +642,10 @@ class TestPgbouncerConfig:
                 "pgbouncer": {
                     "enabled": True,
                     "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                        {
+                            "name": "{{ .Chart.Name }}",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
                     ],
                 },
             },
@@ -599,12 +677,18 @@ class TestPgbouncerExporter:
 
     def test_default_exporter_secret(self):
         connection = self._get_connection({"pgbouncer": {"enabled": True}})
-        assert "postgresql://postgres:postgres@127.0.0.1:6543/pgbouncer?sslmode=disable" == connection
+        assert (
+            "postgresql://postgres:postgres@127.0.0.1:6543/pgbouncer?sslmode=disable"
+            == connection
+        )
 
     def test_exporter_secret_with_overrides(self):
         connection = self._get_connection(
             {
-                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "require"}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {"sslmode": "require"},
+                },
                 "data": {
                     "metadataConnection": {
                         "user": "username@123123",
@@ -634,7 +718,9 @@ class TestPgbouncerExporter:
         assert {
             "name": "test-pgbouncer-stats-pgbouncer-stats",
             "key": "connection",
-        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+        } == jmespath.search(
+            "spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0]
+        )
 
     def test_existing_secret(self):
         docs = render_chart(
@@ -653,7 +739,9 @@ class TestPgbouncerExporter:
         assert {
             "name": "existing-stats-secret",
             "key": "connection",
-        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+        } == jmespath.search(
+            "spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0]
+        )
 
     def test_existing_secret_existing_key(self):
         docs = render_chart(
@@ -673,7 +761,9 @@ class TestPgbouncerExporter:
         assert {
             "name": "existing-stats-secret",
             "key": "exisiting-stats-secret-key",
-        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+        } == jmespath.search(
+            "spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0]
+        )
 
     def test_unused_secret_key(self):
         docs = render_chart(
@@ -692,7 +782,9 @@ class TestPgbouncerExporter:
         assert {
             "name": "test-pgbouncer-stats-pgbouncer-stats",
             "key": "connection",
-        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+        } == jmespath.search(
+            "spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0]
+        )
 
 
 class TestPgBouncerServiceAccount:
@@ -715,7 +807,10 @@ class TestPgBouncerServiceAccount:
             values={
                 "pgbouncer": {
                     "enabled": True,
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                    "serviceAccount": {
+                        "create": True,
+                        "automountServiceAccountToken": False,
+                    },
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
@@ -733,7 +828,9 @@ class TestPgbouncerNetworkPolicy:
         )
 
         assert "NetworkPolicy" == jmespath.search("kind", docs[0])
-        assert "release-name-pgbouncer-policy" == jmespath.search("metadata.name", docs[0])
+        assert "release-name-pgbouncer-policy" == jmespath.search(
+            "metadata.name", docs[0]
+        )
 
     @pytest.mark.parametrize(
         "conf, expected_selector",
@@ -761,7 +858,9 @@ class TestPgbouncerNetworkPolicy:
             (
                 {
                     "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    "workers": {
+                        "keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}
+                    },
                 },
                 [
                     {
@@ -772,7 +871,11 @@ class TestPgbouncerNetworkPolicy:
             ),
             # test with triggerer.keda enabled with namespace labels
             (
-                {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                {
+                    "triggerer": {
+                        "keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}
+                    }
+                },
                 [
                     {
                         "namespaceSelector": {"matchLabels": {"app": "airflow"}},
@@ -784,8 +887,12 @@ class TestPgbouncerNetworkPolicy:
             (
                 {
                     "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    "workers": {
+                        "keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}
+                    },
+                    "triggerer": {
+                        "keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}
+                    },
                 },
                 [
                     {
@@ -799,7 +906,9 @@ class TestPgbouncerNetworkPolicy:
             (
                 {
                     "executor": "CeleryExecutor",
-                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    "workers": {
+                        "keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}
+                    },
                     "triggerer": {"keda": {"enabled": True}},
                 },
                 [
@@ -815,7 +924,9 @@ class TestPgbouncerNetworkPolicy:
                 {
                     "executor": "CeleryExecutor",
                     "workers": {"keda": {"enabled": True}},
-                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    "triggerer": {
+                        "keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}
+                    },
                 },
                 [
                     {
@@ -850,7 +961,10 @@ class TestPgbouncerIngress:
                     "pgbouncer": {
                         "enabled": True,
                         "hosts": [
-                            {"name": "some-host", "tls": {"enabled": True, "secretName": "some-secret"}}
+                            {
+                                "name": "some-host",
+                                "tls": {"enabled": True, "secretName": "some-secret"},
+                            }
                         ],
                         "ingressClassName": "ingress-class",
                     }
@@ -859,9 +973,10 @@ class TestPgbouncerIngress:
             show_only=["templates/pgbouncer/pgbouncer-ingress.yaml"],
         )
 
-        assert {"name": "release-name-pgbouncer", "port": {"name": "pgb-metrics"}} == jmespath.search(
-            "spec.rules[0].http.paths[0].backend.service", docs[0]
-        )
+        assert {
+            "name": "release-name-pgbouncer",
+            "port": {"name": "pgb-metrics"},
+        } == jmespath.search("spec.rules[0].http.paths[0].backend.service", docs[0])
         assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
         assert "some-host" == jmespath.search("spec.rules[0].host", docs[0])
         assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(

@@ -25,7 +25,9 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
+from airflow.providers.microsoft.azure.operators.container_instances import (
+    AzureContainerInstancesOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "aci_example"

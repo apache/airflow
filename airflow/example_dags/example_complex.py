@@ -35,17 +35,22 @@ with DAG(
     tags=["example", "example2", "example3"],
 ) as dag:
     # Create
-    create_entry_group = BashOperator(task_id="create_entry_group", bash_command="echo create_entry_group")
+    create_entry_group = BashOperator(
+        task_id="create_entry_group", bash_command="echo create_entry_group"
+    )
 
     create_entry_group_result = BashOperator(
         task_id="create_entry_group_result", bash_command="echo create_entry_group_result"
     )
 
     create_entry_group_result2 = BashOperator(
-        task_id="create_entry_group_result2", bash_command="echo create_entry_group_result2"
+        task_id="create_entry_group_result2",
+        bash_command="echo create_entry_group_result2",
     )
 
-    create_entry_gcs = BashOperator(task_id="create_entry_gcs", bash_command="echo create_entry_gcs")
+    create_entry_gcs = BashOperator(
+        task_id="create_entry_gcs", bash_command="echo create_entry_gcs"
+    )
 
     create_entry_gcs_result = BashOperator(
         task_id="create_entry_gcs_result", bash_command="echo create_entry_gcs_result"
@@ -57,18 +62,26 @@ with DAG(
 
     create_tag = BashOperator(task_id="create_tag", bash_command="echo create_tag")
 
-    create_tag_result = BashOperator(task_id="create_tag_result", bash_command="echo create_tag_result")
+    create_tag_result = BashOperator(
+        task_id="create_tag_result", bash_command="echo create_tag_result"
+    )
 
-    create_tag_result2 = BashOperator(task_id="create_tag_result2", bash_command="echo create_tag_result2")
+    create_tag_result2 = BashOperator(
+        task_id="create_tag_result2", bash_command="echo create_tag_result2"
+    )
 
-    create_tag_template = BashOperator(task_id="create_tag_template", bash_command="echo create_tag_template")
+    create_tag_template = BashOperator(
+        task_id="create_tag_template", bash_command="echo create_tag_template"
+    )
 
     create_tag_template_result = BashOperator(
-        task_id="create_tag_template_result", bash_command="echo create_tag_template_result"
+        task_id="create_tag_template_result",
+        bash_command="echo create_tag_template_result",
     )
 
     create_tag_template_result2 = BashOperator(
-        task_id="create_tag_template_result2", bash_command="echo create_tag_template_result2"
+        task_id="create_tag_template_result2",
+        bash_command="echo create_tag_template_result2",
     )
 
     create_tag_template_field = BashOperator(
@@ -76,18 +89,22 @@ with DAG(
     )
 
     create_tag_template_field_result = BashOperator(
-        task_id="create_tag_template_field_result", bash_command="echo create_tag_template_field_result"
+        task_id="create_tag_template_field_result",
+        bash_command="echo create_tag_template_field_result",
     )
 
     create_tag_template_field_result2 = BashOperator(
-        task_id="create_tag_template_field_result2", bash_command="echo create_tag_template_field_result"
+        task_id="create_tag_template_field_result2",
+        bash_command="echo create_tag_template_field_result",
     )
 
     # Delete
     delete_entry = BashOperator(task_id="delete_entry", bash_command="echo delete_entry")
     create_entry_gcs >> delete_entry
 
-    delete_entry_group = BashOperator(task_id="delete_entry_group", bash_command="echo delete_entry_group")
+    delete_entry_group = BashOperator(
+        task_id="delete_entry_group", bash_command="echo delete_entry_group"
+    )
     create_entry_group >> delete_entry_group
 
     delete_tag = BashOperator(task_id="delete_tag", bash_command="echo delete_tag")
@@ -97,10 +114,14 @@ with DAG(
         task_id="delete_tag_template_field", bash_command="echo delete_tag_template_field"
     )
 
-    delete_tag_template = BashOperator(task_id="delete_tag_template", bash_command="echo delete_tag_template")
+    delete_tag_template = BashOperator(
+        task_id="delete_tag_template", bash_command="echo delete_tag_template"
+    )
 
     # Get
-    get_entry_group = BashOperator(task_id="get_entry_group", bash_command="echo get_entry_group")
+    get_entry_group = BashOperator(
+        task_id="get_entry_group", bash_command="echo get_entry_group"
+    )
 
     get_entry_group_result = BashOperator(
         task_id="get_entry_group_result", bash_command="echo get_entry_group_result"
@@ -108,9 +129,13 @@ with DAG(
 
     get_entry = BashOperator(task_id="get_entry", bash_command="echo get_entry")
 
-    get_entry_result = BashOperator(task_id="get_entry_result", bash_command="echo get_entry_result")
+    get_entry_result = BashOperator(
+        task_id="get_entry_result", bash_command="echo get_entry_result"
+    )
 
-    get_tag_template = BashOperator(task_id="get_tag_template", bash_command="echo get_tag_template")
+    get_tag_template = BashOperator(
+        task_id="get_tag_template", bash_command="echo get_tag_template"
+    )
 
     get_tag_template_result = BashOperator(
         task_id="get_tag_template_result", bash_command="echo get_tag_template_result"
@@ -119,12 +144,16 @@ with DAG(
     # List
     list_tags = BashOperator(task_id="list_tags", bash_command="echo list_tags")
 
-    list_tags_result = BashOperator(task_id="list_tags_result", bash_command="echo list_tags_result")
+    list_tags_result = BashOperator(
+        task_id="list_tags_result", bash_command="echo list_tags_result"
+    )
 
     # Lookup
     lookup_entry = BashOperator(task_id="lookup_entry", bash_command="echo lookup_entry")
 
-    lookup_entry_result = BashOperator(task_id="lookup_entry_result", bash_command="echo lookup_entry_result")
+    lookup_entry_result = BashOperator(
+        task_id="lookup_entry_result", bash_command="echo lookup_entry_result"
+    )
 
     # Rename
     rename_tag_template_field = BashOperator(
@@ -132,7 +161,9 @@ with DAG(
     )
 
     # Search
-    search_catalog = BashOperator(task_id="search_catalog", bash_command="echo search_catalog")
+    search_catalog = BashOperator(
+        task_id="search_catalog", bash_command="echo search_catalog"
+    )
 
     search_catalog_result = BashOperator(
         task_id="search_catalog_result", bash_command="echo search_catalog_result"
@@ -143,7 +174,9 @@ with DAG(
 
     update_tag = BashOperator(task_id="update_tag", bash_command="echo update_tag")
 
-    update_tag_template = BashOperator(task_id="update_tag_template", bash_command="echo update_tag_template")
+    update_tag_template = BashOperator(
+        task_id="update_tag_template", bash_command="echo update_tag_template"
+    )
 
     update_tag_template_field = BashOperator(
         task_id="update_tag_template_field", bash_command="echo update_tag_template_field"

@@ -156,7 +156,9 @@ class TestSFTPToGCSOperator:
             gzip=False,
         )
 
-        sftp_hook.return_value.delete_file.assert_called_once_with(SOURCE_OBJECT_NO_WILDCARD)
+        sftp_hook.return_value.delete_file.assert_called_once_with(
+            SOURCE_OBJECT_NO_WILDCARD
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
@@ -256,7 +258,9 @@ class TestSFTPToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
-    def test_execute_copy_with_wildcard_and_default_destination_path(self, sftp_hook, gcs_hook):
+    def test_execute_copy_with_wildcard_and_default_destination_path(
+        self, sftp_hook, gcs_hook
+    ):
         sftp_hook.return_value.get_tree_map.return_value = [
             ["main_dir/test_object1.txt", "main_dir/test_object2.txt"],
             [],

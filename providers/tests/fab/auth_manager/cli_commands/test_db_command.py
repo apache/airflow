@@ -40,7 +40,9 @@ try:
 
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb_skip_init(self, mock_resetdb):
-            db_command.resetdb(self.parser.parse_args(["fab-db", "reset", "--yes", "--skip-init"]))
+            db_command.resetdb(
+                self.parser.parse_args(["fab-db", "reset", "--yes", "--skip-init"])
+            )
             mock_resetdb.assert_called_once_with(skip_init=True)
 
         @pytest.mark.parametrize(
@@ -75,7 +77,13 @@ try:
                     dict(to_revision="abc", from_revision=None, show_sql_only=True),
                 ),
                 (
-                    ["--to-revision", "abc", "--from-revision", "abc123", "--show-sql-only"],
+                    [
+                        "--to-revision",
+                        "abc",
+                        "--from-revision",
+                        "abc123",
+                        "--show-sql-only",
+                    ],
                     dict(
                         to_revision="abc",
                         from_revision="abc123",
@@ -102,8 +110,16 @@ try:
                     "Cannot supply both",
                     id="from both version and revision",
                 ),
-                pytest.param(["--to-version", "1.2.0"], "Unknown version '1.2.0'", id="unknown to version"),
-                pytest.param(["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"),
+                pytest.param(
+                    ["--to-version", "1.2.0"],
+                    "Unknown version '1.2.0'",
+                    id="unknown to version",
+                ),
+                pytest.param(
+                    ["--to-version", "abc"],
+                    "Invalid version 'abc'",
+                    id="invalid to version",
+                ),
                 pytest.param(
                     ["--to-revision", "abc", "--from-revision", "abc123"],
                     "used with `--show-sql-only`",
@@ -115,7 +131,13 @@ try:
                     id="requires offline",
                 ),
                 pytest.param(
-                    ["--to-revision", "abc", "--from-version", "1.1.25", "--show-sql-only"],
+                    [
+                        "--to-revision",
+                        "abc",
+                        "--from-version",
+                        "1.1.25",
+                        "--show-sql-only",
+                    ],
                     "Unknown version '1.1.25'",
                     id="unknown from version",
                 ),

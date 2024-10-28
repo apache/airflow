@@ -88,8 +88,14 @@ class OdbcHook(DbApiHook):
     def sqlalchemy_scheme(self) -> str:
         """SQLAlchemy scheme either from constructor, connection extras or default."""
         extra_scheme = self.connection_extra_lower.get("sqlalchemy_scheme")
-        if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
-            raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
+        if (
+            not self._sqlalchemy_scheme
+            and extra_scheme
+            and (":" in extra_scheme or "/" in extra_scheme)
+        ):
+            raise RuntimeError(
+                "sqlalchemy_scheme in connection extra should not contain : or / characters"
+            )
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
     @property
@@ -98,7 +104,9 @@ class OdbcHook(DbApiHook):
         extra_driver = self.connection_extra_lower.get("driver")
         from airflow.configuration import conf
 
-        if extra_driver and conf.getboolean("providers.odbc", "allow_driver_in_extra", fallback=False):
+        if extra_driver and conf.getboolean(
+            "providers.odbc", "allow_driver_in_extra", fallback=False
+        ):
             self._driver = extra_driver
         else:
             self.log.warning(
@@ -110,7 +118,9 @@ class OdbcHook(DbApiHook):
             )
         if not self._driver:
             self._driver = self.default_driver
-        return self._driver.strip().lstrip("{").rstrip("}").strip() if self._driver else None
+        return (
+            self._driver.strip().lstrip("{").rstrip("}").strip() if self._driver else None
+        )
 
     @property
     def dsn(self) -> str | None:
@@ -149,8 +159,18 @@ class OdbcHook(DbApiHook):
             if self.connection.port:
                 conn_str += f"PORT={self.connection.port};"
 
-            extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
-            extra_params = {k: v for k, v in self.connection_extra.items() if k.lower() not in extra_exclude}
+            extra_exclude = {
+                "driver",
+                "dsn",
+                "connect_kwargs",
+                "sqlalchemy_scheme",
+                "placeholder",
+            }
+            extra_params = {
+                k: v
+                for k, v in self.connection_extra.items()
+                if k.lower() not in extra_exclude
+            }
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
 
@@ -212,7 +232,9 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
+    def _make_common_data_structure(
+        self, result: Sequence[Row] | Row
+    ) -> list[tuple] | tuple:
         """Transform the pyodbc.Row objects returned from an SQL command into namedtuples."""
         # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
         # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848

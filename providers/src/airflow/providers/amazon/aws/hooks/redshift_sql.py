@@ -30,7 +30,9 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
-_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version(
+    "2.10.0"
+)
 
 
 if TYPE_CHECKING:
@@ -140,8 +142,12 @@ class RedshiftSQLHook(DbApiHook):
                 if conn.host:
                     cluster_identifier = conn.host.split(".", 1)[0]
                 else:
-                    raise AirflowException("Please set cluster_identifier or host in redshift connection.")
-            redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
+                    raise AirflowException(
+                        "Please set cluster_identifier or host in redshift connection."
+                    )
+            redshift_client = AwsBaseHook(
+                aws_conn_id=self.aws_conn_id, client_type="redshift"
+            ).conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
                 DbUser=conn.login,
@@ -172,13 +178,18 @@ class RedshiftSQLHook(DbApiHook):
             engine_kwargs = {}
 
         if "connect_args" in engine_kwargs:
-            engine_kwargs["connect_args"] = {**conn_kwargs, **engine_kwargs["connect_args"]}
+            engine_kwargs["connect_args"] = {
+                **conn_kwargs,
+                **engine_kwargs["connect_args"],
+            }
         else:
             engine_kwargs["connect_args"] = conn_kwargs
 
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
+    def get_table_primary_key(
+        self, table: str, schema: str | None = "public"
+    ) -> list[str] | None:
         """
         Get the table's primary key.
 

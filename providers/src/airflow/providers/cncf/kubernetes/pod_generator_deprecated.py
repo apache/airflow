@@ -179,7 +179,9 @@ class PodGenerator:
         self.container.env_from = []
         for configmap in configmaps:
             self.container.env_from.append(
-                k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))
+                k8s.V1EnvFromSource(
+                    config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap)
+                )
             )
 
         self.container.command = cmds or []
@@ -211,7 +213,9 @@ class PodGenerator:
 
         if image_pull_secrets:
             for image_pull_secret in image_pull_secrets.split(","):
-                self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(name=image_pull_secret))
+                self.spec.image_pull_secrets.append(
+                    k8s.V1LocalObjectReference(name=image_pull_secret)
+                )
 
         # Attach sidecar
         self.extract_xcom = extract_xcom
@@ -239,7 +243,9 @@ class PodGenerator:
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
-        pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
+        pod_cp.spec.containers[0].volume_mounts = (
+            pod_cp.spec.containers[0].volume_mounts or []
+        )
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
         pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
 

@@ -27,7 +27,16 @@ import logging
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, update
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKeyConstraint,
+    Integer,
+    UniqueConstraint,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
@@ -75,9 +84,13 @@ class Backfill(Base):
     max_active_runs = Column(Integer, default=10, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at = Column(UtcDateTime, nullable=True)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+    updated_at = Column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
 
-    backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
+    backfill_dag_run_associations = relationship(
+        "BackfillDagRun", back_populates="backfill"
+    )
 
     def __repr__(self):
         return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
@@ -109,7 +122,9 @@ class BackfillDagRun(Base):
     dag_run = relationship("DagRun")
 
     __table_args__ = (
-        UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),
+        UniqueConstraint(
+            "backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"
+        ),
         ForeignKeyConstraint(
             [backfill_id],
             ["backfill.id"],
@@ -131,10 +146,14 @@ class BackfillDagRun(Base):
         return val
 
 
-def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort_ordinal, session):
+def _create_backfill_dag_run(
+    dag, info, backfill_id, dag_run_conf, backfill_sort_ordinal, session
+):
     from airflow.models import DagRun
 
-    dr = session.scalar(select(DagRun).where(DagRun.execution_date == info.logical_date).limit(1))
+    dr = session.scalar(
+        select(DagRun).where(DagRun.execution_date == info.logical_date).limit(1)
+    )
     if dr:
         session.add(
             BackfillDagRun(
@@ -178,7 +197,9 @@ def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort
 def _get_info_list(*, dag, from_date, to_date, reverse):
     dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
     if reverse:
-        dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+        dagrun_info_list = reversed(
+            [x for x in dag.iter_dagrun_infos_between(from_date, to_date)]
+        )
     return dagrun_info_list
 
 
@@ -199,7 +220,9 @@ def _create_backfill(
             raise NotFound(f"Could not find dag {dag_id}")
 
         num_active = session.scalar(
-            select(func.count()).where(Backfill.dag_id == dag_id, Backfill.completed_at.is_(None))
+            select(func.count()).where(
+                Backfill.dag_id == dag_id, Backfill.completed_at.is_(None)
+            )
         )
         if num_active > 0:
             raise AlreadyRunningBackfill(
@@ -226,7 +249,9 @@ def _create_backfill(
         session.commit()
 
         backfill_sort_ordinal = 0
-        dagrun_info_list = _get_info_list(dag=dag, from_date=from_date, to_date=to_date, reverse=reverse)
+        dagrun_info_list = _get_info_list(
+            dag=dag, from_date=from_date, to_date=to_date, reverse=reverse
+        )
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             session.commit()
@@ -292,7 +317,11 @@ def _cancel_backfill(backfill_id) -> Backfill:
         query = (
             update(DagRun)
             .where(
-                DagRun.id.in_(select(BackfillDagRun.dag_run_id).where(BackfillDagRun.backfill_id == b.id)),
+                DagRun.id.in_(
+                    select(BackfillDagRun.dag_run_id).where(
+                        BackfillDagRun.backfill_id == b.id
+                    )
+                ),
                 DagRun.state == DagRunState.QUEUED,
             )
             .values(state=DagRunState.FAILED)

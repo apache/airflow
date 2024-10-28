@@ -188,11 +188,17 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
 
         if conn_id == ACCOUNT_ID_CONN:
-            assert fallback_to_default_account(dbt_cloud_func)(hook, account_id=account_id) == _account_id
+            assert (
+                fallback_to_default_account(dbt_cloud_func)(hook, account_id=account_id)
+                == _account_id
+            )
             assert fallback_to_default_account(dbt_cloud_func)(hook) == _account_id
 
         if conn_id == NO_ACCOUNT_ID_CONN:
-            assert fallback_to_default_account(dbt_cloud_func)(hook, account_id=account_id) == _account_id
+            assert (
+                fallback_to_default_account(dbt_cloud_func)(hook, account_id=account_id)
+                == _account_id
+            )
 
             with pytest.raises(AirflowException):
                 fallback_to_default_account(dbt_cloud_func)(hook)
@@ -247,7 +253,9 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_not_called()
         hook._paginate.assert_called_once_with(
-            endpoint=f"api/v3/accounts/{_account_id}/projects/", payload=None, proxies=None
+            endpoint=f"api/v3/accounts/{_account_id}/projects/",
+            payload=None,
+            proxies=None,
         )
 
     @pytest.mark.parametrize(
@@ -265,7 +273,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/", data=None, extra_options=None
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/",
+            data=None,
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -297,7 +307,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_list_jobs_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_list_jobs_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         hook.list_jobs(project_id=PROJECT_ID, account_id=account_id, order_by="-id")
 
@@ -326,7 +338,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}", data=None, extra_options=None
+            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}",
+            data=None,
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -347,7 +361,9 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
-            data=json.dumps({"cause": cause, "steps_override": None, "schema_override": None}),
+            data=json.dumps(
+                {"cause": cause, "steps_override": None, "schema_override": None}
+            ),
             extra_options=None,
         )
         hook._paginate.assert_not_called()
@@ -359,7 +375,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_trigger_job_run_with_overrides(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_trigger_job_run_with_overrides(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         cause = ""
         steps_override = ["dbt test", "dbt run"]
@@ -378,7 +396,11 @@ class TestDbtCloudHook:
         hook.run.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
             data=json.dumps(
-                {"cause": cause, "steps_override": steps_override, "schema_override": schema_override}
+                {
+                    "cause": cause,
+                    "steps_override": steps_override,
+                    "schema_override": schema_override,
+                }
             ),
             extra_options=None,
         )
@@ -398,7 +420,10 @@ class TestDbtCloudHook:
         cause = ""
         additional_run_config = {"threads_override": 8, "generate_docs_override": False}
         hook.trigger_job_run(
-            job_id=JOB_ID, cause=cause, account_id=account_id, additional_run_config=additional_run_config
+            job_id=JOB_ID,
+            cause=cause,
+            account_id=account_id,
+            additional_run_config=additional_run_config,
         )
 
         assert hook.method == "POST"
@@ -426,7 +451,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_trigger_job_run_with_longer_cause(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_trigger_job_run_with_longer_cause(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         cause = "Some cause that is longer than limit. " * 15
         expected_cause = cause[:DBT_CAUSE_MAX_LENGTH]
@@ -444,7 +471,9 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
-            data=json.dumps({"cause": expected_cause, "steps_override": None, "schema_override": None}),
+            data=json.dumps(
+                {"cause": expected_cause, "steps_override": None, "schema_override": None}
+            ),
             extra_options=None,
         )
         hook._paginate.assert_not_called()
@@ -482,9 +511,14 @@ class TestDbtCloudHook:
         retry_from_failure = True
 
         with patch.object(DbtCloudHook, "get_job_runs") as mock_get_job_run_status:
-            mock_get_job_run_status.return_value.json.return_value = {"data": get_job_runs_data}
+            mock_get_job_run_status.return_value.json.return_value = {
+                "data": get_job_runs_data
+            }
             hook.trigger_job_run(
-                job_id=JOB_ID, cause=cause, account_id=account_id, retry_from_failure=retry_from_failure
+                job_id=JOB_ID,
+                cause=cause,
+                account_id=account_id,
+                retry_from_failure=retry_from_failure,
             )
             assert hook.method == "POST"
             _account_id = account_id or DEFAULT_ACCOUNT_ID
@@ -515,7 +549,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_trigger_job_run_with_proxy(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_trigger_job_run_with_proxy(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         cause = ""
         hook.trigger_job_run(job_id=JOB_ID, cause=cause, account_id=account_id)
@@ -525,7 +561,9 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
-            data=json.dumps({"cause": cause, "steps_override": None, "schema_override": None}),
+            data=json.dumps(
+                {"cause": cause, "steps_override": None, "schema_override": None}
+            ),
             extra_options={"proxies": {"https": "http://myproxy:1234"}},
         )
         hook._paginate.assert_not_called()
@@ -562,10 +600,15 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_list_job_runs_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_list_job_runs_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         hook.list_job_runs(
-            account_id=account_id, include_related=["job"], job_definition_id=JOB_ID, order_by="id"
+            account_id=account_id,
+            include_related=["job"],
+            job_definition_id=JOB_ID,
+            order_by="id",
         )
 
         assert hook.method == "GET"
@@ -627,9 +670,13 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_get_job_run_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_get_job_run_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
-        hook.get_job_run(run_id=RUN_ID, account_id=account_id, include_related=["triggers"])
+        hook.get_job_run(
+            run_id=RUN_ID, account_id=account_id, include_related=["triggers"]
+        )
 
         assert hook.method == "GET"
 
@@ -645,12 +692,36 @@ class TestDbtCloudHook:
         (DbtCloudJobRunStatus.SUCCESS.value, DbtCloudJobRunStatus.SUCCESS.value, True),
         (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.SUCCESS.value, False),
         (DbtCloudJobRunStatus.CANCELLED.value, DbtCloudJobRunStatus.SUCCESS.value, False),
-        (DbtCloudJobRunStatus.RUNNING.value, DbtCloudJobRunStatus.SUCCESS.value, "timeout"),
-        (DbtCloudJobRunStatus.QUEUED.value, DbtCloudJobRunStatus.SUCCESS.value, "timeout"),
-        (DbtCloudJobRunStatus.STARTING.value, DbtCloudJobRunStatus.SUCCESS.value, "timeout"),
-        (DbtCloudJobRunStatus.SUCCESS.value, DbtCloudJobRunStatus.TERMINAL_STATUSES.value, True),
-        (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.TERMINAL_STATUSES.value, True),
-        (DbtCloudJobRunStatus.CANCELLED.value, DbtCloudJobRunStatus.TERMINAL_STATUSES.value, True),
+        (
+            DbtCloudJobRunStatus.RUNNING.value,
+            DbtCloudJobRunStatus.SUCCESS.value,
+            "timeout",
+        ),
+        (
+            DbtCloudJobRunStatus.QUEUED.value,
+            DbtCloudJobRunStatus.SUCCESS.value,
+            "timeout",
+        ),
+        (
+            DbtCloudJobRunStatus.STARTING.value,
+            DbtCloudJobRunStatus.SUCCESS.value,
+            "timeout",
+        ),
+        (
+            DbtCloudJobRunStatus.SUCCESS.value,
+            DbtCloudJobRunStatus.TERMINAL_STATUSES.value,
+            True,
+        ),
+        (
+            DbtCloudJobRunStatus.ERROR.value,
+            DbtCloudJobRunStatus.TERMINAL_STATUSES.value,
+            True,
+        ),
+        (
+            DbtCloudJobRunStatus.CANCELLED.value,
+            DbtCloudJobRunStatus.TERMINAL_STATUSES.value,
+            True,
+        ),
     ]
 
     @pytest.mark.parametrize(
@@ -665,8 +736,15 @@ class TestDbtCloudHook:
             for argval in wait_for_job_run_status_test_args
         ],
     )
-    def test_wait_for_job_run_status(self, job_run_status, expected_status, expected_output, time_machine):
-        config = {"run_id": RUN_ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
+    def test_wait_for_job_run_status(
+        self, job_run_status, expected_status, expected_output, time_machine
+    ):
+        config = {
+            "run_id": RUN_ID,
+            "timeout": 3,
+            "check_interval": 1,
+            "expected_statuses": expected_status,
+        }
         hook = DbtCloudHook(ACCOUNT_ID_CONN)
 
         # Freeze time for avoid real clock side effects
@@ -678,7 +756,9 @@ class TestDbtCloudHook:
 
         with (
             patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status,
-            patch("airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep),
+            patch(
+                "airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep
+            ),
         ):
             mock_job_run_status.return_value = job_run_status
 
@@ -703,7 +783,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/cancel/", data=None, extra_options=None
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/cancel/",
+            data=None,
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -714,7 +796,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_list_job_run_artifacts(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_list_job_run_artifacts(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         hook.list_job_run_artifacts(run_id=RUN_ID, account_id=account_id)
 
@@ -735,7 +819,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_list_job_run_artifacts_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_list_job_run_artifacts_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         hook.list_job_run_artifacts(run_id=RUN_ID, account_id=account_id, step=2)
 
@@ -756,7 +842,9 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_get_job_run_artifact(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_get_job_run_artifact(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         path = "manifest.json"
         hook.get_job_run_artifact(run_id=RUN_ID, path=path, account_id=account_id)
@@ -778,10 +866,14 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
-    def test_get_job_run_artifact_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
+    def test_get_job_run_artifact_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id
+    ):
         hook = DbtCloudHook(conn_id)
         path = "manifest.json"
-        hook.get_job_run_artifact(run_id=RUN_ID, path="manifest.json", account_id=account_id, step=2)
+        hook.get_job_run_artifact(
+            run_id=RUN_ID, path="manifest.json", account_id=account_id, step=2
+        )
 
         assert hook.method == "GET"
 
@@ -811,7 +903,11 @@ class TestDbtCloudHook:
         ids=["default_account", "explicit_account"],
     )
     def test_connection_failure(self, requests_mock, conn_id):
-        requests_mock.get(BASE_URL, status_code=403, reason="Authentication credentials were not provided")
+        requests_mock.get(
+            BASE_URL,
+            status_code=403,
+            reason="Authentication credentials were not provided",
+        )
         status, msg = DbtCloudHook(conn_id).test_connection()
 
         assert status is False

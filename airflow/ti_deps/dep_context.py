@@ -84,7 +84,9 @@ class DepContext:
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
-    def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
+    def ensure_finished_tis(
+        self, dag_run: DagRun, session: Session
+    ) -> list[TaskInstance]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
 
@@ -92,7 +94,9 @@ class DepContext:
          :return: A list of all the finished tasks of this DAG and execution_date
         """
         if self.finished_tis is None:
-            finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
+            finished_tis = dag_run.get_task_instances(
+                state=State.finished, session=session
+            )
             for ti in finished_tis:
                 if not getattr(ti, "task", None) is not None and dag_run.dag:
                     try:

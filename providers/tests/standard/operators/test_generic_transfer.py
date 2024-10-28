@@ -116,7 +116,9 @@ class TestPostgres:
 
     def test_postgres_to_postgres(self, dag_maker):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        with dag_maker(default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True):
+        with dag_maker(
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
             op = GenericTransfer(
                 task_id="test_p2p",
                 preoperator=[
@@ -134,7 +136,9 @@ class TestPostgres:
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
     def test_postgres_to_postgres_replace(self, mock_insert, dag_maker):
         sql = "SELECT id, conn_id, conn_type FROM connection LIMIT 10;"
-        with dag_maker(default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True):
+        with dag_maker(
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
             op = GenericTransfer(
                 task_id="test_p2p",
                 preoperator=[
@@ -183,7 +187,11 @@ class TestGenericTransfer:
                 "source_conn_id": "my_source_conn_id",
                 "destination_conn_id": "my_destination_conn_id",
                 "preoperator": "my_preoperator",
-                "insert_args": {"commit_every": 5000, "executemany": True, "replace": True},
+                "insert_args": {
+                    "commit_every": 5000,
+                    "executemany": True,
+                    "replace": True,
+                },
             }
         )
         assert operator.sql == "my_sql"
@@ -191,9 +199,15 @@ class TestGenericTransfer:
         assert operator.source_conn_id == "my_source_conn_id"
         assert operator.destination_conn_id == "my_destination_conn_id"
         assert operator.preoperator == "my_preoperator"
-        assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
+        assert operator.insert_args == {
+            "commit_every": 5000,
+            "executemany": True,
+            "replace": True,
+        }
 
-    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
+    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(
+        self,
+    ):
         """
         Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
         for this provider, you should remove the obsolete get_hook method in the GenericTransfer and use the
@@ -201,7 +215,9 @@ class TestGenericTransfer:
         fallback code for backward compatibility with Airflow 2.8.x which isn't need anymore once this
         provider depends on Airflow 3.0.0 or higher.
         """
-        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-standard")
+        min_airflow_version = get_provider_min_airflow_version(
+            "apache-airflow-providers-standard"
+        )
 
         # Check if the current Airflow version is 3.0.0 or higher
         if min_airflow_version[0] >= 3:

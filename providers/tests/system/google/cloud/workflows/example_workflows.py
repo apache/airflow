@@ -116,7 +116,10 @@ with DAG(
 
     # [START how_to_get_workflow]
     get_workflow = WorkflowsGetWorkflowOperator(
-        task_id="get_workflow", location=LOCATION, project_id=PROJECT_ID, workflow_id=WORKFLOW_ID
+        task_id="get_workflow",
+        location=LOCATION,
+        project_id=PROJECT_ID,
+        workflow_id=WORKFLOW_ID,
     )
     # [END how_to_get_workflow]
 
@@ -172,7 +175,10 @@ with DAG(
 
     # [START how_to_list_executions]
     list_executions = WorkflowsListExecutionsOperator(
-        task_id="list_executions", location=LOCATION, project_id=PROJECT_ID, workflow_id=WORKFLOW_ID
+        task_id="list_executions",
+        location=LOCATION,
+        project_id=PROJECT_ID,
+        workflow_id=WORKFLOW_ID,
     )
     # [END how_to_list_executions]
 
@@ -192,7 +198,9 @@ with DAG(
         workflow_id=SLEEP_WORKFLOW_ID,
     )
 
-    cancel_execution_id = cast(str, XComArg(create_execution_for_cancel, key="execution_id"))
+    cancel_execution_id = cast(
+        str, XComArg(create_execution_for_cancel, key="execution_id")
+    )
 
     # [START how_to_cancel_execution]
     cancel_execution = WorkflowsCancelExecutionOperator(

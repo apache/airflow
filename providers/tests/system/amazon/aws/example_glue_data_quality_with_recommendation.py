@@ -93,7 +93,10 @@ def glue_data_quality_recommendation_workflow():
     )
 
     chain(
-        recommendation_run, await_recommendation_run_sensor, start_evaluation_run, await_evaluation_run_sensor
+        recommendation_run,
+        await_recommendation_run_sensor,
+        start_evaluation_run,
+        await_evaluation_run_sensor,
     )
 
 
@@ -130,7 +133,9 @@ with DAG(
     query_drop_table = f"DROP TABLE IF EXISTS {athena_database}.{athena_table}"
     query_drop_database = f"DROP DATABASE IF EXISTS {athena_database}"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket
+    )
 
     upload_sample_data = S3CreateObjectOperator(
         task_id="upload_sample_data",

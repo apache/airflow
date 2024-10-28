@@ -94,7 +94,12 @@ class TestSparkSubmitHook:
             )
         )
         db.merge_conn(
-            Connection(conn_id="spark_default_mesos", conn_type="spark", host="mesos://host", port=5050)
+            Connection(
+                conn_id="spark_default_mesos",
+                conn_type="spark",
+                host="mesos://host",
+                port=5050,
+            )
         )
 
         db.merge_conn(
@@ -163,7 +168,8 @@ class TestSparkSubmitHook:
         )
 
     @patch(
-        "airflow.providers.apache.spark.hooks.spark_submit.os.getenv", return_value="/tmp/airflow_krb5_ccache"
+        "airflow.providers.apache.spark.hooks.spark_submit.os.getenv",
+        return_value="/tmp/airflow_krb5_ccache",
     )
     def test_build_spark_submit_command(self, mock_get_env):
         # Given
@@ -229,16 +235,22 @@ class TestSparkSubmitHook:
         mock_get_env.assert_called_with("KRB5CCNAME")
 
     @patch("airflow.configuration.conf.get_mandatory_value")
-    def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_principal(self, mock_get_madantory_value):
+    def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_principal(
+        self, mock_get_madantory_value
+    ):
         mock_principle = "airflow"
         mock_get_madantory_value.return_value = mock_principle
-        hook = SparkSubmitHook(conn_id="spark_yarn_cluster", principal=None, use_krb5ccache=True)
+        hook = SparkSubmitHook(
+            conn_id="spark_yarn_cluster", principal=None, use_krb5ccache=True
+        )
         mock_get_madantory_value.assert_called_with("kerberos", "principal")
         assert hook._principal == mock_principle
 
     def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_KRB5CCNAME_env(self):
         hook = SparkSubmitHook(
-            conn_id="spark_yarn_cluster", principal="user/spark@airflow.org", use_krb5ccache=True
+            conn_id="spark_yarn_cluster",
+            principal="user/spark@airflow.org",
+            use_krb5ccache=True,
         )
         with pytest.raises(
             AirflowException,
@@ -251,7 +263,9 @@ class TestSparkSubmitHook:
         # 'spark://' in self._connection['master'] and self._connection['deploy_mode'] == 'cluster'
 
         # Given
-        hook_spark_standalone_cluster = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        hook_spark_standalone_cluster = SparkSubmitHook(
+            conn_id="spark_standalone_cluster"
+        )
         hook_spark_standalone_cluster._driver_id = "driver-20171128111416-0001"
         hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
         hook_spark_yarn_cluster._driver_id = "driver-20171128111417-0001"
@@ -279,7 +293,10 @@ class TestSparkSubmitHook:
             "driver-20171128111417-0001",
         ]
 
-        assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
+        assert (
+            expected_spark_standalone_cluster
+            == build_track_driver_status_spark_standalone_cluster
+        )
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -309,10 +326,14 @@ class TestSparkSubmitHook:
         hook_spark_k8s_cluster = SparkSubmitHook(conn_id="spark_k8s_cluster")
         hook_spark_default_mesos = SparkSubmitHook(conn_id="spark_default_mesos")
         hook_spark_binary_set = SparkSubmitHook(conn_id="spark_binary_set")
-        hook_spark_standalone_cluster = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        hook_spark_standalone_cluster = SparkSubmitHook(
+            conn_id="spark_standalone_cluster"
+        )
 
         # When
-        should_track_driver_status_default = hook_default._resolve_should_track_driver_status()
+        should_track_driver_status_default = (
+            hook_default._resolve_should_track_driver_status()
+        )
         should_track_driver_status_spark_yarn_cluster = (
             hook_spark_yarn_cluster._resolve_should_track_driver_status()
         )
@@ -521,7 +542,9 @@ class TestSparkSubmitHook:
         assert cmd[0] == "spark3-submit"
 
     def test_resolve_connection_custom_spark_binary_allowed_in_hook(self):
-        SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
+        SparkSubmitHook(
+            conn_id="spark_binary_set", spark_binary="another-custom-spark-submit"
+        )
 
     def test_resolve_connection_spark_binary_extra_not_allowed_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -642,7 +665,9 @@ class TestSparkSubmitHook:
         "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._create_keytab_path_from_base64_keytab",
         return_value="privileged_user.keytab",
     )
-    def test_resolve_connection_keytab_set_connection(self, mock_create_keytab_path_from_base64_keytab):
+    def test_resolve_connection_keytab_set_connection(
+        self, mock_create_keytab_path_from_base64_keytab
+    ):
         # Given
         hook = SparkSubmitHook(conn_id="spark_keytab_set")
 
@@ -667,7 +692,9 @@ class TestSparkSubmitHook:
     @patch(
         "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._create_keytab_path_from_base64_keytab"
     )
-    def test_resolve_connection_keytab_value_override(self, mock_create_keytab_path_from_base64_keytab):
+    def test_resolve_connection_keytab_value_override(
+        self, mock_create_keytab_path_from_base64_keytab
+    ):
         # Given
         hook = SparkSubmitHook(conn_id="spark_keytab_set", keytab="will-override")
 
@@ -694,7 +721,9 @@ class TestSparkSubmitHook:
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
-        hook = SparkSubmitHook(conn_id="spark_standalone_cluster_client_mode", env_vars={"bar": "foo"})
+        hook = SparkSubmitHook(
+            conn_id="spark_standalone_cluster_client_mode", env_vars={"bar": "foo"}
+        )
 
         # When
         hook._build_spark_submit_command(self._spark_job_file)
@@ -705,7 +734,9 @@ class TestSparkSubmitHook:
     def test_resolve_spark_submit_env_vars_standalone_cluster_mode(self):
         def env_vars_exception_in_standalone_cluster_mode():
             # Given
-            hook = SparkSubmitHook(conn_id="spark_standalone_cluster", env_vars={"bar": "foo"})
+            hook = SparkSubmitHook(
+                conn_id="spark_standalone_cluster", env_vars={"bar": "foo"}
+            )
 
             # When
             hook._build_spark_submit_command(self._spark_job_file)
@@ -900,7 +931,9 @@ class TestSparkSubmitHook:
         mock_popen.reset_mock()
         # Given
         hook = SparkSubmitHook(
-            conn_id="spark_yarn_cluster", keytab="privileged_user.keytab", principal="user/spark@airflow.org"
+            conn_id="spark_yarn_cluster",
+            keytab="privileged_user.keytab",
+            principal="user/spark@airflow.org",
         )
         hook._process_spark_submit_log(log_lines)
         hook.submit()
@@ -990,7 +1023,15 @@ class TestSparkSubmitHook:
         "command, expected",
         [
             (
-                ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),
+                (
+                    "spark-submit",
+                    "foo",
+                    "--bar",
+                    "baz",
+                    "--password='secret'",
+                    "--foo",
+                    "bar",
+                ),
                 "spark-submit foo --bar baz --password='******' --foo bar",
             ),
             (
@@ -1168,10 +1209,14 @@ class TestSparkSubmitHook:
         _mock_open.read.return_value = keytab_value
 
         # When
-        keytab = hook._create_keytab_path_from_base64_keytab(base64_keytab.decode("UTF-8"), principal)
+        keytab = hook._create_keytab_path_from_base64_keytab(
+            base64_keytab.decode("UTF-8"), principal
+        )
 
         # Then
         assert keytab == f"resolved_path/airflow_keytab-{principal}"
-        mock_open.assert_called_with(Path(f"resolved_path/airflow_keytab-{principal}"), "rb")
+        mock_open.assert_called_with(
+            Path(f"resolved_path/airflow_keytab-{principal}"), "rb"
+        )
         _mock_open.read.assert_called_once()
         assert not _mock_open.write.called, "Keytab file should not be written"

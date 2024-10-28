@@ -62,7 +62,9 @@ def parse_config_template_new_format(config_content: str) -> set[tuple[str, str,
     return {
         (config_section_name, config_option_name, config_option_value["version_added"])
         for config_section_name, config_section_value in config_sections.items()
-        for config_option_name, config_option_value in config_section_value["options"].items()
+        for config_option_name, config_option_value in config_section_value[
+            "options"
+        ].items()
     }
 
 
@@ -95,7 +97,9 @@ def fetch_config_options_for_version(version_str: str) -> set[tuple[str, str]]:
     else:
         config_options = parse_config_template_old_format(content)
 
-    return {(section_name, option_name) for section_name, option_name, _ in config_options}
+    return {
+        (section_name, option_name) for section_name, option_name, _ in config_options
+    }
 
 
 def read_local_config_options() -> set[tuple[str, str, str]]:
@@ -109,7 +113,9 @@ computed_option_new_section = set()
 for new_section, old_section, version_before_renaming in RENAMED_SECTIONS:
     options = fetch_config_options_for_version(version_before_renaming)
     options = {
-        (new_section, option_name) for section_name, option_name in options if section_name == old_section
+        (new_section, option_name)
+        for section_name, option_name in options
+        if section_name == old_section
     }
     computed_option_new_section.update(options)
 
@@ -128,7 +134,10 @@ for prev_version, curr_version in zip(to_check_versions[:-1], to_check_versions[
     new_options -= computed_option_new_section
     # Update expected options with version added field
     expected_computed_options.update(
-        {(section_name, option_name, curr_version) for section_name, option_name in new_options}
+        {
+            (section_name, option_name, curr_version)
+            for section_name, option_name in new_options
+        }
     )
 print("Expected computed options count:", len(expected_computed_options))
 
@@ -138,7 +147,8 @@ print("Local options count:", len(local_options))
 
 # 4. Hide options that do not exist in the local configuration file. They are probably deprecated.
 local_options_plain: set[tuple[str, str]] = {
-    (section_name, option_name) for section_name, option_name, version_added in local_options
+    (section_name, option_name)
+    for section_name, option_name, version_added in local_options
 }
 computed_options: set[tuple[str, str, str]] = {
     (section_name, option_name, version_added)
@@ -153,7 +163,9 @@ local_options_with_version_added: set[tuple[str, str, str]] = {
     for section_name, option_name, version_added in local_options
     if version_added
 }
-diff_options: set[tuple[str, str, str]] = computed_options - local_options_with_version_added
+diff_options: set[tuple[str, str, str]] = (
+    computed_options - local_options_with_version_added
+)
 
 diff_options -= KNOWN_FALSE_DETECTIONS
 

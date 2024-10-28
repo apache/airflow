@@ -211,7 +211,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         # This prevents issue when users upgrade to 2.0+
         # from 1.10.x
         # https://github.com/apache/airflow/issues/14421
-        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session="fetch")
+        session.query(TaskInstance).update(
+            {TaskInstance.operator: None}, synchronize_session="fetch"
+        )
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -242,7 +244,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    def test_return_TI_only_from_readable_dags(self, task_instances, user, expected_ti, session):
+    def test_return_TI_only_from_readable_dags(
+        self, task_instances, user, expected_ti, session
+    ):
         for dag_id in task_instances:
             self.create_task_instances(
                 session,
@@ -253,7 +257,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 dag_id=dag_id,
             )
         response = self.client.get(
-            "/api/v1/dags/~/dagRuns/~/taskInstances", environ_overrides={"REMOTE_USER": user}
+            "/api/v1/dags/~/dagRuns/~/taskInstances",
+            environ_overrides={"REMOTE_USER": user},
         )
         assert response.status_code == 200
         assert response.json["total_entries"] == expected_ti
@@ -391,9 +396,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
 
 
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
-    ENDPOINT_URL = (
-        "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
-    )
+    ENDPOINT_URL = "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
 
     @pytest.mark.parametrize("username", ["test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username):
@@ -418,7 +421,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize("username", ["test_dag_read_only", "test_task_read_only"])
     @provide_session
     def test_should_respond_200(self, username, session):
-        self.create_task_instances(session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True)
+        self.create_task_instances(
+            session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
 
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",

@@ -129,7 +129,9 @@ class GCSToS3Operator(BaseOperator):
                 self.__is_match_glob_supported = True
             else:
                 self.__is_match_glob_supported = False
-        except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.3.0
+        except (
+            ImportError
+        ):  # __version__ was added in 10.1.0, so this means it's < 10.3.0
             self.__is_match_glob_supported = False
         if not self.__is_match_glob_supported and match_glob:
             raise AirflowException(
@@ -162,7 +164,9 @@ class GCSToS3Operator(BaseOperator):
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore
 
         s3_hook = S3Hook(
-            aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
+            aws_conn_id=self.dest_aws_conn_id,
+            verify=self.dest_verify,
+            extra_args=self.dest_s3_extra_args,
         )
 
         if not self.keep_directory_structure and self.prefix:
@@ -190,7 +194,9 @@ class GCSToS3Operator(BaseOperator):
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
-                    object_name=file, bucket_name=str(self.gcs_bucket), user_project=self.gcp_user_project
+                    object_name=file,
+                    bucket_name=str(self.gcs_bucket),
+                    user_project=self.gcp_user_project,
                 ) as local_tmp_file:
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)

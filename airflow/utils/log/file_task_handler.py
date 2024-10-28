@@ -92,13 +92,17 @@ def _fetch_logs_from_service(url, log_relative_path):
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
     signer = JWTSigner(
         secret_key=conf.get("webserver", "secret_key"),
-        expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
+        expiration_time_in_seconds=conf.getint(
+            "webserver", "log_request_clock_grace", fallback=30
+        ),
         audience="task-instance-logs",
     )
     response = requests.get(
         url,
         timeout=timeout,
-        headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+        headers={
+            "Authorization": signer.generate_signed_token({"filename": log_relative_path})
+        },
     )
     response.encoding = "utf-8"
     return response
@@ -132,14 +136,17 @@ def _interleave_logs(*logs):
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
     for timestamp, _, line in sorted(
-        records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
+        records,
+        key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1]),
     ):
         if line != last or not timestamp:  # dedupe
             yield line
         last = line
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
+def _ensure_ti(
+    ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session
+) -> TaskInstance:
     """
     Given TI | TIKey, return a TI object.
 
@@ -210,7 +217,9 @@ class FileTaskHandler(logging.Handler):
         Some handlers emit "end of log" markers, and may not wish to do so when task defers.
         """
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None | SetContextPropagate:
+    def set_context(
+        self, ti: TaskInstance, *, identifier: str | None = None
+    ) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -270,7 +279,12 @@ class FileTaskHandler(logging.Handler):
     @provide_session
     def _render_filename_db_access(
         *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
-    ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
+    ) -> tuple[
+        DagRun | DagRunPydantic,
+        TaskInstance | TaskInstancePydantic,
+        str | None,
+        str | None,
+    ]:
         ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
         template = dag_run.get_log_template(session=session).filename
@@ -285,9 +299,13 @@ class FileTaskHandler(logging.Handler):
             filename = render_template_to_string(jinja_tpl, context)
         return dag_run, ti, str_tpl, filename
 
-    def _render_filename(self, ti: TaskInstance | TaskInstancePydantic, try_number: int) -> str:
+    def _render_filename(
+        self, ti: TaskInstance | TaskInstancePydantic, try_number: int
+    ) -> str:
         """Return the worker log filename."""
-        dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
+        dag_run, ti, str_tpl, filename = self._render_filename_db_access(
+            ti=ti, try_number=try_number
+        )
         if filename:
             return filename
         if str_tpl:
@@ -300,7 +318,9 @@ class FileTaskHandler(logging.Handler):
                 if TYPE_CHECKING:
                     assert isinstance(dag_run.data_interval_start, DateTime)
                     assert isinstance(dag_run.data_interval_end, DateTime)
-                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
+                data_interval = DataInterval(
+                    dag_run.data_interval_start, dag_run.data_interval_end
+                )
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -319,13 +339,17 @@ class FileTaskHandler(logging.Handler):
                 try_number=try_number,
             )
         else:
-            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+            raise RuntimeError(
+                f"Unable to render log filename for {ti}. This should never happen"
+            )
 
     def _read_grouped_logs(self):
         return False
 
     @cached_property
-    def _executor_get_task_log(self) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
+    def _executor_get_task_log(
+        self,
+    ) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
         """This cached property avoids loading executor repeatedly."""
         executor = ExecutorLoader.get_default_executor()
         return executor.get_task_log
@@ -366,7 +390,9 @@ class FileTaskHandler(logging.Handler):
         executor_logs: list[str] = []
         served_logs: list[str] = []
         with suppress(NotImplementedError):
-            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+            remote_messages, remote_logs = self._read_remote_logs(
+                ti, try_number, metadata
+            )
             messages_list.extend(remote_messages)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
@@ -381,14 +407,21 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+        if (
+            ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+            and not has_k8s_exec_pod
+        ):
+            served_messages, served_logs = self._read_from_logs_server(
+                ti, worker_log_rel_path
+            )
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            served_messages, served_logs = self._read_from_logs_server(
+                ti, worker_log_rel_path
+            )
             messages_list.extend(served_messages)
 
         logs = "\n".join(
@@ -429,7 +462,9 @@ class FileTaskHandler(logging.Handler):
             config_key = "triggerer_log_server_port"
             config_default = 8794
             hostname = ti.triggerer_job.hostname
-            log_relative_path = self.add_triggerer_suffix(log_relative_path, job_id=ti.triggerer_job.id)
+            log_relative_path = self.add_triggerer_suffix(
+                log_relative_path, job_id=ti.triggerer_job.id
+            )
         else:
             hostname = ti.hostname
             config_key = "worker_log_server_port"
@@ -461,7 +496,12 @@ class FileTaskHandler(logging.Handler):
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
-                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
+                [
+                    (
+                        "default_host",
+                        f"Error fetching the logs. Try number {try_number} is invalid.",
+                    )
+                ],
             ]
             return logs, [{"end_of_log": True}]
         else:
@@ -475,7 +515,9 @@ class FileTaskHandler(logging.Handler):
             log, out_metadata = self._read(task_instance, try_number_element, metadata)
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
-            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
+            logs[i] = (
+                log if self._read_grouped_logs() else [(task_instance.hostname, log)]
+            )
             metadata_array[i] = out_metadata
 
         return logs, metadata_array
@@ -519,7 +561,10 @@ class FileTaskHandler(logging.Handler):
         :return: relative log path of the given task instance
         """
         new_file_permissions = int(
-            conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"), 8
+            conf.get(
+                "logging", "file_task_handler_new_file_permissions", fallback="0o664"
+            ),
+            8,
         )
         local_relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, local_relative_path)
@@ -528,9 +573,14 @@ class FileTaskHandler(logging.Handler):
         elif ti.is_trigger_log_context is True:
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
-            full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
+            full_path = self.add_triggerer_suffix(
+                full_path=full_path, job_id=ti.triggerer_job.id
+            )
         new_folder_permissions = int(
-            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+            conf.get(
+                "logging", "file_task_handler_new_folder_permissions", fallback="0o775"
+            ),
+            8,
         )
         self._prepare_log_folder(Path(full_path).parent, new_folder_permissions)
 
@@ -553,12 +603,16 @@ class FileTaskHandler(logging.Handler):
         logs = [file.read_text() for file in paths]
         return messages, logs
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
+    def _read_from_logs_server(
+        self, ti, worker_log_rel_path
+    ) -> tuple[list[str], list[str]]:
         messages = []
         logs = []
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
-            url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
+            url, rel_path = self._get_log_retrieval_url(
+                ti, worker_log_rel_path, log_type=log_type
+            )
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
                 messages.append(
@@ -577,14 +631,19 @@ class FileTaskHandler(logging.Handler):
         except Exception as e:
             from requests.exceptions import InvalidSchema
 
-            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
+            if (
+                isinstance(e, InvalidSchema)
+                and ti.task.inherits_from_empty_operator is True
+            ):
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
         return messages, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(
+        self, ti, try_number, metadata=None
+    ) -> tuple[list[str], list[str]]:
         """
         Implement in subclasses to read from the remote service.
 

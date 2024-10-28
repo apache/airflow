@@ -61,7 +61,9 @@ def main() -> int:
         for imp in get_imports(path):
             import_count += 1
             if len(imp.module) > 2:
-                if imp.module[:3] == ["openlineage", "client", "facet"] or imp.module[:3] == [
+                if imp.module[:3] == ["openlineage", "client", "facet"] or imp.module[
+                    :3
+                ] == [
                     "openlineage",
                     "client",
                     "run",
@@ -69,7 +71,9 @@ def main() -> int:
                     if path not in EXCEPTIONS:
                         local_error_count += 1
                         errors.append(f"{path}: ({'.'.join(imp.module)})")
-        console.print(f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}")
+        console.print(
+            f"[blue]{path}:[/] Import count: {import_count}, error_count {local_error_count}"
+        )
     if errors:
         console.print(
             "[red]Some files imports from `openlineage.client.facet` or `openlineage.client.run`. which are deprecated.[/]\n"

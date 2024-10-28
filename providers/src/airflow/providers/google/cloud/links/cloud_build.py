@@ -29,7 +29,9 @@ BUILD_LINK = BUILD_BASE_LINK + "/builds;region={region}/{build_id}?project={proj
 
 BUILD_LIST_LINK = BUILD_BASE_LINK + "/builds;region={region}?project={project_id}"
 
-BUILD_TRIGGERS_LIST_LINK = BUILD_BASE_LINK + "/triggers;region={region}?project={project_id}"
+BUILD_TRIGGERS_LIST_LINK = (
+    BUILD_BASE_LINK + "/triggers;region={region}?project={project_id}"
+)
 
 BUILD_TRIGGER_DETAILS_LINK = (
     BUILD_BASE_LINK + "/triggers;region={region}/edit/{trigger_id}?project={project_id}"

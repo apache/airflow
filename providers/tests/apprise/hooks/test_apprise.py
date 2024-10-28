@@ -49,7 +49,9 @@ class TestAppriseHook:
             return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
-            assert hook.get_config_from_conn() == (json.loads(config) if isinstance(config, str) else config)
+            assert hook.get_config_from_conn() == (
+                json.loads(config) if isinstance(config, str) else config
+            )
 
     def test_set_config_from_conn_with_dict(self):
         """
@@ -66,7 +68,9 @@ class TestAppriseHook:
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)
 
-        apprise_obj.add.assert_called_once_with("http://some_path_that_dont_exist/", tag="alert")
+        apprise_obj.add.assert_called_once_with(
+            "http://some_path_that_dont_exist/", tag="alert"
+        )
 
     def test_set_config_from_conn_with_list(self):
         """

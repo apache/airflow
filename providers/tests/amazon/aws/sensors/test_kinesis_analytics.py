@@ -65,7 +65,10 @@ class TestKinesisAnalyticsV2StartApplicationCompletedSensor:
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_poke_success_state(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
-            "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
+            "ApplicationDetail": {
+                "ApplicationARN": self.APPLICATION_ARN,
+                "ApplicationStatus": state,
+            }
         }
 
         assert self.sensor.poke({}) is True
@@ -74,7 +77,10 @@ class TestKinesisAnalyticsV2StartApplicationCompletedSensor:
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_intermediate_state(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
-            "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
+            "ApplicationDetail": {
+                "ApplicationARN": self.APPLICATION_ARN,
+                "ApplicationStatus": state,
+            }
         }
         assert self.sensor.poke({}) is False
 
@@ -82,13 +88,17 @@ class TestKinesisAnalyticsV2StartApplicationCompletedSensor:
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_poke_failure_states(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
-            "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
+            "ApplicationDetail": {
+                "ApplicationARN": self.APPLICATION_ARN,
+                "ApplicationStatus": state,
+            }
         }
 
         sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
         with pytest.raises(
-            AirflowException, match="AWS Managed Service for Apache Flink application start failed"
+            AirflowException,
+            match="AWS Managed Service for Apache Flink application start failed",
         ):
             sensor.poke({})
 
@@ -130,7 +140,10 @@ class TestKinesisAnalyticsV2StopApplicationCompletedSensor:
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_poke_success_state(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
-            "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
+            "ApplicationDetail": {
+                "ApplicationARN": self.APPLICATION_ARN,
+                "ApplicationStatus": state,
+            }
         }
 
         assert self.sensor.poke({}) is True
@@ -139,7 +152,10 @@ class TestKinesisAnalyticsV2StopApplicationCompletedSensor:
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_intermediate_state(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
-            "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
+            "ApplicationDetail": {
+                "ApplicationARN": self.APPLICATION_ARN,
+                "ApplicationStatus": state,
+            }
         }
         assert self.sensor.poke({}) is False
 
@@ -147,12 +163,16 @@ class TestKinesisAnalyticsV2StopApplicationCompletedSensor:
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_poke_failure_states(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
-            "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
+            "ApplicationDetail": {
+                "ApplicationARN": self.APPLICATION_ARN,
+                "ApplicationStatus": state,
+            }
         }
 
         sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
         with pytest.raises(
-            AirflowException, match="AWS Managed Service for Apache Flink application stop failed"
+            AirflowException,
+            match="AWS Managed Service for Apache Flink application stop failed",
         ):
             sensor.poke({})

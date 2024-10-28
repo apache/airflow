@@ -24,7 +24,10 @@ from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import Batch, JobStatus
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.sensors.dataproc import DataprocBatchSensor, DataprocJobSensor
+from airflow.providers.google.cloud.sensors.dataproc import (
+    DataprocBatchSensor,
+    DataprocJobSensor,
+)
 from airflow.version import version as airflow_version
 
 AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
@@ -180,7 +183,9 @@ class TestDataprocJobSensor:
         sensor._duration = Mock()
         sensor._duration.return_value = 301
 
-        with pytest.raises(AirflowException, match="Timeout: dataproc job job_id is not ready after 300s"):
+        with pytest.raises(
+            AirflowException, match="Timeout: dataproc job job_id is not ready after 300s"
+        ):
             sensor.poke(context={})
 
 

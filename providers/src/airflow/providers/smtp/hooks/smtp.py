@@ -118,7 +118,9 @@ class SmtpHook(BaseHook):
             if extra_ssl_context:
                 ssl_context_string = extra_ssl_context
             else:
-                ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
+                ssl_context_string = conf.get(
+                    "smtp_provider", "SSL_CONTEXT", fallback=None
+                )
             if ssl_context_string is None:
                 ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
             if ssl_context_string is None:
@@ -144,7 +146,9 @@ class SmtpHook(BaseHook):
         from wtforms.validators import NumberRange
 
         return {
-            "from_email": StringField(lazy_gettext("From email"), widget=BS3TextFieldWidget()),
+            "from_email": StringField(
+                lazy_gettext("From email"), widget=BS3TextFieldWidget()
+            ),
             "timeout": IntegerField(
                 lazy_gettext("Connection timeout"),
                 validators=[NumberRange(min=0)],
@@ -214,7 +218,9 @@ class SmtpHook(BaseHook):
             raise AirflowException("The 'smtp_client' should be initialized before!")
         from_email = from_email or self.from_email
         if not from_email:
-            raise AirflowException("You should provide `from_email` or define it in the connection.")
+            raise AirflowException(
+                "You should provide `from_email` or define it in the connection."
+            )
 
         mime_msg, recipients = self._build_mime_message(
             mail_from=from_email,
@@ -232,7 +238,9 @@ class SmtpHook(BaseHook):
             for attempt in range(1, self.smtp_retry_limit + 1):
                 try:
                     self.smtp_client.sendmail(
-                        from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string()
+                        from_addr=from_email,
+                        to_addrs=recipients,
+                        msg=mime_msg.as_string(),
                     )
                 except smtplib.SMTPServerDisconnected as e:
                     if attempt == self.smtp_retry_limit:
@@ -324,7 +332,9 @@ class SmtpHook(BaseHook):
                 raise TypeError("The items in your iterable must be strings.")
             return list(addresses)
         else:
-            raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
+            raise TypeError(
+                f"Unexpected argument type: Received '{type(addresses).__name__}'."
+            )
 
     def _get_email_list_from_str(self, addresses: str) -> list[str]:
         """

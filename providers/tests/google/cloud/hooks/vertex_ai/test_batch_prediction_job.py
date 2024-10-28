@@ -43,7 +43,9 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_BATCH_PREDICTION_JOB: dict = {}
-TEST_MODEL_NAME = f"projects/{TEST_PROJECT_ID}/locations/{TEST_REGION}/models/test_model_id"
+TEST_MODEL_NAME = (
+    f"projects/{TEST_PROJECT_ID}/locations/{TEST_REGION}/models/test_model_id"
+)
 TEST_JOB_DISPLAY_NAME = "temp_create_batch_prediction_job_test"
 TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 TEST_UPDATE_MASK: dict = {}
@@ -76,22 +78,29 @@ TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS = dict(
 )
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
-BATCH_PREDICTION_JOB_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job.{}"
+BATCH_PREDICTION_JOB_STRING = (
+    "airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job.{}"
+)
 
 
 class TestBatchPredictionJobWithDefaultProjectIdHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
+            BatchPredictionJobHook(
+                gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to"
+            )
 
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.create"))
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials")
+    )
     def test_create_create_batch_prediction_job(self, mock_get_credentials, mock_create):
         expected_job = mock_create.return_value
         invoke_params = deepcopy(TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS)
@@ -108,7 +117,11 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
         mock_create.assert_called_once_with(**expected_params)
         assert actual_job == expected_job
 
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobHook.get_job_service_client"
+        )
+    )
     def test_delete_batch_prediction_job(self, mock_client) -> None:
         self.hook.delete_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -130,7 +143,11 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
             TEST_BATCH_PREDICTION_JOB,
         )
 
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobHook.get_job_service_client"
+        )
+    )
     def test_get_batch_prediction_job(self, mock_client) -> None:
         self.hook.get_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -152,7 +169,11 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
             TEST_BATCH_PREDICTION_JOB,
         )
 
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobHook.get_job_service_client"
+        )
+    )
     def test_list_batch_prediction_jobs(self, mock_client) -> None:
         self.hook.list_batch_prediction_jobs(
             project_id=TEST_PROJECT_ID,
@@ -171,18 +192,23 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestBatchPredictionJobWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.create"))
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials")
+    )
     def test_create_create_batch_prediction_job(self, mock_get_credentials, mock_create):
         expected_job = mock_create.return_value
         invoke_params = deepcopy(TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS)
@@ -199,7 +225,11 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook:
         mock_create.assert_called_once_with(**expected_params)
         assert actual_job == expected_job
 
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobHook.get_job_service_client"
+        )
+    )
     def test_delete_batch_prediction_job(self, mock_client) -> None:
         self.hook.delete_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -221,7 +251,11 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook:
             TEST_BATCH_PREDICTION_JOB,
         )
 
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobHook.get_job_service_client"
+        )
+    )
     def test_get_batch_prediction_job(self, mock_client) -> None:
         self.hook.get_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -243,7 +277,11 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook:
             TEST_BATCH_PREDICTION_JOB,
         )
 
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobHook.get_job_service_client"
+        )
+    )
     def test_list_batch_prediction_jobs(self, mock_client) -> None:
         self.hook.list_batch_prediction_jobs(
             project_id=TEST_PROJECT_ID,
@@ -262,25 +300,34 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_client.return_value.common_location_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION
+        )
 
 
 class TestBatchPredictionJobAsyncHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = BatchPredictionJobAsyncHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @pytest.mark.asyncio
-    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobAsyncHook.get_job_service_client"))
+    @mock.patch(
+        BATCH_PREDICTION_JOB_STRING.format(
+            "BatchPredictionJobAsyncHook.get_job_service_client"
+        )
+    )
     async def test_get_batch_prediction_job(self, mock_get_job_service_client):
         mock_client = mock.MagicMock()
         mock_get_job_service_client.side_effect = mock.AsyncMock(return_value=mock_client)
         mock_job_name = mock_client.batch_prediction_job_path.return_value
         mock_job = mock.MagicMock()
         mock_async_get_batch_prediction_job = mock.AsyncMock(return_value=mock_job)
-        mock_client.get_batch_prediction_job.side_effect = mock_async_get_batch_prediction_job
+        mock_client.get_batch_prediction_job.side_effect = (
+            mock_async_get_batch_prediction_job
+        )
 
         result = await self.hook.get_batch_prediction_job(
             project_id=TEST_PROJECT_ID,
@@ -317,7 +364,9 @@ class TestBatchPredictionJobAsyncHook:
     async def test_wait_hyperparameter_tuning_job(self, mock_sleep, state):
         mock_job = mock.MagicMock(state=state)
         mock_async_get_batch_prediction_job = mock.AsyncMock(return_value=mock_job)
-        mock_get_batch_prediction_job = mock.MagicMock(side_effect=mock_async_get_batch_prediction_job)
+        mock_get_batch_prediction_job = mock.MagicMock(
+            side_effect=mock_async_get_batch_prediction_job
+        )
 
         await_kwargs = dict(
             project_id=TEST_PROJECT_ID,
@@ -327,7 +376,9 @@ class TestBatchPredictionJobAsyncHook:
             timeout=None,
             metadata=(),
         )
-        with mock.patch.object(self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job):
+        with mock.patch.object(
+            self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job
+        ):
             result = await self.hook.wait_batch_prediction_job(**await_kwargs)
 
         mock_async_get_batch_prediction_job.assert_awaited_once_with(**await_kwargs)
@@ -355,7 +406,9 @@ class TestBatchPredictionJobAsyncHook:
         mock_async_get_batch_prediction_job = mock.AsyncMock(
             side_effect=[mock_job_incomplete, mock_job_complete]
         )
-        mock_get_batch_prediction_job = mock.MagicMock(side_effect=mock_async_get_batch_prediction_job)
+        mock_get_batch_prediction_job = mock.MagicMock(
+            side_effect=mock_async_get_batch_prediction_job
+        )
 
         await_kwargs = dict(
             project_id=TEST_PROJECT_ID,
@@ -366,7 +419,9 @@ class TestBatchPredictionJobAsyncHook:
             metadata=(),
         )
 
-        with mock.patch.object(self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job):
+        with mock.patch.object(
+            self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job
+        ):
             result = await self.hook.wait_batch_prediction_job(**await_kwargs)
 
         mock_async_get_batch_prediction_job.assert_has_awaits(
@@ -381,7 +436,9 @@ class TestBatchPredictionJobAsyncHook:
     @pytest.mark.asyncio
     async def test_wait_batch_prediction_job_exception(self):
         mock_get_batch_prediction_job = mock.MagicMock(side_effect=Exception)
-        with mock.patch.object(self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job):
+        with mock.patch.object(
+            self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job
+        ):
             with pytest.raises(AirflowException):
                 await self.hook.wait_batch_prediction_job(
                     project_id=TEST_PROJECT_ID,

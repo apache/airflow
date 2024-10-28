@@ -27,12 +27,21 @@ from googleapiclient.errors import HttpError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
-from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
+from airflow.providers.google.cloud.hooks.cloud_sql import (
+    CloudSQLDatabaseHook,
+    CloudSQLHook,
+)
+from airflow.providers.google.cloud.links.cloud_sql import (
+    CloudSQLInstanceDatabaseLink,
+    CloudSQLInstanceLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, get_field
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    get_field,
+)
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
@@ -93,7 +102,11 @@ CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
                 "name": "locationPreference",
                 "type": "dict",
                 "fields": [
-                    {"name": "followGaeApplication", "allow_empty": False, "optional": True},
+                    {
+                        "name": "followGaeApplication",
+                        "allow_empty": False,
+                        "optional": True,
+                    },
                     {"name": "zone", "allow_empty": False, "optional": True},
                 ],
                 "optional": True,
@@ -203,7 +216,10 @@ CLOUD_SQL_IMPORT_VALIDATION = [
                 "name": "csvImportOptions",
                 "type": "dict",
                 "optional": True,
-                "fields": [{"name": "table"}, {"name": "columns", "type": "list", "optional": True}],
+                "fields": [
+                    {"name": "table"},
+                    {"name": "columns", "type": "list", "optional": True},
+                ],
             },
         ],
     }
@@ -277,7 +293,9 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
 
     def _check_if_db_exists(self, db_name, hook: CloudSQLHook) -> dict | bool:
         try:
-            return hook.get_database(project_id=self.project_id, instance=self.instance, database=db_name)
+            return hook.get_database(
+                project_id=self.project_id, instance=self.instance, database=db_name
+            )
         except HttpError as e:
             status = e.resp.status
             if status == 404:
@@ -365,9 +383,9 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self) -> None:
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_CREATE_VALIDATION, api_version=self.api_version).validate(
-                self.body
-            )
+            GcpBodyFieldValidator(
+                CLOUD_SQL_CREATE_VALIDATION, api_version=self.api_version
+            ).validate(self.body)
 
     def execute(self, context: Context) -> None:
         hook = CloudSQLHook(
@@ -379,7 +397,10 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         if not self._check_if_instance_exists(self.instance, hook):
             hook.create_instance(project_id=self.project_id, body=self.body)
         else:
-            self.log.info("Cloud SQL instance with ID %s already exists. Aborting create.", self.instance)
+            self.log.info(
+                "Cloud SQL instance with ID %s already exists. Aborting create.",
+                self.instance,
+            )
 
         CloudSQLInstanceLink.persist(
             context=context,
@@ -388,7 +409,9 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
             project_id=self.project_id or hook.project_id,
         )
 
-        instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
+        instance_resource = hook.get_instance(
+            project_id=self.project_id, instance=self.instance
+        )
         service_account_email = instance_resource["serviceAccountEmailAddress"]
         task_instance = context["task_instance"]
         task_instance.xcom_push(key="service_account_email", value=service_account_email)
@@ -484,7 +507,9 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                 project_id=self.project_id or hook.project_id,
             )
 
-            return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
+            return hook.patch_instance(
+                project_id=self.project_id, body=self.body, instance=self.instance
+            )
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
@@ -528,10 +553,14 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not self._check_if_instance_exists(self.instance, hook):
-            print(f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete.")
+            print(
+                f"Cloud SQL instance with ID {self.instance} does not exist. Aborting delete."
+            )
             return True
         else:
-            return hook.delete_instance(project_id=self.project_id, instance=self.instance)
+            return hook.delete_instance(
+                project_id=self.project_id, instance=self.instance
+            )
 
 
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
@@ -598,7 +627,9 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
         if not self.destination_instance_name:
-            raise AirflowException("The required parameter 'destination_instance_name' is empty or None")
+            raise AirflowException(
+                "The required parameter 'destination_instance_name' is empty or None"
+            )
 
     def execute(self, context: Context):
         hook = CloudSQLHook(
@@ -728,7 +759,9 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             )
             return True
         else:
-            return hook.create_database(project_id=self.project_id, instance=self.instance, body=self.body)
+            return hook.create_database(
+                project_id=self.project_id, instance=self.instance, body=self.body
+            )
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
@@ -807,9 +840,9 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self) -> None:
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_DATABASE_PATCH_VALIDATION, api_version=self.api_version).validate(
-                self.body
-            )
+            GcpBodyFieldValidator(
+                CLOUD_SQL_DATABASE_PATCH_VALIDATION, api_version=self.api_version
+            ).validate(self.body)
 
     def execute(self, context: Context) -> None:
         self._validate_body_fields()
@@ -831,7 +864,10 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 project_id=self.project_id or hook.project_id,
             )
             return hook.patch_database(
-                project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
+                project_id=self.project_id,
+                instance=self.instance,
+                database=self.database,
+                body=self.body,
             )
 
 
@@ -972,7 +1008,9 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poke_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -996,9 +1034,9 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self) -> None:
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_EXPORT_VALIDATION, api_version=self.api_version).validate(
-                self.body
-            )
+            GcpBodyFieldValidator(
+                CLOUD_SQL_EXPORT_VALIDATION, api_version=self.api_version
+            ).validate(self.body)
 
     def execute(self, context: Context) -> None:
         self._validate_body_fields()
@@ -1140,9 +1178,9 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     def _validate_body_fields(self) -> None:
         if self.validate_body:
-            GcpBodyFieldValidator(CLOUD_SQL_IMPORT_VALIDATION, api_version=self.api_version).validate(
-                self.body
-            )
+            GcpBodyFieldValidator(
+                CLOUD_SQL_IMPORT_VALIDATION, api_version=self.api_version
+            ).validate(self.body)
 
     def execute(self, context: Context) -> None:
         self._validate_body_fields()
@@ -1163,7 +1201,9 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
             uri=self.body["importContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )
-        return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
+        return hook.import_instance(
+            project_id=self.project_id, instance=self.instance, body=self.body
+        )
 
 
 class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
@@ -1255,7 +1295,9 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         self.ssl_client_key = ssl_client_key
         self.ssl_secret_id = ssl_secret_id
 
-    def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
+    def _execute_query(
+        self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook
+    ) -> None:
         cloud_sql_proxy_runner = None
         try:
             if hook.use_proxy:

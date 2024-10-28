@@ -23,7 +23,10 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -76,7 +79,9 @@ with DAG(
     s3_bucket = f"{env_id}-http-to-s3-bucket"
     s3_key = f"{env_id}-http-to-s3-key"
 
-    create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
+    create_s3_bucket = S3CreateBucketOperator(
+        task_id="create_s3_bucket", bucket_name=s3_bucket
+    )
 
     set_up_connection = create_connection(conn_id_name)
 

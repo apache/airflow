@@ -36,7 +36,11 @@ import os
 from typing import TYPE_CHECKING
 
 import google.auth.transport
-from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
+from google.auth import (
+    credentials as google_auth_credentials,
+    environment_vars,
+    exceptions,
+)
 from google.oauth2 import credentials as oauth2_credentials, service_account  # type: ignore[attr-defined]
 
 if TYPE_CHECKING:
@@ -97,7 +101,9 @@ def _load_credentials_from_file(
         try:
             info = json.load(file_obj)
         except json.JSONDecodeError:
-            raise exceptions.DefaultCredentialsError(f"File {filename} is not a valid json file.")
+            raise exceptions.DefaultCredentialsError(
+                f"File {filename} is not a valid json file."
+            )
 
     # The type key should indicate that the file is either a service account
     # credentials file or an authorized user credentials file.
@@ -155,7 +161,9 @@ def _get_gcloud_sdk_credentials(
     if not os.path.isfile(credentials_filename):
         return None
 
-    current_credentials = _load_credentials_from_file(credentials_filename, target_audience)
+    current_credentials = _load_credentials_from_file(
+        credentials_filename, target_audience
+    )
 
     return current_credentials
 

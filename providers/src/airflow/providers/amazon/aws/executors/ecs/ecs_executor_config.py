@@ -47,13 +47,18 @@ from airflow.utils.helpers import prune_dict
 
 
 def _fetch_templated_kwargs() -> dict[str, str]:
-    run_task_kwargs_value = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_KWARGS, fallback=dict())
+    run_task_kwargs_value = conf.get(
+        CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_KWARGS, fallback=dict()
+    )
     return json.loads(str(run_task_kwargs_value))
 
 
 def _fetch_config_values() -> dict[str, str]:
     return prune_dict(
-        {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in RunTaskKwargsConfigKeys()}
+        {
+            key: conf.get(CONFIG_GROUP_NAME, key, fallback=None)
+            for key in RunTaskKwargsConfigKeys()
+        }
     )
 
 
@@ -65,8 +70,12 @@ def build_task_kwargs() -> dict:
     task_kwargs.update(_fetch_templated_kwargs())
 
     has_launch_type: bool = all_config_keys.LAUNCH_TYPE in task_kwargs
-    has_capacity_provider: bool = all_config_keys.CAPACITY_PROVIDER_STRATEGY in task_kwargs
-    is_launch_type_ec2: bool = task_kwargs.get(all_config_keys.LAUNCH_TYPE, None) == ECS_LAUNCH_TYPE_EC2
+    has_capacity_provider: bool = (
+        all_config_keys.CAPACITY_PROVIDER_STRATEGY in task_kwargs
+    )
+    is_launch_type_ec2: bool = (
+        task_kwargs.get(all_config_keys.LAUNCH_TYPE, None) == ECS_LAUNCH_TYPE_EC2
+    )
 
     if has_capacity_provider and has_launch_type:
         raise ValueError(
@@ -77,7 +86,9 @@ def build_task_kwargs() -> dict:
         # provider if it exists. Since it is not a required value, check if there is one
         # before using it, and if there is not then use the FARGATE launch_type as
         # the final fallback.
-        cluster = EcsHook().conn.describe_clusters(clusters=[task_kwargs["cluster"]])["clusters"][0]
+        cluster = EcsHook().conn.describe_clusters(clusters=[task_kwargs["cluster"]])[
+            "clusters"
+        ][0]
         if not cluster.get("defaultCapacityProviderStrategy"):
             task_kwargs[all_config_keys.LAUNCH_TYPE] = ECS_LAUNCH_TYPE_FARGATE
 
@@ -106,15 +117,20 @@ def build_task_kwargs() -> dict:
             subnets := task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None),
             security_groups := task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None),
             # Surrounding parens are for the walrus operator to function correctly along with the None check
-            (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)) is not None,
+            (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None))
+            is not None,
         ]
     ):
         network_config = prune_dict(
             {
                 "awsvpcConfiguration": {
                     "subnets": str(subnets).split(",") if subnets else None,
-                    "securityGroups": str(security_groups).split(",") if security_groups else None,
-                    "assignPublicIp": parse_assign_public_ip(assign_public_ip, is_launch_type_ec2),
+                    "securityGroups": str(security_groups).split(",")
+                    if security_groups
+                    else None,
+                    "assignPublicIp": parse_assign_public_ip(
+                        assign_public_ip, is_launch_type_ec2
+                    ),
                 }
             }
         )

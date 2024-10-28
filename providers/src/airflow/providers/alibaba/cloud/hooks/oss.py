@@ -67,8 +67,8 @@ def unify_bucket_name_and_key(func: T) -> T:
 
         key_name = get_key()
         if bound_args.arguments.get("bucket_name") is None:
-            bound_args.arguments["bucket_name"], bound_args.arguments["key"] = OSSHook.parse_oss_url(
-                bound_args.arguments[key_name]
+            bound_args.arguments["bucket_name"], bound_args.arguments["key"] = (
+                OSSHook.parse_oss_url(bound_args.arguments[key_name])
             )
 
         return func(*bound_args.args, **bound_args.kwargs)
@@ -84,7 +84,9 @@ class OSSHook(BaseHook):
     conn_type = "oss"
     hook_name = "OSS"
 
-    def __init__(self, region: str | None = None, oss_conn_id="oss_default", *args, **kwargs) -> None:
+    def __init__(
+        self, region: str | None = None, oss_conn_id="oss_default", *args, **kwargs
+    ) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
         self.region = region or self.get_default_region()
@@ -269,7 +271,9 @@ class OSSHook(BaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def append_string(self, bucket_name: str | None, content: str, key: str, pos: int) -> None:
+    def append_string(
+        self, bucket_name: str | None, content: str, key: str, pos: int
+    ) -> None:
         """
         Append string to a remote existing file.
 
@@ -345,10 +349,14 @@ class OSSHook(BaseHook):
         oss_access_key_id = extra_config.get("access_key_id", None)
         oss_access_key_secret = extra_config.get("access_key_secret", None)
         if not oss_access_key_id:
-            raise ValueError(f"No access_key_id is specified for connection: {self.oss_conn_id}")
+            raise ValueError(
+                f"No access_key_id is specified for connection: {self.oss_conn_id}"
+            )
 
         if not oss_access_key_secret:
-            raise ValueError(f"No access_key_secret is specified for connection: {self.oss_conn_id}")
+            raise ValueError(
+                f"No access_key_secret is specified for connection: {self.oss_conn_id}"
+            )
 
         return oss2.Auth(oss_access_key_id, oss_access_key_secret)
 

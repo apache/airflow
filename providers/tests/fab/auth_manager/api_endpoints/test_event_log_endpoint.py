@@ -22,7 +22,10 @@ from airflow.models import Log
 from airflow.security import permissions
 from airflow.utils import timezone
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_logs
 
@@ -98,7 +101,9 @@ class TestEventLogEndpoint:
 
 
 class TestGetEventLogs(TestEventLogEndpoint):
-    def test_should_filter_eventlogs_by_allowed_attributes(self, create_log_model, session):
+    def test_should_filter_eventlogs_by_allowed_attributes(
+        self, create_log_model, session
+    ):
         eventlog1 = create_log_model(
             event="TEST_EVENT_1",
             dag_id="TEST_DAG_ID_1",
@@ -118,7 +123,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
         for attr in ["dag_id", "task_id", "owner", "event"]:
             attr_value = f"TEST_{attr}_1".upper()
             response = self.client.get(
-                f"/api/v1/eventLogs?{attr}={attr_value}", environ_overrides={"REMOTE_USER": "test_granular"}
+                f"/api/v1/eventLogs?{attr}={attr_value}",
+                environ_overrides={"REMOTE_USER": "test_granular"},
             )
             assert response.status_code == 200
             assert response.json["total_entries"] == 1
@@ -136,7 +142,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
         response_data = response.json
         assert len(response_data["event_logs"]) == 2
         assert response_data["total_entries"] == 2
-        assert {"TEST_EVENT_1", "TEST_EVENT_2"} == {x["event"] for x in response_data["event_logs"]}
+        assert {"TEST_EVENT_1", "TEST_EVENT_2"} == {
+            x["event"] for x in response_data["event_logs"]
+        }
 
     def test_should_filter_eventlogs_by_excluded_events(self, create_log_model):
         for event in ["TEST_EVENT_1", "TEST_EVENT_2", "cli_scheduler"]:

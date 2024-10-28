@@ -66,7 +66,9 @@ PY311 = sys.version_info >= (3, 11)
 # files contain a DAG (otherwise Airflow will skip them)
 PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
 UNPARSEABLE_DAG_FILE_CONTENTS = "airflow DAG"
-INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
+INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = (
+    "def something():\n    return airflow_DAG\nsomething()"
+)
 
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
@@ -117,14 +119,18 @@ class TestDagFileProcessor:
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @patch.object(TaskInstance, "handle_failure")
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+        dagbag = DagBag(
+            dag_folder="/dev/null", include_examples=True, read_dags_from_db=False
+        )
         dag_file_processor = DagFileProcessor(
             dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
         )
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
@@ -139,12 +145,18 @@ class TestDagFileProcessor:
 
         requests = [
             TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+                full_filepath="A",
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg="Message",
             )
         ]
-        dag_file_processor.execute_callbacks(dagbag, requests, dag_file_processor.UNIT_TEST_MODE, session)
+        dag_file_processor.execute_callbacks(
+            dagbag, requests, dag_file_processor.UNIT_TEST_MODE, session
+        )
         mock_ti_handle_failure.assert_called_once_with(
-            error="Message", test_mode=conf.getboolean("core", "unit_test_mode"), session=session
+            error="Message",
+            test_mode=conf.getboolean("core", "unit_test_mode"),
+            session=session,
         )
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
@@ -153,15 +165,21 @@ class TestDagFileProcessor:
         [pytest.param(True, id="dag_in_db"), pytest.param(False, id="no_dag_found")],
     )
     @patch.object(TaskInstance, "handle_failure")
-    def test_execute_on_failure_callbacks_without_dag(self, mock_ti_handle_failure, has_serialized_dag):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+    def test_execute_on_failure_callbacks_without_dag(
+        self, mock_ti_handle_failure, has_serialized_dag
+    ):
+        dagbag = DagBag(
+            dag_folder="/dev/null", include_examples=True, read_dags_from_db=False
+        )
         dag_file_processor = DagFileProcessor(
             dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
         )
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
@@ -180,17 +198,23 @@ class TestDagFileProcessor:
 
         requests = [
             TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+                full_filepath="A",
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg="Message",
             )
         ]
         dag_file_processor.execute_callbacks_without_dag(requests, True, session)
         mock_ti_handle_failure.assert_called_once_with(
-            error="Message", test_mode=conf.getboolean("core", "unit_test_mode"), session=session
+            error="Message",
+            test_mode=conf.getboolean("core", "unit_test_mode"),
+            session=session,
         )
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_failure_callbacks_should_not_drop_hostname(self):
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+        dagbag = DagBag(
+            dag_folder="/dev/null", include_examples=True, read_dags_from_db=False
+        )
         dag_file_processor = DagFileProcessor(
             dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
         )
@@ -199,7 +223,9 @@ class TestDagFileProcessor:
         with create_session() as session:
             dag = dagbag.get_dag("example_branch_operator")
             task = dag.get_task(task_id="run_this_first")
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
@@ -214,7 +240,9 @@ class TestDagFileProcessor:
 
         requests = [
             TaskCallbackRequest(
-                full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
+                full_filepath="A",
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg="Message",
             )
         ]
         dag_file_processor.execute_callbacks(dagbag, requests, False)
@@ -224,7 +252,9 @@ class TestDagFileProcessor:
             assert tis[0].hostname == "test_hostname"
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-    def test_process_file_should_failure_callback(self, monkeypatch, tmp_path, get_test_dag):
+    def test_process_file_should_failure_callback(
+        self, monkeypatch, tmp_path, get_test_dag
+    ):
         callback_file = tmp_path.joinpath("callback.txt")
         callback_file.touch()
         monkeypatch.setenv("AIRFLOW_CALLBACK_FILE", str(callback_file))
@@ -235,7 +265,9 @@ class TestDagFileProcessor:
         dag = get_test_dag("test_on_failure_callback")
         task = dag.get_task(task_id="test_on_failure_callback_task")
         with create_session() as session:
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            triggered_by_kwargs = (
+                {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+            )
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
@@ -268,13 +300,17 @@ class TestDagFileProcessor:
             unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
+            self._process_file(
+                unparseable_filename, dag_directory=tmp_path, session=session
+            )
             import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
             assert import_error.filename == unparseable_filename
-            assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
+            assert (
+                import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
+            )
             session.rollback()
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
@@ -292,12 +328,16 @@ class TestDagFileProcessor:
             assert len(import_errors) == 1
             import_error = import_errors[0]
             assert import_error.filename == invalid_dag_filename
-            assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
+            assert (
+                import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
+            )
             session.rollback()
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
-    def test_dag_model_has_import_error_is_true_when_import_error_exists(self, tmp_path, session):
+    def test_dag_model_has_import_error_is_true_when_import_error_exists(
+        self, tmp_path, session
+    ):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py")
         temp_dagfile = tmp_path.joinpath(TEMP_DAG_FILENAME).as_posix()
         with open(dag_file) as main_dag, open(temp_dagfile, "w") as next_dag:
@@ -328,7 +368,9 @@ class TestDagFileProcessor:
         parseable_filename.write_text(PARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(parseable_filename.as_posix(), dag_directory=tmp_path, session=session)
+            self._process_file(
+                parseable_filename.as_posix(), dag_directory=tmp_path, session=session
+            )
             import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 0
@@ -357,13 +399,17 @@ class TestDagFileProcessor:
         unparseable_filename.write_text(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         session = settings.Session()
-        self._process_file(unparseable_filename.as_posix(), dag_directory=tmp_path, session=session)
+        self._process_file(
+            unparseable_filename.as_posix(), dag_directory=tmp_path, session=session
+        )
 
         # Generate replacement import error (the error will be on the second line now)
         unparseable_filename.write_text(
             PARSEABLE_DAG_FILE_CONTENTS + os.linesep + UNPARSEABLE_DAG_FILE_CONTENTS
         )
-        self._process_file(unparseable_filename.as_posix(), dag_directory=tmp_path, session=session)
+        self._process_file(
+            unparseable_filename.as_posix(), dag_directory=tmp_path, session=session
+        )
 
         import_errors = session.query(ParseImportError).all()
 
@@ -388,7 +434,9 @@ class TestDagFileProcessor:
         self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_1 = (
-            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError)
+            .filter(ParseImportError.filename == filename_to_parse)
+            .one()
         )
 
         # process the file multiple times
@@ -396,7 +444,9 @@ class TestDagFileProcessor:
             self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_2 = (
-            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError)
+            .filter(ParseImportError.filename == filename_to_parse)
+            .one()
         )
 
         # assert that the ID of the import error did not change
@@ -453,7 +503,9 @@ class TestDagFileProcessor:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
+            self._process_file(
+                unparseable_filename, dag_directory=tmp_path, session=session
+            )
             import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
@@ -491,7 +543,9 @@ class TestDagFileProcessor:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
+            self._process_file(
+                unparseable_filename, dag_directory=tmp_path, session=session
+            )
             import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
@@ -512,7 +566,9 @@ class TestDagFileProcessor:
                     "    return airflow_DAG\n"
                     "NameError: name 'airflow_DAG' is not defined\n"
                 )
-            assert import_error.stacktrace == expected_stacktrace.format(unparseable_filename)
+            assert import_error.stacktrace == expected_stacktrace.format(
+                unparseable_filename
+            )
 
             session.rollback()
 
@@ -521,10 +577,14 @@ class TestDagFileProcessor:
         invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
         invalid_dag_filename = os.path.join(invalid_zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
-            invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+            invalid_zip_file.writestr(
+                TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS
+            )
 
         with create_session() as session:
-            self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
+            self._process_file(
+                invalid_zip_filename, dag_directory=tmp_path, session=session
+            )
             import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
@@ -560,10 +620,14 @@ class TestDagFileProcessor:
         invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
         invalid_dag_filename = os.path.join(invalid_zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
-            invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+            invalid_zip_file.writestr(
+                TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS
+            )
 
         with create_session() as session:
-            self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
+            self._process_file(
+                invalid_zip_filename, dag_directory=tmp_path, session=session
+            )
             import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
@@ -584,14 +648,18 @@ class TestDagFileProcessor:
                     "    return airflow_DAG\n"
                     "NameError: name 'airflow_DAG' is not defined\n"
                 )
-            assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
+            assert import_error.stacktrace == expected_stacktrace.format(
+                invalid_dag_filename
+            )
             session.rollback()
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-    def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
+    def test_dag_parser_output_when_logging_to_stdout(
+        self, mock_redirect_stdout_for_file
+    ):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
             pickle_dags=False,
@@ -654,7 +722,9 @@ class TestDagFileProcessor:
 
     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
     @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
-    def test_nullbyte_exception_handling_when_preimporting_airflow(self, mock_context, tmp_path):
+    def test_nullbyte_exception_handling_when_preimporting_airflow(
+        self, mock_context, tmp_path
+    ):
         mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
         dag_filename = (tmp_path / "test_dag.py").as_posix()
         with open(dag_filename, "wb") as file:
@@ -700,7 +770,9 @@ class TestProcessorAgent:
             async_mode=True,
         )
         self.processor_agent.start()
-        with pytest.raises(RuntimeError, match="wait_until_finished should only be called in sync_mode"):
+        with pytest.raises(
+            RuntimeError, match="wait_until_finished should only be called in sync_mode"
+        ):
             self.processor_agent.wait_until_finished()
 
     def test_default_multiprocessing_behaviour(self, tmp_path):

@@ -79,7 +79,9 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
     def field_to_bigquery(self, field) -> dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
 
-        field_mode = "NULLABLE" if not field[6] or field_type == "TIMESTAMP" else "REQUIRED"
+        field_mode = (
+            "NULLABLE" if not field[6] or field_type == "TIMESTAMP" else "REQUIRED"
+        )
         return {
             "name": field[0],
             "type": field_type,

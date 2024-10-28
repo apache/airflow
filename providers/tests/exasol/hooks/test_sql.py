@@ -63,7 +63,13 @@ def exasol_hook():
 
 def get_columns(fields: list[str]) -> dict[str, dict[str, Any]]:
     return {
-        field: {"type": "VARCHAR", "nullable": True, "precision": None, "scale": None, "length": None}
+        field: {
+            "type": "VARCHAR",
+            "nullable": True,
+            "precision": None,
+            "scale": None,
+            "length": None,
+        }
         for field in fields
     }
 
@@ -268,7 +274,10 @@ def test_query(
         mock_conn.execute.side_effect = cursors
         mock_conn.return_value = mock_conn
         results = exasol_hook.run(
-            sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
+            sql=sql,
+            handler=fetch_all_handler,
+            return_last=return_last,
+            split_statements=split_statements,
         )
 
         assert exasol_hook.descriptions == hook_descriptions

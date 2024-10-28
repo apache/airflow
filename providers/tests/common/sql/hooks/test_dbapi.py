@@ -28,7 +28,11 @@ from pyodbc import Cursor
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
+from airflow.providers.common.sql.hooks.sql import (
+    DbApiHook,
+    fetch_all_handler,
+    fetch_one_handler,
+)
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
@@ -211,7 +215,9 @@ class TestDbApiHook:
         self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace_executemany_hana_dialect(self):
-        self.setup_method(replace_statement_format="UPSERT {} {} VALUES ({}) WITH PRIMARY KEY")
+        self.setup_method(
+            replace_statement_format="UPSERT {} {} VALUES ({}) WITH PRIMARY KEY"
+        )
         table = "table"
         rows = [("hello",), ("world",)]
 
@@ -239,7 +245,8 @@ class TestDbApiHook:
 
         assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
         assert any(
-            f"Done loading. Loaded a total of 3 rows into {table}" in message for message in caplog.messages
+            f"Done loading. Loaded a total of 3 rows into {table}" in message
+            for message in caplog.messages
         )
 
         for row in rows:
@@ -260,9 +267,12 @@ class TestDbApiHook:
         sql = f"INSERT INTO {table}  VALUES (%s)"
 
         assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
-        assert any(f"Loaded 3 rows into {table} so far" in message for message in caplog.messages)
         assert any(
-            f"Done loading. Loaded a total of 3 rows into {table}" in message for message in caplog.messages
+            f"Loaded 3 rows into {table} so far" in message for message in caplog.messages
+        )
+        assert any(
+            f"Done loading. Loaded a total of 3 rows into {table}" in message
+            for message in caplog.messages
         )
 
         self.cur.executemany.assert_any_call(sql, rows)
@@ -291,12 +301,20 @@ class TestDbApiHook:
                 port=1,
             )
         )
-        assert "conn-type://login:password@host:1/schema-override" == self.db_hook_schema_override.get_uri()
+        assert (
+            "conn-type://login:password@host:1/schema-override"
+            == self.db_hook_schema_override.get_uri()
+        )
 
     def test_get_uri_schema_none(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
-                conn_type="conn-type", host="host", login="login", password="password", schema=None, port=1
+                conn_type="conn-type",
+                host="host",
+                login="login",
+                password="password",
+                schema=None,
+                port=1,
             )
         )
         assert "conn-type://login:password@host:1" == self.db_hook.get_uri()
@@ -313,7 +331,8 @@ class TestDbApiHook:
             )
         )
         assert (
-            "conn-type://lo%2Fgi%23%21%20n:pass%2A%21%20word%2F@host%2F:1/schema%2F" == self.db_hook.get_uri()
+            "conn-type://lo%2Fgi%23%21%20n:pass%2A%21%20word%2F@host%2F:1/schema%2F"
+            == self.db_hook.get_uri()
         )
 
     def test_get_uri_login_none(self):
@@ -378,7 +397,10 @@ class TestDbApiHook:
                 extra=json.dumps({"charset": "utf-8"}),
             )
         )
-        assert self.db_hook.get_uri() == "conn-type://login:password@host/schema?charset=utf-8"
+        assert (
+            self.db_hook.get_uri()
+            == "conn-type://login:password@host/schema?charset=utf-8"
+        )
 
     def test_get_uri_extra_with_port(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -391,7 +413,10 @@ class TestDbApiHook:
                 extra=json.dumps({"charset": "utf-8"}),
             )
         )
-        assert self.db_hook.get_uri() == "conn-type://login:password@host:3306/?charset=utf-8"
+        assert (
+            self.db_hook.get_uri()
+            == "conn-type://login:password@host:3306/?charset=utf-8"
+        )
 
     def test_get_uri_extra_with_port_and_empty_host(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -417,7 +442,10 @@ class TestDbApiHook:
                 extra=json.dumps({"charset": "utf-8"}),
             )
         )
-        assert self.db_hook.get_uri() == "conn-type://login:password@host:3306/schema?charset=utf-8"
+        assert (
+            self.db_hook.get_uri()
+            == "conn-type://login:password@host:3306/schema?charset=utf-8"
+        )
 
     def test_get_uri_without_password(self):
         self.db_hook.get_connection = mock.MagicMock(
@@ -431,7 +459,9 @@ class TestDbApiHook:
                 extra=json.dumps({"charset": "utf-8"}),
             )
         )
-        assert self.db_hook.get_uri() == "conn-type://login@host:3306/schema?charset=utf-8"
+        assert (
+            self.db_hook.get_uri() == "conn-type://login@host:3306/schema?charset=utf-8"
+        )
 
     def test_get_uri_without_auth(self):
         self.db_hook.get_connection = mock.MagicMock(

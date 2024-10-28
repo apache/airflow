@@ -23,19 +23,27 @@ from airflow.utils.decorators import remove_task_decorator
 class TestExternalPythonDecorator:
     def test_remove_task_decorator(self):
         py_source = "@task.external_python(use_dill=True)\ndef f():\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
+        res = remove_task_decorator(
+            python_source=py_source, task_decorator_name="@task.external_python"
+        )
         assert res == "def f():\nimport funcsigs"
 
     def test_remove_decorator_no_parens(self):
         py_source = "@task.external_python\ndef f():\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
+        res = remove_task_decorator(
+            python_source=py_source, task_decorator_name="@task.external_python"
+        )
         assert res == "def f():\nimport funcsigs"
 
     def test_remove_decorator_nested(self):
         py_source = "@foo\n@task.external_python\n@bar\ndef f():\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
+        res = remove_task_decorator(
+            python_source=py_source, task_decorator_name="@task.external_python"
+        )
         assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
 
         py_source = "@foo\n@task.external_python()\n@bar\ndef f():\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
+        res = remove_task_decorator(
+            python_source=py_source, task_decorator_name="@task.external_python"
+        )
         assert res == "@foo\n@bar\ndef f():\nimport funcsigs"

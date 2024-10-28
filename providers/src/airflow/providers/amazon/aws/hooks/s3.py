@@ -120,7 +120,9 @@ def provide_bucket_name(func: Callable) -> Callable:
                 self = args[0]
 
                 if "bucket_name" in self.service_config:
-                    bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
+                    bound_args.arguments["bucket_name"] = self.service_config[
+                        "bucket_name"
+                    ]
 
             return func(*bound_args.args, **bound_args.kwargs)
 
@@ -194,7 +196,9 @@ class S3Hook(AwsBaseHook):
         kwargs["aws_conn_id"] = aws_conn_id
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
-            raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
+            raise TypeError(
+                f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}."
+            )
         self.transfer_config = TransferConfig(**transfer_config_args or {})
 
         if extra_args and not isinstance(extra_args, dict):
@@ -207,7 +211,9 @@ class S3Hook(AwsBaseHook):
     def resource(self):
         return self.get_session().resource(
             self.service_name,
-            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=self.service_name),
+            endpoint_url=self.conn_config.get_service_endpoint_url(
+                service_name=self.service_name
+            ),
             config=self.config,
             verify=self.verify,
         )
@@ -229,7 +235,9 @@ class S3Hook(AwsBaseHook):
         :return: the parsed bucket name and key
         """
         valid_s3_format = "S3://bucket-name/key-name"
-        valid_s3_virtual_hosted_format = "https://bucket-name.s3.region-code.amazonaws.com/key-name"
+        valid_s3_virtual_hosted_format = (
+            "https://bucket-name.s3.region-code.amazonaws.com/key-name"
+        )
         format = s3url.split("//")
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
             parsed_url = urlsplit(s3url, allow_fragments=False)
@@ -335,7 +343,9 @@ class S3Hook(AwsBaseHook):
         return self.resource.Bucket(bucket_name)
 
     @provide_bucket_name
-    def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
+    def create_bucket(
+        self, bucket_name: str | None = None, region_name: str | None = None
+    ) -> None:
         """
         Create an Amazon S3 bucket.
 
@@ -362,7 +372,9 @@ class S3Hook(AwsBaseHook):
             )
 
     @provide_bucket_name
-    def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:
+    def check_for_prefix(
+        self, prefix: str, delimiter: str, bucket_name: str | None = None
+    ) -> bool:
         """
         Check that a prefix exists in a bucket.
 
@@ -418,7 +430,9 @@ class S3Hook(AwsBaseHook):
         prefixes: list[str] = []
         for page in response:
             if "CommonPrefixes" in page:
-                prefixes.extend(common_prefix["Prefix"] for common_prefix in page["CommonPrefixes"])
+                prefixes.extend(
+                    common_prefix["Prefix"] for common_prefix in page["CommonPrefixes"]
+                )
 
         return prefixes
 
@@ -501,7 +515,9 @@ class S3Hook(AwsBaseHook):
         prefix = re.split(r"[\[\*\?]", key, 1)[0] if key else ""
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
-        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
+        response = paginator.paginate(
+            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter
+        )
         async for page in response:
             if "Contents" in page:
                 for row in page["Contents"]:
@@ -528,7 +544,9 @@ class S3Hook(AwsBaseHook):
         :param wildcard_match: the path to the key
         :param use_regex: whether to use regex to check bucket
         """
-        bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
+        bucket_name, key = self.get_s3_bucket_key(
+            bucket_val, key, "bucket_name", "bucket_key"
+        )
         if wildcard_match:
             async for k in self.get_file_metadata_async(client, bucket_name, key):
                 if fnmatch.fnmatch(k["Key"], key):
@@ -566,12 +584,16 @@ class S3Hook(AwsBaseHook):
             return all(
                 await asyncio.gather(
                     *(
-                        self._check_key_async(client, bucket, wildcard_match, key, use_regex)
+                        self._check_key_async(
+                            client, bucket, wildcard_match, key, use_regex
+                        )
                         for key in bucket_keys
                     )
                 )
             )
-        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys, use_regex)
+        return await self._check_key_async(
+            client, bucket, wildcard_match, bucket_keys, use_regex
+        )
 
     async def check_for_prefix_async(
         self,
@@ -592,7 +614,9 @@ class S3Hook(AwsBaseHook):
             prefix += delimiter
         prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
         previous_level = prefix_split[0]
-        plist = await self.list_prefixes_async(client, bucket_name, previous_level, delimiter)
+        plist = await self.list_prefixes_async(
+            client, bucket_name, previous_level, delimiter
+        )
         return prefix in plist
 
     async def _check_for_prefix_async(
@@ -622,10 +646,16 @@ class S3Hook(AwsBaseHook):
                 prefix = re.split(r"[\[*?]", key, 1)[0]
 
             paginator = client.get_paginator("list_objects_v2")
-            response = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter=delimiter)
+            response = paginator.paginate(
+                Bucket=bucket, Prefix=prefix, Delimiter=delimiter
+            )
             async for page in response:
                 if "Contents" in page:
-                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
+                    keys.extend(
+                        k
+                        for k in page["Contents"]
+                        if isinstance(k.get("Size"), (int, float))
+                    )
         return keys
 
     @staticmethod
@@ -718,7 +748,9 @@ class S3Hook(AwsBaseHook):
         """
         if not previous_objects:
             previous_objects = set()
-        list_keys = await self._list_keys_async(client=client, bucket_name=bucket_name, prefix=prefix)
+        list_keys = await self._list_keys_async(
+            client=client, bucket_name=bucket_name, prefix=prefix
+        )
         current_objects = set(list_keys)
         current_num_objects = len(current_objects)
         if current_num_objects > len(previous_objects):
@@ -764,7 +796,9 @@ class S3Hook(AwsBaseHook):
 
         if last_activity_time:
             inactivity_seconds = int(
-                (datetime.now(last_activity_time.tzinfo) - last_activity_time).total_seconds()
+                (
+                    datetime.now(last_activity_time.tzinfo) - last_activity_time
+                ).total_seconds()
             )
         else:
             # Handles the first poke where last inactivity time is None.
@@ -857,7 +891,9 @@ class S3Hook(AwsBaseHook):
         """
         _original_prefix = prefix or ""
         _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
-        _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
+        _prefix = (
+            _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
+        )
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
         object_filter_usr = object_filter
@@ -880,7 +916,9 @@ class S3Hook(AwsBaseHook):
             if "Contents" in page:
                 new_keys = page["Contents"]
                 if _apply_wildcard:
-                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                    new_keys = (
+                        k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix)
+                    )
                 keys.extend(new_keys)
         if object_filter_usr is not None:
             return object_filter_usr(keys, from_datetime, to_datetime)
@@ -913,7 +951,9 @@ class S3Hook(AwsBaseHook):
         }
 
         paginator = self.get_conn().get_paginator("list_objects_v2")
-        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config)
+        response = paginator.paginate(
+            Bucket=bucket_name, Prefix=prefix, PaginationConfig=config
+        )
 
         files = []
         for page in response:
@@ -1043,7 +1083,9 @@ class S3Hook(AwsBaseHook):
         )
 
         return b"".join(
-            event["Records"]["Payload"] for event in response["Payload"] if "Records" in event
+            event["Records"]["Payload"]
+            for event in response["Payload"]
+            if "Records" in event
         ).decode("utf-8")
 
     @unify_bucket_name_and_key
@@ -1060,7 +1102,9 @@ class S3Hook(AwsBaseHook):
         :return: True if a key exists and False if not.
         """
         return (
-            self.get_wildcard_key(wildcard_key=wildcard_key, bucket_name=bucket_name, delimiter=delimiter)
+            self.get_wildcard_key(
+                wildcard_key=wildcard_key, bucket_name=bucket_name, delimiter=delimiter
+            )
             is not None
         )
 
@@ -1366,7 +1410,9 @@ class S3Hook(AwsBaseHook):
         return response
 
     @provide_bucket_name
-    def delete_bucket(self, bucket_name: str, force_delete: bool = False, max_retries: int = 5) -> None:
+    def delete_bucket(
+        self, bucket_name: str, force_delete: bool = False, max_retries: int = 5
+    ) -> None:
         """
         To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
 
@@ -1417,7 +1463,9 @@ class S3Hook(AwsBaseHook):
         # For details see:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_objects
         for chunk in chunks(keys, chunk_size=1000):
-            response = s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in chunk]})
+            response = s3.delete_objects(
+                Bucket=bucket, Delete={"Objects": [{"Key": k} for k in chunk]}
+            )
             deleted_keys = [x["Key"] for x in response.get("Deleted", [])]
             self.log.info("Deleted: %s", deleted_keys)
             if "Errors" in response:
@@ -1458,7 +1506,9 @@ class S3Hook(AwsBaseHook):
             Default: True.
         :return: the file name.
         """
-        self.log.info("Downloading source S3 file from Bucket %s with path %s", bucket_name, key)
+        self.log.info(
+            "Downloading source S3 file from Bucket %s with path %s", bucket_name, key
+        )
 
         try:
             s3_obj = self.get_key(key, bucket_name)
@@ -1472,7 +1522,9 @@ class S3Hook(AwsBaseHook):
 
         if preserve_file_name:
             local_dir = local_path or gettempdir()
-            subdir = f"airflow_tmp_dir_{uuid4().hex[0:8]}" if use_autogenerated_subdir else ""
+            subdir = (
+                f"airflow_tmp_dir_{uuid4().hex[0:8]}" if use_autogenerated_subdir else ""
+            )
             filename_in_s3 = s3_obj.key.rsplit("/", 1)[-1]
             file_path = Path(local_dir, subdir, filename_in_s3)
 
@@ -1488,7 +1540,9 @@ class S3Hook(AwsBaseHook):
             get_hook_lineage_collector().add_output_asset(
                 context=self,
                 scheme="file",
-                asset_kwargs={"path": file_path if file_path.is_absolute() else file_path.absolute()},
+                asset_kwargs={
+                    "path": file_path if file_path.is_absolute() else file_path.absolute()
+                },
             )
             file = open(file_path, "wb")
         else:
@@ -1540,7 +1594,9 @@ class S3Hook(AwsBaseHook):
             return None
 
     @provide_bucket_name
-    def get_bucket_tagging(self, bucket_name: str | None = None) -> list[dict[str, str]] | None:
+    def get_bucket_tagging(
+        self, bucket_name: str | None = None
+    ) -> list[dict[str, str]] | None:
         """
         Get a List of tags from a bucket.
 
@@ -1597,7 +1653,9 @@ class S3Hook(AwsBaseHook):
 
         try:
             s3_client = self.get_conn()
-            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={"TagSet": formatted_tags})
+            s3_client.put_bucket_tagging(
+                Bucket=bucket_name, Tagging={"TagSet": formatted_tags}
+            )
         except ClientError as e:
             self.log.error(e)
             raise e

@@ -73,29 +73,41 @@ def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime)
     assert DagRunInfo.interval(start, end) == expected_info
 
 
-def test_manual_with_unrestricted(unrestricted_timetable: Timetable, restriction: TimeRestriction):
+def test_manual_with_unrestricted(
+    unrestricted_timetable: Timetable, restriction: TimeRestriction
+):
     """When not using strict event dates, manual runs have run_after as the data interval"""
-    manual_run_data_interval = unrestricted_timetable.infer_manual_data_interval(run_after=NON_EVENT_DATE)
+    manual_run_data_interval = unrestricted_timetable.infer_manual_data_interval(
+        run_after=NON_EVENT_DATE
+    )
     expected_data_interval = DataInterval.exact(NON_EVENT_DATE)
     assert expected_data_interval == manual_run_data_interval
 
 
-def test_manual_with_restricted_middle(restricted_timetable: Timetable, restriction: TimeRestriction):
+def test_manual_with_restricted_middle(
+    restricted_timetable: Timetable, restriction: TimeRestriction
+):
     """
     Test that when using strict event dates, manual runs after the first event have the
     most recent event's date as the start interval
     """
-    manual_run_data_interval = restricted_timetable.infer_manual_data_interval(run_after=NON_EVENT_DATE)
+    manual_run_data_interval = restricted_timetable.infer_manual_data_interval(
+        run_after=NON_EVENT_DATE
+    )
     expected_data_interval = DataInterval.exact(MOST_RECENT_EVENT)
     assert expected_data_interval == manual_run_data_interval
 
 
-def test_manual_with_restricted_before(restricted_timetable: Timetable, restriction: TimeRestriction):
+def test_manual_with_restricted_before(
+    restricted_timetable: Timetable, restriction: TimeRestriction
+):
     """
     Test that when using strict event dates, manual runs before the first event have the first event's date
     as the start interval
     """
-    manual_run_data_interval = restricted_timetable.infer_manual_data_interval(run_after=BEFORE_DATE)
+    manual_run_data_interval = restricted_timetable.infer_manual_data_interval(
+        run_after=BEFORE_DATE
+    )
     expected_data_interval = DataInterval.exact(EVENT_DATES[0])
     assert expected_data_interval == manual_run_data_interval
 
@@ -132,16 +144,27 @@ def test_subsequent_weekday_schedule(
 @pytest.mark.parametrize(
     "current_date",
     [
-        pytest.param(pendulum.DateTime(2021, 9, 1, tzinfo=utc), id="when-current-date-is-before-first-event"),
-        pytest.param(pendulum.DateTime(2021, 9, 8, tzinfo=utc), id="when-current-date-is-in-the-middle"),
-        pytest.param(pendulum.DateTime(2021, 12, 9, tzinfo=utc), id="when-current-date-is-after-last-event"),
+        pytest.param(
+            pendulum.DateTime(2021, 9, 1, tzinfo=utc),
+            id="when-current-date-is-before-first-event",
+        ),
+        pytest.param(
+            pendulum.DateTime(2021, 9, 8, tzinfo=utc),
+            id="when-current-date-is-in-the-middle",
+        ),
+        pytest.param(
+            pendulum.DateTime(2021, 12, 9, tzinfo=utc),
+            id="when-current-date-is-after-last-event",
+        ),
     ],
 )
 @pytest.mark.parametrize(
     "last_automated_data_interval",
     [
         pytest.param(None, id="first-run"),
-        pytest.param(DataInterval(start=BEFORE_DATE, end=BEFORE_DATE), id="subsequent-run"),
+        pytest.param(
+            DataInterval(start=BEFORE_DATE, end=BEFORE_DATE), id="subsequent-run"
+        ),
     ],
 )
 def test_no_catchup_first_starts(
@@ -174,5 +197,7 @@ def test_empty_timetable() -> None:
 
 def test_empty_timetable_manual_run() -> None:
     empty_timetable = EventsTimetable(event_dates=[])
-    manual_run_data_interval = empty_timetable.infer_manual_data_interval(run_after=START_DATE)
+    manual_run_data_interval = empty_timetable.infer_manual_data_interval(
+        run_after=START_DATE
+    )
     assert manual_run_data_interval == DataInterval(start=START_DATE, end=START_DATE)

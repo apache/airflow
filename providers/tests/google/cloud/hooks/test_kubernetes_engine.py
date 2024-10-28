@@ -35,7 +35,9 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import (
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 TASK_ID = "test-gke-cluster-operator"
 CLUSTER_NAME = "test-cluster"
@@ -157,7 +159,11 @@ NOT_READY_DEPLOYMENT = V1Deployment(
 )
 READY_DEPLOYMENT = V1Deployment(
     status=V1DeploymentStatus(
-        observed_generation=1, ready_replicas=1, replicas=1, unavailable_replicas=None, updated_replicas=1
+        observed_generation=1,
+        ready_replicas=1,
+        replicas=1,
+        unavailable_replicas=None,
+        updated_replicas=1,
     )
 )
 
@@ -175,7 +181,9 @@ class TestGKEHookClient:
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
         result = self.gke_hook.get_cluster_manager_client()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value, client_info=CLIENT_INFO
+        )
         assert mock_client.return_value == result
         assert self.gke_hook._client == result
 
@@ -183,7 +191,8 @@ class TestGKEHookClient:
 class TestGKEHookDelete:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -195,7 +204,10 @@ class TestGKEHookDelete:
         client_delete = self.gke_hook._client.delete_cluster = mock.Mock()
 
         self.gke_hook.delete_cluster(
-            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+            name=CLUSTER_NAME,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=retry_mock,
+            timeout=timeout_mock,
         )
 
         client_delete.assert_called_once_with(
@@ -235,7 +247,8 @@ class TestGKEHookDelete:
 class TestGKEHookCreate:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -250,7 +263,10 @@ class TestGKEHookCreate:
         client_create = self.gke_hook._client.create_cluster = mock.Mock()
 
         self.gke_hook.create_cluster(
-            cluster=mock_cluster_proto, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+            cluster=mock_cluster_proto,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=retry_mock,
+            timeout=timeout_mock,
         )
 
         client_create.assert_called_once_with(
@@ -271,7 +287,10 @@ class TestGKEHookCreate:
         proto_mock = convert_mock.return_value = mock.Mock()
 
         self.gke_hook.create_cluster(
-            cluster=mock_cluster_dict, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+            cluster=mock_cluster_dict,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=retry_mock,
+            timeout=timeout_mock,
         )
 
         client_create.assert_called_once_with(
@@ -308,7 +327,8 @@ class TestGKEHookCreate:
 class TestGKEHookGet:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -319,7 +339,10 @@ class TestGKEHookGet:
         client_get = self.gke_hook._client.get_cluster = mock.Mock()
 
         self.gke_hook.get_cluster(
-            name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID, retry=retry_mock, timeout=timeout_mock
+            name=CLUSTER_NAME,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=retry_mock,
+            timeout=timeout_mock,
         )
 
         client_get.assert_called_once_with(
@@ -332,7 +355,8 @@ class TestGKEHookGet:
 class TestGKEHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
@@ -425,9 +449,12 @@ class TestGKEHook:
 class TestGKEDeploymentHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(
+                gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None
+            )
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):
@@ -473,16 +500,22 @@ class TestGKEDeploymentHook:
             NOT_READY_DEPLOYMENT,
             READY_DEPLOYMENT,
         ]
-        self.gke_hook.check_kueue_deployment_running(name=CLUSTER_NAME, namespace=NAMESPACE)
+        self.gke_hook.check_kueue_deployment_running(
+            name=CLUSTER_NAME, namespace=NAMESPACE
+        )
 
         assert "Waiting until Deployment will be ready..." in caplog.text
 
     @mock.patch("kubernetes.client.AppsV1Api")
     def test_check_kueue_deployment_raise_exception(self, gke_deployment_hook, caplog):
         self.gke_hook.get_credentials = self._get_credentials
-        gke_deployment_hook.return_value.read_namespaced_deployment_status.side_effect = ValueError()
+        gke_deployment_hook.return_value.read_namespaced_deployment_status.side_effect = (
+            ValueError()
+        )
         with pytest.raises(ValueError):
-            self.gke_hook.check_kueue_deployment_running(name=CLUSTER_NAME, namespace=NAMESPACE)
+            self.gke_hook.check_kueue_deployment_running(
+                name=CLUSTER_NAME, namespace=NAMESPACE
+            )
 
         assert "Exception occurred while checking for Deployment status." in caplog.text
 
@@ -536,8 +569,12 @@ class TestGKEPodAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
-    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
-        self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
+    async def test_read_logs(
+        self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog
+    ):
+        self.make_mock_awaitable(
+            read_namespaced_pod_log, result="Test string #1\nTest string #2\n"
+        )
 
         await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
@@ -573,7 +610,9 @@ def mock_async_gke_cluster_client():
 class TestGKEAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(f"{ASYNC_HOOK_STRING}._get_client")
-    async def test_get_operation(self, mock_get_client, async_gke_hook, mock_async_gke_cluster_client):
+    async def test_get_operation(
+        self, mock_get_client, async_gke_hook, mock_async_gke_cluster_client
+    ):
         mock_get_client.return_value = mock_async_gke_cluster_client
 
         await async_gke_hook.get_operation(
@@ -590,7 +629,8 @@ class TestGKEAsyncHook:
 class TestGKEPodHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.gke_hook = GKEKubernetesHook(
                 gcp_conn_id="test",
@@ -652,7 +692,8 @@ class TestGKEPodHook:
         expected,
     ):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             gke_hook = GKEKubernetesHook(
                 gcp_conn_id="test",
@@ -671,9 +712,12 @@ class TestGKEPodHook:
 class TestGKEJobHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(
+                gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None
+            )
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):
@@ -716,9 +760,12 @@ class TestGKEJobHook:
 class TestGKECustomResourceHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(
+                gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None
+            )
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):

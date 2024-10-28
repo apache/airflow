@@ -26,7 +26,9 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.openapi.exceptions import (
+    create_openapi_http_exception_doc,
+)
 from airflow.api_fastapi.core_api.serializers.pools import (
     BasePool,
     PoolCollectionResponse,
@@ -105,7 +107,9 @@ async def get_pools(
     )
 
 
-@pools_router.patch("/{pool_name}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@pools_router.patch(
+    "/{pool_name}", responses=create_openapi_http_exception_doc([400, 401, 403, 404])
+)
 async def patch_pool(
     pool_name: str,
     patch_body: PoolPatchBody,
@@ -115,14 +119,20 @@ async def patch_pool(
     """Update a Pool."""
     # Only slots and include_deferred can be modified in 'default_pool'
     if pool_name == Pool.DEFAULT_POOL_NAME:
-        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+        if update_mask and all(
+            mask.strip() in {"slots", "include_deferred"} for mask in update_mask
+        ):
             pass
         else:
-            raise HTTPException(400, "Only slots and included_deferred can be modified on Default Pool")
+            raise HTTPException(
+                400, "Only slots and included_deferred can be modified on Default Pool"
+            )
 
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
-        raise HTTPException(404, detail=f"The Pool with name: `{pool_name}` was not found")
+        raise HTTPException(
+            404, detail=f"The Pool with name: `{pool_name}` was not found"
+        )
 
     if update_mask:
         data = patch_body.model_dump(include=set(update_mask), by_alias=True)
@@ -139,7 +149,9 @@ async def patch_pool(
     return PoolResponse.model_validate(pool, from_attributes=True)
 
 
-@pools_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
+@pools_router.post(
+    "/", status_code=201, responses=create_openapi_http_exception_doc([401, 403])
+)
 async def post_pool(
     post_body: PoolPostBody,
     session: Annotated[Session, Depends(get_session)],

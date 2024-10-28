@@ -37,7 +37,12 @@ class AwsAuthManagerUser(BaseUser):
     """
 
     def __init__(
-        self, *, user_id: str, groups: list[str], username: str | None = None, email: str | None = None
+        self,
+        *,
+        user_id: str,
+        groups: list[str],
+        username: str | None = None,
+        email: str | None = None,
     ) -> None:
         self.user_id = user_id
         self.groups = groups

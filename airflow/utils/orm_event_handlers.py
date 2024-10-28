@@ -70,19 +70,27 @@ def setup_event_handlers(engine):
     if conf.getboolean("debug", "sqlalchemy_stats", fallback=False):
 
         @event.listens_for(engine, "before_cursor_execute")
-        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        def before_cursor_execute(
+            conn, cursor, statement, parameters, context, executemany
+        ):
             conn.info.setdefault("query_start_time", []).append(time.perf_counter())
 
         @event.listens_for(engine, "after_cursor_execute")
-        def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        def after_cursor_execute(
+            conn, cursor, statement, parameters, context, executemany
+        ):
             total = time.perf_counter() - conn.info["query_start_time"].pop()
             file_name = [
                 f"'{f.name}':{f.filename}:{f.lineno}"
                 for f in traceback.extract_stack()
                 if "sqlalchemy" not in f.filename
             ][-1]
-            stack = [f for f in traceback.extract_stack() if "sqlalchemy" not in f.filename]
-            stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:])
+            stack = [
+                f for f in traceback.extract_stack() if "sqlalchemy" not in f.filename
+            ]
+            stack_info = ">".join(
+                [f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:]
+            )
             conn.info.setdefault("query_start_time", []).append(time.monotonic())
             log.info(
                 "@SQLALCHEMY %s |$ %s |$ %s |$  %s ",

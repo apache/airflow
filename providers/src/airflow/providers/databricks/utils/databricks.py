@@ -63,4 +63,6 @@ def validate_trigger_event(event: dict):
     try:
         RunState.from_json(event["run_state"])
     except Exception:
-        raise AirflowException(f'Run state returned by the Trigger is incorrect: {event["run_state"]}')
+        raise AirflowException(
+            f'Run state returned by the Trigger is incorrect: {event["run_state"]}'
+        )

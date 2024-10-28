@@ -75,7 +75,9 @@ class LambdaFunctionStateSensor(AwsBaseSensor[LambdaHook]):
             "FunctionName": self.function_name,
             "Qualifier": self.qualifier,
         }
-        state = self.hook.conn.get_function(**trim_none_values(get_function_args))["Configuration"]["State"]
+        state = self.hook.conn.get_function(**trim_none_values(get_function_args))[
+            "Configuration"
+        ]["State"]
 
         if state in self.FAILURE_STATES:
             raise AirflowException(

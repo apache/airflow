@@ -35,12 +35,19 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
-from airflow.providers.google.cloud.operators.dataflow import DataflowTemplatedJobStartOperator
+from airflow.providers.google.cloud.operators.dataflow import (
+    DataflowTemplatedJobStartOperator,
+)
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreCommitOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
+from airflow.providers.google.firebase.operators.firestore import (
+    CloudFirestoreExportDatabaseOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -100,7 +107,10 @@ with DAG(
     export_database_to_gcs = CloudFirestoreExportDatabaseOperator(
         task_id="export_database_to_gcs",
         project_id=PROJECT_ID,
-        body={"outputUriPrefix": EXPORT_DESTINATION_URL, "collectionIds": [EXPORT_COLLECTION_ID]},
+        body={
+            "outputUriPrefix": EXPORT_DESTINATION_URL,
+            "collectionIds": [EXPORT_COLLECTION_ID],
+        },
     )
     # [END howto_operator_export_database_to_gcs]
     # [START howto_operator_create_external_table_multiple_types]
@@ -154,7 +164,9 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

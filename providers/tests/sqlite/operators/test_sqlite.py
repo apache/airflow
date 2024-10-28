@@ -51,7 +51,9 @@ class TestSqliteOperator:
             dummy VARCHAR(50)
         );
         """
-        op = SQLExecuteQueryOperator(task_id="basic_sqlite", sql=sql, dag=self.dag, conn_id="sqlite_default")
+        op = SQLExecuteQueryOperator(
+            task_id="basic_sqlite", sql=sql, dag=self.dag, conn_id="sqlite_default"
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sqlite_operator_with_multiple_statements(self):

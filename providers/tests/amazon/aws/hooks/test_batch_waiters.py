@@ -159,12 +159,20 @@ class TestBatchWaiters:
 
         with (
             mock.patch.object(self.batch_waiters, "get_waiter") as mock_get_waiter,
-            mock.patch.object(batch_log_fetcher, "start", thread_start) as mock_fetcher_start,
-            mock.patch.object(batch_log_fetcher, "stop", thread_stop) as mock_fetcher_stop,
-            mock.patch.object(batch_log_fetcher, "join", thread_join) as mock_fetcher_join,
+            mock.patch.object(
+                batch_log_fetcher, "start", thread_start
+            ) as mock_fetcher_start,
+            mock.patch.object(
+                batch_log_fetcher, "stop", thread_stop
+            ) as mock_fetcher_stop,
+            mock.patch.object(
+                batch_log_fetcher, "join", thread_join
+            ) as mock_fetcher_join,
         ):
             # Run the wait_for_job method
-            self.batch_waiters.wait_for_job(self.job_id, get_batch_log_fetcher=mock_get_batch_log_fetcher)
+            self.batch_waiters.wait_for_job(
+                self.job_id, get_batch_log_fetcher=mock_get_batch_log_fetcher
+            )
 
             # Assertions
             assert mock_get_waiter.call_args_list == [
@@ -229,7 +237,9 @@ class TestBatchJobWaiters:
             yield
 
     @staticmethod
-    def describe_jobs_response(job_id: str = "mock-job-id", status: str = INTERMEDIATE_STATES[0]):
+    def describe_jobs_response(
+        job_id: str = "mock-job-id", status: str = INTERMEDIATE_STATES[0]
+    ):
         """
         Helper function for generate minimal DescribeJobs response for single job.
         https://docs.aws.amazon.com/batch/latest/APIReference/API_DescribeJobs.html
@@ -270,7 +280,9 @@ class TestBatchJobWaiters:
             # Emulate change job status before one of expected states.
             # SUBMITTED -> PENDING -> RUNNABLE -> STARTING
             *itertools.chain.from_iterable(
-                itertools.repeat(self.describe_jobs_response(job_id=job_id, status=inter_status), 3)
+                itertools.repeat(
+                    self.describe_jobs_response(job_id=job_id, status=inter_status), 3
+                )
                 for inter_status in INTERMEDIATE_STATES
             ),
             # Expected status
@@ -294,7 +306,9 @@ class TestBatchJobWaiters:
         job_running_waiter = self.batch_waiters.get_waiter("JobRunning")
         job_running_waiter.config.delay = 0.01
         job_running_waiter.config.max_attempts = 20
-        with pytest.raises(WaiterError, match="Waiter JobRunning failed: Max attempts exceeded"):
+        with pytest.raises(
+            WaiterError, match="Waiter JobRunning failed: Max attempts exceeded"
+        ):
             job_running_waiter.wait(jobs=[job_id])
         assert self.mock_describe_jobs.called
 
@@ -302,7 +316,9 @@ class TestBatchJobWaiters:
         """Test `JobComplete` waiter reach `SUCCEEDED` status."""
         job_id = "job-succeeded"
         self.mock_describe_jobs.side_effect = [
-            *itertools.repeat(self.describe_jobs_response(job_id=job_id, status=RUNNING_STATE), 10),
+            *itertools.repeat(
+                self.describe_jobs_response(job_id=job_id, status=RUNNING_STATE), 10
+            ),
             self.describe_jobs_response(job_id=job_id, status=SUCCESS_STATE),
             RuntimeError("This should not raise"),
         ]
@@ -317,7 +333,9 @@ class TestBatchJobWaiters:
         """Test `JobComplete` waiter reach `FAILED` status."""
         job_id = "job-failed"
         self.mock_describe_jobs.side_effect = [
-            *itertools.repeat(self.describe_jobs_response(job_id=job_id, status=RUNNING_STATE), 10),
+            *itertools.repeat(
+                self.describe_jobs_response(job_id=job_id, status=RUNNING_STATE), 10
+            ),
             self.describe_jobs_response(job_id=job_id, status=FAILED_STATE),
             RuntimeError("This should not raise"),
         ]
@@ -326,7 +344,8 @@ class TestBatchJobWaiters:
         job_complete_waiter.config.delay = 0.01
         job_complete_waiter.config.max_attempts = 20
         with pytest.raises(
-            WaiterError, match="Waiter JobComplete failed: Waiter encountered a terminal failure state"
+            WaiterError,
+            match="Waiter JobComplete failed: Waiter encountered a terminal failure state",
         ):
             job_complete_waiter.wait(jobs=[job_id])
         assert self.mock_describe_jobs.called
@@ -340,6 +359,8 @@ class TestBatchJobWaiters:
         job_running_waiter = self.batch_waiters.get_waiter("JobComplete")
         job_running_waiter.config.delay = 0.01
         job_running_waiter.config.max_attempts = 20
-        with pytest.raises(WaiterError, match="Waiter JobComplete failed: Max attempts exceeded"):
+        with pytest.raises(
+            WaiterError, match="Waiter JobComplete failed: Max attempts exceeded"
+        ):
             job_running_waiter.wait(jobs=[job_id])
         assert self.mock_describe_jobs.called

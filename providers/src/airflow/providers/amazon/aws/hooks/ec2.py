@@ -131,7 +131,9 @@ class EC2Hook(AwsBaseHook):
         return self.conn.terminate_instances(InstanceIds=instance_ids)
 
     @only_client_type
-    def describe_instances(self, filters: list | None = None, instance_ids: list | None = None):
+    def describe_instances(
+        self, filters: list | None = None, instance_ids: list | None = None
+    ):
         """
         Describe EC2 instances, optionally applying filters and selective instance ids.
 
@@ -148,7 +150,9 @@ class EC2Hook(AwsBaseHook):
         return self.conn.describe_instances(Filters=filters, InstanceIds=instance_ids)
 
     @only_client_type
-    def get_instances(self, filters: list | None = None, instance_ids: list | None = None) -> list:
+    def get_instances(
+        self, filters: list | None = None, instance_ids: list | None = None
+    ) -> list:
         """
         Get list of instance details, optionally applying filters and selective instance ids.
 
@@ -159,7 +163,9 @@ class EC2Hook(AwsBaseHook):
         description = self.describe_instances(filters=filters, instance_ids=instance_ids)
 
         return [
-            instance for reservation in description["Reservations"] for instance in reservation["Instances"]
+            instance
+            for reservation in description["Reservations"]
+            for instance in reservation["Instances"]
         ]
 
     @only_client_type
@@ -170,7 +176,9 @@ class EC2Hook(AwsBaseHook):
         :param filters: List of filters to specify instances to get
         :return: List of instance ids
         """
-        return [instance["InstanceId"] for instance in self.get_instances(filters=filters)]
+        return [
+            instance["InstanceId"] for instance in self.get_instances(filters=filters)
+        ]
 
     async def get_instance_state_async(self, instance_id: str) -> str:
         async with self.async_conn as client:
@@ -189,7 +197,9 @@ class EC2Hook(AwsBaseHook):
 
         return self.get_instance(instance_id=instance_id).state["Name"]
 
-    def wait_for_state(self, instance_id: str, target_state: str, check_interval: float) -> None:
+    def wait_for_state(
+        self, instance_id: str, target_state: str, check_interval: float
+    ) -> None:
         """
         Wait EC2 instance until its state is equal to the target_state.
 
@@ -206,5 +216,7 @@ class EC2Hook(AwsBaseHook):
             instance_state = self.get_instance_state(instance_id=instance_id)
 
             self.log.info(
-                "instance state: %s. Same as target: %s", instance_state, instance_state == target_state
+                "instance state: %s. Same as target: %s",
+                instance_state,
+                instance_state == target_state,
             )

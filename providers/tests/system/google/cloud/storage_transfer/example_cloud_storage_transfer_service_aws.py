@@ -26,7 +26,10 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK,
@@ -57,7 +60,10 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServicePauseOperationOperator,
     CloudDataTransferServiceResumeOperationOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
 )
@@ -66,7 +72,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "example_gcp_transfer_aws"
 
@@ -74,7 +82,9 @@ EXAMPLE_BUCKET = "airflow-system-tests-resources"
 EXAMPLE_FILE = "storage-transfer/big_file.dat"
 BUCKET_SOURCE_AWS = f"bucket-aws-{DAG_ID}-{ENV_ID}".replace("_", "-")
 BUCKET_TARGET_GCS = f"bucket-gcs-{DAG_ID}-{ENV_ID}".replace("_", "-")
-WAIT_FOR_OPERATION_POKE_INTERVAL = int(os.environ.get("WAIT_FOR_OPERATION_POKE_INTERVAL", 5))
+WAIT_FOR_OPERATION_POKE_INTERVAL = int(
+    os.environ.get("WAIT_FOR_OPERATION_POKE_INTERVAL", 5)
+)
 
 GCP_DESCRIPTION = "description"
 GCP_TRANSFER_JOB_NAME = f"transferJobs/sampleJob-{DAG_ID}-{ENV_ID}".replace("-", "_")
@@ -155,20 +165,24 @@ with DAG(
         task_id="list_operations",
         request_filter={
             FILTER_PROJECT_ID: GCP_PROJECT_ID,
-            FILTER_JOB_NAMES: ["{{task_instance.xcom_pull('create_transfer_job_s3_to_gcs')['name']}}"],
+            FILTER_JOB_NAMES: [
+                "{{task_instance.xcom_pull('create_transfer_job_s3_to_gcs')['name']}}"
+            ],
         },
     )
     # [END howto_operator_gcp_transfer_list_operations]
 
     # [START howto_operator_gcp_transfer_get_operation]
     get_operation = CloudDataTransferServiceGetOperationOperator(
-        task_id="get_operation", operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}"
+        task_id="get_operation",
+        operation_name="{{task_instance.xcom_pull('list_operations')[0]['name']}}",
     )
     # [END howto_operator_gcp_transfer_get_operation]
 
     # [START howto_operator_gcp_transfer_resume_operation]
     resume_operation = CloudDataTransferServiceResumeOperationOperator(
-        task_id="resume_operation", operation_name="{{task_instance.xcom_pull('get_operation')['name']}}"
+        task_id="resume_operation",
+        operation_name="{{task_instance.xcom_pull('get_operation')['name']}}",
     )
     # [END howto_operator_gcp_transfer_resume_operation]
 

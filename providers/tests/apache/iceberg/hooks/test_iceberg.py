@@ -29,7 +29,9 @@ pytestmark = pytest.mark.db_test
 
 def test_iceberg_hook():
     access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSU"
-    with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
+    with patch(
+        "airflow.models.Connection.get_connection_from_secrets"
+    ) as mock_get_connection:
         mock_conn = Mock()
         mock_conn.conn_id = "iceberg_default"
         mock_conn.host = "https://api.iceberg.io/ws/v1"

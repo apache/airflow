@@ -40,12 +40,16 @@ ALLOWED_FOLDERS = [
 ]
 
 if len(sys.argv) < 2:
-    console.print(f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n")
+    console.print(
+        f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n"
+    )
     sys.exit(1)
 
 mypy_folder = sys.argv[1]
 if mypy_folder not in ALLOWED_FOLDERS:
-    console.print(f"[yellow]Wrong folder {mypy_folder}. It should be one of those: {ALLOWED_FOLDERS}\n")
+    console.print(
+        f"[yellow]Wrong folder {mypy_folder}. It should be one of those: {ALLOWED_FOLDERS}\n"
+    )
     sys.exit(1)
 
 arguments = [mypy_folder]
@@ -106,5 +110,7 @@ if res.returncode != 0:
         " this command and try again:\n"
     )
     console.print(f"breeze ci-image build --python 3.9{flag}\n")
-    console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
+    console.print(
+        "[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n"
+    )
 sys.exit(res.returncode)

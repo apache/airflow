@@ -28,7 +28,12 @@ from airflow.providers.yandex.utils.credentials import (
     get_credentials,
     get_service_account_id,
 )
-from airflow.providers.yandex.utils.defaults import conn_name_attr, conn_type, default_conn_name, hook_name
+from airflow.providers.yandex.utils.defaults import (
+    conn_name_attr,
+    conn_type,
+    default_conn_name,
+    hook_name,
+)
 from airflow.providers.yandex.utils.fields import get_field_from_extras
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
 
@@ -52,7 +57,10 @@ class YandexCloudBaseHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to Yandex connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
@@ -146,10 +154,15 @@ class YandexCloudBaseHook(BaseHook):
             endpoint=sdk_config.get("endpoint"),
         )
         self.default_folder_id = default_folder_id or self._get_field("folder_id")
-        self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key")
-        self.default_service_account_id = default_service_account_id or get_service_account_id(
-            service_account_json=self._get_field("service_account_json"),
-            service_account_json_path=self._get_field("service_account_json_path"),
+        self.default_public_ssh_key = default_public_ssh_key or self._get_field(
+            "public_ssh_key"
+        )
+        self.default_service_account_id = (
+            default_service_account_id
+            or get_service_account_id(
+                service_account_json=self._get_field("service_account_json"),
+                service_account_json_path=self._get_field("service_account_json_path"),
+            )
         )
         self.client = self.sdk.client
 

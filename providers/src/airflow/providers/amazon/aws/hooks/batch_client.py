@@ -212,7 +212,11 @@ class BatchClientHook(AwsBaseHook):
     JOB_QUEUE_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
     def __init__(
-        self, *args, max_retries: int | None = None, status_retries: int | None = None, **kwargs
+        self,
+        *args,
+        max_retries: int | None = None,
+        status_retries: int | None = None,
+        **kwargs,
     ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
         super().__init__(client_type="batch", *args, **kwargs)  # type: ignore
@@ -322,7 +326,9 @@ class BatchClientHook(AwsBaseHook):
         running_status = [self.RUNNING_STATE, self.SUCCESS_STATE, self.FAILURE_STATE]
         self.poll_job_status(job_id, running_status)
 
-    def poll_for_job_complete(self, job_id: str, delay: int | float | None = None) -> None:
+    def poll_for_job_complete(
+        self, job_id: str, delay: int | float | None = None
+    ) -> None:
         """
         Poll for job completion.
 
@@ -376,7 +382,9 @@ class BatchClientHook(AwsBaseHook):
             if job_status in match_status:
                 return True
         else:
-            raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
+            raise AirflowException(
+                f"AWS Batch job ({job_id}) status checks exceed max_retries"
+            )
 
     def get_job_description(self, job_id: str) -> dict:
         """
@@ -407,7 +415,10 @@ class BatchClientHook(AwsBaseHook):
                 self.log.warning(err)
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
-                if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
+                if (
+                    err.response.get("Error", {}).get("Code")
+                    != "TooManyRequestsException"
+                ):
                     raise
                 self.log.warning(
                     "Ignored TooManyRequestsException error, original message: %r. "
@@ -437,7 +448,9 @@ class BatchClientHook(AwsBaseHook):
         jobs = response.get("jobs", [])
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
-            raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
+            raise AirflowException(
+                f"AWS Batch job ({job_id}) description error: response: {response}"
+            )
 
         return matching_jobs[0]
 
@@ -447,7 +460,8 @@ class BatchClientHook(AwsBaseHook):
             return None
         if len(all_info) > 1:
             self.log.warning(
-                "AWS Batch job (%s) has more than one log stream, only returning the first one.", job_id
+                "AWS Batch job (%s) has more than one log stream, only returning the first one.",
+                job_id,
             )
         return all_info[0]
 
@@ -469,7 +483,10 @@ class BatchClientHook(AwsBaseHook):
                 for p in job_node_properties.get("nodeRangeProperties", {})
             ]
             # one stream name per attempt
-            stream_names = [a.get("container", {}).get("logStreamName") for a in job_desc.get("attempts", [])]
+            stream_names = [
+                a.get("container", {}).get("logStreamName")
+                for a in job_desc.get("attempts", [])
+            ]
         elif job_container_desc:
             log_configs = [job_container_desc.get("logConfiguration", {})]
             stream_name = job_container_desc.get("logStreamName")
@@ -483,7 +500,8 @@ class BatchClientHook(AwsBaseHook):
         # If the user selected another logDriver than "awslogs", then CloudWatch logging is disabled.
         if any(c.get("logDriver", "awslogs") != "awslogs" for c in log_configs):
             self.log.warning(
-                "AWS Batch job (%s) uses non-aws log drivers. AWS CloudWatch logging disabled.", job_id
+                "AWS Batch job (%s) uses non-aws log drivers. AWS CloudWatch logging disabled.",
+                job_id,
             )
             return []
 
@@ -491,7 +509,9 @@ class BatchClientHook(AwsBaseHook):
             # If this method is called very early after starting the AWS Batch job,
             # there is a possibility that the AWS CloudWatch Stream Name would not exist yet.
             # This can also happen in case of misconfiguration.
-            self.log.warning("AWS Batch job (%s) doesn't have any AWS CloudWatch Stream.", job_id)
+            self.log.warning(
+                "AWS Batch job (%s) doesn't have any AWS CloudWatch Stream.", job_id
+            )
             return []
 
         # Try to get user-defined log configuration options
@@ -513,7 +533,9 @@ class BatchClientHook(AwsBaseHook):
         return result
 
     @staticmethod
-    def add_jitter(delay: int | float, width: int | float = 1, minima: int | float = 0) -> float:
+    def add_jitter(
+        delay: int | float, width: int | float = 1, minima: int | float = 0
+    ) -> float:
         """
         Use delay +/- width for random jitter.
 
@@ -555,7 +577,9 @@ class BatchClientHook(AwsBaseHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = random.uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
+            delay = random.uniform(
+                BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX
+            )
         else:
             delay = BatchClientHook.add_jitter(delay)
         time.sleep(delay)

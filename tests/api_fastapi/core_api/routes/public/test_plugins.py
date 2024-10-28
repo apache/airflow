@@ -48,7 +48,11 @@ class TestGetConnections:
             (
                 {"limit": 3, "offset": 2},
                 13,
-                ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
+                [
+                    "databricks_workflow",
+                    "decreasing_priority_weight_strategy_plugin",
+                    "edge_executor",
+                ],
             ),
             ({"limit": 1}, 13, ["MetadataCollectionPlugin"]),
         ],

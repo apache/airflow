@@ -48,7 +48,14 @@ class SlackWebhookNotifier(BaseNotifier):
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebhookClient``. Optional
     """
 
-    template_fields = ("slack_webhook_conn_id", "text", "attachments", "blocks", "proxy", "timeout")
+    template_fields = (
+        "slack_webhook_conn_id",
+        "text",
+        "attachments",
+        "blocks",
+        "proxy",
+        "timeout",
+    )
 
     def __init__(
         self,

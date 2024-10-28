@@ -28,5 +28,7 @@ default_args = {
     "start_date": DEFAULT_DATE,
 }
 
-with DAG(dag_id="test_dag_with_no_tags", default_args=default_args, schedule="@once") as dag:
+with DAG(
+    dag_id="test_dag_with_no_tags", default_args=default_args, schedule="@once"
+) as dag:
     task_a = EmptyOperator(task_id="test_task_a")

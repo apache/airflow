@@ -27,7 +27,9 @@ import pytest
 
 
 @contextmanager
-def _mocker_context(o, additional_modules: list | None = None) -> AbstractContextManager[mock.MagicMock]:
+def _mocker_context(
+    o, additional_modules: list | None = None
+) -> AbstractContextManager[mock.MagicMock]:
     """
     Helper context for mocking multiple reference of same object
         :param o: Object/Class for mocking.

@@ -56,7 +56,11 @@ class SegmentHook(BaseHook):
     hook_name = "Segment"
 
     def __init__(
-        self, segment_conn_id: str = "segment_default", segment_debug_mode: bool = False, *args, **kwargs
+        self,
+        segment_conn_id: str = "segment_default",
+        segment_debug_mode: bool = False,
+        *args,
+        **kwargs,
     ) -> None:
         super().__init__()
         self.segment_conn_id = segment_conn_id

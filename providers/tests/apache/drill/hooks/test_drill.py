@@ -24,10 +24,14 @@ import pytest
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
 
-@pytest.mark.parametrize("host, expect_error", [("host_with?", True), ("good_host", False)])
+@pytest.mark.parametrize(
+    "host, expect_error", [("host_with?", True), ("good_host", False)]
+)
 def test_get_host(host, expect_error):
     with (
-        patch("airflow.providers.apache.drill.hooks.drill.DrillHook.get_connection") as mock_get_connection,
+        patch(
+            "airflow.providers.apache.drill.hooks.drill.DrillHook.get_connection"
+        ) as mock_get_connection,
         patch("sqlalchemy.engine.base.Engine.raw_connection") as raw_connection,
     ):
         raw_connection.return_value = MagicMock()
@@ -54,7 +58,10 @@ class TestDrillHook:
         self.conn.host = "host"
         self.conn.port = "8047"
         self.conn.conn_type = "drill"
-        self.conn.extra_dejson = {"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"}
+        self.conn.extra_dejson = {
+            "dialect_driver": "drill+sadrill",
+            "storage_plugin": "dfs",
+        }
         self.conn.cursor.return_value = self.cur
 
         class TestDrillHook(DrillHook):

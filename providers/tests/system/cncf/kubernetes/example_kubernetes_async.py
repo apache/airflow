@@ -46,16 +46,23 @@ configmaps = [
 
 volume = k8s.V1Volume(
     name="test-volume",
-    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name="test-volume"),
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
+        claim_name="test-volume"
+    ),
 )
 
 port = k8s.V1ContainerPort(name="http", container_port=80)
 
 init_container_volume_mounts = [
-    k8s.V1VolumeMount(mount_path="/etc/foo", name="test-volume", sub_path=None, read_only=True)
+    k8s.V1VolumeMount(
+        mount_path="/etc/foo", name="test-volume", sub_path=None, read_only=True
+    )
 ]
 
-init_environments = [k8s.V1EnvVar(name="key1", value="value1"), k8s.V1EnvVar(name="key2", value="value2")]
+init_environments = [
+    k8s.V1EnvVar(name="key1", value="value1"),
+    k8s.V1EnvVar(name="key2", value="value2"),
+]
 
 init_container = k8s.V1Container(
     name="init-container",
@@ -73,7 +80,9 @@ affinity = k8s.V1Affinity(
                 weight=1,
                 preference=k8s.V1NodeSelectorTerm(
                     match_expressions=[
-                        k8s.V1NodeSelectorRequirement(key="disktype", operator="In", values=["ssd"])
+                        k8s.V1NodeSelectorRequirement(
+                            key="disktype", operator="In", values=["ssd"]
+                        )
                     ]
                 ),
             )
@@ -86,7 +95,9 @@ affinity = k8s.V1Affinity(
                 pod_affinity_term=k8s.V1PodAffinityTerm(
                     label_selector=k8s.V1LabelSelector(
                         match_expressions=[
-                            k8s.V1LabelSelectorRequirement(key="security", operator="In", values="S1")
+                            k8s.V1LabelSelectorRequirement(
+                                key="security", operator="In", values="S1"
+                            )
                         ]
                     ),
                     topology_key="failure-domain.beta.kubernetes.io/zone",
@@ -181,7 +192,11 @@ with DAG(
         task_id="kubernetes_write_xcom_task_async",
         namespace="default",
         image="alpine",
-        cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
+        cmds=[
+            "sh",
+            "-c",
+            "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json",
+        ],
         name="write-xcom",
         do_xcom_push=True,
         on_finish_action="delete_pod",

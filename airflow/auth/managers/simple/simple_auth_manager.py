@@ -109,7 +109,9 @@ class SimpleAuthManager(BaseAuthManager):
                 # User dot not exist in the file, adding it
                 self.passwords[user["username"]] = self._generate_password()
 
-            self._print_output(f"Password for user '{user['username']}': {self.passwords[user['username']]}")
+            self._print_output(
+                f"Password for user '{user['username']}': {self.passwords[user['username']]}"
+            )
 
         with open(self.get_generated_password_file(), "w") as file:
             file.write(json.dumps(self.passwords))
@@ -166,7 +168,11 @@ class SimpleAuthManager(BaseAuthManager):
         )
 
     def is_authorized_asset(
-        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -175,7 +181,11 @@ class SimpleAuthManager(BaseAuthManager):
         )
 
     def is_authorized_pool(
-        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -184,15 +194,25 @@ class SimpleAuthManager(BaseAuthManager):
         )
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: VariableDetails | None = None,
+        user: BaseUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP)
 
-    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: BaseUser | None = None
+    ) -> bool:
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user: BaseUser | None = None,
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER)
 
@@ -242,7 +262,9 @@ class SimpleAuthManager(BaseAuthManager):
 
     @staticmethod
     def _generate_password() -> str:
-        return "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+        return "".join(
+            random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16)
+        )
 
     @staticmethod
     def _print_output(output: str):

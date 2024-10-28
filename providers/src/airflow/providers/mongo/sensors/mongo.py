@@ -50,7 +50,13 @@ class MongoSensor(BaseSensorOperator):
     template_fields: Sequence[str] = ("collection", "query")
 
     def __init__(
-        self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", mongo_db=None, **kwargs
+        self,
+        *,
+        collection: str,
+        query: dict,
+        mongo_conn_id: str = "mongo_default",
+        mongo_db=None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.mongo_conn_id = mongo_conn_id
@@ -60,7 +66,11 @@ class MongoSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info(
-            "Sensor check existence of the document that matches the following query: %s", self.query
+            "Sensor check existence of the document that matches the following query: %s",
+            self.query,
         )
         hook = MongoHook(mongo_conn_id=self.mongo_conn_id)
-        return hook.find(self.collection, self.query, mongo_db=self.mongo_db, find_one=True) is not None
+        return (
+            hook.find(self.collection, self.query, mongo_db=self.mongo_db, find_one=True)
+            is not None
+        )

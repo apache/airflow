@@ -24,7 +24,9 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
-from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
+from airflow.providers.amazon.aws.operators.sagemaker import (
+    SageMakerEndpointConfigOperator,
+)
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -40,7 +42,9 @@ CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
     ],
 }
 
-EXPECTED_INTEGER_FIELDS: list[list[str]] = [["ProductionVariants", "InitialInstanceCount"]]
+EXPECTED_INTEGER_FIELDS: list[list[str]] = [
+    ["ProductionVariants", "InitialInstanceCount"]
+]
 
 
 class TestSageMakerEndpointConfigOperator:

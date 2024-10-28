@@ -69,13 +69,19 @@ def _get_count(
         else:
             count = (
                 session.scalar(
-                    _count_query(TI, states, dttm_filter, external_dag_id, session).filter(
-                        tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids)
+                    _count_query(
+                        TI, states, dttm_filter, external_dag_id, session
+                    ).filter(
+                        tuple_in_condition(
+                            (TI.task_id, TI.map_index), external_task_group_task_ids
+                        )
                     )
                 )
             ) / len(external_task_group_task_ids)
     else:
-        count = session.scalar(_count_query(DR, states, dttm_filter, external_dag_id, session))
+        count = session.scalar(
+            _count_query(DR, states, dttm_filter, external_dag_id, session)
+        )
     return cast(int, count)
 
 
@@ -90,12 +96,16 @@ def _count_query(model, states, dttm_filter, external_dag_id, session: Session) 
     :param session: airflow session object
     """
     query = select(func.count()).filter(
-        model.dag_id == external_dag_id, model.state.in_(states), model.execution_date.in_(dttm_filter)
+        model.dag_id == external_dag_id,
+        model.state.in_(states),
+        model.execution_date.in_(dttm_filter),
     )
     return query
 
 
-def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, external_dag_id, session):
+def _get_external_task_group_task_ids(
+    dttm_filter, external_task_group_id, external_dag_id, session
+):
     """
     Get the count of records against dttm filter and states.
 

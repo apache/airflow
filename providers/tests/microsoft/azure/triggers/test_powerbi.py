@@ -55,7 +55,9 @@ def powerbi_trigger():
 
 
 class TestPowerBITrigger:
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    @mock.patch(
+        "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection
+    )
     def test_powerbi_trigger_serialization(self, connection):
         """Asserts that the PowerBI Trigger correctly serializes its arguments and classpath."""
         powerbi_trigger = PowerBITrigger(
@@ -86,7 +88,10 @@ class TestPowerBITrigger:
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
     async def test_powerbi_trigger_run_inprogress(
-        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        powerbi_trigger,
     ):
         """Assert task isn't completed until timeout if dataset refresh is in progress."""
         mock_get_refresh_details_by_refresh_id.return_value = {
@@ -104,10 +109,15 @@ class TestPowerBITrigger:
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
     async def test_powerbi_trigger_run_failed(
-        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        powerbi_trigger,
     ):
         """Assert event is triggered upon failed dataset refresh."""
-        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.FAILED
+        }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         generator = powerbi_trigger.run()
@@ -126,7 +136,10 @@ class TestPowerBITrigger:
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
     async def test_powerbi_trigger_run_completed(
-        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        powerbi_trigger,
     ):
         """Assert event is triggered upon successful dataset refresh."""
         mock_get_refresh_details_by_refresh_id.return_value = {
@@ -186,7 +199,9 @@ class TestPowerBITrigger:
     ):
         """Assert that run catch exception if Power BI API throw exception"""
         mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception")
-        mock_cancel_dataset_refresh.side_effect = Exception("Exception caused by cancel_dataset_refresh")
+        mock_cancel_dataset_refresh.side_effect = Exception(
+            "Exception caused by cancel_dataset_refresh"
+        )
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         task = [i async for i in powerbi_trigger.run()]
@@ -206,7 +221,10 @@ class TestPowerBITrigger:
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
     async def test_powerbi_trigger_run_exception_without_refresh_id(
-        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        powerbi_trigger,
     ):
         """Assert handling of exception when there is no dataset_refresh_id"""
         powerbi_trigger.dataset_refresh_id = None
@@ -230,7 +248,10 @@ class TestPowerBITrigger:
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
     async def test_powerbi_trigger_run_timeout(
-        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+        self,
+        mock_trigger_dataset_refresh,
+        mock_get_refresh_details_by_refresh_id,
+        powerbi_trigger,
     ):
         """Assert that powerbi run timesout after end_time elapses"""
         mock_get_refresh_details_by_refresh_id.return_value = {

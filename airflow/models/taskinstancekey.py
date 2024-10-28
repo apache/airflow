@@ -39,12 +39,18 @@ class TaskInstanceKey(NamedTuple):
         """Remake the key by subtracting 1 from try number to match in memory information."""
         # todo (dstandish): remove this property
         return TaskInstanceKey(
-            self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
+            self.dag_id,
+            self.task_id,
+            self.run_id,
+            max(1, self.try_number - 1),
+            self.map_index,
         )
 
     def with_try_number(self, try_number: int) -> TaskInstanceKey:
         """Return TaskInstanceKey with provided ``try_number``."""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.run_id, try_number, self.map_index
+        )
 
     @property
     def key(self) -> TaskInstanceKey:

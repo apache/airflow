@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
+from airflow.providers.amazon.aws.hooks.opensearch_serverless import (
+    OpenSearchServerlessHook,
+)
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.utils.helpers import exactly_one
 
@@ -48,12 +50,19 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = None,
     ) -> None:
         if not exactly_one(collection_id is None, collection_name is None):
-            raise AttributeError("Either collection_ids or collection_names must be provided, not both.")
+            raise AttributeError(
+                "Either collection_ids or collection_names must be provided, not both."
+            )
 
         super().__init__(
-            serialized_fields={"collection_id": collection_id, "collection_name": collection_name},
+            serialized_fields={
+                "collection_id": collection_id,
+                "collection_name": collection_name,
+            },
             waiter_name="collection_available",
-            waiter_args={"ids": [collection_id]} if collection_id else {"names": [collection_name]},
+            waiter_args={"ids": [collection_id]}
+            if collection_id
+            else {"names": [collection_name]},
             failure_message="OpenSearch Serverless Collection creation failed.",
             status_message="Status of OpenSearch Serverless Collection is",
             status_queries=["status"],

@@ -203,14 +203,18 @@ class TestAzureBatchHook:
                 batch_models.CloudTask(
                     id="mytask_1",
                     execution_info=batch_models.TaskExecutionInformation(
-                        retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.success
+                        retry_count=0,
+                        requeue_count=0,
+                        result=batch_models.TaskExecutionResult.success,
                     ),
                     state=batch_models.TaskState.completed,
                 ),
                 batch_models.CloudTask(
                     id="mytask_2",
                     execution_info=batch_models.TaskExecutionInformation(
-                        retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.success
+                        retry_count=0,
+                        requeue_count=0,
+                        result=batch_models.TaskExecutionResult.success,
                     ),
                     state=batch_models.TaskState.completed,
                 ),
@@ -228,14 +232,18 @@ class TestAzureBatchHook:
             batch_models.CloudTask(
                 id="mytask_1",
                 execution_info=batch_models.TaskExecutionInformation(
-                    retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.success
+                    retry_count=0,
+                    requeue_count=0,
+                    result=batch_models.TaskExecutionResult.success,
                 ),
                 state=batch_models.TaskState.completed,
             ),
             batch_models.CloudTask(
                 id="mytask_2",
                 execution_info=batch_models.TaskExecutionInformation(
-                    retry_count=0, requeue_count=0, result=batch_models.TaskExecutionResult.failure
+                    retry_count=0,
+                    requeue_count=0,
+                    result=batch_models.TaskExecutionResult.failure,
                 ),
                 state=batch_models.TaskState.completed,
             ),
@@ -257,7 +265,9 @@ class TestAzureBatchHook:
     @mock.patch(f"{MODULE}.BatchServiceClient")
     def test_connection_failure(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
-        hook.connection.job.list = PropertyMock(side_effect=Exception("Authentication failed."))
+        hook.connection.job.list = PropertyMock(
+            side_effect=Exception("Authentication failed.")
+        )
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."

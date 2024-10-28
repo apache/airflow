@@ -109,7 +109,9 @@ class PsrpOperator(BaseOperator):
     ) -> None:
         args = {command, powershell, cmdlet}
         if not exactly_one(*args):
-            raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
+            raise ValueError(
+                "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
+            )
         if arguments and not cmdlet:
             raise ValueError("Arguments only allowed with 'cmdlet'")
         if parameters and not cmdlet:

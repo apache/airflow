@@ -34,7 +34,11 @@ DECOS_TG_PY = PACKAGE_ROOT.joinpath("decorators", "task_group.py")
 
 def _find_dag_init(mod: ast.Module) -> ast.FunctionDef:
     """Find definition of the ``DAG`` class's ``__init__``."""
-    dag_class = next(n for n in ast.iter_child_nodes(mod) if isinstance(n, ast.ClassDef) and n.name == "DAG")
+    dag_class = next(
+        n
+        for n in ast.iter_child_nodes(mod)
+        if isinstance(n, ast.ClassDef) and n.name == "DAG"
+    )
     return next(
         node
         for node in ast.iter_child_nodes(dag_class)
@@ -44,7 +48,11 @@ def _find_dag_init(mod: ast.Module) -> ast.FunctionDef:
 
 def _find_dag_deco(mod: ast.Module) -> ast.FunctionDef:
     """Find definition of the ``@dag`` decorator."""
-    return next(n for n in ast.iter_child_nodes(mod) if isinstance(n, ast.FunctionDef) and n.name == "dag")
+    return next(
+        n
+        for n in ast.iter_child_nodes(mod)
+        if isinstance(n, ast.FunctionDef) and n.name == "dag"
+    )
 
 
 def _find_tg_init(mod: ast.Module) -> ast.FunctionDef:
@@ -80,7 +88,9 @@ def _match_arguments(
 ) -> collections.abc.Iterator[str]:
     init_name, init_args = init_def
     deco_name, deco_args = deco_def
-    for i, (ini, dec) in enumerate(itertools.zip_longest(init_args, deco_args, fillvalue=None)):
+    for i, (ini, dec) in enumerate(
+        itertools.zip_longest(init_args, deco_args, fillvalue=None)
+    ):
         if ini is None and dec is not None:
             yield f"Argument present in @{deco_name} but missing from {init_name}: {dec.arg}"
             return
@@ -89,7 +99,9 @@ def _match_arguments(
             return
 
         if TYPE_CHECKING:
-            assert ini is not None and dec is not None  # Because None is only possible as fillvalue.
+            assert (
+                ini is not None and dec is not None
+            )  # Because None is only possible as fillvalue.
 
         if ini.arg != dec.arg:
             yield f"Argument {i + 1} mismatch: {init_name} has {ini.arg} but @{deco_name} has {dec.arg}"
@@ -101,7 +113,11 @@ def _match_arguments(
             yield f"Do not use type comments on @{deco_name} argument: {dec.arg}"
 
         # Poorly implemented node equality check.
-        if ini.annotation and dec.annotation and ast.dump(ini.annotation) != ast.dump(dec.annotation):
+        if (
+            ini.annotation
+            and dec.annotation
+            and ast.dump(ini.annotation) != ast.dump(dec.annotation)
+        ):
             yield (
                 f"Type annotations differ on argument {ini.arg} between {init_name} and @{deco_name}: "
                 f"{ast.unparse(ini.annotation)} != {ast.unparse(dec.annotation)}"
@@ -136,12 +152,23 @@ def check_dag_init_decorator_arguments() -> int:
 
     items_to_check = [
         ("DAG", _find_dag_init(dag_mod), "dag", _find_dag_deco(dag_mod), "dag_id", ""),
-        ("TaskGroup", _find_tg_init(utils_tg), "task_group", _find_tg_deco(decos_tg), "group_id", None),
+        (
+            "TaskGroup",
+            _find_tg_init(utils_tg),
+            "task_group",
+            _find_tg_deco(decos_tg),
+            "group_id",
+            None,
+        ),
     ]
 
     for init_name, init, deco_name, deco, id_arg, id_default in items_to_check:
-        if getattr(init.args, "posonlyargs", None) or getattr(deco.args, "posonlyargs", None):
-            print(f"{init_name} and @{deco_name} should not declare positional-only arguments")
+        if getattr(init.args, "posonlyargs", None) or getattr(
+            deco.args, "posonlyargs", None
+        ):
+            print(
+                f"{init_name} and @{deco_name} should not declare positional-only arguments"
+            )
             return -1
         if init.args.vararg or init.args.kwarg or deco.args.vararg or deco.args.kwarg:
             print(f"{init_name} and @{deco_name} should not declare *args and **kwargs")
@@ -149,10 +176,14 @@ def check_dag_init_decorator_arguments() -> int:
 
         # Feel free to change this and make some of the arguments keyword-only!
         if init.args.kwonlyargs or deco.args.kwonlyargs:
-            print(f"{init_name}() and @{deco_name}() should not declare keyword-only arguments")
+            print(
+                f"{init_name}() and @{deco_name}() should not declare keyword-only arguments"
+            )
             return -2
         if init.args.kw_defaults or deco.args.kw_defaults:
-            print(f"{init_name}() and @{deco_name}() should not declare keyword-only arguments")
+            print(
+                f"{init_name}() and @{deco_name}() should not declare keyword-only arguments"
+            )
             return -2
 
         init_arg_names = [a.arg for a in init.args.args]
@@ -169,22 +200,31 @@ def check_dag_init_decorator_arguments() -> int:
             return -3
 
         if len(init.args.defaults) != len(init_arg_names) - 2:
-            print(f"All arguments on {init_name} except self and {id_arg} must have defaults")
+            print(
+                f"All arguments on {init_name} except self and {id_arg} must have defaults"
+            )
             return -4
         if len(deco.args.defaults) != len(deco_arg_names):
             print(f"All arguments on @{deco_name} must have defaults")
             return -4
-        if isinstance(deco.args.defaults[0], ast.Constant) and deco.args.defaults[0].value != id_default:
+        if (
+            isinstance(deco.args.defaults[0], ast.Constant)
+            and deco.args.defaults[0].value != id_default
+        ):
             print(f"Default {id_arg} on @{deco_name} must be {id_default!r}")
             return -4
 
     for init_name, init, deco_name, deco, _, _ in items_to_check:
-        errors = list(_match_arguments((init_name, init.args.args[1:]), (deco_name, deco.args.args)))
+        errors = list(
+            _match_arguments((init_name, init.args.args[1:]), (deco_name, deco.args.args))
+        )
         if errors:
             break
         init_defaults_def = (init_name, init.args.defaults)
         deco_defaults_def = (deco_name, deco.args.defaults[1:])
-        errors = list(_match_defaults(deco_arg_names, init_defaults_def, deco_defaults_def))
+        errors = list(
+            _match_defaults(deco_arg_names, init_defaults_def, deco_defaults_def)
+        )
         if errors:
             break
 

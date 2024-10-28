@@ -143,7 +143,9 @@ class TestXCom:
         assert ret_value == {"key": "value"}
 
     @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_deserialize_pickle_when_xcom_pickling_is_disabled(self, task_instance, session):
+    def test_xcom_deserialize_pickle_when_xcom_pickling_is_disabled(
+        self, task_instance, session
+    ):
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
             XCom.set(
                 key="xcom_test3",
@@ -194,7 +196,9 @@ class TestXCom:
         mock_orm_deserialize.assert_called_once_with()
 
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
-    def test_get_one_custom_backend_no_use_orm_deserialize_value(self, task_instance, session):
+    def test_get_one_custom_backend_no_use_orm_deserialize_value(
+        self, task_instance, session
+    ):
         """Test that XCom.get_one does not call orm_deserialize_value"""
         XCom = resolve_xcom_backend()
         XCom.set(
@@ -310,7 +314,9 @@ class TestXComGet:
         assert stored_value == {"key": "value"}
 
     @pytest.fixture
-    def tis_for_xcom_get_one_from_prior_date(self, task_instance_factory, push_simple_json_xcom):
+    def tis_for_xcom_get_one_from_prior_date(
+        self, task_instance_factory, push_simple_json_xcom
+    ):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
         ti1 = task_instance_factory(dag_id="dag", execution_date=date1, task_id="task_1")
         ti2 = task_instance_factory(
@@ -325,7 +331,9 @@ class TestXComGet:
 
         return ti1, ti2
 
-    def test_xcom_get_one_from_prior_date(self, session, tis_for_xcom_get_one_from_prior_date):
+    def test_xcom_get_one_from_prior_date(
+        self, session, tis_for_xcom_get_one_from_prior_date
+    ):
         _, ti2 = tis_for_xcom_get_one_from_prior_date
         retrieved_value = XCom.get_one(
             run_id=ti2.run_id,
@@ -339,7 +347,9 @@ class TestXComGet:
 
     @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
-    def setup_for_xcom_get_many_single_argument_value(self, task_instance, push_simple_json_xcom):
+    def setup_for_xcom_get_many_single_argument_value(
+        self, task_instance, push_simple_json_xcom
+    ):
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
 
     @pytest.mark.skip_if_database_isolation_mode
@@ -358,7 +368,9 @@ class TestXComGet:
 
     @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
-    def setup_for_xcom_get_many_multiple_tasks(self, task_instances, push_simple_json_xcom):
+    def setup_for_xcom_get_many_multiple_tasks(
+        self, task_instances, push_simple_json_xcom
+    ):
         ti1, ti2 = task_instances
         push_simple_json_xcom(ti=ti1, key="xcom_1", value={"key1": "value1"})
         push_simple_json_xcom(ti=ti2, key="xcom_1", value={"key2": "value2"})
@@ -373,11 +385,15 @@ class TestXComGet:
             run_id=task_instance.run_id,
             session=session,
         )
-        sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
+        sorted_values = [
+            x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))
+        ]
         assert sorted_values == [{"key1": "value1"}, {"key2": "value2"}]
 
     @pytest.fixture
-    def tis_for_xcom_get_many_from_prior_dates(self, task_instance_factory, push_simple_json_xcom):
+    def tis_for_xcom_get_many_from_prior_dates(
+        self, task_instance_factory, push_simple_json_xcom
+    ):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
         date2 = date1 + datetime.timedelta(days=1)
         ti1 = task_instance_factory(dag_id="dag", task_id="task_1", execution_date=date1)
@@ -387,7 +403,9 @@ class TestXComGet:
         return ti1, ti2
 
     @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_get_many_from_prior_dates(self, session, tis_for_xcom_get_many_from_prior_dates):
+    def test_xcom_get_many_from_prior_dates(
+        self, session, tis_for_xcom_get_many_from_prior_dates
+    ):
         ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
         stored_xcoms = XCom.get_many(
             run_id=ti2.run_id,
@@ -400,7 +418,10 @@ class TestXComGet:
 
         # The retrieved XComs should be ordered by logical date, latest first.
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
-        assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
+        assert [x.execution_date for x in stored_xcoms] == [
+            ti2.execution_date,
+            ti1.execution_date,
+        ]
 
 
 @pytest.mark.usefixtures("setup_xcom_pickling")

@@ -39,7 +39,9 @@ class TestEmrServerlessHook:
 
     @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
     def test_cancel_jobs(self, conn_mock: MagicMock):
-        conn_mock().get_paginator().paginate.return_value = [{"jobRuns": [{"id": "job1"}, {"id": "job2"}]}]
+        conn_mock().get_paginator().paginate.return_value = [
+            {"jobRuns": [{"id": "job1"}, {"id": "job2"}]}
+        ]
         hook = EmrServerlessHook(aws_conn_id="aws_default")
         waiter_mock = MagicMock()
         hook.get_waiter = waiter_mock  # type:ignore[method-assign]

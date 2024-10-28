@@ -44,9 +44,12 @@ class TestTrinoToMySqlTransfer:
     def test_execute(self, mock_trino_hook, mock_mysql_hook):
         TrinoToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_trino_hook.return_value.get_records.assert_called_once_with(self.kwargs["sql"])
+        mock_trino_hook.return_value.get_records.assert_called_once_with(
+            self.kwargs["sql"]
+        )
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs["mysql_table"], rows=mock_trino_hook.return_value.get_records.return_value
+            table=self.kwargs["mysql_table"],
+            rows=mock_trino_hook.return_value.get_records.return_value,
         )
 
     @patch("airflow.providers.mysql.transfers.trino_to_mysql.MySqlHook")
@@ -56,14 +59,20 @@ class TestTrinoToMySqlTransfer:
 
         TrinoToMySqlOperator(**self.kwargs).execute(context={})
 
-        mock_trino_hook.return_value.get_records.assert_called_once_with(self.kwargs["sql"])
-        mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs["mysql_preoperator"])
+        mock_trino_hook.return_value.get_records.assert_called_once_with(
+            self.kwargs["sql"]
+        )
+        mock_mysql_hook.return_value.run.assert_called_once_with(
+            self.kwargs["mysql_preoperator"]
+        )
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
-            table=self.kwargs["mysql_table"], rows=mock_trino_hook.return_value.get_records.return_value
+            table=self.kwargs["mysql_table"],
+            rows=mock_trino_hook.return_value.get_records.return_value,
         )
 
     @pytest.mark.skipif(
-        "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
+        "AIRFLOW_RUNALL_TESTS" not in os.environ,
+        reason="Skipped because AIRFLOW_RUNALL_TESTS is not set",
     )
     def test_trino_to_mysql(self):
         op = TrinoToMySqlOperator(

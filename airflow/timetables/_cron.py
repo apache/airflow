@@ -19,7 +19,12 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any
 
-from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
+from cron_descriptor import (
+    CasingTypeEnum,
+    ExpressionDescriptor,
+    FormatException,
+    MissingFieldException,
+)
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 
 from airflow.exceptions import AirflowTimetableInvalid
@@ -72,7 +77,9 @@ class CronMixin:
 
         try:
             descriptor = ExpressionDescriptor(
-                expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+                expression=self._expression,
+                casing_type=CasingTypeEnum.Sentence,
+                use_24hour_time_format=True,
             )
             # checking for more than 5 parameters in Cron and avoiding evaluation for now,
             # as Croniter has inconsistent evaluation with other libraries

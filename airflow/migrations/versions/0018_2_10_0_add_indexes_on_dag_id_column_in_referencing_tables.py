@@ -40,7 +40,9 @@ airflow_version = "2.10.0"
 def upgrade():
     """Apply Add indexes on dag_id column in referencing tables."""
     with op.batch_alter_table("dag_schedule_dataset_reference") as batch_op:
-        batch_op.create_index("idx_dag_schedule_dataset_reference_dag_id", ["dag_id"], unique=False)
+        batch_op.create_index(
+            "idx_dag_schedule_dataset_reference_dag_id", ["dag_id"], unique=False
+        )
 
     with op.batch_alter_table("dag_tag") as batch_op:
         batch_op.create_index("idx_dag_tag_dag_id", ["dag_id"], unique=False)
@@ -49,10 +51,14 @@ def upgrade():
         batch_op.create_index("idx_dag_warning_dag_id", ["dag_id"], unique=False)
 
     with op.batch_alter_table("dataset_dag_run_queue") as batch_op:
-        batch_op.create_index("idx_dataset_dag_run_queue_target_dag_id", ["target_dag_id"], unique=False)
+        batch_op.create_index(
+            "idx_dataset_dag_run_queue_target_dag_id", ["target_dag_id"], unique=False
+        )
 
     with op.batch_alter_table("task_outlet_dataset_reference") as batch_op:
-        batch_op.create_index("idx_task_outlet_dataset_reference_dag_id", ["dag_id"], unique=False)
+        batch_op.create_index(
+            "idx_task_outlet_dataset_reference_dag_id", ["dag_id"], unique=False
+        )
 
 
 def _handle_foreign_key_constraint_index_deletion(

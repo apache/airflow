@@ -106,7 +106,9 @@ with DAG(
     )
     # [END teradata_operator_howto_guide_drop_country_table]
     # [START teradata_operator_howto_guide_drop_users_table]
-    drop_users_table = TeradataOperator(task_id="drop_users_table", sql=r"DROP TABLE SSL_Users;", dag=dag)
+    drop_users_table = TeradataOperator(
+        task_id="drop_users_table", sql=r"DROP TABLE SSL_Users;", dag=dag
+    )
     # [END teradata_operator_howto_guide_drop_users_table]
 
     (

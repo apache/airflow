@@ -47,7 +47,10 @@ class TimeSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
-        return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
+        return (
+            timezone.make_naive(timezone.utcnow(), self.dag.timezone).time()
+            > self.target_time
+        )
 
 
 class TimeSensorAsync(BaseSensorOperator):
@@ -91,7 +94,9 @@ class TimeSensorAsync(BaseSensorOperator):
         self.target_time = target_time
 
         aware_time = timezone.coerce_datetime(
-            datetime.datetime.combine(datetime.datetime.today(), self.target_time, self.dag.timezone)
+            datetime.datetime.combine(
+                datetime.datetime.today(), self.target_time, self.dag.timezone
+            )
         )
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
@@ -102,7 +107,9 @@ class TimeSensorAsync(BaseSensorOperator):
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
-            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger),
+            trigger=DateTimeTrigger(
+                moment=self.target_datetime, end_from_trigger=self.end_from_trigger
+            ),
             method_name="execute_complete",
         )
 

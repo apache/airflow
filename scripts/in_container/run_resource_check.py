@@ -80,17 +80,23 @@ def resoure_validate():
         check = "" if resource == "Cpus" else "GB"
 
         if capacity.current < capacity.minimumAllowed:
-            console.print(f"[yellow]WARNING!!!: Not enough {resource} available for Docker.")
+            console.print(
+                f"[yellow]WARNING!!!: Not enough {resource} available for Docker."
+            )
             print(
                 f"At least {capacity.minimumAllowed}{check} of {resource} required. "
                 f" You have {capacity.current}{check}\n"
             )
             warning_resources = True
         else:
-            console.print(f" * {resource} available {capacity.current}{check}. [green]OK.")
+            console.print(
+                f" * {resource} available {capacity.current}{check}. [green]OK."
+            )
 
     if warning_resources:
-        console.print("[yellow]WARNING!!!: You have not enough resources to run Airflow (see above)!")
+        console.print(
+            "[yellow]WARNING!!!: You have not enough resources to run Airflow (see above)!"
+        )
         print("Please follow the instructions to increase amount of resources available:")
         console.print(
             " Please check https://github.com/apache/airflow/blob/main/dev/breeze/doc/01_installation.rst#resources-required"

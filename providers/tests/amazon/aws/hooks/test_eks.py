@@ -116,16 +116,18 @@ def cluster_builder():
             self.nonexistent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
 
             # Collect the output of describe_cluster() for the first Cluster.
-            self.cluster_describe_output: dict = eks_hook.describe_cluster(name=self.existing_cluster_name)[
-                ResponseAttributes.CLUSTER
-            ]
+            self.cluster_describe_output: dict = eks_hook.describe_cluster(
+                name=self.existing_cluster_name
+            )[ResponseAttributes.CLUSTER]
 
             # Generate a list of the Cluster attributes to be tested when validating results.
             self.attributes_to_test: list[tuple] = attributes_to_test(
                 inputs=ClusterInputs, cluster_name=self.existing_cluster_name
             )
 
-    def _execute(count: int = 1, minimal: bool = True) -> tuple[EksHook, ClusterTestDataFactory]:
+    def _execute(
+        count: int = 1, minimal: bool = True
+    ) -> tuple[EksHook, ClusterTestDataFactory]:
         return eks_hook, ClusterTestDataFactory(count=count, minimal=minimal)
 
     with mock_aws():
@@ -158,7 +160,8 @@ def fargate_profile_builder(cluster_builder):
 
             # Collect the output of describe_fargate_profiles() for the first profile.
             self.fargate_describe_output: dict = eks_hook.describe_fargate_profile(
-                clusterName=self.cluster_name, fargateProfileName=self.existing_fargate_profile_name
+                clusterName=self.cluster_name,
+                fargateProfileName=self.existing_fargate_profile_name,
             )[ResponseAttributes.FARGATE_PROFILE]
 
             # Generate a list of the Fargate Profile attributes to be tested when validating results.
@@ -168,7 +171,9 @@ def fargate_profile_builder(cluster_builder):
                 fargate_profile_name=self.existing_fargate_profile_name,
             )
 
-    def _execute(count: int = 1, minimal: bool = True) -> tuple[EksHook, FargateProfileTestDataFactory]:
+    def _execute(
+        count: int = 1, minimal: bool = True
+    ) -> tuple[EksHook, FargateProfileTestDataFactory]:
         return eks_hook, FargateProfileTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -210,7 +215,9 @@ def nodegroup_builder(cluster_builder):
                 nodegroup_name=self.existing_nodegroup_name,
             )
 
-    def _execute(count: int = 1, minimal: bool = True) -> tuple[EksHook, NodegroupTestDataFactory]:
+    def _execute(
+        count: int = 1, minimal: bool = True
+    ) -> tuple[EksHook, NodegroupTestDataFactory]:
         return eks_hook, NodegroupTestDataFactory(count=count, minimal=minimal)
 
     eks_hook, cluster = cluster_builder()
@@ -295,30 +302,40 @@ class TestEksHooks:
         assert_all_arn_values_are_valid(
             expected_arn_values=expected_arn_values,
             pattern=RegExTemplates.CLUSTER_ARN,
-            arn_under_test=generated_test_data.cluster_describe_output[ClusterAttributes.ARN],
+            arn_under_test=generated_test_data.cluster_describe_output[
+                ClusterAttributes.ARN
+            ],
         )
 
     @time_machine.travel(FROZEN_TIME, tick=False)
-    def test_create_cluster_generates_valid_cluster_created_timestamp(self, cluster_builder) -> None:
+    def test_create_cluster_generates_valid_cluster_created_timestamp(
+        self, cluster_builder
+    ) -> None:
         _, generated_test_data = cluster_builder()
 
-        result_time: datetime = generated_test_data.cluster_describe_output[ClusterAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.cluster_describe_output[
+            ClusterAttributes.CREATED_AT
+        ]
 
         assert iso_date(result_time) == FROZEN_TIME
 
-    def test_create_cluster_generates_valid_cluster_endpoint(self, cluster_builder) -> None:
+    def test_create_cluster_generates_valid_cluster_endpoint(
+        self, cluster_builder
+    ) -> None:
         _, generated_test_data = cluster_builder()
 
-        result_endpoint: str = generated_test_data.cluster_describe_output[ClusterAttributes.ENDPOINT]
+        result_endpoint: str = generated_test_data.cluster_describe_output[
+            ClusterAttributes.ENDPOINT
+        ]
 
         assert_is_valid_uri(result_endpoint)
 
     def test_create_cluster_generates_valid_oidc_identity(self, cluster_builder) -> None:
         _, generated_test_data = cluster_builder()
 
-        result_issuer: str = generated_test_data.cluster_describe_output[ClusterAttributes.IDENTITY][
-            ClusterAttributes.OIDC
-        ][ClusterAttributes.ISSUER]
+        result_issuer: str = generated_test_data.cluster_describe_output[
+            ClusterAttributes.IDENTITY
+        ][ClusterAttributes.OIDC][ClusterAttributes.ISSUER]
 
         assert_is_valid_uri(result_issuer)
 
@@ -349,11 +366,13 @@ class TestEksHooks:
     def test_delete_cluster_returns_deleted_cluster(
         self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
     ) -> None:
-        eks_hook, generated_test_data = cluster_builder(count=initial_batch_size, minimal=False)
+        eks_hook, generated_test_data = cluster_builder(
+            count=initial_batch_size, minimal=False
+        )
 
-        result: dict = eks_hook.delete_cluster(name=generated_test_data.existing_cluster_name)[
-            ResponseAttributes.CLUSTER
-        ]
+        result: dict = eks_hook.delete_cluster(
+            name=generated_test_data.existing_cluster_name
+        )[ResponseAttributes.CLUSTER]
 
         for key, expected_value in generated_test_data.attributes_to_test:
             assert result[key] == expected_value
@@ -361,7 +380,9 @@ class TestEksHooks:
     def test_delete_cluster_removes_deleted_cluster(
         self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
     ) -> None:
-        eks_hook, generated_test_data = cluster_builder(count=initial_batch_size, minimal=False)
+        eks_hook, generated_test_data = cluster_builder(
+            count=initial_batch_size, minimal=False
+        )
 
         eks_hook.delete_cluster(name=generated_test_data.existing_cluster_name)
         result_cluster_list: list = eks_hook.list_clusters()
@@ -393,7 +414,9 @@ class TestEksHooks:
     def test_list_nodegroups_returns_empty_by_default(self, cluster_builder) -> None:
         eks_hook, generated_test_data = cluster_builder()
 
-        result: list = eks_hook.list_nodegroups(clusterName=generated_test_data.existing_cluster_name)
+        result: list = eks_hook.list_nodegroups(
+            clusterName=generated_test_data.existing_cluster_name
+        )
 
         assert isinstance(result, list)
         assert len(result) == 0
@@ -404,7 +427,9 @@ class TestEksHooks:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.nodegroup_names)
 
-        result: list = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
+        result: list = eks_hook.list_nodegroups(
+            clusterName=generated_test_data.cluster_name
+        )
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
@@ -414,7 +439,9 @@ class TestEksHooks:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.nodegroup_names)
 
-        result: list = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
+        result: list = eks_hook.list_nodegroups(
+            clusterName=generated_test_data.cluster_name
+        )
 
         assert_result_matches_expected_list(result, expected_result)
 
@@ -498,7 +525,9 @@ class TestEksHooks:
         )
         assert nodegroup_count_after_test == initial_batch_size
 
-    def test_create_nodegroup_generates_valid_nodegroup_arn(self, nodegroup_builder) -> None:
+    def test_create_nodegroup_generates_valid_nodegroup_arn(
+        self, nodegroup_builder
+    ) -> None:
         _, generated_test_data = nodegroup_builder()
         expected_arn_values: list = [
             PARTITION,
@@ -512,42 +541,64 @@ class TestEksHooks:
         assert_all_arn_values_are_valid(
             expected_arn_values=expected_arn_values,
             pattern=RegExTemplates.NODEGROUP_ARN,
-            arn_under_test=generated_test_data.nodegroup_describe_output[NodegroupAttributes.ARN],
+            arn_under_test=generated_test_data.nodegroup_describe_output[
+                NodegroupAttributes.ARN
+            ],
         )
 
     @time_machine.travel(FROZEN_TIME, tick=False)
-    def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(self, nodegroup_builder) -> None:
+    def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(
+        self, nodegroup_builder
+    ) -> None:
         _, generated_test_data = nodegroup_builder()
 
-        result_time: datetime = generated_test_data.nodegroup_describe_output[NodegroupAttributes.CREATED_AT]
+        result_time: datetime = generated_test_data.nodegroup_describe_output[
+            NodegroupAttributes.CREATED_AT
+        ]
 
         assert iso_date(result_time) == FROZEN_TIME
 
     @time_machine.travel(FROZEN_TIME, tick=False)
-    def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(self, nodegroup_builder) -> None:
+    def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(
+        self, nodegroup_builder
+    ) -> None:
         _, generated_test_data = nodegroup_builder()
 
-        result_time: datetime = generated_test_data.nodegroup_describe_output[NodegroupAttributes.MODIFIED_AT]
+        result_time: datetime = generated_test_data.nodegroup_describe_output[
+            NodegroupAttributes.MODIFIED_AT
+        ]
 
         assert iso_date(result_time) == FROZEN_TIME
 
-    def test_create_nodegroup_generates_valid_autoscaling_group_name(self, nodegroup_builder) -> None:
+    def test_create_nodegroup_generates_valid_autoscaling_group_name(
+        self, nodegroup_builder
+    ) -> None:
         _, generated_test_data = nodegroup_builder()
-        result_resources: dict = generated_test_data.nodegroup_describe_output[NodegroupAttributes.RESOURCES]
-
-        result_asg_name: str = result_resources[NodegroupAttributes.AUTOSCALING_GROUPS][0][
-            NodegroupAttributes.NAME
+        result_resources: dict = generated_test_data.nodegroup_describe_output[
+            NodegroupAttributes.RESOURCES
         ]
+
+        result_asg_name: str = result_resources[NodegroupAttributes.AUTOSCALING_GROUPS][
+            0
+        ][NodegroupAttributes.NAME]
 
         assert RegExTemplates.NODEGROUP_ASG_NAME_PATTERN.match(result_asg_name)
 
-    def test_create_nodegroup_generates_valid_security_group_name(self, nodegroup_builder) -> None:
+    def test_create_nodegroup_generates_valid_security_group_name(
+        self, nodegroup_builder
+    ) -> None:
         _, generated_test_data = nodegroup_builder()
-        result_resources: dict = generated_test_data.nodegroup_describe_output[NodegroupAttributes.RESOURCES]
+        result_resources: dict = generated_test_data.nodegroup_describe_output[
+            NodegroupAttributes.RESOURCES
+        ]
 
-        result_security_group: str = result_resources[NodegroupAttributes.REMOTE_ACCESS_SG]
+        result_security_group: str = result_resources[
+            NodegroupAttributes.REMOTE_ACCESS_SG
+        ]
 
-        assert RegExTemplates.NODEGROUP_SECURITY_GROUP_NAME_PATTERN.match(result_security_group)
+        assert RegExTemplates.NODEGROUP_SECURITY_GROUP_NAME_PATTERN.match(
+            result_security_group
+        )
 
     def test_create_nodegroup_saves_provided_parameters(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder(minimal=False)
@@ -557,17 +608,23 @@ class TestEksHooks:
 
     def test_create_nodegroup_without_tags_uses_default(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
-        tag_list: dict = generated_test_data.nodegroup_describe_output[NodegroupAttributes.TAGS]
+        tag_list: dict = generated_test_data.nodegroup_describe_output[
+            NodegroupAttributes.TAGS
+        ]
         ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(
             cluster_name=generated_test_data.cluster_name
         )
 
         assert tag_list.get(ownership_tag_key) == NODEGROUP_OWNERSHIP_TAG_DEFAULT_VALUE
 
-    def test_create_nodegroup_with_ownership_tag_uses_provided_value(self, cluster_builder) -> None:
+    def test_create_nodegroup_with_ownership_tag_uses_provided_value(
+        self, cluster_builder
+    ) -> None:
         eks_hook, generated_test_data = cluster_builder()
         cluster_name: str = generated_test_data.existing_cluster_name
-        ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(cluster_name=cluster_name)
+        ownership_tag_key: str = NODEGROUP_OWNERSHIP_TAG_KEY.format(
+            cluster_name=cluster_name
+        )
         provided_tag_value: str = "shared"
 
         created_nodegroup: dict = eks_hook.create_nodegroup(
@@ -581,7 +638,9 @@ class TestEksHooks:
         assert tags is not None
         assert tags.get(ownership_tag_key) == provided_tag_value
 
-    def test_describe_nodegroup_throws_exception_when_cluster_not_found(self, nodegroup_builder) -> None:
+    def test_describe_nodegroup_throws_exception_when_cluster_not_found(
+        self, nodegroup_builder
+    ) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
         expected_exception: type[AWSError] = ResourceNotFoundException
         expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(
@@ -600,7 +659,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
-    def test_describe_nodegroup_throws_exception_when_nodegroup_not_found(self, nodegroup_builder) -> None:
+    def test_describe_nodegroup_throws_exception_when_nodegroup_not_found(
+        self, nodegroup_builder
+    ) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
         expected_exception: type[AWSError] = ResourceNotFoundException
         expected_msg: str = NODEGROUP_NOT_FOUND_MSG.format(
@@ -619,7 +680,9 @@ class TestEksHooks:
             raised_exception=raised_exception,
         )
 
-    def test_delete_cluster_throws_exception_when_nodegroups_exist(self, nodegroup_builder) -> None:
+    def test_delete_cluster_throws_exception_when_nodegroups_exist(
+        self, nodegroup_builder
+    ) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
         expected_exception: type[AWSError] = ResourceInUseException
         expected_msg: str = CLUSTER_IN_USE_MSG
@@ -645,7 +708,9 @@ class TestEksHooks:
             clusterName=generated_test_data.cluster_name,
             nodegroupName=generated_test_data.existing_nodegroup_name,
         )
-        result_nodegroup_list: list = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
+        result_nodegroup_list: list = eks_hook.list_nodegroups(
+            clusterName=generated_test_data.cluster_name
+        )
 
         assert len(result_nodegroup_list) == (initial_batch_size - 1)
         assert generated_test_data.existing_nodegroup_name not in result_nodegroup_list
@@ -653,7 +718,9 @@ class TestEksHooks:
     def test_delete_nodegroup_returns_deleted_nodegroup(
         self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
     ) -> None:
-        eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size, minimal=False)
+        eks_hook, generated_test_data = nodegroup_builder(
+            count=initial_batch_size, minimal=False
+        )
 
         result: dict = eks_hook.delete_nodegroup(
             clusterName=generated_test_data.cluster_name,
@@ -663,7 +730,9 @@ class TestEksHooks:
         for key, expected_value in generated_test_data.attributes_to_test:
             assert result[key] == expected_value
 
-    def test_delete_nodegroup_throws_exception_when_cluster_not_found(self, nodegroup_builder) -> None:
+    def test_delete_nodegroup_throws_exception_when_cluster_not_found(
+        self, nodegroup_builder
+    ) -> None:
         eks_hook, generated_test_data = nodegroup_builder()
         expected_exception: type[AWSError] = ResourceNotFoundException
         expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(
@@ -725,9 +794,21 @@ class TestEksHooks:
         (LAUNCH_TEMPLATE, None, DISK_SIZE, None, PossibleTestResults.FAILURE),
         (LAUNCH_TEMPLATE, None, None, REMOTE_ACCESS, PossibleTestResults.FAILURE),
         (LAUNCH_TEMPLATE, INSTANCE_TYPES, DISK_SIZE, None, PossibleTestResults.FAILURE),
-        (LAUNCH_TEMPLATE, INSTANCE_TYPES, None, REMOTE_ACCESS, PossibleTestResults.FAILURE),
+        (
+            LAUNCH_TEMPLATE,
+            INSTANCE_TYPES,
+            None,
+            REMOTE_ACCESS,
+            PossibleTestResults.FAILURE,
+        ),
         (LAUNCH_TEMPLATE, None, DISK_SIZE, REMOTE_ACCESS, PossibleTestResults.FAILURE),
-        (LAUNCH_TEMPLATE, INSTANCE_TYPES, DISK_SIZE, REMOTE_ACCESS, PossibleTestResults.FAILURE),
+        (
+            LAUNCH_TEMPLATE,
+            INSTANCE_TYPES,
+            DISK_SIZE,
+            REMOTE_ACCESS,
+            PossibleTestResults.FAILURE,
+        ),
     ]
 
     @pytest.mark.parametrize(
@@ -761,12 +842,18 @@ class TestEksHooks:
                     (NodegroupAttributes.NODEGROUP_NAME, nodegroup_name),
                 ]
                 # Test Case Values
-                + [_ for _ in [launch_template, instance_types, disk_size, remote_access] if _]
+                + [
+                    _
+                    for _ in [launch_template, instance_types, disk_size, remote_access]
+                    if _
+                ]
             )
         )
 
         if expected_result == PossibleTestResults.SUCCESS:
-            result: dict = eks_hook.create_nodegroup(**test_inputs)[ResponseAttributes.NODEGROUP]
+            result: dict = eks_hook.create_nodegroup(**test_inputs)[
+                ResponseAttributes.NODEGROUP
+            ]
 
             expected_output = deepcopy(test_inputs)
             # The Create Nodegroup hook magically adds the required
@@ -797,10 +884,14 @@ class TestEksHooks:
                 raised_exception=raised_exception,
             )
 
-    def test_list_fargate_profiles_returns_empty_by_default(self, cluster_builder) -> None:
+    def test_list_fargate_profiles_returns_empty_by_default(
+        self, cluster_builder
+    ) -> None:
         eks_hook, generated_test_data = cluster_builder()
 
-        result: list = eks_hook.list_fargate_profiles(clusterName=generated_test_data.existing_cluster_name)
+        result: list = eks_hook.list_fargate_profiles(
+            clusterName=generated_test_data.existing_cluster_name
+        )
 
         assert isinstance(result, list)
         assert len(result) == 0
@@ -811,7 +902,9 @@ class TestEksHooks:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.fargate_profile_names)
 
-        result: list = eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+        result: list = eks_hook.list_fargate_profiles(
+            clusterName=generated_test_data.cluster_name
+        )
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
@@ -821,7 +914,9 @@ class TestEksHooks:
         eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
         expected_result: list = sorted(generated_test_data.fargate_profile_names)
 
-        result: list = eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+        result: list = eks_hook.list_fargate_profiles(
+            clusterName=generated_test_data.cluster_name
+        )
 
         assert_result_matches_expected_list(result, expected_result)
 
@@ -831,7 +926,9 @@ class TestEksHooks:
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
         non_existent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
         expected_exception: type[AWSError] = ResourceNotFoundException
-        expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(clusterName=non_existent_cluster_name)
+        expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(
+            clusterName=non_existent_cluster_name
+        )
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_fargate_profile(
@@ -900,7 +997,9 @@ class TestEksHooks:
         )
         assert fargate_profile_count_after_test == initial_batch_size
 
-    def test_create_fargate_profile_generates_valid_profile_arn(self, fargate_profile_builder) -> None:
+    def test_create_fargate_profile_generates_valid_profile_arn(
+        self, fargate_profile_builder
+    ) -> None:
         _, generated_test_data = fargate_profile_builder()
         expected_arn_values: list = [
             PARTITION,
@@ -914,11 +1013,15 @@ class TestEksHooks:
         assert_all_arn_values_are_valid(
             expected_arn_values=expected_arn_values,
             pattern=RegExTemplates.FARGATE_PROFILE_ARN,
-            arn_under_test=generated_test_data.fargate_describe_output[FargateProfileAttributes.ARN],
+            arn_under_test=generated_test_data.fargate_describe_output[
+                FargateProfileAttributes.ARN
+            ],
         )
 
     @time_machine.travel(FROZEN_TIME, tick=False)
-    def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
+    def test_create_fargate_profile_generates_valid_created_timestamp(
+        self, fargate_profile_builder
+    ) -> None:
         _, generated_test_data = fargate_profile_builder()
 
         result_time: datetime = generated_test_data.fargate_describe_output[
@@ -927,7 +1030,9 @@ class TestEksHooks:
 
         assert iso_date(result_time) == FROZEN_TIME
 
-    def test_create_fargate_profile_saves_provided_parameters(self, fargate_profile_builder) -> None:
+    def test_create_fargate_profile_saves_provided_parameters(
+        self, fargate_profile_builder
+    ) -> None:
         _, generated_test_data = fargate_profile_builder(minimal=False)
 
         for key, expected_value in generated_test_data.attributes_to_test:
@@ -989,12 +1094,17 @@ class TestEksHooks:
         )
 
         assert len(result_fargate_profile_list) == (initial_batch_size - 1)
-        assert generated_test_data.existing_fargate_profile_name not in result_fargate_profile_list
+        assert (
+            generated_test_data.existing_fargate_profile_name
+            not in result_fargate_profile_list
+        )
 
     def test_delete_fargate_profile_returns_deleted_fargate_profile(
         self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
     ) -> None:
-        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size, minimal=False)
+        eks_hook, generated_test_data = fargate_profile_builder(
+            count=initial_batch_size, minimal=False
+        )
 
         result: dict = eks_hook.delete_fargate_profile(
             clusterName=generated_test_data.cluster_name,
@@ -1088,7 +1198,9 @@ class TestEksHooks:
             [
                 {
                     FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
-                    FargateProfileAttributes.LABELS: generate_dict("label", MAX_FARGATE_LABELS),
+                    FargateProfileAttributes.LABELS: generate_dict(
+                        "label", MAX_FARGATE_LABELS
+                    ),
                 }
             ],
             None,
@@ -1119,7 +1231,9 @@ class TestEksHooks:
             [
                 {
                     FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
-                    FargateProfileAttributes.LABELS: generate_dict("label", MAX_FARGATE_LABELS + 1),
+                    FargateProfileAttributes.LABELS: generate_dict(
+                        "label", MAX_FARGATE_LABELS + 1
+                    ),
                 }
             ],
             FARGATE_PROFILE_TOO_MANY_LABELS,
@@ -1145,7 +1259,9 @@ class TestEksHooks:
                 {FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE},
                 {
                     FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
-                    FargateProfileAttributes.LABELS: generate_dict("label", MAX_FARGATE_LABELS + 1),
+                    FargateProfileAttributes.LABELS: generate_dict(
+                        "label", MAX_FARGATE_LABELS + 1
+                    ),
                 },
             ],
             FARGATE_PROFILE_TOO_MANY_LABELS,
@@ -1158,7 +1274,9 @@ class TestEksHooks:
         selector_formatting_test_cases,
     )
     @mock_aws
-    def test_create_fargate_selectors(self, cluster_builder, selectors, expected_message, expected_result):
+    def test_create_fargate_selectors(
+        self, cluster_builder, selectors, expected_message, expected_result
+    ):
         client, generated_test_data = cluster_builder()
         cluster_name: str = generated_test_data.existing_cluster_name
         fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
@@ -1179,7 +1297,9 @@ class TestEksHooks:
         )
 
         if expected_result == PossibleTestResults.SUCCESS:
-            result: list = client.create_fargate_profile(**test_inputs)[ResponseAttributes.FARGATE_PROFILE]
+            result: list = client.create_fargate_profile(**test_inputs)[
+                ResponseAttributes.FARGATE_PROFILE
+            ]
             for key, expected_value in test_inputs.items():
                 assert result[key] == expected_value
         else:
@@ -1238,9 +1358,14 @@ class TestEksHook:
             ],
         ],
     )
-    def test_generate_config_file(self, mock_conn, aws_conn_id, region_name, expected_args):
+    def test_generate_config_file(
+        self, mock_conn, aws_conn_id, region_name, expected_args
+    ):
         mock_conn.describe_cluster.return_value = {
-            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+            "cluster": {
+                "certificateAuthority": {"data": "test-cert"},
+                "endpoint": "test-endpoint",
+            }
         }
         hook = EksHook(aws_conn_id=aws_conn_id, region_name=region_name)
         # We're mocking all actual AWS calls and don't need a connection. This
@@ -1255,13 +1380,20 @@ class TestEksHook:
                 "kind": "Config",
                 "clusters": [
                     {
-                        "cluster": {"server": "test-endpoint", "certificate-authority-data": "test-cert"},
+                        "cluster": {
+                            "server": "test-endpoint",
+                            "certificate-authority-data": "test-cert",
+                        },
                         "name": "test-cluster",
                     }
                 ],
                 "contexts": [
                     {
-                        "context": {"cluster": "test-cluster", "namespace": "k8s-namespace", "user": "aws"},
+                        "context": {
+                            "cluster": "test-cluster",
+                            "namespace": "k8s-namespace",
+                            "user": "aws",
+                        },
                         "name": "aws",
                     }
                 ],
@@ -1285,8 +1417,12 @@ class TestEksHook:
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.RequestSigner")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session")
-    def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
-        mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
+    def test_fetch_access_token_for_cluster(
+        self, mock_get_session, mock_conn, mock_signer
+    ):
+        mock_signer.return_value.generate_presigned_url.return_value = (
+            "http://example.com"
+        )
         mock_get_session.return_value.region_name = "us-east-1"
         hook = EksHook()
         token = hook.fetch_access_token_for_cluster(eks_cluster_name="test-cluster")
@@ -1334,7 +1470,9 @@ def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test
 
 
 def assert_client_error_exception_thrown(
-    expected_exception: type[AWSError], expected_msg: str, raised_exception: pytest.ExceptionInfo
+    expected_exception: type[AWSError],
+    expected_msg: str,
+    raised_exception: pytest.ExceptionInfo,
 ) -> None:
     """
     Asserts that the raised exception is of the expected type

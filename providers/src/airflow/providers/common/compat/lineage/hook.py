@@ -26,7 +26,11 @@ def _get_asset_compat_hook_lineage_collector():
 
     if all(
         getattr(collector, asset_method_name, None)
-        for asset_method_name in ("add_input_asset", "add_output_asset", "collected_assets")
+        for asset_method_name in (
+            "add_input_asset",
+            "add_output_asset",
+            "collected_assets",
+        )
     ):
         return collector
 
@@ -51,20 +55,30 @@ def _get_asset_compat_hook_lineage_collector():
 
         return wrapper
 
-    collector.create_asset = rename_dataset_kwargs_as_assets_kwargs(collector.create_dataset)
-    collector.add_input_asset = rename_dataset_kwargs_as_assets_kwargs(collector.add_input_dataset)
-    collector.add_output_asset = rename_dataset_kwargs_as_assets_kwargs(collector.add_output_dataset)
+    collector.create_asset = rename_dataset_kwargs_as_assets_kwargs(
+        collector.create_dataset
+    )
+    collector.add_input_asset = rename_dataset_kwargs_as_assets_kwargs(
+        collector.add_input_dataset
+    )
+    collector.add_output_asset = rename_dataset_kwargs_as_assets_kwargs(
+        collector.add_output_dataset
+    )
 
     def collected_assets_compat(collector) -> HookLineage:
         """Get the collected hook lineage information."""
         lineage = collector.collected_datasets
         return HookLineage(
             [
-                DatasetLineageInfo(dataset=item.dataset, count=item.count, context=item.context)
+                DatasetLineageInfo(
+                    dataset=item.dataset, count=item.count, context=item.context
+                )
                 for item in lineage.inputs
             ],
             [
-                DatasetLineageInfo(dataset=item.dataset, count=item.count, context=item.context)
+                DatasetLineageInfo(
+                    dataset=item.dataset, count=item.count, context=item.context
+                )
                 for item in lineage.outputs
             ],
         )

@@ -77,7 +77,9 @@ class TestUserEndpoint:
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time
-        users = self.session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME))
+        users = self.session.query(User).filter(
+            User.changed_on == timezone.parse(DEFAULT_TIME)
+        )
         users.delete(synchronize_session=False)
         self.session.commit()
 
@@ -106,7 +108,9 @@ class TestGetUser(TestUserEndpoint):
         users = self._create_users(1)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -134,7 +138,9 @@ class TestGetUser(TestUserEndpoint):
         )
         self.session.add_all([prince])
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/prince", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users/prince", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -162,7 +168,9 @@ class TestGetUser(TestUserEndpoint):
         )
         self.session.add_all([liberace])
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -190,7 +198,9 @@ class TestGetUser(TestUserEndpoint):
         )
         self.session.add_all([nameless])
         self.session.commit()
-        response = self.client.get("/auth/fab/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json == {
             "active": True,
@@ -224,14 +234,17 @@ class TestGetUser(TestUserEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/auth/fab/v1/users/TEST_USER1",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
 
 class TestGetUsers(TestUserEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
         usernames = [user["username"] for user in response.json["users"] if user]
@@ -306,10 +319,14 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         # Explicitly add the 2 users on setUp
-        assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
+        assert response.json["total_entries"] == 200 + len(
+            ["test", "test_no_permissions"]
+        )
         assert len(response.json["users"]) == 100
 
     def test_should_response_400_with_invalid_order_by(self):
@@ -317,7 +334,8 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
         response = self.client.get(
-            "/auth/fab/v1/users?order_by=myname", environ_overrides={"REMOTE_USER": "test"}
+            "/auth/fab/v1/users?order_by=myname",
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
         msg = "Ordering with 'myname' is disallowed or the attribute does not exist on the model"
@@ -328,10 +346,14 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/auth/fab/v1/users?limit=0", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users?limit=0", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         # Explicit add the 2 users on setUp
-        assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
+        assert response.json["total_entries"] == 200 + len(
+            ["test", "test_no_permissions"]
+        )
         assert len(response.json["users"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
@@ -340,7 +362,9 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.add_all(users)
         self.session.commit()
 
-        response = self.client.get("/auth/fab/v1/users?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(
+            "/auth/fab/v1/users?limit=180", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         assert len(response.json["users"]) == 150
 
@@ -381,7 +405,9 @@ def user_with_same_username(configured_app, autoclean_username):
         email="another_user@example.com",
         role_name="TestNoPermissions",
     )
-    assert user, f"failed to create user '{autoclean_username} <another_user@example.com>'"
+    assert (
+        user
+    ), f"failed to create user '{autoclean_username} <another_user@example.com>'"
     return user
 
 
@@ -403,7 +429,9 @@ def user_different(configured_app):
     email = "another_user@example.com"
 
     _delete_user(username=username, email=email)
-    user = create_user(configured_app, username=username, email=email, role_name="TestNoPermissions")
+    user = create_user(
+        configured_app, username=username, email=email, role_name="TestNoPermissions"
+    )
     assert user, "failed to create user 'another_user <another_user@example.com>'"
     yield user
     _delete_user(username=username, email=email)
@@ -447,7 +475,10 @@ class TestPostUser(TestUserEndpoint):
     def test_with_custom_roles(self, autoclean_username, autoclean_user_payload):
         response = self.client.post(
             "/auth/fab/v1/users",
-            json={"roles": [{"name": "User"}, {"name": "Viewer"}], **autoclean_user_payload},
+            json={
+                "roles": [{"name": "User"}, {"name": "Viewer"}],
+                **autoclean_user_payload,
+            },
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200, response.json
@@ -461,7 +492,10 @@ class TestPostUser(TestUserEndpoint):
     def test_with_existing_different_user(self, autoclean_user_payload):
         response = self.client.post(
             "/auth/fab/v1/users",
-            json={"roles": [{"name": "User"}, {"name": "Viewer"}], **autoclean_user_payload},
+            json={
+                "roles": [{"name": "User"}, {"name": "Viewer"}],
+                **autoclean_user_payload,
+            },
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200, response.json
@@ -484,7 +518,10 @@ class TestPostUser(TestUserEndpoint):
     @pytest.mark.parametrize(
         "existing_user_fixture_name, error_detail_template",
         [
-            ("user_with_same_username", "Username `{username}` already exists. Use PATCH to update."),
+            (
+                "user_with_same_username",
+                "Username `{username}` already exists. Use PATCH to update.",
+            ),
             ("user_with_same_email", "The email `{email}` is already taken."),
         ],
         ids=["username", "email"],
@@ -505,7 +542,9 @@ class TestPostUser(TestUserEndpoint):
         )
         assert response.status_code == 409, response.json
 
-        error_detail = error_detail_template.format(username=existing.username, email=existing.email)
+        error_detail = error_detail_template.format(
+            username=existing.username, email=existing.email
+        )
         assert response.json["detail"] == error_detail
 
     @pytest.mark.parametrize(
@@ -527,13 +566,18 @@ class TestPostUser(TestUserEndpoint):
                 id="unknown-role-field",
             ),
             pytest.param(
-                lambda p: {**p, "roles": [{"name": "God"}, {"name": "User"}, {"name": "Overlord"}]},
+                lambda p: {
+                    **p,
+                    "roles": [{"name": "God"}, {"name": "User"}, {"name": "Overlord"}],
+                },
                 "Unknown roles: 'God', 'Overlord'",
                 id="unknown-role",
             ),
         ],
     )
-    def test_invalid_payload(self, autoclean_user_payload, payload_converter, error_message):
+    def test_invalid_payload(
+        self, autoclean_user_payload, payload_converter, error_message
+    ):
         response = self.client.post(
             "/auth/fab/v1/users",
             json=payload_converter(autoclean_user_payload),
@@ -548,7 +592,9 @@ class TestPostUser(TestUserEndpoint):
         }
 
     def test_internal_server_error(self, autoclean_user_payload):
-        with unittest.mock.patch.object(self.app.appbuilder.sm, "add_user", return_value=None):
+        with unittest.mock.patch.object(
+            self.app.appbuilder.sm, "add_user", return_value=None
+        ):
             response = self.client.post(
                 "/auth/fab/v1/users",
                 json=autoclean_user_payload,
@@ -598,7 +644,10 @@ class TestPatchUser(TestUserEndpoint):
         "payload, error_message",
         [
             ({"username": "another_user"}, "The username `another_user` already exists"),
-            ({"email": "another_user@example.com"}, "The email `another_user@example.com` already exists"),
+            (
+                {"email": "another_user@example.com"},
+                "The email `another_user@example.com` already exists",
+            ),
         ],
         ids=["username", "email"],
     )
@@ -639,7 +688,10 @@ class TestPatchUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, response.json
-        assert response.json["detail"] == f"{{'{field}': ['Missing data for required field.']}}"
+        assert (
+            response.json["detail"]
+            == f"{{'{field}': ['Missing data for required field.']}}"
+        )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_username_can_be_updated(self, autoclean_user_payload, autoclean_username):
@@ -676,7 +728,9 @@ class TestPatchUser(TestUserEndpoint):
         mock_generate_password_hash.assert_called_once_with("new-pass")
 
         password_in_db = (
-            self.session.query(User.password).filter(User.username == autoclean_username).scalar()
+            self.session.query(User.password)
+            .filter(User.username == autoclean_username)
+            .scalar()
         )
         assert password_in_db == "fake-hashed-pass"
 
@@ -750,7 +804,10 @@ class TestPatchUser(TestUserEndpoint):
                 id="unknown-role-field",
             ),
             pytest.param(
-                lambda p: {**p, "roles": [{"name": "God"}, {"name": "User"}, {"name": "Overlord"}]},
+                lambda p: {
+                    **p,
+                    "roles": [{"name": "God"}, {"name": "User"}, {"name": "Overlord"}],
+                },
                 "Unknown roles: 'God', 'Overlord'",
                 id="unknown-role",
             ),
@@ -786,7 +843,12 @@ class TestDeleteUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204, response.json  # NO CONTENT.
-        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 0
+        assert (
+            self.session.query(count(User.id))
+            .filter(User.username == autoclean_username)
+            .scalar()
+            == 0
+        )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_unauthenticated(self, autoclean_username):
@@ -794,7 +856,12 @@ class TestDeleteUser(TestUserEndpoint):
             f"/auth/fab/v1/users/{autoclean_username}",
         )
         assert response.status_code == 401, response.json
-        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
+        assert (
+            self.session.query(count(User.id))
+            .filter(User.username == autoclean_username)
+            .scalar()
+            == 1
+        )
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_forbidden(self, autoclean_username):
@@ -803,7 +870,12 @@ class TestDeleteUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403, response.json
-        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
+        assert (
+            self.session.query(count(User.id))
+            .filter(User.username == autoclean_username)
+            .scalar()
+            == 1
+        )
 
     def test_not_found(self, autoclean_username):
         # This test does not populate autoclean_admin_user into the database.

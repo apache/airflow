@@ -174,9 +174,13 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         nodegroups = await client.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups.get("nodegroups", None):
             self.log.info("Deleting nodegroups")
-            waiter = self.hook().get_waiter("all_nodegroups_deleted", deferrable=True, client=client)
+            waiter = self.hook().get_waiter(
+                "all_nodegroups_deleted", deferrable=True, client=client
+            )
             for group in nodegroups["nodegroups"]:
-                await client.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+                await client.delete_nodegroup(
+                    clusterName=self.cluster_name, nodegroupName=group
+                )
             await async_wait(
                 waiter=waiter,
                 waiter_delay=int(self.waiter_delay),
@@ -197,23 +201,34 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.
         """
-        fargate_profiles = await client.list_fargate_profiles(clusterName=self.cluster_name)
+        fargate_profiles = await client.list_fargate_profiles(
+            clusterName=self.cluster_name
+        )
         if fargate_profiles.get("fargateProfileNames"):
-            self.log.info("Waiting for Fargate profiles to delete.  This will take some time.")
+            self.log.info(
+                "Waiting for Fargate profiles to delete.  This will take some time."
+            )
             for profile in fargate_profiles["fargateProfileNames"]:
-                await client.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+                await client.delete_fargate_profile(
+                    clusterName=self.cluster_name, fargateProfileName=profile
+                )
                 await async_wait(
                     waiter=client.get_waiter("fargate_profile_deleted"),
                     waiter_delay=int(self.waiter_delay),
                     waiter_max_attempts=int(self.waiter_max_attempts),
-                    args={"clusterName": self.cluster_name, "fargateProfileName": profile},
+                    args={
+                        "clusterName": self.cluster_name,
+                        "fargateProfileName": profile,
+                    },
                     failure_message=f"Error deleting fargate profile for cluster {self.cluster_name}",
                     status_message="Status of fargate profile is",
                     status_args=["fargateProfile.status"],
                 )
             self.log.info("All Fargate profiles deleted")
         else:
-            self.log.info("No Fargate profiles associated with cluster %s", self.cluster_name)
+            self.log.info(
+                "No Fargate profiles associated with cluster %s", self.cluster_name
+            )
 
 
 class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
@@ -237,9 +252,15 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
     ):
         super().__init__(
-            serialized_fields={"cluster_name": cluster_name, "fargate_profile_name": fargate_profile_name},
+            serialized_fields={
+                "cluster_name": cluster_name,
+                "fargate_profile_name": fargate_profile_name,
+            },
             waiter_name="fargate_profile_active",
-            waiter_args={"clusterName": cluster_name, "fargateProfileName": fargate_profile_name},
+            waiter_args={
+                "clusterName": cluster_name,
+                "fargateProfileName": fargate_profile_name,
+            },
             failure_message="Failure while creating Fargate profile",
             status_message="Fargate profile not created yet",
             status_queries=["fargateProfile.status"],
@@ -275,9 +296,15 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
     ):
         super().__init__(
-            serialized_fields={"cluster_name": cluster_name, "fargate_profile_name": fargate_profile_name},
+            serialized_fields={
+                "cluster_name": cluster_name,
+                "fargate_profile_name": fargate_profile_name,
+            },
             waiter_name="fargate_profile_deleted",
-            waiter_args={"clusterName": cluster_name, "fargateProfileName": fargate_profile_name},
+            waiter_args={
+                "clusterName": cluster_name,
+                "fargateProfileName": fargate_profile_name,
+            },
             failure_message="Failure while deleting Fargate profile",
             status_message="Fargate profile not deleted yet",
             status_queries=["fargateProfile.status"],
@@ -365,7 +392,10 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
     ):
         super().__init__(
-            serialized_fields={"cluster_name": cluster_name, "nodegroup_name": nodegroup_name},
+            serialized_fields={
+                "cluster_name": cluster_name,
+                "nodegroup_name": nodegroup_name,
+            },
             waiter_name="nodegroup_deleted",
             waiter_args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
             failure_message="Error deleting nodegroup",

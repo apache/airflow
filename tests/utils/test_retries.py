@@ -52,7 +52,9 @@ class TestRetries:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("excection_type", [OperationalError, InternalError])
-    def test_retry_db_transaction_with_default_retries(self, caplog, excection_type: type[DBAPIError]):
+    def test_retry_db_transaction_with_default_retries(
+        self, caplog, excection_type: type[DBAPIError]
+    ):
         """Test that by default 3 retries will be carried out"""
         mock_obj = mock.MagicMock()
         mock_session = mock.MagicMock()
@@ -98,6 +100,8 @@ class TestRetries:
             session.execute("select 1;")
             raise OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
 
-        error_message = rf"session is a required argument for {test_function.__qualname__}"
+        error_message = (
+            rf"session is a required argument for {test_function.__qualname__}"
+        )
         with pytest.raises(TypeError, match=error_message):
             test_function()

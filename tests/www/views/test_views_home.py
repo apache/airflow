@@ -26,10 +26,18 @@ from airflow.dag_processing.processor import DagFileProcessor
 from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
-from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
+from airflow.www.views import (
+    FILTER_LASTRUN_COOKIE,
+    FILTER_STATUS_COOKIE,
+    FILTER_TAGS_COOKIE,
+)
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
-from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_serialized_dags,
+)
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.www import (
     check_content_in_response,
@@ -88,7 +96,9 @@ def test_home_dags_count(render_template_mock, admin_client, _working_dags, sess
     admin_client.get("home", follow_redirects=True)
     assert call_kwargs()["status_count_all"] == 4
 
-    update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
+    update_stmt = (
+        update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
+    )
     session.execute(update_stmt)
 
     admin_client.get("home", follow_redirects=True)
@@ -199,18 +209,27 @@ def client_single_dag_edit(app, user_single_dag_edit):
     )
 
 
-TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
+TEST_FILTER_DAG_IDS = [
+    "filter_test_1",
+    "filter_test_2",
+    "a_first_dag_id_asc",
+    "filter.test",
+]
 TEST_TAGS = ["example", "test", "team", "group"]
 
 
 def _process_file(file_path):
-    dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
+    dag_file_processor = DagFileProcessor(
+        dag_ids=[], dag_directory="/tmp", log=mock.MagicMock()
+    )
     dag_file_processor.process_file(file_path, [], False)
 
 
 @pytest.fixture
 def _working_dags(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+    dag_contents_template = (
+        "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+    )
     for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
         path = tmp_path / f"{dag_id}.py"
         path.write_text(dag_contents_template.format(dag_id, tag))
@@ -219,7 +238,9 @@ def _working_dags(tmp_path):
 
 @pytest.fixture
 def _working_dags_with_read_perm(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+    dag_contents_template = (
+        "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+    )
     dag_contents_template_with_read_perm = (
         "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_read'}}}}) "
@@ -235,7 +256,9 @@ def _working_dags_with_read_perm(tmp_path):
 
 @pytest.fixture
 def _working_dags_with_edit_perm(tmp_path):
-    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+    dag_contents_template = (
+        "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
+    )
     dag_contents_template_with_read_perm = (
         "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_edit'}}}}) "
@@ -315,7 +338,9 @@ def test_home_no_importerrors_perm(_broken_dags, client_no_importerror):
         "home?lastrun=all_states",
     ],
 )
-def test_home_importerrors_filtered_singledag_user(_broken_dags_with_read_perm, client_single_dag, page):
+def test_home_importerrors_filtered_singledag_user(
+    _broken_dags_with_read_perm, client_single_dag, page
+):
     # Users that can only see certain DAGs get a filtered list of import errors
     resp = client_single_dag.get(page, follow_redirects=True)
     check_content_in_response("Import Errors", resp)
@@ -327,7 +352,9 @@ def test_home_importerrors_filtered_singledag_user(_broken_dags_with_read_perm, 
         check_content_not_in_response(f"/{dag_id}.py", resp)
 
 
-def test_home_importerrors_missing_read_on_all_dags_in_file(_broken_dags_after_working, client_single_dag):
+def test_home_importerrors_missing_read_on_all_dags_in_file(
+    _broken_dags_after_working, client_single_dag
+):
     # If a user doesn't have READ on all DAGs in a file, that files traceback is redacted
     resp = client_single_dag.get("home", follow_redirects=True)
     check_content_in_response("Import Errors", resp)
@@ -345,7 +372,9 @@ def test_home_dag_list(_working_dags, user_client):
         check_content_in_response(f"dag_id={dag_id}", resp)
 
 
-def test_home_dag_list_filtered_singledag_user(_working_dags_with_read_perm, client_single_dag):
+def test_home_dag_list_filtered_singledag_user(
+    _working_dags_with_read_perm, client_single_dag
+):
     # Users that can only see certain DAGs get a filtered list
     resp = client_single_dag.get("home", follow_redirects=True)
     # They can see the first DAG
@@ -363,7 +392,9 @@ def test_home_dag_list_search(_working_dags, user_client):
     check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
 
 
-def test_home_dag_edit_permissions(capture_templates, _working_dags_with_edit_perm, client_single_dag_edit):
+def test_home_dag_edit_permissions(
+    capture_templates, _working_dags_with_edit_perm, client_single_dag_edit
+):
     with capture_templates() as templates:
         client_single_dag_edit.get("home", follow_redirects=True)
 
@@ -397,7 +428,9 @@ def test_home_robots_header_in_response(user_client):
         ("admin_client", UIAlert("hello world", roles=["User", "Admin"]), True),
     ],
 )
-def test_dashboard_flash_messages_role_filtering(request, client, flash_message, expected):
+def test_dashboard_flash_messages_role_filtering(
+    request, client, flash_message, expected
+):
     with mock.patch("airflow.settings.DASHBOARD_UIALERTS", [flash_message]):
         resp = request.getfixturevalue(client).get("home", follow_redirects=True)
     if expected:
@@ -446,8 +479,16 @@ def test_dashboard_flash_messages_type(user_client):
     "url, lower_key, greater_key",
     [
         ("home?status=all", "a_first_dag_id_asc", "filter_test_1"),
-        ("home?status=all&sorting_key=dag_id&sorting_direction=asc", "filter_test_1", "filter_test_2"),
-        ("home?status=all&sorting_key=dag_id&sorting_direction=desc", "filter_test_2", "filter_test_1"),
+        (
+            "home?status=all&sorting_key=dag_id&sorting_direction=asc",
+            "filter_test_1",
+            "filter_test_2",
+        ),
+        (
+            "home?status=all&sorting_key=dag_id&sorting_direction=desc",
+            "filter_test_2",
+            "filter_test_1",
+        ),
     ],
     ids=["no_order_provided", "ascending_order_on_dag_id", "descending_order_on_dag_id"],
 )
@@ -466,7 +507,13 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, _working_da
         # from url only
         ("home?tags=example&tags=test", None, None, ["example", "test"], None),
         ("home?lastrun=running", None, None, [], "running"),
-        ("home?tags=example&tags=test&lastrun=running", None, None, ["example", "test"], "running"),
+        (
+            "home?tags=example&tags=test&lastrun=running",
+            None,
+            None,
+            ["example", "test"],
+            "running",
+        ),
         # from cookie only
         ("home", "example,test", None, ["example", "test"], None),
         ("home", None, "running", [], "running"),
@@ -476,7 +523,13 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, _working_da
         ("home?lastrun=failed", None, "running", [], "failed"),
         ("home?tags=example", None, "running", ["example"], "running"),
         ("home?lastrun=running", "example,test", None, ["example", "test"], "running"),
-        ("home?tags=example&lastrun=running", "example,test", "failed", ["example"], "running"),
+        (
+            "home?tags=example&lastrun=running",
+            "example,test",
+            "failed",
+            ["example"],
+            "running",
+        ),
     ],
 )
 def test_filter_cookie_eval(

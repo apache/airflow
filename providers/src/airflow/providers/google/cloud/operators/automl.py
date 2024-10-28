@@ -36,7 +36,9 @@ from google.cloud.automl_v1beta1 import (
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
+from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import (
+    PredictionServiceHook,
+)
 from airflow.providers.google.cloud.links.translate import (
     TranslationDatasetListLink,
     TranslationLegacyDatasetLink,
@@ -64,7 +66,9 @@ def _raise_exception_for_deprecated_operator(
     elif len(alternative_class_names) == 1:
         alternative_class_name_str = alternative_class_names[0]
     else:
-        alternative_class_name_str = ", ".join(f"`{cls_name}`" for cls_name in alternative_class_names[:-1])
+        alternative_class_name_str = ", ".join(
+            f"`{cls_name}`" for cls_name in alternative_class_names[:-1]
+        )
         alternative_class_name_str += f" or `{alternative_class_names[-1]}`"
 
     raise AirflowException(
@@ -176,7 +180,9 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
             TranslationLegacyModelTrainLink.persist(
                 context=context, task_instance=self, project_id=project_id
             )
-        operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        operation_result = hook.wait_for_operation(
+            timeout=self.timeout, operation=operation
+        )
         result = Model.to_dict(operation_result)
         model_id = hook.extract_object_id(result)
         self.log.info("Model is created, model_id: %s", model_id)
@@ -479,7 +485,9 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation_result = self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        operation_result = self.hook.wait_for_operation(
+            timeout=self.timeout, operation=operation
+        )
         result = BatchPredictResult.to_dict(operation_result)
         self.log.info("Batch prediction is ready.")
         project_id = self.project_id or self.hook.project_id
@@ -562,7 +570,9 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         if "translation_dataset_metadata" not in self.dataset:
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "CreateDatasetOperator")
+            _raise_exception_for_deprecated_operator(
+                self.__class__.__name__, "CreateDatasetOperator"
+            )
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -676,7 +686,9 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         if not hasattr(dataset, "translation_dataset_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "ImportDataOperator")
+            _raise_exception_for_deprecated_operator(
+                self.__class__.__name__, "ImportDataOperator"
+            )
         self.log.info("Importing data to dataset...")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
@@ -996,7 +1008,9 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         if not hasattr(result, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "GetModelOperator")
+            _raise_exception_for_deprecated_operator(
+                self.__class__.__name__, "GetModelOperator"
+            )
         model = Model.to_dict(result)
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -1088,7 +1102,9 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         if not hasattr(model, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "DeleteModelOperator")
+            _raise_exception_for_deprecated_operator(
+                self.__class__.__name__, "DeleteModelOperator"
+            )
         operation = hook.delete_model(
             model_id=self.model_id,
             location=self.location,
@@ -1404,7 +1420,9 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         if project_id:
-            TranslationDatasetListLink.persist(context=context, task_instance=self, project_id=project_id)
+            TranslationDatasetListLink.persist(
+                context=context, task_instance=self, project_id=project_id
+            )
         return result
 
 
@@ -1495,7 +1513,9 @@ class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         if not hasattr(dataset, "translation_dataset_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "DeleteDatasetOperator")
+            _raise_exception_for_deprecated_operator(
+                self.__class__.__name__, "DeleteDatasetOperator"
+            )
         dataset_id_list = self._parse_dataset_id(self.dataset_id)
         for dataset_id in dataset_id_list:
             self.log.info("Deleting dataset %s", dataset_id)

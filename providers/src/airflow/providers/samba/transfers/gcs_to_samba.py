@@ -151,27 +151,45 @@ class GCSToSambaOperator(BaseOperator):
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
             prefix_dirname = os.path.dirname(prefix)
-            objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            objects = gcs_hook.list(
+                self.source_bucket, prefix=prefix, delimiter=delimiter
+            )
             # TODO: After deprecating delimiter and wildcards in source objects,
             #       remove the previous line and uncomment the following:
             # match_glob = f"**/*{delimiter}" if delimiter else None
             # objects = gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             for source_object in objects:
-                destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)
+                destination_path = self._resolve_destination_path(
+                    source_object, prefix=prefix_dirname
+                )
                 self._copy_single_object(
-                    gcs_hook, samba_hook, source_object, destination_path, self.buffer_size
+                    gcs_hook,
+                    samba_hook,
+                    source_object,
+                    destination_path,
+                    self.buffer_size,
                 )
 
-            self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
+            self.log.info(
+                "Done. Uploaded '%d' files to %s", len(objects), self.destination_path
+            )
         else:
             destination_path = self._resolve_destination_path(self.source_object)
             self._copy_single_object(
-                gcs_hook, samba_hook, self.source_object, destination_path, self.buffer_size
+                gcs_hook,
+                samba_hook,
+                self.source_object,
+                destination_path,
+                self.buffer_size,
             )
-            self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
+            self.log.info(
+                "Done. Uploaded '%s' file to %s", self.source_object, destination_path
+            )
 
-    def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
+    def _resolve_destination_path(
+        self, source_object: str, prefix: str | None = None
+    ) -> str:
         if not self.keep_directory_structure:
             if prefix:
                 source_object = os.path.relpath(source_object, start=prefix)
@@ -204,8 +222,12 @@ class GCSToSambaOperator(BaseOperator):
                 object_name=source_object,
                 filename=tmp.name,
             )
-            samba_hook.push_from_local(destination_path, tmp.name, buffer_size=buffer_size)
+            samba_hook.push_from_local(
+                destination_path, tmp.name, buffer_size=buffer_size
+            )
 
         if self.move_object:
-            self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
+            self.log.info(
+                "Executing delete of gs://%s/%s", self.source_bucket, source_object
+            )
             gcs_hook.delete(self.source_bucket, source_object)

@@ -49,7 +49,11 @@ def upgrade():
 def downgrade():
     """Unapply Drop ab_user.id foreign key."""
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
-        batch_op.create_foreign_key("task_instance_note_user_fkey", "ab_user", ["user_id"], ["id"])
+        batch_op.create_foreign_key(
+            "task_instance_note_user_fkey", "ab_user", ["user_id"], ["id"]
+        )
 
     with op.batch_alter_table("dag_run_note", schema=None) as batch_op:
-        batch_op.create_foreign_key("dag_run_note_user_fkey", "ab_user", ["user_id"], ["id"])
+        batch_op.create_foreign_key(
+            "dag_run_note_user_fkey", "ab_user", ["user_id"], ["id"]
+        )

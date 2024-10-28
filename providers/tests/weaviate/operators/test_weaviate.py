@@ -69,7 +69,9 @@ class TestWeaviateIngestOperator:
             vector_col="Vector",
             uuid_col="id",
         )
-        mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
+        mock_log.debug.assert_called_once_with(
+            "Input data: %s", [{"data": "sample_data"}]
+        )
 
     @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
     def test_execute_with_input_data(self, mock_log, operator):
@@ -83,7 +85,9 @@ class TestWeaviateIngestOperator:
             vector_col="Vector",
             uuid_col="id",
         )
-        mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
+        mock_log.debug.assert_called_once_with(
+            "Input data: %s", [{"data": "sample_data"}]
+        )
 
     @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
@@ -144,7 +148,9 @@ class TestWeaviateDocumentIngestOperator:
         assert operator.vector_col == "vector"
         assert operator.hook_params == {}
 
-    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateDocumentIngestOperator.log")
+    @patch(
+        "airflow.providers.weaviate.operators.weaviate.WeaviateDocumentIngestOperator.log"
+    )
     def test_execute_with_input_json(self, mock_log, operator):
         operator.hook.create_or_replace_document_objects = MagicMock()
 
@@ -159,7 +165,9 @@ class TestWeaviateDocumentIngestOperator:
             vector_column="vector",
             verbose=False,
         )
-        mock_log.debug.assert_called_once_with("Total input objects : %s", len([{"data": "sample_data"}]))
+        mock_log.debug.assert_called_once_with(
+            "Total input objects : %s", len([{"data": "sample_data"}])
+        )
 
     @pytest.mark.db_test
     def test_partial_hook_params(self, dag_maker, session):

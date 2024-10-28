@@ -93,7 +93,11 @@ def show_message(entity: str, message: str):
 
 
 def inter_send_email(
-    username: str, password: str, sender_email: str, receiver_email: str | list, message: str
+    username: str,
+    password: str,
+    sender_email: str,
+    receiver_email: str | list,
+    message: str,
 ):
     """
     Send email using SMTP
@@ -124,7 +128,15 @@ class BaseParameters:
     Base Class to send emails using Apache Creds and for Jinja templating
     """
 
-    def __init__(self, name=None, email=None, username=None, password=None, version=None, version_rc=None):
+    def __init__(
+        self,
+        name=None,
+        email=None,
+        username=None,
+        password=None,
+        version=None,
+        version_rc=None,
+    ):
         self.name = name
         self.email = email
         self.username = username
@@ -245,7 +257,9 @@ def vote(base_parameters, receiver_email: str):
     )
     if click.confirm("Show Slack message for announcement?", default=True):
         base_parameters.template_arguments["slack_rc"] = False
-        slack_msg = render_template("templates/slack.j2", **base_parameters.template_arguments)
+        slack_msg = render_template(
+            "templates/slack.j2", **base_parameters.template_arguments
+        )
         show_message("Slack", slack_msg)
 
 
@@ -288,9 +302,15 @@ def result(
     """
     template_file = "templates/result_email.j2"
     base_parameters.template_arguments["receiver_email"] = receiver_email
-    base_parameters.template_arguments["vote_bindings"] = string_comma_to_list(vote_bindings)
-    base_parameters.template_arguments["vote_nonbindings"] = string_comma_to_list(vote_nonbindings)
-    base_parameters.template_arguments["vote_negatives"] = string_comma_to_list(vote_negatives)
+    base_parameters.template_arguments["vote_bindings"] = string_comma_to_list(
+        vote_bindings
+    )
+    base_parameters.template_arguments["vote_nonbindings"] = string_comma_to_list(
+        vote_nonbindings
+    )
+    base_parameters.template_arguments["vote_negatives"] = string_comma_to_list(
+        vote_negatives
+    )
     message = render_template(template_file, **base_parameters.template_arguments)
     inter_send_email(
         base_parameters.username,
@@ -329,10 +349,14 @@ def announce(base_parameters, receiver_email: str):
 
     if click.confirm("Show Slack message for announcement?", default=True):
         base_parameters.template_arguments["slack_rc"] = False
-        slack_msg = render_template("templates/slack.j2", **base_parameters.template_arguments)
+        slack_msg = render_template(
+            "templates/slack.j2", **base_parameters.template_arguments
+        )
         show_message("Slack", slack_msg)
     if click.confirm("Show Twitter message for announcement?", default=True):
-        twitter_msg = render_template("templates/twitter.j2", **base_parameters.template_arguments)
+        twitter_msg = render_template(
+            "templates/twitter.j2", **base_parameters.template_arguments
+        )
         show_message("Twitter", twitter_msg)
 
 

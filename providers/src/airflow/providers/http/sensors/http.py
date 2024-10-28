@@ -102,7 +102,9 @@ class HttpSensor(BaseSensorOperator):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -110,7 +112,9 @@ class HttpSensor(BaseSensorOperator):
         self.http_conn_id = http_conn_id
         self.method = method
         self.response_error_codes_allowlist = (
-            ("404",) if response_error_codes_allowlist is None else tuple(response_error_codes_allowlist)
+            ("404",)
+            if response_error_codes_allowlist is None
+            else tuple(response_error_codes_allowlist)
         )
         self.request_params = request_params or {}
         self.headers = headers or {}
@@ -173,5 +177,7 @@ class HttpSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
         self.log.info("%s completed successfully.", self.task_id)

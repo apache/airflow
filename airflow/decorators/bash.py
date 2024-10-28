@@ -20,7 +20,11 @@ from __future__ import annotations
 import warnings
 from typing import Any, Callable, Collection, Mapping, Sequence
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
@@ -38,7 +42,10 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         calling your callable (templated).
     """
 
-    template_fields: Sequence[str] = (*DecoratedOperator.template_fields, *BashOperator.template_fields)
+    template_fields: Sequence[str] = (
+        *DecoratedOperator.template_fields,
+        *BashOperator.template_fields,
+    )
     template_fields_renderers: dict[str, str] = {
         **DecoratedOperator.template_fields_renderers,
         **BashOperator.template_fields_renderers,
@@ -77,7 +84,9 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         self.bash_command = self.python_callable(*self.op_args, **kwargs)
 
         if not isinstance(self.bash_command, str) or self.bash_command.strip() == "":
-            raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
+            raise TypeError(
+                "The returned value from the TaskFlow callable must be a non-empty string."
+            )
 
         return super().execute(context)
 

@@ -56,11 +56,17 @@ def upgrade():
             name=op.f("dataset_alias_dataset_event_event_id_fkey"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("alias_id", "event_id", name=op.f("dataset_alias_dataset_event_pkey")),
+        sa.PrimaryKeyConstraint(
+            "alias_id", "event_id", name=op.f("dataset_alias_dataset_event_pkey")
+        ),
     )
     with op.batch_alter_table("dataset_alias_dataset_event", schema=None) as batch_op:
-        batch_op.create_index("idx_dataset_alias_dataset_event_alias_id", ["alias_id"], unique=False)
-        batch_op.create_index("idx_dataset_alias_dataset_event_event_id", ["event_id"], unique=False)
+        batch_op.create_index(
+            "idx_dataset_alias_dataset_event_alias_id", ["alias_id"], unique=False
+        )
+        batch_op.create_index(
+            "idx_dataset_alias_dataset_event_event_id", ["event_id"], unique=False
+        )
 
 
 def downgrade():

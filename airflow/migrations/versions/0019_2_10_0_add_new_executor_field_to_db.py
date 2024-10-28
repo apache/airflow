@@ -40,7 +40,9 @@ airflow_version = "2.10.0"
 
 def upgrade():
     """Apply add executor field to task instance."""
-    op.add_column("task_instance", sa.Column("executor", sa.String(length=1000), default=None))
+    op.add_column(
+        "task_instance", sa.Column("executor", sa.String(length=1000), default=None)
+    )
 
 
 def downgrade():

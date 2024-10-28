@@ -31,7 +31,10 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.amazon.aws.executors.batch import batch_executor, batch_executor_config
+from airflow.providers.amazon.aws.executors.batch import (
+    batch_executor,
+    batch_executor_config,
+)
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor,
     BatchJob,
@@ -149,7 +152,15 @@ class TestBatchJob:
 
     @pytest.fixture(autouse=True)
     def setup_method(self):
-        self.all_statuses = ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING", "SUCCEEDED", "FAILED"]
+        self.all_statuses = [
+            "SUBMITTED",
+            "PENDING",
+            "RUNNABLE",
+            "STARTING",
+            "RUNNING",
+            "SUCCEEDED",
+            "FAILED",
+        ]
         self.running = "RUNNING"
         self.success = "SUCCEEDED"
         self.failed = "FAILED"
@@ -191,7 +202,10 @@ class TestAwsBatchExecutor:
         airflow_key = mock.Mock(spec=tuple)
         airflow_cmd = mock.Mock(spec=list)
 
-        mock_executor.batch.submit_job.return_value = {"jobId": MOCK_JOB_ID, "jobName": "some-job-name"}
+        mock_executor.batch.submit_job.return_value = {
+            "jobId": MOCK_JOB_ID,
+            "jobName": "some-job-name",
+        }
 
         mock_executor.execute_async(airflow_key, airflow_cmd)
         assert len(mock_executor.pending_jobs) == 1
@@ -199,7 +213,11 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
 
-    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        batch_executor,
+        "calculate_next_attempt_delay",
+        return_value=dt.timedelta(seconds=0),
+    )
     def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor):
         """
         Test how jobs are tried when one job fails, but others pass.
@@ -220,7 +238,9 @@ class TestAwsBatchExecutor:
             "jobQueue": "some-job-queue",
             "containerOverrides": {
                 "command": ["command"],
-                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                "environment": [
+                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
+                ],
             },
         }
         mock_executor.execute_async(airflow_key, airflow_cmd1)
@@ -232,7 +252,9 @@ class TestAwsBatchExecutor:
 
         for i in range(2):
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
-            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            assert (
+                mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            )
         assert len(mock_executor.pending_jobs) == 1
         mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
@@ -252,7 +274,9 @@ class TestAwsBatchExecutor:
 
         for i in range(2, 5):
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
-            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            assert (
+                mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            )
         assert len(mock_executor.pending_jobs) == 1
         mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 3
@@ -267,7 +291,11 @@ class TestAwsBatchExecutor:
             log_record = mock_executor._task_event_logs[0]
             assert log_record.event == "batch job submit failure"
 
-    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        batch_executor,
+        "calculate_next_attempt_delay",
+        return_value=dt.timedelta(seconds=0),
+    )
     def test_attempt_all_jobs_when_jobs_fail(self, _, mock_executor):
         """
         Test job retry behaviour when jobs fail validation.
@@ -284,7 +312,9 @@ class TestAwsBatchExecutor:
         submit_job_args = {
             "containerOverrides": {
                 "command": ["command"],
-                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                "environment": [
+                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
+                ],
             },
             "jobDefinition": "some-job-def",
             "jobName": "some-job-name",
@@ -299,20 +329,26 @@ class TestAwsBatchExecutor:
 
         for i in range(2):
             submit_job_args["containerOverrides"]["command"] = commands[i]
-            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            assert (
+                mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            )
         assert len(mock_executor.pending_jobs) == 2
 
         mock_executor.batch.submit_job.side_effect = failures
         mock_executor.attempt_submit_jobs()
         for i in range(2):
             submit_job_args["containerOverrides"]["command"] = commands[i]
-            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            assert (
+                mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+            )
         assert len(mock_executor.pending_jobs) == 2
 
         mock_executor.batch.submit_job.side_effect = failures
         mock_executor.attempt_submit_jobs()
         if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
-            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            events = [
+                (x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs
+            ]
             assert events == [("batch job submit failure", "b", 1)] * 2
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
@@ -329,13 +365,19 @@ class TestAwsBatchExecutor:
                 "Message": "Expired token error",
             },
         }
-        mock_executor.batch.submit_job.side_effect = ClientError(mock_resp, "test_submit_jobs")
+        mock_executor.batch.submit_job.side_effect = ClientError(
+            mock_resp, "test_submit_jobs"
+        )
         with pytest.raises(ClientError, match="Expired token error"):
             mock_executor.attempt_submit_jobs()
         assert len(mock_executor.active_workers.get_all_jobs()) == 0
         assert len(mock_executor.pending_jobs) == 1
 
-    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    @mock.patch.object(
+        batch_executor,
+        "calculate_next_attempt_delay",
+        return_value=dt.timedelta(seconds=0),
+    )
     def test_task_retry_on_api_failure(self, _, mock_executor, caplog):
         """Test API failure retries"""
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
@@ -394,8 +436,12 @@ class TestAwsBatchExecutor:
         for i in range(2):
             assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
 
-    @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry")
-    def test_sync_unhealthy_boto_connection(self, mock_exponentional_backoff_retry, mock_executor):
+    @mock.patch(
+        "airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry"
+    )
+    def test_sync_unhealthy_boto_connection(
+        self, mock_exponentional_backoff_retry, mock_executor
+    ):
         mock_exponentional_backoff_retry.return_value = None
         mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
         mock_executor.sync()
@@ -454,8 +500,14 @@ class TestAwsBatchExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_failed_sync(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
+    @mock.patch.object(
+        batch_executor,
+        "calculate_next_attempt_delay",
+        return_value=dt.timedelta(seconds=0),
+    )
+    def test_failed_sync(
+        self, _, success_mock, fail_mock, mock_airflow_key, mock_executor
+    ):
         """Test failure states"""
         self._mock_sync(
             executor=mock_executor,
@@ -535,7 +587,9 @@ class TestAwsBatchExecutor:
 
     def test_terminate(self, mock_airflow_key, mock_executor):
         """Test that executor can shut everything down; forcing all tasks to unnaturally exit"""
-        self._mock_sync(executor=mock_executor, airflow_key=mock_airflow_key(), status="FAILED")
+        self._mock_sync(
+            executor=mock_executor, airflow_key=mock_airflow_key(), status="FAILED"
+        )
 
         mock_executor.terminate()
         mock_executor.batch.terminate_job.assert_called_once()
@@ -553,23 +607,34 @@ class TestAwsBatchExecutor:
         caplog.set_level("ERROR")
         mock_executor.batch.terminate_job.side_effect = Exception("test-exception")
         mock_executor.terminate()
-        assert f"Failed to terminate {mock_executor.__class__.__name__}" in caplog.messages[0]
+        assert (
+            f"Failed to terminate {mock_executor.__class__.__name__}"
+            in caplog.messages[0]
+        )
 
     def test_end(self, mock_airflow_key, mock_executor):
         """The end() function should call sync 3 times, and the task should fail on the 3rd call"""
         self.sync_call_count = 0
         sync_func = mock_executor.sync
-        self._mock_sync(executor=mock_executor, airflow_key=mock_airflow_key(), status="RUNNING")
+        self._mock_sync(
+            executor=mock_executor, airflow_key=mock_airflow_key(), status="RUNNING"
+        )
 
         def sync_mock():
             """This is to count the number of times sync is called. On the 3rd time, mock the job to fail"""
             if self.sync_call_count >= 2:
-                self._mock_sync(executor=mock_executor, airflow_key=mock_airflow_key(), status="FAILED")
+                self._mock_sync(
+                    executor=mock_executor,
+                    airflow_key=mock_airflow_key(),
+                    status="FAILED",
+                )
             sync_func()
             self.sync_call_count += 1
 
         mock_executor.sync = sync_mock
-        self._mock_sync(executor=mock_executor, airflow_key=mock_airflow_key(), status="RUNNING")
+        self._mock_sync(
+            executor=mock_executor, airflow_key=mock_airflow_key(), status="RUNNING"
+        )
         mock_executor.end(heartbeat_interval=0)
         assert self.sync_call_count == 3
         mock_executor.sync = sync_func
@@ -623,7 +688,9 @@ class TestAwsBatchExecutor:
         ]
         orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
-        orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
+        orphaned_tasks[
+            2
+        ].external_executor_id = None  # One orphaned task has no external_executor_id
         for task in orphaned_tasks:
             task.try_number = 1
 
@@ -660,7 +727,9 @@ class TestBatchExecutorConfig:
         with open(config_filename) as config:
             options = yaml.safe_load(config)["config"][CONFIG_GROUP_NAME]["options"]
             file_defaults = {
-                option: default for (option, value) in options.items() if (default := value.get("default"))
+                option: default
+                for (option, value) in options.items()
+                if (default := value.get("default"))
             }
 
         assert len(file_defaults) == len(CONFIG_DEFAULTS)
@@ -670,12 +739,16 @@ class TestBatchExecutorConfig:
     @pytest.mark.parametrize(
         "bad_config",
         [
-            pytest.param({"command": "bad_robot"}, id="executor_config_can_not_overwrite_command"),
+            pytest.param(
+                {"command": "bad_robot"}, id="executor_config_can_not_overwrite_command"
+            ),
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor):
         with pytest.raises(ValueError) as raised:
-            mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
+            mock_executor.execute_async(
+                mock_airflow_key, mock_cmd, executor_config=bad_config
+            )
 
         assert raised.match('Executor Config should never override "command')
 
@@ -706,9 +779,7 @@ class TestBatchExecutorConfig:
             "tags": templated_tags,  # The user should be allowed to pass arbitrary submit_job args
         }
 
-        run_submit_kwargs_env_key = (
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
-        )
+        run_submit_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
         os.environ[run_submit_kwargs_env_key] = json.dumps(provided_run_submit_kwargs)
         submit_kwargs = batch_executor_config.build_submit_kwargs()
 
@@ -728,7 +799,9 @@ class TestBatchExecutorConfig:
                     "jobName": "some-job-name",
                     "containerOverrides": {
                         "command": ["command"],
-                        "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                        "environment": [
+                            {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
+                        ],
                     },
                 },
             ),
@@ -830,7 +903,10 @@ class TestBatchExecutorConfig:
                         "vcpus": 10,
                         "environment": [
                             # Overridden list type
-                            {"name": "W", "value": "Z"},  # Only new env vars present, overwritten
+                            {
+                                "name": "W",
+                                "value": "Z",
+                            },  # Only new env vars present, overwritten
                             # Added by the batch executor
                             {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
                         ],
@@ -842,9 +918,7 @@ class TestBatchExecutorConfig:
     def test_submit_job_kwargs_exec_config_overrides(
         self, set_env_vars, submit_job_kwargs, exec_config, expected_result
     ):
-        submit_job_kwargs_env_key = (
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
-        )
+        submit_job_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
         os.environ[submit_job_kwargs_env_key] = json.dumps(submit_job_kwargs)
 
         mock_ti_key = mock.Mock(spec=tuple)
@@ -852,11 +926,15 @@ class TestBatchExecutorConfig:
 
         executor = AwsBatchExecutor()
 
-        final_run_task_kwargs = executor._submit_job_kwargs(mock_ti_key, command, "queue", exec_config)
+        final_run_task_kwargs = executor._submit_job_kwargs(
+            mock_ti_key, command, "queue", exec_config
+        )
 
         assert final_run_task_kwargs == expected_result
 
     def test_short_import_path(self):
-        from airflow.providers.amazon.aws.executors.batch import AwsBatchExecutor as AwsBatchExecutorShortPath
+        from airflow.providers.amazon.aws.executors.batch import (
+            AwsBatchExecutor as AwsBatchExecutorShortPath,
+        )
 
         assert AwsBatchExecutor is AwsBatchExecutorShortPath

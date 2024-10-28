@@ -21,7 +21,10 @@ from unittest import mock
 import pytest
 
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.amazon.aws.notifications.sqs import SqsNotifier, send_sqs_notification
+from airflow.providers.amazon.aws.notifications.sqs import (
+    SqsNotifier,
+    send_sqs_notification,
+)
 from airflow.utils.types import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
@@ -31,7 +34,9 @@ class TestSqsNotifier:
     def test_class_and_notifier_are_same(self):
         assert send_sqs_notification is SqsNotifier
 
-    @pytest.mark.parametrize("aws_conn_id", ["aws_test_conn_id", None, PARAM_DEFAULT_VALUE])
+    @pytest.mark.parametrize(
+        "aws_conn_id", ["aws_test_conn_id", None, PARAM_DEFAULT_VALUE]
+    )
     @pytest.mark.parametrize("region_name", ["eu-west-2", None, PARAM_DEFAULT_VALUE])
     def test_parameters_propagate_to_hook(self, aws_conn_id, region_name):
         """Test notifier attributes propagate to SqsHook."""
@@ -49,7 +54,9 @@ class TestSqsNotifier:
             notifier_kwargs["region_name"] = region_name
 
         notifier = SqsNotifier(**notifier_kwargs, **send_message_kwargs)
-        with mock.patch("airflow.providers.amazon.aws.notifications.sqs.SqsHook") as mock_hook:
+        with mock.patch(
+            "airflow.providers.amazon.aws.notifications.sqs.SqsHook"
+        ) as mock_hook:
             hook = notifier.hook
             assert hook is notifier.hook, "Hook property not cached"
             mock_hook.assert_called_once_with(
@@ -59,7 +66,9 @@ class TestSqsNotifier:
 
             # Basic check for notifier
             notifier.notify({})
-            mock_hook.return_value.send_message.assert_called_once_with(**send_message_kwargs)
+            mock_hook.return_value.send_message.assert_called_once_with(
+                **send_message_kwargs
+            )
 
     @pytest.mark.db_test
     def test_sqs_notifier_templated(self, dag_maker):
@@ -86,7 +95,9 @@ class TestSqsNotifier:
                 }
             )
             # Hook initialisation
-            m.assert_called_once_with(aws_conn_id="test_sns_notifier_templated", region_name="ca-central-1")
+            m.assert_called_once_with(
+                aws_conn_id="test_sns_notifier_templated", region_name="ca-central-1"
+            )
             # Send message
             m.return_value.send_message.assert_called_once_with(
                 queue_url="https://sqs.ca-central-1.amazonaws.com/123321123321/AwesomeQueue",

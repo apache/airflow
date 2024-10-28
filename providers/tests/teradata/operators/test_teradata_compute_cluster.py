@@ -29,7 +29,9 @@ from airflow.providers.teradata.operators.teradata_compute_cluster import (
     TeradataComputeClusterSuspendOperator,
     _single_result_row_handler,
 )
-from airflow.providers.teradata.triggers.teradata_compute_cluster import TeradataComputeClusterSyncTrigger
+from airflow.providers.teradata.triggers.teradata_compute_cluster import (
+    TeradataComputeClusterSyncTrigger,
+)
 from airflow.providers.teradata.utils.constants import Constants
 
 
@@ -61,43 +63,57 @@ def compute_attribute():
 @pytest.fixture
 def compute_cluster_provision_instance(compute_profile_name):
     return TeradataComputeClusterProvisionOperator(
-        task_id="test", compute_profile_name=compute_profile_name, teradata_conn_id="test_conn"
+        task_id="test",
+        compute_profile_name=compute_profile_name,
+        teradata_conn_id="test_conn",
     )
 
 
 @pytest.fixture
 def compute_cluster_decommission_instance(compute_profile_name):
     return TeradataComputeClusterDecommissionOperator(
-        task_id="test", compute_profile_name=compute_profile_name, teradata_conn_id="test_conn"
+        task_id="test",
+        compute_profile_name=compute_profile_name,
+        teradata_conn_id="test_conn",
     )
 
 
 @pytest.fixture
 def compute_cluster_resume_instance(compute_profile_name):
     return TeradataComputeClusterResumeOperator(
-        task_id="test", compute_profile_name=compute_profile_name, teradata_conn_id="test_conn"
+        task_id="test",
+        compute_profile_name=compute_profile_name,
+        teradata_conn_id="test_conn",
     )
 
 
 @pytest.fixture
 def compute_cluster_suspend_instance(compute_profile_name):
     return TeradataComputeClusterSuspendOperator(
-        task_id="test", compute_profile_name=compute_profile_name, teradata_conn_id="test_conn"
+        task_id="test",
+        compute_profile_name=compute_profile_name,
+        teradata_conn_id="test_conn",
     )
 
 
 class TestTeradataComputeClusterOperator:
-    def test_compute_cluster_execute_invalid_profile(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_invalid_profile(
+        self, compute_cluster_provision_instance
+    ):
         compute_cluster_provision_instance.compute_profile_name = None
         with pytest.raises(AirflowException):
             compute_cluster_provision_instance._compute_cluster_execute()
 
-    def test_compute_cluster_execute_empty_profile(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_empty_profile(
+        self, compute_cluster_provision_instance
+    ):
         compute_cluster_provision_instance.compute_profile_name = ""
         with pytest.raises(AirflowException):
             compute_cluster_provision_instance._compute_cluster_execute()
 
-    def test_compute_cluster_execute_none_profile(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_none_profile(
+        self, compute_cluster_provision_instance
+    ):
         compute_cluster_provision_instance.compute_profile_name = "None"
         with pytest.raises(AirflowException):
             compute_cluster_provision_instance._compute_cluster_execute()
@@ -109,34 +125,46 @@ class TestTeradataComputeClusterOperator:
             with pytest.raises(AirflowException):
                 compute_cluster_provision_instance._compute_cluster_execute()
 
-    def test_compute_cluster_execute_not_lake_version_check(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_not_lake_version_check(
+        self, compute_cluster_provision_instance
+    ):
         with patch.object(compute_cluster_provision_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "19"]
             with pytest.raises(AirflowException):
                 compute_cluster_provision_instance._compute_cluster_execute()
 
-    def test_compute_cluster_execute_not_lake_version_none(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_not_lake_version_none(
+        self, compute_cluster_provision_instance
+    ):
         with patch.object(compute_cluster_provision_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", None]
             with pytest.raises(AirflowException):
                 compute_cluster_provision_instance._compute_cluster_execute()
 
-    def test_compute_cluster_execute_not_lake_version_invalid(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_not_lake_version_invalid(
+        self, compute_cluster_provision_instance
+    ):
         with patch.object(compute_cluster_provision_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "invalid"]
             with pytest.raises(AirflowException):
                 compute_cluster_provision_instance._compute_cluster_execute()
 
-    def test_compute_cluster_execute_complete_success(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_complete_success(
+        self, compute_cluster_provision_instance
+    ):
         event = {"status": "success", "message": "Success message"}
         # Call the method under test
-        result = compute_cluster_provision_instance._compute_cluster_execute_complete(event)
+        result = compute_cluster_provision_instance._compute_cluster_execute_complete(
+            event
+        )
         assert result == "Success message"
 
-    def test_compute_cluster_execute_complete_error(self, compute_cluster_provision_instance):
+    def test_compute_cluster_execute_complete_error(
+        self, compute_cluster_provision_instance
+    ):
         event = {"status": "error", "message": "Error message"}
         with pytest.raises(AirflowException):
             compute_cluster_provision_instance._compute_cluster_execute_complete(event)
@@ -299,7 +327,9 @@ class TestTeradataComputeClusterOperator:
                     ]
                 )
 
-    def test_cc_execute_provision_new_cp_new_cg(self, compute_group_name, compute_cluster_provision_instance):
+    def test_cc_execute_provision_new_cp_new_cg(
+        self, compute_group_name, compute_cluster_provision_instance
+    ):
         with patch.object(compute_cluster_provision_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", "0", "Success", None, "Success"]
@@ -333,7 +363,8 @@ class TestTeradataComputeClusterOperator:
                             handler=_single_result_row_handler,
                         ),
                         call(
-                            f"CREATE COMPUTE GROUP {compute_group_name}", handler=_single_result_row_handler
+                            f"CREATE COMPUTE GROUP {compute_group_name}",
+                            handler=_single_result_row_handler,
                         ),
                         call(
                             f"SEL ComputeProfileState FROM DBC.ComputeProfilesVX WHERE UPPER(ComputeProfileName) = UPPER('{compute_profile_name}') AND UPPER(ComputeGroupName) = UPPER('{compute_group_name}')",
@@ -410,7 +441,9 @@ class TestTeradataComputeClusterOperator:
         with patch.object(compute_cluster_decommission_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", None]
-            compute_profile_name = compute_cluster_decommission_instance.compute_profile_name
+            compute_profile_name = (
+                compute_cluster_decommission_instance.compute_profile_name
+            )
             compute_cluster_decommission_instance._compute_cluster_execute()
             mock_hook.run.assert_has_calls(
                 [
@@ -422,7 +455,10 @@ class TestTeradataComputeClusterOperator:
                         "SELECT  InfoData AS Version FROM DBC.DBCInfoV WHERE InfoKey = 'VERSION'",
                         handler=_single_result_row_handler,
                     ),
-                    call(f"DROP COMPUTE PROFILE {compute_profile_name}", handler=_single_result_row_handler),
+                    call(
+                        f"DROP COMPUTE PROFILE {compute_profile_name}",
+                        handler=_single_result_row_handler,
+                    ),
                 ]
             )
 
@@ -432,7 +468,9 @@ class TestTeradataComputeClusterOperator:
         with patch.object(compute_cluster_decommission_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", None, None]
-            compute_profile_name = compute_cluster_decommission_instance.compute_profile_name
+            compute_profile_name = (
+                compute_cluster_decommission_instance.compute_profile_name
+            )
             compute_cluster_decommission_instance.compute_group_name = compute_group_name
             compute_cluster_decommission_instance.delete_compute_group = True
             compute_cluster_decommission_instance._compute_cluster_execute()
@@ -450,11 +488,16 @@ class TestTeradataComputeClusterOperator:
                         f"DROP COMPUTE PROFILE {compute_profile_name} IN COMPUTE GROUP {compute_group_name}",
                         handler=_single_result_row_handler,
                     ),
-                    call(f"DROP COMPUTE GROUP {compute_group_name}", handler=_single_result_row_handler),
+                    call(
+                        f"DROP COMPUTE GROUP {compute_group_name}",
+                        handler=_single_result_row_handler,
+                    ),
                 ]
             )
 
-    def test_compute_cluster_execute_resume_success(self, compute_cluster_resume_instance):
+    def test_compute_cluster_execute_resume_success(
+        self, compute_cluster_resume_instance
+    ):
         with patch.object(compute_cluster_resume_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", "Suspended", "Success"]
@@ -559,7 +602,9 @@ class TestTeradataComputeClusterOperator:
                 ]
             )
 
-    def test_compute_cluster_execute_resume_same_state(self, compute_cluster_resume_instance):
+    def test_compute_cluster_execute_resume_same_state(
+        self, compute_cluster_resume_instance
+    ):
         with patch.object(compute_cluster_resume_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", "Running"]
@@ -583,7 +628,9 @@ class TestTeradataComputeClusterOperator:
                 ]
             )
 
-    def test_compute_cluster_execute_suspend_success(self, compute_cluster_suspend_instance):
+    def test_compute_cluster_execute_suspend_success(
+        self, compute_cluster_suspend_instance
+    ):
         with patch.object(compute_cluster_suspend_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", "Running", "Success"]
@@ -688,7 +735,9 @@ class TestTeradataComputeClusterOperator:
                 ]
             )
 
-    def test_compute_cluster_execute_suspend_same_state(self, compute_cluster_suspend_instance):
+    def test_compute_cluster_execute_suspend_same_state(
+        self, compute_cluster_suspend_instance
+    ):
         with patch.object(compute_cluster_suspend_instance, "hook") as mock_hook:
             # Set up mock return values
             mock_hook.run.side_effect = ["1", "20.00", "Suspended"]

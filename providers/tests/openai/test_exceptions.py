@@ -21,7 +21,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+)
 
 
 @pytest.mark.parametrize(

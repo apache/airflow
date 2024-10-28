@@ -86,7 +86,10 @@ class TestInternalApiConfig:
     def test_get_use_internal_api_enabled(self):
         configure_internal_api(Namespace(subcommand="dag-processor"), conf)
         assert InternalApiConfig.get_use_internal_api() is True
-        assert InternalApiConfig.get_internal_api_endpoint() == "http://localhost:8888/internal_api/v1/rpcapi"
+        assert (
+            InternalApiConfig.get_internal_api_endpoint()
+            == "http://localhost:8888/internal_api/v1/rpcapi"
+        )
 
     @conf_vars(
         {
@@ -206,7 +209,9 @@ class TestInternalApiCall:
 
         mock_requests.post.return_value = response
 
-        result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
+        result = TestInternalApiCall.fake_method_with_params(
+            "fake-dag", task_id=123, session="session"
+        )
 
         assert result == "remote-call"
         expected_data = json.dumps(
@@ -246,7 +251,9 @@ class TestInternalApiCall:
 
         mock_requests.post.return_value = response
 
-        result = TestInternalApiCall.fake_class_method_with_params("fake-dag", session="session")
+        result = TestInternalApiCall.fake_class_method_with_params(
+            "fake-dag", session="session"
+        )
 
         assert result == "remote-call"
         expected_data = json.dumps(
@@ -287,7 +294,9 @@ class TestInternalApiCall:
         mock_sleep = lambda *_, **__: None  # noqa: F841
         mock_requests.post.return_value = response
         with pytest.raises(RetryError):
-            TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
+            TestInternalApiCall.fake_method_with_params(
+                "fake-dag", task_id=123, session="session"
+            )
         assert mock_requests.post.call_count == 10
 
     @conf_vars(
@@ -306,9 +315,13 @@ class TestInternalApiCall:
         response._content = json.dumps(BaseSerialization.serialize("remote-call"))
 
         mock_requests.post.return_value = response
-        ti = TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING)
+        ti = TaskInstance(
+            task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING
+        )
 
-        result = TestInternalApiCall.fake_class_method_with_serialized_params(ti, session="session")
+        result = TestInternalApiCall.fake_class_method_with_serialized_params(
+            ti, session="session"
+        )
 
         assert result == "remote-call"
         expected_data = json.dumps(
@@ -316,7 +329,9 @@ class TestInternalApiCall:
                 "jsonrpc": "2.0",
                 "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
                 "fake_class_method_with_serialized_params",
-                "params": BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True),
+                "params": BaseSerialization.serialize(
+                    {"ti": ti}, use_pydantic_models=True
+                ),
             }
         )
         mock_requests.post.assert_called_once()

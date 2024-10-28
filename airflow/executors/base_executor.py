@@ -83,7 +83,9 @@ class RunningRetryAttemptType:
     MIN_SECONDS = 10
     total_tries: int = field(default=0, init=False)
     tries_after_min: int = field(default=0, init=False)
-    first_attempt_time: datetime = field(default_factory=lambda: pendulum.now("UTC"), init=False)
+    first_attempt_time: datetime = field(
+        default_factory=lambda: pendulum.now("UTC"), init=False
+    )
 
     @property
     def elapsed(self):
@@ -142,7 +144,9 @@ class BaseExecutor(LoggingMixin):
         :meta private:
         """
 
-        self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
+        self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(
+            RunningRetryAttemptType
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -164,7 +168,12 @@ class BaseExecutor(LoggingMixin):
         """Queues command to task."""
         if task_instance.key not in self.queued_tasks:
             self.log.info("Adding to queue: %s", command)
-            self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
+            self.queued_tasks[task_instance.key] = (
+                command,
+                priority,
+                queue,
+                task_instance,
+            )
         else:
             self.log.error("could not queue task %s", task_instance.key)
 
@@ -259,7 +268,9 @@ class BaseExecutor(LoggingMixin):
             metric_suffix = name
 
         open_slots_metric_name = (
-            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
+            f"executor.open_slots.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.open_slots"
         )
         queued_tasks_metric_name = (
             f"executor.queued_tasks.{metric_suffix}"
@@ -283,7 +294,9 @@ class BaseExecutor(LoggingMixin):
                 },
             )
 
-        self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
+        self.log.debug(
+            "%s running task instances for executor %s", num_running_tasks, name
+        )
         self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
         if open_slots == 0:
             if self.parallelism:
@@ -307,7 +320,9 @@ class BaseExecutor(LoggingMixin):
             tags={"status": "running", "name": name},
         )
 
-    def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
+    def order_queued_tasks_by_priority(
+        self,
+    ) -> list[tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
         """
         Orders the queued tasks by priority.
 
@@ -347,7 +362,11 @@ class BaseExecutor(LoggingMixin):
                 attempt = self.attempts[key]
                 if attempt.can_try_again():
                     # if it hasn't been much time since first check, let it be checked again next time
-                    self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
+                    self.log.info(
+                        "queued but still running; attempt=%s task=%s",
+                        attempt.total_tries,
+                        key,
+                    )
                     continue
 
                 # Otherwise, we give up and remove the task from the queue.
@@ -373,7 +392,10 @@ class BaseExecutor(LoggingMixin):
                 if span.is_recording():
                     span.add_event(
                         name="task to trigger",
-                        attributes={"command": str(command), "conf": str(ti.executor_config)},
+                        attributes={
+                            "command": str(command),
+                            "conf": str(ti.executor_config),
+                        },
                     )
 
         if task_tuples:
@@ -402,11 +424,17 @@ class BaseExecutor(LoggingMixin):
                 span.set_attribute("queue", str(queue))
                 span.set_attribute("executor_config", str(executor_config))
                 del self.queued_tasks[key]
-                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.execute_async(
+                    key=key, command=command, queue=queue, executor_config=executor_config
+                )
                 self.running.add(key)
 
     def change_state(
-        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+        self,
+        key: TaskInstanceKey,
+        state: TaskInstanceState,
+        info=None,
+        remove_running=True,
     ) -> None:
         """
         Change state of the task.
@@ -487,7 +515,9 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
 
-    def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
+    def get_event_buffer(
+        self, dag_ids=None
+    ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
         Return and flush the event buffer.
 
@@ -525,7 +555,9 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+    def get_task_log(
+        self, ti: TaskInstance, try_number: int
+    ) -> tuple[list[str], list[str]]:
         """
         Return the task logs.
 
@@ -543,7 +575,9 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
+    def cleanup_stuck_queued_tasks(
+        self, tis: list[TaskInstance]
+    ) -> list[str]:  # pragma: no cover
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -556,7 +590,9 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance]
+    ) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -583,7 +619,9 @@ class BaseExecutor(LoggingMixin):
         return len(self.running) + len(self.queued_tasks)
 
     @staticmethod
-    def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
+    def validate_airflow_tasks_run_command(
+        command: list[str],
+    ) -> tuple[str | None, str | None]:
         """
         Check if the command to execute is airflow command.
 
@@ -611,7 +649,11 @@ class BaseExecutor(LoggingMixin):
             len(self.queued_tasks),
             "\n\t".join(map(repr, self.queued_tasks.items())),
         )
-        self.log.info("executor.running (%d)\n\t%s", len(self.running), "\n\t".join(map(repr, self.running)))
+        self.log.info(
+            "executor.running (%d)\n\t%s",
+            len(self.running),
+            "\n\t".join(map(repr, self.running)),
+        )
         self.log.info(
             "executor.event_buffer (%d)\n\t%s",
             len(self.event_buffer),

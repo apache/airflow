@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 
 # [START howto_listen_ti_running_task]
 @hookimpl
-def on_task_instance_running(previous_state: TaskInstanceState, task_instance: TaskInstance, session):
+def on_task_instance_running(
+    previous_state: TaskInstanceState, task_instance: TaskInstance, session
+):
     """
     This method is called when task state changes to RUNNING.
     Through callback, parameters like previous_task_state, task_instance object can be accessed.
@@ -64,7 +66,9 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: T
 
 # [START howto_listen_ti_success_task]
 @hookimpl
-def on_task_instance_success(previous_state: TaskInstanceState, task_instance: TaskInstance, session):
+def on_task_instance_success(
+    previous_state: TaskInstanceState, task_instance: TaskInstance, session
+):
     """
     This method is called when task state changes to SUCCESS.
     Through callback, parameters like previous_task_state, task_instance object can be accessed.
@@ -90,7 +94,10 @@ def on_task_instance_success(previous_state: TaskInstanceState, task_instance: T
 # [START howto_listen_ti_failure_task]
 @hookimpl
 def on_task_instance_failed(
-    previous_state: TaskInstanceState, task_instance: TaskInstance, error: None | str | BaseException, session
+    previous_state: TaskInstanceState,
+    task_instance: TaskInstance,
+    error: None | str | BaseException,
+    session,
 ):
     """
     This method is called when task state changes to FAILED.
@@ -149,7 +156,9 @@ def on_dag_run_failed(dag_run: DagRun, msg: str):
     run_id = dag_run.run_id
     external_trigger = dag_run.external_trigger
 
-    print(f"Dag information:{dag_id} Run id: {run_id} external trigger: {external_trigger}")
+    print(
+        f"Dag information:{dag_id} Run id: {run_id} external trigger: {external_trigger}"
+    )
     print(f"Failed with message: {msg}")
 
 

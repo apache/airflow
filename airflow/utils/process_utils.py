@@ -77,7 +77,9 @@ def reap_process_group(
     returncodes = {}
 
     def on_terminate(p):
-        logger.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
+        logger.info(
+            "Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode
+        )
         returncodes[p.pid] = p.returncode
 
     def signal_procs(sig):
@@ -99,13 +101,17 @@ def reap_process_group(
                 # group. In this case os.killpg fails with ESRCH error
                 # So we additionally send a kill signal to the process itself.
                 logger.info(
-                    "Sending the signal %s to process %s as process group is missing.", sig, process_group_id
+                    "Sending the signal %s to process %s as process group is missing.",
+                    sig,
+                    process_group_id,
                 )
                 try:
                     os.kill(process_group_id, sig)
                 except OSError as err_kill:
                     if err_kill.errno == errno.EPERM:
-                        subprocess.check_call(["sudo", "-n", "kill", "-" + str(process_group_id)])
+                        subprocess.check_call(
+                            ["sudo", "-n", "kill", "-" + str(process_group_id)]
+                        )
                     else:
                         raise
             else:
@@ -143,7 +149,9 @@ def reap_process_group(
         if err.errno == errno.ESRCH:
             return returncodes
 
-    _, alive = psutil.wait_procs(all_processes_in_the_group, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(
+        all_processes_in_the_group, timeout=timeout, callback=on_terminate
+    )
 
     if alive:
         for proc in alive:
@@ -158,11 +166,15 @@ def reap_process_group(
         _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
             for proc in alive:
-                logger.error("Process %s (%s) could not be killed. Giving up.", proc, proc.pid)
+                logger.error(
+                    "Process %s (%s) could not be killed. Giving up.", proc, proc.pid
+                )
     return returncodes
 
 
-def execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict | None = None) -> None:
+def execute_in_subprocess(
+    cmd: list[str], cwd: str | None = None, env: dict | None = None
+) -> None:
     """
     Execute a process and stream output to logger.
 
@@ -185,7 +197,12 @@ def execute_in_subprocess_with_kwargs(cmd: list[str], **kwargs) -> None:
     """
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, **kwargs
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=0,
+        close_fds=True,
+        **kwargs,
     ) as proc:
         log.info("Output:")
         if proc.stdout:
@@ -255,7 +272,9 @@ def kill_child_processes_by_pids(pids_to_kill: list[int], timeout: int = 5) -> N
     # where we kill the wrong process because a child process died
     # but the PID got reused.
     child_processes = [
-        x for x in this_process.children(recursive=True) if x.is_running() and x.pid in pids_to_kill
+        x
+        for x in this_process.children(recursive=True)
+        if x.is_running() and x.pid in pids_to_kill
     ]
 
     # First try SIGTERM
@@ -266,14 +285,18 @@ def kill_child_processes_by_pids(pids_to_kill: list[int], timeout: int = 5) -> N
     log.info("Waiting up to %s seconds for processes to exit...", timeout)
     try:
         psutil.wait_procs(
-            child_processes, timeout=timeout, callback=lambda x: log.info("Terminated PID %s", x.pid)
+            child_processes,
+            timeout=timeout,
+            callback=lambda x: log.info("Terminated PID %s", x.pid),
         )
     except psutil.TimeoutExpired:
         log.debug("Ran out of time while waiting for processes to exit")
 
     # Then SIGKILL
     child_processes = [
-        x for x in this_process.children(recursive=True) if x.is_running() and x.pid in pids_to_kill
+        x
+        for x in this_process.children(recursive=True)
+        if x.is_running() and x.pid in pids_to_kill
     ]
     if child_processes:
         log.info("SIGKILL processes that did not terminate gracefully")
@@ -325,7 +348,9 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
             # Check if process is still running
             proc = psutil.Process(pid)
             if proc.is_running():
-                raise AirflowException(f"The {process_name} is already running under PID {pid}.")
+                raise AirflowException(
+                    f"The {process_name} is already running under PID {pid}."
+                )
         except psutil.NoSuchProcess:
             # If process is dead remove the pidfile
             pid_lock_file.break_lock()

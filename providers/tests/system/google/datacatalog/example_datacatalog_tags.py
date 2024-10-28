@@ -37,14 +37,19 @@ from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogListTagsOperator,
     CloudDataCatalogUpdateTagOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 
 DAG_ID = "datacatalog_tags"
 
@@ -64,7 +69,9 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     # Create
     # [START howto_operator_gcp_datacatalog_create_entry_group]
@@ -155,7 +162,9 @@ with DAG(
     # [END howto_operator_gcp_datacatalog_list_tags]
 
     # [START howto_operator_gcp_datacatalog_list_tags_result]
-    list_tags_result = BashOperator(task_id="list_tags_result", bash_command=f"echo {list_tags.output}")
+    list_tags_result = BashOperator(
+        task_id="list_tags_result", bash_command=f"echo {list_tags.output}"
+    )
     # [END howto_operator_gcp_datacatalog_list_tags_result]
 
     # Update
@@ -174,7 +183,10 @@ with DAG(
     # # Delete
     # [START howto_operator_gcp_datacatalog_delete_entry]
     delete_entry = CloudDataCatalogDeleteEntryOperator(
-        task_id="delete_entry", location=LOCATION, entry_group=ENTRY_GROUP_ID, entry=ENTRY_ID
+        task_id="delete_entry",
+        location=LOCATION,
+        entry_group=ENTRY_GROUP_ID,
+        entry=ENTRY_ID,
     )
     # [END howto_operator_gcp_datacatalog_delete_entry]
     delete_entry.trigger_rule = TriggerRule.ALL_DONE
@@ -199,13 +211,18 @@ with DAG(
 
     # [START howto_operator_gcp_datacatalog_delete_tag_template]
     delete_tag_template = CloudDataCatalogDeleteTagTemplateOperator(
-        task_id="delete_tag_template", location=LOCATION, tag_template=TEMPLATE_ID, force=True
+        task_id="delete_tag_template",
+        location=LOCATION,
+        tag_template=TEMPLATE_ID,
+        force=True,
     )
     # [END howto_operator_gcp_datacatalog_delete_tag_template]
     delete_tag_template.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

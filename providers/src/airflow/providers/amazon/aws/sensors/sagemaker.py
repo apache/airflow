@@ -38,7 +38,13 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     ui_color = "#ededed"
 
-    def __init__(self, *, aws_conn_id: str | None = "aws_default", resource_type: str = "job", **kwargs):
+    def __init__(
+        self,
+        *,
+        aws_conn_id: str | None = "aws_default",
+        resource_type: str = "job",
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing
@@ -253,11 +259,16 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         else:
             self.last_description = self.hook.describe_training_job(self.job_name)
         status = self.state_from_response(self.last_description)
-        if (status not in self.non_terminal_states()) and (status not in self.failed_states()):
+        if (status not in self.non_terminal_states()) and (
+            status not in self.failed_states()
+        ):
             billable_time = (
-                self.last_description["TrainingEndTime"] - self.last_description["TrainingStartTime"]
+                self.last_description["TrainingEndTime"]
+                - self.last_description["TrainingStartTime"]
             ) * self.last_description["ResourceConfig"]["InstanceCount"]
-            self.log.info("Billable seconds: %s", (int(billable_time.total_seconds()) + 1))
+            self.log.info(
+                "Billable seconds: %s", (int(billable_time.total_seconds()) + 1)
+            )
         return self.last_description
 
     def get_failed_reason_from_response(self, response):

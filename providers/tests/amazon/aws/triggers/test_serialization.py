@@ -21,8 +21,14 @@ import pytest
 from airflow.jobs.triggerer_job_runner import TriggerRunner
 from airflow.models import Trigger
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
-from airflow.providers.amazon.aws.triggers.batch import BatchCreateComputeEnvironmentTrigger, BatchJobTrigger
-from airflow.providers.amazon.aws.triggers.ecs import ClusterActiveTrigger, ClusterInactiveTrigger
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchJobTrigger,
+)
+from airflow.providers.amazon.aws.triggers.ecs import (
+    ClusterActiveTrigger,
+    ClusterInactiveTrigger,
+)
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateClusterTrigger,
     EksCreateFargateProfileTrigger,
@@ -46,7 +52,9 @@ from airflow.providers.amazon.aws.triggers.emr import (
 )
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from airflow.providers.amazon.aws.triggers.lambda_function import (
+    LambdaCreateFunctionCompleteTrigger,
+)
 from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbAvailableTrigger,
     RdsDbDeletedTrigger,
@@ -60,7 +68,9 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftResumeClusterTrigger,
 )
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
-from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
+from airflow.providers.amazon.aws.triggers.step_function import (
+    StepFunctionsExecutionCompleteTrigger,
+)
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -262,7 +272,9 @@ class TestTriggersSerialization:
                 waiter_delay=WAITER_DELAY,
                 waiter_max_attempts=MAX_ATTEMPTS,
             ),
-            GlueCrawlerCompleteTrigger(crawler_name="my_crawler", waiter_delay=2, aws_conn_id="my_conn_id"),
+            GlueCrawlerCompleteTrigger(
+                crawler_name="my_crawler", waiter_delay=2, aws_conn_id="my_conn_id"
+            ),
             GlueCatalogPartitionTrigger(
                 database_name="my_database",
                 table_name="my_table",

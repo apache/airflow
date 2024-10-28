@@ -71,7 +71,9 @@ class WorkflowExecutionSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
 
-        self.success_states = success_states or {Execution.State(Execution.State.SUCCEEDED)}
+        self.success_states = success_states or {
+            Execution.State(Execution.State.SUCCEEDED)
+        }
         self.failure_states = failure_states or {
             Execution.State(Execution.State.FAILED),
             Execution.State(Execution.State.CANCELLED),
@@ -87,8 +89,14 @@ class WorkflowExecutionSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context):
-        hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        self.log.info("Checking state of execution %s for workflow %s", self.execution_id, self.workflow_id)
+        hook = WorkflowsHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        self.log.info(
+            "Checking state of execution %s for workflow %s",
+            self.execution_id,
+            self.workflow_id,
+        )
         execution: Execution = hook.get_execution(
             workflow_id=self.workflow_id,
             execution_id=self.execution_id,

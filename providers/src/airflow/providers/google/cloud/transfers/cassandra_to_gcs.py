@@ -317,7 +317,9 @@ class CassandraToGCSOperator(BaseOperator):
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):
-            converted_map.append({"key": self.convert_value(k), "value": self.convert_value(v)})
+            converted_map.append(
+                {"key": self.convert_value(k), "value": self.convert_value(v)}
+            )
         return converted_map
 
     @classmethod

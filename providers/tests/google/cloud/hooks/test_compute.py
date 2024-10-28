@@ -24,7 +24,10 @@ import pytest
 from google.api_core.retry import Retry
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook, GceOperationStatus
+from airflow.providers.google.cloud.hooks.compute import (
+    ComputeEngineHook,
+    GceOperationStatus,
+)
 
 from providers.tests.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
@@ -58,7 +61,11 @@ COMPUTE_ENGINE_HOOK_PATH = "airflow.providers.google.cloud.hooks.compute.{}"
 class TestGcpComputeHookApiCall:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            ComputeEngineHook(api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID, delegate_to="delegate_to")
+            ComputeEngineHook(
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                delegate_to="delegate_to",
+            )
 
     def setup_method(self):
         with mock.patch(
@@ -71,13 +78,21 @@ class TestGcpComputeHookApiCall:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_template_client"
+        )
+    )
     def test_insert_template_should_execute_successfully(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
     ):
@@ -100,13 +115,21 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_template_client"
+        )
+    )
     def test_insert_template_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
     ):
@@ -128,13 +151,21 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_template_client"
+        )
+    )
     def test_delete_template_should_execute_successfully(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
     ):
@@ -157,13 +188,21 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_template_client"
+        )
+    )
     def test_delete_template_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
     ):
@@ -185,7 +224,11 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_template_client"
+        )
+    )
     def test_get_template_should_execute_successfully(self, mock_client):
         self.hook.get_instance_template(
             project_id=PROJECT_ID,
@@ -209,8 +252,14 @@ class TestGcpComputeHookApiCall:
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_template_client"))
-    def test_get_template_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_template_client"
+        )
+    )
+    def test_get_template_should_not_throw_ex_when_project_id_none(
+        self, mock_client, mocked_project_id
+    ):
         self.hook.get_instance_template(
             resource_id=RESOURCE_ID,
             retry=RETRY,
@@ -227,9 +276,17 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
-    def test_insert_instance_should_execute_successfully(self, mock_client, wait_for_operation_to_complete):
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client")
+    )
+    def test_insert_instance_should_execute_successfully(
+        self, mock_client, wait_for_operation_to_complete
+    ):
         wait_for_operation_to_complete.return_value = None
         self.hook.insert_instance(
             project_id=PROJECT_ID,
@@ -253,13 +310,19 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client")
+    )
     def test_insert_instance_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
     ):
@@ -285,7 +348,9 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client")
+    )
     def test_get_instance_should_execute_successfully(self, mock_client):
         self.hook.get_instance(
             resource_id=RESOURCE_ID,
@@ -311,8 +376,12 @@ class TestGcpComputeHookApiCall:
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
-    def test_get_instance_should_not_throw_ex_when_project_id_none(self, mock_client, mocked_project_id):
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client")
+    )
+    def test_get_instance_should_not_throw_ex_when_project_id_none(
+        self, mock_client, mocked_project_id
+    ):
         self.hook.get_instance(
             resource_id=RESOURCE_ID,
             zone=ZONE,
@@ -331,9 +400,17 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
-    def test_delete_instance_should_execute_successfully(self, mock_client, wait_for_operation_to_complete):
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client")
+    )
+    def test_delete_instance_should_execute_successfully(
+        self, mock_client, wait_for_operation_to_complete
+    ):
         wait_for_operation_to_complete.return_value = None
         self.hook.delete_instance(
             resource_id=RESOURCE_ID,
@@ -355,13 +432,19 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_client")
+    )
     def test_delete_instance_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
     ):
@@ -385,9 +468,15 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
     @mock.patch(
-        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_group_managers_client"
+        )
     )
     def test_insert_instance_group_manager_should_execute_successfully(
         self, mock_client, wait_for_operation_to_complete
@@ -413,14 +502,20 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
     @mock.patch(
-        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_group_managers_client"
+        )
     )
     def test_insert_instance_group_manager_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
@@ -446,7 +541,9 @@ class TestGcpComputeHookApiCall:
         )
 
     @mock.patch(
-        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_group_managers_client"
+        )
     )
     def test_get_instance_group_manager_should_execute_successfully(self, mock_client):
         self.hook.get_instance_group_manager(
@@ -474,7 +571,9 @@ class TestGcpComputeHookApiCall:
         return_value="mocked-google",
     )
     @mock.patch(
-        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_group_managers_client"
+        )
     )
     def test_get_instance_group_manager_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id
@@ -497,9 +596,15 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
     @mock.patch(
-        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_group_managers_client"
+        )
     )
     def test_delete_instance_group_manager_should_execute_successfully(
         self, mock_client, wait_for_operation_to_complete
@@ -525,14 +630,20 @@ class TestGcpComputeHookApiCall:
             metadata=METADATA,
         )
 
-    @mock.patch(COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook._wait_for_operation_to_complete"))
+    @mock.patch(
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook._wait_for_operation_to_complete"
+        )
+    )
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value="mocked-google",
     )
     @mock.patch(
-        COMPUTE_ENGINE_HOOK_PATH.format("ComputeEngineHook.get_compute_instance_group_managers_client")
+        COMPUTE_ENGINE_HOOK_PATH.format(
+            "ComputeEngineHook.get_compute_instance_group_managers_client"
+        )
     )
     def test_delete_instance_group_manager_should_not_throw_ex_when_project_id_none(
         self, mock_client, mocked_project_id, wait_for_operation_to_complete
@@ -566,7 +677,9 @@ class TestGcpComputeHookNoDefaultProjectId:
         ):
             self.gce_hook_no_project_id = ComputeEngineHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._authorize"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.compute.build")
     def test_gce_client_creation(self, mock_build, mock_authorize):
         result = self.gce_hook_no_project_id.get_conn()
@@ -579,7 +692,9 @@ class TestGcpComputeHookNoDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_start_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_start_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn
+    ):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -588,7 +703,9 @@ class TestGcpComputeHookNoDefaultProjectId:
             project_id="example-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE
         )
         assert res is None
-        start_method.assert_called_once_with(instance="instance", project="example-project", zone="zone")
+        start_method.assert_called_once_with(
+            instance="instance", project="example-project", zone="zone"
+        )
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="example-project", operation_name="operation_id", zone="zone"
@@ -598,7 +715,9 @@ class TestGcpComputeHookNoDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_stop_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_stop_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn
+    ):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -607,7 +726,9 @@ class TestGcpComputeHookNoDefaultProjectId:
             project_id="example-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE
         )
         assert res is None
-        stop_method.assert_called_once_with(instance="instance", project="example-project", zone="zone")
+        stop_method.assert_called_once_with(
+            instance="instance", project="example-project", zone="zone"
+        )
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="example-project", operation_name="operation_id", zone="zone"
@@ -617,8 +738,12 @@ class TestGcpComputeHookNoDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_set_machine_type_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
-        set_machine_type_method = get_conn.return_value.instances.return_value.setMachineType
+    def test_set_machine_type_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn
+    ):
+        set_machine_type_method = (
+            get_conn.return_value.instances.return_value.setMachineType
+        )
         execute_method = set_machine_type_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
@@ -683,7 +808,9 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_start_instance(self, wait_for_operation_to_complete, get_conn, mock_project_id):
+    def test_start_instance(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -694,7 +821,9 @@ class TestGcpComputeHookDefaultProjectId:
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         assert res is None
-        start_method.assert_called_once_with(instance="instance", project="example-project", zone="zone")
+        start_method.assert_called_once_with(
+            instance="instance", project="example-project", zone="zone"
+        )
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="example-project", operation_name="operation_id", zone="zone"
@@ -704,14 +833,20 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_start_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_start_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn
+    ):
         start_method = get_conn.return_value.instances.return_value.start
         execute_method = start_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.start_instance(project_id="new-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE)
+        res = self.gce_hook.start_instance(
+            project_id="new-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE
+        )
         assert res is None
-        start_method.assert_called_once_with(instance="instance", project="new-project", zone="zone")
+        start_method.assert_called_once_with(
+            instance="instance", project="new-project", zone="zone"
+        )
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="new-project", operation_name="operation_id", zone="zone"
@@ -726,7 +861,9 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_stop_instance(self, wait_for_operation_to_complete, get_conn, mock_project_id):
+    def test_stop_instance(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -737,7 +874,9 @@ class TestGcpComputeHookDefaultProjectId:
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         assert res is None
-        stop_method.assert_called_once_with(instance="instance", project="example-project", zone="zone")
+        stop_method.assert_called_once_with(
+            instance="instance", project="example-project", zone="zone"
+        )
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="example-project", operation_name="operation_id", zone="zone"
@@ -747,14 +886,20 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_stop_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_stop_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn
+    ):
         stop_method = get_conn.return_value.instances.return_value.stop
         execute_method = stop_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.gce_hook.stop_instance(project_id="new-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE)
+        res = self.gce_hook.stop_instance(
+            project_id="new-project", zone=GCE_ZONE, resource_id=GCE_INSTANCE
+        )
         assert res is None
-        stop_method.assert_called_once_with(instance="instance", project="new-project", zone="zone")
+        stop_method.assert_called_once_with(
+            instance="instance", project="new-project", zone="zone"
+        )
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id="new-project", operation_name="operation_id", zone="zone"
@@ -769,7 +914,9 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_set_machine_type_instance(self, wait_for_operation_to_complete, get_conn, mock_project_id):
+    def test_set_machine_type_instance(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         execute_method = get_conn.return_value.instances.return_value.setMachineType.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
@@ -789,7 +936,9 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_set_machine_type_instance_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
+    def test_set_machine_type_instance_overridden_project_id(
+        self, wait_for_operation_to_complete, get_conn
+    ):
         execute_method = get_conn.return_value.instances.return_value.setMachineType.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
@@ -811,7 +960,9 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._wait_for_operation_to_complete"
     )
-    def test_patch_instance_group_manager(self, wait_for_operation_to_complete, get_conn, mock_project_id):
+    def test_patch_instance_group_manager(
+        self, wait_for_operation_to_complete, get_conn, mock_project_id
+    ):
         patch_method = get_conn.return_value.instanceGroupManagers.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -871,7 +1022,9 @@ class TestGcpComputeHookDefaultProjectId:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._check_global_operation_status"
     )
-    def test_wait_for_operation_to_complete_no_zone(self, mock_operation_status, mock_get_conn):
+    def test_wait_for_operation_to_complete_no_zone(
+        self, mock_operation_status, mock_get_conn
+    ):
         service = "test-service"
         project_id = "test-project"
         operation_name = "test-operation"
@@ -879,20 +1032,28 @@ class TestGcpComputeHookDefaultProjectId:
 
         # Test success
         mock_get_conn.return_value = service
-        mock_operation_status.return_value = {"status": GceOperationStatus.DONE, "error": None}
+        mock_operation_status.return_value = {
+            "status": GceOperationStatus.DONE,
+            "error": None,
+        }
         self.gce_hook._wait_for_operation_to_complete(
             project_id=project_id, operation_name=operation_name, zone=None
         )
 
         mock_operation_status.assert_called_once_with(
-            service=service, operation_name=operation_name, project_id=project_id, num_retries=num_retries
+            service=service,
+            operation_name=operation_name,
+            project_id=project_id,
+            num_retries=num_retries,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
     @mock.patch(
         "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._check_global_operation_status"
     )
-    def test_wait_for_operation_to_complete_no_zone_error(self, mock_operation_status, mock_get_conn):
+    def test_wait_for_operation_to_complete_no_zone_error(
+        self, mock_operation_status, mock_get_conn
+    ):
         service = "test-service"
         project_id = "test-project"
         operation_name = "test-operation"
@@ -912,8 +1073,12 @@ class TestGcpComputeHookDefaultProjectId:
             )
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._check_zone_operation_status")
-    def test_wait_for_operation_to_complete_with_zone(self, mock_operation_status, mock_get_conn):
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook._check_zone_operation_status"
+    )
+    def test_wait_for_operation_to_complete_with_zone(
+        self, mock_operation_status, mock_get_conn
+    ):
         service = "test-service"
         project_id = "test-project"
         operation_name = "test-operation"
@@ -922,9 +1087,14 @@ class TestGcpComputeHookDefaultProjectId:
 
         # Test success
         mock_get_conn.return_value = service
-        mock_operation_status.return_value = {"status": GceOperationStatus.DONE, "error": None}
+        mock_operation_status.return_value = {
+            "status": GceOperationStatus.DONE,
+            "error": None,
+        }
         self.gce_hook._wait_for_operation_to_complete(
             project_id=project_id, operation_name=operation_name, zone=zone
         )
 
-        mock_operation_status.assert_called_once_with(service, operation_name, project_id, zone, num_retries)
+        mock_operation_status.assert_called_once_with(
+            service, operation_name, project_id, zone, num_retries
+        )

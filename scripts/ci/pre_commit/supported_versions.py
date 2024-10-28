@@ -24,7 +24,14 @@ from tabulate import tabulate
 AIRFLOW_SOURCES = Path(__file__).resolve().parent.parent.parent.parent
 
 
-HEADERS = ("Version", "Current Patch/Minor", "State", "First Release", "Limited Support", "EOL/Terminated")
+HEADERS = (
+    "Version",
+    "Current Patch/Minor",
+    "State",
+    "First Release",
+    "Limited Support",
+    "EOL/Terminated",
+)
 
 SUPPORTED_VERSIONS = (
     ("2", "2.10.2", "Supported", "Dec 17, 2020", "TBD", "TBD"),
@@ -49,17 +56,29 @@ if __name__ == "__main__":
         end="<!-- End of auto-generated table -->\n",
         replacement_text="\n"
         + tabulate(
-            SUPPORTED_VERSIONS, tablefmt="github", headers=HEADERS, stralign="left", disable_numparse=True
+            SUPPORTED_VERSIONS,
+            tablefmt="github",
+            headers=HEADERS,
+            stralign="left",
+            disable_numparse=True,
         )
         + "\n\n",
     )
     replace_text_between(
-        file=AIRFLOW_SOURCES / "docs" / "apache-airflow" / "installation" / "supported-versions.rst",
+        file=AIRFLOW_SOURCES
+        / "docs"
+        / "apache-airflow"
+        / "installation"
+        / "supported-versions.rst",
         start=" .. Beginning of auto-generated table\n",
         end=" .. End of auto-generated table\n",
         replacement_text="\n"
         + tabulate(
-            SUPPORTED_VERSIONS, tablefmt="rst", headers=HEADERS, stralign="left", disable_numparse=True
+            SUPPORTED_VERSIONS,
+            tablefmt="rst",
+            headers=HEADERS,
+            stralign="left",
+            disable_numparse=True,
         )
         + "\n\n",
     )

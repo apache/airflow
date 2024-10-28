@@ -96,24 +96,43 @@ class SalesforceHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
         return {
-            "security_token": PasswordField(lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()),
+            "security_token": PasswordField(
+                lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()
+            ),
             "domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
-            "consumer_key": StringField(lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()),
+            "consumer_key": StringField(
+                lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()
+            ),
             "private_key_file_path": PasswordField(
                 lazy_gettext("Private Key File Path"), widget=BS3PasswordFieldWidget()
             ),
-            "private_key": PasswordField(lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()),
-            "organization_id": StringField(lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()),
-            "instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
-            "instance_url": StringField(lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()),
+            "private_key": PasswordField(
+                lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()
+            ),
+            "organization_id": StringField(
+                lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()
+            ),
+            "instance": StringField(
+                lazy_gettext("Instance"), widget=BS3TextFieldWidget()
+            ),
+            "instance_url": StringField(
+                lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()
+            ),
             "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
-            "version": StringField(lazy_gettext("API Version"), widget=BS3TextFieldWidget()),
-            "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
+            "version": StringField(
+                lazy_gettext("API Version"), widget=BS3TextFieldWidget()
+            ),
+            "client_id": StringField(
+                lazy_gettext("Client ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -159,7 +178,9 @@ class SalesforceHook(BaseHook):
         """Return a Salesforce instance. (cached)."""
         return self.conn
 
-    def make_query(self, query: str, include_deleted: bool = False, query_params: dict | None = None) -> dict:
+    def make_query(
+        self, query: str, include_deleted: bool = False, query_params: dict | None = None
+    ) -> dict:
         """
         Make a query to Salesforce.
 
@@ -172,10 +193,14 @@ class SalesforceHook(BaseHook):
 
         self.log.info("Querying for all objects")
         query_params = query_params or {}
-        query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
+        query_results = conn.query_all(
+            query, include_deleted=include_deleted, **query_params
+        )
 
         self.log.info(
-            "Received results: Total size: %s; Done: %s", query_results["totalSize"], query_results["done"]
+            "Received results: Total size: %s; Done: %s",
+            query_results["totalSize"],
+            query_results["done"],
         )
 
         return query_results
@@ -345,7 +370,10 @@ class SalesforceHook(BaseHook):
         return df
 
     def object_to_df(
-        self, query_results: list[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
+        self,
+        query_results: list[dict],
+        coerce_to_timestamp: bool = False,
+        record_time_added: bool = False,
     ) -> pd.DataFrame:
         """
         Export query results to dataframe.
@@ -392,9 +420,12 @@ class SalesforceHook(BaseHook):
             possible_timestamp_cols = [
                 field["name"].lower()
                 for field in schema["fields"]
-                if field["type"] in ["date", "datetime"] and field["name"].lower() in df.columns
+                if field["type"] in ["date", "datetime"]
+                and field["name"].lower() in df.columns
             ]
-            df[possible_timestamp_cols] = df[possible_timestamp_cols].apply(self._to_timestamp)
+            df[possible_timestamp_cols] = df[possible_timestamp_cols].apply(
+                self._to_timestamp
+            )
 
         if record_time_added:
             fetched_time = time.time()

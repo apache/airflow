@@ -50,7 +50,9 @@ class TestComputeEngineHookWithPassedProjectId:
             ComputeEngineSSHHook(gcp_conn_id="gcpssh", delegate_to="delegate_to")
 
     def test_os_login_hook(self, mocker):
-        mock_os_login_hook = mocker.patch.object(OSLoginHook, "__init__", return_value=None, spec=OSLoginHook)
+        mock_os_login_hook = mocker.patch.object(
+            OSLoginHook, "__init__", return_value=None, spec=OSLoginHook
+        )
 
         # Default values
         assert ComputeEngineSSHHook()._oslogin_hook
@@ -62,8 +64,12 @@ class TestComputeEngineHookWithPassedProjectId:
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
-    def test_get_conn_default_configuration(self, mock_ssh_client, mock_paramiko, mock_compute_hook, mocker):
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
+    def test_get_conn_default_configuration(
+        self, mock_ssh_client, mock_paramiko, mock_compute_hook, mocker
+    ):
         mock_paramiko.SSHException = RuntimeError
         mock_paramiko.RSAKey.generate.return_value.get_name.return_value = "NAME"
         mock_paramiko.RSAKey.generate.return_value.get_base64.return_value = "AYZ"
@@ -72,7 +78,10 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
 
         mock_os_login_hook = mocker.patch.object(
-            ComputeEngineSSHHook, "_oslogin_hook", spec=OSLoginHook, name="FakeOsLoginHook"
+            ComputeEngineSSHHook,
+            "_oslogin_hook",
+            spec=OSLoginHook,
+            name="FakeOsLoginHook",
         )
         type(mock_os_login_hook)._get_credentials_email = mock.PropertyMock(
             return_value="test-example@example.org"
@@ -105,7 +114,9 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_ssh_client.assert_has_calls(
             [
                 mock.call(mock_compute_hook.return_value),
-                mock.call().set_missing_host_key_policy(mock_paramiko.AutoAddPolicy.return_value),
+                mock.call().set_missing_host_key_policy(
+                    mock_paramiko.AutoAddPolicy.return_value
+                ),
                 mock.call().connect(
                     hostname=EXTERNAL_IP,
                     look_for_keys=False,
@@ -118,12 +129,21 @@ class TestComputeEngineHookWithPassedProjectId:
 
     @pytest.mark.parametrize(
         "exception_type, error_message",
-        [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
+        [
+            (
+                SSHException,
+                r"Error occurred when establishing SSH connection using Paramiko",
+            )
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance"
+    )
     def test_get_conn_default_configuration_test_exceptions(
         self,
         mock_connect,
@@ -143,7 +163,10 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
 
         mock_os_login_hook = mocker.patch.object(
-            ComputeEngineSSHHook, "_oslogin_hook", spec=OSLoginHook, name="FakeOsLoginHook"
+            ComputeEngineSSHHook,
+            "_oslogin_hook",
+            spec=OSLoginHook,
+            name="FakeOsLoginHook",
         )
         type(mock_os_login_hook)._get_credentials_email = mock.PropertyMock(
             return_value="test-example@example.org"
@@ -163,7 +186,9 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
     def test_get_conn_authorize_using_instance_metadata(
         self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
     ):
@@ -176,7 +201,9 @@ class TestComputeEngineHookWithPassedProjectId:
 
         mock_compute_hook.return_value.get_instance_info.return_value = {"metadata": {}}
 
-        hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False)
+        hook = ComputeEngineSSHHook(
+            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False
+        )
         result = hook.get_conn()
         assert mock_ssh_client.return_value == result
 
@@ -191,10 +218,14 @@ class TestComputeEngineHookWithPassedProjectId:
                     zone=TEST_ZONE,
                 ),
                 mock.call().get_instance_info(
-                    project_id=TEST_PROJECT_ID, resource_id=TEST_INSTANCE_NAME, zone=TEST_ZONE
+                    project_id=TEST_PROJECT_ID,
+                    resource_id=TEST_INSTANCE_NAME,
+                    zone=TEST_ZONE,
                 ),
                 mock.call().set_instance_metadata(
-                    metadata={"items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n"}]},
+                    metadata={
+                        "items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n"}]
+                    },
                     project_id=TEST_PROJECT_ID,
                     resource_id=TEST_INSTANCE_NAME,
                     zone=TEST_ZONE,
@@ -205,7 +236,9 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_ssh_client.assert_has_calls(
             [
                 mock.call(mock_compute_hook.return_value),
-                mock.call().set_missing_host_key_policy(mock_paramiko.AutoAddPolicy.return_value),
+                mock.call().set_missing_host_key_policy(
+                    mock_paramiko.AutoAddPolicy.return_value
+                ),
                 mock.call().connect(
                     hostname=EXTERNAL_IP,
                     look_for_keys=False,
@@ -222,7 +255,9 @@ class TestComputeEngineHookWithPassedProjectId:
         "exception_type, error_message",
         [
             (
-                HttpError(resp=httplib2.Response({"status": 412}), content=b"Error content"),
+                HttpError(
+                    resp=httplib2.Response({"status": 412}), content=b"Error content"
+                ),
                 r"Error occurred when trying to update instance metadata",
             ),
             (
@@ -234,7 +269,9 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
     def test_get_conn_authorize_using_instance_metadata_test_exception(
         self,
         mock_ssh_client,
@@ -253,9 +290,14 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
 
         mock_compute_hook.return_value.get_instance_info.return_value = {"metadata": {}}
-        mock_compute_hook.return_value.set_instance_metadata.side_effect = [exception_type, None]
+        mock_compute_hook.return_value.set_instance_metadata.side_effect = [
+            exception_type,
+            None,
+        ]
 
-        hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False)
+        hook = ComputeEngineSSHHook(
+            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False
+        )
         with caplog.at_level(logging.INFO):
             hook.get_conn()
         assert error_message in caplog.text
@@ -264,7 +306,9 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
     def test_get_conn_authorize_using_instance_metadata_append_ssh_keys(
         self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
     ):
@@ -280,12 +324,18 @@ class TestComputeEngineHookWithPassedProjectId:
             "metadata": {"items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY2}\n"}]}
         }
 
-        hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False)
+        hook = ComputeEngineSSHHook(
+            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False
+        )
         result = hook.get_conn()
         assert mock_ssh_client.return_value == result
 
         mock_compute_hook.return_value.set_instance_metadata.assert_called_once_with(
-            metadata={"items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n{TEST_PUB_KEY2}\n"}]},
+            metadata={
+                "items": [
+                    {"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n{TEST_PUB_KEY2}\n"}
+                ]
+            },
             project_id=TEST_PROJECT_ID,
             resource_id=TEST_INSTANCE_NAME,
             zone=TEST_ZONE,
@@ -294,8 +344,12 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
-    def test_get_conn_private_ip(self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook):
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
+    def test_get_conn_private_ip(
+        self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
+    ):
         del mock_os_login_hook
         mock_paramiko.SSHException = Exception
         mock_paramiko.RSAKey.generate.return_value.get_name.return_value = "NAME"
@@ -307,22 +361,34 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_compute_hook.return_value.get_instance_info.return_value = {"metadata": {}}
 
         hook = ComputeEngineSSHHook(
-            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False, use_internal_ip=True
+            instance_name=TEST_INSTANCE_NAME,
+            zone=TEST_ZONE,
+            use_oslogin=False,
+            use_internal_ip=True,
         )
         result = hook.get_conn()
         assert mock_ssh_client.return_value == result
 
         mock_compute_hook.return_value.get_instance_address.assert_called_once_with(
-            project_id=TEST_PROJECT_ID, resource_id=TEST_INSTANCE_NAME, use_internal_ip=True, zone=TEST_ZONE
+            project_id=TEST_PROJECT_ID,
+            resource_id=TEST_INSTANCE_NAME,
+            use_internal_ip=True,
+            zone=TEST_ZONE,
         )
         mock_ssh_client.return_value.connect.assert_called_once_with(
-            hostname=INTERNAL_IP, look_for_keys=mock.ANY, pkey=mock.ANY, sock=mock.ANY, username=mock.ANY
+            hostname=INTERNAL_IP,
+            look_for_keys=mock.ANY,
+            pkey=mock.ANY,
+            sock=mock.ANY,
+            username=mock.ANY,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
     def test_get_conn_custom_hostname(
         self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
     ):
@@ -350,15 +416,22 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
-    def test_get_conn_iap_tunnel(self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook):
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
+    def test_get_conn_iap_tunnel(
+        self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
+    ):
         del mock_os_login_hook
         mock_paramiko.SSHException = Exception
 
         mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
 
         hook = ComputeEngineSSHHook(
-            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False, use_iap_tunnel=True
+            instance_name=TEST_INSTANCE_NAME,
+            zone=TEST_ZONE,
+            use_oslogin=False,
+            use_iap_tunnel=True,
         )
         result = hook.get_conn()
         assert mock_ssh_client.return_value == result
@@ -379,7 +452,9 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
     def test_get_conn_iap_tunnel_with_impersonation_chain(
         self, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
     ):
@@ -413,13 +488,22 @@ class TestComputeEngineHookWithPassedProjectId:
 
     @pytest.mark.parametrize(
         "exception_type, error_message",
-        [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
+        [
+            (
+                SSHException,
+                r"Error occurred when establishing SSH connection using Paramiko",
+            )
+        ],
     )
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance"
+    )
     def test_get_conn_iap_tunnel_test_exception(
         self,
         mock_connect,
@@ -437,7 +521,10 @@ class TestComputeEngineHookWithPassedProjectId:
         mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
 
         hook = ComputeEngineSSHHook(
-            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False, use_iap_tunnel=True
+            instance_name=TEST_INSTANCE_NAME,
+            zone=TEST_ZONE,
+            use_oslogin=False,
+            use_iap_tunnel=True,
         )
         mock_connect.side_effect = [exception_type, mock_ssh_client]
 
@@ -449,10 +536,17 @@ class TestComputeEngineHookWithPassedProjectId:
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.time.sleep")
     def test_get_conn_retry_on_connection_error(
-        self, mock_time, mock_ssh_client, mock_paramiko, mock_os_login_hook, mock_compute_hook
+        self,
+        mock_time,
+        mock_ssh_client,
+        mock_paramiko,
+        mock_os_login_hook,
+        mock_compute_hook,
     ):
         del mock_os_login_hook
         del mock_compute_hook
@@ -461,7 +555,11 @@ class TestComputeEngineHookWithPassedProjectId:
             pass
 
         mock_paramiko.SSHException = CustomException
-        mock_ssh_client.return_value.connect.side_effect = [CustomException, CustomException, True]
+        mock_ssh_client.return_value.connect.side_effect = [
+            CustomException,
+            CustomException,
+            True,
+        ]
         hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE)
         hook.get_conn()
 
@@ -526,10 +624,20 @@ class TestComputeEngineHookWithPassedProjectId:
             ({"items": []}, {"items": [{"key": "ssh-keys", "value": "user:pubkey\n"}]}),
             (
                 {"items": [{"key": "test", "value": "test"}]},
-                {"items": [{"key": "ssh-keys", "value": "user:pubkey\n"}, {"key": "test", "value": "test"}]},
+                {
+                    "items": [
+                        {"key": "ssh-keys", "value": "user:pubkey\n"},
+                        {"key": "test", "value": "test"},
+                    ]
+                },
             ),
             (
-                {"items": [{"key": "ssh-keys", "value": "test"}, {"key": "test", "value": "test"}]},
+                {
+                    "items": [
+                        {"key": "ssh-keys", "value": "test"},
+                        {"key": "test", "value": "test"},
+                    ]
+                },
                 {
                     "items": [
                         {"key": "ssh-keys", "value": "user:pubkey\ntest"},
@@ -539,10 +647,18 @@ class TestComputeEngineHookWithPassedProjectId:
             ),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook.set_instance_metadata")
-    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook.get_instance_info")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook.set_instance_metadata"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook.get_instance_info"
+    )
     def test__authorize_compute_engine_instance_metadata(
-        self, mock_get_instance_info, mock_set_instance_metadata, metadata, expected_metadata
+        self,
+        mock_get_instance_info,
+        mock_set_instance_metadata,
+        metadata,
+        expected_metadata,
     ):
         """Test to ensure the addition metadata is retained"""
         mock_get_instance_info.return_value = {"metadata": metadata}
@@ -556,6 +672,11 @@ class TestComputeEngineHookWithPassedProjectId:
             hook.user = "user"
             pubkey = "pubkey"
             hook._authorize_compute_engine_instance_metadata(pubkey=pubkey)
-            mock_set_instance_metadata.call_args.kwargs["metadata"]["items"].sort(key=lambda x: x["key"])
+            mock_set_instance_metadata.call_args.kwargs["metadata"]["items"].sort(
+                key=lambda x: x["key"]
+            )
             expected_metadata["items"].sort(key=lambda x: x["key"])
-            assert mock_set_instance_metadata.call_args.kwargs["metadata"] == expected_metadata
+            assert (
+                mock_set_instance_metadata.call_args.kwargs["metadata"]
+                == expected_metadata
+            )

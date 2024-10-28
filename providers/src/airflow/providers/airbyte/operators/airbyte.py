@@ -62,7 +62,9 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         connection_id: str,
         airbyte_conn_id: str = "airbyte_default",
         asynchronous: bool = False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         api_version: str = "v1",
         wait_seconds: float = 3,
         timeout: float = 3600,
@@ -79,7 +81,9 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """Create Airbyte Job and wait to finish."""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        hook = AirbyteHook(
+            airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version
+        )
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         self.job_id = job_object.job_id
         state = job_object.status
@@ -92,9 +96,15 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             return self.job_id
 
         if not self.deferrable:
-            hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+            hook.wait_for_job(
+                job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
+            )
         else:
-            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+            if state in (
+                JobStatusEnum.RUNNING,
+                JobStatusEnum.PENDING,
+                JobStatusEnum.INCOMPLETE,
+            ):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(
@@ -113,7 +123,9 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             elif state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{self.job_id}")
             else:
-                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
+                raise AirflowException(
+                    f"Encountered unexpected state `{state}` for job_id `{self.job_id}"
+                )
 
         return self.job_id
 

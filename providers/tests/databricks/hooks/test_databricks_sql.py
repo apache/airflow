@@ -123,7 +123,10 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test", "select * from test.test2"],
             False,
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            (
+                [Row(id=1, value=2), Row(id=11, value=12)],
+                [Row(id=3, value=4), Row(id=13, value=14)],
+            ),
             [[("id2",), ("value2",)]],
             [Row(id=3, value=4), Row(id=13, value=14)],
             id="The return_last set and split statements set on multiple queries in string",
@@ -135,7 +138,10 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test", "select * from test.test2"],
             False,
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            (
+                [Row(id=1, value=2), Row(id=11, value=12)],
+                [Row(id=3, value=4), Row(id=13, value=14)],
+            ),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
                 [Row(id=1, value=2), Row(id=11, value=12)],
@@ -174,7 +180,10 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test", "select * from test.test2"],
             False,
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            (
+                [Row(id=1, value=2), Row(id=11, value=12)],
+                [Row(id=3, value=4), Row(id=13, value=14)],
+            ),
             [[("id2",), ("value2",)]],
             [Row(id=3, value=4), Row(id=13, value=14)],
             id="The return_last set on multiple queries in list",
@@ -186,7 +195,10 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
             ["select * from test.test", "select * from test.test2"],
             False,
             [["id", "value"], ["id2", "value2"]],
-            ([Row(id=1, value=2), Row(id=11, value=12)], [Row(id=3, value=4), Row(id=13, value=14)]),
+            (
+                [Row(id=1, value=2), Row(id=11, value=12)],
+                [Row(id=3, value=4), Row(id=13, value=14)],
+            ),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
                 [Row(id=1, value=2), Row(id=11, value=12)],
@@ -244,8 +256,12 @@ def test_query(
     hook_results,
 ):
     with (
-        patch("airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook.get_conn") as mock_conn,
-        patch("airflow.providers.databricks.hooks.databricks_base.requests") as mock_requests,
+        patch(
+            "airflow.providers.databricks.hooks.databricks_sql.DatabricksSqlHook.get_conn"
+        ) as mock_conn,
+        patch(
+            "airflow.providers.databricks.hooks.databricks_base.requests"
+        ) as mock_requests,
     ):
         mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = {
@@ -283,11 +299,18 @@ def test_query(
                 returned instead in a future release of the databricks provider. Set `return_tuple=True` to
                 enable this behavior.""",
             ):
-                databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
+                databricks_hook = DatabricksSqlHook(
+                    sql_endpoint_name="Test", return_tuple=return_tuple
+                )
         else:
-            databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
+            databricks_hook = DatabricksSqlHook(
+                sql_endpoint_name="Test", return_tuple=return_tuple
+            )
         results = databricks_hook.run(
-            sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
+            sql=sql,
+            handler=fetch_all_handler,
+            return_last=return_last,
+            split_statements=split_statements,
         )
 
         assert databricks_hook.descriptions == hook_descriptions

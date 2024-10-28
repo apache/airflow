@@ -25,7 +25,9 @@ from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "slack_webhook_example_dag"
 SLACK_WEBHOOK_CONN_ID = os.environ.get("SLACK_WEBHOOK_CONN_ID", "slack_default")
-IMAGE_URL = "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+IMAGE_URL = (
+    "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+)
 
 with DAG(
     dag_id=DAG_ID,
@@ -60,7 +62,11 @@ with DAG(
                         "and monitoring batch-oriented workflows."
                     ),
                 },
-                "accessory": {"type": "image", "image_url": IMAGE_URL, "alt_text": "Pinwheel"},
+                "accessory": {
+                    "type": "image",
+                    "image_url": IMAGE_URL,
+                    "alt_text": "Pinwheel",
+                },
             }
         ],
         message="Fallback message",

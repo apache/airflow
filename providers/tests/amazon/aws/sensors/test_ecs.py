@@ -48,7 +48,9 @@ pytestmark = pytest.mark.db_test
 
 class EcsBaseTestCase:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator, session):
+    def setup_test_cases(
+        self, monkeypatch, request, create_task_instance_of_operator, session
+    ):
         self.dag_id = f"dag-{slugify(request.cls.__name__)}"
         self.task_id = f"task-{slugify(request.node.name, max_length=40)}"
         self.fake_client = boto3.client("ecs", region_name="eu-west-3")
@@ -56,7 +58,9 @@ class EcsBaseTestCase:
         self.ti_maker = create_task_instance_of_operator
         self.session = session
 
-    def create_rendered_task(self, operator_class: type[_Operator], **kwargs) -> _Operator:
+    def create_rendered_task(
+        self, operator_class: type[_Operator], **kwargs
+    ) -> _Operator:
         """
         Create operator from given class and render fields.
 
@@ -83,7 +87,9 @@ class TestEcsBaseSensor(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseSensor(task_id="test_ecs_base", **op_kw)
 
-        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.aws_conn_id == (
+            aws_conn_id if aws_conn_id is not NOTSET else "aws_default"
+        )
         assert op.region_name == (region_name if region_name is not NOTSET else None)
 
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
@@ -105,10 +111,13 @@ class TestEcsBaseSensor(EcsBaseTestCase):
 
 class TestEcsClusterStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
-        "return_state, expected", [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)]
+        "return_state, expected",
+        [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)],
     )
     def test_default_values_poke(self, return_state, expected):
-        task = self.create_rendered_task(EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME)
+        task = self.create_rendered_task(
+            EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME
+        )
         with mock.patch.object(task.hook, "get_cluster_state") as m:
             m.return_value = return_state
             assert task.poke({}) == expected
@@ -116,7 +125,9 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
 
     @pytest.mark.parametrize("return_state", ["FAILED", "INACTIVE"])
     def test_default_values_terminal_state(self, create_task_of_operator, return_state):
-        task = self.create_rendered_task(EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME)
+        task = self.create_rendered_task(
+            EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME
+        )
         with mock.patch.object(task.hook, "get_cluster_state") as m:
             m.return_value = return_state
             with pytest.raises(AirflowException, match="Terminal state reached"):
@@ -134,7 +145,9 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
     )
     def test_custom_values_poke(self, target_state, return_state, expected):
         task = self.create_rendered_task(
-            EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME, target_state=target_state
+            EcsClusterStateSensor,
+            cluster_name=TEST_CLUSTER_NAME,
+            target_state=target_state,
         )
         with mock.patch.object(task.hook, "get_cluster_state") as m:
             m.return_value = return_state
@@ -145,8 +158,14 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
         "failure_states, return_state",
         [
             ({EcsClusterStates.ACTIVE}, "ACTIVE"),
-            ({EcsClusterStates.PROVISIONING, EcsClusterStates.DEPROVISIONING}, "DEPROVISIONING"),
-            ({EcsClusterStates.PROVISIONING, EcsClusterStates.DEPROVISIONING}, "PROVISIONING"),
+            (
+                {EcsClusterStates.PROVISIONING, EcsClusterStates.DEPROVISIONING},
+                "DEPROVISIONING",
+            ),
+            (
+                {EcsClusterStates.PROVISIONING, EcsClusterStates.DEPROVISIONING},
+                "PROVISIONING",
+            ),
         ],
     )
     def test_custom_values_terminal_state(self, failure_states, return_state):
@@ -165,7 +184,8 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
 
 class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
-        "return_state, expected", [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)]
+        "return_state, expected",
+        [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)],
     )
     def test_default_values_poke(self, return_state, expected):
         task = self.create_rendered_task(
@@ -185,9 +205,13 @@ class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
             (EcsTaskDefinitionStates.ACTIVE, "ACTIVE", True),
         ],
     )
-    def test_custom_values_poke(self, create_task_of_operator, target_state, return_state, expected):
+    def test_custom_values_poke(
+        self, create_task_of_operator, target_state, return_state, expected
+    ):
         task = self.create_rendered_task(
-            EcsTaskDefinitionStateSensor, task_definition=TEST_TASK_DEFINITION_ARN, target_state=target_state
+            EcsTaskDefinitionStateSensor,
+            task_definition=TEST_TASK_DEFINITION_ARN,
+            target_state=target_state,
         )
         with mock.patch.object(task.hook, "get_task_definition_state") as m:
             m.return_value = return_state
@@ -210,7 +234,9 @@ class TestEcsTaskStateSensor(EcsBaseTestCase):
         ],
     )
     def test_default_values_poke(self, return_state, expected):
-        task = self.create_rendered_task(EcsTaskStateSensor, cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN)
+        task = self.create_rendered_task(
+            EcsTaskStateSensor, cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN
+        )
         with mock.patch.object(task.hook, "get_task_state") as m:
             m.return_value = return_state
             assert task.poke({}) == expected
@@ -218,7 +244,9 @@ class TestEcsTaskStateSensor(EcsBaseTestCase):
 
     @pytest.mark.parametrize("return_state", ["STOPPED"])
     def test_default_values_terminal_state(self, return_state):
-        task = self.create_rendered_task(EcsTaskStateSensor, cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN)
+        task = self.create_rendered_task(
+            EcsTaskStateSensor, cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN
+        )
         with mock.patch.object(task.hook, "get_task_state") as m:
             m.return_value = return_state
             with pytest.raises(AirflowException, match="Terminal state reached"):
@@ -236,7 +264,10 @@ class TestEcsTaskStateSensor(EcsBaseTestCase):
     )
     def test_custom_values_poke(self, target_state, return_state, expected):
         task = self.create_rendered_task(
-            EcsTaskStateSensor, cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN, target_state=target_state
+            EcsTaskStateSensor,
+            cluster=TEST_CLUSTER_NAME,
+            task=TEST_TASK_ARN,
+            target_state=target_state,
         )
         with mock.patch.object(task.hook, "get_task_state") as m:
             m.return_value = return_state

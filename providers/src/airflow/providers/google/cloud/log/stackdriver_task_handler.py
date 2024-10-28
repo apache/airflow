@@ -31,7 +31,9 @@ from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    get_credentials_and_project_id,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -45,7 +47,10 @@ DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
 
 _DEFAULT_SCOPESS = frozenset(
-    ["https://www.googleapis.com/auth/logging.read", "https://www.googleapis.com/auth/logging.write"]
+    [
+        "https://www.googleapis.com/auth/logging.read",
+        "https://www.googleapis.com/auth/logging.write",
+    ]
 )
 
 
@@ -197,7 +202,10 @@ class StackdriverTaskHandler(logging.Handler):
         self.task_instance_hostname = task_instance.hostname
 
     def read(
-        self, task_instance: TaskInstance, try_number: int | None = None, metadata: dict | None = None
+        self,
+        task_instance: TaskInstance,
+        try_number: int | None = None,
+        metadata: dict | None = None,
     ) -> tuple[list[tuple[tuple[str, str]]], list[dict[str, str | bool]]]:
         """
         Read logs of given task instance from Stackdriver logging.
@@ -228,7 +236,9 @@ class StackdriverTaskHandler(logging.Handler):
         next_page_token = metadata.get("next_page_token", None)
         all_pages = "download_logs" in metadata and metadata["download_logs"]
 
-        messages, end_of_log, next_page_token = self._read_logs(log_filter, next_page_token, all_pages)
+        messages, end_of_log, next_page_token = self._read_logs(
+            log_filter, next_page_token, all_pages
+        )
 
         new_metadata: dict[str, str | bool] = {"end_of_log": end_of_log}
 
@@ -263,10 +273,14 @@ class StackdriverTaskHandler(logging.Handler):
         ]
 
         for key, value in self.resource.labels.items():
-            log_filters.append(f"resource.labels.{escape_label_key(key)}={escale_label_value(value)}")
+            log_filters.append(
+                f"resource.labels.{escape_label_key(key)}={escale_label_value(value)}"
+            )
 
         for key, value in ti_labels.items():
-            log_filters.append(f"labels.{escape_label_key(key)}={escale_label_value(value)}")
+            log_filters.append(
+                f"labels.{escape_label_key(key)}={escale_label_value(value)}"
+            )
         return "\n".join(log_filters)
 
     def _read_logs(
@@ -306,7 +320,9 @@ class StackdriverTaskHandler(logging.Handler):
             end_of_log = not bool(next_page_token)
         return "\n".join(messages), end_of_log, next_page_token
 
-    def _read_single_logs_page(self, log_filter: str, page_token: str | None = None) -> tuple[str, str]:
+    def _read_single_logs_page(
+        self, log_filter: str, page_token: str | None = None
+    ) -> tuple[str, str]:
         """
         Send requests to the Stackdriver service and downloads single pages with logs.
 

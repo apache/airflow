@@ -63,7 +63,9 @@ class TestDateTimeParser:
         datetime = format_datetime(self.default_time_2)
         datetime2 = timezone.parse(self.default_time_2)
         assert datetime == datetime2
-        assert datetime.isoformat() == self.default_time  # python uses +00:00 instead of Z
+        assert (
+            datetime.isoformat() == self.default_time
+        )  # python uses +00:00 instead of Z
 
     def test_raises_400_for_invalid_arg(self):
         invalid_datetime = "2020-06-13T22:44:00P"
@@ -106,7 +108,9 @@ class TestFormatParameters:
 
         decorated_endpoint(param_a="2020-01-01T0:0:00+00:00")
 
-        endpoint.assert_called_once_with(param_a=pendulum.datetime(2020, 1, 1, 0, tz="UTC"))
+        endpoint.assert_called_once_with(
+            param_a=pendulum.datetime(2020, 1, 1, 0, tz="UTC")
+        )
 
     def test_should_propagate_exceptions(self):
         decorator = format_parameters({"param_a": format_datetime})

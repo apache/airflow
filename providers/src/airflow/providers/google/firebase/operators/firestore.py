@@ -90,4 +90,6 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.export_documents(database_id=self.database_id, body=self.body, project_id=self.project_id)
+        return hook.export_documents(
+            database_id=self.database_id, body=self.body, project_id=self.project_id
+        )

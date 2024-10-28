@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 
 
 CLOUD_SQL_BASE_LINK = "/sql"
-CLOUD_SQL_INSTANCE_LINK = CLOUD_SQL_BASE_LINK + "/instances/{instance}/overview?project={project_id}"
+CLOUD_SQL_INSTANCE_LINK = (
+    CLOUD_SQL_BASE_LINK + "/instances/{instance}/overview?project={project_id}"
+)
 CLOUD_SQL_INSTANCE_DATABASE_LINK = (
     CLOUD_SQL_BASE_LINK + "/instances/{instance}/databases?project={project_id}"
 )

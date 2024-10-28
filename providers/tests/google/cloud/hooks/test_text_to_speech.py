@@ -30,7 +30,9 @@ from google.cloud.texttospeech_v1.types import (
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 INPUT = {"text": "test text"}
 VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
@@ -49,15 +51,21 @@ class TestTextToSpeechHook:
         ):
             self.gcp_text_to_speech_hook = CloudTextToSpeechHook(gcp_conn_id="test")
 
-    @patch("airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.get_credentials")
+    @patch(
+        "airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.get_credentials"
+    )
     @patch("airflow.providers.google.cloud.hooks.text_to_speech.TextToSpeechClient")
     def test_text_to_speech_client_creation(self, mock_client, mock_get_creds):
         result = self.gcp_text_to_speech_hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value, client_info=CLIENT_INFO
+        )
         assert mock_client.return_value == result
         assert self.gcp_text_to_speech_hook._client == result
 
-    @patch("airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.get_conn")
+    @patch(
+        "airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.get_conn"
+    )
     def test_synthesize_speech(self, get_conn):
         synthesize_method = get_conn.return_value.synthesize_speech
         synthesize_method.return_value = None

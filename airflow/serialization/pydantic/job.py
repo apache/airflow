@@ -24,9 +24,13 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 
 
-def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str) -> BaseJobRunner:
+def check_runner_initialized(
+    job_runner: Optional[BaseJobRunner], job_type: str
+) -> BaseJobRunner:
     if job_runner is None:
-        raise ValueError(f"In order to run {job_type} you need to initialize the {job_type}Runner first.")
+        raise ValueError(
+            f"In order to run {job_type} you need to initialize the {job_type}Runner first."
+        )
     return job_runner
 
 
@@ -65,6 +69,8 @@ class JobPydantic(BaseModelPydantic):
 
         return Job._is_alive(
             state=self.state,
-            health_check_threshold_value=health_check_threshold(self.job_type, self.heartrate),
+            health_check_threshold_value=health_check_threshold(
+                self.job_type, self.heartrate
+            ),
             latest_heartbeat=self.latest_heartbeat,
         )

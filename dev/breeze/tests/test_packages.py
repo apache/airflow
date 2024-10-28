@@ -52,7 +52,9 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCS_ROOT
 
 def test_get_available_packages():
     assert len(get_available_packages()) > 70
-    assert all(package not in REGULAR_DOC_PACKAGES for package in get_available_packages())
+    assert all(
+        package not in REGULAR_DOC_PACKAGES for package in get_available_packages()
+    )
 
 
 def test_expand_all_provider_packages():
@@ -66,7 +68,9 @@ def test_expand_all_provider_packages_deduplicate_with_other_packages():
 
 
 def test_get_available_packages_include_non_provider_doc_packages():
-    all_packages_including_regular_docs = get_available_packages(include_non_provider_doc_packages=True)
+    all_packages_including_regular_docs = get_available_packages(
+        include_non_provider_doc_packages=True
+    )
     for package in REGULAR_DOC_PACKAGES:
         assert package in all_packages_including_regular_docs
 
@@ -104,7 +108,10 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.8.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == [
+        "apache-airflow>=2.8.0",
+        "asana>=0.10,<4.0.0",
+    ]
 
 
 def test_get_removed_providers():
@@ -140,13 +147,20 @@ def test_get_suspended_provider_folders():
     ],
 )
 def test_find_matching_long_package_name(
-    short_packages: tuple[str, ...], filters: tuple[str, ...], long_packages: tuple[str, ...]
+    short_packages: tuple[str, ...],
+    filters: tuple[str, ...],
+    long_packages: tuple[str, ...],
 ):
-    assert find_matching_long_package_names(short_packages=short_packages, filters=filters) == long_packages
+    assert (
+        find_matching_long_package_names(short_packages=short_packages, filters=filters)
+        == long_packages
+    )
 
 
 def test_find_matching_long_package_name_bad_filter():
-    with pytest.raises(SystemExit, match=r"Some filters did not find any package: \['bad-filter-\*"):
+    with pytest.raises(
+        SystemExit, match=r"Some filters did not find any package: \['bad-filter-\*"
+    ):
         find_matching_long_package_names(short_packages=(), filters=("bad-filter-*",))
 
 
@@ -157,7 +171,10 @@ def test_get_source_package_path():
 
 
 def test_get_documentation_package_path():
-    assert get_documentation_package_path("apache.hdfs") == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+    assert (
+        get_documentation_package_path("apache.hdfs")
+        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+    )
 
 
 @pytest.mark.parametrize(
@@ -238,7 +255,10 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
             "",
             {
                 "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
-                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.beam": [
+                    "apache-airflow-providers-apache-beam",
+                    "apache-beam[gcp]",
+                ],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
                 "common.compat": ["apache-airflow-providers-common-compat"],
@@ -263,9 +283,14 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
             "dev0",
             {
                 "amazon": ["apache-airflow-providers-amazon>=2.6.0.dev0"],
-                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.beam": [
+                    "apache-airflow-providers-apache-beam",
+                    "apache-beam[gcp]",
+                ],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"],
+                "cncf.kubernetes": [
+                    "apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"
+                ],
                 "common.compat": ["apache-airflow-providers-common-compat"],
                 "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
@@ -288,7 +313,10 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
             "beta0",
             {
                 "amazon": ["apache-airflow-providers-amazon>=2.6.0b0"],
-                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.beam": [
+                    "apache-airflow-providers-apache-beam",
+                    "apache-beam[gcp]",
+                ],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0b0"],
                 "common.compat": ["apache-airflow-providers-common-compat"],
@@ -328,13 +356,17 @@ def test_get_provider_details():
         "asana",
     )
     assert (
-        provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
+        provider_details.documentation_provider_package_path
+        == DOCS_ROOT / "apache-airflow-providers-asana"
     )
     assert "Asana" in provider_details.provider_description
     assert len(provider_details.versions) > 11
     assert provider_details.excluded_python_versions == []
     assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.source_provider_package_path / "CHANGELOG.rst"
+    assert (
+        provider_details.changelog_path
+        == provider_details.source_provider_package_path / "CHANGELOG.rst"
+    )
     assert not provider_details.removed
 
 
@@ -365,10 +397,16 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
     [
         pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
         pytest.param(
-            "apache-airflow <2.7,>=2.5", ("apache-airflow", ">=2.5,<2.7"), id="range-version-specifier"
+            "apache-airflow <2.7,>=2.5",
+            ("apache-airflow", ">=2.5,<2.7"),
+            id="range-version-specifier",
         ),
-        pytest.param("watchtower~=3.0.1", ("watchtower", "~=3.0.1"), id="compat-version-specifier"),
-        pytest.param("PyGithub!=1.58", ("PyGithub", "!=1.58"), id="not-equal-version-specifier"),
+        pytest.param(
+            "watchtower~=3.0.1", ("watchtower", "~=3.0.1"), id="compat-version-specifier"
+        ),
+        pytest.param(
+            "PyGithub!=1.58", ("PyGithub", "!=1.58"), id="not-equal-version-specifier"
+        ),
         pytest.param(
             "apache-airflow[amazon,google,microsoft.azure,docker]>2.7.0",
             ("apache-airflow[amazon,docker,google,microsoft.azure]", ">2.7.0"),
@@ -427,8 +465,12 @@ PIP package                        Version required
         ),
     ],
 )
-def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool, table: str):
-    assert convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
+def test_convert_pip_requirements_to_table(
+    requirements: Iterable[str], markdown: bool, table: str
+):
+    assert (
+        convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
+    )
 
 
 def test_validate_provider_info_with_schema():
@@ -456,7 +498,9 @@ def test_convert_cross_package_dependencies_to_table():
 | [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage) | `openlineage` |
 """
     assert (
-        convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()
+        convert_cross_package_dependencies_to_table(
+            get_cross_provider_dependent_packages("trino")
+        ).strip()
         == EXPECTED.strip()
     )
 

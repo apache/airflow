@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+from airflow.providers.google.marketing_platform.hooks.campaign_manager import (
+    GoogleCampaignManagerHook,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -72,7 +74,9 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        response = hook.get_report(profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id)
+        response = hook.get_report(
+            profile_id=self.profile_id, report_id=self.report_id, file_id=self.file_id
+        )
         self.log.info("Report status: %s", response["status"])
         return response["status"] not in ("PROCESSING", "QUEUED")
 

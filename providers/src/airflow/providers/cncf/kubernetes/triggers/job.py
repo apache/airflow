@@ -20,7 +20,10 @@ import asyncio
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    AsyncKubernetesHook,
+    KubernetesHook,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -102,10 +105,14 @@ class KubernetesJobTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current job status and yield a TriggerEvent."""
         if self.get_logs or self.do_xcom_push:
-            pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
+            pod = await self.hook.get_pod(
+                name=self.pod_name, namespace=self.pod_namespace
+            )
         if self.do_xcom_push:
             await self.hook.wait_until_container_complete(
-                name=self.pod_name, namespace=self.pod_namespace, container_name=self.base_container_name
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                container_name=self.base_container_name,
             )
             self.log.info("Checking if xcom sidecar container is started.")
             await self.hook.wait_until_container_started(
@@ -115,8 +122,12 @@ class KubernetesJobTrigger(BaseTrigger):
             )
             self.log.info("Extracting result from xcom sidecar container.")
             loop = asyncio.get_running_loop()
-            xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
-        job: V1Job = await self.hook.wait_until_job_complete(name=self.job_name, namespace=self.job_namespace)
+            xcom_result = await loop.run_in_executor(
+                None, self.pod_manager.extract_xcom, pod
+            )
+        job: V1Job = await self.hook.wait_until_job_complete(
+            name=self.job_name, namespace=self.job_namespace
+        )
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
         yield TriggerEvent(

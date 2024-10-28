@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.utils.exclude_from_matrix import excluded_combos, representative_combos
+from airflow_breeze.utils.exclude_from_matrix import (
+    excluded_combos,
+    representative_combos,
+)
 
 
 @pytest.mark.parametrize(
@@ -26,7 +29,11 @@ from airflow_breeze.utils.exclude_from_matrix import excluded_combos, representa
     [
         (["3.8", "3.9"], ["1", "2"], [("3.8", "1"), ("3.9", "2")]),
         (["3.8", "3.9"], ["1", "2", "3"], [("3.8", "1"), ("3.9", "2"), ("3.8", "3")]),
-        (["3.8", "3.9"], ["1", "2", "3", "4"], [("3.8", "1"), ("3.9", "2"), ("3.8", "3"), ("3.9", "4")]),
+        (
+            ["3.8", "3.9"],
+            ["1", "2", "3", "4"],
+            [("3.8", "1"), ("3.9", "2"), ("3.8", "3"), ("3.9", "4")],
+        ),
         (
             ["3.8", "3.9", "3.10"],
             ["1", "2", "3", "4"],

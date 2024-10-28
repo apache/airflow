@@ -67,7 +67,9 @@ class TestDataprepGetJobsForJobGroupOperator:
         )
         op.execute(context={})
         hook_mock.assert_called_once_with(dataprep_conn_id=DATAPREP_CONN_ID)
-        hook_mock.return_value.get_jobs_for_job_group.assert_called_once_with(job_id=JOB_ID)
+        hook_mock.return_value.get_jobs_for_job_group.assert_called_once_with(
+            job_id=JOB_ID
+        )
 
 
 class TestDataprepGetJobGroupOperator:
@@ -169,12 +171,17 @@ class TestDataprepCopyFlowOperatorTest:
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(dataprep_conn_id="dataprep_default")
         hook_mock.return_value.copy_flow.assert_called_once_with(
-            flow_id=FLOW_ID, name="specified name", description="specified description", copy_datasources=True
+            flow_id=FLOW_ID,
+            name="specified name",
+            description="specified description",
+            copy_datasources=True,
         )
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
-    def test_execute_with_templated_params(self, _, create_task_instance_of_operator, session):
+    def test_execute_with_templated_params(
+        self, _, create_task_instance_of_operator, session
+    ):
         dag_id = "test_execute_with_templated_params"
         ti = create_task_instance_of_operator(
             DataprepCopyFlowOperator,
@@ -250,7 +257,9 @@ class TestDataprepDeleteFlowOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
-    def test_execute_with_template_params(self, _, create_task_instance_of_operator, session):
+    def test_execute_with_template_params(
+        self, _, create_task_instance_of_operator, session
+    ):
         dag_id = "test_execute_delete_flow_with_template"
         ti = create_task_instance_of_operator(
             DataprepDeleteFlowOperator,
@@ -283,7 +292,9 @@ class TestDataprepRunFlowOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
-    def test_execute_with_template_params(self, _, create_task_instance_of_operator, session):
+    def test_execute_with_template_params(
+        self, _, create_task_instance_of_operator, session
+    ):
         dag_id = "test_execute_run_flow_with_template"
         ti = create_task_instance_of_operator(
             DataprepRunFlowOperator,

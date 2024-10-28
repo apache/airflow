@@ -41,17 +41,24 @@ TEST_ENDPOINT_ID: str = "test-endpoint-id"
 TEST_OUTPUT_CONFIG: dict = {}
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
-PREDICTION_SERVICE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service.{}"
+PREDICTION_SERVICE_STRING = (
+    "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service.{}"
+)
 
 
 class TestPredictionServiceWithDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = PredictionServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(PREDICTION_SERVICE_STRING.format("PredictionServiceHook.get_prediction_service_client"))
+    @mock.patch(
+        PREDICTION_SERVICE_STRING.format(
+            "PredictionServiceHook.get_prediction_service_client"
+        )
+    )
     def test_predict(self, mock_client):
         self.hook.predict(
             endpoint_id=TEST_ENDPOINT_ID,
@@ -75,11 +82,16 @@ class TestPredictionServiceWithDefaultProjectIdHook:
 class TestPredictionServiceWithoutDefaultProjectIdHook:
     def setup_method(self):
         with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            BASE_STRING.format("GoogleBaseHook.__init__"),
+            new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = PredictionServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(PREDICTION_SERVICE_STRING.format("PredictionServiceHook.get_prediction_service_client"))
+    @mock.patch(
+        PREDICTION_SERVICE_STRING.format(
+            "PredictionServiceHook.get_prediction_service_client"
+        )
+    )
     def test_predict(self, mock_client):
         self.hook.predict(
             endpoint_id=TEST_ENDPOINT_ID,

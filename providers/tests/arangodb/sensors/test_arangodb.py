@@ -31,7 +31,9 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{"query.return_value.count.return_value": 1})
+arangodb_hook_mock = Mock(
+    name="arangodb_hook_for_test", **{"query.return_value.count.return_value": 1}
+)
 
 
 class TestAQLSensor:
@@ -66,5 +68,7 @@ class TestAQLSensor:
             dag=self.dag,
         )
 
-        arangodb_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        arangodb_tag_sensor.run(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
+        )
         assert arangodb_hook_mock.query.return_value.count.called

@@ -41,16 +41,21 @@ def test_short_circuit_decorator(dag_maker):
         def short_circuit(condition):
             return condition
 
-        short_circuit_false = short_circuit.override(task_id="short_circuit_false")(condition=False)
+        short_circuit_false = short_circuit.override(task_id="short_circuit_false")(
+            condition=False
+        )
         task_1 = empty.override(task_id="task_1")()
         short_circuit_false >> task_1
 
-        short_circuit_true = short_circuit.override(task_id="short_circuit_true")(condition=True)
+        short_circuit_true = short_circuit.override(task_id="short_circuit_true")(
+            condition=True
+        )
         task_2 = empty.override(task_id="task_2")()
         short_circuit_true >> task_2
 
         short_circuit_respect_trigger_rules = short_circuit.override(
-            task_id="short_circuit_respect_trigger_rules", ignore_downstream_trigger_rules=False
+            task_id="short_circuit_respect_trigger_rules",
+            ignore_downstream_trigger_rules=False,
         )(condition=False)
         task_3 = empty.override(task_id="task_3")()
         task_4 = empty.override(task_id="task_4")()

@@ -102,7 +102,9 @@ class _DataIntervalTimetable(Timetable):
             start = earliest
         else:  # There's a previous run.
             # Alignment is needed when DAG has new schedule interval.
-            align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
+            align_last_data_interval_end = self._align_to_prev(
+                last_automated_data_interval.end
+            )
             if earliest is not None:
                 # Catchup is False or DAG has new start date in the future.
                 # Make sure we get the later one.
@@ -139,7 +141,10 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_timezone
 
-        return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+        return {
+            "expression": self._expression,
+            "timezone": encode_timezone(self._timezone),
+        }
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """
@@ -221,7 +226,9 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def validate(self) -> None:
         now = datetime.datetime.now()
         if (now + self._delta) <= now:
-            raise AirflowTimetableInvalid(f"schedule interval must be positive, not {self._delta!r}")
+            raise AirflowTimetableInvalid(
+                f"schedule interval must be positive, not {self._delta!r}"
+            )
 
     def _get_next(self, current: DateTime) -> DateTime:
         return convert_to_utc(current + self._delta)

@@ -92,7 +92,10 @@ class TestMetadataConnectionSecret:
         }
         connection = self._get_connection(values)
 
-        assert "postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require" == connection
+        assert (
+            "postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require"
+            == connection
+        )
 
     def test_should_support_non_postgres_db(self):
         values = {

@@ -53,7 +53,9 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         # Local location and remote location is needed to open and
         # upload local log file to HDFS storage.
         full_path = self.handler.baseFilename
-        self.log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
+        self.log_relative_path = (
+            pathlib.Path(full_path).relative_to(self.local_base).as_posix()
+        )
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
         self.upload_on_close = is_trigger_log_context or not ti.raw
         # Clear the file first so that duplicate data is not uploaded

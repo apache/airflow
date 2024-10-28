@@ -71,7 +71,9 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         """Return new instance of AzureDataExplorerHook."""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> AzureDataExplorerHook:
         """Return new instance of AzureDataExplorerHook."""
         return self.hook

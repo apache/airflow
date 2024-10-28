@@ -122,7 +122,9 @@ class KubernetesPodTrigger(BaseTrigger):
                 stacklevel=2,
             )
             self.on_finish_action = (
-                OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
+                OnFinishAction.DELETE_POD
+                if should_delete_pod
+                else OnFinishAction.KEEP_POD
             )
             self.should_delete_pod = should_delete_pod
         else:
@@ -157,7 +159,9 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pod status and yield a TriggerEvent."""
-        self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
+        self.log.info(
+            "Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace
+        )
         try:
             state = await self._wait_for_pod_start()
             if state == ContainerState.TERMINATED:
@@ -224,11 +228,17 @@ class KubernetesPodTrigger(BaseTrigger):
             if not pod.status.phase == "Pending":
                 return self.define_container_state(pod)
 
-            delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
+            delta = (
+                datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
+            )
             if self.startup_timeout < delta.total_seconds():
-                raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
+                raise PodLaunchTimeoutException(
+                    "Pod did not leave 'Pending' phase within specified timeout"
+                )
 
-            self.log.info("Still waiting for pod to start. The pod state is %s", pod.status.phase)
+            self.log.info(
+                "Still waiting for pod to start. The pod state is %s", pod.status.phase
+            )
             await asyncio.sleep(self.startup_check_interval)
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
@@ -241,7 +251,9 @@ class KubernetesPodTrigger(BaseTrigger):
         time_begin = datetime.datetime.now(tz=datetime.timezone.utc)
         time_get_more_logs = None
         if self.logging_interval is not None:
-            time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
+            time_get_more_logs = time_begin + datetime.timedelta(
+                seconds=self.logging_interval
+            )
         while True:
             pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
             container_state = self.define_container_state(pod)
@@ -265,7 +277,10 @@ class KubernetesPodTrigger(BaseTrigger):
                     }
                 )
             self.log.debug("Container is not completed and still working.")
-            if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
+            if (
+                time_get_more_logs
+                and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs
+            ):
                 return TriggerEvent(
                     {
                         "status": "running",
@@ -298,13 +313,21 @@ class KubernetesPodTrigger(BaseTrigger):
 
         container = next(c for c in pod_containers if c.name == self.base_container_name)
 
-        for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
+        for state in (
+            ContainerState.RUNNING,
+            ContainerState.WAITING,
+            ContainerState.TERMINATED,
+        ):
             state_obj = getattr(container.state, state)
             if state_obj is not None:
                 if state != ContainerState.TERMINATED:
                     return state
                 else:
-                    return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
+                    return (
+                        ContainerState.TERMINATED
+                        if state_obj.exit_code == 0
+                        else ContainerState.FAILED
+                    )
         return ContainerState.UNDEFINED
 
     @staticmethod
@@ -312,5 +335,8 @@ class KubernetesPodTrigger(BaseTrigger):
         return (
             container_state == ContainerState.WAITING
             or container_state == ContainerState.RUNNING
-            or (container_state == ContainerState.UNDEFINED and pod_phase == PodPhase.PENDING)
+            or (
+                container_state == ContainerState.UNDEFINED
+                and pod_phase == PodPhase.PENDING
+            )
         )

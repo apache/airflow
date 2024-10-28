@@ -93,7 +93,10 @@ class TestDeleteConnection(TestConnectionEndpoint):
         response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
         body = response.json()
-        assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
+        assert (
+            f"The Connection with connection_id: `{TEST_CONN_ID}` was not found"
+            == body["detail"]
+        )
 
 
 class TestGetConnection(TestConnectionEndpoint):
@@ -109,7 +112,10 @@ class TestGetConnection(TestConnectionEndpoint):
         response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
         body = response.json()
-        assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
+        assert (
+            f"The Connection with connection_id: `{TEST_CONN_ID}` was not found"
+            == body["detail"]
+        )
 
     def test_get_should_respond_200_with_extra(self, test_client, session):
         self.create_connection()
@@ -168,4 +174,6 @@ class TestGetConnections(TestConnectionEndpoint):
 
         body = response.json()
         assert body["total_entries"] == expected_total_entries
-        assert [connection["connection_id"] for connection in body["connections"]] == expected_ids
+        assert [
+            connection["connection_id"] for connection in body["connections"]
+        ] == expected_ids

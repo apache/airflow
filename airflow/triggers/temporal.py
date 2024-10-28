@@ -40,10 +40,14 @@ class DateTimeTrigger(BaseTrigger):
         reached or resume the task after time condition reached.
     """
 
-    def __init__(self, moment: datetime.datetime, *, end_from_trigger: bool = False) -> None:
+    def __init__(
+        self, moment: datetime.datetime, *, end_from_trigger: bool = False
+    ) -> None:
         super().__init__()
         if not isinstance(moment, datetime.datetime):
-            raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
+            raise TypeError(
+                f"Expected datetime.datetime type for moment. Got {type(moment)}"
+            )
         # Make sure it's in UTC
         elif moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
@@ -69,17 +73,25 @@ class DateTimeTrigger(BaseTrigger):
         # Sleep in successively smaller increments starting from 1 hour down to 10 seconds at a time
         self.log.info("trigger starting")
         for step in 3600, 60, 10:
-            seconds_remaining = (self.moment - pendulum.instance(timezone.utcnow())).total_seconds()
+            seconds_remaining = (
+                self.moment - pendulum.instance(timezone.utcnow())
+            ).total_seconds()
             while seconds_remaining > 2 * step:
-                self.log.info("%d seconds remaining; sleeping %s seconds", seconds_remaining, step)
+                self.log.info(
+                    "%d seconds remaining; sleeping %s seconds", seconds_remaining, step
+                )
                 await asyncio.sleep(step)
-                seconds_remaining = (self.moment - pendulum.instance(timezone.utcnow())).total_seconds()
+                seconds_remaining = (
+                    self.moment - pendulum.instance(timezone.utcnow())
+                ).total_seconds()
         # Sleep a second at a time otherwise
         while self.moment > pendulum.instance(timezone.utcnow()):
             self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
         if self.end_from_trigger:
-            self.log.info("Sensor time condition reached; marking task successful and exiting")
+            self.log.info(
+                "Sensor time condition reached; marking task successful and exiting"
+            )
             yield TaskSuccessEvent()
         else:
             self.log.info("yielding event with payload %r", self.moment)
@@ -101,5 +113,9 @@ class TimeDeltaTrigger(DateTimeTrigger):
         reached or resume the task after time condition reached.
     """
 
-    def __init__(self, delta: datetime.timedelta, *, end_from_trigger: bool = False) -> None:
-        super().__init__(moment=timezone.utcnow() + delta, end_from_trigger=end_from_trigger)
+    def __init__(
+        self, delta: datetime.timedelta, *, end_from_trigger: bool = False
+    ) -> None:
+        super().__init__(
+            moment=timezone.utcnow() + delta, end_from_trigger=end_from_trigger
+        )

@@ -108,7 +108,13 @@ class DatabricksExecutionTrigger(BaseTrigger):
                                 error = run_output["error"]
                             else:
                                 error = run_state.state_message
-                            failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                            failed_tasks.append(
+                                {
+                                    "task_key": task_key,
+                                    "run_id": task_run_id,
+                                    "error": error,
+                                }
+                            )
                 yield TriggerEvent(
                     {
                         "run_id": self.run_id,

@@ -215,13 +215,17 @@ class BaseSQLToGCSOperator(BaseOperator):
     def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
         return [
-            self.convert_type(value, col_type_dict.get(name), stringify_dict=self.stringify_dict)
+            self.convert_type(
+                value, col_type_dict.get(name), stringify_dict=self.stringify_dict
+            )
             for name, value in zip(schema, row)
         ]
 
     @staticmethod
     def _write_rows_to_parquet(parquet_writer: pq.ParquetWriter, rows):
-        rows_pydic: dict[str, list[Any]] = {col: [] for col in parquet_writer.schema.names}
+        rows_pydic: dict[str, list[Any]] = {
+            col: [] for col in parquet_writer.schema.names
+        }
         for row in rows:
             for cell, col in zip(row, parquet_writer.schema.names):
                 rows_pydic[col].append(cell)
@@ -242,7 +246,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         col_type_dict = self._get_col_type_dict()
         file_no = 0
         file_mime_type = self._get_file_mime_type()
-        file_to_upload, tmp_file_handle = self._get_file_to_upload(file_mime_type, file_no)
+        file_to_upload, tmp_file_handle = self._get_file_to_upload(
+            file_mime_type, file_no
+        )
 
         if self.export_format == "csv":
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
@@ -257,7 +263,10 @@ class BaseSQLToGCSOperator(BaseOperator):
             if self.partition_columns:
                 row_dict = dict(zip(schema, row))
                 curr_partition_values = tuple(
-                    [row_dict.get(partition_column, "") for partition_column in self.partition_columns]
+                    [
+                        row_dict.get(partition_column, "")
+                        for partition_column in self.partition_columns
+                    ]
                 )
 
                 if prev_partition_values is None:
@@ -278,11 +287,15 @@ class BaseSQLToGCSOperator(BaseOperator):
 
                     file_to_upload["partition_values"] = prev_partition_values
                     yield file_to_upload
-                    file_to_upload, tmp_file_handle = self._get_file_to_upload(file_mime_type, file_no)
+                    file_to_upload, tmp_file_handle = self._get_file_to_upload(
+                        file_mime_type, file_no
+                    )
                     if self.export_format == "csv":
                         csv_writer = self._configure_csv_file(tmp_file_handle, schema)
                     if self.export_format == "parquet":
-                        parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+                        parquet_writer = self._configure_parquet_file(
+                            tmp_file_handle, parquet_schema
+                        )
 
                     # Reset previous to current after writing out the file
                     prev_partition_values = curr_partition_values
@@ -331,11 +344,15 @@ class BaseSQLToGCSOperator(BaseOperator):
 
                 file_to_upload["partition_values"] = curr_partition_values
                 yield file_to_upload
-                file_to_upload, tmp_file_handle = self._get_file_to_upload(file_mime_type, file_no)
+                file_to_upload, tmp_file_handle = self._get_file_to_upload(
+                    file_mime_type, file_no
+                )
                 if self.export_format == "csv":
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
                 if self.export_format == "parquet":
-                    parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+                    parquet_writer = self._configure_parquet_file(
+                        tmp_file_handle, parquet_schema
+                    )
 
         if self.export_format == "parquet":
             # Write out the remaining rows in the buffer
@@ -397,7 +414,10 @@ class BaseSQLToGCSOperator(BaseOperator):
 
         columns = [field[0] for field in cursor.description]
         bq_fields = [self.field_to_bigquery(field) for field in cursor.description]
-        bq_types = [bq_field.get("type") if bq_field is not None else None for bq_field in bq_fields]
+        bq_types = [
+            bq_field.get("type") if bq_field is not None else None
+            for bq_field in bq_fields
+        ]
         pq_types = [type_map.get(bq_type, pa.string()) for bq_type in bq_types]
         parquet_schema = pa.schema(zip(columns, pq_types))
         return parquet_schema
@@ -422,7 +442,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         elif isinstance(self.schema, list):
             schema = self.schema
         elif self.schema is not None:
-            self.log.warning("Using default schema due to unexpected type. Should be a string or list.")
+            self.log.warning(
+                "Using default schema due to unexpected type. Should be a string or list."
+            )
 
         col_type_dict = {}
         try:
@@ -462,7 +484,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.log.info("Using schema for %s", self.schema_filename)
         self.log.debug("Current schema: %s", schema)
 
-        tmp_schema_file_handle = NamedTemporaryFile(mode="w", encoding="utf-8", delete=True)
+        tmp_schema_file_handle = NamedTemporaryFile(
+            mode="w", encoding="utf-8", delete=True
+        )
         tmp_schema_file_handle.write(schema)
         schema_file_to_upload = {
             "file_name": self.schema_filename,
@@ -488,7 +512,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             partition_values = file_to_upload.get("partition_values")
             head_path, tail_path = os.path.split(object_name)
             partition_subprefix = [
-                f"{col}={val}" for col, val in zip(self.partition_columns, partition_values)
+                f"{col}={val}"
+                for col, val in zip(self.partition_columns, partition_values)
             ]
             object_name = os.path.join(head_path, *partition_subprefix, tail_path)
 

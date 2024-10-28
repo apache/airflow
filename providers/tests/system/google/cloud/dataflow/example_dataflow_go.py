@@ -33,13 +33,18 @@ from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunGoPipelineOperator
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
     DataflowJobMessagesSensor,
     DataflowJobStatusSensor,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import (
+    LocalFilesystemToGCSOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -70,7 +75,9 @@ with DAG(
     default_args=default_args,
     tags=["example"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
 
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -117,7 +124,9 @@ with DAG(
     def check_autoscaling_event(autoscaling_events: list[dict]) -> bool:
         """Check autoscaling event"""
         for autoscaling_event in autoscaling_events:
-            if "Worker pool started." in autoscaling_event.get("description", {}).get("messageText", ""):
+            if "Worker pool started." in autoscaling_event.get("description", {}).get(
+                "messageText", ""
+            ):
                 return True
         return False
 
@@ -130,7 +139,9 @@ with DAG(
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

@@ -33,7 +33,11 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+from providers.tests.system.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    prune_logs,
+)
 
 DAG_ID = "example_lambda"
 
@@ -104,7 +108,9 @@ with DAG(
     invoke_lambda_function = LambdaInvokeFunctionOperator(
         task_id="invoke_lambda_function",
         function_name=lambda_function_name,
-        payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),
+        payload=json.dumps(
+            {"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}
+        ),
     )
     # [END howto_operator_invoke_lambda_function]
 

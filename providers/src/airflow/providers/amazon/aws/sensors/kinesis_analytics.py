@@ -61,7 +61,9 @@ class KinesisAnalyticsV2BaseSensor(AwsBaseSensor[KinesisAnalyticsV2Hook]):
     def __init__(
         self,
         application_name: str,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -69,9 +71,9 @@ class KinesisAnalyticsV2BaseSensor(AwsBaseSensor[KinesisAnalyticsV2Hook]):
         self.deferrable = deferrable
 
     def poke(self, context: Context, **kwargs) -> bool:
-        status = self.hook.conn.describe_application(ApplicationName=self.application_name)[
-            "ApplicationDetail"
-        ]["ApplicationStatus"]
+        status = self.hook.conn.describe_application(
+            ApplicationName=self.application_name
+        )["ApplicationDetail"]["ApplicationStatus"]
 
         self.log.info(
             "Poking for AWS Managed Service for Apache Flink application: %s status: %s",
@@ -121,12 +123,20 @@ class KinesisAnalyticsV2StartApplicationCompletedSensor(KinesisAnalyticsV2BaseSe
 
     """
 
-    INTERMEDIATE_STATES: tuple[str, ...] = KinesisAnalyticsV2Hook.APPLICATION_START_INTERMEDIATE_STATES
-    FAILURE_STATES: tuple[str, ...] = KinesisAnalyticsV2Hook.APPLICATION_START_FAILURE_STATES
-    SUCCESS_STATES: tuple[str, ...] = KinesisAnalyticsV2Hook.APPLICATION_START_SUCCESS_STATES
+    INTERMEDIATE_STATES: tuple[str, ...] = (
+        KinesisAnalyticsV2Hook.APPLICATION_START_INTERMEDIATE_STATES
+    )
+    FAILURE_STATES: tuple[str, ...] = (
+        KinesisAnalyticsV2Hook.APPLICATION_START_FAILURE_STATES
+    )
+    SUCCESS_STATES: tuple[str, ...] = (
+        KinesisAnalyticsV2Hook.APPLICATION_START_SUCCESS_STATES
+    )
 
     FAILURE_MESSAGE = "AWS Managed Service for Apache Flink application start failed."
-    SUCCESS_MESSAGE = "AWS Managed Service for Apache Flink application started successfully"
+    SUCCESS_MESSAGE = (
+        "AWS Managed Service for Apache Flink application started successfully"
+    )
 
     template_fields: Sequence[str] = aws_template_fields("application_name")
 
@@ -190,12 +200,20 @@ class KinesisAnalyticsV2StopApplicationCompletedSensor(KinesisAnalyticsV2BaseSen
 
     """
 
-    INTERMEDIATE_STATES: tuple[str, ...] = KinesisAnalyticsV2Hook.APPLICATION_STOP_INTERMEDIATE_STATES
-    FAILURE_STATES: tuple[str, ...] = KinesisAnalyticsV2Hook.APPLICATION_STOP_FAILURE_STATES
-    SUCCESS_STATES: tuple[str, ...] = KinesisAnalyticsV2Hook.APPLICATION_STOP_SUCCESS_STATES
+    INTERMEDIATE_STATES: tuple[str, ...] = (
+        KinesisAnalyticsV2Hook.APPLICATION_STOP_INTERMEDIATE_STATES
+    )
+    FAILURE_STATES: tuple[str, ...] = (
+        KinesisAnalyticsV2Hook.APPLICATION_STOP_FAILURE_STATES
+    )
+    SUCCESS_STATES: tuple[str, ...] = (
+        KinesisAnalyticsV2Hook.APPLICATION_STOP_SUCCESS_STATES
+    )
 
     FAILURE_MESSAGE = "AWS Managed Service for Apache Flink application stop failed."
-    SUCCESS_MESSAGE = "AWS Managed Service for Apache Flink application stopped successfully"
+    SUCCESS_MESSAGE = (
+        "AWS Managed Service for Apache Flink application stopped successfully"
+    )
 
     template_fields: Sequence[str] = aws_template_fields("application_name")
 

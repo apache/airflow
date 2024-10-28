@@ -55,8 +55,12 @@ def compare_attributes(path1, path2):
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return
-    console.print(f"Attributes in TaskInstance but not in TaskInstanceHistory: \n\n {diff}")
-    console.print("\n Please make sure that the attributes are consistent across the classes.")
+    console.print(
+        f"Attributes in TaskInstance but not in TaskInstanceHistory: \n\n {diff}"
+    )
+    console.print(
+        "\n Please make sure that the attributes are consistent across the classes."
+    )
     sys.exit(1)
 
 

@@ -21,7 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput, RedshiftDataHook
+from airflow.providers.amazon.aws.hooks.redshift_data import (
+    QueryExecutionOutput,
+    RedshiftDataHook,
+)
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.utils.openlineage import (
     get_facets_from_redshift_table,
@@ -55,10 +58,14 @@ def test_get_facets_from_redshift_table_sql_hook(mock_get_records):
     assert result["schema"].fields[0].description == "Column 1 description"
 
 
-@mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
+@mock.patch(
+    "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query"
+)
 @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
 def test_get_facets_from_redshift_table_data_hook(mock_connection, mock_execute_query):
-    mock_execute_query.return_value = QueryExecutionOutput(statement_id="statement_id", session_id=None)
+    mock_execute_query.return_value = QueryExecutionOutput(
+        statement_id="statement_id", session_id=None
+    )
     mock_connection.get_statement_result.return_value = {
         "Records": [
             [
@@ -145,7 +152,9 @@ def test_get_identity_column_lineage_facet_multiple_input_datasets():
             ),
         }
     )
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+    result = get_identity_column_lineage_facet(
+        field_names=field_names, input_datasets=input_datasets
+    )
     assert result == expected_facet
 
 
@@ -156,7 +165,9 @@ def test_get_identity_column_lineage_facet_no_field_names():
         Dataset(namespace="s3://second_bucket", name="dir2"),
     ]
     expected_facet = ColumnLineageDatasetFacet(fields={})
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+    result = get_identity_column_lineage_facet(
+        field_names=field_names, input_datasets=input_datasets
+    )
     assert result == expected_facet
 
 
@@ -165,4 +176,6 @@ def test_get_identity_column_lineage_facet_no_input_datasets():
     input_datasets = []
 
     with pytest.raises(ValueError):
-        get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+        get_identity_column_lineage_facet(
+            field_names=field_names, input_datasets=input_datasets
+        )

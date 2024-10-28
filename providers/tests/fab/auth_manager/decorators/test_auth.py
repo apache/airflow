@@ -28,7 +28,10 @@ permissions = [(ACTION_CAN_READ, RESOURCE_DAG)]
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.api_connexion.exceptions import PermissionDenied
-    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab, _requires_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import (
+        _has_access_fab,
+        _requires_access_fab,
+    )
 
 from airflow.www import app as application  # noqa: E402
 
@@ -98,7 +101,12 @@ class TestFabAuthManagerDecorators:
     @patch("airflow.providers.fab.auth_manager.decorators.auth.check_authentication")
     @patch("airflow.providers.fab.auth_manager.decorators.auth.get_auth_manager")
     def test_requires_access_fab_access_denied(
-        self, mock_get_auth_manager, mock_check_authentication, mock_sm, mock_auth_manager, app
+        self,
+        mock_get_auth_manager,
+        mock_check_authentication,
+        mock_sm,
+        mock_auth_manager,
+        app,
     ):
         mock_sm.check_authorization.return_value = False
         mock_get_auth_manager.return_value = mock_auth_manager
@@ -119,7 +127,12 @@ class TestFabAuthManagerDecorators:
     @patch("airflow.providers.fab.auth_manager.decorators.auth.check_authentication")
     @patch("airflow.providers.fab.auth_manager.decorators.auth.get_auth_manager")
     def test_requires_access_fab_access_granted(
-        self, mock_get_auth_manager, mock_check_authentication, mock_sm, mock_auth_manager, app
+        self,
+        mock_get_auth_manager,
+        mock_check_authentication,
+        mock_sm,
+        mock_auth_manager,
+        app,
     ):
         mock_sm.check_authorization.return_value = True
         mock_get_auth_manager.return_value = mock_auth_manager
@@ -137,7 +150,9 @@ class TestFabAuthManagerDecorators:
         mock_call.assert_called_once()
 
     @patch("airflow.providers.fab.auth_manager.decorators.auth._has_access")
-    def test_has_access_fab_with_no_dags(self, mock_has_access, mock_sm, mock_appbuilder, app):
+    def test_has_access_fab_with_no_dags(
+        self, mock_has_access, mock_sm, mock_appbuilder, app
+    ):
         app.appbuilder = mock_appbuilder
         with app.test_request_context():
             decorated_has_access_fab()

@@ -20,14 +20,19 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.providers.google.cloud.transfers.oracle_to_gcs import OracleToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+PROJECT_ID = (
+    os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+)
 DAG_ID = "example_oracle_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -47,12 +52,18 @@ with DAG(
 
     # [START howto_operator_oracle_to_gcs]
     upload_oracle_to_gcs = OracleToGCSOperator(
-        task_id="oracle_to_gcs", sql=SQL_QUERY, bucket=BUCKET_NAME, filename=FILENAME, export_format="csv"
+        task_id="oracle_to_gcs",
+        sql=SQL_QUERY,
+        bucket=BUCKET_NAME,
+        filename=FILENAME,
+        export_format="csv",
     )
     # [END howto_operator_oracle_to_gcs]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

@@ -52,7 +52,9 @@ class LatestOnlyOperator(BaseBranchOperator):
             return list(context["task"].get_direct_relative_ids(upstream=False))
 
         dag: DAG = context["dag"]
-        next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
+        next_info = dag.next_dagrun_info(
+            dag.get_run_data_interval(dag_run), restricted=False
+        )
         now = pendulum.now("UTC")
 
         if next_info is None:

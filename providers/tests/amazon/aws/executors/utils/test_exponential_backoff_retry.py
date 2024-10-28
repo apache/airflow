@@ -291,7 +291,9 @@ class TestExponentialBackoffRetry:
         max_delay: int = exponent_base**num_loops - 1
 
         for attempt_number in range(1, num_loops):
-            returned_delay = calculate_next_attempt_delay(attempt_number, max_delay, exponent_base).seconds
+            returned_delay = calculate_next_attempt_delay(
+                attempt_number, max_delay, exponent_base
+            ).seconds
 
             if (expected_delay := exponent_base**attempt_number) <= max_delay:
                 assert returned_delay == expected_delay

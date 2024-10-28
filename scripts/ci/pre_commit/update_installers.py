@@ -24,7 +24,9 @@ from pathlib import Path
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(
+    0, str(Path(__file__).parent.resolve())
+)  # make sure common_precommit_utils is imported
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, console
 
 FILES_TO_UPDATE = [
@@ -33,7 +35,12 @@ FILES_TO_UPDATE = [
     AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh",
     AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "docker" / "common.sh",
     AIRFLOW_SOURCES_ROOT_PATH / "pyproject.toml",
-    AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py",
+    AIRFLOW_SOURCES_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "global_constants.py",
     AIRFLOW_SOURCES_ROOT_PATH
     / "dev"
     / "breeze"
@@ -60,8 +67,12 @@ def get_latest_pypi_version(package_name: str) -> str:
 AIRFLOW_PIP_PATTERN = re.compile(r"(AIRFLOW_PIP_VERSION=)([0-9.]+)")
 AIRFLOW_PIP_QUOTED_PATTERN = re.compile(r"(AIRFLOW_PIP_VERSION = )(\"[0-9.]+\")")
 PIP_QUOTED_PATTERN = re.compile(r"(PIP_VERSION = )(\"[0-9.]+\")")
-AIRFLOW_PIP_DOC_PATTERN = re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)")
-AIRFLOW_PIP_UPGRADE_PATTERN = re.compile(r"(python -m pip install --upgrade pip==)([0-9.]+)")
+AIRFLOW_PIP_DOC_PATTERN = re.compile(
+    r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)"
+)
+AIRFLOW_PIP_UPGRADE_PATTERN = re.compile(
+    r"(python -m pip install --upgrade pip==)([0-9.]+)"
+)
 
 AIRFLOW_UV_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)")
 AIRFLOW_UV_QUOTED_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")")
@@ -72,7 +83,9 @@ UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 
 
-def replace_group_2_while_keeping_total_length(pattern: re.Pattern[str], replacement: str, text: str) -> str:
+def replace_group_2_while_keeping_total_length(
+    pattern: re.Pattern[str], replacement: str, text: str
+) -> str:
     def replacer(match):
         original_length = len(match.group(2))
         padding = ""

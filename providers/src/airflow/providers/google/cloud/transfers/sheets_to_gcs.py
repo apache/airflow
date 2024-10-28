@@ -92,7 +92,9 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         sheet = hook.get_spreadsheet(self.spreadsheet_id)
         file_name = f"{sheet['properties']['title']}_{sheet_range}.csv".replace(" ", "_")
         dest_file_name = (
-            f"{self.destination_path.strip('/')}/{file_name}" if self.destination_path else file_name
+            f"{self.destination_path.strip('/')}/{file_name}"
+            if self.destination_path
+            else file_name
         )
 
         with NamedTemporaryFile("w+") as temp_file:
@@ -125,7 +127,9 @@ class GoogleSheetsToGCSOperator(BaseOperator):
             spreadsheet_id=self.spreadsheet_id, sheet_filter=self.sheet_filter
         )
         for sheet_range in sheet_titles:
-            data = sheet_hook.get_values(spreadsheet_id=self.spreadsheet_id, range_=sheet_range)
+            data = sheet_hook.get_values(
+                spreadsheet_id=self.spreadsheet_id, range_=sheet_range
+            )
             gcs_path_to_file = self._upload_data(gcs_hook, sheet_hook, sheet_range, data)
             destination_array.append(gcs_path_to_file)
 

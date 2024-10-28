@@ -232,7 +232,7 @@ target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 ## ruff settings ##
 [tool.ruff]
 target-version = "py38"
-line-length = 110
+line-length = 90
 extend-exclude = [
     ".eggs",
     "*/_vendor/*",

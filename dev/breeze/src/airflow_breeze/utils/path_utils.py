@@ -32,7 +32,11 @@ from pathlib import Path
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
+from airflow_breeze.utils.reinstall import (
+    reinstall_breeze,
+    warn_dependencies_changed,
+    warn_non_editable,
+)
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
 PYPROJECT_TOML_FILE = "pyproject.toml"
@@ -77,7 +81,9 @@ def skip_breeze_self_upgrade_check():
 
 
 def skip_group_output():
-    return in_autocomplete() or in_help() or os.environ.get("SKIP_GROUP_OUTPUT") is not None
+    return (
+        in_autocomplete() or in_help() or os.environ.get("SKIP_GROUP_OUTPUT") is not None
+    )
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -97,7 +103,11 @@ def get_package_setup_metadata_hash() -> str:
 
     prefix = "Package config hash: "
 
-    for line in distribution("apache-airflow-breeze").metadata.as_string().splitlines(keepends=False):
+    for line in (
+        distribution("apache-airflow-breeze")
+        .metadata.as_string()
+        .splitlines(keepends=False)
+    ):
         if line.startswith(prefix):
             return line[len(prefix) :]
     return "NOT FOUND"
@@ -136,11 +146,17 @@ def get_used_sources_setup_metadata_hash() -> str:
 
 def set_forced_answer_for_upgrade_check():
     """When we run upgrade check --answer is not parsed yet, so we need to guess it."""
-    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get("ANSWER", "").lower().startswith("n"):
+    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get(
+        "ANSWER", ""
+    ).lower().startswith("n"):
         set_forced_answer("no")
-    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get("ANSWER", "").lower().startswith("y"):
+    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get(
+        "ANSWER", ""
+    ).lower().startswith("y"):
         set_forced_answer("yes")
-    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get("ANSWER", "").lower().startswith("q"):
+    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get(
+        "ANSWER", ""
+    ).lower().startswith("q"):
         set_forced_answer("quit")
 
 
@@ -265,7 +281,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()
     os.chdir(airflow_sources.as_posix())
-    airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
+    airflow_home_dir = Path(
+        os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix())
+    )
     if airflow_sources.resolve() == airflow_home_dir.resolve():
         get_console().print(
             f"\n[error]Your Airflow sources are checked out in {airflow_home_dir} which "
@@ -323,7 +341,9 @@ SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
 SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "docker"
 SCRIPTS_CI_DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "local.yml"
-GENERATED_DOCKER_COMPOSE_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
+GENERATED_DOCKER_COMPOSE_ENV_FILE = (
+    SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker_compose.env"
+)
 GENERATED_DOCKER_ENV_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated_docker.env"
 GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
 DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
@@ -400,7 +420,9 @@ def cleanup_python_generated_files():
             permission_errors.append(path)
     if permission_errors:
         if platform.uname().system.lower() == "linux":
-            get_console().print("[warning]There were files that you could not clean-up:\n")
+            get_console().print(
+                "[warning]There were files that you could not clean-up:\n"
+            )
             get_console().print(permission_errors)
             get_console().print(
                 "Please run at earliest convenience:\n"
@@ -411,7 +433,9 @@ def cleanup_python_generated_files():
                 "You can also remove those files manually using sudo."
             )
         else:
-            get_console().print("[warnings]There were files that you could not clean-up:\n")
+            get_console().print(
+                "[warnings]There were files that you could not clean-up:\n"
+            )
             get_console().print(permission_errors)
             get_console().print("You can also remove those files manually using sudo.")
     if get_verbose():

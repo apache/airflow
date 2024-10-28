@@ -72,7 +72,9 @@ class TestCommands:
 
     def test_python_version(self, default_docker_image):
         """Checking 'python --version' command. It should return zero exit code."""
-        output = run_cmd_in_docker(cmd=["python", "--version"], image=default_docker_image)
+        output = run_cmd_in_docker(
+            cmd=["python", "--version"], image=default_docker_image
+        )
         assert "Python 3." in output
 
     def test_bash_version(self, default_docker_image):
@@ -174,10 +176,16 @@ class TestPythonPackages:
         "virtualenv": ["virtualenv"],
     }
 
-    @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
+    @pytest.mark.skipif(
+        os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image"
+    )
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
-    def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
-        run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
+    def test_check_dependencies_imports(
+        self, package_name, import_names, default_docker_image
+    ):
+        run_python_in_docker(
+            f"import {','.join(import_names)}", image=default_docker_image
+        )
 
     def test_there_is_no_opt_airflow_airflow_folder(self, default_docker_image):
         output = run_bash_in_docker(

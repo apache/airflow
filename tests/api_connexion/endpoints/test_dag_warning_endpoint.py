@@ -24,7 +24,11 @@ from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import (
+    assert_401,
+    create_user,
+    delete_user,
+)
 from tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -145,6 +149,7 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/api/v1/dagWarnings", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/api/v1/dagWarnings",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403

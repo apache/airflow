@@ -259,7 +259,9 @@ class _Trace(type):
     def __init__(cls, *args, **kwargs) -> None:
         super().__init__(cls)
         if not hasattr(cls.__class__, "factory"):
-            if conf.has_option("traces", "otel_on") and conf.getboolean("traces", "otel_on"):
+            if conf.has_option("traces", "otel_on") and conf.getboolean(
+                "traces", "otel_on"
+            ):
                 from airflow.traces import otel_tracer
 
                 cls.__class__.factory = otel_tracer.get_otel_tracer

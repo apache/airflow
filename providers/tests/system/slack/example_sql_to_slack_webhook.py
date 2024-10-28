@@ -25,7 +25,9 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
+from airflow.providers.slack.transfers.sql_to_slack_webhook import (
+    SqlToSlackWebhookOperator,
+)
 
 SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
 SQL_CONN_ID = "presto_default"

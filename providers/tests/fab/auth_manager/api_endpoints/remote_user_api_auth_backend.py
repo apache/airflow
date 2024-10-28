@@ -45,9 +45,9 @@ T = TypeVar("T", bound=Callable)
 
 def _lookup_user(user_email_or_username: str):
     security_manager = get_airflow_app().appbuilder.sm
-    user = security_manager.find_user(email=user_email_or_username) or security_manager.find_user(
-        username=user_email_or_username
-    )
+    user = security_manager.find_user(
+        email=user_email_or_username
+    ) or security_manager.find_user(username=user_email_or_username)
     if not user:
         return None
 

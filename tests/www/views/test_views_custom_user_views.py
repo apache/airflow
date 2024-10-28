@@ -56,11 +56,31 @@ PERMISSIONS_TESTS_PARAMS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
         "Your user information",
     ),
-    ("/userinfoeditview/form", (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE), "Edit User"),
-    ("/users/add", (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER), "Add User"),
-    ("/users/list/", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), "List Users"),
-    ("/users/show/{user.id}", (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER), "Show User"),
-    ("/users/edit/{user.id}", (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER), "Edit User"),
+    (
+        "/userinfoeditview/form",
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
+        "Edit User",
+    ),
+    (
+        "/users/add",
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
+        "Add User",
+    ),
+    (
+        "/users/list/",
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+        "List Users",
+    ),
+    (
+        "/users/show/{user.id}",
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+        "Show User",
+    ),
+    (
+        "/users/edit/{user.id}",
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+        "Edit User",
+    ),
 ]
 
 
@@ -103,7 +123,9 @@ class TestSecurity:
             username="no_access",
             password="no_access",
         )
-        response = client.get(url.replace("{user.id}", str(user_without_access.id)), follow_redirects=True)
+        response = client.get(
+            url.replace("{user.id}", str(user_without_access.id)), follow_redirects=True
+        )
         check_content_not_in_response(expected_text, response)
 
     @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
@@ -112,7 +134,10 @@ class TestSecurity:
             self.app,
             username="has_access",
             role_name="role_has_access",
-            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE), permission],
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                permission,
+            ],
         )
 
         client = client_with_login(
@@ -120,7 +145,9 @@ class TestSecurity:
             username="has_access",
             password="has_access",
         )
-        response = client.get(url.replace("{user.id}", str(user_with_access.id)), follow_redirects=True)
+        response = client.get(
+            url.replace("{user.id}", str(user_with_access.id)), follow_redirects=True
+        )
         check_content_in_response(expected_text, response)
 
     def test_user_model_view_without_delete_access(self):
@@ -145,7 +172,9 @@ class TestSecurity:
             password="no_access",
         )
 
-        response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
+        response = client.post(
+            f"/users/delete/{user_to_delete.id}", follow_redirects=True
+        )
 
         check_content_not_in_response("Deleted Row", response)
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
@@ -173,7 +202,9 @@ class TestSecurity:
             password="has_access",
         )
 
-        response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
+        response = client.post(
+            f"/users/delete/{user_to_delete.id}", follow_redirects=True
+        )
         check_content_in_response("Deleted Row", response)
         check_content_not_in_response(user_to_delete.username, response)
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
@@ -216,7 +247,9 @@ class TestResetUserSessions:
         self.db.session.commit()
         self.db.session.flush()
 
-    def create_user_db_session(self, session_id: str, time_delta: timedelta, user_id: int):
+    def create_user_db_session(
+        self, session_id: str, time_delta: timedelta, user_id: int
+    ):
         self.db.session.add(
             self.model(
                 session_id=session_id,
@@ -233,7 +266,9 @@ class TestResetUserSessions:
             pytest.param(timedelta(days=1), True, id="Both future"),
         ],
     )
-    def test_reset_user_sessions_delete(self, time_delta: timedelta, user_sessions_deleted: bool):
+    def test_reset_user_sessions_delete(
+        self, time_delta: timedelta, user_sessions_deleted: bool
+    ):
         self.create_user_db_session("session_id_1", time_delta, self.user_1.id)
         self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
         self.db.session.commit()
@@ -253,14 +288,20 @@ class TestResetUserSessions:
             assert self.get_session_by_id("session_id_1") is not None
 
     def get_session_by_id(self, session_id: str):
-        return self.db.session.query(self.model).filter(self.model.session_id == session_id).scalar()
+        return (
+            self.db.session.query(self.model)
+            .filter(self.model.session_id == session_id)
+            .scalar()
+        )
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
     @mock.patch(
-        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context", return_value=True
+        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context",
+        return_value=True,
     )
     @mock.patch(
-        "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1
+        "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS",
+        1,
     )
     def test_refuse_delete(self, _mock_has_context, flash_mock):
         self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
@@ -282,7 +323,8 @@ class TestResetUserSessions:
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
     @mock.patch(
-        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context", return_value=True
+        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context",
+        return_value=True,
     )
     def test_warn_securecookie(self, _mock_has_context, flash_mock):
         self.app.session_interface = SecureCookieSessionInterface()
@@ -295,7 +337,8 @@ class TestResetUserSessions:
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     @mock.patch(
-        "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1
+        "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS",
+        1,
     )
     def test_refuse_delete_cli(self, log_mock):
         self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)

@@ -40,7 +40,12 @@ if TYPE_CHECKING:
 
 def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     """Combine base url with endpoint."""
-    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+    if (
+        base_url
+        and not base_url.endswith("/")
+        and endpoint
+        and not endpoint.startswith("/")
+    ):
         return f"{base_url}/{endpoint}"
     return (base_url or "") + (endpoint or "")
 
@@ -128,7 +133,9 @@ class HttpHook(BaseHook):
                 extra.pop(
                     "timeout", None
                 )  # ignore this as timeout is only accepted in request method of Session
-                extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
+                extra.pop(
+                    "allow_redirects", None
+                )  # ignore this as only max_redirects is accepted in Session
                 session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
                 session.stream = extra.pop("stream", False)
                 session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
@@ -139,7 +146,9 @@ class HttpHook(BaseHook):
                 try:
                     session.headers.update(extra)
                 except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
+                    self.log.warning(
+                        "Connection to %s has invalid extra field.", conn.host
+                    )
         if headers:
             session.headers.update(headers)
 
@@ -173,18 +182,24 @@ class HttpHook(BaseHook):
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=self.keep_alive_idle, count=self.keep_alive_count, interval=self.keep_alive_interval
+                idle=self.keep_alive_idle,
+                count=self.keep_alive_count,
+                interval=self.keep_alive_interval,
             )
             session.mount(url, keep_alive_adapter)
         if self.method == "GET":
             # GET uses params
-            req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
+            req = requests.Request(
+                self.method, url, params=data, headers=headers, **request_kwargs
+            )
         elif self.method == "HEAD":
             # HEAD doesn't use params
             req = requests.Request(self.method, url, headers=headers, **request_kwargs)
         else:
             # Others use data
-            req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
+            req = requests.Request(
+                self.method, url, data=data, headers=headers, **request_kwargs
+            )
 
         prepped_request = session.prepare_request(req)
         self.log.debug("Sending '%s' to url: %s", self.method, url)
@@ -248,7 +263,9 @@ class HttpHook(BaseHook):
             self.log.warning("%s Tenacity will retry to execute the operation", ex)
             raise ex
 
-    def run_with_advanced_retry(self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
+    def run_with_advanced_retry(
+        self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """
         Run the hook with retry.
 
@@ -364,12 +381,16 @@ class HttpAsyncHook(BaseHook):
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
-                extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+                extra = self._process_extra_options_from_connection(
+                    conn=conn, extra_options=extra_options
+                )
 
                 try:
                     _headers.update(extra)
                 except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
+                    self.log.warning(
+                        "Connection to %s has invalid extra field.", conn.host
+                    )
         if headers:
             _headers.update(headers)
 
@@ -425,7 +446,9 @@ class HttpAsyncHook(BaseHook):
                 raise NotImplementedError  # should not reach this, but makes mypy happy
 
     @classmethod
-    def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
+    def _process_extra_options_from_connection(
+        cls, conn: Connection, extra_options: dict
+    ) -> dict:
         extra = conn.extra_dejson
         extra.pop("stream", None)
         extra.pop("cert", None)

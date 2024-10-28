@@ -23,12 +23,15 @@ import pytest
 from moto import mock_aws
 
 from airflow.configuration import initialize_secrets_backends
-from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
+from airflow.providers.amazon.aws.secrets.systems_manager import (
+    SystemsManagerParameterStoreBackend,
+)
 
 from tests_common.test_utils.config import conf_vars
 
 URI_CONNECTION = pytest.param(
-    "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
+    "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2",
+    id="uri-connection",
 )
 JSON_CONNECTION = pytest.param(
     json.dumps(
@@ -126,7 +129,11 @@ class TestSsmSecrets:
 
     @mock_aws
     def test_get_variable_secret_string(self):
-        param = {"Name": "/airflow/variables/hello", "Type": "SecureString", "Value": "world"}
+        param = {
+            "Name": "/airflow/variables/hello",
+            "Type": "SecureString",
+            "Value": "world",
+        }
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         returned_uri = ssm_backend.get_variable("hello")
@@ -147,7 +154,10 @@ class TestSsmSecrets:
 
     @conf_vars(
         {
-            ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.systems_manager."
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager."
             "SystemsManagerParameterStoreBackend",
             (
                 "secrets",
@@ -310,7 +320,9 @@ class TestSsmSecrets:
             ("test", None, 1),
         ],
     )
-    def test_config_lookup_pattern(self, mock_client, config_key, config_lookup_pattern, num_client_calls):
+    def test_config_lookup_pattern(
+        self, mock_client, config_key, config_lookup_pattern, num_client_calls
+    ):
         """
         Test that if Variable key is looked up in AWS Parameter Store
         """
@@ -363,7 +375,9 @@ class TestSsmSecrets:
 
         secrets_manager_backend = SystemsManagerParameterStoreBackend(**kwargs)
         secrets_manager_backend.get_variable("hello")
-        mock_client().get_parameter.assert_called_with(Name="/airflow/variables/hello", WithDecryption=True)
+        mock_client().get_parameter.assert_called_with(
+            Name="/airflow/variables/hello", WithDecryption=True
+        )
 
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend.client",
@@ -382,4 +396,6 @@ class TestSsmSecrets:
 
         secrets_manager_backend = SystemsManagerParameterStoreBackend(**kwargs)
         secrets_manager_backend.get_config("config")
-        mock_client().get_parameter.assert_called_with(Name="/airflow/config/config", WithDecryption=True)
+        mock_client().get_parameter.assert_called_with(
+            Name="/airflow/config/config", WithDecryption=True
+        )

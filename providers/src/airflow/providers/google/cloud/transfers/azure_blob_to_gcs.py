@@ -108,7 +108,9 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
                 blob_name=self.blob_name,
             )
             self.log.info(
-                "Uploading data from blob's: %s into GCP bucket: %s", self.object_name, self.bucket_name
+                "Uploading data from blob's: %s into GCP bucket: %s",
+                self.object_name,
+                self.bucket_name,
             )
             gcs_hook.upload(
                 bucket_name=self.bucket_name,
@@ -131,6 +133,13 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         account_name = wasb_hook.get_conn().account_name
 
         return OperatorLineage(
-            inputs=[Dataset(namespace=f"wasbs://{self.container_name}@{account_name}", name=self.blob_name)],
-            outputs=[Dataset(namespace=f"gs://{self.bucket_name}", name=self.object_name)],
+            inputs=[
+                Dataset(
+                    namespace=f"wasbs://{self.container_name}@{account_name}",
+                    name=self.blob_name,
+                )
+            ],
+            outputs=[
+                Dataset(namespace=f"gs://{self.bucket_name}", name=self.object_name)
+            ],
         )

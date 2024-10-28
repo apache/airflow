@@ -33,11 +33,15 @@ from airflow_breeze.utils.shared_options import get_dry_run
 def get_ga_output(name: str, value: Any) -> str:
     output_name = name.replace("_", "-")
     printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
+    get_console().print(
+        f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]"
+    )
     return f"{output_name}={printed_value}"
 
 
-def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 60) -> bool:
+def download_file_from_github(
+    tag: str, path: str, output_file: Path, timeout: int = 60
+) -> bool:
     """
     Downloads a file from GitHub repository of Apache Airflow
 
@@ -64,7 +68,9 @@ def download_file_from_github(tag: str, path: str, output_file: Path, timeout: i
                 return False
             output_file.write_bytes(response.content)
         except requests.Timeout:
-            get_console().print(f"[error]The request to {url} timed out after {timeout} seconds.")
+            get_console().print(
+                f"[error]The request to {url} timed out after {timeout} seconds."
+            )
             return False
     get_console().print(f"[success]Downloaded {url} to {output_file}")
     return True
@@ -120,7 +126,9 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
         get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
     if confirm:
         answer = user_confirm(
-            "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
+            "Should we continue with those versions?",
+            quit_allowed=False,
+            default_answer=Answer.YES,
         )
         if answer == Answer.NO:
             get_console().print("[red]Aborting[/]")
@@ -129,7 +137,10 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
 
 
 def download_constraints_file(
-    airflow_version: str, python_version: str, include_provider_dependencies: bool, output_file: Path
+    airflow_version: str,
+    python_version: str,
+    include_provider_dependencies: bool,
+    output_file: Path,
 ) -> bool:
     """
     Downloads constraints file from GitHub repository of Apache Airflow
@@ -167,6 +178,10 @@ def get_tag_date(tag: str) -> str | None:
         get_console().print(f"[warning]Tag {tag} not found in the repository")
         return None
     timestamp: int = (
-        tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
+        tag_object.committed_date
+        if hasattr(tag_object, "committed_date")
+        else tag_object.tagged_date
     )
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )

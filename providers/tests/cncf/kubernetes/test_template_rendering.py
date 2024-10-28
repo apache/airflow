@@ -22,8 +22,14 @@ from unittest import mock
 import pytest
 from sqlalchemy.orm import make_transient
 
-from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
-from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
+from airflow.models.renderedtifields import (
+    RenderedTaskInstanceFields,
+    RenderedTaskInstanceFields as RTIF,
+)
+from airflow.providers.cncf.kubernetes.template_rendering import (
+    get_rendered_k8s_spec,
+    render_k8s_pod_yaml,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.version import version
@@ -92,7 +98,9 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
 @mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
-def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, create_task_instance):
+def test_get_rendered_k8s_spec(
+    render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, create_task_instance
+):
     # Create new TI for the same Task
     ti = create_task_instance()
 
@@ -118,7 +126,11 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-@mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d)
+@mock.patch(
+    "airflow.utils.log.secrets_masker.redact",
+    autospec=True,
+    side_effect=lambda d, _=None: d,
+)
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
 def test_get_k8s_pod_yaml(render_k8s_pod_yaml, redact, dag_maker, session):
     """

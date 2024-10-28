@@ -110,14 +110,20 @@ with DAG(
         "InstanceType": "t3.micro",
         "KeyName": key_name,
         "TagSpecifications": [
-            {"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}
+            {
+                "ResourceType": "instance",
+                "Tags": [{"Key": "Name", "Value": instance_name}],
+            }
         ],
         # Use IMDSv2 for greater security, see the following doc for more details:
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
         "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
         "HibernationOptions": {"Configured": True},
         "BlockDeviceMappings": [
-            {"DeviceName": "/dev/xvda", "Ebs": {"Encrypted": True, "DeleteOnTermination": True}}
+            {
+                "DeviceName": "/dev/xvda",
+                "Ebs": {"Encrypted": True, "DeleteOnTermination": True},
+            }
         ],
     }
 

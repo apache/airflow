@@ -33,7 +33,9 @@ from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
-KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
+KUBERNETES_HOST_PORT = (
+    (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
+)
 EXECUTOR = os.environ.get("EXECUTOR")
 
 print()
@@ -51,7 +53,9 @@ class BaseK8STest:
     """Base class for K8S Tests."""
 
     host: str = KUBERNETES_HOST_PORT
-    temp_dir = Path(tempfile.gettempdir())  # Refers to global temp directory, in linux it usual "/tmp"
+    temp_dir = Path(
+        tempfile.gettempdir()
+    )  # Refers to global temp directory, in linux it usual "/tmp"
     session: requests.Session
     test_id: str
 
@@ -69,7 +73,8 @@ class BaseK8STest:
     def _describe_resources(self, namespace: str):
         kubeconfig_basename = os.path.basename(os.environ.get("KUBECONFIG", "default"))
         output_file_path = (
-            self.temp_dir / f"k8s_test_resources_{namespace}_{kubeconfig_basename}_{self.test_id}.txt"
+            self.temp_dir
+            / f"k8s_test_resources_{namespace}_{kubeconfig_basename}_{self.test_id}.txt"
         )
         print(f"Dumping resources to {output_file_path}")
         ci = os.environ.get("CI")
@@ -117,7 +122,9 @@ class BaseK8STest:
         suffix = f"-{name}" if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
         air_pod = air_pod.splitlines()
-        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
+        names = [
+            re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x
+        ]
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 
@@ -156,7 +163,9 @@ class BaseK8STest:
             f"with {timeout_seconds} s delays"
         )
 
-    def monitor_task(self, host, dag_run_id, dag_id, task_id, expected_final_state, timeout):
+    def monitor_task(
+        self, host, dag_run_id, dag_id, task_id, expected_final_state, timeout
+    ):
         tries = 0
         state = ""
         max_tries = max(int(timeout / 5), 1)
@@ -165,9 +174,7 @@ class BaseK8STest:
             time.sleep(5)
             # Check task state
             try:
-                get_string = (
-                    f"http://{host}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
-                )
+                get_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
                 print(f"Calling [monitor_task]#1 {get_string}")
                 result = self.session.get(get_string)
                 if result.status_code == 404:
@@ -188,10 +195,14 @@ class BaseK8STest:
             except requests.exceptions.ConnectionError as e:
                 check_call(["echo", f"api call failed. trying again. error {e}"])
         if state != expected_final_state:
-            print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
+            print(
+                f"The expected state is wrong {state} != {expected_final_state} (expected)!"
+            )
         assert state == expected_final_state
 
-    def ensure_dag_expected_state(self, host, execution_date, dag_id, expected_final_state, timeout):
+    def ensure_dag_expected_state(
+        self, host, execution_date, dag_id, expected_final_state, timeout
+    ):
         tries = 0
         state = ""
         max_tries = max(int(timeout / 5), 1)
@@ -278,5 +289,7 @@ class BaseK8STest:
                 execution_date = dag_run["execution_date"]
                 dag_run_id = dag_run["dag_run_id"]
                 break
-        assert execution_date is not None, f"No execution_date can be found for the dag with {dag_id}"
+        assert (
+            execution_date is not None
+        ), f"No execution_date can be found for the dag with {dag_id}"
         return dag_run_id, execution_date

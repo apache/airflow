@@ -39,7 +39,9 @@ class TestCassandraRecordSensor:
 
         assert exists
 
-        mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY)
+        mock_hook.return_value.record_exists.assert_called_once_with(
+            TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY
+        )
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
 
     @patch("airflow.providers.apache.cassandra.sensors.record.CassandraHook")
@@ -54,7 +56,9 @@ class TestCassandraRecordSensor:
 
         assert exists
 
-        mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, None)
+        mock_hook.return_value.record_exists.assert_called_once_with(
+            TEST_CASSANDRA_TABLE, None
+        )
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
 
     @patch("airflow.providers.apache.cassandra.sensors.record.CassandraHook")
@@ -71,7 +75,9 @@ class TestCassandraRecordSensor:
 
         assert not exists
 
-        mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY)
+        mock_hook.return_value.record_exists.assert_called_once_with(
+            TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY
+        )
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
 
     @patch("airflow.providers.apache.cassandra.sensors.record.CassandraHook")

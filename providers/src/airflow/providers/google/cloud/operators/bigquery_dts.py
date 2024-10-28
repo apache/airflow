@@ -33,10 +33,17 @@ from google.cloud.bigquery_datatransfer_v1 import (
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
-from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
+from airflow.providers.google.cloud.hooks.bigquery_dts import (
+    BiqQueryDataTransferServiceHook,
+    get_object_id,
+)
+from airflow.providers.google.cloud.links.bigquery_dts import (
+    BigQueryDataTransferConfigLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
+from airflow.providers.google.cloud.triggers.bigquery_dts import (
+    BigQueryDataTransferRunTrigger,
+)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -47,7 +54,11 @@ if TYPE_CHECKING:
 
 def _get_transfer_config_details(config_transfer_name: str):
     config_details = config_transfer_name.split("/")
-    return {"project_id": config_details[1], "region": config_details[3], "config_id": config_details[5]}
+    return {
+        "project_id": config_details[1],
+        "region": config_details[3],
+        "config_id": config_details[5],
+    }
 
 
 class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
@@ -118,7 +129,9 @@ class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            location=self.location,
         )
         self.log.info("Creating DTS transfer config")
         response = hook.create_transfer_config(
@@ -209,7 +222,9 @@ class BigQueryDeleteDataTransferConfigOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = BiqQueryDataTransferServiceHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            location=self.location,
         )
         hook.delete_transfer_config(
             transfer_config_id=self.transfer_config_id,
@@ -283,7 +298,9 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -311,7 +328,9 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
     def execute(self, context: Context):
         self.log.info("Submitting manual transfer for %s", self.transfer_config_id)
 
-        if self.requested_run_time and isinstance(self.requested_run_time.get("seconds"), str):
+        if self.requested_run_time and isinstance(
+            self.requested_run_time.get("seconds"), str
+        ):
             self.requested_run_time["seconds"] = int(self.requested_run_time["seconds"])
 
         response = self.hook.start_manual_transfer_runs(
@@ -357,7 +376,9 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
             method_name="execute_completed",
         )
 
-    def _wait_for_transfer_to_be_done(self, run_id: str, transfer_config_id: str, interval: int = 10):
+    def _wait_for_transfer_to_be_done(
+        self, run_id: str, transfer_config_id: str, interval: int = 10
+    ):
         if interval <= 0:
             raise ValueError("Interval must be > 0")
 
@@ -374,12 +395,16 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
 
             if self._job_is_done(state):
                 if state in (TransferState.FAILED, TransferState.CANCELLED):
-                    raise AirflowException(f"Transfer run was finished with {state} status.")
+                    raise AirflowException(
+                        f"Transfer run was finished with {state} status."
+                    )
 
                 result = TransferRun.to_dict(transfer_run)
                 return result
 
-            self.log.info("Transfer run is still working, waiting for %s seconds...", interval)
+            self.log.info(
+                "Transfer run is still working, waiting for %s seconds...", interval
+            )
             self.log.info("Transfer run status: %s", state)
             time.sleep(interval)
 

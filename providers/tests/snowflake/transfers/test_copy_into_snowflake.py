@@ -30,7 +30,9 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo
-from airflow.providers.snowflake.transfers.copy_into_snowflake import CopyFromExternalStageToSnowflakeOperator
+from airflow.providers.snowflake.transfers.copy_into_snowflake import (
+    CopyFromExternalStageToSnowflakeOperator,
+)
 
 
 class TestCopyFromExternalStageToSnowflake:
@@ -88,7 +90,9 @@ class TestCopyFromExternalStageToSnowflake:
             {"file": "s3://aws_bucket_name_2"},
             {"file": "gcs://gcs_bucket_name/dir2/file.csv"},
             {"file": "gcs://gcs_bucket_name_2"},
-            {"file": "azure://my_account.blob.core.windows.net/azure_container/dir3/file.csv"},
+            {
+                "file": "azure://my_account.blob.core.windows.net/azure_container/dir3/file.csv"
+            },
             {"file": "azure://my_account.blob.core.windows.net/azure_container_2"},
         ]
         mock_hook().get_openlineage_database_info.return_value = DatabaseInfo(
@@ -106,7 +110,10 @@ class TestCopyFromExternalStageToSnowflake:
             Dataset(namespace="wasbs://azure_container_2@my_account", name="/"),
         ]
         expected_outputs = [
-            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+            Dataset(
+                namespace="snowflake_scheme://authority",
+                name="actual_database.actual_schema.table",
+            )
         ]
         expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
 
@@ -142,7 +149,10 @@ class TestCopyFromExternalStageToSnowflake:
         mock_hook().query_ids = ["query_id_123"]
 
         expected_outputs = [
-            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+            Dataset(
+                namespace="snowflake_scheme://authority",
+                name="actual_database.actual_schema.table",
+            )
         ]
         expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
 
@@ -186,7 +196,10 @@ class TestCopyFromExternalStageToSnowflake:
             Dataset(namespace="s3://aws_bucket_name", name="dir1"),
         ]
         expected_outputs = [
-            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+            Dataset(
+                namespace="snowflake_scheme://authority",
+                name="actual_database.actual_schema.table",
+            )
         ]
         expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
         expected_run_facets = {

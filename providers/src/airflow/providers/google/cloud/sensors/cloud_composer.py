@@ -24,7 +24,9 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from dateutil import parser
-from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
+from google.cloud.orchestration.airflow.service_v1.types import (
+    ExecuteAirflowCommandResponse,
+)
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -109,7 +111,9 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+    def execute_complete(
+        self, context: dict[str, Any], event: dict[str, str] | None = None
+    ) -> str:
         """
         Act as a callback for when the trigger fires - returns immediately.
 
@@ -173,7 +177,9 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         execution_range: timedelta | list[datetime] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -182,7 +188,9 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         self.region = region
         self.environment_id = environment_id
         self.composer_dag_id = composer_dag_id
-        self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        self.allowed_states = (
+            list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
+        )
         self.execution_range = execution_range
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -192,9 +200,13 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
     def _get_execution_dates(self, context) -> tuple[datetime, datetime]:
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
-                return context["logical_date"], context["logical_date"] - self.execution_range
+                return context["logical_date"], context[
+                    "logical_date"
+                ] - self.execution_range
             else:
-                return context["logical_date"] - self.execution_range, context["logical_date"]
+                return context["logical_date"] - self.execution_range, context[
+                    "logical_date"
+                ]
         elif isinstance(self.execution_range, list) and len(self.execution_range) > 0:
             return self.execution_range[0], self.execution_range[1] if len(
                 self.execution_range

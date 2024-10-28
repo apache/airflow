@@ -71,13 +71,19 @@ def init_appbuilder_views(app):
         category_icon="fa-globe",
     )
     appbuilder.add_view(
-        views.JobModelView, permissions.RESOURCE_JOB, category=permissions.RESOURCE_BROWSE_MENU
+        views.JobModelView,
+        permissions.RESOURCE_JOB,
+        category=permissions.RESOURCE_BROWSE_MENU,
     )
     appbuilder.add_view(
-        views.LogModelView, permissions.RESOURCE_AUDIT_LOG, category=permissions.RESOURCE_BROWSE_MENU
+        views.LogModelView,
+        permissions.RESOURCE_AUDIT_LOG,
+        category=permissions.RESOURCE_BROWSE_MENU,
     )
     appbuilder.add_view(
-        views.VariableModelView, permissions.RESOURCE_VARIABLE, category=permissions.RESOURCE_ADMIN_MENU
+        views.VariableModelView,
+        permissions.RESOURCE_VARIABLE,
+        category=permissions.RESOURCE_ADMIN_MENU,
     )
     appbuilder.add_view(
         views.TaskInstanceModelView,
@@ -101,19 +107,29 @@ def init_appbuilder_views(app):
         category_icon="fa-user",
     )
     appbuilder.add_view(
-        views.ConnectionModelView, permissions.RESOURCE_CONNECTION, category=permissions.RESOURCE_ADMIN_MENU
+        views.ConnectionModelView,
+        permissions.RESOURCE_CONNECTION,
+        category=permissions.RESOURCE_ADMIN_MENU,
     )
     appbuilder.add_view(
-        views.PluginView, permissions.RESOURCE_PLUGIN, category=permissions.RESOURCE_ADMIN_MENU
+        views.PluginView,
+        permissions.RESOURCE_PLUGIN,
+        category=permissions.RESOURCE_ADMIN_MENU,
     )
     appbuilder.add_view(
-        views.ProviderView, permissions.RESOURCE_PROVIDER, category=permissions.RESOURCE_ADMIN_MENU
+        views.ProviderView,
+        permissions.RESOURCE_PROVIDER,
+        category=permissions.RESOURCE_ADMIN_MENU,
     )
     appbuilder.add_view(
-        views.PoolModelView, permissions.RESOURCE_POOL, category=permissions.RESOURCE_ADMIN_MENU
+        views.PoolModelView,
+        permissions.RESOURCE_POOL,
+        category=permissions.RESOURCE_ADMIN_MENU,
     )
     appbuilder.add_view(
-        views.XComModelView, permissions.RESOURCE_XCOM, category=permissions.RESOURCE_ADMIN_MENU
+        views.XComModelView,
+        permissions.RESOURCE_XCOM,
+        category=permissions.RESOURCE_ADMIN_MENU,
     )
     appbuilder.add_view(
         views.DagDependenciesView,
@@ -152,13 +168,18 @@ def init_plugins(app):
             appbuilder.add_view_no_menu(view["view"])
 
     for menu_link in sorted(
-        plugins_manager.flask_appbuilder_menu_links, key=lambda x: (x.get("category", ""), x["name"])
+        plugins_manager.flask_appbuilder_menu_links,
+        key=lambda x: (x.get("category", ""), x["name"]),
     ):
         log.debug("Adding menu link %s to %s", menu_link["name"], menu_link["href"])
         appbuilder.add_link(**menu_link)
 
     for blue_print in plugins_manager.flask_blueprints:
-        log.debug("Adding blueprint %s:%s", blue_print["name"], blue_print["blueprint"].import_name)
+        log.debug(
+            "Adding blueprint %s:%s",
+            blue_print["name"],
+            blue_print["blueprint"].import_name,
+        )
         app.register_blueprint(blue_print["blueprint"])
 
 
@@ -276,7 +297,10 @@ def init_api_connexion(app: Flask) -> None:
         specification=specification,
         resolver=_LazyResolver(),
         base_path=base_path,
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+        options={
+            "swagger_ui": SWAGGER_ENABLED,
+            "swagger_path": SWAGGER_BUNDLE.__fspath__(),
+        },
         strict_validation=True,
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -289,23 +313,32 @@ def init_api_connexion(app: Flask) -> None:
 
 def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     """Initialize Internal API."""
-    if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
+    if not standalone_api and not conf.getboolean(
+        "webserver", "run_internal_api", fallback=False
+    ):
         return
 
     base_paths.append("/internal_api/v1")
-    with ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml").open() as f:
+    with ROOT_APP_DIR.joinpath(
+        "api_internal", "openapi", "internal_api_v1.yaml"
+    ).open() as f:
         specification = safe_load(f)
     api_bp = FlaskApi(
         specification=specification,
         base_path="/internal_api/v1",
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+        options={
+            "swagger_ui": SWAGGER_ENABLED,
+            "swagger_path": SWAGGER_BUNDLE.__fspath__(),
+        },
         strict_validation=True,
         validate_responses=True,
     ).blueprint
     api_bp.after_request(set_cors_headers_on_response)
 
     app.register_blueprint(api_bp)
-    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
+    app.after_request_funcs.setdefault(api_bp.name, []).append(
+        set_cors_headers_on_response
+    )
     app.extensions["csrf"].exempt(api_bp)
 
 

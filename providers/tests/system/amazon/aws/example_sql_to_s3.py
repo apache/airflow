@@ -31,7 +31,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftDeleteClusterOperator,
 )
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
@@ -45,7 +48,10 @@ SECURITY_GROUP_KEY = "SECURITY_GROUP"
 CLUSTER_SUBNET_GROUP_KEY = "CLUSTER_SUBNET_GROUP"
 
 sys_test_context_task = (
-    SystemTestContextBuilder().add_variable(SECURITY_GROUP_KEY).add_variable(CLUSTER_SUBNET_GROUP_KEY).build()
+    SystemTestContextBuilder()
+    .add_variable(SECURITY_GROUP_KEY)
+    .add_variable(CLUSTER_SUBNET_GROUP_KEY)
+    .build()
 )
 
 
@@ -70,7 +76,9 @@ SQL_INSERT_DATA = f"INSERT INTO {REDSHIFT_TABLE} VALUES ( 1, 'Banana', 'Yellow')
 @task
 def create_connection(conn_id_name: str, cluster_id: str):
     redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    cluster_endpoint = redshift_hook.get_conn().describe_clusters(
+        ClusterIdentifier=cluster_id
+    )["Clusters"][0]
     conn = Connection(
         conn_id=conn_id_name,
         conn_type="redshift",
@@ -126,7 +134,9 @@ with DAG(
         timeout=60 * 30,
     )
 
-    set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
+    set_up_connection = create_connection(
+        conn_id_name, cluster_id=redshift_cluster_identifier
+    )
 
     create_table_redshift_data = RedshiftDataOperator(
         task_id="create_table_redshift_data",

@@ -37,7 +37,11 @@ from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
+from airflow.providers.celery.executors import (
+    celery_executor,
+    celery_executor_utils,
+    default_celery,
+)
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -77,9 +81,12 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor_utils.app", test_app)
+    patch_app = mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.app", test_app
+    )
     patch_execute = mock.patch(
-        "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
+        "airflow.providers.celery.executors.celery_executor_utils.execute_command",
+        test_execute,
     )
 
     backend = test_app.backend
@@ -122,30 +129,45 @@ class TestCeleryExecutor:
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
         caplog.set_level(
-            logging.ERROR, logger="airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher"
+            logging.ERROR,
+            logger="airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher",
         )
         with _prepare_app():
             executor = celery_executor.CeleryExecutor()
             executor.tasks = {"key": FakeCeleryResult()}
-            executor.bulk_state_fetcher._get_many_using_multiprocessing(executor.tasks.values())
-        assert celery_executor_utils.CELERY_FETCH_ERR_MSG_HEADER in caplog.text, caplog.record_tuples
+            executor.bulk_state_fetcher._get_many_using_multiprocessing(
+                executor.tasks.values()
+            )
+        assert (
+            celery_executor_utils.CELERY_FETCH_ERR_MSG_HEADER in caplog.text
+        ), caplog.record_tuples
         assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
+    @mock.patch(
+        "airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks"
+    )
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+    def test_gauge_executor_metrics(
+        self, mock_stats_gauge, mock_trigger_tasks, mock_sync
+    ):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "CeleryExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "name": "CeleryExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "CeleryExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "name": "CeleryExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "CeleryExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "name": "CeleryExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
@@ -163,7 +185,8 @@ class TestCeleryExecutor:
         expected_context = contextlib.nullcontext()
         if raise_exception:
             expected_context = pytest.raises(
-                ValueError, match=r'The command must start with \["airflow", "tasks", "run"\]\.'
+                ValueError,
+                match=r'The command must start with \["airflow", "tasks", "run"\]\.',
             )
 
         with (
@@ -225,8 +248,12 @@ class TestCeleryExecutor:
 
         not_adopted_tis = executor.try_adopt_task_instances(tis)
 
-        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1)
-        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1)
+        key_1 = TaskInstanceKey(
+            dag.dag_id, task_1.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1
+        )
+        key_2 = TaskInstanceKey(
+            dag.dag_id, task_2.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1
+        )
         assert executor.running == {key_1, key_2}
 
         assert executor.tasks == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
@@ -264,7 +291,9 @@ class TestCeleryExecutor:
         app.control.revoke.assert_called_once_with("231")
         mock_fail.assert_called_once()
 
-    @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
+    @conf_vars(
+        {("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'}
+    )
     @mock.patch("celery.Celery")
     def test_result_backend_sqlalchemy_engine_options(self, mock_celery):
         import importlib
@@ -336,7 +365,9 @@ def test_send_tasks_to_celery_hang(register_signals):
         assert results == [(None, None, 1) for _ in task_tuples_to_send]
 
 
-@conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
+@conf_vars(
+    {("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"}
+)
 def test_celery_executor_with_no_recommended_result_backend(caplog):
     import importlib
 
@@ -352,15 +383,22 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
         ) in caplog.text
 
 
-@conf_vars({("celery_broker_transport_options", "sentinel_kwargs"): '{"service_name": "mymaster"}'})
+@conf_vars(
+    {
+        (
+            "celery_broker_transport_options",
+            "sentinel_kwargs",
+        ): '{"service_name": "mymaster"}'
+    }
+)
 def test_sentinel_kwargs_loaded_from_string():
     import importlib
 
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
-    assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
-        "service_name": "mymaster"
-    }
+    assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"][
+        "sentinel_kwargs"
+    ] == {"service_name": "mymaster"}
 
 
 @conf_vars({("celery", "task_acks_late"): "False"})

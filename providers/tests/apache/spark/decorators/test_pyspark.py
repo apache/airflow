@@ -93,7 +93,9 @@ class TestPysparkDecorator:
 
         conf_mock.return_value = config
 
-        @task.pyspark(conn_id="pyspark_local", config_kwargs={"spark.executor.memory": "2g"})
+        @task.pyspark(
+            conn_id="pyspark_local", config_kwargs={"spark.executor.memory": "2g"}
+        )
         def f(spark, sc):
             import random
 
@@ -185,6 +187,9 @@ class TestPysparkDecorator:
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull()
-        assert config.get("spark.remote") == "sc://localhost/;user_id=connect;token=1234;use_ssl=True"
+        assert (
+            config.get("spark.remote")
+            == "sc://localhost/;user_id=connect;token=1234;use_ssl=True"
+        )
         assert config.get("spark.master") is None
         assert config.get("spark.app.name")

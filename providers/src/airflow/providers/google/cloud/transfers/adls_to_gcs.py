@@ -116,7 +116,9 @@ class ADLSToGCSOperator(ADLSListOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs)
+        super().__init__(
+            path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs
+        )
 
         self.src_adls = src_adls
         self.dest_gcs = dest_gcs
@@ -153,7 +155,10 @@ class ADLSToGCSOperator(ADLSListOperator):
                     self.log.info("Saving file to %s", dest_path)
 
                     g_hook.upload(
-                        bucket_name=dest_gcs_bucket, object_name=dest_path, filename=f.name, gzip=self.gzip
+                        bucket_name=dest_gcs_bucket,
+                        object_name=dest_path,
+                        filename=f.name,
+                        gzip=self.gzip,
                     )
 
             self.log.info("All done, uploaded %d files to GCS", len(files))

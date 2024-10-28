@@ -25,9 +25,15 @@ from google.cloud.run_v2 import Job, Service
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
+from airflow.providers.google.cloud.hooks.cloud_run import (
+    CloudRunHook,
+    CloudRunServiceHook,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
+from airflow.providers.google.cloud.triggers.cloud_run import (
+    CloudRunJobFinishedTrigger,
+    RunJobStatus,
+)
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -55,7 +61,13 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+    )
 
     def __init__(
         self,
@@ -80,7 +92,10 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         job = hook.create_job(
-            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+            job_name=self.job_name,
+            job=self.job,
+            region=self.region,
+            project_id=self.project_id,
         )
 
         return Job.to_dict(job)
@@ -106,7 +121,13 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+    )
 
     def __init__(
         self,
@@ -131,7 +152,10 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         job = hook.update_job(
-            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+            job_name=self.job_name,
+            job=self.job,
+            region=self.region,
+            project_id=self.project_id,
         )
 
         return Job.to_dict(job)
@@ -155,7 +179,13 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+    )
 
     def __init__(
         self,
@@ -177,7 +207,9 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        job = hook.delete_job(job_name=self.job_name, region=self.region, project_id=self.project_id)
+        job = hook.delete_job(
+            job_name=self.job_name, region=self.region, project_id=self.project_id
+        )
 
         return Job.to_dict(job)
 
@@ -228,14 +260,19 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         self.show_deleted = show_deleted
         self.limit = limit
         if limit is not None and limit < 0:
-            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero"
+            )
 
     def execute(self, context: Context):
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         jobs = hook.list_jobs(
-            region=self.region, project_id=self.project_id, show_deleted=self.show_deleted, limit=self.limit
+            region=self.region,
+            project_id=self.project_id,
+            show_deleted=self.show_deleted,
+            limit=self.limit,
         )
 
         return [Job.to_dict(job) for job in jobs]
@@ -264,7 +301,14 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run the operator in deferrable mode.
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+        "overrides",
+    )
 
     def __init__(
         self,
@@ -276,7 +320,9 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -296,13 +342,18 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         self.operation = hook.execute_job(
-            region=self.region, project_id=self.project_id, job_name=self.job_name, overrides=self.overrides
+            region=self.region,
+            project_id=self.project_id,
+            job_name=self.job_name,
+            overrides=self.overrides,
         )
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
-            job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
+            job = hook.get_job(
+                job_name=result.job, region=self.region, project_id=self.project_id
+            )
             return Job.to_dict(job)
         else:
             self.defer(
@@ -333,7 +384,9 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
         hook: CloudRunHook = CloudRunHook(self.gcp_conn_id, self.impersonation_chain)
 
-        job = hook.get_job(job_name=event["job_name"], region=self.region, project_id=self.project_id)
+        job = hook.get_job(
+            job_name=event["job_name"], region=self.region, project_id=self.project_id
+        )
         return Job.to_dict(job)
 
     def _fail_if_execution_failed(self, execution: Execution):
@@ -374,7 +427,13 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "service_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "service_name",
+    )
 
     def __init__(
         self,
@@ -396,7 +455,9 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         self._validate_inputs()
 
     def _validate_inputs(self):
-        missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
+        missing_fields = [
+            k for k in ["project_id", "region", "service_name"] if not getattr(self, k)
+        ]
         if not self.project_id or not self.region or not self.service_name:
             raise AirflowException(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
@@ -422,7 +483,9 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
                 self.region,
             )
             return hook.get_service(
-                service_name=self.service_name, region=self.region, project_id=self.project_id
+                service_name=self.service_name,
+                region=self.region,
+                project_id=self.project_id,
             )
         except google.cloud.exceptions.GoogleCloudError as e:
             self.log.error("An error occurred. Exiting.")
@@ -449,7 +512,13 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "service_name")
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "service_name",
+    )
 
     def __init__(
         self,
@@ -469,7 +538,9 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         self._validate_inputs()
 
     def _validate_inputs(self):
-        missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
+        missing_fields = [
+            k for k in ["project_id", "region", "service_name"] if not getattr(self, k)
+        ]
         if not self.project_id or not self.region or not self.service_name:
             raise AirflowException(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "

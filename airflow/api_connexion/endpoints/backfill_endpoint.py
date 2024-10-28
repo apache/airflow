@@ -65,7 +65,9 @@ def backfill_to_dag(func):
         backfill = session.get(Backfill, backfill_id)
         if not backfill:
             raise NotFound("Backfill not found")
-        return func(dag_id=backfill.dag_id, backfill_id=backfill_id, session=session, **kwargs)
+        return func(
+            dag_id=backfill.dag_id, backfill_id=backfill_id, session=session, **kwargs
+        )
 
     return wrapper
 

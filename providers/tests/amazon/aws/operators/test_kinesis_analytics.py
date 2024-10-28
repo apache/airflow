@@ -148,14 +148,18 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
         operator.defer = mock.MagicMock()
         error_message = "Invalid arguments provided"
 
-        err_response = {"Error": {"Code": "InvalidArgumentException", "Message": error_message}}
+        err_response = {
+            "Error": {"Code": "InvalidArgumentException", "Message": error_message}
+        }
 
         exception = client("kinesisanalyticsv2").exceptions.ClientError(
             err_response, operation_name="CreateApplication"
         )
         returned_exception = type(exception)
 
-        kinesis_analytics_mock_conn.exceptions.InvalidArgumentException = returned_exception
+        kinesis_analytics_mock_conn.exceptions.InvalidArgumentException = (
+            returned_exception
+        )
         kinesis_analytics_mock_conn.create_application.side_effect = exception
 
         with pytest.raises(AirflowException, match=error_message):
@@ -279,7 +283,9 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         assert self.operator.defer.call_count == deferrable
 
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
-    def test_start_application_throw_error_when_invalid_config_provided(self, kinesis_analytics_mock_conn):
+    def test_start_application_throw_error_when_invalid_config_provided(
+        self, kinesis_analytics_mock_conn
+    ):
         operator = KinesisAnalyticsV2StartApplicationOperator(
             task_id="start_application_operator",
             application_name="demo",
@@ -298,7 +304,10 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         error_message = "Invalid config provided"
 
         err_response = {
-            "Error": {"Code": "InvalidApplicationConfigurationException", "Message": error_message}
+            "Error": {
+                "Code": "InvalidApplicationConfigurationException",
+                "Message": error_message,
+            }
         }
 
         exception = client("kinesisanalyticsv2").exceptions.ClientError(
@@ -306,7 +315,9 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         )
         returned_exception = type(exception)
 
-        kinesis_analytics_mock_conn.exceptions.InvalidArgumentException = returned_exception
+        kinesis_analytics_mock_conn.exceptions.InvalidArgumentException = (
+            returned_exception
+        )
         kinesis_analytics_mock_conn.start_application.side_effect = exception
 
         with pytest.raises(AirflowException, match=error_message):
@@ -447,7 +458,9 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         assert self.operator.defer.call_count == deferrable
 
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
-    def test_stop_application_throw_error_when_invalid_config_provided(self, kinesis_analytics_mock_conn):
+    def test_stop_application_throw_error_when_invalid_config_provided(
+        self, kinesis_analytics_mock_conn
+    ):
         operator = KinesisAnalyticsV2StopApplicationOperator(
             task_id="stop_application_operator",
             application_name="demo",
@@ -461,14 +474,18 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         operator.defer = mock.MagicMock()
         error_message = "resource not found"
 
-        err_response = {"Error": {"Code": "ResourceNotFoundException", "Message": error_message}}
+        err_response = {
+            "Error": {"Code": "ResourceNotFoundException", "Message": error_message}
+        }
 
         exception = client("kinesisanalyticsv2").exceptions.ClientError(
             err_response, operation_name="StopApplication"
         )
         returned_exception = type(exception)
 
-        kinesis_analytics_mock_conn.exceptions.ResourceNotFoundException = returned_exception
+        kinesis_analytics_mock_conn.exceptions.ResourceNotFoundException = (
+            returned_exception
+        )
         kinesis_analytics_mock_conn.stop_application.side_effect = exception
 
         with pytest.raises(AirflowException, match=error_message):
@@ -494,7 +511,8 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
         event = {"status": "error", "application_name": "demo"}
 
         with pytest.raises(
-            AirflowException, match="Error while stopping AWS Managed Service for Apache Flink application"
+            AirflowException,
+            match="Error while stopping AWS Managed Service for Apache Flink application",
         ):
             self.operator.execute_complete(context=None, event=event)
 

@@ -50,7 +50,11 @@ TEST_FOLDER = "test-folder"
 TEST_OBJECT_NO_WILDCARD = "file.extension"
 TEST_OBJECT_WILDCARD = "file_*.extension"
 TEST_TABLE_API_REPR = {
-    "tableReference": {"projectId": PROJECT_ID, "datasetId": TEST_DATASET, "tableId": TEST_TABLE_ID},
+    "tableReference": {
+        "projectId": PROJECT_ID,
+        "datasetId": TEST_DATASET,
+        "tableId": TEST_TABLE_ID,
+    },
     "description": "Table description.",
     "schema": {
         "fields": [
@@ -61,7 +65,11 @@ TEST_TABLE_API_REPR = {
 }
 TEST_TABLE: Table = Table.from_api_repr(TEST_TABLE_API_REPR)
 TEST_EMPTY_TABLE_API_REPR = {
-    "tableReference": {"projectId": PROJECT_ID, "datasetId": TEST_DATASET, "tableId": TEST_TABLE_ID}
+    "tableReference": {
+        "projectId": PROJECT_ID,
+        "datasetId": TEST_DATASET,
+        "tableId": TEST_TABLE_ID,
+    }
 }
 TEST_EMPTY_TABLE: Table = Table.from_api_repr(TEST_EMPTY_TABLE_API_REPR)
 
@@ -96,9 +104,15 @@ class TestBigQueryToGCSOperator:
             "labels": {"k1": "v1"},
         }
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id="real_job_id", error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id="real_job_id", error_result=False
+        )
         mock_hook.return_value.project_id = JOB_PROJECT_ID
 
         operator = BigQueryToGCSOperator(
@@ -153,9 +167,15 @@ class TestBigQueryToGCSOperator:
             "labels": {"k1": "v1"},
         }
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id="real_job_id", error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id="real_job_id", error_result=False
+        )
         mock_hook.return_value.project_id = JOB_PROJECT_ID
 
         operator = BigQueryToGCSOperator(
@@ -231,7 +251,11 @@ class TestBigQueryToGCSOperator:
             destination_cloud_storage_uris=[gcs_uri],
         )
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
         operator.execute(context=mock.MagicMock())
 
         lineage = operator.get_openlineage_facets_on_complete(None)
@@ -252,7 +276,11 @@ class TestBigQueryToGCSOperator:
             ],
         )
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
         operator.execute(context=mock.MagicMock())
 
         lineage = operator.get_openlineage_facets_on_complete(None)
@@ -269,14 +297,20 @@ class TestBigQueryToGCSOperator:
         expected_input_dataset_facets = {
             "schema": SchemaDatasetFacet(
                 fields=[
-                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(
+                        name="field1", type="STRING", description="field1 description"
+                    ),
                     SchemaDatasetFacetFields(name="field2", type="INTEGER"),
                 ]
             ),
             "documentation": DocumentationDatasetFacet(description="Table description."),
         }
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
         mock_hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
 
         operator = BigQueryToGCSOperator(
@@ -304,8 +338,14 @@ class TestBigQueryToGCSOperator:
             "documentation": DocumentationDatasetFacet(description=""),
         }
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
-        mock_hook.return_value.get_client.return_value.get_table.return_value = TEST_EMPTY_TABLE
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+        mock_hook.return_value.get_client.return_value.get_table.return_value = (
+            TEST_EMPTY_TABLE
+        )
 
         operator = BigQueryToGCSOperator(
             project_id=JOB_PROJECT_ID,
@@ -324,9 +364,13 @@ class TestBigQueryToGCSOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
-    def test_get_openlineage_facets_on_complete_gcs_no_wildcard_empty_table(self, mock_hook):
+    def test_get_openlineage_facets_on_complete_gcs_no_wildcard_empty_table(
+        self, mock_hook
+    ):
         source_project_dataset_table = f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
-        destination_cloud_storage_uris = [f"gs://{TEST_BUCKET}/{TEST_FOLDER}/{TEST_OBJECT_NO_WILDCARD}"]
+        destination_cloud_storage_uris = [
+            f"gs://{TEST_BUCKET}/{TEST_FOLDER}/{TEST_OBJECT_NO_WILDCARD}"
+        ]
         real_job_id = "123456_hash"
         bq_namespace = "bigquery"
 
@@ -340,9 +384,17 @@ class TestBigQueryToGCSOperator:
             "columnLineage": ColumnLineageDatasetFacet(fields={}),
         }
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
-        mock_hook.return_value.get_client.return_value.get_table.return_value = TEST_EMPTY_TABLE
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, error_result=False
+        )
+        mock_hook.return_value.get_client.return_value.get_table.return_value = (
+            TEST_EMPTY_TABLE
+        )
 
         operator = BigQueryToGCSOperator(
             project_id=JOB_PROJECT_ID,
@@ -357,7 +409,9 @@ class TestBigQueryToGCSOperator:
         assert len(lineage.inputs) == 1
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == Dataset(
-            namespace=bq_namespace, name=source_project_dataset_table, facets=expected_input_facets
+            namespace=bq_namespace,
+            name=source_project_dataset_table,
+            facets=expected_input_facets,
         )
         assert lineage.outputs[0] == Dataset(
             namespace=f"gs://{TEST_BUCKET}",
@@ -365,20 +419,26 @@ class TestBigQueryToGCSOperator:
             facets=expected_output_facets,
         )
         assert lineage.run_facets == {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=real_job_id, source=bq_namespace)
+            "externalQuery": ExternalQueryRunFacet(
+                externalQueryId=real_job_id, source=bq_namespace
+            )
         }
         assert lineage.job_facets == {}
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
     def test_get_openlineage_facets_on_complete_gcs_wildcard_full_table(self, mock_hook):
         source_project_dataset_table = f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
-        destination_cloud_storage_uris = [f"gs://{TEST_BUCKET}/{TEST_FOLDER}/{TEST_OBJECT_WILDCARD}"]
+        destination_cloud_storage_uris = [
+            f"gs://{TEST_BUCKET}/{TEST_FOLDER}/{TEST_OBJECT_WILDCARD}"
+        ]
         real_job_id = "123456_hash"
         bq_namespace = "bigquery"
 
         schema_facet = SchemaDatasetFacet(
             fields=[
-                SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                SchemaDatasetFacetFields(
+                    name="field1", type="STRING", description="field1 description"
+                ),
                 SchemaDatasetFacetFields(name="field2", type="INTEGER"),
             ]
         )
@@ -394,7 +454,9 @@ class TestBigQueryToGCSOperator:
                     "field1": Fields(
                         inputFields=[
                             InputField(
-                                namespace=bq_namespace, name=source_project_dataset_table, field="field1"
+                                namespace=bq_namespace,
+                                name=source_project_dataset_table,
+                                field="field1",
                             )
                         ],
                         transformationType="IDENTITY",
@@ -403,7 +465,9 @@ class TestBigQueryToGCSOperator:
                     "field2": Fields(
                         inputFields=[
                             InputField(
-                                namespace=bq_namespace, name=source_project_dataset_table, field="field2"
+                                namespace=bq_namespace,
+                                name=source_project_dataset_table,
+                                field="field2",
                             )
                         ],
                         transformationType="IDENTITY",
@@ -422,8 +486,14 @@ class TestBigQueryToGCSOperator:
             ),
         }
 
-        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.split_tablename.return_value = (
+            PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, error_result=False
+        )
         mock_hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
 
         operator = BigQueryToGCSOperator(
@@ -439,12 +509,18 @@ class TestBigQueryToGCSOperator:
         assert len(lineage.inputs) == 1
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == Dataset(
-            namespace=bq_namespace, name=source_project_dataset_table, facets=expected_input_facets
+            namespace=bq_namespace,
+            name=source_project_dataset_table,
+            facets=expected_input_facets,
         )
         assert lineage.outputs[0] == Dataset(
-            namespace=f"gs://{TEST_BUCKET}", name=TEST_FOLDER, facets=expected_output_facets
+            namespace=f"gs://{TEST_BUCKET}",
+            name=TEST_FOLDER,
+            facets=expected_output_facets,
         )
         assert lineage.run_facets == {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=real_job_id, source=bq_namespace)
+            "externalQuery": ExternalQueryRunFacet(
+                externalQueryId=real_job_id, source=bq_namespace
+            )
         }
         assert lineage.job_facets == {}

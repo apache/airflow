@@ -44,4 +44,6 @@ def test_both():
 
 def test_none():
     with pytest.raises(ValueError, match=r".*must be.*"):
-        get_related_providers("trino", upstream_dependencies=False, downstream_dependencies=False)
+        get_related_providers(
+            "trino", upstream_dependencies=False, downstream_dependencies=False
+        )

@@ -73,7 +73,9 @@ class GSheetsHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("sheets", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "sheets", self.api_version, http=http_authorized, cache_discovery=False
+            )
 
         return self._conn
 
@@ -247,7 +249,11 @@ class GSheetsHook(GoogleBaseHook):
         service = self.get_conn()
         data = []
         for idx, range_ in enumerate(ranges):
-            value_range = {"range": range_, "majorDimension": major_dimension, "values": values[idx]}
+            value_range = {
+                "range": range_,
+                "majorDimension": major_dimension,
+                "values": values[idx],
+            }
             data.append(value_range)
         body = {
             "valueInputOption": value_input_option,
@@ -379,7 +385,9 @@ class GSheetsHook(GoogleBaseHook):
         )
         return response
 
-    def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: list[str] | None = None):
+    def get_sheet_titles(
+        self, spreadsheet_id: str, sheet_filter: list[str] | None = None
+    ):
         """
         Retrieve the sheet titles from a spreadsheet matching the given id and sheet filter.
 
@@ -411,7 +419,10 @@ class GSheetsHook(GoogleBaseHook):
         self.log.info("Creating spreadsheet: %s", spreadsheet["properties"]["title"])
 
         response = (
-            self.get_conn().spreadsheets().create(body=spreadsheet).execute(num_retries=self.num_retries)
+            self.get_conn()
+            .spreadsheets()
+            .create(body=spreadsheet)
+            .execute(num_retries=self.num_retries)
         )
         self.log.info("Spreadsheet: %s created", spreadsheet["properties"]["title"])
         return response

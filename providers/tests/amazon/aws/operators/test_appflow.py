@@ -67,7 +67,9 @@ def ctx(create_task_instance, session):
 
 @pytest.fixture
 def appflow_conn():
-    with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn") as mock_conn:
+    with mock.patch(
+        "airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn"
+    ) as mock_conn:
         mock_conn.describe_flow.return_value = {
             "sourceFlowConfig": {"connectorType": CONNECTION_TYPE},
             "tasks": [],
@@ -95,7 +97,9 @@ def appflow_conn():
 
 @pytest.fixture
 def waiter_mock():
-    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter") as waiter:
+    with mock.patch(
+        "airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"
+    ) as waiter:
         yield waiter
 
 
@@ -214,17 +218,29 @@ def test_short_circuit(appflow_conn, ctx):
     [
         pytest.param(
             AppflowRunAfterOperator,
-            dict(**DUMP_COMMON_ARGS, source_field="col0", filter_date="2022-05-26T00:00+00:00"),
+            dict(
+                **DUMP_COMMON_ARGS,
+                source_field="col0",
+                filter_date="2022-05-26T00:00+00:00",
+            ),
             id="run-after-op",
         ),
         pytest.param(
             AppflowRunBeforeOperator,
-            dict(**DUMP_COMMON_ARGS, source_field="col1", filter_date="2077-10-23T00:03+00:00"),
+            dict(
+                **DUMP_COMMON_ARGS,
+                source_field="col1",
+                filter_date="2077-10-23T00:03+00:00",
+            ),
             id="run-before-op",
         ),
         pytest.param(
             AppflowRunDailyOperator,
-            dict(**DUMP_COMMON_ARGS, source_field="col2", filter_date="2023-10-20T12:22+00:00"),
+            dict(
+                **DUMP_COMMON_ARGS,
+                source_field="col2",
+                filter_date="2023-10-20T12:22+00:00",
+            ),
             id="run-daily-op",
         ),
         pytest.param(AppflowRunFullOperator, DUMP_COMMON_ARGS, id="run-full-op"),
@@ -235,7 +251,11 @@ def test_short_circuit(appflow_conn, ctx):
         ),
         pytest.param(
             AppflowRecordsShortCircuitOperator,
-            dict(task_id=SHORT_CIRCUIT_TASK_ID, flow_name=FLOW_NAME, appflow_run_task_id=TASK_ID),
+            dict(
+                task_id=SHORT_CIRCUIT_TASK_ID,
+                flow_name=FLOW_NAME,
+                appflow_run_task_id=TASK_ID,
+            ),
             id="records-short-circuit",
         ),
     ],
@@ -249,7 +269,12 @@ def test_base_aws_op_attributes(op_class, op_base_args):
     assert hook._verify is None
     assert hook._config is None
 
-    op = op_class(**op_base_args, region_name="eu-west-1", verify=False, botocore_config={"read_timeout": 42})
+    op = op_class(
+        **op_base_args,
+        region_name="eu-west-1",
+        verify=False,
+        botocore_config={"read_timeout": 42},
+    )
     hook = op.hook
     assert hook is op.hook
     assert hook.aws_conn_id == CONN_ID

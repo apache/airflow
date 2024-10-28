@@ -25,7 +25,10 @@ from botocore.exceptions import ClientError
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
-from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator, SageMakerTrainingOperator
+from airflow.providers.amazon.aws.operators.sagemaker import (
+    SageMakerBaseOperator,
+    SageMakerTrainingOperator,
+)
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerTrigger,
 )
@@ -41,12 +44,24 @@ EXPECTED_INTEGER_FIELDS: list[list[str]] = [
 ]
 
 CREATE_TRAINING_PARAMS = {
-    "AlgorithmSpecification": {"TrainingImage": "image_name", "TrainingInputMode": "File"},
+    "AlgorithmSpecification": {
+        "TrainingImage": "image_name",
+        "TrainingInputMode": "File",
+    },
     "RoleArn": "arn:aws:iam:role/test-role",
     "OutputDataConfig": {"S3OutputPath": "output_path"},
-    "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": "50"},
+    "ResourceConfig": {
+        "InstanceCount": "2",
+        "InstanceType": "ml.c4.8xlarge",
+        "VolumeSizeInGB": "50",
+    },
     "TrainingJobName": "job_name",
-    "HyperParameters": {"k": "10", "feature_dim": "784", "mini_batch_size": "500", "force_dense": "True"},
+    "HyperParameters": {
+        "k": "10",
+        "feature_dim": "784",
+        "mini_batch_size": "500",
+        "force_dense": "True",
+    },
     "StoppingCondition": {"MaxRuntimeInSeconds": "3600"},
     "InputDataConfig": [
         {
@@ -78,7 +93,10 @@ class TestSageMakerTrainingOperator:
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_integer_fields(self, _, mock_training, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -86,7 +104,9 @@ class TestSageMakerTrainingOperator:
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for key1, key2 in EXPECTED_INTEGER_FIELDS:
-            assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
+            assert self.sagemaker.config[key1][key2] == int(
+                self.sagemaker.config[key1][key2]
+            )
 
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
@@ -114,7 +134,9 @@ class TestSageMakerTrainingOperator:
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     def test_execute_with_failure(self, mock_training, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op")]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op")
+        ]
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 404},
@@ -122,7 +144,9 @@ class TestSageMakerTrainingOperator:
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
 
-    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator.defer"
+    )
     @mock.patch.object(
         SageMakerHook,
         "describe_training_job_with_log",
@@ -208,7 +232,9 @@ class TestSageMakerTrainingOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             self.sagemaker.execute(context=None)
-        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+        assert isinstance(
+            exc.value.trigger, SageMakerTrigger
+        ), "Trigger is not a SagemakerTrigger"
 
     @mock.patch.object(
         SageMakerHook,
@@ -216,7 +242,9 @@ class TestSageMakerTrainingOperator:
         return_value={
             "InputDataConfig": [
                 {
-                    "DataSource": {"S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}},
+                    "DataSource": {
+                        "S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}
+                    },
                 }
             ],
             "ModelArtifacts": {"S3ModelArtifacts": "s3://model-bucket/model-path"},

@@ -93,7 +93,10 @@ class JiraTicketSensor(JiraSensor):
             field_checker_func = self.issue_field_checker
 
         super().__init__(
-            jira_conn_id=jira_conn_id, method_name="issue", result_processor=field_checker_func, **kwargs
+            jira_conn_id=jira_conn_id,
+            method_name="issue",
+            result_processor=field_checker_func,
+            **kwargs,
         )
 
     def poke(self, context: Context) -> Any:
@@ -106,7 +109,11 @@ class JiraTicketSensor(JiraSensor):
     def issue_field_checker(self, jira_result: dict) -> bool | None:
         """Check issue using different conditions to prepare to evaluate sensor."""
         result = None
-        if jira_result is not None and self.field is not None and self.expected_value is not None:
+        if (
+            jira_result is not None
+            and self.field is not None
+            and self.expected_value is not None
+        ):
             field_val = jira_result.get("fields", {}).get(self.field, None)
             if field_val is not None:
                 if isinstance(field_val, list):
@@ -114,7 +121,9 @@ class JiraTicketSensor(JiraSensor):
                 elif isinstance(field_val, str):
                     result = self.expected_value.lower() == field_val.lower()
                 elif isinstance(field_val, dict) and field_val.get("name", None):
-                    result = self.expected_value.lower() == field_val.get("name", "").lower()
+                    result = (
+                        self.expected_value.lower() == field_val.get("name", "").lower()
+                    )
                 else:
                     self.log.warning(
                         "Not implemented checker for issue field %s which "
@@ -124,8 +133,14 @@ class JiraTicketSensor(JiraSensor):
 
         if result is True:
             self.log.info(
-                "Issue field %s has expected value %s, returning success", self.field, self.expected_value
+                "Issue field %s has expected value %s, returning success",
+                self.field,
+                self.expected_value,
             )
         else:
-            self.log.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
+            self.log.info(
+                "Issue field %s don't have expected value %s yet.",
+                self.field,
+                self.expected_value,
+            )
         return result

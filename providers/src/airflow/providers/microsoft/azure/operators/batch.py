@@ -183,7 +183,9 @@ class AzureBatchOperator(BaseOperator):
         """Create and return an AzureBatchHook (cached)."""
         return AzureBatchHook(self.azure_batch_conn_id)
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning
+    )
     def get_hook(self) -> AzureBatchHook:
         """Create and return an AzureBatchHook."""
         return self.hook
@@ -228,7 +230,9 @@ class AzureBatchOperator(BaseOperator):
                     f"target_low_priority_nodes={self.target_low_priority_nodes}"
                 )
             if not self.auto_scale_formula:
-                raise AirflowException("The auto_scale_formula is required when enable_auto_scale is set")
+                raise AirflowException(
+                    "The auto_scale_formula is required when enable_auto_scale is set"
+                )
         if self.batch_job_release_task and not self.batch_job_preparation_task:
             raise AirflowException(
                 "A batch_job_release_task cannot be specified without also "
@@ -303,7 +307,9 @@ class AzureBatchOperator(BaseOperator):
         # Add task to job
         self.hook.add_single_task_to_job(job_id=self.batch_job_id, task=task)
         # Wait for tasks to complete
-        fail_tasks = self.hook.wait_for_job_tasks_to_complete(job_id=self.batch_job_id, timeout=self.timeout)
+        fail_tasks = self.hook.wait_for_job_tasks_to_complete(
+            job_id=self.batch_job_id, timeout=self.timeout
+        )
         # Clean up
         if self.should_delete_job:
             # delete job first

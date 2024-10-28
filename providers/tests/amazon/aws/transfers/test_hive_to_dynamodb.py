@@ -82,7 +82,9 @@ class TestHiveToDynamoDBOperator:
 
     @mock.patch(
         "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df",
-        return_value=pd.DataFrame(data=[("1", "sid"), ("1", "gupta")], columns=["id", "name"]),
+        return_value=pd.DataFrame(
+            data=[("1", "sid"), ("1", "gupta")], columns=["id", "name"]
+        ),
     )
     @mock_aws
     def test_pre_process_records_with_schema(self, mock_get_pandas_df):

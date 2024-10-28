@@ -64,7 +64,9 @@ def run_pull_in_parallel(
             parallelism=parallelism,
             all_params=all_params,
             debug_resources=debug_resources,
-            progress_matcher=GenericRegexpProgressMatcher(DOCKER_PULL_PROGRESS_REGEXP, lines_to_search=15),
+            progress_matcher=GenericRegexpProgressMatcher(
+                DOCKER_PULL_PROGRESS_REGEXP, lines_to_search=15
+            ),
         ) as (pool, outputs):
 
             def get_right_method() -> Callable[..., tuple[int, str]]:
@@ -130,7 +132,13 @@ def run_pull_image(
         command_result = run_command(command_to_run, check=False, output=output)
         if command_result.returncode == 0:
             command_result = run_command(
-                ["docker", "inspect", image_params.airflow_image_name_with_tag, "-f", "{{.Size}}"],
+                [
+                    "docker",
+                    "inspect",
+                    image_params.airflow_image_name_with_tag,
+                    "-f",
+                    "{{.Size}}",
+                ],
                 capture_output=True,
                 output=output,
                 text=True,
@@ -153,8 +161,12 @@ def run_pull_image(
                         f"Image Python {image_params.python}",
                     )
             if tag_as_latest:
-                command_result = tag_image_as_latest(image_params=image_params, output=output)
-                if command_result.returncode == 0 and isinstance(image_params, BuildCiParams):
+                command_result = tag_image_as_latest(
+                    image_params=image_params, output=output
+                )
+                if command_result.returncode == 0 and isinstance(
+                    image_params, BuildCiParams
+                ):
                     mark_image_as_refreshed(image_params)
             return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
@@ -179,7 +191,9 @@ def run_pull_image(
             return command_result.returncode, f"Image Python {image_params.python}"
 
 
-def tag_image_as_latest(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
+def tag_image_as_latest(
+    image_params: CommonBuildParams, output: Output | None
+) -> RunCommandResult:
     if image_params.airflow_image_name_with_tag == image_params.airflow_image_name:
         get_console(output=output).print(
             f"[info]Skip tagging {image_params.airflow_image_name} as latest as it is already 'latest'[/]"
@@ -230,7 +244,9 @@ def run_pull_and_verify_image(
     )
 
 
-def just_pull_ci_image(github_repository, python_version: str) -> tuple[ShellParams, RunCommandResult]:
+def just_pull_ci_image(
+    github_repository, python_version: str
+) -> tuple[ShellParams, RunCommandResult]:
     shell_params = ShellParams(
         mount_sources=MOUNT_ALL,
         python=python_version,
@@ -271,11 +287,15 @@ def check_if_ci_image_available(
 
 def find_available_ci_image(github_repository: str) -> ShellParams:
     for python_version in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS:
-        shell_params, inspect_command_result = check_if_ci_image_available(github_repository, python_version)
+        shell_params, inspect_command_result = check_if_ci_image_available(
+            github_repository, python_version
+        )
         if inspect_command_result.returncode == 0:
             get_console().print(
                 f"[info]Running fix_ownership with {shell_params.airflow_image_name_with_tag}.[/]"
             )
             return shell_params
-    shell_params, _ = just_pull_ci_image(github_repository, DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    shell_params, _ = just_pull_ci_image(
+        github_repository, DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    )
     return shell_params

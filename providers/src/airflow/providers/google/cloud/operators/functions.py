@@ -49,7 +49,9 @@ def _validate_available_memory_in_mb(value):
 
 def _validate_max_instances(value):
     if int(value) <= 0:
-        raise GcpFieldValidationException("The max instances parameter has to be greater than 0")
+        raise GcpFieldValidationException(
+            "The max instances parameter has to be greater than 0"
+        )
 
 
 CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
@@ -58,18 +60,30 @@ CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
     {"name": "entryPoint", "regexp": r"^.+$", "optional": True},
     {"name": "runtime", "regexp": r"^.+$", "optional": True},
     {"name": "timeout", "regexp": r"^.+$", "optional": True},
-    {"name": "availableMemoryMb", "custom_validation": _validate_available_memory_in_mb, "optional": True},
+    {
+        "name": "availableMemoryMb",
+        "custom_validation": _validate_available_memory_in_mb,
+        "optional": True,
+    },
     {"name": "labels", "optional": True},
     {"name": "environmentVariables", "optional": True},
     {"name": "network", "regexp": r"^.+$", "optional": True},
-    {"name": "maxInstances", "optional": True, "custom_validation": _validate_max_instances},
+    {
+        "name": "maxInstances",
+        "optional": True,
+        "custom_validation": _validate_max_instances,
+    },
     {
         "name": "source_code",
         "type": "union",
         "fields": [
             {"name": "sourceArchiveUrl", "regexp": r"^.+$"},
             {"name": "sourceRepositoryUrl", "regexp": r"^.+$", "api_version": "v1beta2"},
-            {"name": "sourceRepository", "type": "dict", "fields": [{"name": "url", "regexp": r"^.+$"}]},
+            {
+                "name": "sourceRepository",
+                "type": "dict",
+                "fields": [{"name": "url", "regexp": r"^.+$"}],
+            },
             {"name": "sourceUploadUrl"},
         ],
     },
@@ -174,7 +188,9 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         self._field_validator: GcpBodyFieldValidator | None = None
         self.impersonation_chain = impersonation_chain
         if validate_body:
-            self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION, api_version=api_version)
+            self._field_validator = GcpBodyFieldValidator(
+                CLOUD_FUNCTION_VALIDATION, api_version=api_version
+            )
         self._validate_inputs()
         super().__init__(**kwargs)
 
@@ -190,7 +206,9 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
             self._field_validator.validate(self.body)
 
     def _create_new_function(self, hook) -> None:
-        hook.create_new_function(project_id=self.project_id, location=self.location, body=self.body)
+        hook.create_new_function(
+            project_id=self.project_id, location=self.location, body=self.body
+        )
 
     def _update_function(self, hook) -> None:
         hook.update_function(self.body["name"], self.body, self.body.keys())
@@ -198,7 +216,9 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
     def _check_if_function_exists(self, hook) -> bool:
         name = self.body.get("name")
         if not name:
-            raise GcpFieldValidationException(f"The 'name' field should be present in body: '{self.body}'.")
+            raise GcpFieldValidationException(
+                f"The 'name' field should be present in body: '{self.body}'."
+            )
         try:
             hook.get_function(name)
         except HttpError as e:
@@ -216,7 +236,9 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
     def _set_airflow_version_label(self) -> None:
         if "labels" not in self.body.keys():
             self.body["labels"] = {}
-        self.body["labels"].update({"airflow-version": "v" + version.replace(".", "-").replace("+", "-")})
+        self.body["labels"].update(
+            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
+        )
 
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
@@ -309,7 +331,9 @@ class ZipPathPreprocessor:
     def should_upload_function(self) -> bool:
         """Check if function source should be uploaded."""
         if self.upload_function is None:
-            raise AirflowException("validate() method has to be invoked before should_upload_function")
+            raise AirflowException(
+                "validate() method has to be invoked before should_upload_function"
+            )
         return self.upload_function
 
     def preprocess_body(self) -> None:
@@ -381,7 +405,9 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
         else:
             pattern = FUNCTION_NAME_COMPILED_PATTERN
             if not pattern.match(self.name):
-                raise AttributeError(f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}")
+                raise AttributeError(
+                    f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}"
+                )
 
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
@@ -476,8 +502,12 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        self.log.info("Function called successfully. Execution id %s", result.get("executionId"))
-        self.xcom_push(context=context, key="execution_id", value=result.get("executionId"))
+        self.log.info(
+            "Function called successfully. Execution id %s", result.get("executionId")
+        )
+        self.xcom_push(
+            context=context, key="execution_id", value=result.get("executionId")
+        )
 
         project_id = self.project_id or hook.project_id
         if project_id:

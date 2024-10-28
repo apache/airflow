@@ -86,13 +86,17 @@ CREATE_PROCESSING_PARAMS: dict = {
 }
 
 CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION: dict = CREATE_PROCESSING_PARAMS.copy()
-CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION.update(StoppingCondition={"MaxRuntimeInSeconds": "3600"})
+CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION.update(
+    StoppingCondition={"MaxRuntimeInSeconds": "3600"}
+)
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["ProcessingResources", "ClusterConfig", "InstanceCount"],
     ["ProcessingResources", "ClusterConfig", "VolumeSizeInGB"],
 ]
-EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS: list[list[str]] = [["StoppingCondition", "MaxRuntimeInSeconds"]]
+EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS: list[list[str]] = [
+    ["StoppingCondition", "MaxRuntimeInSeconds"]
+]
 
 
 class TestSageMakerProcessingOperator:
@@ -104,7 +108,10 @@ class TestSageMakerProcessingOperator:
         )
 
         self.defer_processing_config_kwargs = dict(
-            task_id="test_sagemaker_operator", wait_for_completion=True, check_interval=5, deferrable=True
+            task_id="test_sagemaker_operator",
+            wait_for_completion=True,
+            check_interval=5,
+            deferrable=True,
         )
 
     @mock.patch.object(SageMakerHook, "describe_processing_job")
@@ -112,11 +119,17 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_integer_fields_without_stopping_condition(self, _, __, ___, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
@@ -125,29 +138,41 @@ class TestSageMakerProcessingOperator:
 
         assert sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for key1, key2, key3 in EXPECTED_INTEGER_FIELDS:
-            assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
+            assert sagemaker.config[key1][key2][key3] == int(
+                sagemaker.config[key1][key2][key3]
+            )
 
     @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_integer_fields_with_stopping_condition(self, _, __, ___, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         sagemaker = SageMakerProcessingOperator(
-            **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION,
         )
         sagemaker.execute(None)
         assert (
-            sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS + EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS
+            sagemaker.integer_fields
+            == EXPECTED_INTEGER_FIELDS + EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS
         )
         for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
             if key3:
                 (key3,) = key3
-                assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
+                assert sagemaker.config[key1][key2][key3] == int(
+                    sagemaker.config[key1][key2][key3]
+                )
             else:
                 sagemaker.config[key1][key2] == int(sagemaker.config[key1][key2])
 
@@ -156,17 +181,26 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute(self, _, mock_processing, __, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
         sagemaker.execute(None)
         mock_processing.assert_called_once_with(
-            CREATE_PROCESSING_PARAMS, wait_for_completion=False, check_interval=5, max_ingestion_time=None
+            CREATE_PROCESSING_PARAMS,
+            wait_for_completion=False,
+            check_interval=5,
+            max_ingestion_time=None,
         )
 
     @mock.patch.object(SageMakerHook, "describe_processing_job")
@@ -174,13 +208,20 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute_with_stopping_condition(self, _, mock_processing, __, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         sagemaker = SageMakerProcessingOperator(
-            **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS_WITH_STOPPING_CONDITION,
         )
         sagemaker.execute(None)
         mock_processing.assert_called_once_with(
@@ -194,10 +235,16 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 404}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 404},
+        },
     )
     def test_execute_with_failure(self, _, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
@@ -207,10 +254,18 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=1)
     @mock.patch.object(
-        SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ResponseMetadata": {"HTTPStatusCode": 200}},
     )
-    def test_execute_with_existing_job_timestamp(self, mock_create_processing_job, _, mock_desc):
-        mock_desc.side_effect = [None, ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+    def test_execute_with_existing_job_timestamp(
+        self, mock_create_processing_job, _, mock_desc
+    ):
+        mock_desc.side_effect = [
+            None,
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS
         )
@@ -230,7 +285,9 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=1)
     @mock.patch.object(
-        SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ResponseMetadata": {"HTTPStatusCode": 200}},
     )
     def test_execute_with_existing_job_fail(self, _, __, ___):
         sagemaker = SageMakerProcessingOperator(
@@ -250,7 +307,9 @@ class TestSageMakerProcessingOperator:
             )
 
     @mock.patch.object(
-        SageMakerHook, "describe_processing_job", return_value={"ProcessingJobStatus": "InProgress"}
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "InProgress"},
     )
     @mock.patch.object(
         SageMakerHook,
@@ -269,16 +328,25 @@ class TestSageMakerProcessingOperator:
         sagemaker_operator.wait_for_completion = True
         with pytest.raises(TaskDeferred) as exc:
             sagemaker_operator.execute(context=None)
-        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+        assert isinstance(
+            exc.value.trigger, SageMakerTrigger
+        ), "Trigger is not a SagemakerTrigger"
 
-    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer"
+    )
     @mock.patch.object(
-        SageMakerHook, "describe_processing_job", return_value={"ProcessingJobStatus": "Completed"}
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed"},
     )
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
     def test_operator_complete_before_defer(
@@ -291,7 +359,9 @@ class TestSageMakerProcessingOperator:
         sagemaker_operator.execute(context=None)
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer"
+    )
     @mock.patch.object(
         SageMakerHook,
         "describe_processing_job",
@@ -300,7 +370,10 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
     def test_operator_failed_before_defer(
@@ -333,10 +406,15 @@ class TestSageMakerProcessingOperator:
     @mock.patch.object(
         SageMakerHook,
         "create_processing_job",
-        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
     )
     @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
-    def test_operator_openlineage_data(self, check_job_exists, mock_processing, _, mock_desc):
+    def test_operator_openlineage_data(
+        self, check_job_exists, mock_processing, _, mock_desc
+    ):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs,
             config=CREATE_PROCESSING_PARAMS,

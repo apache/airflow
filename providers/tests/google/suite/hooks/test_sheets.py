@@ -28,7 +28,9 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 
-from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from providers.tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+)
 
 GCP_CONN_ID = "test"
 SPREADSHEET_ID = "1234567890"
@@ -65,7 +67,9 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_values(self, get_conn):
-        get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.get
+        get_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.get
+        )
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"values": VALUES}
         result = self.hook.get_values(
@@ -87,7 +91,9 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_values_empty(self, get_conn):
-        get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.get
+        get_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.get
+        )
         execute_method = get_method.return_value.execute
         execute_method.return_value = {}
         result = self.hook.get_values(
@@ -109,7 +115,9 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_get_values(self, get_conn):
-        batch_get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchGet
+        batch_get_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.batchGet
+        )
         execute_method = batch_get_method.return_value.execute
         execute_method.return_value = API_RESPONSE
         result = self.hook.batch_get_values(
@@ -131,7 +139,9 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_update_values(self, get_conn):
-        update_method = get_conn.return_value.spreadsheets.return_value.values.return_value.update
+        update_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.update
+        )
         execute_method = update_method.return_value.execute
         execute_method.return_value = API_RESPONSE
         result = self.hook.update_values(
@@ -174,7 +184,11 @@ class TestGSheetsHook:
         )
         data = []
         for idx, range_ in enumerate(RANGES):
-            value_range = {"range": range_, "majorDimension": MAJOR_DIMENSION, "values": VALUES_BATCH[idx]}
+            value_range = {
+                "range": range_,
+                "majorDimension": MAJOR_DIMENSION,
+                "values": VALUES_BATCH[idx],
+            }
             data.append(value_range)
         body = {
             "valueInputOption": VALUE_INPUT_OPTION,
@@ -185,7 +199,9 @@ class TestGSheetsHook:
         }
         assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
-        batch_update_method.assert_called_once_with(spreadsheetId=SPREADSHEET_ID, body=body)
+        batch_update_method.assert_called_once_with(
+            spreadsheetId=SPREADSHEET_ID, body=body
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_update_values_with_bad_data(self, get_conn):
@@ -210,7 +226,9 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_append_values(self, get_conn):
-        append_method = get_conn.return_value.spreadsheets.return_value.values.return_value.append
+        append_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.append
+        )
         execute_method = append_method.return_value.execute
         execute_method.return_value = API_RESPONSE
         result = self.hook.append_values(
@@ -240,7 +258,9 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_clear_values(self, get_conn):
-        clear_method = get_conn.return_value.spreadsheets.return_value.values.return_value.clear
+        clear_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.clear
+        )
         execute_method = clear_method.return_value.execute
         execute_method.return_value = API_RESPONSE
         result = self.hook.clear(spreadsheet_id=SPREADSHEET_ID, range_=RANGE_)
@@ -251,14 +271,18 @@ class TestGSheetsHook:
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_clear_values(self, get_conn):
-        batch_clear_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchClear
+        batch_clear_method = (
+            get_conn.return_value.spreadsheets.return_value.values.return_value.batchClear
+        )
         execute_method = batch_clear_method.return_value.execute
         execute_method.return_value = API_RESPONSE
         result = self.hook.batch_clear(spreadsheet_id=SPREADSHEET_ID, ranges=RANGES)
         body = {"ranges": RANGES}
         assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
-        batch_clear_method.assert_called_once_with(spreadsheetId=SPREADSHEET_ID, body=body)
+        batch_clear_method.assert_called_once_with(
+            spreadsheetId=SPREADSHEET_ID, body=body
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_spreadsheet(self, mock_get_conn):
@@ -280,7 +304,9 @@ class TestGSheetsHook:
         mock_get_spreadsheet.assert_called_once_with(spreadsheet_id=SPREADSHEET_ID)
         assert result == ["title1", "title2"]
 
-        result = self.hook.get_sheet_titles(spreadsheet_id=SPREADSHEET_ID, sheet_filter=["title1"])
+        result = self.hook.get_sheet_titles(
+            spreadsheet_id=SPREADSHEET_ID, sheet_filter=["title1"]
+        )
         assert result == ["title1"]
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")

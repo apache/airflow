@@ -49,7 +49,9 @@ def touch_cache_file(param_name: str, root_dir: Path = BUILD_CACHE_DIR):
     (Path(root_dir) / f".{param_name}").touch()
 
 
-def write_to_cache_file(param_name: str, param_value: str, check_allowed_values: bool = True) -> None:
+def write_to_cache_file(
+    param_name: str, param_value: str, check_allowed_values: bool = True
+) -> None:
     """
     Writs value to cache. If asked it can also check if the value is allowed for the parameter. and exit
     in case the value is not allowed for that parameter instead of writing it.
@@ -67,12 +69,18 @@ def write_to_cache_file(param_name: str, param_value: str, check_allowed_values:
         cache_path.write_text(param_value)
     else:
         get_console().print(f"[cyan]You have sent the {param_value} for {param_name}")
-        get_console().print(f"[cyan]Allowed value for the {param_name} are {allowed_values}")
-        get_console().print("[cyan]Provide one of the supported params. Write to cache dir failed")
+        get_console().print(
+            f"[cyan]Allowed value for the {param_name} are {allowed_values}"
+        )
+        get_console().print(
+            "[cyan]Provide one of the supported params. Write to cache dir failed"
+        )
         sys.exit(1)
 
 
-def read_and_validate_value_from_cache(param_name: str, default_param_value: str) -> tuple[bool, str | None]:
+def read_and_validate_value_from_cache(
+    param_name: str, default_param_value: str
+) -> tuple[bool, str | None]:
     """
     Reads and validates value from cache is present and whether its value is valid according to current rules.
     It could happen that the allowed values have been modified since the last time cached value was set,

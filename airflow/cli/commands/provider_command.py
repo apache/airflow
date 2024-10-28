@@ -43,14 +43,17 @@ def provider_get(args):
         provider_version = providers[args.provider_name].version
         provider_info = providers[args.provider_name].data
         if args.full:
-            provider_info["description"] = _remove_rst_syntax(provider_info["description"])
+            provider_info["description"] = _remove_rst_syntax(
+                provider_info["description"]
+            )
             AirflowConsole().print_as(
                 data=[provider_info],
                 output=args.output,
             )
         else:
             AirflowConsole().print_as(
-                data=[{"Provider": args.provider_name, "Version": provider_version}], output=args.output
+                data=[{"Provider": args.provider_name, "Version": provider_version}],
+                output=args.output,
             )
     else:
         raise SystemExit(f"No such provider installed: {args.provider_name}")
@@ -81,7 +84,9 @@ def hooks_list(args):
         mapper=lambda x: {
             "connection_type": x[0],
             "class": x[1].hook_class_name if x[1] else ERROR_IMPORTING_HOOK,
-            "conn_id_attribute_name": x[1].connection_id_attribute_name if x[1] else ERROR_IMPORTING_HOOK,
+            "conn_id_attribute_name": x[1].connection_id_attribute_name
+            if x[1]
+            else ERROR_IMPORTING_HOOK,
             "package_name": x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
             "hook_name": x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
         },
@@ -256,5 +261,7 @@ def lazy_loaded(args):
         rich.print(ProvidersManager.initialization_stack_trace(), file=sys.stderr)
         sys.exit(1)
     else:
-        rich.print("[green]All ok. Providers Manager was not initialized during the CLI parsing.")
+        rich.print(
+            "[green]All ok. Providers Manager was not initialized during the CLI parsing."
+        )
         sys.exit(0)

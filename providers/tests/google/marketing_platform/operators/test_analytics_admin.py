@@ -35,9 +35,7 @@ GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_GA_GOOGLE_ADS_PROPERTY_ID = "123456789"
 TEST_GA_GOOGLE_ADS_LINK_ID = "987654321"
-TEST_GA_GOOGLE_ADS_LINK_NAME = (
-    f"properties/{TEST_GA_GOOGLE_ADS_PROPERTY_ID}/googleAdsLinks/{TEST_GA_GOOGLE_ADS_LINK_ID}"
-)
+TEST_GA_GOOGLE_ADS_LINK_NAME = f"properties/{TEST_GA_GOOGLE_ADS_PROPERTY_ID}/googleAdsLinks/{TEST_GA_GOOGLE_ADS_LINK_ID}"
 TEST_PROPERTY_ID = "123456789"
 TEST_PROPERTY_NAME = f"properties/{TEST_PROPERTY_ID}"
 TEST_DATASTREAM_ID = "987654321"
@@ -55,9 +53,14 @@ class TestGoogleAnalyticsAdminListAccountsOperator:
         list_accounts_serialized = [mock.MagicMock(), mock.MagicMock(), mock.MagicMock()]
         account_to_dict_mock.side_effect = list_accounts_serialized
 
-        mock_page_size, mock_page_token, mock_show_deleted, mock_retry, mock_timeout, mock_metadata = (
-            mock.MagicMock() for _ in range(6)
-        )
+        (
+            mock_page_size,
+            mock_page_token,
+            mock_show_deleted,
+            mock_retry,
+            mock_timeout,
+            mock_metadata,
+        ) = (mock.MagicMock() for _ in range(6))
 
         retrieved_accounts_list = GoogleAnalyticsAdminListAccountsOperator(
             task_id="test_task",
@@ -80,7 +83,9 @@ class TestGoogleAnalyticsAdminListAccountsOperator:
             timeout=mock_timeout,
             metadata=mock_metadata,
         )
-        account_to_dict_mock.assert_has_calls([mock.call(item) for item in list_accounts_returned])
+        account_to_dict_mock.assert_has_calls(
+            [mock.call(item) for item in list_accounts_returned]
+        )
         assert retrieved_accounts_list == list_accounts_serialized
 
 
@@ -95,7 +100,9 @@ class TestGoogleAnalyticsAdminCreatePropertyOperator:
         property_serialized = mock.MagicMock()
         property_to_dict_mock.return_value = property_serialized
 
-        mock_property, mock_retry, mock_timeout, mock_metadata = (mock.MagicMock() for _ in range(4))
+        mock_property, mock_retry, mock_timeout, mock_metadata = (
+            mock.MagicMock() for _ in range(4)
+        )
 
         property_created = GoogleAnalyticsAdminCreatePropertyOperator(
             task_id="test_task",
@@ -219,14 +226,21 @@ class TestGoogleAnalyticsAdminListGoogleAdsLinksOperator:
     @mock.patch(f"{ANALYTICS_PATH}.GoogleAdsLink.to_dict")
     def test_execute(self, ads_link_to_dict_mock, hook_mock):
         list_ads_links_returned = (mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
-        hook_mock.return_value.list_google_ads_links.return_value = list_ads_links_returned
+        hook_mock.return_value.list_google_ads_links.return_value = (
+            list_ads_links_returned
+        )
 
         list_ads_links_serialized = [mock.MagicMock(), mock.MagicMock(), mock.MagicMock()]
         ads_link_to_dict_mock.side_effect = list_ads_links_serialized
 
-        mock_page_size, mock_page_token, mock_show_deleted, mock_retry, mock_timeout, mock_metadata = (
-            mock.MagicMock() for _ in range(6)
-        )
+        (
+            mock_page_size,
+            mock_page_token,
+            mock_show_deleted,
+            mock_retry,
+            mock_timeout,
+            mock_metadata,
+        ) = (mock.MagicMock() for _ in range(6))
 
         retrieved_ads_links = GoogleAnalyticsAdminListGoogleAdsLinksOperator(
             task_id="test_task",
@@ -249,7 +263,9 @@ class TestGoogleAnalyticsAdminListGoogleAdsLinksOperator:
             timeout=mock_timeout,
             metadata=mock_metadata,
         )
-        ads_link_to_dict_mock.assert_has_calls([mock.call(item) for item in list_ads_links_returned])
+        ads_link_to_dict_mock.assert_has_calls(
+            [mock.call(item) for item in list_ads_links_returned]
+        )
         assert retrieved_ads_links == list_ads_links_serialized
 
 

@@ -24,7 +24,9 @@ from openlineage.client.facet_v2 import source_code_job
 
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
-from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
+from airflow.providers.openlineage.utils.utils import (
+    get_unknown_source_attribute_run_facet,
+)
 
 """
 :meta private:
@@ -66,7 +68,9 @@ class PythonExtractor(BaseExtractor):
             job_facets=job_facet,
             # The PythonOperator is recorded as an "unknownSource" even though we have an extractor,
             # as the <i>data lineage</i> cannot be determined from the operator directly.
-            run_facets=get_unknown_source_attribute_run_facet(task=self.operator, name="PythonOperator"),
+            run_facets=get_unknown_source_attribute_run_facet(
+                task=self.operator, name="PythonOperator"
+            ),
         )
 
     def get_source_code(self, callable: Callable) -> str | None:

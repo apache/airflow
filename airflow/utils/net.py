@@ -35,7 +35,9 @@ def getfqdn(name=""):
     if not name or name == "0.0.0.0":
         name = socket.gethostname()
     try:
-        addrs = socket.getaddrinfo(name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME)
+        addrs = socket.getaddrinfo(
+            name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME
+        )
     except OSError:
         pass
     else:
@@ -53,4 +55,6 @@ def get_host_ip_address():
 
 def get_hostname():
     """Fetch the hostname using the callable from config or use `airflow.utils.net.getfqdn` as a fallback."""
-    return conf.getimport("core", "hostname_callable", fallback="airflow.utils.net.getfqdn")()
+    return conf.getimport(
+        "core", "hostname_callable", fallback="airflow.utils.net.getfqdn"
+    )()
