@@ -235,20 +235,20 @@ class TestS3ToDynamoDBOperator:
 
         # Test case: exception during pagination should prevent return but still delete temp table
         mock_paginator.paginate.side_effect = Exception("Pagination error")
-        with self.assertLogs(exist_table_op.log, level="INFO") as log:
+        with mock.patch.object(exist_table_op, "log") as mock_log:
             res = None
             try:
-                res = exist_table_op.execute(None)
+            r   es = exist_table_op.execute(None)
             except Exception as e:
                 self.assertIsNone(res)  # No return value on exception
                 assert "Pagination error" in str(e)
                 mock_client.delete_table.assert_called_with(TableName=exist_table_op.tmp_table_name)
-                assert "Deleting tmp DynamoDB table" in log.output[-1]
+                mock_log.info.assert_any_call("Delete tmp DynamoDB table %s", exist_table_op.tmp_table_name)
 
         # Test case: exception during batch writing should prevent return but still delete temp table
         mock_paginator.paginate.side_effect = None  # Reset paginator to work normally
         mock_put_item.side_effect = Exception("Batch write error")
-        with self.assertLogs(exist_table_op.log, level="INFO") as log:
+        with mock.patch.object(exist_table_op, "log") as mock_log:
             res = None
             try:
                 res = exist_table_op.execute(None)
@@ -256,7 +256,7 @@ class TestS3ToDynamoDBOperator:
                 self.assertIsNone(res)  # No return value on exception
                 assert "Batch write error" in str(e)
                 mock_client.delete_table.assert_called_with(TableName=exist_table_op.tmp_table_name)
-                assert "Deleting tmp DynamoDB table" in log.output[-1]
+                mock_log.info.assert_any_call("Delete tmp DynamoDB table %s", exist_table_op.tmp_table_name)
 
         # Reset mock side effects after each test
         mock_put_item.side_effect = None
