@@ -395,54 +395,34 @@ class TestOtelMetrics:
         assert isinstance(timer.duration, float)
         assert timer.duration >= expected_duration - acceptable_margin
         assert timer.duration <= expected_duration + acceptable_margin
-        assert self.meter.get_meter().create_observable_gauge.call_count == 1
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(prefix=self.stats.prefix, name=metric_name), callbacks=ANY
         )
 
-    def test_gauge_set(self):
-        metric_name = "test_metric"
-        value = 42
-        tags = {"env": "prod"}
+    @pytest.mark.parametrize(
+        "metric_name, initial_value, delta, expected_value, tags",
+        [
+            ("test_metric", 42, False, 42, {"env": "prod"}),
+            ("test_metric", 10, True, 10, {"env": "prod"}),
+            ("test_metric", 5, True, 0, {"env": "prod"}),
+        ],
+    )
+    def test_gauge_operations(self, metric_name, initial_value, delta, expected_value, tags):
+        if delta and expected_value == 0:
+            self.stats.gauge(metric_name, initial_value, delta=True, tags=tags)
+            current_value_after_increment = self.stats.metrics_map.poke_gauge(
+                full_name(prefix=self.stats.prefix, name=metric_name), tags
+            )
+            assert current_value_after_increment == initial_value
 
-        self.stats.gauge(metric_name, value, tags=tags)
+            self.stats.gauge(metric_name, -initial_value, delta=True, tags=tags)
+        else:
+            self.stats.gauge(metric_name, initial_value, delta=delta, tags=tags)
 
         current_value = self.stats.metrics_map.poke_gauge(
             full_name(prefix=self.stats.prefix, name=metric_name), tags
         )
-        assert current_value == value
-
-    def test_gauge_increment(self):
-        metric_name = "test_metric"
-        count = 10
-        tags = {"env": "prod"}
-
-        self.stats.gauge(metric_name, count, delta=True, tags=tags)  # Use delta=True to increment the gauge
-
-        # Retrieve the current value using poke_gauge
-        current_value = self.stats.metrics_map.poke_gauge(
-            full_name(prefix=self.stats.prefix, name=metric_name), tags
-        )
-        assert current_value == count
-
-    def test_gauge_decrement(self):
-        metric_name = "test_metric"
-        count = 5
-        tags = {"env": "prod"}
-
-        self.stats.gauge(metric_name, count, delta=True, tags=tags)
-
-        current_value_after_increment = self.stats.metrics_map.poke_gauge(
-            full_name(prefix=self.stats.prefix, name=metric_name), tags
-        )
-        assert current_value_after_increment == count  # Ensure the gauge value reflects the increment
-
-        self.stats.gauge(metric_name, -count, delta=True, tags=tags)  # Decrement the gauge by 'count'
-
-        current_value_after_decrement = self.stats.metrics_map.poke_gauge(
-            full_name(prefix=self.stats.prefix, name=metric_name), tags
-        )
-        assert current_value_after_decrement == 0
+        assert current_value == expected_value
 
     def test_get_name_invalid_cases(self):
         invalid_name = "invalid/metric/name"

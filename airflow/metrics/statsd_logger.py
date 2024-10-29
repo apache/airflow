@@ -57,7 +57,6 @@ def prepare_metric_name_with_tags(fn: T) -> T:
             metric_name = ""
 
         if self.influxdb_tags_enabled and tags:
-            tags = {str(k): str(v) for k, v in tags.items()}
             valid_tags: dict[str, str] = {}
 
             for k, v in tags.items():
