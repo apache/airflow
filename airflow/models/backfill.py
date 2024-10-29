@@ -257,7 +257,7 @@ def _create_backfill(
         serdag = session.get(SerializedDagModel, dag_id)
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
-
+        # todo: if dag has no schedule, raise
         num_active = session.scalar(
             select(func.count()).where(
                 Backfill.dag_id == dag_id,
