@@ -104,16 +104,21 @@ class PowerBITrigger(BaseTrigger):
             dataset_id=self.dataset_id,
             group_id=self.group_id,
         )
+
+        async def fetch_refresh_status() -> str:
+            """Fetch the current status of the dataset refresh."""
+            refresh_details = await self.hook.get_refresh_details_by_refresh_id(
+                dataset_id=self.dataset_id,
+                group_id=self.group_id,
+                refresh_id=self.dataset_refresh_id,
+            )
+            return refresh_details.get("status")
+
         try:
-            dataset_refresh_status = None
+            dataset_refresh_status = await fetch_refresh_status()
             start_time = time.monotonic()
             while start_time + self.timeout > time.monotonic():
-                refresh_details = await self.hook.get_refresh_details_by_refresh_id(
-                    dataset_id=self.dataset_id,
-                    group_id=self.group_id,
-                    refresh_id=self.dataset_refresh_id,
-                )
-                dataset_refresh_status = refresh_details.get("status")
+                dataset_refresh_status = await fetch_refresh_status()
 
                 if dataset_refresh_status == PowerBIDatasetRefreshStatus.COMPLETED:
                     yield TriggerEvent(
