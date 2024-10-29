@@ -74,7 +74,6 @@ def clear_db():
     db.clear_db_dags()
     db.clear_db_jobs()
     db.clear_db_runs()
-    db.clear_db_task_fail()
 
 
 @pytest.fixture(scope="class")
@@ -83,7 +82,6 @@ def clear_db_class():
     db.clear_db_dags()
     db.clear_db_jobs()
     db.clear_db_runs()
-    db.clear_db_task_fail()
 
 
 @pytest.fixture(scope="module")

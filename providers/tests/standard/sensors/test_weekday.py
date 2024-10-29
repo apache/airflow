@@ -59,7 +59,6 @@ class TestDayOfWeekSensor:
     @staticmethod
     def clean_db():
         db.clear_db_runs()
-        db.clear_db_task_fail()
 
     def setup_method(self):
         self.clean_db()

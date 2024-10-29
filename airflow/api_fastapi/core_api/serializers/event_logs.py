@@ -14,9 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import os
+from datetime import datetime
 
-# Task SDK does not need access to the Airflow database
-os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EventLogResponse(BaseModel):
+    """Event Log Response."""
+
+    id: int = Field(alias="event_log_id")
+    dttm: datetime = Field(alias="when")
+    dag_id: str | None
+    task_id: str | None
+    run_id: str | None
+    map_index: int | None
+    try_number: int | None
+    event: str
+    execution_date: datetime | None = Field(alias="logical_date")
+    owner: str | None
+    extra: str | None
+
+    model_config = ConfigDict(populate_by_name=True)
