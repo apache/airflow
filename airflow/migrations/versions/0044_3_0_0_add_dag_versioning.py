@@ -46,9 +46,6 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply add dag versioning."""
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("version_name", sa.String(length=250), nullable=True))
-
     op.create_table(
         "dag_version",
         sa.Column("id", UUIDType(binary=False), nullable=False),
@@ -150,8 +147,5 @@ def downgrade():
         batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))
         batch_op.drop_constraint(batch_op.f("dag_run_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
-
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("version_name")
 
     op.drop_table("dag_version")
