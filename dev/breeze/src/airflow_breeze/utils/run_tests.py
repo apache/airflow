@@ -337,9 +337,12 @@ def generate_args_for_pytest(
             # P - passed with output
             #
             "-rfEX",
-            f"-p {COMMON_TESTS_PYTEST_PLUGIN}",
         ]
     )
+    if test_type != HELM_TESTS:
+        # Helm tests previously did not make use of the pytest plugin from their conftest file. So do not
+        # enable it for those tests with the new mechanism
+        args.append(f"-p {COMMON_TESTS_PYTEST_PLUGIN}")
     if skip_db_tests:
         args.append("--skip-db-tests")
     if run_db_tests_only:
