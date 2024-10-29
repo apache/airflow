@@ -443,7 +443,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     display_answers = "/".join(type_of_changes_array) + "/q"
     while True:
         get_console().print(
-            "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
+            "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
             f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
