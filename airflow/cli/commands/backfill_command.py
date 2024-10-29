@@ -63,7 +63,7 @@ def create_backfill(args) -> None:
     if args.dry_run:
         _do_dry_run(
             params=dict(
-                dag_id=args.dag,
+                dag_id=args.dag_id,
                 from_date=args.from_date,
                 to_date=args.to_date,
                 max_active_runs=args.max_active_runs,
@@ -71,14 +71,14 @@ def create_backfill(args) -> None:
                 dag_run_conf=args.dag_run_conf,
                 reprocess_behavior=reprocess_behavior,
             ),
-            dag_id=args.dag,
+            dag_id=args.dag_id,
             from_date=args.from_date,
             to_date=args.to_date,
             reverse=args.run_backwards,
         )
         return
     _create_backfill(
-        dag_id=args.dag,
+        dag_id=args.dag_id,
         from_date=args.from_date,
         to_date=args.to_date,
         max_active_runs=args.max_active_runs,

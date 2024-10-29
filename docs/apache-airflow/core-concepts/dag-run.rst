@@ -153,7 +153,7 @@ This can be done through API or CLI. For CLI usage, run the command below:
 
 .. code-block:: bash
 
-    airflow backfill create --dag DAG_ID \
+    airflow backfill create --dag-id DAG_ID \
         --start-date START_DATE \
         --end-date END_DATE \
 
