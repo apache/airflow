@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Select, Text, Box } from "@chakra-ui/react";
+import { HStack, Select } from "@chakra-ui/react";
 import { Select as ReactSelect } from "chakra-react-select";
 import type { MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
@@ -106,55 +106,45 @@ export const DagsFilters = () => {
   return (
     <HStack justifyContent="space-between">
       <HStack spacing={4}>
-        <Box>
-          <Text fontSize="sm" fontWeight={200} mb={1}>
-            State:
-          </Text>
-          <HStack>
-            <QuickFilterButton
-              isActive={isAll}
-              onClick={handleStateChange}
-              value="all"
-            >
-              All
-            </QuickFilterButton>
-            <QuickFilterButton
-              isActive={isFailed}
-              onClick={handleStateChange}
-              value="failed"
-            >
-              Failed
-            </QuickFilterButton>
-            <QuickFilterButton
-              isActive={isRunning}
-              onClick={handleStateChange}
-              value="running"
-            >
-              Running
-            </QuickFilterButton>
-            <QuickFilterButton
-              isActive={isSuccess}
-              onClick={handleStateChange}
-              value="success"
-            >
-              Successful
-            </QuickFilterButton>
-          </HStack>
-        </Box>
-        <Box>
-          <Text fontSize="sm" fontWeight={200} mb={1}>
-            Active:
-          </Text>
-          <Select
-            onChange={handlePausedChange}
-            value={showPaused ?? undefined}
-            variant="flushed"
+        <HStack>
+          <QuickFilterButton
+            isActive={isAll}
+            onClick={handleStateChange}
+            value="all"
           >
-            <option>All</option>
-            <option value="false">Enabled DAGs</option>
-            <option value="true">Disabled DAGs</option>
-          </Select>
-        </Box>
+            All
+          </QuickFilterButton>
+          <QuickFilterButton
+            isActive={isFailed}
+            onClick={handleStateChange}
+            value="failed"
+          >
+            Failed
+          </QuickFilterButton>
+          <QuickFilterButton
+            isActive={isRunning}
+            onClick={handleStateChange}
+            value="running"
+          >
+            Running
+          </QuickFilterButton>
+          <QuickFilterButton
+            isActive={isSuccess}
+            onClick={handleStateChange}
+            value="success"
+          >
+            Successful
+          </QuickFilterButton>
+        </HStack>
+        <Select
+          onChange={handlePausedChange}
+          value={showPaused ?? undefined}
+          variant="flushed"
+        >
+          <option>All</option>
+          <option value="false">Enabled DAGs</option>
+          <option value="true">Disabled DAGs</option>
+        </Select>
       </HStack>
       <ReactSelect
         aria-label="Filter Dags by tag"
@@ -162,6 +152,10 @@ export const DagsFilters = () => {
           container: (provided) => ({
             ...provided,
             minWidth: 64,
+          }),
+          menu: (provided) => ({
+            ...provided,
+            zIndex: 2,
           }),
         }}
         isClearable

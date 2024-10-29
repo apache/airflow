@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1728484310
+source-date-epoch: 1730011042
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.1.0
   - 9.0.0
   - 8.29.0
   - 8.28.0
@@ -142,7 +143,9 @@ devel-dependencies:
   - aiobotocore>=2.13.0
   - aws_xray_sdk>=2.12.0
   - moto[cloudformation,glue]>=5.0.0
-  - mypy-boto3-appflow>=1.34.0
+  # See https://github.com/apache/airflow/pull/42954#discussion_r1817993084
+  # remove upper limit when the typing issue is fixed
+  - mypy-boto3-appflow>=1.34.0,<1.35.39
   - mypy-boto3-rds>=1.34.90
   - mypy-boto3-redshift-data>=1.34.0
   - mypy-boto3-s3>=1.34.90

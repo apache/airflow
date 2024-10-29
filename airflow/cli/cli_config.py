@@ -330,6 +330,14 @@ ARG_BACKFILL_DRY_RUN = Arg(
     help="Perform a dry run",
     action="store_true",
 )
+ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
+    ("--reprocess-behavior",),
+    help=(
+        "When a run exists for the logical date, controls whether new runs will be "
+        "created for the date. Default is none."
+    ),
+    choices=("none", "completed", "failed"),
+)
 
 
 # misc
@@ -1035,6 +1043,7 @@ BACKFILL_COMMANDS = (
             ARG_DAG_RUN_CONF,
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
+            ARG_BACKFILL_REPROCESS_BEHAVIOR,
             ARG_BACKFILL_DRY_RUN,
         ),
     ),

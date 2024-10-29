@@ -209,6 +209,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
     :param title: title of file. (templated)
+    :param snippet_type: Syntax type for the snippet being uploaded.(templated)
     :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     """
 
@@ -219,6 +220,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         "filetype",
         "content",
         "title",
+        "snippet_type",
     )
     ui_color = "#44BEDF"
 
@@ -232,6 +234,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         title: str | None = None,
         method_version: Literal["v1", "v2"] = "v2",
         channel: str | Sequence[str] | None | ArgNotSet = NOTSET,
+        snippet_type: str | None = None,
         **kwargs,
     ) -> None:
         if channel is not NOTSET:
@@ -253,6 +256,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.content = content
         self.title = title
         self.method_version = method_version
+        self.snippet_type = snippet_type
 
     @property
     def _method_resolver(self):
@@ -269,4 +273,5 @@ class SlackAPIFileOperator(SlackAPIOperator):
             content=self.content,
             initial_comment=self.initial_comment,
             title=self.title,
+            snippet_type=self.snippet_type,
         )

@@ -32,11 +32,11 @@ const baseStyle = definePartsStyle(() => ({
       },
       "&:nth-of-type(odd)": {
         td: {
-          background: "subtle-bg",
+          background: "blue.minimal",
         },
         "th, td": {
           borderBottomWidth: "0px",
-          borderColor: "subtle-bg",
+          borderColor: "blue.subtle",
         },
       },
     },
@@ -52,14 +52,27 @@ const baseStyle = definePartsStyle(() => ({
 
 export const tableTheme = defineMultiStyleConfig({ baseStyle });
 
+const generateSemanticColors = (color: string) => ({
+  /* eslint-disable perfectionist/sort-objects */
+  contrast: { _dark: `${color}.200`, _light: `${color}.600` },
+  focusRing: `${color}.500`,
+  fg: { _dark: `${color}.600`, _light: `${color}.400` },
+  emphasized: { _dark: `${color}.700`, _light: `${color}.300` },
+  solid: { _dark: `${color}.800`, _light: `${color}.200` },
+  muted: { _dark: `${color}.900`, _light: `${color}.100` },
+  subtle: { _dark: `${color}.950`, _light: `${color}.50` },
+  minimal: { _dark: "gray.900", _light: `${color}.50` },
+  /* eslint-enable perfectionist/sort-objects */
+});
+
 const theme = extendTheme({
+  colors: {
+    blue: {
+      950: "#0c142e",
+    },
+  },
   components: {
     Table: tableTheme,
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
-      },
-    },
   },
   config: {
     initialColorMode: "system",
@@ -67,8 +80,8 @@ const theme = extendTheme({
   },
   semanticTokens: {
     colors: {
-      "subtle-bg": { _dark: "gray.900", _light: "blue.50" },
-      "subtle-text": { _dark: "blue.500", _light: "blue.600" },
+      blue: generateSemanticColors("blue"),
+      gray: generateSemanticColors("gray"),
     },
   },
   styles: {

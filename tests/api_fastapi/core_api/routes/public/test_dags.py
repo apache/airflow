@@ -26,7 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -73,6 +73,7 @@ class TestDagEndpoint:
             start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         dagrun_success = DagRun(
@@ -82,6 +83,7 @@ class TestDagEndpoint:
             start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         session.add(dag_model)
@@ -331,7 +333,6 @@ class TestDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": None,
-            "scheduler_lock": None,
             "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
             "tags": [],
             "template_search_path": None,
@@ -384,7 +385,6 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": "grid",
             "last_parsed_time": last_parsed_time,
-            "scheduler_lock": None,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "pickle_id": None,

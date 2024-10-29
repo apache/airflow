@@ -47,6 +47,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
@@ -506,12 +507,16 @@ class TestDag:
         )
 
         ti1 = TI(task=test_task, run_id=dr1.run_id)
+        ti1.refresh_from_db()
         ti1.state = None
         ti2 = TI(task=test_task, run_id=dr2.run_id)
+        ti2.refresh_from_db()
         ti2.state = State.RUNNING
         ti3 = TI(task=test_task, run_id=dr3.run_id)
+        ti3.refresh_from_db()
         ti3.state = State.QUEUED
         ti4 = TI(task=test_task, run_id=dr4.run_id)
+        ti4.refresh_from_db()
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)
@@ -1070,54 +1075,47 @@ class TestDag:
             .all()
         ) == {(task_id, dag_id1, asset2_orm.id)}
 
-    def test_bulk_write_to_db_unorphan_assets(self):
+    @staticmethod
+    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
+        assets = session.execute(
+            select(AssetModel, AssetActive)
+            .outerjoin(
+                AssetActive,
+                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
+            )
+            .order_by(AssetModel.uri)
+        ).all()
+        return [a for a, v in assets if not v], [a for a, v in assets if v]
+
+    def test_bulk_write_to_db_does_not_activate(self, dag_maker, session):
         """
-        Assets can lose their last reference and be orphaned, but then if a reference to them reappears, we
-        need to un-orphan those assets
+        Assets are not activated on write, but later in the scheduler by the SchedulerJob.
         """
-        with create_session() as session:
-            # Create four assets - two that have references and two that are unreferenced and marked as
-            # orphans
-            asset1 = Asset(uri="ds1")
-            asset2 = Asset(uri="ds2")
-            session.add(AssetModel(uri=asset2.uri))
-            asset3 = Asset(uri="ds3")
-            asset4 = Asset(uri="ds4")
-            session.add(AssetModel(uri=asset4.uri))
-            session.flush()
+        # Create four assets - two that have references and two that are unreferenced and marked as
+        # orphans
+        asset1 = Asset(uri="ds1")
+        asset2 = Asset(uri="ds2")
+        asset3 = Asset(uri="ds3")
+        asset4 = Asset(uri="ds4")
 
-            dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
+        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
+        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
+        DAG.bulk_write_to_db([dag1], session=session)
 
-            DAG.bulk_write_to_db([dag1], session=session)
+        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [asset1, asset3]
+        assert session.scalars(select(AssetActive)).all() == []
 
-            # Double check
-            non_orphaned_assets = [
-                asset.uri
-                for asset in session.query(AssetModel.uri)
-                .filter(AssetModel.active.has())
-                .order_by(AssetModel.uri)
-            ]
-            assert non_orphaned_assets == ["ds1", "ds3"]
-            orphaned_assets = [
-                asset.uri
-                for asset in session.query(AssetModel.uri)
-                .filter(~AssetModel.active.has())
-                .order_by(AssetModel.uri)
-            ]
-            assert orphaned_assets == ["ds2", "ds4"]
+        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
+        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
+        DAG.bulk_write_to_db([dag1], session=session)
 
-            # Now add references to the two unreferenced assets
-            dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
-
-            DAG.bulk_write_to_db([dag1], session=session)
-
-            # and count the orphans and non-orphans
-            non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
-            assert non_orphaned_asset_count == 4
-            orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
-            assert orphaned_asset_count == 0
+        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [
+            asset1,
+            asset2,
+            asset3,
+            asset4,
+        ]
+        assert session.scalars(select(AssetActive)).all() == []
 
     def test_bulk_write_to_db_asset_aliases(self):
         """
@@ -1800,6 +1798,7 @@ class TestDag:
         session.merge(dagrun_1)
 
         task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=State.RUNNING)
+        task_instance_1.refresh_from_db()
         session.merge(task_instance_1)
         session.commit()
 
@@ -2012,7 +2011,7 @@ my_postgres_conn:
         self._clean_up(dag_id)
         task_id = "t1"
         dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = EmptyOperator(task_id=task_id, dag=dag)
+        _ = EmptyOperator(task_id=task_id, dag=dag)
 
         session = settings.Session()  # type: ignore
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
@@ -2026,7 +2025,8 @@ my_postgres_conn:
         )
         session.merge(dagrun_1)
 
-        task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=ti_state_begin)
+        task_instance_1 = dagrun_1.get_task_instance(task_id)
+        task_instance_1.state = ti_state_begin
         task_instance_1.job_id = 123
         session.merge(task_instance_1)
         session.commit()
@@ -2174,6 +2174,7 @@ my_postgres_conn:
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
+    @pytest.mark.usefixtures("clear_all_logger_handlers")
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
@@ -3257,6 +3258,7 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     assert expected_infos == list(iterator)
 
 
+@pytest.mark.usefixtures("clear_all_logger_handlers")
 def test_iter_dagrun_infos_between_error(caplog):
     start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
     end = pendulum.instance(DEFAULT_DATE)

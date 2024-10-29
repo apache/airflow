@@ -645,7 +645,7 @@ class BaseDatabricksHook(BaseHook):
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
                     ) as response:
-                        self.log.debug("Response Status Code: %s", response.status_code)
+                        self.log.debug("Response Status Code: %s", response.status)
                         self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
                         return await response.json()

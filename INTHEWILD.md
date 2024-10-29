@@ -158,6 +158,7 @@ Currently, **officially** using Airflow:
 1. [Cryptalizer.com](https://www.cryptalizer.com/)
 1. [Currency](https://www.gocurrency.com/) [[@FCLI](https://github.com/FCLI) & [@alexbegg](https://github.com/alexbegg)]
 1. [Custom Ink](https://www.customink.com/) [[@david-dalisay](https://github.com/david-dalisay), [@dmartin11](https://github.com/dmartin11) & [@mpeteuil](https://github.com/mpeteuil)]
+1. [Cyberdino](https://www.cyberdino.io) [[@cyberdino-io](https://github.com/cyberdino-io)]
 1. [Cyscale](https://cyscale.com) [[@ocical](https://github.com/ocical)]
 1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [DANA](https://www.dana.id/) [[@imamdigmi](https://github.com/imamdigmi)]
@@ -383,7 +384,7 @@ Currently, **officially** using Airflow:
 1. [Paxful](https://paxful.com) [[@ne1r0n](https://github.com/ne1r0n)]
 1. [PayFit](https://payfit.com) [[@pcorbel](https://github.com/pcorbel)]
 1. [PAYMILL](https://www.paymill.com/) [[@paymill](https://github.com/paymill) & [@matthiashuschle](https://github.com/matthiashuschle)]
-1. [PayPal](https://www.paypal.com/) [[@r39132](https://github.com/r39132) & [@jhsenjaliya](https://github.com/jhsenjaliya)]
+1. [PayPal](https://www.paypal.com/) [[@kaddynator](https://github.com/kaddynator), [@r39132](https://github.com/r39132) & [@jhsenjaliya](https://github.com/jhsenjaliya)]
 1. [Pecan](https://www.pecan.ai) [[@ohadmata](https://github.com/ohadmata)]
 1. [Pernod-Ricard](https://www.pernod-ricard.com/) [[@romain-nio](https://github.com/romain-nio)]
 1. [PEXA](https://www.pexa.com.au/) [[@andriyfedorov](https://github.com/andriyfedorov)]
