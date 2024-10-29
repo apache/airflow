@@ -239,7 +239,7 @@ class S3ToDynamoDBOperator(BaseOperator):
             self.log.info("Number of items loaded: %s", total_items)
         except Exception as e:
             # Does not raise errors to keep previous behavior.
-            self.log.warning("Error while loading data from temp table, deleting temp table. Error: %s", e)
+            self.log.warning("Error while loading data from temp table. Error: %s", e)
         finally:
             self.log.info("Delete tmp DynamoDB table %s", self.tmp_table_name)
             client.delete_table(TableName=self.tmp_table_name)
