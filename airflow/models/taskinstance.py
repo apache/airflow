@@ -3187,9 +3187,15 @@ class TaskInstance(Base, LoggingMixin):
         fail_stop: bool = False,
     ):
         """
-        Handle Failure for the TaskInstance.
+        Fetch the context needed to handle a failure.
 
-        :param fail_stop: if true, stop remaining tasks in dag
+        :param ti: TaskInstance
+        :param error: if specified, log the specific exception if thrown
+        :param test_mode: doesn't record success or failure in the DB if True
+        :param context: Jinja2 context
+        :param force_fail: if True, task does not retry
+        :param session: SQLAlchemy ORM Session
+        :param fail_stop: if True, fail all downstream tasks
         """
         if error:
             if isinstance(error, BaseException):
