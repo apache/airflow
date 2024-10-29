@@ -290,6 +290,7 @@ class TestLocalTaskJob:
         assert ti.pid != job1.task_runner.process.pid
         job_runner.heartbeat_callback()
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat_failed_fast(self):
         """
@@ -901,7 +902,9 @@ class TestLocalTaskJob:
             ti_by_task_id = {}
             with create_session() as session:
                 for task_id in init_state:
-                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id, state=init_state[task_id])
+                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id)
+                    ti.refresh_from_db()
+                    ti.state = init_state[task_id]
                     session.merge(ti)
                     ti_by_task_id[task_id] = ti
 
@@ -950,11 +953,21 @@ class TestLocalTaskJob:
         task_k = dag.get_task("K")
         task_l = dag.get_task("L")
         with create_session() as session:
-            ti_k = TaskInstance(task_k, run_id=dr.run_id, state=State.SUCCESS)
-            ti_b = TaskInstance(task_l, run_id=dr.run_id, state=State.SUCCESS)
+            ti_k = dr.get_task_instance(task_k.task_id, session=session)
+            ti_k.refresh_from_task(task_k)
+            ti_k.state = State.SUCCESS
 
-            ti2_k = TaskInstance(task_k, run_id=dr2.run_id, state=State.NONE)
-            ti2_l = TaskInstance(task_l, run_id=dr2.run_id, state=State.NONE)
+            ti_b = dr.get_task_instance(task_l.task_id, session=session)
+            ti_b.refresh_from_task(task_l)
+            ti_b.state = State.SUCCESS
+
+            ti2_k = dr2.get_task_instance(task_k.task_id, session=session)
+            ti2_k.refresh_from_task(task_k)
+            ti2_k.state = State.NONE
+
+            ti2_l = dr2.get_task_instance(task_l.task_id, session=session)
+            ti2_l.refresh_from_task(task_l)
+            ti2_l.state = State.NONE
 
             session.merge(ti_k)
             session.merge(ti_b)

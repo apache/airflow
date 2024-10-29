@@ -83,9 +83,9 @@ class TestPool:
 
         dr = dag_maker.create_dagrun()
 
-        ti1 = TI(task=op1, run_id=dr.run_id)
-        ti2 = TI(task=op2, run_id=dr.run_id)
-        ti3 = TI(task=op3, run_id=dr.run_id)
+        ti1 = dr.get_task_instance(task_id=op1.task_id)
+        ti2 = dr.get_task_instance(task_id=op2.task_id)
+        ti3 = dr.get_task_instance(task_id=op3.task_id)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
         ti3.state = State.DEFERRED
@@ -133,8 +133,8 @@ class TestPool:
 
         dr = dag_maker.create_dagrun()
 
-        ti1 = TI(task=op1, run_id=dr.run_id)
-        ti2 = TI(task=op2, run_id=dr.run_id)
+        ti1 = dr.get_task_instance(task_id=op1.task_id)
+        ti2 = dr.get_task_instance(task_id=op2.task_id)
         ti1.state = State.RUNNING
         ti2.state = State.DEFERRED
 
@@ -180,7 +180,9 @@ class TestPool:
         dr = dag_maker.create_dagrun()
 
         ti1 = TI(task=op1, run_id=dr.run_id)
+        ti1.refresh_from_db()
         ti2 = TI(task=op2, run_id=dr.run_id)
+        ti2.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -230,8 +232,11 @@ class TestPool:
         ti1 = TI(task=op1, run_id=dr.run_id)
         ti2 = TI(task=op2, run_id=dr.run_id)
         ti3 = TI(task=op3, run_id=dr.run_id)
+        ti1.refresh_from_db()
         ti1.state = State.RUNNING
+        ti2.refresh_from_db()
         ti2.state = State.QUEUED
+        ti3.refresh_from_db()
         ti3.state = State.SCHEDULED
 
         session = settings.Session()

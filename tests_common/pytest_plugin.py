@@ -371,21 +371,24 @@ def initialize_airflow_tests(request):
 def pytest_configure(config: pytest.Config) -> None:
     # Ensure that the airflow sources dir is at the end of the sys path if it's not already there. Needed to
     # run import from `providers/tests/`
-    desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
-    for path in sys.path:
-        if path == desired:
-            break
-    else:
-        # This "desired" path should be the Airflow source directory (repo root)
-        assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
-        sys.path.append(desired)
+    if os.environ.get("USE_AIRFLOW_VERSION") == "":
+        # if USE_AIRFLOW_VERSION is not empty, we are running tests against the installed version of Airflow
+        # and providers so there is no need to add the sources directory to the path
+        desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
+        for path in sys.path:
+            if path == desired:
+                break
+        else:
+            # This "desired" path should be the Airflow source directory (repo root)
+            assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
+            sys.path.append(desired)
 
-    if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
-        msg = (
-            f"Provided DB backend {backend!r} not supported, "
-            f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
-        )
-        pytest.exit(msg, returncode=6)
+        if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
+            msg = (
+                f"Provided DB backend {backend!r} not supported, "
+                f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
+            )
+            pytest.exit(msg, returncode=6)
 
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
@@ -401,6 +404,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
     )
+    config.addinivalue_line("markers", "want_activate_assets: mark tests that require assets to be activated")
     config.addinivalue_line(
         "markers",
         "db_test: mark tests that require database to be present",
@@ -756,12 +760,14 @@ def dag_maker(request):
     # and "baked" in to various constants
 
     want_serialized = False
+    want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
 
     # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or
     # `@pytest.mark.need_serialized_dag(False)`
-    serialized_marker = request.node.get_closest_marker("need_serialized_dag")
-    if serialized_marker:
+    if serialized_marker := request.node.get_closest_marker("need_serialized_dag"):
         (want_serialized,) = serialized_marker.args or (True,)
+    if serialized_marker := request.node.get_closest_marker("want_activate_assets"):
+        (want_activate_assets,) = serialized_marker.args or (True,)
 
     from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -799,9 +805,25 @@ def dag_maker(request):
                 return self.dagbag.bag_dag(dag, root_dag=dag)
             return self.dagbag.bag_dag(dag)
 
+        def _activate_assets(self):
+            from sqlalchemy import select
+
+            from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+            from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+
+            assets = self.session.scalars(
+                select(AssetModel).where(
+                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
+                    | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+                )
+            ).all()
+            SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
+
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
+
+            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             dag = self.dag
             dag.__exit__(type, value, traceback)
@@ -819,6 +841,8 @@ def dag_maker(request):
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self._bag_dag_compat(serialized_dag)
+                if AIRFLOW_V_3_0_PLUS and self.want_activate_assets:
+                    self._activate_assets()
                 self.session.flush()
             else:
                 self._bag_dag_compat(self.dag)
@@ -884,6 +908,7 @@ def dag_maker(request):
             dag_id="test_dag",
             schedule=timedelta(days=1),
             serialized=want_serialized,
+            activate_assets=want_activate_assets,
             fileloc=None,
             processor_subdir=None,
             session=None,
@@ -916,6 +941,7 @@ def dag_maker(request):
             self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
+            self.want_activate_assets = activate_assets
             self.processor_subdir = processor_subdir
 
             return self

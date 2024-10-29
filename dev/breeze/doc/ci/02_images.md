@@ -43,9 +43,9 @@ Airflow has two main images (build from Dockerfiles):
   production-ready Airflow installation. You can read more about
   building and using the production image in the
   [Docker stack](https://airflow.apache.org/docs/docker-stack/index.html)
-  documentation. The image is built using [Dockerfile](Dockerfile).
+  documentation. The image is built using [Dockerfile](../../../../Dockerfile).
 - CI image (Dockerfile.ci) - used for running tests and local
-  development. The image is built using [Dockerfile.ci](Dockerfile.ci).
+  development. The image is built using [Dockerfile.ci](../../../../Dockerfile.ci).
 
 ## PROD image
 
@@ -108,7 +108,7 @@ it uses the latest installed version of airflow and providers. However,
 you can choose different installation methods as described in [Building
 PROD docker images from released PIP packages](#building-prod-docker-images-from-released-pip-packages). Detailed
 reference for building production image from different sources can be
-found in: [Build Args reference](docs/docker-stack/build-arg-ref.rst#installing-airflow-using-different-methods)
+found in: [Build Args reference](../../../../docs/docker-stack/build-arg-ref.rst#installing-airflow-using-different-methods)
 
 You can build the CI image using current sources this command:
 
@@ -421,36 +421,37 @@ DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
 The following build arguments (`--build-arg` in docker build command)
 can be used for CI images:
 
-| Build argument                    | Default value                                                           | Description                                                                                                                                               |
-|-----------------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PYTHON_BASE_IMAGE`               | `python:3.9-slim-bookworm`                                              | Base Python image                                                                                                                                         |
-| `PYTHON_MAJOR_MINOR_VERSION`      | `3.9`                                                                   | major/minor version of Python (should match base image)                                                                                                   |
-| `DEPENDENCIES_EPOCH_NUMBER`       | `2`                                                                     | increasing this number will reinstall all apt dependencies                                                                                                |
-| `ADDITIONAL_PIP_INSTALL_FLAGS`    |                                                                         | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                                                        |
-| `PIP_NO_CACHE_DIR`                | `true`                                                                  | if true, then no pip cache will be stored                                                                                                                 |
-| `UV_NO_CACHE`                     | `true`                                                                  | if true, then no uv cache will be stored                                                                                                                  |
-| `HOME`                            | `/root`                                                                 | Home directory of the root user (CI image has root user as default)                                                                                       |
-| `AIRFLOW_HOME`                    | `/root/airflow`                                                         | Airflow's HOME (that's where logs and sqlite databases are stored)                                                                                        |
-| `AIRFLOW_SOURCES`                 | `/opt/airflow`                                                          | Mounted sources of Airflow                                                                                                                                |
-| `AIRFLOW_REPO`                    | `apache/airflow`                                                        | the repository from which PIP dependencies are pre-installed                                                                                              |
-| `AIRFLOW_BRANCH`                  | `main`                                                                  | the branch from which PIP dependencies are pre-installed                                                                                                  |
-| `AIRFLOW_CI_BUILD_EPOCH`          | `1`                                                                     | increasing this value will reinstall PIP dependencies from the repository from scratch                                                                    |
-| `AIRFLOW_CONSTRAINTS_LOCATION`    |                                                                         | If not empty, it will override the source of the constraints with the specified URL or file.                                                              |
-| `AIRFLOW_CONSTRAINTS_REFERENCE`   |                                                                         | reference (branch or tag) from GitHub repository from which constraints are used. By default it is set to `constraints-main` but can be `constraints-2-X`. |
-| `AIRFLOW_EXTRAS`                  | `all`                                                                   | extras to install                                                                                                                                         |
-| `UPGRADE_INVALIDATION_STRING`     |                                                                         | If set to any random value the dependencies are upgraded to newer versions. In CI it is set to build id.                                                  |
-| `AIRFLOW_PRE_CACHED_PIP_PACKAGES` | `true`                                                                  | Allows to pre-cache airflow PIP packages from the GitHub of Apache Airflow This allows to optimize iterations for Image builds and speeds up CI jobs.     |
-| `ADDITIONAL_AIRFLOW_EXTRAS`       |                                                                         | additional extras to install                                                                                                                              |
-| `ADDITIONAL_PYTHON_DEPS`          |                                                                         | additional Python dependencies to install                                                                                                                 |
-| `DEV_APT_COMMAND`                 |                                                                         | Dev apt command executed before dev deps are installed in the first part of image                                                                         |
-| `ADDITIONAL_DEV_APT_COMMAND`      |                                                                         | Additional Dev apt command executed before dev dep are installed in the first part of the image                                                           |
-| `DEV_APT_DEPS`                    | Empty - install default dependencies (see `install_os_dependencies.sh`) | Dev APT dependencies installed in the first part of the image                                                                                             |
-| `ADDITIONAL_DEV_APT_DEPS`         |                                                                         | Additional apt dev dependencies installed in the first part of the image                                                                                  |
-| `ADDITIONAL_DEV_APT_ENV`          |                                                                         | Additional env variables defined when installing dev deps                                                                                                 |
-| `AIRFLOW_PIP_VERSION`             | `24.0`                                                                  | PIP version used.                                                                                                                                         |
-| `AIRFLOW_UV_VERSION`              | `0.4.22`                                                                 | UV version used.                                                                                                                                         |
-| `AIRFLOW_USE_UV`                  | `true`                                                                  | Whether to use UV for installation.                                                                                                                       |
-| `PIP_PROGRESS_BAR`                | `on`                                                                    | Progress bar for PIP installation                                                                                                                         |
+| Build argument                    | Default value              | Description                                                                                                                                                |
+|-----------------------------------|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PYTHON_BASE_IMAGE`               | `python:3.9-slim-bookworm` | Base Python image                                                                                                                                          |
+| `PYTHON_MAJOR_MINOR_VERSION`      | `3.9`                      | major/minor version of Python (should match base image)                                                                                                    |
+| `DEPENDENCIES_EPOCH_NUMBER`       | `2`                        | increasing this number will reinstall all apt dependencies                                                                                                 |
+| `ADDITIONAL_PIP_INSTALL_FLAGS`    |                            | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                                                         |
+| `PIP_NO_CACHE_DIR`                | `true`                     | if true, then no pip cache will be stored                                                                                                                  |
+| `UV_NO_CACHE`                     | `true`                     | if true, then no uv cache will be stored                                                                                                                   |
+| `HOME`                            | `/root`                    | Home directory of the root user (CI image has root user as default)                                                                                        |
+| `AIRFLOW_HOME`                    | `/root/airflow`            | Airflow's HOME (that's where logs and sqlite databases are stored)                                                                                         |
+| `AIRFLOW_SOURCES`                 | `/opt/airflow`             | Mounted sources of Airflow                                                                                                                                 |
+| `AIRFLOW_REPO`                    | `apache/airflow`           | the repository from which PIP dependencies are pre-installed                                                                                               |
+| `AIRFLOW_BRANCH`                  | `main`                     | the branch from which PIP dependencies are pre-installed                                                                                                   |
+| `AIRFLOW_CI_BUILD_EPOCH`          | `1`                        | increasing this value will reinstall PIP dependencies from the repository from scratch                                                                     |
+| `AIRFLOW_CONSTRAINTS_LOCATION`    |                            | If not empty, it will override the source of the constraints with the specified URL or file.                                                               |
+| `AIRFLOW_CONSTRAINTS_REFERENCE`   |                            | reference (branch or tag) from GitHub repository from which constraints are used. By default it is set to `constraints-main` but can be `constraints-2-X`. |
+| `AIRFLOW_EXTRAS`                  | `all`                      | extras to install                                                                                                                                          |
+| `UPGRADE_INVALIDATION_STRING`     |                            | If set to any random value the dependencies are upgraded to newer versions. In CI it is set to build id.                                                   |
+| `AIRFLOW_PRE_CACHED_PIP_PACKAGES` | `true`                     | Allows to pre-cache airflow PIP packages from the GitHub of Apache Airflow This allows to optimize iterations for Image builds and speeds up CI jobs.      |
+| `ADDITIONAL_AIRFLOW_EXTRAS`       |                            | additional extras to install                                                                                                                               |
+| `ADDITIONAL_PYTHON_DEPS`          |                            | additional Python dependencies to install                                                                                                                  |
+| `DEV_APT_COMMAND`                 |                            | Dev apt command executed before dev deps are installed in the first part of image                                                                          |
+| `ADDITIONAL_DEV_APT_COMMAND`      |                            | Additional Dev apt command executed before dev dep are installed in the first part of the image                                                            |
+| `DEV_APT_DEPS`                    |                            | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used)                                          |
+| `ADDITIONAL_DEV_APT_DEPS`         |                            | Additional apt dev dependencies installed in the first part of the image                                                                                   |
+| `ADDITIONAL_DEV_APT_ENV`          |                            | Additional env variables defined when installing dev deps                                                                                                  |
+| `AIRFLOW_PIP_VERSION`             | `24.3.1`                   | PIP version used.                                                                                                                                          |
+| `AIRFLOW_UV_VERSION`              | `0.4.28`                   | UV version used.                                                                                                                                           |
+| `AIRFLOW_USE_UV`                  | `true`                     | Whether to use UV for installation.                                                                                                                        |
+| `PIP_PROGRESS_BAR`                | `on`                       | Progress bar for PIP installation                                                                                                                          |
+
 
 Here are some examples of how CI images can built manually. CI is always
 built from local sources.

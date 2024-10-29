@@ -19,11 +19,14 @@ from __future__ import annotations
 
 import itertools
 import json
+import ssl
 import time
+from asyncio.exceptions import TimeoutError
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import aiohttp
+import aiohttp.client_exceptions
 import azure.identity
 import azure.identity.aio
 import pytest
@@ -310,6 +313,8 @@ class TestDatabricksHook:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.login = LOGIN
         conn.password = PASSWORD
         conn.extra = None
@@ -1188,6 +1193,11 @@ class TestDatabricksHookToken:
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.schema = None
+        conn.port = None
+        conn.login = None
+        conn.password = None
         conn.extra = json.dumps({"token": TOKEN, "host": HOST})
 
         session.commit()
@@ -1219,6 +1229,8 @@ class TestDatabricksHookTokenInPassword:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.login = None
         conn.password = TOKEN
         conn.extra = None
@@ -1246,11 +1258,70 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.schema = None
+        conn.port = None
+        conn.login = None
+        conn.password = None
         conn.extra = json.dumps({"token": TOKEN})
 
         session.commit()
 
         self.hook = DatabricksHook()
+
+
+@pytest.mark.db_test
+class TestDatabricksHookConnSettings(TestDatabricksHookToken):
+    """
+    Tests that `schema` and/or `port` get reflected in the requested API URLs.
+    """
+
+    @provide_session
+    def setup_method(self, method, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.schema = "http"
+        conn.port = 7908
+        conn.login = None
+        conn.password = None
+        conn.extra = json.dumps({"token": TOKEN})
+        session.commit()
+
+        self.hook = DatabricksHook()
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_do_api_call_respects_schema(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = {"foo": "bar"}
+        ret_val = self.hook._do_api_call(("GET", "api/2.1/foo/bar"))
+
+        assert ret_val == {"foo": "bar"}
+        mock_requests.get.assert_called_once()
+        assert mock_requests.get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_async_do_api_call_respects_schema(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"bar": "baz"})
+        async with self.hook:
+            run_page_url = await self.hook._a_do_api_call(("GET", "api/2.1/foo/bar"))
+
+        assert run_page_url == {"bar": "baz"}
+        mock_get.assert_called_once()
+        assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_async_do_api_call_only_existing_response_properties_are_read(self, mock_get):
+        self.hook.log.setLevel("DEBUG")
+        response = mock_get.return_value.__aenter__.return_value
+        response.mock_add_spec(aiohttp.ClientResponse, spec_set=True)
+        response.json = AsyncMock(return_value={"bar": "baz"})
+        async with self.hook:
+            run_page_url = await self.hook._a_do_api_call(("GET", "api/2.1/foo/bar"))
+
+        assert run_page_url == {"bar": "baz"}
+        mock_get.assert_called_once()
+        assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
 
 
 class TestRunState:
@@ -1334,6 +1405,9 @@ class TestDatabricksHookAadToken:
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = None
+        conn.schema = None
+        conn.port = None
         conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn.password = "secret"
         conn.extra = json.dumps(
@@ -1375,6 +1449,9 @@ class TestDatabricksHookAadTokenOtherClouds:
         self.ad_endpoint = "https://login.microsoftonline.de"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = None
+        conn.schema = None
+        conn.port = None
         conn.login = self.client_id
         conn.password = "secret"
         conn.extra = json.dumps(
@@ -1426,6 +1503,8 @@ class TestDatabricksHookAadTokenSpOutside:
         conn.login = self.client_id
         conn.password = "secret"
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.extra = json.dumps(
             {
                 "azure_resource_id": "/Some/resource",
@@ -1476,6 +1555,8 @@ class TestDatabricksHookAadTokenManagedIdentity:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.extra = json.dumps(
             {
                 "use_azure_managed_identity": True,
@@ -1521,6 +1602,8 @@ class TestDatabricksHookAsyncMethods:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.login = LOGIN
         conn.password = PASSWORD
         conn.extra = None
@@ -1533,6 +1616,31 @@ class TestDatabricksHookAsyncMethods:
         async with self.hook:
             assert isinstance(self.hook._session, aiohttp.ClientSession)
         assert self.hook._session is None
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_do_api_call_retries_with_client_connector_error(self, mock_get):
+        mock_get.side_effect = aiohttp.ClientConnectorError(
+            connection_key=None,
+            os_error=ssl.SSLError(
+                "SSL handshake is taking longer than 60.0 seconds: aborting the connection"
+            ),
+        )
+        with mock.patch.object(self.hook.log, "error") as mock_errors:
+            async with self.hook:
+                with pytest.raises(AirflowException):
+                    await self.hook._a_do_api_call(GET_RUN_ENDPOINT, {})
+                assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_do_api_call_retries_with_client_timeout_error(self, mock_get):
+        mock_get.side_effect = TimeoutError()
+        with mock.patch.object(self.hook.log, "error") as mock_errors:
+            async with self.hook:
+                with pytest.raises(AirflowException):
+                    await self.hook._a_do_api_call(GET_RUN_ENDPOINT, {})
+                assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
@@ -1676,6 +1784,8 @@ class TestDatabricksHookAsyncAadToken:
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.schema = None
+        conn.port = None
         conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn.password = "secret"
         conn.extra = json.dumps(
@@ -1720,6 +1830,8 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         self.ad_endpoint = "https://login.microsoftonline.de"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.schema = None
+        conn.port = None
         conn.login = self.client_id
         conn.password = "secret"
         conn.extra = json.dumps(
@@ -1776,6 +1888,8 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
         conn.login = self.client_id
         conn.password = "secret"
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.extra = json.dumps(
             {
                 "azure_resource_id": "/Some/resource",
@@ -1833,6 +1947,8 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.extra = json.dumps(
             {
                 "use_azure_managed_identity": True,
@@ -1882,6 +1998,9 @@ class TestDatabricksHookSpToken:
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.login = "c64f6d12-f6e4-45a4-846e-032b42b27758"
         conn.password = "secret"
         conn.extra = json.dumps({"service_principal_oauth": True})
@@ -1920,6 +2039,9 @@ class TestDatabricksHookAsyncSpToken:
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.schema = None
+        conn.port = None
         conn.login = "c64f6d12-f6e4-45a4-846e-032b42b27758"
         conn.password = "secret"
         conn.extra = json.dumps({"service_principal_oauth": True})

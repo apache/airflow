@@ -53,7 +53,7 @@
         { "type": "integer" }
       ]
     },
-    "dataset": {
+    "asset": {
       "type": "object",
       "properties": {
         "uri": { "type": "string" },
@@ -66,14 +66,14 @@
       },
       "required": [ "uri", "extra" ]
     },
-    "typed_dataset": {
+    "typed_asset": {
       "type": "object",
       "properties": {
         "__type": {
           "type": "string",
-            "constant": "dataset"
+            "constant": "asset"
         },
-        "__var": { "$ref": "#/definitions/dataset" }
+        "__var": { "$ref": "#/definitions/asset" }
       },
       "required": [
         "__type",
@@ -81,17 +81,17 @@
       ],
       "additionalProperties": false
     },
-    "typed_dataset_cond": {
+    "typed_asset_cond": {
       "type": "object",
       "properties": {
         "__type": {
             "anyOf": [{
                 "type": "string",
-                "constant": "dataset_or"
+                "constant": "asset_or"
             },
             {
                 "type": "string",
-                "constant": "dataset_and"
+                "constant": "asset_and"
             }
             ]
         },
@@ -99,8 +99,8 @@
             "type": "array",
             "items": {
                 "anyOf": [
-                    {"$ref": "#/definitions/typed_dataset"},
-                    {    "$ref": "#/definitions/typed_dataset_cond"}
+                    {"$ref": "#/definitions/typed_asset"},
+                    {    "$ref": "#/definitions/typed_asset_cond"}
                     ]
             }
         }
@@ -261,7 +261,6 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "subdag": { "$ref": "#/definitions/dag" },
         "downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }

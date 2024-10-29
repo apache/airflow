@@ -134,7 +134,7 @@ def get_dags(
 
     try:
         dags_collection_schema = (
-            DAGCollectionSchema(only=[f"dags.{field}" for field in fields])
+            DAGCollectionSchema(only=[f"dags.{field}" for field in fields] + ["total_entries"])
             if fields
             else DAGCollectionSchema()
         )

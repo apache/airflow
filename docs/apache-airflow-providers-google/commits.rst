@@ -42,14 +42,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.25.0
+.......
+
+Latest change: 2024-10-25
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`b4363f4684 <https://github.com/apache/airflow/commit/b4363f4684b4a878c04ce100b260d783f4d96d81>`_  2024-10-25   ``Add a debug log for creating batch workloads in dataproc (#43265)``
+`cc762293ca <https://github.com/apache/airflow/commit/cc762293ca5ce20d475af787822ea48b6d3c874f>`_  2024-10-23   ``feat: add Hook Level Lineage support for GCSHook (#42507)``
+`ca2c809b30 <https://github.com/apache/airflow/commit/ca2c809b30607af7ee320510587fe93b1ab90218>`_  2024-10-23   ``feat: sensor to check status of Dataform action (#43055)``
+`014808b362 <https://github.com/apache/airflow/commit/014808b3622d8791ea0b28a1e59a8b2d2a610bfc>`_  2024-10-20   ``Fix outdated CloudRunExecuteJobOperator docs (#43195)``
+`424cf507a8 <https://github.com/apache/airflow/commit/424cf507a849a0bf3239f1055beda7d7f36c785b>`_  2024-10-18   ``add min version to plyvel (#43129)``
+`aeb7e90f0e <https://github.com/apache/airflow/commit/aeb7e90f0e680d32ad78216e7de3cf2d135fdbf5>`_  2024-10-17   ``Fix TestTranslationLegacyModelPredictLink dataset_id error (#42463)``
+`f587edf2ee <https://github.com/apache/airflow/commit/f587edf2ee74169f1da6a408a04d7ed3c372d270>`_  2024-10-17   ``vertex ai training operators: add display_name to rendered fields (#43028)``
+`f1f9201a21 <https://github.com/apache/airflow/commit/f1f9201a2199c7fd78c7146ca3a02ab25ca8de91>`_  2024-10-15   ``Create Operators for Google Cloud Vertex AI Context Caching (#43008)``
+`732e0564d4 <https://github.com/apache/airflow/commit/732e0564d47813dfb05b22b9b30a108d4668a3e5>`_  2024-10-15   ``Make google provider pyarrow dependency explicit (#42996)``
+`7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+`70b8e50ddc <https://github.com/apache/airflow/commit/70b8e50ddce305582802b6d08b1c948fa3ef086a>`_  2024-10-10   ``Remove dag.run() method (#42761)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 10.24.0
 .......
 
-Latest change: 2024-10-06
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
 `2ffc389574 <https://github.com/apache/airflow/commit/2ffc389574042939f11fcae75a35a8b697583b8d>`_  2024-10-04   ``Add 'retry_if_resource_not_ready' logic for DataprocCreateClusterOperator and DataprocCreateBatchOperator (#42703)``
 `8a255f3e1e <https://github.com/apache/airflow/commit/8a255f3e1e32d5084623527053116777cc4f72f9>`_  2024-10-04   ``Publish Dataproc Serverless Batch link after it starts if batch_id was provided (#41153)``

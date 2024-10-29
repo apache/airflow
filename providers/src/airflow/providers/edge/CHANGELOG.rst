@@ -27,6 +27,55 @@
 Changelog
 ---------
 
+0.5.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker triggers graceful shutdown, if worker version and main instance do not match.``
+
+0.4.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker uploads log file in chunks. Chunk size can be defined by push_log_chunk_size value in config.``
+
+0.3.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker exports metrics``
+* ``State is set to unknown if worker heartbeat times out.``
+
+0.2.2re0
+.........
+
+Misc
+~~~~
+
+* ``Fixed type confusion for PID file paths (#43308)``
+
+0.2.1re0
+.........
+
+Misc
+~~~~
+
+* ``Fixed handling of PID files in Edge Worker (#43153)``
+
+0.2.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker can add or remove queues in the queue field in the DB (#43115)``
+
 0.1.0pre0
 .........
 

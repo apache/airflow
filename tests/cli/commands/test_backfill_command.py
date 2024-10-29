@@ -27,6 +27,7 @@ import pytest
 import airflow.cli.commands.backfill_command
 from airflow.cli import cli_parser
 from airflow.models import DagBag
+from airflow.models.backfill import ReprocessBehavior
 from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs
@@ -63,21 +64,34 @@ class TestCliBackfill:
         clear_db_backfills()
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
-    def test_backfill(self, mock_create):
-        airflow.cli.commands.backfill_command.create_backfill(
-            self.parser.parse_args(
+    @pytest.mark.parametrize(
+        "repro, expected_repro",
+        [
+            (None, None),
+            ("none", ReprocessBehavior.NONE),
+            ("completed", ReprocessBehavior.COMPLETED),
+            ("failed", ReprocessBehavior.FAILED),
+        ],
+    )
+    def test_backfill(self, mock_create, repro, expected_repro):
+        args = [
+            "backfill",
+            "create",
+            "--dag",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        if repro is not None:
+            args.extend(
                 [
-                    "backfill",
-                    "create",
-                    "--dag",
-                    "example_bash_operator",
-                    "--from-date",
-                    DEFAULT_DATE.isoformat(),
-                    "--to-date",
-                    DEFAULT_DATE.isoformat(),
+                    "--reprocess-behavior",
+                    repro,
                 ]
             )
-        )
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
         mock_create.assert_called_once_with(
             dag_id="example_bash_operator",
@@ -86,4 +100,5 @@ class TestCliBackfill:
             max_active_runs=None,
             reverse=False,
             dag_run_conf=None,
+            reprocess_behavior=expected_repro,
         )

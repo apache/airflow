@@ -342,7 +342,7 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
         ["", "manual__2023-01-01T00:00:00+00:00", True],
         ["", "scheduled_2023-01-01T00", False],
         ["", "manual_2023-01-01T00", False],
-        ["", "dataset_triggered_2023-01-01T00", False],
+        ["", "asset_triggered_2023-01-01T00", False],
         ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
         ["^[a-z]", "manual__2023-01-01T00:00:00+00:00", True],
     ],

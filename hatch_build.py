@@ -78,7 +78,8 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "cgroupspy>=0.2.2",
     ],
     "cloudpickle": [
-        "cloudpickle",
+        # Latest version of apache-beam requires cloudpickle~=2.2.1
+        "cloudpickle>=2.2.1",
     ],
     "github-enterprise": [
         "apache-airflow[fab]",
@@ -97,13 +98,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "python-ldap",
+        "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel",
+        "plyvel>=1.5.1",
     ],
     "otel": [
-        "opentelemetry-exporter-prometheus",
+        "opentelemetry-exporter-prometheus>=0.47b0",
     ],
     "pandas": [
         # In pandas 2.2 minimal version of the sqlalchemy is 2.0
@@ -117,7 +118,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "flask-bcrypt>=0.7.1",
     ],
     "rabbitmq": [
-        "amqp",
+        "amqp>=5.2.0",
     ],
     "s3fs": [
         # This is required for support of S3 file system which uses aiobotocore
@@ -137,7 +138,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv",
+        "virtualenv>=20.26.0",
     ],
 }
 
@@ -215,18 +216,18 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
         "mypy==1.9.0",
-        "types-Deprecated",
-        "types-Markdown",
-        "types-PyMySQL",
-        "types-PyYAML",
-        "types-aiofiles",
-        "types-certifi",
-        "types-croniter",
-        "types-docutils",
-        "types-paramiko",
-        "types-protobuf",
-        "types-python-dateutil",
-        "types-python-slugify",
+        "types-Deprecated>=1.2.9.20240311",
+        "types-Markdown>=3.6.0.20240316",
+        "types-PyMySQL>=1.1.0.20240425",
+        "types-PyYAML>=6.0.12.20240724",
+        "types-aiofiles>=23.2.0.20240403",
+        "types-certifi>=2021.10.8.3",
+        "types-croniter>=2.0.0.20240423",
+        "types-docutils>=0.21.0.20240704",
+        "types-paramiko>=3.4.0.20240423",
+        "types-protobuf>=5.26.0.20240422",
+        "types-python-dateutil>=2.9.0.20240316",
+        "types-python-slugify>=8.0.2.20240310",
         "types-pytz",
         "types-redis",
         "types-requests",
@@ -242,7 +243,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.5.5",
+        "ruff==0.7.1",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -375,7 +376,7 @@ DEPENDENCIES = [
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
@@ -436,6 +437,7 @@ DEPENDENCIES = [
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
+    "uuid6>=2024.7.10",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",

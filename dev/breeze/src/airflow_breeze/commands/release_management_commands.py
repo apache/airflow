@@ -229,8 +229,8 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "24.0"
-AIRFLOW_UV_VERSION = "0.4.22"
+AIRFLOW_PIP_VERSION = "24.3.1"
+AIRFLOW_UV_VERSION = "0.4.28"
 AIRFLOW_USE_UV = False
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
@@ -3476,6 +3476,22 @@ def generate_issue_content(
                 continue
 
             pull_requests[pr_number] = pr
+
+            # retrieve and append commit authors (to handle cherry picks)
+            if hasattr(pr, "get_commits"):
+                try:
+                    commits = pr.get_commits()
+                    for commit in commits:
+                        author = commit.author
+                        if author:
+                            users[pr_number].add(author.login)
+                            progress.console.print(f"Added commit author {author.login} for PR#{pr_number}")
+
+                except Exception as e:
+                    progress.console.print(
+                        f"[warn]Could not retrieve commits for PR#{pr_number}: {e}, skipping[/]"
+                    )
+
             # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
             # Relate so we can find those from the body
             if pr.body:

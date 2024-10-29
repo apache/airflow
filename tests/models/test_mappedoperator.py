@@ -731,6 +731,7 @@ def test_expand_mapped_task_instance_with_named_index(
     assert indices == expected_rendered_names
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "create_mapped_task",
     [

@@ -67,7 +67,7 @@ axios.interceptors.request.use((config) => {
 
 axios.interceptors.response.use((res: AxiosResponse) => {
   // Do not camelCase rendered_fields or extra
-  const stopPaths = ["rendered_fields", "extra", "dataset_events.extra"];
+  const stopPaths = ["rendered_fields", "extra", "asset_events.extra"];
   // Do not camelCase xCom entry results
   if (res.config.url?.includes("/xcomEntries/")) {
     stopPaths.push("value");

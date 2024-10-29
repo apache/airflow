@@ -670,11 +670,11 @@ class AirflowConfigParser(ConfigParser):
         This is required by the UI for ajax queries.
         """
         old_value = self.get("api", "auth_backends", fallback="")
-        if old_value in ("airflow.api.auth.backend.default", ""):
-            # handled by deprecated_values
-            pass
-        elif old_value.find("airflow.api.auth.backend.session") == -1:
-            new_value = old_value + ",airflow.api.auth.backend.session"
+        if (
+            old_value.find("airflow.api.auth.backend.session") == -1
+            and old_value.find("airflow.providers.fab.auth_manager.api.auth.backend.session") == -1
+        ):
+            new_value = old_value + ",airflow.providers.fab.auth_manager.api.auth.backend.session"
             self._update_env_var(section="api", name="auth_backends", new_value=new_value)
             self.upgraded_values[("api", "auth_backends")] = old_value
 
@@ -771,6 +771,21 @@ class AirflowConfigParser(ConfigParser):
             FutureWarning,
             stacklevel=3,
         )
+
+    def mask_secrets(self):
+        from airflow.utils.log.secrets_masker import mask_secret
+
+        for section, key in self.sensitive_config_values:
+            try:
+                value = self.get(section, key, suppress_warnings=True)
+            except AirflowConfigException:
+                log.debug(
+                    "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
+                    section,
+                    key,
+                )
+                continue
+            mask_secret(value)
 
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
