@@ -18,12 +18,17 @@
 from __future__ import annotations
 
 from airflow import __version__ as airflow_version
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 
-def _assert_dataset_deprecation_warning(record) -> None:
+def _assert_dataset_deprecation_warning(recwarn) -> None:
     if airflow_version.startswith("2"):
-        assert len(record) == 1
+        warning = recwarn.pop(AirflowProviderDeprecationWarning)
+        assert warning.category == AirflowProviderDeprecationWarning
         assert (
-            record[0].message.args[0]
+            str(warning.message)
             == "is_authorized_dataset will be renamed as is_authorized_asset in Airflow 3 and will be removed when the minimum Airflow version is set to 3.0 for the fab provider"
         )
+
+
+__all__ = ["_assert_dataset_deprecation_warning"]

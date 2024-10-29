@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.security import permissions
 from airflow.www import app as application
 
@@ -65,8 +64,7 @@ def client_user_reader(fab_app, user_user_reader):
 
 @pytest.mark.db_test
 class TestUserEditView:
-    def test_reset_my_password_view(self, client_user_reader):
-        with pytest.warns(AirflowProviderDeprecationWarning) as record:
-            resp = client_user_reader.get("/resetmypassword/form", follow_redirects=True)
-        _assert_dataset_deprecation_warning(record)
+    def test_reset_my_password_view(self, client_user_reader, recwarn):
+        resp = client_user_reader.get("/resetmypassword/form", follow_redirects=True)
+        _assert_dataset_deprecation_warning(recwarn)
         assert resp.status_code == 200
