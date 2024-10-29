@@ -887,6 +887,25 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunPatchBody = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DAGRunPatchStates",
+    },
+  },
+  type: "object",
+  required: ["state"],
+  title: "DAGRunPatchBody",
+  description: "DAG Run Serializer for PATCH requests.",
+} as const;
+
+export const $DAGRunPatchStates = {
+  type: "string",
+  enum: ["queued", "success", "failed"],
+  title: "DAGRunPatchStates",
+  description: "Enum for DAG Run states when updating a DAG Run.",
+} as const;
+
 export const $DAGRunResponse = {
   properties: {
     run_id: {
@@ -1447,6 +1466,129 @@ export const $DagTagPydantic = {
   title: "DagTagPydantic",
   description:
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+} as const;
+
+export const $EventLogResponse = {
+  properties: {
+    event_log_id: {
+      type: "integer",
+      title: "Event Log Id",
+    },
+    when: {
+      type: "string",
+      format: "date-time",
+      title: "When",
+    },
+    dag_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Id",
+    },
+    task_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Task Id",
+    },
+    run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run Id",
+    },
+    map_index: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Map Index",
+    },
+    try_number: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Try Number",
+    },
+    event: {
+      type: "string",
+      title: "Event",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    owner: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Owner",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+  },
+  type: "object",
+  required: [
+    "event_log_id",
+    "when",
+    "dag_id",
+    "task_id",
+    "run_id",
+    "map_index",
+    "try_number",
+    "event",
+    "logical_date",
+    "owner",
+    "extra",
+  ],
+  title: "EventLogResponse",
+  description: "Event Log Response.",
 } as const;
 
 export const $FastAPIAppResponse = {
