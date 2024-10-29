@@ -399,6 +399,24 @@ class TestOracleHook:
                 "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
             )
 
+    def test_bulk_insert_commit_leftovers_only_if_exists(self):
+        rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (1, 2, 3), (4, 5, 6), (7, 8, 9)]
+        target_fields = ["col1", "col2", "col3"]
+        sequence_column = "id"
+        sequence_name = "my_sequence"
+
+        self.db_hook.bulk_insert_rows(
+            "table",
+            rows,
+            target_fields,
+            sequence_column=sequence_column,
+            sequence_name=sequence_name,
+            commit_every=3,
+        )
+
+        # executemany should be called exactly 2 times because there is no leftovers
+        assert self.cur.executemany.call_count == 2
+
     def test_callproc_none(self):
         parameters = None
 
@@ -408,7 +426,7 @@ class TestOracleHook:
 
         self.cur.bindvars = None
         result = self.db_hook.callproc("proc", True, parameters)
-        assert self.cur.execute.mock_calls == [mock.call("BEGIN proc(); END;")]
+        assert self.cur.executemany.mock_calls == [mock.call("BEGIN proc(); END;")]
         assert result == parameters
 
     def test_callproc_dict(self):
