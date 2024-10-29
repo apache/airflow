@@ -426,7 +426,7 @@ class TestOracleHook:
 
         self.cur.bindvars = None
         result = self.db_hook.callproc("proc", True, parameters)
-        assert self.cur.executemany.mock_calls == [mock.call("BEGIN proc(); END;")]
+        assert self.cur.execute.mock_calls == [mock.call("BEGIN proc(); END;")]
         assert result == parameters
 
     def test_callproc_dict(self):
