@@ -286,7 +286,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`9f7ab0dd0a <https://github.com/apache/airflow/commit/9f7ab0dd0a074831448b33a3cbc0de1cd6c3d997>`_  2022-06-03   ``Migrate JDBC example DAGs to new design #22450 (#24137)``
+`9f7ab0dd0a <https://github.com/apache/airflow/commit/9f7ab0dd0a074831448b33a3cbc0de1cd6c3d997>`_  2022-06-03   ``Migrate JDBC example Dags to new design #22450 (#24137)``
 `b205a67afe <https://github.com/apache/airflow/commit/b205a67afe6b23d2863bdf5f657dd235d9a901d8>`_  2022-05-22   ``Handler parameter from 'JdbcOperator' to 'JdbcHook.run' (#23817)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
@@ -347,7 +347,7 @@ Commit                                                                          
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 =================================================================================================  ===========  ======================================================================================
 
 2.0.1

@@ -34,4 +34,4 @@ that can be integrated with Apache Hadoop and other storage systems.
 Using the operators
 ^^^^^^^^^^^^^^^^^^^
 To learn how to use Data Proc operators,
-see `example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_dataproc.py>`_.
+see `example Dags <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_dataproc.py>`_.

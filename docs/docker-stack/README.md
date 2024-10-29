@@ -68,7 +68,7 @@ for details.
 
 ## Usage
 
-The [`AIRFLOW_HOME`](https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#envvar-AIRFLOW_HOME) is set by default to ``/opt/airflow/`` - this means that DAGs
+The [`AIRFLOW_HOME`](https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#envvar-AIRFLOW_HOME) is set by default to ``/opt/airflow/`` - this means that Dags
 are in default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
 
 The working directory is ``/opt/airflow`` by default.

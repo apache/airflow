@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jenkins/|version|/tests/system/providers/jenkins>
+    Example Dags <https://github.com/apache/airflow/tree/providers-jenkins/|version|/tests/system/providers/jenkins>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jenkins/>
     Installing from sources <installing-providers-from-sources>
 

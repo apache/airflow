@@ -230,7 +230,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`b5218de99a <https://github.com/apache/airflow/commit/b5218de99a3dbfe15bbf45b85a23ba4f92e59cc1>`_  2022-06-03   ``Migrate Neo4j example DAGs to new design #22454 (#24143)``
+`b5218de99a <https://github.com/apache/airflow/commit/b5218de99a3dbfe15bbf45b85a23ba4f92e59cc1>`_  2022-06-03   ``Migrate Neo4j example Dags to new design #22454 (#24143)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `2d109401b3 <https://github.com/apache/airflow/commit/2d109401b3566aef613501691d18cf7e4c776cd2>`_  2022-05-04   ``Bump pre-commit hook versions (#22887)``
 =================================================================================================  ===========  ==================================================================================
@@ -296,7 +296,7 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 `5d2b056f55 <https://github.com/apache/airflow/commit/5d2b056f558f3802499eb6d98643433c31d8534c>`_  2021-09-07   ``Fix Neo4jHook to get the query response (#18007)``
 =================================================================================================  ===========  ======================================================================================
 

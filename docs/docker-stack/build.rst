@@ -27,7 +27,7 @@ Quick start scenarios of image extending
 ----------------------------------------
 
 The most common scenarios where you want to build your own image are adding a new ``apt`` package,
-adding a new ``PyPI`` dependency (either individually or via requirements.txt) and embedding DAGs
+adding a new ``PyPI`` dependency (either individually or via requirements.txt) and embedding Dags
 into the image.
 
 Example Dockerfiles for those scenarios are below, and you can read further
@@ -106,7 +106,7 @@ Note that similarly when adding individual packages, you need to use the ``airfl
     :language: text
 
 
-Embedding DAGs
+Embedding Dags
 ..............
 
 The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/dags`` folder.
@@ -363,7 +363,7 @@ You should be aware, about a few things
   `Dockerfile <https://github.com/apache/airflow/blob/main/Dockerfile>`_).
 
 * You can also embed your dags in the image by simply adding them with COPY directive of Airflow.
-  The DAGs in production image are in ``/opt/airflow/dags`` folder.
+  The Dags in production image are in ``/opt/airflow/dags`` folder.
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
   ``Dockerfile`` and any files that are referred to (such as DAG files) in a separate directory and run
@@ -502,7 +502,7 @@ The following example adds ``mpi4py`` package which requires both ``build-essent
 The size of this image is ~ 1.1 GB when build. As you will see further, you can achieve 20% reduction in
 size of the image in case you use "Customizing" rather than "Extending" the image.
 
-Example when you want to embed DAGs
+Example when you want to embed Dags
 ...................................
 
 The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/dags`` folder.

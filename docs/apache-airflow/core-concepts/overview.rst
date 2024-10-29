@@ -50,7 +50,7 @@ A minimal Airflow installation consists of the following components:
   process. There are several executors available out of the box, and you can also write your own.
 
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
-  DAGs and tasks.
+  Dags and tasks.
 
 * A folder of *DAG files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
@@ -108,8 +108,8 @@ an important aspect of secure Airflow deployment. The roles are described in det
 :doc:`/security/security_model` and generally speaking include:
 
 * Deployment Manager - a person that installs and configures Airflow and manages the deployment
-* DAG author - a person that writes DAGs and submits them to Airflow
-* Operations User - a person that triggers DAGs and tasks and monitors their execution
+* DAG author - a person that writes Dags and submits them to Airflow
+* Operations User - a person that triggers Dags and tasks and monitors their execution
 
 Architecture Diagrams
 ---------------------
@@ -159,11 +159,11 @@ The *webserver* does not have access to the *DAG files* directly. The code in th
 UI is read from the *metadata database*. The *webserver* cannot execute any code submitted by the
 **DAG author**. It can only execute code that is installed as an *installed package* or *plugin* by
 the **Deployment Manager**. The **Operations User** only has access to the UI and can only trigger
-DAGs and tasks, but cannot author DAGs.
+Dags and tasks, but cannot author Dags.
 
 The *DAG files* need to be synchronized between all the components that use them - *scheduler*,
 *triggerer* and *workers*. The *DAG files* can be synchronized by various mechanisms - typical
-ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` of our
+ways how Dags can be synchronized are described in :doc:`helm-chart:manage-dags-files` of our
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
 .. image:: ../img/diagram_distributed_airflow_architecture.png
@@ -196,7 +196,7 @@ Workloads
 
 A DAG runs through a series of :doc:`tasks`, and there are three common types of task you will see:
 
-* :doc:`operators`, predefined tasks that you can string together quickly to build most parts of your DAGs.
+* :doc:`operators`, predefined tasks that you can string together quickly to build most parts of your Dags.
 
 * :doc:`sensors`, a special subclass of Operators which are entirely about waiting for an external event to happen.
 
@@ -208,7 +208,7 @@ Internally, these are all actually subclasses of Airflow's ``BaseOperator``, and
 Control Flow
 ------------
 
-:doc:`dags` are designed to be run many times, and multiple runs of them can happen in parallel. DAGs are parameterized, always including an interval they are "running for" (the :ref:`data interval <data-interval>`), but with other optional parameters as well.
+:doc:`dags` are designed to be run many times, and multiple runs of them can happen in parallel. Dags are parameterized, always including an interval they are "running for" (the :ref:`data interval <data-interval>`), but with other optional parameters as well.
 
 :doc:`tasks` have dependencies declared on each other. You'll see this in a DAG either using the ``>>`` and ``<<`` operators::
 
@@ -232,15 +232,15 @@ To pass data between tasks you have three options:
 
 Airflow sends out Tasks to run on Workers as space becomes available, so there's no guarantee all the tasks in your DAG will run on the same worker or the same machine.
 
-As you build out your DAGs, they are likely to get very complex, so Airflow provides several mechanisms for making this more sustainable, example :ref:`concepts:taskgroups` let you visually group tasks in the UI.
+As you build out your Dags, they are likely to get very complex, so Airflow provides several mechanisms for making this more sustainable, example :ref:`concepts:taskgroups` let you visually group tasks in the UI.
 
 There are also features for letting you easily pre-configure access to a central resource, like a datastore, in the form of :doc:`../authoring-and-scheduling/connections`, and for limiting concurrency, via :doc:`../administration-and-deployment/pools`.
 
 User interface
 --------------
 
-Airflow comes with a user interface that lets you see what DAGs and their tasks are doing, trigger runs of DAGs, view logs, and do some limited debugging and resolution of problems with your DAGs.
+Airflow comes with a user interface that lets you see what Dags and their tasks are doing, trigger runs of Dags, view logs, and do some limited debugging and resolution of problems with your Dags.
 
 .. image:: ../img/dags.png
 
-It's generally the best way to see the status of your Airflow installation as a whole, as well as diving into individual DAGs to see their layout, the status of each task, and the logs from each task.
+It's generally the best way to see the status of your Airflow installation as a whole, as well as diving into individual Dags to see their layout, the status of each task, and the logs from each task.

@@ -559,7 +559,7 @@ a string of semicolon separated full import path to the functions.
 Job Hierarchy
 =============
 
-Apache Airflow features an inherent job hierarchy: DAGs, large and independently schedulable units, comprise smaller, executable tasks.
+Apache Airflow features an inherent job hierarchy: Dags, large and independently schedulable units, comprise smaller, executable tasks.
 
 OpenLineage reflects this structure in its Job Hierarchy model.
 

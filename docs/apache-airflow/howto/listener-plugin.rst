@@ -28,7 +28,7 @@ state and collect useful metadata information about the task, dag run and dag.
 This is an example plugin for Airflow that allows to create listener plugin of Airflow.
 This plugin works by using SQLAlchemy's event mechanism. It watches
 the task instance state change in the table level and triggers event.
-This will be notified for all the tasks across all the DAGs.
+This will be notified for all the tasks across all the Dags.
 
 In this plugin, an object reference is derived from the base class
 ``airflow.plugins_manager.AirflowPlugin``.
@@ -69,7 +69,7 @@ skeleton for us to implement a new listener:
 
 Next, we can check code added into ``listener`` and see implementation
 methods for each of those listeners. After the implementation, the listener part
-gets executed during all the task execution across all the DAGs
+gets executed during all the task execution across all the Dags
 
 For reference, here's the plugin code within ``listener.py`` class that shows list of tables in the database:
 

@@ -28,7 +28,7 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-System tests verify the correctness of Airflow Operators by running them in DAGs and allowing to communicate with
+System tests verify the correctness of Airflow Operators by running them in Dags and allowing to communicate with
 external services. A system test tries to look as close to a regular DAG as possible, and it generally checks the
 "happy path" (a scenario featuring no errors) ensuring that the Operator works as expected.
 
@@ -37,7 +37,7 @@ The purpose of these tests is to:
 - assure high quality of providers and their integration with Airflow core,
 - avoid regression in providers when doing changes to the Airflow,
 - autogenerate documentation for Operators from code,
-- provide runnable example DAGs with use cases for different Operators,
+- provide runnable example Dags with use cases for different Operators,
 - serve both as examples and test files.
 
 # How to run system tests

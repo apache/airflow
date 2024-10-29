@@ -45,7 +45,7 @@ One example of an Airflow deployment running on a distributed set of five nodes 
 
 .. image:: img/arch-diag-kubernetes2.png
 
-Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those DAGs and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
+Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those Dags and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
 
 Additionally, the Kubernetes Executor enables specification of additional features on a per-task basis using the Executor config.
 
@@ -103,24 +103,24 @@ With these requirements in mind, here are some examples of basic ``pod_template_
 
     The examples below should work when using default Airflow configuration values. However, many custom
     configuration values need to be explicitly passed to the pod via this template too. This includes,
-    but is not limited to, sql configuration, required Airflow connections, DAGs folder path and
+    but is not limited to, sql configuration, required Airflow connections, Dags folder path and
     logging settings. See :doc:`../../configurations-ref` for details.
 
-Storing DAGs in the image:
+Storing Dags in the image:
 
 .. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
-Storing DAGs in a ``persistentVolume``:
+Storing Dags in a ``persistentVolume``:
 
 .. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
-Pulling DAGs from ``git``:
+Pulling Dags from ``git``:
 
 .. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
@@ -188,18 +188,18 @@ Here is an example of a task with both features:
             print_stuff()
 
 
-Managing DAGs and logs
+Managing Dags and logs
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Use of persistent volumes is optional and depends on your configuration.
 
 - **Dags**:
 
-To get the DAGs into the workers, you can:
+To get the Dags into the workers, you can:
 
-  - Include DAGs in the image.
-  - Use ``git-sync`` which, before starting the worker container, will run a ``git pull`` of the DAGs repository.
-  - Storing DAGs on a persistent volume, which can be mounted on all workers.
+  - Include Dags in the image.
+  - Use ``git-sync`` which, before starting the worker container, will run a ``git pull`` of the Dags repository.
+  - Storing Dags on a persistent volume, which can be mounted on all workers.
 
 - **Logs**:
 

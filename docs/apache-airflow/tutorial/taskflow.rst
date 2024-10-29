@@ -23,7 +23,7 @@ Working with TaskFlow
 
 This tutorial builds on the regular Airflow Tutorial and focuses specifically
 on writing data pipelines using the TaskFlow API paradigm which is introduced as
-part of Airflow 2.0 and contrasts this with DAGs written using the traditional paradigm.
+part of Airflow 2.0 and contrasts this with Dags written using the traditional paradigm.
 
 The data pipeline chosen here is a simple pattern with
 three separate Extract, Transform, and Load tasks.
@@ -176,10 +176,10 @@ the dependencies as shown below.
 Reusing a decorated task
 -------------------------
 
-Decorated tasks are flexible. You can reuse a decorated task in multiple DAGs, overriding the task
+Decorated tasks are flexible. You can reuse a decorated task in multiple Dags, overriding the task
 parameters such as the ``task_id``, ``queue``, ``pool``, etc.
 
-Below is an example of how you can reuse a decorated task in multiple DAGs:
+Below is an example of how you can reuse a decorated task in multiple Dags:
 
 .. code-block:: python
 
@@ -687,9 +687,9 @@ There is also a ``skip_if()`` that works the opposite of ``run_if()``, and is us
 What's Next?
 ------------
 
-You have seen how simple it is to write DAGs using the TaskFlow API paradigm within Airflow 2.0. Here are a few steps you might want to take next:
+You have seen how simple it is to write Dags using the TaskFlow API paradigm within Airflow 2.0. Here are a few steps you might want to take next:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/pipeline`
-    - Read the :doc:`Concepts section </core-concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - Read the :doc:`Concepts section </core-concepts/index>` for detailed explanation of Airflow concepts such as Dags, Tasks, Operators, and more
     - View the section on the :doc:`TaskFlow API </core-concepts/taskflow>` and the ``@task`` decorator.

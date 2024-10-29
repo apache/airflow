@@ -44,8 +44,8 @@ You can also run other kind of tests when you are developing airflow packages:
 * `Testing packages <testing/testing_packages.rst>`__ is a document that describes how to
   manually build and test pre-release candidate packages of airflow and providers.
 
-* `Dag testing <testing/dag_testing.rst>`__ is a document that describes how to test DAGs in a local environment
-  with ``DebugExecutor``. Note, that this is a legacy method - you can now use dag.test() method to test DAGs.
+* `Dag testing <testing/dag_testing.rst>`__ is a document that describes how to test Dags in a local environment
+  with ``DebugExecutor``. Note, that this is a legacy method - you can now use dag.test() method to test Dags.
 
 ------
 

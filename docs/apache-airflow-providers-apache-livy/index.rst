@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-livy/|version|/tests/system/providers/apache/livy/>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-livy/|version|/tests/system/providers/apache/livy/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-livy/>
     Installing from sources <installing-providers-from-sources>
 

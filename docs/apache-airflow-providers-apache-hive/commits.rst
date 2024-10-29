@@ -493,7 +493,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`100ea9d1fc <https://github.com/apache/airflow/commit/100ea9d1fc6831b1ea6e7d33f38c0da5ec9c5fc4>`_  2022-06-05   ``AIP-47 - Migrate hive DAGs to new design #22439 (#24204)``
+`100ea9d1fc <https://github.com/apache/airflow/commit/100ea9d1fc6831b1ea6e7d33f38c0da5ec9c5fc4>`_  2022-06-05   ``AIP-47 - Migrate hive Dags to new design #22439 (#24204)``
 `71e4deb1b0 <https://github.com/apache/airflow/commit/71e4deb1b093b7ad9320eb5eb34eca8ea440a238>`_  2022-05-16   ``Add typing for airflow/configuration.py (#23716)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -584,7 +584,7 @@ Commit                                                                          
 `16b3ab5860 <https://github.com/apache/airflow/commit/16b3ab5860bc766fa31bbeccfb08ea710ca4bae7>`_  2021-11-29   ``Improve various docstrings in Apache Hive providers (#19866)``
 `ac752e777b <https://github.com/apache/airflow/commit/ac752e777bad330d05c6aebbea940616831aa6f2>`_  2021-11-24   ``hive provider: restore HA support for metastore (#19777)``
 `f50f677514 <https://github.com/apache/airflow/commit/f50f677514b562ac83a00cde2bfd0efdfbe171e4>`_  2021-11-08   ``Fix typos in Hive transfer operator docstrings (#19474)``
-`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example Dags (#18657)``
 =================================================================================================  ===========  ==============================================================================
 
 2.0.3
@@ -600,7 +600,7 @@ Commit                                                                          
 `80b5e65a6a <https://github.com/apache/airflow/commit/80b5e65a6abf0a136c5690548c5039f90dda01ab>`_  2021-10-17   ``Remove unnecessary string concatenations in AirflowException in s3_to_hive.py (#19026)``
 `232f7d1587 <https://github.com/apache/airflow/commit/232f7d158741405f959e8b09b1687238920306a0>`_  2021-10-10   ``fix get_connections deprecation warn in hivemetastore hook (#18854)``
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider Dags to use TaskFlow API where applicable (#18278)``
 =================================================================================================  ===========  ==========================================================================================
 
 2.0.2
@@ -626,7 +626,7 @@ Latest change: 2021-07-26
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`91f4d80ff0 <https://github.com/apache/airflow/commit/91f4d80ff09093de49478214c5bd027e02c92a0e>`_  2021-07-23   ``Updating Apache example DAGs to use XComArgs (#16869)``
+`91f4d80ff0 <https://github.com/apache/airflow/commit/91f4d80ff09093de49478214c5bd027e02c92a0e>`_  2021-07-23   ``Updating Apache example Dags to use XComArgs (#16869)``
 `d02ded65ea <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `866a601b76 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``

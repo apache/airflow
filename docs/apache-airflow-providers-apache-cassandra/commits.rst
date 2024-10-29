@@ -223,7 +223,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`eee6bc9691 <https://github.com/apache/airflow/commit/eee6bc969138e3f6e8f4dec4fd3d9a0d51f70a4c>`_  2022-06-05   ``AIP-47 - Migrate cassandra DAGs to new design #22439 (#24209)``
+`eee6bc9691 <https://github.com/apache/airflow/commit/eee6bc969138e3f6e8f4dec4fd3d9a0d51f70a4c>`_  2022-06-05   ``AIP-47 - Migrate cassandra Dags to new design #22439 (#24209)``
 =================================================================================================  ===========  ==================================================================================
 
 2.1.3
@@ -268,7 +268,7 @@ Commit                                                                          
 `1d04e6eb70 <https://github.com/apache/airflow/commit/1d04e6eb70a4ce60534bff6fcc1e9cdd94288651>`_  2021-12-30   ``Fix static checks for isort failing in stub files (#20568)``
 `485ff6cc64 <https://github.com/apache/airflow/commit/485ff6cc64d8f6a15d8d6a0be50661fe6d04b2d9>`_  2021-12-29   ``Fix MyPy errors in Apache Providers (#20422)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
-`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example Dags (#18657)``
 =================================================================================================  ===========  ==============================================================================
 
 2.1.0
@@ -295,7 +295,7 @@ Commit                                                                          
 `be75dcd39c <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c6 <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`91f4d80ff0 <https://github.com/apache/airflow/commit/91f4d80ff09093de49478214c5bd027e02c92a0e>`_  2021-07-23   ``Updating Apache example DAGs to use XComArgs (#16869)``
+`91f4d80ff0 <https://github.com/apache/airflow/commit/91f4d80ff09093de49478214c5bd027e02c92a0e>`_  2021-07-23   ``Updating Apache example Dags to use XComArgs (#16869)``
 `d02ded65ea <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `866a601b76 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``

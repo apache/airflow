@@ -307,7 +307,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`c887275bb8 <https://github.com/apache/airflow/commit/c887275bb8ad29930f5a2cc5e5270533f92b80d1>`_  2022-06-03   ``Migrate Alibaba example DAGs to new design #22437 (#24130)``
+`c887275bb8 <https://github.com/apache/airflow/commit/c887275bb8ad29930f5a2cc5e5270533f92b80d1>`_  2022-06-03   ``Migrate Alibaba example Dags to new design #22437 (#24130)``
 `d19cb86660 <https://github.com/apache/airflow/commit/d19cb86660d40e665d8c4fe2b07d76b88532bd8b>`_  2022-05-31   ``SSL Bucket, Light Logic Refactor and Docstring Update for Alibaba Provider (#23891)``
 =================================================================================================  ===========  =======================================================================================
 
@@ -354,14 +354,14 @@ Commit                                                                          
 `d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `3299064958 <https://github.com/apache/airflow/commit/3299064958e5fbcfc8e91e905ababb18d7339421>`_  2021-12-29   ``Use isort on pyi files (#20556)``
-`b5d520cf73 <https://github.com/apache/airflow/commit/b5d520cf73100df714c71ac9898a97bc0df29a31>`_  2021-12-29   ``Reinstate 'region' to 'default_args' for Alibaba example DAGs (#20423)``
+`b5d520cf73 <https://github.com/apache/airflow/commit/b5d520cf73100df714c71ac9898a97bc0df29a31>`_  2021-12-29   ``Reinstate 'region' to 'default_args' for Alibaba example Dags (#20423)``
 `73ab0edce5 <https://github.com/apache/airflow/commit/73ab0edce58d996e2854d478f054b25c4bb627c4>`_  2021-12-18   ``Fix MyPy Errors for Alibaba provider. (#20393)``
 `2fb5e1d0ec <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `f5ad26dcdd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 `0fe0b06bb0 <https://github.com/apache/airflow/commit/0fe0b06bb0bf468f46195946f938f9e6e3d46216>`_  2021-09-03   ``Adding missing init file in example_dags directory (#18019)``
 =================================================================================================  ===========  ======================================================================================
 

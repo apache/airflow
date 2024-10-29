@@ -47,7 +47,7 @@ For example, you can create a DAG schedule to run at 12AM on the first Monday of
 +----------------+--------------------------------------------------------------------+-----------------+
 | preset         | meaning                                                            | cron            |
 +================+====================================================================+=================+
-| ``None``       | Don't schedule, use for exclusively "externally triggered" DAGs    |                 |
+| ``None``       | Don't schedule, use for exclusively "externally triggered" Dags    |                 |
 +----------------+--------------------------------------------------------------------+-----------------+
 | ``@once``      | Schedule once and only once                                        |                 |
 +----------------+--------------------------------------------------------------------+-----------------+

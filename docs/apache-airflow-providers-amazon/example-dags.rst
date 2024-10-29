@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-Example DAGs
+Example Dags
 ============
 
-You can learn how to use Amazon AWS integrations by analyzing the source code of the example DAGs:
+You can learn how to use Amazon AWS integrations by analyzing the source code of the example Dags:
 
 * `Amazon AWS <https://github.com/apache/airflow/tree/providers-amazon/|version|/tests/system/providers/amazon/aws>`__

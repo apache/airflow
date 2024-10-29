@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-asana/|version|/tests/system/providers/asana/example_asana.py>
+    Example Dags <https://github.com/apache/airflow/tree/providers-asana/|version|/tests/system/providers/asana/example_asana.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-asana/>
     Installing from sources <installing-providers-from-sources>
 

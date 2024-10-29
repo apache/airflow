@@ -1,4 +1,4 @@
-Datasets no longer trigger inactive DAGs
+Datasets no longer trigger inactive Dags
 
 Previously, when a DAG is paused or removed, incoming dataset events would still
 trigger it, and the DAG would run when it is unpaused or added back in a DAG

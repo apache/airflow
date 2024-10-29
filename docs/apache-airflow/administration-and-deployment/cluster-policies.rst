@@ -18,11 +18,11 @@
 Cluster Policies
 ================
 
-If you want to check or mutate DAGs or Tasks on a cluster-wide level, then a Cluster Policy will let you do
+If you want to check or mutate Dags or Tasks on a cluster-wide level, then a Cluster Policy will let you do
 that. They have three main purposes:
 
-* Checking that DAGs/Tasks meet a certain standard
-* Setting default arguments on DAGs/Tasks
+* Checking that Dags/Tasks meet a certain standard
+* Setting default arguments on Dags/Tasks
 * Performing custom routing logic
 
 There are three main types of cluster policy:

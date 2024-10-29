@@ -24,7 +24,7 @@ Sidecar Containers
 If you want to deploy your own sidecar container, you can add it through the ``extraContainers`` parameter.
 You can define different containers for the scheduler, webserver, worker, triggerer, DAG processor, flower, create user Job and migrate database Job Pods.
 
-For example, sidecars that sync DAGs from object storage.
+For example, sidecars that sync Dags from object storage.
 
 .. code-block:: yaml
 

@@ -483,7 +483,7 @@ The ``AIRFLOW__WEBSERVER__EXPOSE_CONFIG`` is optional - the script will also suc
 breeze start-airflow --load-example-dags
 ```
 
-Give the server 20-30 seconds to serialize the example DAGs to DB
+Give the server 20-30 seconds to serialize the example Dags to DB
 
 3. In the meantime install the python client you want to test - in the terminal window in the container.
    It can be installed from `PyPI` via `pip install apache-airflow-client==X.Y.Zrc1` or installed

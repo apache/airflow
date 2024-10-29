@@ -17,9 +17,9 @@
  under the License.
 -->
 
-# Unit Tests DAGs Folder
+# Unit Tests Dags Folder
 
-This folder contains DAGs for Airflow unit testing.
+This folder contains Dags for Airflow unit testing.
 
 To access a DAG in this folder, use the following code inside a unit test. Note this only works when `test_mode` is on; otherwise the normal Airflow `DAGS_FOLDER` will take precedence.
 

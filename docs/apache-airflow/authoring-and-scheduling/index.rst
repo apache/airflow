@@ -18,7 +18,7 @@
 Authoring and Scheduling
 =========================
 
-Here you can find detailed documentation about advanced authoring and scheduling airflow DAGs.
+Here you can find detailed documentation about advanced authoring and scheduling airflow Dags.
 It's recommended that you first review the pages in :doc:`core concepts </core-concepts/index>`
 
 **Authoring**

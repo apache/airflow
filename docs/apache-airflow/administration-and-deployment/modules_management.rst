@@ -26,7 +26,7 @@ create your own module so that Airflow can load it correctly, as well as
 diagnose problems when modules are not loaded properly.
 
 Often you want to use your own python code in your Airflow deployment,
-for example common code, libraries, you might want to generate DAGs using
+for example common code, libraries, you might want to generate Dags using
 shared python code and have several DAG python files.
 
 You can do it in one of those ways:
@@ -118,11 +118,11 @@ In the case above, these are the ways you could import the python files:
 
 You can see the ``.airflowignore`` file at the root of your folder. This is a file that you can put in your
 ``dags`` folder to tell Airflow which files from the folder should be ignored when the Airflow
-scheduler looks for DAGs. It should contain either regular expressions (the default) or glob expressions
+scheduler looks for Dags. It should contain either regular expressions (the default) or glob expressions
 for the paths that should be ignored. You do not need to have that file in any other folder in
-``PYTHONPATH`` (and also you can only keep shared code in the other folders, not the actual DAGs).
+``PYTHONPATH`` (and also you can only keep shared code in the other folders, not the actual Dags).
 
-In the example above the DAGs are only in ``my_custom_dags`` folder, the ``common_package`` should not be
+In the example above the Dags are only in ``my_custom_dags`` folder, the ``common_package`` should not be
 scanned by scheduler when searching for DAGS, so we should ignore ``common_package`` folder. You also
 want to ignore the ``base_dag.py`` if you keep a base DAG there that ``my_dag1.py`` and ``my_dag2.py`` derives
 from. Your ``.airflowignore`` should look then like this:
@@ -153,7 +153,7 @@ Airflow, when running dynamically adds three directories to the ``sys.path``:
    Airflow has no expectations that the DAGS folder is present in the webserver. In fact it's a bit of
    security risk to share the ``dags`` folder with the webserver, because it means that people who write DAGS
    can write code that the webserver will be able to execute (ideally the webserver should
-   never run code which can be modified by users who write DAGs). Therefore if you need to share some code
+   never run code which can be modified by users who write Dags). Therefore if you need to share some code
    with the webserver, it is highly recommended that you share it via ``config`` or ``plugins`` folder or
    via installed Airflow packages (see below). Those folders are usually managed and accessible by different
    users (Admins/DevOps) than DAG folders (those are usually data-scientists), so they are considered
@@ -187,7 +187,7 @@ as packages (i.e. folders with ``__init__.py``) or as modules (i.e. ``.py`` file
 The same applies to ``config`` and ``plugins`` folders which are also at the ``PYTHONPATH`` and anything
 you add to your ``PYTHONPATH`` manually (see details in the following chapters).
 
-It is recommended that you always put your DAGs/common files in a subpackage which is unique to your
+It is recommended that you always put your Dags/common files in a subpackage which is unique to your
 deployment (``my_company`` in the example below). It is far too easy to use generic names for the
 folders that will clash with other packages already present in the system. For example if you
 create ``airflow/operators`` subfolder it will not be accessible because Airflow already has a package
@@ -214,7 +214,7 @@ You should import such shared DAG using full path (starting from the directory w
 The relative imports are counter-intuitive, and depending on how you start your python code, they can behave
 differently. In Airflow the same DAG file might be parsed in different contexts (by schedulers, by workers
 or during tests) and in those cases, relative imports might behave differently. Always use full
-python package paths when you import anything in Airflow DAGs, this will save you a lot of troubles.
+python package paths when you import anything in Airflow Dags, this will save you a lot of troubles.
 You can read more about relative import caveats in
 `this Stack Overflow thread <https://stackoverflow.com/q/16981921/516701>`_.
 

@@ -823,7 +823,7 @@ Commit                                                                          
 `98b4e48fbc <https://github.com/apache/airflow/commit/98b4e48fbc1262f1381e7a4ca6cce31d96e6f5e9>`_  2022-06-06   ``Add param docs to KubernetesHook and KubernetesPodOperator (#23955) (#24054)``
 `42abbf0d61 <https://github.com/apache/airflow/commit/42abbf0d61f94ec50026af0c0f95eb378e403042>`_  2022-06-06   ``Fix await_container_completion condition (#23883)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`7ad4e67c1a <https://github.com/apache/airflow/commit/7ad4e67c1ad504f6338c1f616fa4245685cf1abd>`_  2022-06-03   ``Migrate Cncf.Kubernetes example DAGs to new design #22441 (#24132)``
+`7ad4e67c1a <https://github.com/apache/airflow/commit/7ad4e67c1ad504f6338c1f616fa4245685cf1abd>`_  2022-06-03   ``Migrate Cncf.Kubernetes example Dags to new design #22441 (#24132)``
 `60eb9e106f <https://github.com/apache/airflow/commit/60eb9e106f5915398eafd6aa339ec710c102dc09>`_  2022-05-31   ``Use KubernetesHook to create api client in KubernetesPodOperator (#20578)``
 `e240132934 <https://github.com/apache/airflow/commit/e2401329345dcc5effa933b92ca969b8779755e4>`_  2022-05-27   ``[FEATURE] KPO use K8S hook (#22086)``
 `6bbe015905 <https://github.com/apache/airflow/commit/6bbe015905bd2709e621455d9f71a78b374d1337>`_  2022-05-26   ``Use "remote" pod when patching KPO pod as "checked" (#23676)``
@@ -1017,7 +1017,7 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 `7808be7ffb <https://github.com/apache/airflow/commit/7808be7ffb693de2e4ea73d0c1e6e2470cde9095>`_  2021-09-21   ``Make Kubernetes job description fit on one log line (#18377)``
 `b8d06e812a <https://github.com/apache/airflow/commit/b8d06e812ac56af6b0d17830c63b705ace9d4959>`_  2021-09-08   ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``
 `64d2f5488f <https://github.com/apache/airflow/commit/64d2f5488f6764194a2f4f8a01f961990c75b840>`_  2021-09-07   ``Do not fail KubernetesPodOperator tasks if log reading fails (#17649)``
@@ -1051,7 +1051,7 @@ Latest change: 2021-07-26
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`d48b4e0caf <https://github.com/apache/airflow/commit/d48b4e0caf6218558378c7c3349b22adfc5c0785>`_  2021-07-21   ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
+`d48b4e0caf <https://github.com/apache/airflow/commit/d48b4e0caf6218558378c7c3349b22adfc5c0785>`_  2021-07-21   ``Simplify 'default_args' in Kubernetes example Dags (#16870)``
 `3939e84161 <https://github.com/apache/airflow/commit/3939e841616d70ea2d930f55e6a5f73a2a99be07>`_  2021-07-20   ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
 `d02ded65ea <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``

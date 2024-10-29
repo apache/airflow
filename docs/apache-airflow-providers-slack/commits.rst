@@ -302,7 +302,7 @@ Latest change: 2023-01-14
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
-`a7e1cb2fbf <https://github.com/apache/airflow/commit/a7e1cb2fbfc684508f4b832527ae2371f99ad37d>`_  2023-01-04   ``Add general-purpose "notifier" concept to DAGs (#28569)``
+`a7e1cb2fbf <https://github.com/apache/airflow/commit/a7e1cb2fbfc684508f4b832527ae2371f99ad37d>`_  2023-01-04   ``Add general-purpose "notifier" concept to Dags (#28569)``
 =================================================================================================  ===========  ==================================================================
 
 7.1.1
@@ -465,7 +465,7 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 `29493d2d61 <https://github.com/apache/airflow/commit/29493d2d617198e34cded1a04ab6c039012eb068>`_  2021-09-26   ``Add Slack operators how-to guide (#18525)``
 `9bf0ed2179 <https://github.com/apache/airflow/commit/9bf0ed2179b62f374cad74334a8976534cf1a53b>`_  2021-09-23   ``Restore 'filename' to template_fields (#18466)``
 =================================================================================================  ===========  ======================================================================================

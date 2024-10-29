@@ -83,7 +83,7 @@ When you are in the CI container, the following directories are used:
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
   /files - files mounted from "files" folder in your sources. You can edit them in the host as well
-      dags - this is the folder where Airflow DAGs are read from
+      dags - this is the folder where Airflow Dags are read from
       airflow-breeze-config - this is where you can keep your own customization configuration of breeze
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
@@ -102,7 +102,7 @@ When you are in the production container, the following directories are used:
       unittest.cfg - unit test configuration generated when entering the environment;
       webserver_config.py - webserver configuration generated when running Airflow in the container.
   /files - files mounted from "files" folder in your sources. You can edit them in the host as well
-      dags - this is the folder where Airflow DAGs are read from
+      dags - this is the folder where Airflow Dags are read from
 
 Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
@@ -125,7 +125,7 @@ configure and run Docker. They will not be removed between Docker runs.
 
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
 the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
-from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
+from local sources in Airflow. If you wish to add local Dags that can be run by Breeze.
 
 The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
 customize your breeze instance. Those files will be kept across checking out a code from different

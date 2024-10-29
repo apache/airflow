@@ -525,7 +525,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`ddf9013098 <https://github.com/apache/airflow/commit/ddf9013098b09176d7b34861b2357ded50b9fe26>`_  2022-06-05   ``AIP-47 - Migrate databricks DAGs to new design #22442 (#24203)``
+`ddf9013098 <https://github.com/apache/airflow/commit/ddf9013098b09176d7b34861b2357ded50b9fe26>`_  2022-06-05   ``AIP-47 - Migrate databricks Dags to new design #22442 (#24203)``
 `acf89510cd <https://github.com/apache/airflow/commit/acf89510cd5a18d15c1a45e674ba0bcae9293097>`_  2022-06-04   ``fix: DatabricksSubmitRunOperator and DatabricksRunNowOperator cannot define .json as template_ext (#23622) (#23641)``
 `92ddcf4ac6 <https://github.com/apache/airflow/commit/92ddcf4ac6fa452c5056b1f7cad1fca4d5759802>`_  2022-05-27   ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
 `6150d28323 <https://github.com/apache/airflow/commit/6150d283234b48f86362fd4da856e282dd91ebb4>`_  2022-05-22   ``Add Deferrable Databricks operators (#19736)``
@@ -669,7 +669,7 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 `0b7b13372f <https://github.com/apache/airflow/commit/0b7b13372f6dbf18a35d5346d3955f65b31dd00d>`_  2021-09-18   ``Move DB call out of ''DatabricksHook.__init__'' (#18339)``
 =================================================================================================  ===========  ======================================================================================
 

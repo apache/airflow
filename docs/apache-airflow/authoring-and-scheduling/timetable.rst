@@ -23,7 +23,7 @@ For a DAG with a time-based schedule (as opposed to event-driven), the DAG's int
 drives scheduling.  The timetable also determines the data interval and the logical date of
 each run created for the DAG.
 
-DAGs scheduled with a cron expression or ``timedelta`` object are
+Dags scheduled with a cron expression or ``timedelta`` object are
 internally converted to always use a timetable.
 
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
@@ -49,7 +49,7 @@ Some examples of when custom timetable implementations are useful:
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
 Airflow allows you to write custom timetables in plugins and used by
-DAGs. You can find an example demonstrating a custom timetable in the
+Dags. You can find an example demonstrating a custom timetable in the
 :doc:`/howto/timetable` how-to guide.
 
 .. note::
@@ -182,7 +182,7 @@ Dataset event based scheduling with time based scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility.
 
-The ``DatasetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of DAGs based on both time-based schedules and dataset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and dataset-triggered runs, which operate independently.
+The ``DatasetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and dataset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and dataset-triggered runs, which operate independently.
 
 This feature is particularly useful in scenarios where a DAG needs to run on dataset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
@@ -235,8 +235,8 @@ DAG run is triggered and ``data_interval_end`` is the end of the interval.
 
 Whether you're using `CronTriggerTimetable`_ or `CronDataIntervalTimetable`_,  there is no difference when ``catchup`` is ``True``.
 
-You might want to use ``False`` for ``catchup`` for certain scenarios, to prevent running unnecessary DAGs:
-- If you create a new DAG with a start date in the past, and don't want to run DAGs for the past. If ``catchup`` is ``True``, Airflow runs all DAGs that would have run in that time interval.
+You might want to use ``False`` for ``catchup`` for certain scenarios, to prevent running unnecessary Dags:
+- If you create a new DAG with a start date in the past, and don't want to run Dags for the past. If ``catchup`` is ``True``, Airflow runs all Dags that would have run in that time interval.
 - If you pause an existing DAG, and then restart it at a later date, and don't want to  If ``catchup`` is ``True``,
 
 In these scenarios, the ``logical_date`` in the ``run_id`` are based on how `CronTriggerTimetable`_ or `CronDataIntervalTimetable`_ handle the data interval.
@@ -253,14 +253,14 @@ The time when a DAG run is triggered
 - `CronTriggerTimetable`_ has a ``run_id`` timestamp, the ``logical_date``, showing when DAG run is able to start.
 - `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` (``logical_date``) is different for each.
 
-For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
+For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable Dags using the two timetables at 3PM on January
 31st,
 - `CronTriggerTimetable`_ triggers a new DAG run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
 - `CronDataIntervalTimetable`_ immediately triggers a new DAG run, because a DAG run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
 
 This is another example showing the difference in the case of skipping DAG runs.
 
-Suppose there are two running DAGs with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the DAGs at 3PM on January 31st and re-enable them at 3PM on February 2nd,
+Suppose there are two running Dags with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the Dags at 3PM on January 31st and re-enable them at 3PM on February 2nd,
 - `CronTriggerTimetable`_ skips the DAG runs that were supposed to trigger on February 1st and 2nd. The next DAG run will be triggered at 12AM on February 3rd.
 - `CronDataIntervalTimetable`_ skips the DAG runs that were supposed to trigger on February 1st only. A DAG run for February 2nd is immediately triggered after you re-enable the DAG.
 

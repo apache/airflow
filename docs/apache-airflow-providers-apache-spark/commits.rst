@@ -354,7 +354,7 @@ Commit                                                                          
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `9dc2851671 <https://github.com/apache/airflow/commit/9dc2851671cd5cdce445f01f380985f2d7a9b4cf>`_  2022-06-05   ``Fix backwards-compatibility introduced by fixing mypy problems (#24230)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`a2bfc0e62d <https://github.com/apache/airflow/commit/a2bfc0e62dddb8b4e17d833bdf22d282cb265935>`_  2022-06-05   ``AIP-47 - Migrate spark DAGs to new design #22439 (#24210)``
+`a2bfc0e62d <https://github.com/apache/airflow/commit/a2bfc0e62dddb8b4e17d833bdf22d282cb265935>`_  2022-06-05   ``AIP-47 - Migrate spark Dags to new design #22439 (#24210)``
 `71e4deb1b0 <https://github.com/apache/airflow/commit/71e4deb1b093b7ad9320eb5eb34eca8ea440a238>`_  2022-05-16   ``Add typing for airflow/configuration.py (#23716)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -435,7 +435,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================================
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `79b30ff59c <https://github.com/apache/airflow/commit/79b30ff59c711883ae548ebc806a6cdd6f0689a5>`_  2021-11-24   ``fix bug of SparkSql Operator log  going to infinite loop. (#19449)``
-`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example Dags (#18657)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
 `42dc0767b8 <https://github.com/apache/airflow/commit/42dc0767b85352a57eb2255593913a94a73e570d>`_  2021-10-08   ``Remove unnecessary string concatenations in AirflowException messages (#18817)``
@@ -453,7 +453,7 @@ Commit                                                                          
 `be75dcd39c <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c6 <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`91f4d80ff0 <https://github.com/apache/airflow/commit/91f4d80ff09093de49478214c5bd027e02c92a0e>`_  2021-07-23   ``Updating Apache example DAGs to use XComArgs (#16869)``
+`91f4d80ff0 <https://github.com/apache/airflow/commit/91f4d80ff09093de49478214c5bd027e02c92a0e>`_  2021-07-23   ``Updating Apache example Dags to use XComArgs (#16869)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `866a601b76 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
 =================================================================================================  ===========  ============================================================================

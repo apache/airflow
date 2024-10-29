@@ -20,23 +20,23 @@
 Cross-DAG Dependencies
 ======================
 
-When two DAGs have dependency relationships, it is worth considering combining them into a single
+When two Dags have dependency relationships, it is worth considering combining them into a single
 DAG, which is usually simpler to understand. Airflow also offers better visual representation of
 dependencies for tasks on the same DAG. However, it is sometimes not practical to put all related
 tasks on the same DAG. For example:
 
-- Two DAGs may have different schedules. E.g. a weekly DAG may have tasks that depend on other tasks
+- Two Dags may have different schedules. E.g. a weekly DAG may have tasks that depend on other tasks
   on a daily DAG.
-- Different teams are responsible for different DAGs, but these DAGs have some cross-DAG
+- Different teams are responsible for different Dags, but these Dags have some cross-DAG
   dependencies.
 - A task may depend on another task on the same DAG, but for a different ``execution_date``
   (start of the data interval).
 - Use ``execution_delta`` for tasks running at different times, like ``execution_delta=timedelta(hours=1)``
   to check against a task that runs 1 hour earlier.
 
-``ExternalTaskSensor`` can be used to establish such dependencies across different DAGs. When it is
+``ExternalTaskSensor`` can be used to establish such dependencies across different Dags. When it is
 used together with ``ExternalTaskMarker``, clearing dependent tasks can also happen across different
-DAGs.
+Dags.
 
 ExternalTaskSensor
 ^^^^^^^^^^^^^^^^^^

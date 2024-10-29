@@ -149,7 +149,7 @@ Some examples of valid multiple executor configuration:
 .. note::
     Using two instances of the _same_ executor class is not currently supported.
 
-To make it easier to specify executors on tasks and DAGs, executor configuration now supports aliases. You may then use this alias to refer to the executor in your DAGs (see below).
+To make it easier to specify executors on tasks and Dags, executor configuration now supports aliases. You may then use this alias to refer to the executor in your Dags (see below).
 
 .. code-block:: ini
 
@@ -159,7 +159,7 @@ To make it easier to specify executors on tasks and DAGs, executor configuration
 .. note::
     If a DAG specifies a task to use an executor that is not configured, the DAG will fail to parse and a warning dialog will be shown in the Airflow UI. Please ensure that all executors you wish to use are specified in Airflow configuration on *any* host/container that is running an Airflow component (scheduler, workers, etc).
 
-Writing DAGs and Tasks
+Writing Dags and Tasks
 ^^^^^^^^^^^^^^^^^^^^^^
 
 To specify an executor for a task, make use of the executor parameter on Airflow Operators:
@@ -273,7 +273,7 @@ Compatibility Attributes
 
 The ``BaseExecutor`` class interface contains a set of attributes that Airflow core code uses to check the features that your executor is compatible with. When writing your own Airflow executor be sure to set these correctly for your use case. Each attribute is simply a boolean to enable/disable a feature or indicate that a feature is supported/unsupported by the executor:
 
-* ``supports_pickling``: Whether or not the executor supports reading pickled DAGs from the Database before execution (rather than reading the DAG definition from the file system).
+* ``supports_pickling``: Whether or not the executor supports reading pickled Dags from the Database before execution (rather than reading the DAG definition from the file system).
 * ``supports_sentry``: Whether or not the executor supports `Sentry <https://sentry.io>`_.
 
 * ``is_local``: Whether or not the executor is remote or local. See the `Executor Types`_ section above.

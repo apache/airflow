@@ -48,7 +48,7 @@ For example,
     # To use JSON, store them as JSON strings
     export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
 
-You can use them in your DAGs as:
+You can use them in your Dags as:
 
 .. code-block:: python
 

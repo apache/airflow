@@ -24,14 +24,14 @@ Here's a quick overview of some of the features and visualizations you
 can find in the Airflow UI.
 
 
-DAGs View
+Dags View
 .........
 
-List of the DAGs in your environment, and a set of shortcuts to useful pages.
+List of the Dags in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
 running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
 
-In order to filter DAGs (e.g. by team), you can add tags in each DAG.
+In order to filter Dags (e.g. by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
 For example:
 
@@ -66,7 +66,7 @@ Native Airflow dashboard page into the UI to collect several useful metrics for 
 Datasets View
 .............
 
-A combined listing of the current datasets and a graph illustrating how they are produced and consumed by DAGs.
+A combined listing of the current datasets and a graph illustrating how they are produced and consumed by Dags.
 
 Clicking on any dataset in either the list or the graph will highlight it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
 

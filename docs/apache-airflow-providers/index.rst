@@ -117,7 +117,7 @@ Notifications
 '''''''''''''
 
 The providers can add custom notifications, that allow you to configure the way how you would like to receive
-notifications about the status of your tasks/DAGs.
+notifications about the status of your tasks/Dags.
 
 You can see all the notifications available via community-managed providers in
 :doc:`/core-extensions/notifications`.

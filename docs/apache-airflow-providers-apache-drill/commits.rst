@@ -312,7 +312,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`a27206915b <https://github.com/apache/airflow/commit/a27206915bfe958e70de3041c0d0ded6bc0b1c02>`_  2022-06-05   ``AIP-47 - Migrate drill DAGs to new design #22439 (#24206)``
+`a27206915b <https://github.com/apache/airflow/commit/a27206915bfe958e70de3041c0d0ded6bc0b1c02>`_  2022-06-05   ``AIP-47 - Migrate drill Dags to new design #22439 (#24206)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `428a439953 <https://github.com/apache/airflow/commit/428a43995390b3623a51aa7bac7e21da69a8db22>`_  2022-05-09   ``Clean up in-line f-string concatenation (#23591)``
 =================================================================================================  ===========  ==================================================================================
@@ -359,7 +359,7 @@ Commit                                                                          
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `433e0296ad <https://github.com/apache/airflow/commit/433e0296ad1a5ff1c545aa477fe08000089a6e1e>`_  2021-12-14   ``Fix MyPy Errors for Apache Drill provider. (#20268)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
-`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example Dags (#18657)``
 =================================================================================================  ===========  ================================================================================
 
 1.0.1

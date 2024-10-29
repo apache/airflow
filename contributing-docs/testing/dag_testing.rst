@@ -19,9 +19,9 @@
 Dag Testing
 ===========
 
-To ease and speed up the process of developing DAGs, you can use
+To ease and speed up the process of developing Dags, you can use
 py:class:`~airflow.executors.debug_executor.DebugExecutor`, which is a single process executor
-for debugging purposes. Using this executor, you can run and debug DAGs from your IDE.
+for debugging purposes. Using this executor, you can run and debug Dags from your IDE.
 
 To set up the IDE:
 
@@ -55,7 +55,7 @@ By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>
 the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
 
-The DAGs can be run in the main version of Airflow but they also work
+The Dags can be run in the main version of Airflow but they also work
 with older versions.
 
 -----

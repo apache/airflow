@@ -65,9 +65,9 @@ the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
-the same configuration and DAGs. Airflow sends simple instructions such as "execute task X of DAG Y", but
+the same configuration and Dags. Airflow sends simple instructions such as "execute task X of DAG Y", but
 does not send any DAG files or configuration. You can use a simple cronjob or any other mechanism to sync
-DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
+Dags and configs across your nodes, e.g., checkout Dags from git repo every 5 minutes on all nodes.
 
 
 Logging
@@ -166,7 +166,7 @@ of the executor you use:
 
 * For the :doc:`Local executor <../core-concepts/executor/local>` your tasks are running as subprocesses of
   scheduler and you cannot upgrade the Scheduler without killing the tasks run by it. You can either
-  pause all your DAGs and wait for the running tasks to complete or just stop the scheduler and kill all
+  pause all your Dags and wait for the running tasks to complete or just stop the scheduler and kill all
   the tasks it runs - then you will need to clear and restart those tasks manually after the upgrade
   is completed (or rely on ``retry`` being set for stopped tasks).
 

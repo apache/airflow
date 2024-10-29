@@ -230,7 +230,7 @@ Note that MySQL on arm has experimental support through MariaDB client library.
 Usage
 =====
 
-The :envvar:`AIRFLOW_HOME` is set by default to ``/opt/airflow/`` - this means that DAGs
+The :envvar:`AIRFLOW_HOME` is set by default to ``/opt/airflow/`` - this means that Dags
 are by default in the ``/opt/airflow/dags`` folder and logs are in the ``/opt/airflow/logs``
 
 The working directory is ``/opt/airflow`` by default.

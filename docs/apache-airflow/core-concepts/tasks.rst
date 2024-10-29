@@ -22,7 +22,7 @@ A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`
 
 There are three basic kinds of Task:
 
-* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your DAGs.
+* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your Dags.
 
 * :doc:`sensors`, a special subclass of Operators which are entirely about waiting for an external event to happen.
 
@@ -169,7 +169,7 @@ To read more about configuring the emails, see :doc:`/howto/email-config`.
 
 .. note::
 
-    Manually-triggered tasks and tasks in event-driven DAGs will not be checked for an SLA miss. For more information on DAG ``schedule`` values see :doc:`DAG Run <dag-run>`.
+    Manually-triggered tasks and tasks in event-driven Dags will not be checked for an SLA miss. For more information on DAG ``schedule`` values see :doc:`DAG Run <dag-run>`.
 
 .. _concepts:sla_miss_callback:
 

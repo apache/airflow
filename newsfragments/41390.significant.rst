@@ -10,5 +10,5 @@ Subdags have been removed from the following locations:
 
 This removal marks the end of Subdag support across all interfaces. Users
 should transition to using TaskGroups as a more efficient and maintainable
-alternative. Please ensure your DAGs are updated to
+alternative. Please ensure your Dags are updated to
 remove any usage of Subdags to maintain compatibility with future Airflow releases.

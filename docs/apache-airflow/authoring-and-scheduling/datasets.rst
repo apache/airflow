@@ -23,7 +23,7 @@ Data-aware scheduling
 Quickstart
 ----------
 
-In addition to scheduling DAGs based on time, you can also schedule DAGs to run based on when a task updates a dataset.
+In addition to scheduling Dags based on time, you can also schedule Dags to run based on when a task updates a dataset.
 
 .. code-block:: python
 
@@ -51,7 +51,7 @@ In addition to scheduling DAGs based on time, you can also schedule DAGs to run 
 What is a "dataset"?
 --------------------
 
-An Airflow dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer DAGs.
+An Airflow dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer Dags.
 
 `Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define datasets:
 
@@ -130,10 +130,10 @@ This can be used to supply custom description to the dataset, such as who has ow
 
 .. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either dataset URIs or extra key values!
 
-How to use datasets in your DAGs
+How to use datasets in your Dags
 --------------------------------
 
-You can use datasets to specify data dependencies in your DAGs. The following example shows how after the ``producer`` task in the ``producer`` DAG successfully completes, Airflow schedules the ``consumer`` DAG. Airflow marks a dataset as ``updated`` only if the task completes successfully. If the task fails or if it is skipped, no update occurs, and Airflow doesn't schedule the ``consumer`` DAG.
+You can use datasets to specify data dependencies in your Dags. The following example shows how after the ``producer`` task in the ``producer`` DAG successfully completes, Airflow schedules the ``consumer`` DAG. Airflow marks a dataset as ``updated`` only if the task completes successfully. If the task fails or if it is skipped, no update occurs, and Airflow doesn't schedule the ``consumer`` DAG.
 
 .. code-block:: python
 
@@ -146,13 +146,13 @@ You can use datasets to specify data dependencies in your DAGs. The following ex
         ...
 
 
-You can find a listing of the relationships between datasets and DAGs in the
+You can find a listing of the relationships between datasets and Dags in the
 :ref:`Datasets View<ui:datasets-view>`
 
 Multiple Datasets
 -----------------
 
-Because the ``schedule`` parameter is a list, DAGs can require multiple datasets. Airflow schedules a DAG after **all** datasets the DAG consumes have been updated at least once since the last time the DAG ran:
+Because the ``schedule`` parameter is a list, Dags can require multiple datasets. Airflow schedules a DAG after **all** datasets the DAG consumes have been updated at least once since the last time the DAG ran:
 
 .. code-block:: python
 
@@ -497,7 +497,7 @@ The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "
         ...
 
 
-In the example provided, once the DAG ``dataset-alias-producer`` is executed, the dataset alias ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``. However, the DAG ``dataset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the DAGs relying on the dataset alias ``DatasetAlias("example-alias")`` when it's resolved into datasets that these DAGs did not previously depend on. As a result, both the "dataset-consumer" and "dataset-alias-consumer" DAGs will be triggered after the execution of DAG ``dataset-alias-producer``.
+In the example provided, once the DAG ``dataset-alias-producer`` is executed, the dataset alias ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``. However, the DAG ``dataset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the Dags relying on the dataset alias ``DatasetAlias("example-alias")`` when it's resolved into datasets that these Dags did not previously depend on. As a result, both the "dataset-consumer" and "dataset-alias-consumer" Dags will be triggered after the execution of DAG ``dataset-alias-producer``.
 
 
 Fetching information from previously emitted dataset events through resolved dataset aliases
@@ -527,6 +527,6 @@ Combining dataset and time-based schedules
 
 DatasetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You can schedule DAGs based on both dataset events and time-based schedules using ``DatasetOrTimeSchedule``. This allows you to create workflows when a DAG needs both to be triggered by data updates and run periodically according to a fixed timetable.
+You can schedule Dags based on both dataset events and time-based schedules using ``DatasetOrTimeSchedule``. This allows you to create workflows when a DAG needs both to be triggered by data updates and run periodically according to a fixed timetable.
 
 For more detailed information on ``DatasetOrTimeSchedule``, refer to the corresponding section in :ref:`DatasetOrTimeSchedule <dataset-timetable-section>`.

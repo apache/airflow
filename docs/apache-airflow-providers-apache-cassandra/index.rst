@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-cassandra/|version|/tests/system/providers/apache/cassandra>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-cassandra/|version|/tests/system/providers/apache/cassandra>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-cassandra/>
     Installing from sources <installing-providers-from-sources>
 

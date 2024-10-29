@@ -298,7 +298,7 @@ Local and Remote Debugging in IDE
 One of the great benefits of using the local virtualenv and Breeze is an option to run
 local debugging in your IDE graphical interface.
 
-When you run example DAGs, even if you run them using unit tests within IDE, they are run in a separate
+When you run example Dags, even if you run them using unit tests within IDE, they are run in a separate
 container. This makes it a little harder to use with IDE built-in debuggers.
 Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
 See additional details on

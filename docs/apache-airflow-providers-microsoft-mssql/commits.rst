@@ -299,7 +299,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`478459f01e <https://github.com/apache/airflow/commit/478459f01eff42d3fc63949614f5ffe173c67006>`_  2022-06-03   ``Migrate Microsoft example DAGs to new design #22452 - mssql (#24139)``
+`478459f01e <https://github.com/apache/airflow/commit/478459f01eff42d3fc63949614f5ffe173c67006>`_  2022-06-03   ``Migrate Microsoft example Dags to new design #22452 - mssql (#24139)``
 =================================================================================================  ===========  ==================================================================================
 
 2.1.3

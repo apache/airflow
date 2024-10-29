@@ -52,7 +52,7 @@ to override values under these sections of the ``values.yaml`` file.
 
 Variables
 ---------
-Airflow supports Variables which enable users to craft dynamic DAGs. You can set Variables in Airflow in three ways - UI,
+Airflow supports Variables which enable users to craft dynamic Dags. You can set Variables in Airflow in three ways - UI,
 command line, and within your DAG file. See :doc:`apache-airflow:howto/variable` for more.
 
 With the Helm chart, you can also inject environment variables into Airflow. So in the example ``override.yaml`` file,

@@ -49,7 +49,7 @@ The metadata collected can answer questions like:
 
 Understanding complex inter-DAG dependencies and providing up-to-date runtime visibility into DAG execution can be challenging.
 OpenLineage integrates with Airflow to collect DAG lineage metadata so that inter-DAG dependencies are easily maintained
-and viewable via a lineage graph, while also keeping a catalog of historical runs of DAGs.
+and viewable via a lineage graph, while also keeping a catalog of historical runs of Dags.
 
 For OpenLineage backend that will receive events, you can use `Marquez <https://marquezproject.ai/>`_
 
@@ -60,8 +60,8 @@ OpenLineage integration implements `AirflowPlugin <https://airflow.apache.org/do
 This allows it to be discovered on Airflow start and register
 `Airflow Listener <https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/listeners.html>`_.
 
-The ``OpenLineageListener`` is then called by Airflow when certain events happen - when DAGs or TaskInstances start, complete or fail.
-For DAGs, the listener runs in Airflow Scheduler. For TaskInstances, the listener runs on Airflow Worker.
+The ``OpenLineageListener`` is then called by Airflow when certain events happen - when Dags or TaskInstances start, complete or fail.
+For Dags, the listener runs in Airflow Scheduler. For TaskInstances, the listener runs on Airflow Worker.
 
 When TaskInstance listener method gets called, the ``OpenLineageListener`` constructs metadata like event's unique ``run_id`` and event time.
 Then, it tries to extract metadata from Airflow Operators as described in :ref:`extraction_precedence:openlineage`.

@@ -200,7 +200,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-no-providers-in-core-examples                       | No providers imports in core example DAGs                    |         |
+| check-no-providers-in-core-examples                       | No providers imports in core example Dags                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

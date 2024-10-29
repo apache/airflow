@@ -141,7 +141,7 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-        # A list of timetable classes to register so they can be used in DAGs.
+        # A list of timetable classes to register so they can be used in Dags.
         timetables = []
 
         # A list of Listeners that plugin provides. Listeners can register to

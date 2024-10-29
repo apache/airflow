@@ -22,7 +22,7 @@
 ## Tests structure
 
 All AWS-related system tests are located inside `tests/system/providers/amazon/aws/`.
-In this directory you will find test files in the form of Example DAGs, one DAG per file.
+In this directory you will find test files in the form of Example Dags, one DAG per file.
 Each test should be self-contained but in the case where additional resources are required,
 they can be found in the `resources` directory on the same level as tests or noted in the
 test's docstring.  Each test file should start with prefix `example_*`.

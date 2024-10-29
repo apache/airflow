@@ -58,7 +58,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/tests/system/providers/common/io>
+    Example Dags <https://github.com/apache/airflow/tree/providers-common-io/|version|/tests/system/providers/common/io>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-io/>
     Installing from sources <installing-providers-from-sources>
 

@@ -230,7 +230,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`d4aca43755 <https://github.com/apache/airflow/commit/d4aca43755ece282f9488581a8052c2b92b01f73>`_  2022-06-03   ``Migrate Influx example DAGs to new design #22449 (#24136)``
+`d4aca43755 <https://github.com/apache/airflow/commit/d4aca43755ece282f9488581a8052c2b92b01f73>`_  2022-06-03   ``Migrate Influx example Dags to new design #22449 (#24136)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `2d109401b3 <https://github.com/apache/airflow/commit/2d109401b3566aef613501691d18cf7e4c776cd2>`_  2022-05-04   ``Bump pre-commit hook versions (#22887)``
 =================================================================================================  ===========  ==================================================================================

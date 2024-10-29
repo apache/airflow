@@ -55,7 +55,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kylin/|version|/tests/system/providers/apache/kylin>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-kylin/|version|/tests/system/providers/apache/kylin>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kylin/>
     Installing from sources <installing-providers-from-sources>
 

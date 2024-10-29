@@ -209,7 +209,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`f8223348c5 <https://github.com/apache/airflow/commit/f8223348c562c4419f58ab3180f945743d734bb6>`_  2022-06-03   ``Migrate Opsgenie example DAGs to new design #22455 (#24144)``
+`f8223348c5 <https://github.com/apache/airflow/commit/f8223348c562c4419f58ab3180f945743d734bb6>`_  2022-06-03   ``Migrate Opsgenie example Dags to new design #22455 (#24144)``
 =================================================================================================  ===========  ==================================================================================
 
 3.1.0

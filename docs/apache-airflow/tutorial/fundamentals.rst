@@ -259,7 +259,7 @@ Using time zones
 Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware dates
 using ``pendulum``. Don't try to use standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
-have limitations and we deliberately disallow using them in DAGs.
+have limitations and we deliberately disallow using them in Dags.
 
 Recap
 -----
@@ -283,8 +283,8 @@ Time to run some tests. First, let's make sure the pipeline
 is parsed successfully.
 
 Let's assume we are saving the code from the previous step in
-``tutorial.py`` in the DAGs folder referenced in your ``airflow.cfg``.
-The default location for your DAGs is ``~/airflow/dags``.
+``tutorial.py`` in the Dags folder referenced in your ``airflow.cfg``.
+The default location for your Dags is ``~/airflow/dags``.
 
 .. code-block:: bash
 
@@ -303,7 +303,7 @@ Let's run a few commands to validate this script further.
     # initialize the database tables
     airflow db migrate
 
-    # print the list of active DAGs
+    # print the list of active Dags
     airflow dags list
 
     # prints the list of tasks in the "tutorial" DAG
@@ -403,4 +403,4 @@ Here are a few things you might want to do next:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
-    - Skip to the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - Skip to the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as Dags, Tasks, Operators, and more

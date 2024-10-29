@@ -133,13 +133,13 @@ The following file formats are supported:
  * ``xlib``
  * ``x11``
 
-By default, Airflow looks for DAGs in the directory specified by the ``dags_folder`` option in the
+By default, Airflow looks for Dags in the directory specified by the ``dags_folder`` option in the
 ``[core]`` section of the ``airflow.cfg`` file. You can select a new directory with the ``--subdir`` argument.
 
-Display DAGs structure
+Display Dags structure
 ----------------------
 
-Sometimes you will work on DAGs that contain complex dependencies. It is helpful then to preview
+Sometimes you will work on Dags that contain complex dependencies. It is helpful then to preview
 the DAG to see if it is correct.
 
 If you have macOS, you can use `iTerm2 <https://iterm2.com/>`__ together with
@@ -252,10 +252,10 @@ Special handling for DAG runs
 
 Commonly, Airflow determines which DagRun to run next by looking up the latest DagRun.  If you delete all DAG runs, Airflow may schedule an old DAG run that was already completed, e.g. if you have set ``catchup=True``.  So the ``db clean`` command will preserve the latest non-manually-triggered DAG run to preserve continuity in scheduling.
 
-Considerations for backfillable DAGs
+Considerations for backfillable Dags
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Not all DAGs are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete DAG runs, and if you run backfill over a range of dates that includes the deleted DAG runs, those runs will be recreated and run again.  For this reason, if you have DAGs that fall into this category you may want to refrain from deleting DAG runs and only clean other large tables such as task instance and log etc.
+Not all Dags are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete DAG runs, and if you run backfill over a range of dates that includes the deleted DAG runs, those runs will be recreated and run again.  For this reason, if you have Dags that fall into this category you may want to refrain from deleting DAG runs and only clean other large tables such as task instance and log etc.
 
 .. _cli-db-migrate:
 
@@ -289,8 +289,8 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
 
 .. note::
 
-    It's highly recommended that you reserialize your DAGs with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
-    This is to ensure that the serialized DAGs are compatible with the downgraded version of Airflow.
+    It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
+    This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
 
 .. _cli-export-connections:
 
@@ -381,7 +381,7 @@ JSON example output:
 
 Testing for DAG Import Errors
 -----------------------------
-The CLI can be used to check whether any discovered DAGs have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any DAGs cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format.
+The CLI can be used to check whether any discovered Dags have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any Dags cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format.
 For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or pre-commit to speed up the review process and testing.
 
 Example command that fails if there are any errors, using `jq <https://jqlang.github.io/jq/>`__ to parse the output:
@@ -400,7 +400,7 @@ Example in a Jenkins pipeline:
 
 .. code-block:: groovy
 
-    stage('All DAGs are loadable') {
+    stage('All Dags are loadable') {
         steps {
             sh 'airflow dags list-import-errors | tee import_errors.txt && jq -e \'select(type=="array" and length == 0)\' import_errors.txt'
         }

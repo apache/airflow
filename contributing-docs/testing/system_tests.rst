@@ -29,7 +29,7 @@ Purpose of System Tests
 Airflow system tests are pretty special because they serve three purposes:
 
 * they are runnable tests that communicate with external services
-* they are example_dags that users can just copy&paste and use as starting points for their own DAGs
+* they are example_dags that users can just copy&paste and use as starting points for their own Dags
 * the excerpts from these system tests are used to generate documentation
 
 Old System Tests

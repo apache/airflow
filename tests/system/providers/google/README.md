@@ -24,7 +24,7 @@
 All Google-related system tests are located inside this subdirectory of system tests which is
 `tests/system/providers/google/`. They are grouped in directories by the related service name, e.g. all BigQuery
 tests are stored inside `tests/system/providers/google/cloud/bigquery/` directory. In each directory you will find test files
-as self-contained DAGs (one DAG per file). Each test may require some additional resources which should be placed in
+as self-contained Dags (one DAG per file). Each test may require some additional resources which should be placed in
 `resources` directory found on the same level as tests. Each test file should start with prefix `example_*`. If there
 is anything more needed for the test to be executed, it should be documented in the docstrings.
 

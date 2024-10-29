@@ -366,7 +366,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `2226e64a22 <https://github.com/apache/airflow/commit/2226e64a2263a8166e47d816aa95d211f8fc1c17>`_  2022-06-06   ``Add 'PrestoToSlackOperator' (#23979)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`c3e24c9d05 <https://github.com/apache/airflow/commit/c3e24c9d05a2cdaccd934ac9502223e56bdd99b8>`_  2022-06-03   ``Migrate Presto example DAGs to new design #22459 (#24145)``
+`c3e24c9d05 <https://github.com/apache/airflow/commit/c3e24c9d05a2cdaccd934ac9502223e56bdd99b8>`_  2022-06-03   ``Migrate Presto example Dags to new design #22459 (#24145)``
 =================================================================================================  ===========  ==================================================================================
 
 2.2.1

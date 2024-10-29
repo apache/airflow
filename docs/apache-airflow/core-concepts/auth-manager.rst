@@ -107,7 +107,7 @@ These authorization methods are:
 * ``is_authorized_configuration``: Return whether the user is authorized to access Airflow configuration. Some details about the configuration can be provided (e.g. the config section).
 * ``is_authorized_connection``: Return whether the user is authorized to access Airflow connections. Some details about the connection can be provided (e.g. the connection ID).
 * ``is_authorized_dag``: Return whether the user is authorized to access a DAG. Some details about the DAG can be provided (e.g. the DAG ID).
-  Also, ``is_authorized_dag`` is called for any entity related to DAGs (e.g. task instances, dag runs, ...). This information is passed in ``access_entity``.
+  Also, ``is_authorized_dag`` is called for any entity related to Dags (e.g. task instances, dag runs, ...). This information is passed in ``access_entity``.
   Example: ``auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.Run, details=DagDetails(id="dag-1"))`` asks
   whether the user has permission to read the Dag runs of the dag "dag-1".
 * ``is_authorized_dataset``: Return whether the user is authorized to access Airflow datasets. Some details about the dataset can be provided (e.g. the dataset uri).

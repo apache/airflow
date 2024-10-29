@@ -208,7 +208,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`fcf47e133d <https://github.com/apache/airflow/commit/fcf47e133d7c0401c93c2d5aba80221b17f504b2>`_  2022-06-03   ``Migrate Microsoft example DAGs to new design #22452 - winrm (#24140)``
+`fcf47e133d <https://github.com/apache/airflow/commit/fcf47e133d7c0401c93c2d5aba80221b17f504b2>`_  2022-06-03   ``Migrate Microsoft example Dags to new design #22452 - winrm (#24140)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
 `49e336ae03 <https://github.com/apache/airflow/commit/49e336ae0302b386a2f47269a6d13988382d975f>`_  2022-04-13   ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
@@ -268,7 +268,7 @@ Commit                                                                          
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `fe682ec3d3 <https://github.com/apache/airflow/commit/fe682ec3d376f0983410d64beb4f3529fb7b0f99>`_  2021-11-24   ``Fix duplicate changelog entries (#19759)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
-`ceb2b53a10 <https://github.com/apache/airflow/commit/ceb2b53a109b8fdd617f725a72c6fdb9c119550b>`_  2021-10-20   ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
+`ceb2b53a10 <https://github.com/apache/airflow/commit/ceb2b53a109b8fdd617f725a72c6fdb9c119550b>`_  2021-10-20   ``Static start_date and default arg cleanup for Microsoft providers example Dags (#19062)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
 =================================================================================================  ===========  ===========================================================================================
 
@@ -282,7 +282,7 @@ Commit                                                                          
 =================================================================================================  ===========  ============================================================================
 `0a68588479 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`48ca9374bf <https://github.com/apache/airflow/commit/48ca9374bfe4a0784b5eb9ec74c1e3262a833677>`_  2021-07-26   ``Remove/refactor default_args pattern for Microsoft example DAGs (#16873)``
+`48ca9374bf <https://github.com/apache/airflow/commit/48ca9374bfe4a0784b5eb9ec74c1e3262a833677>`_  2021-07-26   ``Remove/refactor default_args pattern for Microsoft example Dags (#16873)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `866a601b76 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
 =================================================================================================  ===========  ============================================================================

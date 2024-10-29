@@ -23,7 +23,7 @@ DAG Serialization
 
 In order to make Airflow Webserver stateless, Airflow >=1.10.7 supports
 DAG Serialization and DB Persistence. From Airflow 2.0.0, the Scheduler
-also uses Serialized DAGs for consistency and makes scheduling decisions.
+also uses Serialized Dags for consistency and makes scheduling decisions.
 
 .. image:: ../img/dag_serialization.png
 
@@ -39,15 +39,15 @@ parses the DAG files, serializes them in JSON format and saves them in the Metad
 as :class:`~airflow.models.serialized_dag.SerializedDagModel` model.
 
 The Webserver now instead of having to parse the DAG files again, reads the
-serialized DAGs in JSON, de-serializes them and creates the DagBag and uses it
-to show in the UI. And the Scheduler does not need the actual DAGs for making scheduling decisions,
-instead of using the DAG files, we use the serialized DAGs that contain all the information needed to
-schedule the DAGs from Airflow 2.0.0 (this was done as part of :ref:`Scheduler HA <scheduler:ha>`).
+serialized Dags in JSON, de-serializes them and creates the DagBag and uses it
+to show in the UI. And the Scheduler does not need the actual Dags for making scheduling decisions,
+instead of using the DAG files, we use the serialized Dags that contain all the information needed to
+schedule the Dags from Airflow 2.0.0 (this was done as part of :ref:`Scheduler HA <scheduler:ha>`).
 
 One of the key features that is implemented as a part of DAG Serialization is that
 instead of loading an entire DagBag when the WebServer starts we only load each DAG on demand from the
 Serialized Dag table. It helps to reduce the Webserver startup time and memory. This reduction is notable
-when you have a large number of DAGs.
+when you have a large number of Dags.
 
 You can enable the source code to be stored in the database to make the Webserver completely independent of the DAG files.
 This is not necessary if your files are embedded in the Docker image or you can otherwise provide
@@ -79,14 +79,14 @@ Add the following settings in ``airflow.cfg``:
     compress_serialized_dags = False
 
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
-    the serialized DAGs in the DB should be updated. This helps in reducing database write rate.
+    the serialized Dags in the DB should be updated. This helps in reducing database write rate.
 *   ``min_serialized_dag_fetch_interval``: This option controls how often the Serialized DAG will be re-fetched
     from the DB when it is already loaded in the DagBag in the Webserver. Setting this higher will reduce
     load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
 *   ``max_num_rendered_ti_fields_per_task``: This option controls the maximum number of Rendered Task Instance
     Fields (Template Fields) per task to store in the Database.
 *   ``compress_serialized_dags``: This option controls whether to compress the Serialized DAG to the Database.
-    It is useful when there are very large DAGs in your cluster. When ``True``, this will disable the DAG dependencies view.
+    It is useful when there are very large Dags in your cluster. When ``True``, this will disable the DAG dependencies view.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db migrate``.
 

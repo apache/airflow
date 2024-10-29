@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-databricks/|version|/tests/system/providers/databricks>
+    Example Dags <https://github.com/apache/airflow/tree/providers-databricks/|version|/tests/system/providers/databricks>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-databricks/>
     Installing from sources <installing-providers-from-sources>
 

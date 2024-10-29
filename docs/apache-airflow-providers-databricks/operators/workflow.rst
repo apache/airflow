@@ -36,7 +36,7 @@ Workflow structure in source control     ✅                                    
 Retry from beginning                     ✅                                             ✅
 Retry single task                        ✅                                             ✅
 Task groups within Workflows                                                            ✅
-Trigger workflows from other DAGs                                                       ✅
+Trigger workflows from other Dags                                                       ✅
 Workflow-level parameters                                                               ✅
 =======================================  =============================================  =================================
 

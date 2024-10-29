@@ -212,8 +212,8 @@ Parameterized Timetables
 ------------------------
 
 Sometimes we need to pass some run-time arguments to the timetable. Continuing
-with our ``AfterWorkdayTimetable`` example, maybe we have DAGs running on
-different timezones, and we want to schedule some DAGs at 8am the next day,
+with our ``AfterWorkdayTimetable`` example, maybe we have Dags running on
+different timezones, and we want to schedule some Dags at 8am the next day,
 instead of on midnight. Instead of creating a separate timetable for each
 purpose, we'd want to do something like:
 
@@ -256,7 +256,7 @@ Timetable Display in UI
 -----------------------
 
 By default, a custom timetable is displayed by their class name in the UI (e.g.
-the *Schedule* column in the "DAGs" table). It is possible to customize this
+the *Schedule* column in the "Dags" table). It is possible to customize this
 by overriding the ``summary`` property. This is especially useful for
 parameterized timetables to include arguments provided in ``__init__``. For
 our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:

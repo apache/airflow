@@ -34,7 +34,7 @@ Usage with current time
 -----------------------
 
 The usages above might be useful in certain situations - for example when DAG is used to perform cleanups
-and maintenance and is not really supposed to be used for any DAGs that are supposed to be back-filled,
+and maintenance and is not really supposed to be used for any Dags that are supposed to be back-filled,
 because the "current time" make back-filling non-idempotent, its result depend on the time when the DAG
 actually was run. It's also slightly non-deterministic potentially even if it is run on schedule. It can
 take some time between when the DAGRun was scheduled and executed and it might mean that even if

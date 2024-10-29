@@ -59,7 +59,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <example-dags>
+    Example Dags <example-dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-google/>
     Installing from sources <installing-providers-from-sources>
 

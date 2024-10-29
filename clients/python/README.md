@@ -331,11 +331,11 @@ Class | Method | HTTP request | Description
 *DAGApi* | [**get_dag**](docs/DAGApi.md#get_dag) | **GET** /dags/{dag_id} | Get basic information about a Dag
 *DAGApi* | [**get_dag_details**](docs/DAGApi.md#get_dag_details) | **GET** /dags/{dag_id}/details | Get a simplified representation of Dag
 *DAGApi* | [**get_dag_source**](docs/DAGApi.md#get_dag_source) | **GET** /dagSources/{file_token} | Get a source code
-*DAGApi* | [**get_dags**](docs/DAGApi.md#get_dags) | **GET** /dags | List DAGs
+*DAGApi* | [**get_dags**](docs/DAGApi.md#get_dags) | **GET** /dags | List Dags
 *DAGApi* | [**get_task**](docs/DAGApi.md#get_task) | **GET** /dags/{dag_id}/tasks/{task_id} | Get simplified representation of a task
 *DAGApi* | [**get_tasks**](docs/DAGApi.md#get_tasks) | **GET** /dags/{dag_id}/tasks | Get tasks for Dag
 *DAGApi* | [**patch_dag**](docs/DAGApi.md#patch_dag) | **PATCH** /dags/{dag_id} | Update a Dag
-*DAGApi* | [**patch_dags**](docs/DAGApi.md#patch_dags) | **PATCH** /dags | Update DAGs
+*DAGApi* | [**patch_dags**](docs/DAGApi.md#patch_dags) | **PATCH** /dags | Update Dags
 *DAGApi* | [**post_clear_task_instances**](docs/DAGApi.md#post_clear_task_instances) | **POST** /dags/{dag_id}/clearTaskInstances | Clear a set of task instances
 *DAGApi* | [**post_set_task_instances_state**](docs/DAGApi.md#post_set_task_instances_state) | **POST** /dags/{dag_id}/updateTaskInstancesState | Set a state of task instances
 *DAGRunApi* | [**clear_dag_run**](docs/DAGRunApi.md#clear_dag_run) | **POST** /dags/{dag_id}/dagRuns/{dag_run_id}/clear | Clear a Dag run
@@ -574,7 +574,7 @@ configuration = airflow_client.client.Configuration(
 
 * Run scheduler (or dag file processor you have setup with standalone dag file processor) for few parsing
   loops (you can pass --num-runs parameter to it or keep it running in the background). The script relies
-  on example DAGs being serialized to the DB and this only
+  on example Dags being serialized to the DB and this only
   happens when scheduler runs with ``core/load_examples`` set to True.
 
 * Run webserver - reachable at the host/port for the test script you want to run. Make sure it had enough

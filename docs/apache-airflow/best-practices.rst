@@ -105,9 +105,9 @@ and the impact the top-level code parsing speed on both performance and scalabil
 
 Airflow scheduler executes the code outside the Operator's ``execute`` methods with the minimum interval of
 :ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` seconds. This is done in order
-to allow dynamic scheduling of the DAGs - where scheduling and dependencies might change over time and
+to allow dynamic scheduling of the Dags - where scheduling and dependencies might change over time and
 impact the next schedule of the Dag. Airflow scheduler tries to continuously make sure that what you have
-in DAGs is correctly reflected in scheduled tasks.
+in Dags is correctly reflected in scheduled tasks.
 
 Specifically you should not run any database access, heavy computations and networking operations.
 
@@ -300,10 +300,10 @@ This means that the ``get_array`` is not executed as top-level code, but ``get_t
 
 Dynamic Dag Generation
 ----------------------
-Sometimes writing DAGs manually isn't practical.
-Maybe you have a lot of DAGs that do similar things with just a parameter changing between them.
-Or maybe you need a set of DAGs to load tables, but don't want to manually update DAGs every time those tables change.
-In these and other cases, it can be more useful to dynamically generate DAGs.
+Sometimes writing Dags manually isn't practical.
+Maybe you have a lot of Dags that do similar things with just a parameter changing between them.
+Or maybe you need a set of Dags to load tables, but don't want to manually update Dags every time those tables change.
+In these and other cases, it can be more useful to dynamically generate Dags.
 
 Avoiding excessive processing at the top level code described in the previous chapter is especially important
 in case of dynamic Dag configuration, which can be configured essentially in one of those ways:
@@ -320,7 +320,7 @@ Some cases of dynamic Dag generation are described in the :doc:`howto/dynamic-da
 Airflow Variables
 -----------------
 
-Using Airflow Variables yields network calls and database access, so their usage in top-level Python code for DAGs
+Using Airflow Variables yields network calls and database access, so their usage in top-level Python code for Dags
 should be avoided as much as possible, as mentioned in the previous chapter, :ref:`best_practices/top_level_code`.
 If Airflow Variables must be used in top-level Dag code, then their impact on Dag parsing can be mitigated by
 :ref:`enabling the experimental cache<config:secrets__use_cache>`, configured with a sensible :ref:`ttl<config:secrets__cache_ttl_seconds>`.
@@ -424,16 +424,16 @@ Good example:
             super().__init__(*args, **kwargs)
 
 
-Triggering DAGs after changes
+Triggering Dags after changes
 -----------------------------
 
-Avoid triggering DAGs immediately after changing them or any other accompanying files that you change in the
+Avoid triggering Dags immediately after changing them or any other accompanying files that you change in the
 Dag folder.
 
 You should give the system sufficient time to process the changed files. This takes several steps.
 First the files have to be distributed to scheduler - usually via distributed filesystem or Git-Sync, then
 scheduler has to parse the Python files and store them in the database. Depending on your configuration,
-speed of your distributed filesystem, number of files, number of DAGs, number of changes in the files,
+speed of your distributed filesystem, number of files, number of Dags, number of changes in the files,
 sizes of the files, number of schedulers, speed of CPUS, this can take from seconds to minutes, in extreme
 cases many minutes. You should wait for your Dag to appear in the UI to be able to trigger it.
 
@@ -452,7 +452,7 @@ Example of watcher pattern with trigger rules
 
 The watcher pattern is how we call a Dag with a task that is "watching" the states of the other tasks.
 Its primary purpose is to fail a Dag Run when any other task fail.
-The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
+The need came from the Airflow system tests that are Dags with different tasks (similarly like a test containing steps).
 
 Normally, when any task fails, all other tasks are not executed and the whole Dag Run gets failed status too. But
 when we use trigger rules, we can disrupt the normal flow of running tasks and the whole Dag may represent different
@@ -522,12 +522,12 @@ If we want the ``watcher`` to monitor the state of all tasks, we need to make it
 On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole Dag Run will also get the ``failed`` status.
 
 
-Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific DAGs
+Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific Dags
 -------------------------------------------------------------------------------------
 
 .. versionadded:: 2.7
 
-Airflow DAGs can usually be deployed and updated with the specific branch of Git repository via ``git-sync``.
+Airflow Dags can usually be deployed and updated with the specific branch of Git repository via ``git-sync``.
 But, when you have to run multiple Airflow clusters for some operational reasons, it's very cumbersome to maintain multiple Git branches.
 Especially, you have some difficulties when you need to synchronize two separate branches(like ``prod`` and ``beta``) periodically with proper branching strategy.
 
@@ -535,7 +535,7 @@ Especially, you have some difficulties when you need to synchronize two separate
 - hard-reset is not recommended way for GitOps
 
 So, you can consider connecting multiple Airflow clusters with same Git branch (like ``main``), and maintaining those with different environment variables and different connection configurations with same ``connection_id``.
-you can also raise :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception on the cluster policy, to load specific DAGs to :class:`~airflow.models.dagbag.DagBag` on the specific Airflow deployment only, if needed.
+you can also raise :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception on the cluster policy, to load specific Dags to :class:`~airflow.models.dagbag.DagBag` on the specific Airflow deployment only, if needed.
 
 .. code-block:: python
 
@@ -554,9 +554,9 @@ The example above, shows the ``dag_policy`` code snippet to skip the Dag dependi
 Reducing Dag complexity
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-While Airflow is good in handling a lot of DAGs with a lot of task and dependencies between them, when you
-have many complex DAGs, their complexity might impact performance of scheduling. One of the ways to keep
-your Airflow instance performant and well utilized, you should strive to simplify and optimize your DAGs
+While Airflow is good in handling a lot of Dags with a lot of task and dependencies between them, when you
+have many complex Dags, their complexity might impact performance of scheduling. One of the ways to keep
+your Airflow instance performant and well utilized, you should strive to simplify and optimize your Dags
 whenever possible - you have to remember that Dag parsing process and creation is just executing
 Python code and it's up to you to make it as performant as possible. There are no magic recipes for making
 your Dag "less complex" - since this is a Python code, it's the Dag writer who controls the complexity of
@@ -565,7 +565,7 @@ their code.
 There are no "metrics" for Dag complexity, especially, there are no metrics that can tell you
 whether your Dag is "simple enough". However, as with any Python code, you can definitely tell that
 your Dag code is "simpler" or "faster" when it is optimized. If you
-want to optimize your DAGs there are the following actions you can take:
+want to optimize your Dags there are the following actions you can take:
 
 * Make your Dag load faster. This is a single improvement advice that might be implemented in various ways
   but this is the one that has biggest impact on scheduler's performance. Whenever you have a chance to make
@@ -576,30 +576,30 @@ want to optimize your DAGs there are the following actions you can take:
 * Make your Dag generate simpler structure. Every task dependency adds additional processing overhead for
   scheduling and execution. The Dag that has simple linear structure ``A -> B -> C`` will experience
   less delays in task scheduling than Dag that has a deeply nested tree structure with exponentially growing
-  number of depending tasks for example. If you can make your DAGs more linear - where at single point in
+  number of depending tasks for example. If you can make your Dags more linear - where at single point in
   execution there are as few potential candidates to run among the tasks, this will likely improve overall
   scheduling performance.
 
-* Make smaller number of DAGs per file. While Airflow 2 is optimized for the case of having multiple DAGs
+* Make smaller number of Dags per file. While Airflow 2 is optimized for the case of having multiple Dags
   in one file, there are some parts of the system that make it sometimes less performant, or introduce more
-  delays than having those DAGs split among many files. Just the fact that one file can only be parsed by one
-  FileProcessor, makes it less scalable for example. If you have many DAGs generated from one file,
+  delays than having those Dags split among many files. Just the fact that one file can only be parsed by one
+  FileProcessor, makes it less scalable for example. If you have many Dags generated from one file,
   consider splitting them if you observe it takes a long time to reflect changes in your Dag files in the
   UI of Airflow.
 
-* Write efficient Python code. A balance must be struck between fewer DAGs per file, as stated above, and
-  writing less code overall. Creating the Python files that describe DAGs should follow best programming
-  practices and not be treated like configurations. If your DAGs share similar code you should not copy
+* Write efficient Python code. A balance must be struck between fewer Dags per file, as stated above, and
+  writing less code overall. Creating the Python files that describe Dags should follow best programming
+  practices and not be treated like configurations. If your Dags share similar code you should not copy
   them over and over again to a large number of nearly identical source files, as this will cause a
   number of unnecessary repeated imports of the same resources. Rather, you should aim to minimize
-  repeated code across all of your DAGs so that the application can run efficiently and can be easily
-  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple DAGs with similar
+  repeated code across all of your Dags so that the application can run efficiently and can be easily
+  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple Dags with similar
   code.
 
 Testing a Dag
 ^^^^^^^^^^^^^
 
-Airflow users should treat DAGs as production level code, and DAGs should have various associated tests to
+Airflow users should treat Dags as production level code, and Dags should have various associated tests to
 ensure that they produce expected results. You can write a wide variety of tests for a Dag.
 Let's take a look at some of them.
 
@@ -848,16 +848,16 @@ Disable the scheduler
 
 You might consider disabling the Airflow cluster while you perform such maintenance.
 
-One way to do so would be to set the param ``[scheduler] > use_job_schedule`` to ``False`` and wait for any running DAGs to complete; after this no new Dag runs will be created unless externally triggered.
+One way to do so would be to set the param ``[scheduler] > use_job_schedule`` to ``False`` and wait for any running Dags to complete; after this no new Dag runs will be created unless externally triggered.
 
-A *better* way (though it's a bit more manual) is to use the ``dags pause`` command.  You'll need to keep track of the DAGs that are paused before you begin this operation so that you know which ones to unpause after maintenance is complete.  First run ``airflow dags list`` and store the list of unpaused DAGs.  Then use this same list to run both ``dags pause`` for each Dag prior to maintenance, and ``dags unpause`` after.  A benefit of this is you can try un-pausing just one or two DAGs (perhaps dedicated :ref:`test dags <integration-test-dags>`) after the upgrade to make sure things are working before turning everything back on.
+A *better* way (though it's a bit more manual) is to use the ``dags pause`` command.  You'll need to keep track of the Dags that are paused before you begin this operation so that you know which ones to unpause after maintenance is complete.  First run ``airflow dags list`` and store the list of unpaused Dags.  Then use this same list to run both ``dags pause`` for each Dag prior to maintenance, and ``dags unpause`` after.  A benefit of this is you can try un-pausing just one or two Dags (perhaps dedicated :ref:`test dags <integration-test-dags>`) after the upgrade to make sure things are working before turning everything back on.
 
 .. _integration-test-dags:
 
-Add "integration test" DAGs
+Add "integration test" Dags
 ---------------------------
 
-It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with test resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+It can be helpful to add a couple "integration test" Dags that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with test resources or "dev" accounts.  These test Dags can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
 
 For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
 
@@ -928,7 +928,7 @@ The benefits of the operator are:
 * No changes in deployment requirements - whether you use Local virtualenv, or Docker, or Kubernetes,
   the tasks will work without adding anything to your deployment.
 * No need to learn more about containers, Kubernetes as a Dag Author. Only knowledge of Python requirements
-  is required to author DAGs this way.
+  is required to author Dags this way.
 
 There are certain limitations and overhead introduced by this operator:
 
@@ -993,7 +993,7 @@ The benefits of the operator are:
 * Limited impact on your deployment - you do not need to switch to Docker containers or Kubernetes to
   make a good use of the operator.
 * No need to learn more about containers, Kubernetes as a Dag Author. Only knowledge of Python, requirements
-  is required to author DAGs this way.
+  is required to author Dags this way.
 
 The drawbacks:
 

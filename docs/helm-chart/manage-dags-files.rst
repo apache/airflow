@@ -16,12 +16,12 @@
     under the License.
 
 
-Manage DAGs files
+Manage Dags files
 =================
 
 When you create new or modify existing DAG files, it is necessary to deploy them into the environment. This section will describe some basic techniques you can use.
 
-Bake DAGs in Docker image
+Bake Dags in Docker image
 -------------------------
 
 With this approach, you include your dag files and related code in the airflow image.
@@ -101,12 +101,12 @@ If you are deploying an image from a private repository, you need to create a se
 Using Git-sync
 --------------
 
-Mounting DAGs using Git-Sync sidecar with Persistence enabled
+Mounting Dags using Git-Sync sidecar with Persistence enabled
 .............................................................
 
 This option will use a Persistent Volume Claim with an access mode of ``ReadWriteMany``.
-The scheduler pod will sync DAGs from a git repository onto the PVC every configured number of
-seconds. The other pods will read the synced DAGs. Not all volume plugins have support for
+The scheduler pod will sync Dags from a git repository onto the PVC every configured number of
+seconds. The other pods will read the synced Dags. Not all volume plugins have support for
 ``ReadWriteMany`` access mode.
 Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
 for details.
@@ -121,12 +121,12 @@ for details.
       # Please refer to values.yaml for details
 
 
-Mounting DAGs using Git-Sync sidecar without Persistence
+Mounting Dags using Git-Sync sidecar without Persistence
 ........................................................
 
 This option will use an always running Git-Sync sidecar on every scheduler, webserver (if ``airflowVersion < 2.0.0``)
 and worker pods.
-The Git-Sync sidecar containers will sync DAGs from a git repository every configured number of
+The Git-Sync sidecar containers will sync Dags from a git repository every configured number of
 seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an init container on your worker pods.
 
 .. code-block:: bash
@@ -144,7 +144,7 @@ hence Webserver does not need access to DAG files, so ``git-sync`` sidecar is no
 Notes for combining git-sync and persistence
 ............................................
 
-While using both git-sync and persistence for DAGs is possible, it is generally not recommended unless the
+While using both git-sync and persistence for Dags is possible, it is generally not recommended unless the
 deployment manager carefully considered the trade-offs it brings. There are cases when git-sync without
 persistence has other trade-offs (for example delays in synchronization of DAGS vs. rate-limiting of Git
 servers) that can often be mitigated (for example by sending signals to git-sync containers via web-hooks
@@ -154,8 +154,8 @@ git-sync and Persistence together, but as a Deployment Manager you should be awa
 git-sync solution is primarily designed to be used for local, POSIX-compliant volumes to checkout Git
 repositories into. Part of the process of synchronization of commits from git-sync involves checking out
 new version of files in a freshly created folder and swapping symbolic links to the new folder, after the
-checkout is complete. This is done to ensure that the whole DAGs folder is consistent at all times. The way
-git-sync works with symbolic-link swaps, makes sure that Parsing the DAGs always work on a consistent
+checkout is complete. This is done to ensure that the whole Dags folder is consistent at all times. The way
+git-sync works with symbolic-link swaps, makes sure that Parsing the Dags always work on a consistent
 (single-commit-based) set of files in the whole DAG folder.
 
 This approach, however might have undesirable side effects when the folder that git-sync works on is not
@@ -165,7 +165,7 @@ consequences. There are a lot of persistence solutions available for various K8S
 them has different characteristics, so you need to carefully test and monitor your filesystem to make sure
 those undesired side effects do not affect you. Those effects might change over time or depend on parameters
 like how often the files are being scanned by the Dag File Processor, the number and complexity of your
-DAGs, how remote and how distributed your persistent volumes are, how many IOPS you allocate for some of
+Dags, how remote and how distributed your persistent volumes are, how many IOPS you allocate for some of
 the filesystem (usually highly paid feature of such filesystems is how many IOPS you can get) and many other
 factors.
 
@@ -176,7 +176,7 @@ to pretty sudden and unexpected demand increase. Most of the persistence solutio
 smaller/shorter burst of traffic, but when they outgrow certain thresholds, you need to upgrade the
 networking to a much more capable and expensive options. This is difficult to control and impossible to
 mitigate, so you might be suddenly faced with situation to pay a lot more for IOPS/persistence option to
-keep your DAGs sufficiently synchronized to avoid inconsistencies and delays in synchronization.
+keep your Dags sufficiently synchronized to avoid inconsistencies and delays in synchronization.
 
 The side-effects that you might observe:
 
@@ -206,17 +206,17 @@ together as submodules via such "umbrella" repo approach. When you choose this s
 you need to work out the way how to ling the submodules, when to updated the umbrella repo when "submodule"
 repository change and work out versioning approach and automate it. This might be as simple as always
 using latest versions of all the submodule repositories, or as complex as managing versioning of shared
-libraries, DAGs and code across multiple teams and doing that following your release process.
+libraries, Dags and code across multiple teams and doing that following your release process.
 
 An example of such complex approach can found in this
-`Manage DAGs at scale <https://s.apache.org/airflow-manage-dags-at-scale>`_ presentation from the Airflow
+`Manage Dags at scale <https://s.apache.org/airflow-manage-dags-at-scale>`_ presentation from the Airflow
 Summit.
 
 
-Mounting DAGs from an externally populated PVC
+Mounting Dags from an externally populated PVC
 ----------------------------------------------
 
-In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required DAGs (this won't be handled by the chart). You pass in the name of the volume claim to the chart:
+In this approach, Airflow will read the Dags from a PVC which has ``ReadOnlyMany`` or ``ReadWriteMany`` access mode. You will have to ensure that the PVC is populated/updated with the required Dags (this won't be handled by the chart). You pass in the name of the volume claim to the chart:
 
 .. code-block:: bash
 
@@ -225,7 +225,7 @@ In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany
       --set dags.persistence.existingClaim=my-volume-claim \
       --set dags.gitSync.enabled=false
 
-Mounting DAGs from a private GitHub repo using Git-Sync sidecar
+Mounting Dags from a private GitHub repo using Git-Sync sidecar
 ---------------------------------------------------------------
 Create a private repo on GitHub if you have not created one already.
 
@@ -270,7 +270,7 @@ Finally, from the context of your Airflow Helm chart directory, you can install 
 
     helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
 
-If you have done everything correctly, Git-Sync will pick up the changes you make to the DAGs
+If you have done everything correctly, Git-Sync will pick up the changes you make to the Dags
 in your private GitHub repo.
 
 You should take this a step further and set ``dags.gitSync.knownHosts`` so you are not susceptible to man-in-the-middle

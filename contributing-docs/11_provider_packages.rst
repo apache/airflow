@@ -139,7 +139,7 @@ The rules are as follows:
   the providers are connected under common umbrella and they are also tightly coupled on the code level.
 
 * Typical structure of provider package:
-    * example_dags -> example DAGs are stored here (used for documentation and System Tests)
+    * example_dags -> example Dags are stored here (used for documentation and System Tests)
     * hooks -> hooks are stored here
     * operators -> operators are stored here
     * sensors -> sensors are stored here
@@ -202,7 +202,7 @@ Well documented provider contains those:
 You can see for example ``google`` provider which has very comprehensive documentation:
 
 * `Documentation <../docs/apache-airflow-providers-google>`_
-* `System tests/Example DAGs <../tests/system/providers>`_
+* `System tests/Example Dags <../tests/system/providers>`_
 
 Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
 they are in ``tests/system`` is because we are using the example dags for various purposes:

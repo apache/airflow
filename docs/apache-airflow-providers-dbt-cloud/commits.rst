@@ -410,7 +410,7 @@ Commit                                                                          
 `7498fba826 <https://github.com/apache/airflow/commit/7498fba826ec477b02a40a2e23e1c685f148e20f>`_  2022-06-06   ``Enable dbt Cloud provider to interact with single tenant instances (#24264)``
 `5e6997ed45 <https://github.com/apache/airflow/commit/5e6997ed45be0972bf5ea7dc06e4e1cef73b735a>`_  2022-06-06   ``Update dbt.py (#24218)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`8f2213fcd0 <https://github.com/apache/airflow/commit/8f2213fcd0b8f775792bf2fd4931607992649046>`_  2022-06-05   ``AIP-47 - Migrate dbt DAGs to new design #22472 (#24202)``
+`8f2213fcd0 <https://github.com/apache/airflow/commit/8f2213fcd0b8f775792bf2fd4931607992649046>`_  2022-06-05   ``AIP-47 - Migrate dbt Dags to new design #22472 (#24202)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
 `f935c9f163 <https://github.com/apache/airflow/commit/f935c9f163bbc2de9034ddf4c0a0cc960a031661>`_  2022-04-23   ``Fix typo in dbt Cloud provider description (#23179)``

@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-postgres/|version|/tests/system/providers/postgres>
+    Example Dags <https://github.com/apache/airflow/tree/providers-postgres/|version|/tests/system/providers/postgres>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-postgres/>
     Installing from sources <installing-providers-from-sources>
 

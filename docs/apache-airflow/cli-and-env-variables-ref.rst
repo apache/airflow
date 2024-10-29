@@ -103,7 +103,7 @@ Environment Variables
 .. envvar:: AIRFLOW_HOME
 
   The root directory for the Airflow content.
-  This is the default parent directory for Airflow assets such as DAGs and logs.
+  This is the default parent directory for Airflow assets such as Dags and logs.
 
 .. envvar:: AIRFLOW_VAR_{KEY}
 

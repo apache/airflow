@@ -39,9 +39,9 @@ There are very many reasons why your task might not be getting scheduled. Here a
 - Does the file containing your Dag contain the string "airflow" and "Dag" somewhere
   in the contents? When searching the Dag directory, Airflow ignores files not containing
   "airflow" and "Dag" in order to prevent the DagBag parsing from importing all python
-  files collocated with user's DAGs.
+  files collocated with user's Dags.
 
-- Is your ``start_date`` set properly? For time-based DAGs, the task won't be triggered until the
+- Is your ``start_date`` set properly? For time-based Dags, the task won't be triggered until the
   the first schedule interval following the start date has passed.
 
 - Is your ``schedule`` argument set properly? The default
@@ -93,7 +93,7 @@ There are some Airflow configuration to allow for a larger scheduling capacity a
 - :ref:`config:core__max_active_tasks_per_dag`
 - :ref:`config:core__max_active_runs_per_dag`
 
-DAGs have configurations that improves efficiency:
+Dags have configurations that improves efficiency:
 
 - ``max_active_tasks``: Overrides :ref:`config:core__max_active_tasks_per_dag`.
 - ``max_active_runs``: Overrides :ref:`config:core__max_active_runs_per_dag`.
@@ -267,7 +267,7 @@ Using time zones
 Creating a time zone aware datetime (e.g. Dag's ``start_date``) is quite simple. Just make sure to supply
 a time zone aware dates using ``pendulum``. Don't try to use standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
-have limitations and we deliberately disallow using them in DAGs.
+have limitations and we deliberately disallow using them in Dags.
 
 
 .. _faq:what-does-execution-date-mean:
@@ -312,7 +312,7 @@ Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
     :ref:`concepts-dag-run`.
 
 
-How to create DAGs dynamically?
+How to create Dags dynamically?
 -------------------------------
 
 Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
@@ -341,8 +341,8 @@ simple dictionary.
         globals()[other_dag_id] = create_dag(other_dag_id)
 
 Even though Airflow supports multiple Dag definition per python file, dynamically generated or otherwise, it is not
-recommended as Airflow would like better isolation between DAGs from a fault and deployment perspective and multiple
-DAGs in the same file goes against that.
+recommended as Airflow would like better isolation between Dags from a fault and deployment perspective and multiple
+Dags in the same file goes against that.
 
 
 Are top level Python code allowed?
@@ -545,6 +545,6 @@ The telemetry data collected is limited to the following:
 - Operating system & machine architecture
 - Executor
 - Metadata DB type & its version
-- Number of DAGs
+- Number of Dags
 - Number of Airflow plugins
 - Number of timetables, Flask blueprints, Flask AppBuilder views, and Flask Appbuilder menu items from Airflow plugins

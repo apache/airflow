@@ -57,7 +57,7 @@ This example is a basic demonstration of OpenLineage setup.
 
       AIRFLOW__OPENLINEAGE__TRANSPORT='{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
 
-3. **That's it !**  OpenLineage events should be sent to the configured backend when DAGs are run.
+3. **That's it !**  OpenLineage events should be sent to the configured backend when Dags are run.
 
 Usage
 =====
@@ -355,7 +355,7 @@ reproducing your environment setup by setting ``debug_mode`` option to ``true`` 
 Enabling OpenLineage on DAG/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-One can selectively enable OpenLineage for specific DAGs and tasks by using the ``selective_enable`` policy.
+One can selectively enable OpenLineage for specific Dags and tasks by using the ``selective_enable`` policy.
 To enable this policy, set the ``selective_enable`` option to True in the [openlineage] section of your Airflow configuration file:
 
 .. code-block:: ini
@@ -371,10 +371,10 @@ To enable this policy, set the ``selective_enable`` option to True in the [openl
 
 
 While ``selective_enable`` enables selective control, the ``disabled`` :ref:`option <options:disable>` still has precedence.
-If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all DAGs and tasks regardless of the ``selective_enable`` setting.
+If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all Dags and tasks regardless of the ``selective_enable`` setting.
 
 Once the ``selective_enable`` policy is enabled, you can choose to enable OpenLineage
-for individual DAGs and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
+for individual Dags and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
 
 1. Enabling Lineage on a DAG:
 

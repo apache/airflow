@@ -168,7 +168,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
           celery         Celery components
           config         View configuration
           connections    Manage connections
-          dags           Manage DAGs
+          dags           Manage Dags
           db             Database operations
           jobs           Manage jobs
           kubernetes     Tools to help run the KubernetesExecutor
@@ -187,7 +187,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
           rotate-fernet-key
                          Rotate encrypted connection credentials and variables
           scheduler      Start a scheduler instance
-          sync-perm      Update permissions for existing roles and optionally DAGs
+          sync-perm      Update permissions for existing roles and optionally Dags
           version        Show the version
           webserver      Start a Airflow webserver instance
 

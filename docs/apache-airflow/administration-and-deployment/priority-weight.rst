@@ -58,7 +58,7 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
     know exactly what priority weight each task should have.
     Additionally, when set to ``absolute``, there is bonus effect of
     significantly speeding up the task creation process as for very
-    large DAGs.
+    large Dags.
 
 
 The ``priority_weight`` parameter can be used in conjunction with :ref:`concepts:pool`.

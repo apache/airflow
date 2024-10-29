@@ -72,7 +72,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
 
    DAG-level parameters are the default values passed on to tasks. These should not be confused with values manually
    provided through the UI form or CLI, which exist solely within the context of a :class:`~airflow.models.dagrun.DagRun`
-   and a :class:`~airflow.models.taskinstance.TaskInstance`. This distinction is crucial for TaskFlow DAGs, which may
+   and a :class:`~airflow.models.taskinstance.TaskInstance`. This distinction is crucial for TaskFlow Dags, which may
    include logic within the ``with DAG(...) as dag:`` block. In such cases, users might try to access the manually-provided
    parameter values using the ``dag`` object, but this will only ever contain the default values. To ensure that the
    manually-provided values are accessed, use a template variable such as ``params`` or ``ti`` within your task.
@@ -357,7 +357,7 @@ The following features are supported in the Trigger UI Form:
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
     ``schedule=None`` the parameter value validation is made at time of trigger.
 
-For examples, please take a look at the two example DAGs provided: :ref:`Params trigger example DAG <params-trigger-ui>` and :ref:`Params UI example DAG <params-ui-tutorial>`.
+For examples, please take a look at the two example Dags provided: :ref:`Params trigger example DAG <params-trigger-ui>` and :ref:`Params UI example DAG <params-ui-tutorial>`.
 
 .. _params-trigger-ui:
 .. exampleinclude:: /../../airflow/example_dags/example_params_trigger_ui.py

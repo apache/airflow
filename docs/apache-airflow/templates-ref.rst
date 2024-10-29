@@ -66,7 +66,7 @@ Variable                                    Type                  Description
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to dataset events that will be emitted by the current task.
                                                                   | See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
-``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
+``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
 ``{{ task_instance }}``                     TaskInstance          The currently running :class:`~airflow.models.taskinstance.TaskInstance`.

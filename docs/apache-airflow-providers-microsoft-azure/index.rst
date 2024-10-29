@@ -61,7 +61,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-azure/|version|/tests/system/providers/microsoft/azure>
+    Example Dags <https://github.com/apache/airflow/tree/providers-microsoft-azure/|version|/tests/system/providers/microsoft/azure>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-azure/>
     Installing from sources <installing-providers-from-sources>
 

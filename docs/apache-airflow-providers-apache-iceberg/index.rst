@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-iceberg/|version|/tests/system/providers/apache/iceberg>
+    Example Dags <https://github.com/apache/airflow/tree/providers-apache-iceberg/|version|/tests/system/providers/apache/iceberg>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-iceberg/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/apache/iceberg/index>

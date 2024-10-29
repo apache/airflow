@@ -719,7 +719,7 @@ Commit                                                                          
 `c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `389e858d93 <https://github.com/apache/airflow/commit/389e858d934a7813c7f15ab4e46df33c5720e415>`_  2022-06-03   ``Pass connection extra parameters to wasb BlobServiceClient (#24154)``
-`6e83885c95 <https://github.com/apache/airflow/commit/6e83885c954f781c5c64fcb6e7a0f5a9b113e717>`_  2022-06-03   ``Migrate Microsoft example DAGs to new design #22452 - azure (#24141)``
+`6e83885c95 <https://github.com/apache/airflow/commit/6e83885c954f781c5c64fcb6e7a0f5a9b113e717>`_  2022-06-03   ``Migrate Microsoft example Dags to new design #22452 - azure (#24141)``
 `3393647aa6 <https://github.com/apache/airflow/commit/3393647aa63cbfdd2e6b90b7a5c9971732a54fc2>`_  2022-05-26   ``Add typing to Azure Cosmos Client Hook (#23941)``
 `ec6761a5c0 <https://github.com/apache/airflow/commit/ec6761a5c0d031221d53ce213c0e42813606c55d>`_  2022-05-23   ``Clean up f-strings in logging calls (#23597)``
 =================================================================================================  ===========  ==================================================================================
@@ -860,7 +860,7 @@ Commit                                                                          
 =================================================================================================  ===========  ===========================================================================================
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `61d0093054 <https://github.com/apache/airflow/commit/61d009305478e76e53aaf43ce07a181ebbd259d3>`_  2021-10-27   ``Added sas_token var to BlobServiceClient return. Updated tests (#19234)``
-`ceb2b53a10 <https://github.com/apache/airflow/commit/ceb2b53a109b8fdd617f725a72c6fdb9c119550b>`_  2021-10-20   ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
+`ceb2b53a10 <https://github.com/apache/airflow/commit/ceb2b53a109b8fdd617f725a72c6fdb9c119550b>`_  2021-10-20   ``Static start_date and default arg cleanup for Microsoft providers example Dags (#19062)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
 `1571f80546 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
 `1b75f9181f <https://github.com/apache/airflow/commit/1b75f9181f80062a2c25d2fdd627d4f4d2735811>`_  2021-10-05   ``Fix changelog for Azure Provider (#18736)``
@@ -879,7 +879,7 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider Dags to use TaskFlow API where applicable (#18278)``
 `46484466c4 <https://github.com/apache/airflow/commit/46484466c43bd0a9c8b25f11f24d3d36a0b2d956>`_  2021-09-25   ``Removing redundant relabeling of password conn field (#18386)``
 `97d6892318 <https://github.com/apache/airflow/commit/97d6892318ce2866f09f2c21247ed3b1b9975695>`_  2021-09-25   ``Rename AzureDataLakeStorage to ADLS (#18493)``
 `1d2924c94e <https://github.com/apache/airflow/commit/1d2924c94e38ade7cd21af429c9f451c14eba183>`_  2021-09-24   ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
@@ -913,7 +913,7 @@ Latest change: 2021-07-26
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`48ca9374bf <https://github.com/apache/airflow/commit/48ca9374bfe4a0784b5eb9ec74c1e3262a833677>`_  2021-07-26   ``Remove/refactor default_args pattern for Microsoft example DAGs (#16873)``
+`48ca9374bf <https://github.com/apache/airflow/commit/48ca9374bfe4a0784b5eb9ec74c1e3262a833677>`_  2021-07-26   ``Remove/refactor default_args pattern for Microsoft example Dags (#16873)``
 `d02ded65ea <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `866a601b76 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``

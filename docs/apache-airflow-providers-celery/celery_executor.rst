@@ -146,7 +146,7 @@ Airflow consist of several components:
 * **Workers** - Execute the assigned tasks
 * **Scheduler** - Responsible for adding the necessary tasks to the queue
 * **Web server** - HTTP Server provides access to DAG/task status information
-* **Database** - Contains information about the status of tasks, DAGs, Variables, connections, etc.
+* **Database** - Contains information about the status of tasks, Dags, Variables, connections, etc.
 * **Celery** - Queue mechanism
 
 Please note that the queue at Celery consists of two components:

@@ -21,7 +21,7 @@ Time Zones
 ==========
 
 Support for time zones is enabled by default. Airflow stores datetime information in UTC internally and in the database.
-It allows you to run your DAGs with time zone dependent schedules. At the moment, Airflow does not convert them to the
+It allows you to run your Dags with time zone dependent schedules. At the moment, Airflow does not convert them to the
 end user's time zone in the user interface. It will always be displayed in UTC there. Also, templates used in Operators
 are not converted. Time zone information is exposed and it is up to the writer of DAG to decide what do with it.
 
@@ -107,7 +107,7 @@ Unfortunately, during DST transitions, some datetimes don't exist or are ambiguo
 In such situations, pendulum raises an exception. That's why you should always create aware
 datetime objects when time zone support is enabled.
 
-In practice, this is rarely an issue. Airflow gives you time zone aware datetime objects in the models and DAGs, and most often,
+In practice, this is rarely an issue. Airflow gives you time zone aware datetime objects in the models and Dags, and most often,
 new datetime objects are created from existing ones through timedelta arithmetic. The only datetime that's often
 created in application code is the current time, and ``timezone.utcnow()`` automatically does the right thing.
 
@@ -117,7 +117,7 @@ Default time zone
 
 The default time zone is the time zone defined by the ``default_timezone`` setting under ``[core]``. If
 you just installed Airflow it will be set to ``utc``, which is recommended. You can also set it to
-``system`` or an IANA time zone (e.g. ``Europe/Amsterdam``). DAGs are also evaluated on Airflow workers,
+``system`` or an IANA time zone (e.g. ``Europe/Amsterdam``). Dags are also evaluated on Airflow workers,
 it is therefore important to make sure this setting is equal on all Airflow nodes.
 
 
@@ -131,13 +131,13 @@ it is therefore important to make sure this setting is equal on all Airflow node
 
 .. _timezone_aware_dags:
 
-Time zone aware DAGs
+Time zone aware Dags
 --------------------
 
 Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware ``start_date``
 using ``pendulum``. Don't try to use standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
-have limitations and we deliberately disallow using them in DAGs.
+have limitations and we deliberately disallow using them in Dags.
 
 .. code-block:: python
 
@@ -158,7 +158,7 @@ disregarded.
     When authoring a Timezone aware DAG you must make sure that the underlying timezone library (for example: pendulum)
     is updated with recent changes to regulations (daylight saving changes etc...). When a change in time
     is expected you should verify with the underlying timezone library that the switch will happen as expected.
-    There might be a need to update the library version. As a general recommendation if you can author DAGs in UTC
+    There might be a need to update the library version. As a general recommendation if you can author Dags in UTC
     that is preferred.
 
 Templates
@@ -177,7 +177,7 @@ It is left up to the DAG to handle this.
 Cron schedules
 ''''''''''''''
 
-Time zone aware DAGs that use cron schedules respect daylight savings
+Time zone aware Dags that use cron schedules respect daylight savings
 time. For example, a DAG with a start date in the ``US/Eastern`` time zone
 with a schedule of ``0 0 * * *`` will run daily at 04:00 UTC during
 daylight savings time and at 05:00 otherwise.
@@ -185,7 +185,7 @@ daylight savings time and at 05:00 otherwise.
 Time deltas
 '''''''''''
 
-Time zone aware DAGs that use ``timedelta`` or ``relativedelta`` schedules
+Time zone aware Dags that use ``timedelta`` or ``relativedelta`` schedules
 respect daylight savings time for the start date but do not adjust for
 daylight savings time when scheduling subsequent runs. For example, a
 DAG with a start date of ``pendulum.datetime(2020, 1, 1, tz="UTC")``

@@ -58,8 +58,8 @@ Airflow 1.10.x reached end of life on 17 June 2021. No new Airflow 1.x versions 
 Features in 1.10.15 include:
 
 1. Most breaking DAG and architecture changes of Airflow 2.0 have been backported to Airflow 1.10.15. This backward-compatibility does not mean
-that 1.10.15 will process these DAGs the same way as Airflow 2.0. Instead, this means that most Airflow 2.0
-compatible DAGs will work in Airflow 1.10.15. This backport will give users time to modify their DAGs over time
+that 1.10.15 will process these Dags the same way as Airflow 2.0. Instead, this means that most Airflow 2.0
+compatible Dags will work in Airflow 1.10.15. This backport will give users time to modify their Dags over time
 without any service disruption.
 
 2. We have also backported the updated Airflow 2.0 CLI commands to Airflow 1.10.15, so that users can modify their scripts
@@ -82,7 +82,7 @@ section of your ``airflow.cfg``
 Step 3: Run the Upgrade check scripts
 '''''''''''''''''''''''''''''''''''''
 
-After upgrading to Airflow 1.10.15, we recommend that you install the "upgrade check" scripts. These scripts will read through your ``airflow.cfg`` and all of your DAGs and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
+After upgrading to Airflow 1.10.15, we recommend that you install the "upgrade check" scripts. These scripts will read through your ``airflow.cfg`` and all of your Dags and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
 
 .. code-block:: bash
 
@@ -100,7 +100,7 @@ More details about this process are here :ref:`Upgrade Check Scripts<upgrade-che
 Step 4: Switch to Backport Providers
 ''''''''''''''''''''''''''''''''''''
 
-Now that you are set up in Airflow 1.10.15 with Python a 3.6+ environment, you are ready to start porting your DAGs to Airflow 2.0 compliance!
+Now that you are set up in Airflow 1.10.15 with Python a 3.6+ environment, you are ready to start porting your Dags to Airflow 2.0 compliance!
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
 using the backport provider packages. In your own time, you can transition to using these backport-providers
@@ -139,7 +139,7 @@ After you upgrade to Apache Airflow 2.0, those provider packages are installed a
 Several of the providers (http, ftp, sqlite, imap) will also be installed automatically when you install Airflow even without extras.
 You can read more about providers at :doc:`apache-airflow-providers:index`.
 
-Step 5: Upgrade Airflow DAGs
+Step 5: Upgrade Airflow Dags
 ''''''''''''''''''''''''''''
 
 **Change to undefined variable handling in templates**
@@ -277,12 +277,12 @@ The DAG-level permission actions, ``can_dag_read`` and ``can_dag_edit`` are depr
 being replaced with ``can_read`` and ``can_edit``. When a role is given DAG-level access, the resource name (or "view menu",
 in Flask App-Builder parlance) will now be prefixed with ``DAG:``. So the action ``can_dag_read`` on ``example_dag_id``, is
 now represented as ``can_read`` on ``DAG:example_dag_id``.
-There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.x) which allows the role to access
-all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access the ``DAGs`` view.
+There is a special view called ``Dags`` (it was called ``all_dags`` in versions 1.10.x) which allows the role to access
+all the Dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access the ``Dags`` view.
 
 *As part of running ``airflow db migrate``, existing permissions will be migrated for you.*
 
-When DAGs are initialized with the ``access_control`` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
+When Dags are initialized with the ``access_control`` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
 
 **Drop legacy UI in favor of FAB RBAC UI**
 
@@ -520,7 +520,7 @@ Step 7: Upgrade to Airflow 2
 ''''''''''''''''''''''''''''
 
 After running the upgrade checks as described above, installing the backported providers, modifying
-the DAGs to be compatible, and updating the configuration settings, you should be ready to upgrade to Airflow 2.0.
+the Dags to be compatible, and updating the configuration settings, you should be ready to upgrade to Airflow 2.0.
 
 A final run of the upgrade checks is always a good idea to make sure you have missed anything. At
 this stage the problems detected should be either be zero or minimal which you plan to fix after
@@ -529,10 +529,10 @@ upgrading the Airflow version.
 At this point, just follow the standard Airflow version upgrade process:
 
 * Make sure your Airflow meta database is backed up
-* Pause all the DAGs and make sure there is nothing actively running
+* Pause all the Dags and make sure there is nothing actively running
 
-  * The reason to pause DAGs is to make sure that nothing is actively being written to the database during the database upgrade which will follow in a later step.
-  * To be extra careful, it is best to have a database backup after the DAGs have been paused.
+  * The reason to pause Dags is to make sure that nothing is actively being written to the database during the database upgrade which will follow in a later step.
+  * To be extra careful, it is best to have a database backup after the Dags have been paused.
 
 * Install / upgrade the Airflow version to the 2.0 version of choice
 * Make sure to install the right providers
@@ -548,11 +548,11 @@ At this point, just follow the standard Airflow version upgrade process:
 
   .. note::
 
-      The database upgrade may take a while depending on the number of DAGs in the database and the volume of history
+      The database upgrade may take a while depending on the number of Dags in the database and the volume of history
       stored in the database for task history, xcom variables, etc.
       In our testing, we saw that performing the Airflow database upgrade from Airflow 1.10.15 to Airflow 2.0
       took between two to three minutes on an Airflow database on PostgreSQL with around 35,000 task instances and
-      500 DAGs.
+      500 Dags.
       For a faster database upgrade and for better overall performance, it is recommended that you periodically archive
       the old historical elements which are no longer of value.
 

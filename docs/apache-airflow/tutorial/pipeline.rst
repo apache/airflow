@@ -312,7 +312,7 @@ Putting all of the pieces together, we have our completed DAG.
 
   dag = ProcessEmployees()
 
-Save this code to a python file in the ``/dags`` folder (e.g. ``dags/process_employees.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``process_employees`` DAG will be included in the list of available DAGs on the web UI.
+Save this code to a python file in the ``/dags`` folder (e.g. ``dags/process_employees.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``process_employees`` DAG will be included in the list of available Dags on the web UI.
 
 .. image:: ../img/tutorial-pipeline-1.png
 

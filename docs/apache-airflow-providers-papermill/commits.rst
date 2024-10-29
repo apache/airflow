@@ -243,7 +243,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`b4d50d3be1 <https://github.com/apache/airflow/commit/b4d50d3be1c9917182f231135b8312eb284f0f7f>`_  2022-06-05   ``Migrate Papermill example DAGs to new design #22456 (#24146)``
+`b4d50d3be1 <https://github.com/apache/airflow/commit/b4d50d3be1c9917182f231135b8312eb284f0f7f>`_  2022-06-05   ``Migrate Papermill example Dags to new design #22456 (#24146)``
 `6962d8a355 <https://github.com/apache/airflow/commit/6962d8a3556999af2eec459c944417ddd6d2cfb3>`_  2022-05-27   ``Add support to specify language name in PapermillOperator (#23916)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -307,8 +307,8 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
-`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
+`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider Dags to use TaskFlow API where applicable (#18278)``
 `f382a79ada <https://github.com/apache/airflow/commit/f382a79adabb2372a1ca5d9e43ed34afd9dec33d>`_  2021-09-20   ``Add support for templated fields in PapermillOperator (#18357)``
 `29af57b6d8 <https://github.com/apache/airflow/commit/29af57b6d8827949f553b997bbb860cd560fa0b2>`_  2021-09-11   ``Fix usage of ''range(len())'' to ''enumerate'' (#18174)``
 =================================================================================================  ===========  ======================================================================================
@@ -391,7 +391,7 @@ Commit                                                                          
 `5a439e84eb <https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0>`_  2020-10-26   ``Prepare providers release 0.0.2a1 (#11855)``
 `872b1566a1 <https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574>`_  2020-10-25   ``Generated backport providers readmes/setup for 2020.10.29 (#11826)``
 `349b0811c3 <https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a>`_  2020-10-20   ``Add D200 pydocstyle check (#11688)``
-`cb7c67dea9 <https://github.com/apache/airflow/commit/cb7c67dea9cd9b9c5de10e355b63039446003149>`_  2020-10-20   ``Fix example DAGs in pip packages (#11687)``
+`cb7c67dea9 <https://github.com/apache/airflow/commit/cb7c67dea9cd9b9c5de10e355b63039446003149>`_  2020-10-20   ``Fix example Dags in pip packages (#11687)``
 `16e7129719 <https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746>`_  2020-10-13   ``Added support for provider packages for Airflow 2.0 (#11487)``
 `fdd9b6f65b <https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3>`_  2020-08-25   ``Enable Black on Providers Packages (#10543)``
 `cdec301254 <https://github.com/apache/airflow/commit/cdec3012542b45d23a05f62d69110944ba542e2a>`_  2020-08-07   ``Add correct signature to all operators and sensors (#10205)``

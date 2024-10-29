@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-Example DAGs
+Example Dags
 ============
-You can learn how to use Google integrations by analyzing the source code of the example DAGs:
+You can learn how to use Google integrations by analyzing the source code of the example Dags:
 
 * `Google Ads <https://github.com/apache/airflow/tree/providers-google/|version|/tests/system/providers/google/ads>`__
 * `Google Cloud (legacy) <https://github.com/apache/airflow/tree/providers-google/|version|/airflow/providers/google/cloud/example_dags>`__

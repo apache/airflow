@@ -50,7 +50,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/tests/system/providers/tableau>
+    Example Dags <https://github.com/apache/airflow/tree/providers-tableau/|version|/tests/system/providers/tableau>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tableau/>
     Installing from sources <installing-providers-from-sources>
 

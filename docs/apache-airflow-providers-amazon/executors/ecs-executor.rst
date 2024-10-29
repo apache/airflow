@@ -138,7 +138,7 @@ ECS Executor, this role needs to have at least the
 ``CloudWatchLogsFullAccess`` (or ``CloudWatchLogsFullAccessV2``) policies. The Task Role is the role that is
 used by the containers to make AWS API requests. This role needs to have
 permissions based on the tasks that are described in the DAG being run.
-If you are loading DAGs via an S3 bucket, this role needs to have
+If you are loading Dags via an S3 bucket, this role needs to have
 permission to read the S3 bucket.
 
 To create a new Task Role or Task Execution Role, follow the steps

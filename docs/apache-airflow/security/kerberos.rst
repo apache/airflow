@@ -19,7 +19,7 @@ Kerberos
 --------
 
 Airflow has initial support for Kerberos. This means that Airflow can renew Kerberos
-tickets for itself and store it in the ticket cache. The hooks and DAGs can make use of ticket
+tickets for itself and store it in the ticket cache. The hooks and Dags can make use of ticket
 to authenticate against kerberized services.
 
 Limitations
@@ -150,7 +150,7 @@ Of course if you need to tighten your security replace the asterisk with somethi
 Using Kerberos authentication
 '''''''''''''''''''''''''''''
 
-The Hive hook has been updated to take advantage of Kerberos authentication. To allow your DAGs to
+The Hive hook has been updated to take advantage of Kerberos authentication. To allow your Dags to
 use it, simply update the connection details with, for example:
 
 .. code-block:: json

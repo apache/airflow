@@ -128,7 +128,7 @@ Understanding what is being checked
 '''''''''''''''''''''''''''''''''''
 
 The Upgrade Check checks the configuration data from airflow.cfg, the meta data from the Airflow
-database, as well as the DAGs which have been set up in the current Airflow environment.
+database, as well as the Dags which have been set up in the current Airflow environment.
 
 Using the above results as an example, there are two specific problems which have
 been identified.
@@ -142,7 +142,7 @@ problematic airflow.cfg and searching for the fernet_key entries would show the 
 
     fernet_key =
 
-The second problem was identified in one of the DAGs. In this case, this import
+The second problem was identified in one of the Dags. In this case, this import
 statement for the ``PrestoHook`` needs to be changed, since the location is different
 in Airflow 2.0. Examining the DAG file would probably show the following:
 
@@ -201,7 +201,7 @@ Adding custom checks
 
 Advanced Airflow users or those with multiple Airflow deployments may also
 want to add additional upgrade checks for specific elements in their
-environment whether it is DAGs or configuration related.
+environment whether it is Dags or configuration related.
 
 These additional checks should be defined in a Python class and added as
 ``custom_rules`` in the "upgrade config file" as shown below:

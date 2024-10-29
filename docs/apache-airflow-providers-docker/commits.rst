@@ -570,7 +570,7 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example Dags (#18597)``
 `2a3cbabbf8 <https://github.com/apache/airflow/commit/2a3cbabbf8a21123e0b9c35866226087c3cebc4c>`_  2021-09-23   ``Cope with '@task.docker' decorated function not returning anything (#18463)``
 `a9772cf287 <https://github.com/apache/airflow/commit/a9772cf287111a63eac8c2deb1190f7054d7580f>`_  2021-09-20   ``Add a Docker Taskflow decorator (#15330)``
 =================================================================================================  ===========  ======================================================================================
@@ -598,7 +598,7 @@ Latest change: 2021-07-26
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`b10ed95a2a <https://github.com/apache/airflow/commit/b10ed95a2aded01eb5580120ab2abbde1bac633b>`_  2021-07-26   ``Updating Docker example DAGs to use XComArgs (#16871)``
+`b10ed95a2a <https://github.com/apache/airflow/commit/b10ed95a2aded01eb5580120ab2abbde1bac633b>`_  2021-07-26   ``Updating Docker example Dags to use XComArgs (#16871)``
 `cd3307ff21 <https://github.com/apache/airflow/commit/cd3307ff2147b170dc3feb5999edf5c8eebed4ba>`_  2021-07-26   ``fix string encoding when using xcom / json (#13536)``
 `24d02bfa84 <https://github.com/apache/airflow/commit/24d02bfa840ae2a315af4280b2c185122e3c30e1>`_  2021-07-19   ``Prepares documentation for RC2 release of Docker Provider (#17066)``
 `b076ac5925 <https://github.com/apache/airflow/commit/b076ac5925e1a316dd6e9ad8ee4d1a2223e376ca>`_  2021-07-18   ``[FIX] Docker provider - retry docker in docker (#17061)``
@@ -747,7 +747,7 @@ Commit                                                                          
 `cd546b664f <https://github.com/apache/airflow/commit/cd546b664fa35a2bf85acd77af578c909a327d92>`_  2020-03-23   ``Add missing call to Super class in 'cncf' & 'docker' providers (#7825)``
 `3320e432a1 <https://github.com/apache/airflow/commit/3320e432a129476dbc1c55be3b3faa3326a635bc>`_  2020-02-24   ``[AIRFLOW-6817] Lazy-load 'airflow.DAG' to keep user-facing API untouched (#7517)``
 `4d03e33c11 <https://github.com/apache/airflow/commit/4d03e33c115018e30fa413c42b16212481ad25cc>`_  2020-02-22   ``[AIRFLOW-6817] remove imports from 'airflow/__init__.py', replaced implicit imports with explicit imports, added entry to 'UPDATING.MD' - squashed/rebased (#7456)``
-`dbcd3d8787 <https://github.com/apache/airflow/commit/dbcd3d8787741fd8203b6d9bdbc5d1da4b10a15b>`_  2020-02-18   ``[AIRFLOW-6804] Add the basic test for all example DAGs (#7419)``
+`dbcd3d8787 <https://github.com/apache/airflow/commit/dbcd3d8787741fd8203b6d9bdbc5d1da4b10a15b>`_  2020-02-18   ``[AIRFLOW-6804] Add the basic test for all example Dags (#7419)``
 `9cbd7de6d1 <https://github.com/apache/airflow/commit/9cbd7de6d115795aba8bfb8addb060bfdfbdf87b>`_  2020-02-18   ``[AIRFLOW-6792] Remove _operator/_hook/_sensor in providers package and add tests (#7412)``
 `97a429f9d0 <https://github.com/apache/airflow/commit/97a429f9d0cf740c5698060ad55f11e93cb57b55>`_  2020-02-02   ``[AIRFLOW-6714] Remove magic comments about UTF-8 (#7338)``
 `83c037873f <https://github.com/apache/airflow/commit/83c037873ff694eed67ba8b30f2d9c88b2c7c6f2>`_  2020-01-30   ``[AIRFLOW-6674] Move example_dags in accordance with AIP-21 (#7287)``

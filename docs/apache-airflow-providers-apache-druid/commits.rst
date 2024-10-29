@@ -309,7 +309,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`ddc26c4f3e <https://github.com/apache/airflow/commit/ddc26c4f3e51bf74f56bad888db515dfc900e3e7>`_  2022-06-05   ``AIP-47 - Migrate druid DAGs to new design #22439 (#24207)``
+`ddc26c4f3e <https://github.com/apache/airflow/commit/ddc26c4f3e51bf74f56bad888db515dfc900e3e7>`_  2022-06-05   ``AIP-47 - Migrate druid Dags to new design #22439 (#24207)``
 =================================================================================================  ===========  ==================================================================================
 
 2.3.3
@@ -386,7 +386,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==============================================================================
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `5cd8085d27 <https://github.com/apache/airflow/commit/5cd8085d27fc214465259161b802c244a0dce4bf>`_  2021-11-05   ``Add DruidOperator template_fields_renderers fields (#19420)``
-`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+`ae044884d1 <https://github.com/apache/airflow/commit/ae044884d1dacce8dbf47c618f543b58f9ff101f>`_  2021-11-03   ``Cleanup of start_date and default arg use for Apache example Dags (#18657)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `f8c31b5bf7 <https://github.com/apache/airflow/commit/f8c31b5bf787de662f73583ee6b65dad6addf453>`_  2021-10-04   ``Add max_ingestion_time to DruidOperator docstring (#18693)``
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``

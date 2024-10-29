@@ -238,7 +238,7 @@ Commit                                                                          
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
-`5bd64183f9 <https://github.com/apache/airflow/commit/5bd64183f95e11f47d6b7bc54a4c0d0f74ab5ea6>`_  2022-06-03   ``Migrate Jenkins example DAGs to new design #22451 (#24138)``
+`5bd64183f9 <https://github.com/apache/airflow/commit/5bd64183f95e11f47d6b7bc54a4c0d0f74ab5ea6>`_  2022-06-03   ``Migrate Jenkins example Dags to new design #22451 (#24138)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
 `e5dd6fdcfd <https://github.com/apache/airflow/commit/e5dd6fdcfd2f53ed90e29070711c121de447b404>`_  2022-04-12   ``Bug Fix for 'apache-airflow-providers-jenkins' 'JenkinsJobTriggerOperator' (#22802)``
@@ -320,7 +320,7 @@ Commit                                                                          
 `e4888a061f <https://github.com/apache/airflow/commit/e4888a061f2f657a3329786a68beca9f824b2f8e>`_  2021-10-21   ``Remove distutils usages for Python 3.10 (#19064)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
-`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider Dags to use TaskFlow API where applicable (#18278)``
 =================================================================================================  ===========  ======================================================================================
 
 2.0.2
@@ -345,7 +345,7 @@ Latest change: 2021-07-26
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
 `87f408b1e7 <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
-`a777537594 <https://github.com/apache/airflow/commit/a7775375943633eab90c28cc2a3973608f7ed54c>`_  2021-07-26   ``Updating Jenkins example DAGs to use XComArgs (#16874)``
+`a777537594 <https://github.com/apache/airflow/commit/a7775375943633eab90c28cc2a3973608f7ed54c>`_  2021-07-26   ``Updating Jenkins example Dags to use XComArgs (#16874)``
 `d02ded65ea <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b75079 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `9ff781ad8f <https://github.com/apache/airflow/commit/9ff781ad8fd6b1d8d678227872b642b540b4dc55>`_  2021-07-13   ``Fixed to check number key from jenkins response (#16963)``
@@ -453,7 +453,7 @@ Commit                                                                          
 `05443c6dc8 <https://github.com/apache/airflow/commit/05443c6dc8100e791446bbcc0df04de6e34017bb>`_  2020-03-23   ``Add missing call to Super class in remaining providers (#7828)``
 `3320e432a1 <https://github.com/apache/airflow/commit/3320e432a129476dbc1c55be3b3faa3326a635bc>`_  2020-02-24   ``[AIRFLOW-6817] Lazy-load 'airflow.DAG' to keep user-facing API untouched (#7517)``
 `4d03e33c11 <https://github.com/apache/airflow/commit/4d03e33c115018e30fa413c42b16212481ad25cc>`_  2020-02-22   ``[AIRFLOW-6817] remove imports from 'airflow/__init__.py', replaced implicit imports with explicit imports, added entry to 'UPDATING.MD' - squashed/rebased (#7456)``
-`dbcd3d8787 <https://github.com/apache/airflow/commit/dbcd3d8787741fd8203b6d9bdbc5d1da4b10a15b>`_  2020-02-18   ``[AIRFLOW-6804] Add the basic test for all example DAGs (#7419)``
+`dbcd3d8787 <https://github.com/apache/airflow/commit/dbcd3d8787741fd8203b6d9bdbc5d1da4b10a15b>`_  2020-02-18   ``[AIRFLOW-6804] Add the basic test for all example Dags (#7419)``
 `97a429f9d0 <https://github.com/apache/airflow/commit/97a429f9d0cf740c5698060ad55f11e93cb57b55>`_  2020-02-02   ``[AIRFLOW-6714] Remove magic comments about UTF-8 (#7338)``
 `633eca1de5 <https://github.com/apache/airflow/commit/633eca1de5042e95e23aaf2e7680ed3106cb0e87>`_  2020-02-02   ``[AIRFLOW-6692] Generate excluded_patterns in docs/conf.py (#7304)``
 `83c037873f <https://github.com/apache/airflow/commit/83c037873ff694eed67ba8b30f2d9c88b2c7c6f2>`_  2020-01-30   ``[AIRFLOW-6674] Move example_dags in accordance with AIP-21 (#7287)``

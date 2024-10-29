@@ -17,13 +17,13 @@
 
 .. _concepts:debugging:
 
-Debugging Airflow DAGs
+Debugging Airflow Dags
 ======================
 
-Testing DAGs with dag.test()
+Testing Dags with dag.test()
 *****************************
 
-To debug DAGs in an IDE, you can set up the ``dag.test`` command in your dag file and run through your DAG in a single
+To debug Dags in an IDE, you can set up the ``dag.test`` command in your dag file and run through your DAG in a single
 serialized python process.
 
 This approach can be used with any supported database (including a local SQLite database) and will
@@ -36,7 +36,7 @@ To set up ``dag.test``, add these two lines to the bottom of your dag file:
   if __name__ == "__main__":
       dag.test()
 
-and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug DAGs as
+and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug Dags as
 needed. Here are some examples of arguments:
 
 * ``execution_date`` if you want to test argument-specific DAG runs
@@ -80,7 +80,7 @@ class, which is now deprecated:
 3. It does not perform a backfill.
 
 
-Debugging Airflow DAGs on the command line
+Debugging Airflow Dags on the command line
 ******************************************
 
 With the same two line addition as mentioned in the above section, you can now easily debug a DAG using pdb as well.

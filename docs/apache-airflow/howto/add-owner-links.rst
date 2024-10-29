@@ -24,7 +24,7 @@ Add Owner Links to DAG
 .. versionadded:: 2.4.0
 
 You can set the ``owner_links`` argument on your DAG object, which will make the owner a clickable link in the
-main DAGs view page instead of a search filter.
+main Dags view page instead of a search filter.
 
 Two options are supported:
 
@@ -32,7 +32,7 @@ Two options are supported:
 * A `mailto <https://en.wikipedia.org/wiki/Mailto>`_ link (e.g. ``mailto:example@airflow.com``) which opens your default email client to send an email to the specified address
 
 In your DAG, set the ``owner_links`` argument specifying a dictionary of an owner (key) and its link (value).
-Next define a task using this owner, and the owner in the DAGs view will link to the specified address.
+Next define a task using this owner, and the owner in the Dags view will link to the specified address.
 
 .. code-block:: python
   :emphasize-lines: 5

@@ -46,8 +46,8 @@ Where `<PROVIDER>` is the provider id and `<EXTRAS>` are optional extra packages
 You can find the provider packages dependencies and extras in the README.md files in each provider
 package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI installation page.
 
-Backport providers are a great way to migrate your DAGs to Airflow-2.0 compatible DAGs. You can
-switch to the new Airflow-2.0 packages in your DAGs, long before you attempt to migrate
+Backport providers are a great way to migrate your Dags to Airflow-2.0 compatible Dags. You can
+switch to the new Airflow-2.0 packages in your Dags, long before you attempt to migrate
 airflow to 2.0 line.
 
 # Deciding when to release

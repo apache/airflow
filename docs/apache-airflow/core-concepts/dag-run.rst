@@ -42,7 +42,7 @@ There are two possible terminal states for the DAG Run:
 
 *Added in Airflow 2.7*
 
-DAGs that have a currently running DAG run can be shown on the UI dashboard in the "Running" tab. Similarly, DAGs whose latest DAG run is marked as failed can be found on the "Failed" tab.
+Dags that have a currently running DAG run can be shown on the UI dashboard in the "Running" tab. Similarly, Dags whose latest DAG run is marked as failed can be found on the "Failed" tab.
 
 .. _data-interval:
 
@@ -175,7 +175,7 @@ There are multiple options you can select to re-run -
 * **Future** -  All the instances of the task in the runs after the DAG's most recent data interval
 * **Upstream** - The upstream tasks in the current DAG
 * **Downstream** - The downstream tasks in the current DAG
-* **Recursive** - All the tasks in the child DAGs and parent DAGs
+* **Recursive** - All the tasks in the child Dags and parent Dags
 * **Failed** - Only the failed tasks in the DAG's most recent run
 
 You can also clear the task through CLI using the command:
@@ -224,11 +224,11 @@ The DAG Runs created externally to the scheduler get associated with the trigger
 in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
 The default is the current date in the UTC timezone.
 
-In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+In addition, you can also manually trigger a DAG Run using the web UI (tab **Dags** -> column **Links** -> button **Trigger Dag**)
 
 .. _dagrun:parameters:
 
-Passing Parameters when triggering DAGs
+Passing Parameters when triggering Dags
 ------------------------------------------
 
 When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAG Run as
