@@ -630,6 +630,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_skipped_callback = on_skipped_callback
+        self.on_retry_callback = on_retry_callback
 
     # Defines the operator level extra links
     operator_extra_links: Collection[BaseOperatorLink] = ()
