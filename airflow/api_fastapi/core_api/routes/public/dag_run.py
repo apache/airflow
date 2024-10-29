@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -72,9 +72,10 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
 async def update_dag_run_state(
     dag_id: str,
     dag_run_id: str,
-    state: DAGRunPatchBody,
+    patch_body: DAGRunPatchBody,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
+    update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
@@ -88,12 +89,21 @@ async def update_dag_run_state(
     if not dag:
         raise HTTPException(404, f"Dag with id {dag_id} was not found")
 
-    if state.state == DAGRunModifyStates.SUCCESS:
-        set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
-    elif state.state == DAGRunModifyStates.QUEUED:
-        set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
+    if update_mask:
+        if update_mask != ["state"]:
+            raise HTTPException(400, "Only `state` field can be updated through the REST API")
     else:
-        set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
+        update_mask = ["state"]
+
+    for attr_name in update_mask:
+        if attr_name == "state":
+            state = getattr(patch_body, attr_name)
+            if state == DAGRunModifyStates.SUCCESS:
+                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
+            elif state == DAGRunModifyStates.QUEUED:
+                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
+            else:
+                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
 
     dag_run = session.get(DagRun, dag_run.id)
 

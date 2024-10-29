@@ -927,6 +927,7 @@ export const useVariableServicePatchVariable = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.requestBody
+ * @param data.updateMask
  * @returns DAGRunResponse Successful Response
  * @throws ApiError
  */
@@ -943,6 +944,7 @@ export const useDagRunServiceUpdateDagRunState = <
         dagId: string;
         dagRunId: string;
         requestBody: DAGRunPatchBody;
+        updateMask?: string[];
       },
       TContext
     >,
@@ -956,14 +958,16 @@ export const useDagRunServiceUpdateDagRunState = <
       dagId: string;
       dagRunId: string;
       requestBody: DAGRunPatchBody;
+      updateMask?: string[];
     },
     TContext
   >({
-    mutationFn: ({ dagId, dagRunId, requestBody }) =>
+    mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) =>
       DagRunService.updateDagRunState({
         dagId,
         dagRunId,
         requestBody,
+        updateMask,
       }) as unknown as Promise<TData>,
     ...options,
   });

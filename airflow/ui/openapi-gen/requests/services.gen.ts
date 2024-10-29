@@ -680,6 +680,7 @@ export class DagRunService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.requestBody
+   * @param data.updateMask
    * @returns DAGRunResponse Successful Response
    * @throws ApiError
    */
@@ -692,6 +693,9 @@ export class DagRunService {
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
+      },
+      query: {
+        update_mask: data.updateMask,
       },
       body: data.requestBody,
       mediaType: "application/json",

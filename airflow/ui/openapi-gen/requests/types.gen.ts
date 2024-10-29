@@ -679,6 +679,7 @@ export type UpdateDagRunStateData = {
   dagId: string;
   dagRunId: string;
   requestBody: DAGRunPatchBody;
+  updateMask?: Array<string> | null;
 };
 
 export type UpdateDagRunStateResponse = DAGRunResponse;

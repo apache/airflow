@@ -1175,6 +1175,16 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
       requestBody:
         required: true
         content:

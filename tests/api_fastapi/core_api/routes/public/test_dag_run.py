@@ -155,6 +155,22 @@ class TestModifyDagRun:
         assert body["run_id"] == run_id
         assert body["state"] == response_state
 
+    @pytest.mark.parametrize(
+        "query_params,patch_body, expected_status_code",
+        [
+            ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, 200),
+            ({}, {"state": DagRunState.SUCCESS}, 200),
+            ({"update_mask": ["random"]}, {"state": DagRunState.SUCCESS}, 400),
+        ],
+    )
+    def test_modify_dag_run_with_update_mask(
+        self, test_client, query_params, patch_body, expected_status_code
+    ):
+        response = test_client.patch(
+            f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", params=query_params, json=patch_body
+        )
+        assert response.status_code == expected_status_code
+
     def test_modify_dag_run_not_found(self, test_client):
         response = test_client.patch(
             f"/public/dags/{DAG1_ID}/dagRuns/invalid", json={"state": DagRunState.SUCCESS}
