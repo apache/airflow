@@ -447,10 +447,10 @@ class DAG:
 
         self.start_date = timezone.convert_to_utc(self.start_date)
         self.end_date = timezone.convert_to_utc(self.end_date)
-        if "start_date" in self.default_args:
-            self.default_args["start_date"] = self.start_date
-        if "end_date" in self.default_args:
-            self.default_args["end_date"] = self.end_date
+        if start_date := self.default_args.get("start_date", None):
+            self.default_args["start_date"] = timezone.convert_to_utc(start_date)
+        if end_date := self.default_args.get("end_date", None):
+            self.default_args["end_date"] = timezone.convert_to_utc(end_date)
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):

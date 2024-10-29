@@ -301,7 +301,9 @@ else:
         }
 
         # Inject DAG-level default args into args provided to this function.
-        partial_kwargs.update((k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k) is NOTSET)
+        partial_kwargs.update(
+            (k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k, NOTSET) is NOTSET
+        )
 
         # Fill fields not provided by the user with default values.
         for k, v in _PARTIAL_DEFAULTS.items():
