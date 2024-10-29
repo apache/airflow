@@ -88,7 +88,6 @@ class TestDagRun:
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()
-        db.clear_db_task_fail()
 
     def create_dag_run(
         self,
@@ -2524,12 +2523,11 @@ def test_mapped_task_depends_on_past(dag_maker, session):
 def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     """
     Test that clearing a task and moving from non-mapped to mapped clears existing
-    references in XCom, TaskFail, TaskInstanceNote, TaskReschedule and
+    references in XCom, TaskInstanceNote, TaskReschedule and
     RenderedTaskInstanceFields. To be able to test this, RenderedTaskInstanceFields
     was not used in the test since it would require that the task is expanded first.
     """
 
-    from airflow.models.taskfail import TaskFail
     from airflow.models.xcom import XCom
 
     @task
@@ -2563,13 +2561,12 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
     session.add(tr)
-    session.add(TaskFail(ti))
     XCom.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
     session.commit()
-    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 1
     dr1.task_instance_scheduling_decisions(session)
-    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 0
 
 
