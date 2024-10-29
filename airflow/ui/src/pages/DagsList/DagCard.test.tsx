@@ -20,8 +20,8 @@
  */
 import { render, screen } from "@testing-library/react";
 import type {
-  DAGResponse,
   DagTagPydantic,
+  DAGWithLatestDagRunsResponse,
 } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, it, vi, expect } from "vitest";
 
@@ -44,6 +44,7 @@ const mockDag = {
   last_expired: null,
   last_parsed_time: "2024-08-22T13:50:10.372238+00:00",
   last_pickled: null,
+  latest_dag_runs: [],
   max_active_runs: 16,
   max_active_tasks: 16,
   max_consecutive_failed_dag_runs: 0,
@@ -56,7 +57,7 @@ const mockDag = {
   tags: [],
   timetable_description: "",
   timetable_summary: "",
-} satisfies DAGResponse;
+} satisfies DAGWithLatestDagRunsResponse;
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -77,7 +78,10 @@ describe("DagCard", () => {
       { dag_id: "id", name: "tag4" },
     ] satisfies Array<DagTagPydantic>;
 
-    const expandedMockDag = { ...mockDag, tags } satisfies DAGResponse;
+    const expandedMockDag = {
+      ...mockDag,
+      tags,
+    } satisfies DAGWithLatestDagRunsResponse;
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();

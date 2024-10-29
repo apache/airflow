@@ -22,22 +22,23 @@ import {
   HStack,
   Heading,
   SimpleGrid,
-  Text,
   Tooltip,
   VStack,
   Link,
 } from "@chakra-ui/react";
-import { FiCalendar } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
+import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 
 import { DagTags } from "./DagTags";
+import { LatestRun } from "./LatestRun";
+import { RecentRuns } from "./RecentRuns";
+import { Schedule } from "./Schedule";
 
 type Props = {
-  readonly dag: DAGResponse;
+  readonly dag: DAGWithLatestDagRunsResponse;
 };
 
 export const DagCard = ({ dag }: Props) => (
@@ -73,30 +74,25 @@ export const DagCard = ({ dag }: Props) => (
       </HStack>
     </Flex>
     <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
-      <div />
       <VStack align="flex-start" spacing={1}>
         <Heading color="gray.500" fontSize="xs">
-          Last Run
+          Schedule
         </Heading>
+        <Schedule dag={dag} />
+      </VStack>
+      <VStack align="flex-start" spacing={1}>
+        <Heading color="gray.500" fontSize="xs">
+          Latest Run
+        </Heading>
+        <LatestRun latestRun={dag.latest_dag_runs[0]} />
       </VStack>
       <VStack align="flex-start" spacing={1}>
         <Heading color="gray.500" fontSize="xs">
           Next Run
         </Heading>
-        <Text fontSize="sm">
-          <Time datetime={dag.next_dagrun} />
-        </Text>
-        {Boolean(dag.timetable_summary) ? (
-          <Tooltip hasArrow label={dag.timetable_description}>
-            <Text fontSize="sm">
-              {" "}
-              <FiCalendar style={{ display: "inline" }} />{" "}
-              {dag.timetable_summary}
-            </Text>
-          </Tooltip>
-        ) : undefined}
+        <Time datetime={dag.next_dagrun} />
       </VStack>
-      <div />
+      <RecentRuns latestRuns={dag.latest_dag_runs} />
     </SimpleGrid>
   </Box>
 );
