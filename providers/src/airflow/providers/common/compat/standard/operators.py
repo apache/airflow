@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from airflow import __version__ as AIRFLOW_VERSION
 
 if TYPE_CHECKING:
@@ -48,7 +49,6 @@ else:
 
         if _IS_AIRFLOW_2_10_OR_HIGHER:
             from airflow.operators.python import _SERIALIZERS
-
 
 
 __all__ = ["PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]
