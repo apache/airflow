@@ -64,6 +64,7 @@ export const RecentRuns = ({
               <Text>Duration: {run.duration.toFixed(2)}s</Text>
             </Box>
           }
+          offset={[10, 5]}
           placement="bottom-start"
         >
           <Box p={1}>
