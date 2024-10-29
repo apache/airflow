@@ -243,7 +243,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.0",
+        "ruff==0.7.1",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
