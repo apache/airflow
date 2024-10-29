@@ -36,7 +36,7 @@ import semver
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.black_utils import black_format
-from airflow_breeze.utils.confirm import Answer, confirm_action, user_confirm
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     HTTPS_REMOTE,
@@ -749,7 +749,7 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            answer = confirm_action(
+            answer = user_confirm(
                 f"Does the provider: {provider_package_id} have any changes apart from 'doc-only'?"
             )
             if answer == Answer.NO:
