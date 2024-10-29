@@ -208,9 +208,7 @@ class HttpOperator(BaseOperator):
                     **self._merge_next_page_parameters(next_page_params),
                 )
             else:
-                response = self.hook.run(
-                    **self._merge_next_page_parameters(next_page_params)
-                )
+                response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
             all_responses.append(response)
         return all_responses
 
@@ -319,9 +317,7 @@ class HttpOperator(BaseOperator):
             endpoint=next_page_params.get("endpoint") or self.endpoint,
             data=data,
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
-            extra_options=merge_dicts(
-                self.extra_options, next_page_params.get("extra_options", {})
-            ),
+            extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
             **self.request_kwargs,
         )
 
