@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-28T19:55:04.280296
+# This constraints file was automatically generated on 2024-10-29T19:54:41.442590
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -245,7 +245,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.18.1
+cfn-lint==1.18.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -259,14 +259,14 @@ clickclick==20.10.2
 cloudpickle==2.2.1
 cohere==4.57
 colorama==0.4.6
-colorlog==6.8.2
+colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.6.0
 connexion==2.14.2
 coverage==7.6.4
 crcmod==1.7
 cron-descriptor==1.4.5
-croniter==4.0.0
+croniter==5.0.1
 cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -477,7 +477,7 @@ msrestazure==0.6.4.post1
 multi-key-dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
-mypy-boto3-rds==1.35.46
+mypy-boto3-rds==1.35.50
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.46
 mypy-extensions==1.0.0
@@ -608,7 +608,7 @@ python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.12.0
+qdrant-client==1.12.1
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.2.0
@@ -631,7 +631,7 @@ rich-click==1.8.3
 rich==13.9.3
 rpds-py==0.20.0
 rsa==4.9
-ruff==0.7.0
+ruff==0.7.1
 s3fs==2024.10.0
 s3transfer==0.10.3
 scramp==1.4.5
@@ -651,7 +651,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.3
-snowflake-snowpark-python==1.23.0
+snowflake-snowpark-python==1.24.0
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -717,7 +717,7 @@ types-cffi==1.16.0.20240331
 types-croniter==3.0.4.20241027
 types-docutils==0.21.0.20241005
 types-paramiko==3.5.0.20240928
-types-protobuf==5.28.0.20240924
+types-protobuf==5.28.3.20241029
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241003
 types-python-slugify==8.0.2.20240310
@@ -738,7 +738,7 @@ uritemplate==4.1.1
 urllib3==2.2.3
 userpath==1.9.2
 uuid6==2024.7.10
-uv==0.4.27
+uv==0.4.28
 uvicorn==0.32.0
 uvloop==0.21.0
 validators==0.34.0
@@ -758,7 +758,7 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.323.0
-yarl==1.16.0
+yarl==1.17.0
 ydb==3.18.6
 zeep==4.3.1
 zenpy==2.0.54
