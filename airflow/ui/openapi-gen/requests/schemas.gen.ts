@@ -89,6 +89,48 @@ export const $AppBuilderViewResponse = {
   description: "Serializer for AppBuilder View responses.",
 } as const;
 
+export const $BackfillPostBody = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    from_date: {
+      type: "string",
+      format: "date-time",
+      title: "From Date",
+    },
+    to_date: {
+      type: "string",
+      format: "date-time",
+      title: "To Date",
+    },
+    run_backwards: {
+      type: "boolean",
+      title: "Run Backwards",
+      default: false,
+    },
+    dag_run_conf: {
+      type: "object",
+      title: "Dag Run Conf",
+      default: {},
+    },
+    reprocess_behavior: {
+      $ref: "#/components/schemas/ReprocessBehavior",
+      default: "none",
+    },
+    max_active_runs: {
+      type: "integer",
+      title: "Max Active Runs",
+      default: 10,
+    },
+  },
+  type: "object",
+  required: ["dag_id", "from_date", "to_date"],
+  title: "BackfillPostBody",
+  description: "Object used for create backfill request.",
+} as const;
+
 export const $BaseInfoSchema = {
   properties: {
     status: {
@@ -2159,6 +2201,15 @@ export const $ProviderResponse = {
   required: ["package_name", "description", "version"],
   title: "ProviderResponse",
   description: "Provider serializer for responses.",
+} as const;
+
+export const $ReprocessBehavior = {
+  type: "string",
+  enum: ["failed", "completed", "none"],
+  title: "ReprocessBehavior",
+  description: `Internal enum for setting reprocess behavior in a backfill.
+
+:meta private:`,
 } as const;
 
 export const $SchedulerInfoSchema = {

@@ -68,7 +68,7 @@ def configure_logging():
         # Try to init logging
         dictConfig(logging_config)
     except (ValueError, KeyError) as e:
-        log.error("Unable to load the config, contains a configuration error.")
+        log.exception("Unable to load the config, contains a configuration error.")
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
         raise e
