@@ -1159,9 +1159,9 @@ paths:
     patch:
       tags:
       - DagRun
-      summary: Update Dag Run State
+      summary: Patch Dag Run State
       description: Modify a DAG Run.
-      operationId: update_dag_run_state
+      operationId: patch_dag_run_state
       parameters:
       - name: dag_id
         in: path
@@ -2107,23 +2107,23 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
-    DAGRunModifyStates:
-      type: string
-      enum:
-      - queued
-      - success
-      - failed
-      title: DAGRunModifyStates
-      description: Enum for DAG Run states when updating a DAG Run.
     DAGRunPatchBody:
       properties:
         state:
-          $ref: '#/components/schemas/DAGRunModifyStates'
+          $ref: '#/components/schemas/DAGRunPatchStates'
       type: object
       required:
       - state
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
+    DAGRunPatchStates:
+      type: string
+      enum:
+      - queued
+      - success
+      - failed
+      title: DAGRunPatchStates
+      description: Enum for DAG Run states when updating a DAG Run.
     DAGRunResponse:
       properties:
         run_id:

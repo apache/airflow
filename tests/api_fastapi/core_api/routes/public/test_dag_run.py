@@ -138,7 +138,7 @@ class TestGetDagRun:
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
 
-class TestModifyDagRun:
+class TestPatchDagRun:
     @pytest.mark.parametrize(
         "dag_id, run_id, state, response_state",
         [
@@ -147,7 +147,7 @@ class TestModifyDagRun:
             (DAG2_ID, DAG2_RUN1_ID, DagRunState.QUEUED, DagRunState.QUEUED),
         ],
     )
-    def test_modify_dag_run(self, test_client, dag_id, run_id, state, response_state):
+    def test_patch_dag_run(self, test_client, dag_id, run_id, state, response_state):
         response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json={"state": state})
         assert response.status_code == 200
         body = response.json()
@@ -163,7 +163,7 @@ class TestModifyDagRun:
             ({"update_mask": ["random"]}, {"state": DagRunState.SUCCESS}, 400),
         ],
     )
-    def test_modify_dag_run_with_update_mask(
+    def test_patch_dag_run_with_update_mask(
         self, test_client, query_params, patch_body, expected_status_code
     ):
         response = test_client.patch(
@@ -171,7 +171,7 @@ class TestModifyDagRun:
         )
         assert response.status_code == expected_status_code
 
-    def test_modify_dag_run_not_found(self, test_client):
+    def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(
             f"/public/dags/{DAG1_ID}/dagRuns/invalid", json={"state": DagRunState.SUCCESS}
         )
@@ -179,7 +179,7 @@ class TestModifyDagRun:
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
-    def test_modify_dag_run_bad_request(self, test_client):
+    def test_patch_dag_run_bad_request(self, test_client):
         response = test_client.patch(
             f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": "running"}
         )

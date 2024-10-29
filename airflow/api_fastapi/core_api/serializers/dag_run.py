@@ -26,7 +26,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 
-class DAGRunModifyStates(str, Enum):
+class DAGRunPatchStates(str, Enum):
     """Enum for DAG Run states when updating a DAG Run."""
 
     QUEUED = DagRunState.QUEUED
@@ -37,7 +37,7 @@ class DAGRunModifyStates(str, Enum):
 class DAGRunPatchBody(BaseModel):
     """DAG Run Serializer for PATCH requests."""
 
-    state: DAGRunModifyStates
+    state: DAGRunPatchStates
 
 
 class DAGRunResponse(BaseModel):

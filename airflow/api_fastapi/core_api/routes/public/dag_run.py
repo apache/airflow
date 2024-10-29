@@ -31,8 +31,8 @@ from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.dag_run import (
-    DAGRunModifyStates,
     DAGRunPatchBody,
+    DAGRunPatchStates,
     DAGRunResponse,
 )
 from airflow.models import DAG, DagRun
@@ -69,7 +69,7 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
 
 
 @dag_run_router.patch("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
-async def update_dag_run_state(
+async def patch_dag_run_state(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
@@ -98,9 +98,9 @@ async def update_dag_run_state(
     for attr_name in update_mask:
         if attr_name == "state":
             state = getattr(patch_body, attr_name)
-            if state == DAGRunModifyStates.SUCCESS:
+            if state == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
-            elif state == DAGRunModifyStates.QUEUED:
+            elif state == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
             else:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
