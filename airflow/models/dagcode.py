@@ -63,7 +63,7 @@ class DagCode(Base):
     dag_version_id = Column(
         UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False, cascade_backrefs=False)
+    dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)
 
     def __init__(self, dag_version, full_filepath: str, source_code: str | None = None):
         self.dag_version = dag_version

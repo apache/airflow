@@ -53,13 +53,18 @@ class DagVersion(Base):
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False)
     dag_model = relationship("DagModel", back_populates="dag_versions")
     dag_code = relationship(
-        "DagCode", back_populates="dag_version", uselist=False, cascade="all, delete, delete-orphan"
+        "DagCode",
+        back_populates="dag_version",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+        cascade_backrefs=False,
     )
     serialized_dag = relationship(
         "SerializedDagModel",
         back_populates="dag_version",
         uselist=False,
         cascade="all, delete, delete-orphan",
+        cascade_backrefs=False,
     )
     dag_runs = relationship("DagRun", back_populates="dag_version", cascade="all, delete, delete-orphan")
     task_instances = relationship("TaskInstance", back_populates="dag_version")

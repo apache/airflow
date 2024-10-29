@@ -104,7 +104,7 @@ class SerializedDagModel(Base):
     dag_version_id = Column(
         UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    dag_version = relationship("DagVersion", back_populates="serialized_dag", cascade_backrefs=False)
+    dag_version = relationship("DagVersion", back_populates="serialized_dag")
 
     load_op_links = True
 
