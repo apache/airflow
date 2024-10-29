@@ -43,6 +43,8 @@ import type {
   GetDagRunResponse,
   DeleteDagRunData,
   DeleteDagRunResponse,
+  PatchDagRunStateData,
+  PatchDagRunStateResponse,
   GetHealthResponse,
   DeletePoolData,
   DeletePoolResponse,
@@ -663,6 +665,42 @@ export class DagRunService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
       },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Dag Run State
+   * Modify a DAG Run.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchDagRunState(
+    data: PatchDagRunStateData,
+  ): CancelablePromise<PatchDagRunStateResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         400: "Bad Request",
         401: "Unauthorized",

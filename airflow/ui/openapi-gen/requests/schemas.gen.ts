@@ -887,6 +887,25 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunPatchBody = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DAGRunPatchStates",
+    },
+  },
+  type: "object",
+  required: ["state"],
+  title: "DAGRunPatchBody",
+  description: "DAG Run Serializer for PATCH requests.",
+} as const;
+
+export const $DAGRunPatchStates = {
+  type: "string",
+  enum: ["queued", "success", "failed"],
+  title: "DAGRunPatchStates",
+  description: "Enum for DAG Run states when updating a DAG Run.",
+} as const;
+
 export const $DAGRunResponse = {
   properties: {
     run_id: {
