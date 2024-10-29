@@ -175,7 +175,7 @@ class _EdgeWorkerCli:
             self.last_hb = EdgeWorker.register_worker(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
             ).last_update
-        except EdgeWorkerVersionException as e:
+        except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e)) 
         except AirflowException as e:
@@ -189,7 +189,10 @@ class _EdgeWorkerCli:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
-            EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            try:
+                EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            except EdgeWorkerVersionException:
+                logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
             remove_existing_pidfile(self.pid_file_path)
 
@@ -266,7 +269,7 @@ class _EdgeWorkerCli:
             self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
-            self.drain = True
+            _EdgeWorkerCli.drain = True
 
 
     def interruptible_sleep(self):

@@ -265,7 +265,6 @@ class EdgeWorker(BaseModel, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[str] | None:
         """Set state of worker and returns the current assigned queues."""
-        EdgeWorker.assert_version(sysinfo)
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = state
@@ -283,6 +282,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             concurrency=int(sysinfo["concurrency"]),
             queues=worker.queues,
         )
+        EdgeWorker.assert_version(sysinfo) #  Exception only after worker state is in the DB
         return worker.queues
 
     @staticmethod
