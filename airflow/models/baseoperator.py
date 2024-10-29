@@ -43,6 +43,7 @@ from typing import (
     TypeVar,
 )
 
+import methodtools
 import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
@@ -605,8 +606,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    _is_setup: bool = False
-    _is_teardown: bool = False
 
     def __init__(
         self,
@@ -647,6 +646,22 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             ...
 
     partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
+
+    @classmethod
+    @methodtools.lru_cache(maxsize=None)
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        # TODO: this ends up caching it once per-subclass, which isn't what we want, but this class is only
+        # kept around during the development of AIP-72/TaskSDK code.
+        return TaskSDKBaseOperator.get_serialized_fields() | {
+            "start_trigger_args",
+            "start_from_trigger",
+            "on_execute_callback",
+            "on_failure_callback",
+            "on_success_callback",
+            "on_retry_callback",
+            "on_skipped_callback",
+        }
 
     def get_inlet_defs(self):
         """
