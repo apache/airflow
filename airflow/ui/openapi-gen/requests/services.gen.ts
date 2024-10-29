@@ -59,6 +59,8 @@ import type {
   GetPluginsData,
   GetPluginsResponse,
   GetVersionResponse,
+  GetEventLogData,
+  GetEventLogResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -891,6 +893,33 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version/",
+    });
+  }
+}
+
+export class EventLogService {
+  /**
+   * Get Event Log
+   * @param data The data for the request.
+   * @param data.eventLogId
+   * @returns EventLogResponse Successful Response
+   * @throws ApiError
+   */
+  public static getEventLog(
+    data: GetEventLogData,
+  ): CancelablePromise<GetEventLogResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/eventLogs/{event_log_id}",
+      path: {
+        event_log_id: data.eventLogId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
     });
   }
 }

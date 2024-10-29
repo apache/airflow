@@ -8,6 +8,7 @@ import {
   DagService,
   DagsService,
   DashboardService,
+  EventLogService,
   MonitorService,
   PluginService,
   PoolService,
@@ -409,6 +410,22 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type EventLogServiceGetEventLogDefaultResponse = Awaited<
+  ReturnType<typeof EventLogService.getEventLog>
+>;
+export type EventLogServiceGetEventLogQueryResult<
+  TData = EventLogServiceGetEventLogDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";
+export const UseEventLogServiceGetEventLogKeyFn = (
+  {
+    eventLogId,
+  }: {
+    eventLogId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
