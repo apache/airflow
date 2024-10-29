@@ -112,7 +112,7 @@ class PowerBITrigger(BaseTrigger):
                 group_id=self.group_id,
                 refresh_id=self.dataset_refresh_id,
             )
-            return refresh_details.get("status")
+            return refresh_details["status"]
 
         try:
             dataset_refresh_status = await fetch_refresh_status()
