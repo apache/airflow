@@ -307,6 +307,23 @@ export type DagTagPydantic = {
 };
 
 /**
+ * Event Log Response.
+ */
+export type EventLogResponse = {
+  event_log_id: number;
+  when: string;
+  dag_id: string | null;
+  task_id: string | null;
+  run_id: string | null;
+  map_index: number | null;
+  try_number: number | null;
+  event: string;
+  logical_date: string | null;
+  owner: string | null;
+  extra: string | null;
+};
+
+/**
  * Serializer for Plugin FastAPI App responses.
  */
 export type FastAPIAppResponse = {
@@ -735,6 +752,12 @@ export type GetPluginsData = {
 export type GetPluginsResponse = PluginCollectionResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type GetEventLogData = {
+  eventLogId: number;
+};
+
+export type GetEventLogResponse = EventLogResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -1444,6 +1467,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/eventLogs/{event_log_id}": {
+    get: {
+      req: GetEventLogData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: EventLogResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow import __version__ as airflow_version
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
-def _assert_dataset_deprecation_warning(recwarn) -> None:
-    if airflow_version.startswith("2"):
-        warning = recwarn.pop(AirflowProviderDeprecationWarning)
-        assert warning.category == AirflowProviderDeprecationWarning
-        assert (
-            str(warning.message)
-            == "is_authorized_dataset will be renamed as is_authorized_asset in Airflow 3 and will be removed when the minimum Airflow version is set to 3.0 for the fab provider"
-        )
+class EventLogResponse(BaseModel):
+    """Event Log Response."""
 
+    id: int = Field(alias="event_log_id")
+    dttm: datetime = Field(alias="when")
+    dag_id: str | None
+    task_id: str | None
+    run_id: str | None
+    map_index: int | None
+    try_number: int | None
+    event: str
+    execution_date: datetime | None = Field(alias="logical_date")
+    owner: str | None
+    extra: str | None
 
-__all__ = ["_assert_dataset_deprecation_warning"]
+    model_config = ConfigDict(populate_by_name=True)
