@@ -51,26 +51,22 @@ def prepare_metric_name_with_tags(fn: T) -> T:
 
     @wraps(fn)
     def wrapper(
-        self, metric_name: str | None = None, tags: dict[str, str | int] | None = None
+        self, metric_name: str | None = None, tags: dict[str, str] | None = None
     ) -> Callable[[str], str]:
-        # if not isinstance(self, SafeStatsdLogger):  # Check if self is an instance of SafeStatsdLogger
-        #     raise TypeError("Expected an instance of SafeStatsdLogger")
-
         if metric_name is None:
             metric_name = ""
 
-        if self.influxdb_tags_enabled and tags is not None:
-            valid_tags: dict[str, str | int] = {}
+        if self.influxdb_tags_enabled and tags:
+            tags = {str(k): str(v) for k, v in tags.items()}
+            valid_tags: dict[str, str] = {}
+
             for k, v in tags.items():
                 if self.metric_tags_validator.test(k):
-                    value_str = str(v)
-                    key_str = str(k)
-                    if all(c not in [",", "="] for c in value_str) and all(
-                        c not in [",", "="] for c in key_str
-                    ):
-                        valid_tags[k] = value_str
+                    if all(c not in [",", "="] for c in v) and all(c not in [",", "="] for c in k):
+                        valid_tags[k] = v
                     else:
-                        log.error("Dropping invalid tag: %s=%s.", k, value_str)
+                        log.error("Dropping invalid tag: %s=%s.", k, v)
+
             tags = valid_tags
         return fn(self, metric_name, tags=tags)
 

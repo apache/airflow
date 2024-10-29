@@ -358,108 +358,134 @@ class TestOtelMetrics:
         )
 
     def test_incr_counter(self):
-        # Arrange
-        logger = self.stats
         metric_name = "test_metric"
         count = 5
         tags = {"env": "prod"}
 
-        # Act
-        logger.incr(metric_name, count=count, tags=tags)
+        self.stats.incr(metric_name, count=count, tags=tags)
 
-        # Assert
-        counter = logger.metrics_map.get_counter(
-            full_name(prefix=logger.prefix, name=metric_name), attributes=tags
+        counter = self.stats.metrics_map.get_counter(
+            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
         )
         counter.add.assert_called_with(count, attributes=tags)
 
     def test_decr_counter(self):
-        # Arrange
-        logger = self.stats
         metric_name = "test_metric"
         count = 3
         tags = {"env": "prod"}
 
-        # Act
-        logger.decr(metric_name, count=count, tags=tags)
+        self.stats.decr(metric_name, count=count, tags=tags)
 
-        # Assert
-        counter = logger.metrics_map.get_counter(
-            full_name(prefix=logger.prefix, name=metric_name), attributes=tags
+        counter = self.stats.metrics_map.get_counter(
+            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
         )
         counter.add.assert_called_with(-count, attributes=tags)
 
     @pytest.mark.parametrize("expected_duration", [2.5, 1.0, 3.0])
     def test_timing(self, expected_duration):
-        # Arrange
-        logger = self.stats
         metric_name = "test_metric"
         tags = {"env": "prod"}
 
         # Mocking time.perf_counter to simulate timing
         with mock.patch.object(time, "perf_counter", side_effect=[0.0, expected_duration]):
-            with logger.timer(metric_name, tags=tags) as timer:
+            with self.stats.timer(metric_name, tags=tags) as timer:
                 pass
 
-        # Assert
+        acceptable_margin = 0.1
         assert isinstance(timer.duration, float)
-        assert timer.duration >= expected_duration - 0.1
-        assert timer.duration <= expected_duration + 0.1
+        assert timer.duration >= expected_duration - acceptable_margin
+        assert timer.duration <= expected_duration + acceptable_margin
         assert self.meter.get_meter().create_observable_gauge.call_count == 1
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
-            name=full_name(prefix=logger.prefix, name=metric_name), callbacks=ANY
+            name=full_name(prefix=self.stats.prefix, name=metric_name), callbacks=ANY
         )
 
     def test_gauge_set(self):
-        # Arrange
-        logger = self.stats
         metric_name = "test_metric"
         value = 42
         tags = {"env": "prod"}
 
-        # Act
-        logger.gauge(metric_name, value, tags=tags)
+        self.stats.gauge(metric_name, value, tags=tags)
 
-        # Assert
-        current_value = logger.metrics_map.poke_gauge(full_name(prefix=logger.prefix, name=metric_name), tags)
+        current_value = self.stats.metrics_map.poke_gauge(
+            full_name(prefix=self.stats.prefix, name=metric_name), tags
+        )
         assert current_value == value
 
     def test_gauge_increment(self):
-        # Arrange
-        logger = self.stats
         metric_name = "test_metric"
         count = 10
         tags = {"env": "prod"}
 
-        # Act
-        logger.gauge(metric_name, count, delta=True, tags=tags)  # Use delta=True to increment the gauge
+        self.stats.gauge(metric_name, count, delta=True, tags=tags)  # Use delta=True to increment the gauge
 
-        # Assert
         # Retrieve the current value using poke_gauge
-        current_value = logger.metrics_map.poke_gauge(full_name(prefix=logger.prefix, name=metric_name), tags)
+        current_value = self.stats.metrics_map.poke_gauge(
+            full_name(prefix=self.stats.prefix, name=metric_name), tags
+        )
         assert current_value == count
 
     def test_gauge_decrement(self):
-        # Arrange
-        logger = self.stats
         metric_name = "test_metric"
         count = 5
         tags = {"env": "prod"}
 
-        # Act: Increment the gauge by 'count'
-        logger.gauge(metric_name, count, delta=True, tags=tags)
+        self.stats.gauge(metric_name, count, delta=True, tags=tags)
 
-        # Assert: Check if the current value after incrementing is equal to 'count'
-        current_value_after_increment = logger.metrics_map.poke_gauge(
-            full_name(prefix=logger.prefix, name=metric_name), tags
+        current_value_after_increment = self.stats.metrics_map.poke_gauge(
+            full_name(prefix=self.stats.prefix, name=metric_name), tags
         )
         assert current_value_after_increment == count  # Ensure the gauge value reflects the increment
 
-        # Act for decrement
-        logger.gauge(metric_name, -count, delta=True, tags=tags)  # Decrement the gauge by 'count'
+        self.stats.gauge(metric_name, -count, delta=True, tags=tags)  # Decrement the gauge by 'count'
 
-        # Assert: Ensure the gauge value reflects the decrement to zero
-        current_value_after_decrement = logger.metrics_map.poke_gauge(
-            full_name(prefix=logger.prefix, name=metric_name), tags
+        current_value_after_decrement = self.stats.metrics_map.poke_gauge(
+            full_name(prefix=self.stats.prefix, name=metric_name), tags
         )
         assert current_value_after_decrement == 0
+
+    def test_get_name_invalid_cases(self):
+        invalid_name = "invalid/metric/name"
+
+        # Expect the method to raise InvalidStatsNameException for invalid characters
+        with pytest.raises(InvalidStatsNameException):
+            self.stats.get_name(invalid_name)
+
+    def test_get_name_too_long(self):
+        # Edge case: Name exceeds max length
+        long_name = "a" * (OTEL_NAME_MAX_LENGTH + 1)
+        with pytest.raises(InvalidStatsNameException, match="Invalid stat name.*Please see"):
+            self.stats.get_name(long_name)
+
+    def test_get_name_special_characters(self):
+        # Edge case: Name contains invalid special characters
+        invalid_name = "invalid@name!"
+        with pytest.raises(
+            InvalidStatsNameException, match="composed of ASCII alphabets, numbers, or the underscore"
+        ):
+            self.stats.get_name(invalid_name)
+
+    def test_get_name_empty_string(self):
+        # Edge case: Empty string as name
+        empty_name = ""
+        with pytest.raises(
+            InvalidStatsNameException, match="The stat name cannot be None or an empty string."
+        ):
+            self.stats.get_name(empty_name)
+
+    def test_get_name_empty_string_no_tags(self):
+        # Edge case: Empty string as name, no tags provided
+        empty_name = ""
+        with pytest.raises(
+            InvalidStatsNameException, match="The stat name cannot be None or an empty string."
+        ):
+            self.stats.get_name(empty_name)
+
+    def test_get_name_empty_string_with_tags(self):
+        # Edge case: Empty string as name, with tags provided
+        empty_name = ""
+        tags = {"key": "value"}
+        with pytest.raises(
+            InvalidStatsNameException, match="The stat name cannot be None or an empty string."
+        ):
+            self.stats.get_name(empty_name, tags=tags)

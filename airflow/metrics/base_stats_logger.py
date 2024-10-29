@@ -31,10 +31,8 @@ if TYPE_CHECKING:
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    instance: StatsLogger | NoStatsLogger | None = None
-
     def incr(
-        cls,
+        self,
         metric_name: str,
         count: int = 1,
         rate: int | float = 1,
@@ -44,7 +42,7 @@ class StatsLogger(Protocol):
         """Increment metric_name."""
 
     def decr(
-        cls,
+        self,
         metric_name: str,
         count: int = 1,
         rate: int | float = 1,
@@ -54,7 +52,7 @@ class StatsLogger(Protocol):
         """Decrement metric_name."""
 
     def gauge(
-        cls,
+        self,
         metric_name: str,
         value: float,
         rate: int | float = 1,
@@ -65,7 +63,7 @@ class StatsLogger(Protocol):
         """Gauge metric_name."""
 
     def timing(
-        cls,
+        self,
         metric_name: str,
         dt: DeltaType | None,
         *,
@@ -73,12 +71,12 @@ class StatsLogger(Protocol):
     ) -> None:
         """Stats timing."""
 
-    def timer(cls, *args, **kwargs) -> TimerProtocol:
+    def timer(self, *args, **kwargs) -> TimerProtocol:
         """Timer metric that can be cancelled."""
         raise NotImplementedError()
 
     def get_name(self, metric_name: str, tags: Attributes | None = None) -> str:
-        pass
+        raise NotImplementedError()
 
 
 class NoStatsLogger:
