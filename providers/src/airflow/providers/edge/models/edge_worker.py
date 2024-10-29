@@ -282,7 +282,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             concurrency=int(sysinfo["concurrency"]),
             queues=worker.queues,
         )
-        EdgeWorker.assert_version(sysinfo) #  Exception only after worker state is in the DB
+        EdgeWorker.assert_version(sysinfo)  #  Exception only after worker state is in the DB
         return worker.queues
 
     @staticmethod
