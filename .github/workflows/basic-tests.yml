@@ -206,6 +206,11 @@ jobs:
           breeze release-management prepare-provider-packages standard --package-format wheel --skip-tag-check
       - name: "Install Airflow with standard provider for webserver tests"
         run: pip install . dist/apache_airflow_providers_standard-*.whl
+      - name: "Prepare Task SDK package: wheel"
+        run: >
+          breeze release-management prepare-task-sdk-package --package-format wheel
+      - name: "Install Task SDK package"
+        run: pip install ./dist/apache_airflow_task_sdk-*.whl
       - name: "Install Python client"
         run: pip install ./dist/apache_airflow_client-*.whl
       - name: "Initialize Airflow DB and start webserver"
