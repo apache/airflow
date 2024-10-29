@@ -143,7 +143,7 @@ The first command installs airflow, it's development dependencies, test dependen
 both runtime and development dependencies of the google provider.
 
 The second one installs providers source code in development mode, so that modifications
-to the cod are automatically reflected in your installed virtualenv.
+to the code are automatically reflected in your installed virtualenv.
 
 Using Hatch
 -----------
