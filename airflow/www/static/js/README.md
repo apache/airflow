@@ -36,7 +36,7 @@ Styles are applied via global theme when initializing the app or inline with ind
 
 A powerful async data handler that makes it easy to manage loading/error states as well as caching, refetching, background updates, etc.
 This is our state management for any data that comes from an API.
-Each API request is its own hook. Ie `useTasks` will get all the tasks for a DAG
+Each API request is its own hook. Ie `useTasks` will get all the tasks for a Dag
 
 ## [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 

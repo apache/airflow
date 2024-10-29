@@ -19,14 +19,14 @@
 
 This files contains diagrams that help visualize what metrics are send, and what they represent.
 
-## DAG execution metrics
+## Dag execution metrics
 
 ```mermaid
 ---
 displayMode: compact
 ---
 gantt
-  title Airflow metrics for a DAG run
+  title Airflow metrics for a Dag run
   dateFormat HH:mm
   axisFormat %H:%M
   tickInterval 1hour
@@ -35,13 +35,13 @@ gantt
     %% Milestones are "point in time" events, but they still take a duration.
     %% Setting it to 2 minutes here, I don't think it has any importance.
 
-    DAG Scheduled         : milestone, dag_sched,   12:00, 2min
-    DAG Starts            : milestone, dag_start,   13:00, 2min
+    Dag Scheduled         : milestone, dag_sched,   12:00, 2min
+    Dag Starts            : milestone, dag_start,   13:00, 2min
     First task Scheduled  : milestone, task1_sched, 14:00, 2min
     Task N Scheduled      : milestone, taskN_sched, 15:00, 2min
     Task N starts running : milestone, taskN_start, 16:00, 2min
     Task N done           : milestone, taskN_done,  17:00, 2min
-    Last task ends, DAG execution ends : milestone, end, 18:00, 2min
+    Last task ends, Dag execution ends : milestone, end, 18:00, 2min
 
   section Metrics
     %% The start of the metrics can be conveniently marked with `after`,

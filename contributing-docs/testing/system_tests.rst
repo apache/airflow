@@ -44,7 +44,7 @@ For older version of the tests, you can execute the system tests by providing th
 ``--system SYSTEM`` flag to ``pytest``. You can specify several --system flags if you want to execute
 tests for several systems.
 
-The system tests execute a specified example DAG file that runs the DAG end-to-end.
+The system tests execute a specified example Dag file that runs the Dag end-to-end.
 
 New System Tests
 ----------------
@@ -52,7 +52,7 @@ New System Tests
 The new system tests follows
 [AIP-47 New Design of System Tests](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests)
 and those system tests do not require separate ``pytest`` flag to be executed, they also don't need a separate
-class to run - all the code is kept in the system test class that is also an executable DAG, it is discoverable
+class to run - all the code is kept in the system test class that is also an executable Dag, it is discoverable
 by ``pytest`` and it is executable as Python script.
 
 Environment for System Tests

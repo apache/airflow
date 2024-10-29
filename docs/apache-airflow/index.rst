@@ -43,7 +43,7 @@ Take a look at the following snippet of code:
     from airflow.decorators import task
     from airflow.operators.bash import BashOperator
 
-    # A DAG represents a workflow, a collection of tasks
+    # A Dag represents a workflow, a collection of tasks
     with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
         # Tasks are represented as operators
         hello = BashOperator(task_id="hello", bash_command="echo hello")
@@ -58,24 +58,24 @@ Take a look at the following snippet of code:
 
 Here you see:
 
-- A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
+- A Dag named "demo", starting on Jan 1st 2022 and running once a day. A Dag is Airflow's representation of a workflow.
 - Two tasks, a BashOperator running a Bash script and a Python function defined using the ``@task`` decorator
 - ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
 
 Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
-of the "demo" DAG is visible in the web interface:
+of the "demo" Dag is visible in the web interface:
 
 .. image:: /img/demo_graph_view.png
-  :alt: Demo DAG in the Graph View, showing the status of one DAG run
+  :alt: Demo Dag in the Graph View, showing the status of one Dag run
 
 This example demonstrates a simple Bash and Python script, but these tasks can run any arbitrary code. Think
 of running a Spark job, moving data between two buckets, or sending an email. The same structure can also be
 seen running over time:
 
 .. image:: /img/demo_grid_view.png
-  :alt: Demo DAG in the Grid View, showing the status of all DAG runs
+  :alt: Demo Dag in the Grid View, showing the status of all Dag runs
 
-Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
+Each column represents one Dag run. These are two of the most used views in Airflow, but there are several
 other views which allow you to deep dive into the state of your workflows.
 
 
@@ -83,7 +83,7 @@ Why Airflow®?
 =========================================
 Airflow® is a batch workflow orchestration platform. The Airflow framework contains operators to connect with
 many technologies and is easily extensible to connect with a new technology. If your workflows have a clear
-start and end, and run at regular intervals, they can be programmed as an Airflow DAG.
+start and end, and run at regular intervals, they can be programmed as an Airflow Dag.
 
 If you prefer coding over clicking, Airflow is the tool for you. Workflows are defined as Python code which
 means:

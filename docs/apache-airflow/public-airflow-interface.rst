@@ -32,7 +32,7 @@ The following are some examples of the public interface of Airflow:
 
 * When you are writing your own operators or hooks. This commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
 * When writing new :doc:`Plugins <authoring-and-scheduling/plugins>` that extend Airflow's functionality beyond
-  DAG building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
+  Dag building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
   is usually done by users who manage Airflow instances.
 * Bundling custom Operators, Hooks, Plugins and releasing them together via
   :doc:`provider packages <apache-airflow-providers:index>` - this is usually done by those who intend to
@@ -53,14 +53,14 @@ in details (such as output format and available flags) so if you want to rely on
 way, the Stable REST API is recommended.
 
 
-Using the Public Interface for DAG Authors
+Using the Public Interface for Dag Authors
 ==========================================
 
 DAGs
 ----
 
-The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
-instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
+The Dag is Airflow's core entity that represents a recurring workflow. You can create a Dag by
+instantiating the :class:`~airflow.models.dag.DAG` class in your Dag file. You can also instantiate
 them via :class:`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
 can also have parameters specified via :class:`~airflow.models.param.Param` class.
 
@@ -107,7 +107,7 @@ Subclasses of BaseOperator which are published in Apache Airflow are public in *
 Task Instances
 --------------
 
-Task instances are the individual runs of a single task in a DAG (in a DAG Run). They are available in the context
+Task instances are the individual runs of a single task in a Dag (in a Dag Run). They are available in the context
 passed to the execute method of the operators via the :class:`~airflow.models.taskinstance.TaskInstance` class.
 
 .. toctree::
@@ -121,7 +121,7 @@ passed to the execute method of the operators via the :class:`~airflow.models.ta
 Task Instance Keys
 ------------------
 
-Task instance keys are unique identifiers of task instances in a DAG (in a DAG Run). A key is a tuple that consists of
+Task instance keys are unique identifiers of task instances in a Dag (in a Dag Run). A key is a tuple that consists of
 ``dag_id``, ``task_id``, ``run_id``, ``try_number``, and ``map_index``. The key of a task instance can be retrieved via
 :meth:`~airflow.models.taskinstance.TaskInstance.key`.
 
@@ -154,7 +154,7 @@ by extending them:
 Public Airflow utilities
 ------------------------
 
-When writing or extending Hooks and Operators, DAG authors and developers can
+When writing or extending Hooks and Operators, Dag authors and developers can
 use the following classes:
 
 * The :class:`~airflow.models.connection.Connection`, which provides access to external service credentials and configuration.
@@ -236,7 +236,7 @@ Timetables
 ----------
 
 Custom timetable implementations provide Airflow's scheduler additional logic to
-schedule DAG runs in ways not possible with built-in schedule expressions.
+schedule Dag runs in ways not possible with built-in schedule expressions.
 All Timetables derive from :class:`~airflow.timetables.base.Timetable`.
 
 Airflow has a set of Timetables that are considered public. You are free to extend their functionality
@@ -253,10 +253,10 @@ You can read more about Timetables in :doc:`howto/timetable`.
 Listeners
 ---------
 
-Listeners enable you to respond to DAG/Task lifecycle events.
+Listeners enable you to respond to Dag/Task lifecycle events.
 
 This is implemented via :class:`~airflow.listeners.listener.ListenerManager` class that provides hooks that
-can be implemented to respond to DAG/Task lifecycle events.
+can be implemented to respond to Dag/Task lifecycle events.
 
 .. versionadded:: 2.5
 
@@ -372,7 +372,7 @@ implemented in the community providers.
 
 Decorators
 ----------
-DAG authors can use decorators to author DAGs using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
+Dag authors can use decorators to author DAGs using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
 All Decorators derive from :class:`~airflow.decorators.base.TaskDecorator`.
 
 Airflow has a set of Decorators that are considered public. You are free to extend their functionality

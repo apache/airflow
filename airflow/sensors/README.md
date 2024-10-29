@@ -19,6 +19,6 @@
 
 # Airflow Sensors
 
-Airflow Sensors are a special kind of Airflow Operator. When they run, they check to see if a certain criteria is met before they complete and let their downstream tasks execute. They are primarily used to enable portions of your DAG to wait for some criteria to be fulfilled by an external system.
+Airflow Sensors are a special kind of Airflow Operator. When they run, they check to see if a certain criteria is met before they complete and let their downstream tasks execute. They are primarily used to enable portions of your Dag to wait for some criteria to be fulfilled by an external system.
 
 The Sensors contained within this directory are core Airflow Sensors. They are included by default in any Airflow implementation. For other available sensors that have been built by the community, please see the `providers` directory.

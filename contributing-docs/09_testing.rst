@@ -37,14 +37,14 @@ Airflow Test Infrastructure
   rendered correctly for various configuration parameters.
 
 * `System tests <testing/system_tests.rst>`__ are automatic tests that use external systems like
-  Google Cloud and AWS. These tests are intended for an end-to-end DAG execution.
+  Google Cloud and AWS. These tests are intended for an end-to-end Dag execution.
 
 You can also run other kind of tests when you are developing airflow packages:
 
 * `Testing packages <testing/testing_packages.rst>`__ is a document that describes how to
   manually build and test pre-release candidate packages of airflow and providers.
 
-* `DAG testing <testing/dag_testing.rst>`__ is a document that describes how to test DAGs in a local environment
+* `Dag testing <testing/dag_testing.rst>`__ is a document that describes how to test DAGs in a local environment
   with ``DebugExecutor``. Note, that this is a legacy method - you can now use dag.test() method to test DAGs.
 
 ------

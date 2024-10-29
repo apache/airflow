@@ -24,7 +24,7 @@ Command Line Interface
 ''''''''''''''''''''''
 
 Airflow has a very rich command line interface that allows for
-many types of operation on a DAG, starting services, and supporting
+many types of operation on a Dag, starting services, and supporting
 development and testing.
 
 .. note::

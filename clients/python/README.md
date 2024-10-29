@@ -140,7 +140,7 @@ the Apache Airflow API.
 
 Note that you will need to pass credentials data.
 
-For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authorization is used:
+For e.g., here is how to pause a Dag with [curl](https://curl.haxx.se/), when basic authorization is used:
 
 ```bash
 curl -X PATCH 'https://example.com/api/v1/dags/{dag_id}?update_mask=is_paused' \\
@@ -327,31 +327,31 @@ Class | Method | HTTP request | Description
 *ConnectionApi* | [**patch_connection**](docs/ConnectionApi.md#patch_connection) | **PATCH** /connections/{connection_id} | Update a connection
 *ConnectionApi* | [**post_connection**](docs/ConnectionApi.md#post_connection) | **POST** /connections | Create a connection
 *ConnectionApi* | [**test_connection**](docs/ConnectionApi.md#test_connection) | **POST** /connections/test | Test a connection
-*DAGApi* | [**delete_dag**](docs/DAGApi.md#delete_dag) | **DELETE** /dags/{dag_id} | Delete a DAG
-*DAGApi* | [**get_dag**](docs/DAGApi.md#get_dag) | **GET** /dags/{dag_id} | Get basic information about a DAG
-*DAGApi* | [**get_dag_details**](docs/DAGApi.md#get_dag_details) | **GET** /dags/{dag_id}/details | Get a simplified representation of DAG
+*DAGApi* | [**delete_dag**](docs/DAGApi.md#delete_dag) | **DELETE** /dags/{dag_id} | Delete a Dag
+*DAGApi* | [**get_dag**](docs/DAGApi.md#get_dag) | **GET** /dags/{dag_id} | Get basic information about a Dag
+*DAGApi* | [**get_dag_details**](docs/DAGApi.md#get_dag_details) | **GET** /dags/{dag_id}/details | Get a simplified representation of Dag
 *DAGApi* | [**get_dag_source**](docs/DAGApi.md#get_dag_source) | **GET** /dagSources/{file_token} | Get a source code
 *DAGApi* | [**get_dags**](docs/DAGApi.md#get_dags) | **GET** /dags | List DAGs
 *DAGApi* | [**get_task**](docs/DAGApi.md#get_task) | **GET** /dags/{dag_id}/tasks/{task_id} | Get simplified representation of a task
-*DAGApi* | [**get_tasks**](docs/DAGApi.md#get_tasks) | **GET** /dags/{dag_id}/tasks | Get tasks for DAG
-*DAGApi* | [**patch_dag**](docs/DAGApi.md#patch_dag) | **PATCH** /dags/{dag_id} | Update a DAG
+*DAGApi* | [**get_tasks**](docs/DAGApi.md#get_tasks) | **GET** /dags/{dag_id}/tasks | Get tasks for Dag
+*DAGApi* | [**patch_dag**](docs/DAGApi.md#patch_dag) | **PATCH** /dags/{dag_id} | Update a Dag
 *DAGApi* | [**patch_dags**](docs/DAGApi.md#patch_dags) | **PATCH** /dags | Update DAGs
 *DAGApi* | [**post_clear_task_instances**](docs/DAGApi.md#post_clear_task_instances) | **POST** /dags/{dag_id}/clearTaskInstances | Clear a set of task instances
 *DAGApi* | [**post_set_task_instances_state**](docs/DAGApi.md#post_set_task_instances_state) | **POST** /dags/{dag_id}/updateTaskInstancesState | Set a state of task instances
-*DAGRunApi* | [**clear_dag_run**](docs/DAGRunApi.md#clear_dag_run) | **POST** /dags/{dag_id}/dagRuns/{dag_run_id}/clear | Clear a DAG run
-*DAGRunApi* | [**delete_dag_run**](docs/DAGRunApi.md#delete_dag_run) | **DELETE** /dags/{dag_id}/dagRuns/{dag_run_id} | Delete a DAG run
-*DAGRunApi* | [**get_dag_run**](docs/DAGRunApi.md#get_dag_run) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id} | Get a DAG run
-*DAGRunApi* | [**get_dag_runs**](docs/DAGRunApi.md#get_dag_runs) | **GET** /dags/{dag_id}/dagRuns | List DAG runs
-*DAGRunApi* | [**get_dag_runs_batch**](docs/DAGRunApi.md#get_dag_runs_batch) | **POST** /dags/~/dagRuns/list | List DAG runs (batch)
-*DAGRunApi* | [**get_upstream_dataset_events**](docs/DAGRunApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
-*DAGRunApi* | [**post_dag_run**](docs/DAGRunApi.md#post_dag_run) | **POST** /dags/{dag_id}/dagRuns | Trigger a new DAG run
+*DAGRunApi* | [**clear_dag_run**](docs/DAGRunApi.md#clear_dag_run) | **POST** /dags/{dag_id}/dagRuns/{dag_run_id}/clear | Clear a Dag run
+*DAGRunApi* | [**delete_dag_run**](docs/DAGRunApi.md#delete_dag_run) | **DELETE** /dags/{dag_id}/dagRuns/{dag_run_id} | Delete a Dag run
+*DAGRunApi* | [**get_dag_run**](docs/DAGRunApi.md#get_dag_run) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id} | Get a Dag run
+*DAGRunApi* | [**get_dag_runs**](docs/DAGRunApi.md#get_dag_runs) | **GET** /dags/{dag_id}/dagRuns | List Dag runs
+*DAGRunApi* | [**get_dag_runs_batch**](docs/DAGRunApi.md#get_dag_runs_batch) | **POST** /dags/~/dagRuns/list | List Dag runs (batch)
+*DAGRunApi* | [**get_upstream_dataset_events**](docs/DAGRunApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a Dag run
+*DAGRunApi* | [**post_dag_run**](docs/DAGRunApi.md#post_dag_run) | **POST** /dags/{dag_id}/dagRuns | Trigger a new Dag run
 *DAGRunApi* | [**set_dag_run_note**](docs/DAGRunApi.md#set_dag_run_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/setNote | Update the DagRun note.
-*DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
+*DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a Dag run
 *DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
 *DatasetApi* | [**get_dataset**](docs/DatasetApi.md#get_dataset) | **GET** /datasets/{uri} | Get a dataset
 *DatasetApi* | [**get_dataset_events**](docs/DatasetApi.md#get_dataset_events) | **GET** /datasets/events | Get dataset events
 *DatasetApi* | [**get_datasets**](docs/DatasetApi.md#get_datasets) | **GET** /datasets | List datasets
-*DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
+*DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a Dag run
 *EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
 *EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /eventLogs | List log entries
 *ImportErrorApi* | [**get_import_error**](docs/ImportErrorApi.md#get_import_error) | **GET** /importErrors/{import_error_id} | Get an import error
@@ -418,7 +418,7 @@ Class | Method | HTTP request | Description
  - [ConnectionCollectionItem](docs/ConnectionCollectionItem.md)
  - [ConnectionTest](docs/ConnectionTest.md)
  - [CronExpression](docs/CronExpression.md)
- - [DAG](docs/DAG.md)
+ - [Dag](docs/DAG.md)
  - [DAGCollection](docs/DAGCollection.md)
  - [DAGCollectionAllOf](docs/DAGCollectionAllOf.md)
  - [DAGDetail](docs/DAGDetail.md)

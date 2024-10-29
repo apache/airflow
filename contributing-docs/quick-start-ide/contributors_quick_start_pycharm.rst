@@ -59,7 +59,7 @@ It requires "airflow-env" virtual environment configured locally.
 - Now set ``sql_alchemy_conn = mysql+pymysql://root:@127.0.0.1:23306/airflow?charset=utf8mb4`` in file
   ``~/airflow/airflow.cfg`` on local machine.
 
-2. Debugging an example DAG
+2. Debugging an example Dag
 
 - Add Interpreter to PyCharm pointing interpreter path to ``~/.pyenv/versions/airflow-env/bin/python``, which is virtual
   environment ``airflow-env`` created with pyenv earlier. For adding an Interpreter go to ``File -> Setting -> Project:
@@ -73,12 +73,12 @@ It requires "airflow-env" virtual environment configured locally.
     </div>
 
 - In PyCharm IDE open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
-  machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
+  machine when breeze airflow is started. So any Dag file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
-- Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
+- Copy any example Dag present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
 
-- Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
+- Add a ``__main__`` block at the end of your Dag file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
 
