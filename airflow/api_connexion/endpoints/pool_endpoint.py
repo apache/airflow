@@ -30,6 +30,7 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("DELETE")
 @action_logging
 @provide_session
@@ -53,6 +55,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("GET")
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -63,6 +66,7 @@ def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     return pool_schema.dump(obj)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -83,6 +87,7 @@ def get_pools(
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("PUT")
 @action_logging
 @provide_session
@@ -118,9 +123,11 @@ def patch_pool(
             # there is no way field is None here (UpdateMask is a List[str])
             # so if pool_schema.declared_fields[field].attribute is None file is returned
             update_mask = [
-                pool_schema.declared_fields[field].attribute  # type: ignore[misc]
-                if pool_schema.declared_fields[field].attribute
-                else field
+                (
+                    pool_schema.declared_fields[field].attribute  # type: ignore[misc]
+                    if pool_schema.declared_fields[field].attribute
+                    else field
+                )
                 for field in update_mask
             ]
         except KeyError as err:
@@ -140,6 +147,7 @@ def patch_pool(
     return pool_schema.dump(pool)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("POST")
 @action_logging
 @provide_session

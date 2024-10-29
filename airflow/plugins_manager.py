@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from types import ModuleType
     from typing import Generator
 
-    from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
 
@@ -62,9 +61,7 @@ plugins: list[AirflowPlugin] | None = None
 loaded_plugins: set[str] = set()
 
 # Plugin components to integrate as modules
-registered_hooks: list[BaseHook] | None = None
 macros_modules: list[Any] | None = None
-executors_modules: list[Any] | None = None
 
 # Plugin components to integrate directly
 admin_views: list[Any] | None = None
@@ -87,8 +84,6 @@ Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
 """
 PLUGINS_ATTRIBUTES_TO_DUMP = {
-    "hooks",
-    "executors",
     "macros",
     "admin_views",
     "flask_blueprints",
@@ -153,8 +148,6 @@ class AirflowPlugin:
 
     name: str | None = None
     source: AirflowPluginSource | None = None
-    hooks: list[Any] = []
-    executors: list[Any] = []
     macros: list[Any] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
@@ -348,7 +341,7 @@ def ensure_plugins_loaded():
     """
     from airflow.stats import Stats
 
-    global plugins, registered_hooks
+    global plugins
 
     if plugins is not None:
         log.debug("Plugins are already loaded. Skipping.")
@@ -361,18 +354,12 @@ def ensure_plugins_loaded():
 
     with Stats.timer() as timer:
         plugins = []
-        registered_hooks = []
 
         load_plugins_from_plugin_directory()
         load_entrypoint_plugins()
 
         if not settings.LAZY_LOAD_PROVIDERS:
             load_providers_plugins()
-
-        # We don't do anything with these for now, but we want to keep track of
-        # them so we can integrate them in to the UI's Connection screens
-        for plugin in plugins:
-            registered_hooks.extend(plugin.hooks)
 
     if plugins:
         log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
@@ -533,33 +520,6 @@ def initialize_hook_lineage_readers_plugins():
         hook_lineage_reader_classes.extend(plugin.hook_lineage_readers)
 
 
-def integrate_executor_plugins() -> None:
-    """Integrate executor plugins to the context."""
-    global plugins
-    global executors_modules
-
-    if executors_modules is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
-    log.debug("Integrate executor plugins")
-
-    executors_modules = []
-    for plugin in plugins:
-        if plugin.name is None:
-            raise AirflowPluginException("Invalid plugin name")
-        plugin_name: str = plugin.name
-
-        executors_module = make_module("airflow.executors." + plugin_name, plugin.executors)
-        if executors_module:
-            executors_modules.append(executors_module)
-            sys.modules[executors_module.__name__] = executors_module
-
-
 def integrate_macros_plugins() -> None:
     """Integrates macro plugins."""
     global plugins
@@ -615,7 +575,6 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     :param attrs_to_dump: A list of plugin attributes to dump
     """
     ensure_plugins_loaded()
-    integrate_executor_plugins()
     integrate_macros_plugins()
     initialize_web_ui_plugins()
     initialize_fastapi_plugins()
@@ -629,7 +588,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
                     info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
-                elif attr in ("macros", "timetables", "hooks", "executors", "priority_weight_strategies"):
+                elif attr in ("macros", "timetables", "priority_weight_strategies"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
                     # listeners may be modules or class instances

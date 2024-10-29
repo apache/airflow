@@ -122,7 +122,6 @@ github:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
     - aritra24
-    - dirrao
     - omkar-foss
     - rawwar
     - nathadfield
@@ -134,3 +133,7 @@ github:
 
 notifications:
   jobs: jobs@airflow.apache.org
+  commits: commits@airflow.apache.org
+  issues: commits@airflow.apache.org
+  pullrequests: commits@airflow.apache.org
+  discussions: commits@airflow.apache.org

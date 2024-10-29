@@ -268,12 +268,12 @@ def get_asset_triggered_next_run_info(
             .join(
                 ADRQ,
                 and_(
-                    ADRQ.dataset_id == DagScheduleAssetReference.dataset_id,
+                    ADRQ.asset_id == DagScheduleAssetReference.asset_id,
                     ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
-            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.dataset_id)
+            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id)
             .group_by(DagScheduleAssetReference.dag_id)
             .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()
@@ -322,7 +322,7 @@ def _create_orm_dagrun(
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
-    run.consumed_dataset_events = []
+    run.consumed_asset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
@@ -376,7 +376,7 @@ class DAG(LoggingMixin):
 
     .. versionadded:: 2.4
         The *schedule* argument to specify either time-based scheduling logic
-        (timetable), or dataset-driven triggers.
+        (timetable), or asset-driven triggers.
 
     .. versionchanged:: 3.0
         The default value of *schedule* has been changed to *None* (no schedule).
@@ -2571,7 +2571,6 @@ class DAG(LoggingMixin):
         orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
-        asset_op.add_asset_active_references(orm_assets.values(), session=session)
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
@@ -2675,9 +2674,9 @@ class DAG(LoggingMixin):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             exclusion_list = {
-                "schedule_dataset_references",
-                "schedule_dataset_alias_references",
-                "task_outlet_dataset_references",
+                "schedule_asset_references",
+                "schedule_asset_alias_references",
+                "task_outlet_asset_references",
                 "_old_context_manager_dags",
                 "safe_dag_id",
                 "last_loaded",
@@ -2819,8 +2818,6 @@ class DagModel(Base):
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
-    # Whether (one  of) the scheduler is scheduling this DAG at the moment
-    scheduler_lock = Column(Boolean)
     # Foreign key to the latest pickle_id
     pickle_id = Column(Integer)
     # The location of the file containing the DAG object
@@ -2842,8 +2839,8 @@ class DagModel(Base):
     timetable_summary = Column(Text, nullable=True)
     # Timetable description
     timetable_description = Column(String(1000), nullable=True)
-    # Dataset expression based on dataset triggers
-    dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    # Asset expression based on asset triggers
+    asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
@@ -2870,18 +2867,18 @@ class DagModel(Base):
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
-    schedule_dataset_references = relationship(
+    schedule_asset_references = relationship(
         "DagScheduleAssetReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_dataset_alias_references = relationship(
+    schedule_asset_alias_references = relationship(
         "DagScheduleAssetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
-    task_outlet_dataset_references = relationship(
+    schedule_assets = association_proxy("schedule_asset_references", "asset")
+    task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
     )
@@ -3093,7 +3090,7 @@ class DagModel(Base):
         del all_records
         dag_statuses = {}
         for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {x.dataset.uri: True for x in records}
+            dag_statuses[dag_id] = {x.asset.uri: True for x in records}
         ser_dags = session.scalars(
             select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
         ).all()
@@ -3105,27 +3102,27 @@ class DagModel(Base):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        dataset_triggered_dag_info = {}
+        asset_triggered_dag_info = {}
         for dag_id, records in by_dag.items():
             times = sorted(x.created_at for x in records)
-            dataset_triggered_dag_info[dag_id] = (times[0], times[-1])
+            asset_triggered_dag_info[dag_id] = (times[0], times[-1])
         del by_dag
-        dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
-        if dataset_triggered_dag_ids:
+        asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
+        if asset_triggered_dag_ids:
             exclusion_list = set(
                 session.scalars(
                     select(DagModel.dag_id)
                     .join(DagRun.dag_model)
                     .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
-                    .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                    .where(DagModel.dag_id.in_(asset_triggered_dag_ids))
                     .group_by(DagModel.dag_id)
                     .having(func.count() >= func.max(DagModel.max_active_runs))
                 )
             )
             if exclusion_list:
-                dataset_triggered_dag_ids -= exclusion_list
-                dataset_triggered_dag_info = {
-                    k: v for k, v in dataset_triggered_dag_info.items() if k not in exclusion_list
+                asset_triggered_dag_ids -= exclusion_list
+                asset_triggered_dag_info = {
+                    k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
                 }
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
@@ -3137,7 +3134,7 @@ class DagModel(Base):
                 cls.has_import_errors == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
-                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                    cls.dag_id.in_(asset_triggered_dag_ids),
                 ),
             )
             .order_by(cls.next_dagrun_create_after)
@@ -3146,7 +3143,7 @@ class DagModel(Base):
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
-            dataset_triggered_dag_info,
+            asset_triggered_dag_info,
         )
 
     def calculate_dagrun_date_fields(
@@ -3186,7 +3183,7 @@ class DagModel(Base):
 
     @provide_session
     def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
-        if self.dataset_expression is None:
+        if self.asset_expression is None:
             return None
 
         # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns

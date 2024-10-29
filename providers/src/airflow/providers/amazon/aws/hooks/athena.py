@@ -155,14 +155,15 @@ class AthenaHook(AwsBaseHook):
         state = None
         try:
             state = response["QueryExecution"]["Status"]["State"]
-        except Exception:
-            self.log.exception(
-                "Exception while getting query state. Query execution id: %s", query_execution_id
-            )
-        finally:
+        except Exception as e:
             # The error is being absorbed here and is being handled by the caller.
             # The error is being absorbed to implement retries.
-            return state
+            self.log.exception(
+                "Exception while getting query state. Query execution id: %s, Exception: %s",
+                query_execution_id,
+                e,
+            )
+        return state
 
     def get_state_change_reason(self, query_execution_id: str, use_cache: bool = False) -> str | None:
         """
@@ -177,15 +178,15 @@ class AthenaHook(AwsBaseHook):
         reason = None
         try:
             reason = response["QueryExecution"]["Status"]["StateChangeReason"]
-        except Exception:
-            self.log.exception(
-                "Exception while getting query state change reason. Query execution id: %s",
-                query_execution_id,
-            )
-        finally:
+        except Exception as e:
             # The error is being absorbed here and is being handled by the caller.
             # The error is being absorbed to implement retries.
-            return reason
+            self.log.exception(
+                "Exception while getting query state change reason. Query execution id: %s, Exception: %s",
+                query_execution_id,
+                e,
+            )
+        return reason
 
     def get_query_results(
         self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
@@ -287,9 +288,18 @@ class AthenaHook(AwsBaseHook):
             )
         except AirflowException as error:
             # this function does not raise errors to keep previous behavior.
-            self.log.warning(error)
-        finally:
-            return self.check_query_status(query_execution_id)
+            self.log.warning(
+                "AirflowException while polling query status. Query execution id: %s, Exception: %s",
+                query_execution_id,
+                error,
+            )
+        except Exception as e:
+            self.log.warning(
+                "Unexpected exception while polling query status. Query execution id: %s, Exception: %s",
+                query_execution_id,
+                e,
+            )
+        return self.check_query_status(query_execution_id)
 
     def get_output_location(self, query_execution_id: str) -> str:
         """

@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(providers/fab): Use asset in common provider (#43112)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix revoke Dag stale permission on airflow < 2.10 (#42844)``
+
+Misc
+~~~~
+
+* ``Bump Flask-AppBuilder to ''4.5.2'' (#43309)``
+* ``Upgrade FAB to 4.5.1 (#43251)``
+* ``Move user and roles schemas to fab provider (#42869)``
+* ``Move the session auth backend to FAB auth manager (#42878)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 1.4.1
 .....
 
