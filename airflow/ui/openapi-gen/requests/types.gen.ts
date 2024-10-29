@@ -155,6 +155,18 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG Run Serializer for PATCH requests.
+ */
+export type DAGRunPatchBody = {
+  state: DAGRunPatchStates;
+};
+
+/**
+ * Enum for DAG Run states when updating a DAG Run.
+ */
+export type DAGRunPatchStates = "queued" | "success" | "failed";
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
@@ -679,6 +691,15 @@ export type DeleteDagRunData = {
 };
 
 export type DeleteDagRunResponse = void;
+
+export type PatchDagRunStateData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagRunStateResponse = DAGRunResponse;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -1214,6 +1235,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchDagRunStateData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
         /**
          * Bad Request
          */
