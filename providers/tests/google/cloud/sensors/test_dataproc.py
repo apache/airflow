@@ -132,7 +132,7 @@ class TestDataprocJobSensor:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_missing_region(self, mock_hook):
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'region'"):
             DataprocJobSensor(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,

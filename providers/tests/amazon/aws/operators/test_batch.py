@@ -441,7 +441,7 @@ class TestBatchOperator:
         client_mock().submit_job.assert_called_once_with(**expected_args)
 
     def test_cant_set_old_and_new_override_param(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="Invalid arguments were passed"):
             _ = BatchOperator(
                 task_id="task",
                 job_name=JOB_NAME,

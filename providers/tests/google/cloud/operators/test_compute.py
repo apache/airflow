@@ -349,7 +349,7 @@ class TestGceInstanceInsertFromTemplate:
             )
 
     def test_insert_instance_from_template_should_throw_ex_when_missing_source_instance_template(self):
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'source_instance_template'"):
+        with pytest.raises(TypeError, match=r"missing keyword argument 'source_instance_template'"):
             ComputeEngineInsertInstanceFromTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
@@ -360,7 +360,7 @@ class TestGceInstanceInsertFromTemplate:
             )
 
     def test_insert_instance_from_template_should_throw_ex_when_missing_body(self):
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'body'"):
+        with pytest.raises(TypeError, match=r"missing keyword argument 'body'"):
             ComputeEngineInsertInstanceFromTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 source_instance_template=SOURCE_INSTANCE_TEMPLATE,
@@ -910,7 +910,7 @@ class TestGceTemplateInsert:
         )
 
     def test_insert_template_should_throw_ex_when_missing_body(self):
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'body'"):
+        with pytest.raises((TypeError, AirflowException), match=r"missing keyword argument 'body'"):
             ComputeEngineInsertInstanceTemplateOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT_ID,
@@ -1552,7 +1552,7 @@ class TestGceInstanceGroupManagerInsert:
         )
 
     def test_insert_igm_should_throw_ex_when_missing_body(self):
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'body'"):
+        with pytest.raises((TypeError, AirflowException), match=r"missing keyword argument 'body'"):
             ComputeEngineInsertInstanceGroupManagerOperator(
                 zone=GCE_ZONE,
                 task_id=TASK_ID,

@@ -134,7 +134,7 @@ class TestCloudBuildOperator:
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_create_build_with_missing_build(self, mock_hook):
         mock_hook.return_value.create_build_without_waiting_for_result.return_value = Build()
-        with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'build'"):
             CloudBuildCreateBuildOperator(task_id="id")
 
     @pytest.mark.parametrize(
@@ -479,7 +479,7 @@ def test_async_create_build_error_event_should_throw_exception():
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_with_missing_build_should_throw_exception(mock_hook):
     mock_hook.return_value.create_build.return_value = Build()
-    with pytest.raises(AirflowException, match="missing keyword argument 'build'"):
+    with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'build'"):
         CloudBuildCreateBuildOperator(task_id="id")
 
 
