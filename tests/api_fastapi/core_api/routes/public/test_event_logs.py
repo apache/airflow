@@ -88,15 +88,10 @@ class TestEventLogsEndpoint:
             owner_display_name=OWNER_DISPLAY_NAME,
             task_instance=task_instance,
         )
-        session.add(normal_log)
-        session.add(log_with_owner)
-        session.add(log_with_task_instance)
-        session.add(log_with_owner_and_task_instance)
+        session.add_all(
+            [normal_log, log_with_owner, log_with_task_instance, log_with_owner_and_task_instance]
+        )
         session.commit()
-        session.refresh(normal_log)
-        session.refresh(log_with_owner)
-        session.refresh(log_with_task_instance)
-        session.refresh(log_with_owner_and_task_instance)
         return {
             EVENT_NORMAL: normal_log,
             EVENT_WITH_OWNER: log_with_owner,
@@ -163,23 +158,20 @@ class TestGetEventLog(TestEventLogsEndpoint):
         if expected_status_code != 200:
             return
 
-        resp_json = response.json()
-        when = resp_json["when"]
-        logical_date = resp_json["logical_date"]
         expected_json = {
             "event_log_id": event_log_id,
-            "when": when,
-            "dag_id": None,
-            "task_id": None,
-            "run_id": None,
+            "when": event_log.dttm.isoformat().replace("+00:00", "Z") if event_log.dttm else None,
+            "dag_id": expected_body.get("dag_id"),
+            "task_id": expected_body.get("task_id"),
+            "run_id": expected_body.get("run_id"),
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
-            "event": None,
-            "logical_date": logical_date,
-            "owner": None,
-            "extra": None,
+            "event": expected_body.get("event"),
+            "logical_date": event_log.execution_date.isoformat().replace("+00:00", "Z")
+            if event_log.execution_date
+            else None,
+            "owner": expected_body.get("owner"),
+            "extra": expected_body.get("extra"),
         }
-        for key, value in expected_body.items():
-            expected_json[key] = value
 
-        assert resp_json == expected_json
+        assert response.json() == expected_json

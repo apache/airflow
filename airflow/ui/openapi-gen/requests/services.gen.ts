@@ -915,6 +915,9 @@ export class EventLogService {
         event_log_id: data.eventLogId,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
