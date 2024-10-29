@@ -69,17 +69,6 @@ class DagVersion(Base):
         UniqueConstraint("dag_id", "version_number", name="dag_id_version_number_unique_constraint"),
     )
 
-    def __init__(
-        self,
-        *,
-        dag_id: str,
-        version_number: int,
-        version_name: str | None = None,
-    ):
-        self.dag_id = dag_id
-        self.version_number = version_number
-        self.version_name = version_name
-
     def __repr__(self):
         return f"<DagVersion {self.dag_id} - {self.version_name}>"
 
@@ -166,4 +155,4 @@ class DagVersion(Base):
             )
             .where(cls.dag_id.in_(dag_ids))
         ).all()
-        return latest_versions
+        return latest_versions or []

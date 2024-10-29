@@ -2280,7 +2280,7 @@ class DagModel(Base):
         for dag_id, records in by_dag.items():
             dag_statuses[dag_id] = {x.asset.uri: True for x in records}
         dag_versions = DagVersion.get_latest_dag_versions(list(dag_statuses.keys()), session=session)
-        ser_dags = [x.serialized_dag for x in dag_versions if dag_versions]
+        ser_dags = [x.serialized_dag for x in dag_versions]
 
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id

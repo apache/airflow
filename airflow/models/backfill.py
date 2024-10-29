@@ -43,6 +43,7 @@ from sqlalchemy_jsonfield import JSONField
 from airflow.api_connexion.exceptions import NotFound
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -200,7 +201,7 @@ def _create_backfill_dag_run(
                     )
                 )
                 return
-
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         dr = dag.create_dagrun(
             triggered_by=DagRunTriggeredByType.BACKFILL,
             execution_date=info.logical_date,
@@ -213,6 +214,7 @@ def _create_backfill_dag_run(
             creating_job_id=None,
             session=session,
             backfill_id=backfill_id,
+            dag_version_id=dag_version.id,
         )
         session.add(
             BackfillDagRun(
