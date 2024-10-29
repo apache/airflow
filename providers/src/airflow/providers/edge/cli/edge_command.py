@@ -175,6 +175,9 @@ class _EdgeWorkerCli:
             self.last_hb = EdgeWorker.register_worker(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
             ).last_update
+        except EdgeWorkerVersionException as e:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            raise SystemExit(str(e)) 
         except AirflowException as e:
             if "404:NOT FOUND" in str(e):
                 raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
@@ -259,7 +262,12 @@ class _EdgeWorkerCli:
             else EdgeWorkerState.IDLE
         )
         sysinfo = self._get_sysinfo()
-        self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        try:
+            self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        except EdgeWorkerVersionException:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            self.drain = True
+
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""
