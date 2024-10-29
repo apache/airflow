@@ -220,6 +220,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "from_date": from_date_iso,
             "id": mock.ANY,
             "is_paused": False,
+            "reprocess_behavior": "none",
             "max_active_runs": 5,
             "to_date": to_date_iso,
             "updated_at": mock.ANY,
