@@ -68,7 +68,6 @@ from airflow.models.dag import (
 from airflow.models.dagrun import DagRun
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -160,7 +159,6 @@ class TestDag:
         with create_session() as session:
             session.query(DagRun).filter(DagRun.dag_id == dag_id).delete(synchronize_session=False)
             session.query(TI).filter(TI.dag_id == dag_id).delete(synchronize_session=False)
-            session.query(TaskFail).filter(TaskFail.dag_id == dag_id).delete(synchronize_session=False)
 
     @staticmethod
     def _occur_before(a, b, list_):

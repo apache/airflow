@@ -96,7 +96,6 @@ from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -3217,9 +3216,6 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
 
-            # Log failure duration
-            session.add(TaskFail(ti=ti))
-
         ti.clear_next_method_args()
 
         # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
@@ -3855,7 +3851,6 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskFail,
             TaskInstanceNote,
             TaskReschedule,
             XCom,
