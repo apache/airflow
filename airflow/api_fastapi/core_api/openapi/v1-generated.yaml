@@ -1156,6 +1156,78 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - DagRun
+      summary: Patch Dag Run State
+      description: Modify a DAG Run.
+      operationId: patch_dag_run_state
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -2079,6 +2151,23 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunPatchBody:
+      properties:
+        state:
+          $ref: '#/components/schemas/DAGRunPatchStates'
+      type: object
+      required:
+      - state
+      title: DAGRunPatchBody
+      description: DAG Run Serializer for PATCH requests.
+    DAGRunPatchStates:
+      type: string
+      enum:
+      - queued
+      - success
+      - failed
+      title: DAGRunPatchStates
+      description: Enum for DAG Run states when updating a DAG Run.
     DAGRunResponse:
       properties:
         run_id:
