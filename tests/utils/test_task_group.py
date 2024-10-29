@@ -1659,8 +1659,7 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
 
 
 def test_task_group_with_invalid_arg_type_raises_error():
-    error_msg = "'ui_color' has an invalid type <class 'int'> with value 123, expected type is <class 'str'>"
+    error_msg = r"'ui_color' must be <class 'str'> \(got 123 that is a <class 'int'>\)\."
     with DAG(dag_id="dag_with_tg_invalid_arg_type", schedule=None):
         with pytest.raises(TypeError, match=error_msg):
-            with TaskGroup("group_1", ui_color=123):
-                EmptyOperator(task_id="task1")
+            _ = TaskGroup("group_1", ui_color=123)

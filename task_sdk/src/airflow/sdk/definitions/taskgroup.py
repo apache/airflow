@@ -47,21 +47,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mixins import DependencyMixin
     from airflow.serialization.enums import DagAttributeTypes
 
-# TODO: The following mapping is used to validate that the arguments passed to the TaskGroup are of the
-#  correct type. This is a temporary solution until we find a more sophisticated method for argument
-#  validation. One potential method is to use get_type_hints from the typing module. However, this is not
-#  fully compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
-#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
-#  manual type-checking method.
-TASKGROUP_ARGS_EXPECTED_TYPES = {
-    "group_id": str,
-    "prefix_group_id": bool,
-    "tooltip": str,
-    "ui_color": str,
-    "ui_fgcolor": str,
-    "add_suffix_on_collision": bool,
-}
-
 
 def _default_parent_group() -> TaskGroup | None:
     from airflow.sdk.definitions.contextmanager import TaskGroupContext
@@ -117,12 +102,14 @@ class TaskGroup(DAGNode):
         automatically add `__1` etc suffixes
     """
 
-    _group_id: str | None
+    _group_id: str | None = attrs.field(
+        validator=attrs.validators.optional(attrs.validators.instance_of(str))
+    )
     prefix_group_id: bool = attrs.field(default=True)
     parent_group: TaskGroup | None = attrs.field(factory=_default_parent_group)
     dag: DAG = attrs.field(default=attrs.Factory(_default_dag, takes_self=True))
     default_args: dict[str, Any] = attrs.field(factory=dict, converter=copy.deepcopy)
-    tooltip: str = ""
+    tooltip: str = attrs.field(default="", validator=attrs.validators.instance_of(str))
     children: dict[str, DAGNode] = attrs.field(factory=dict, init=False)
 
     upstream_group_ids: set[str | None] = attrs.field(factory=set, init=False)
@@ -136,8 +123,8 @@ class TaskGroup(DAGNode):
         on_setattr=attrs.setters.frozen,
     )
 
-    ui_color: str = "CornflowerBlue"
-    ui_fgcolor: str = "#000"
+    ui_color: str = attrs.field(default="CornflowerBlue", validator=attrs.validators.instance_of(str))
+    ui_fgcolor: str = attrs.field(default="#000", validator=attrs.validators.instance_of(str))
 
     add_suffix_on_collision: bool = False
 
@@ -150,6 +137,10 @@ class TaskGroup(DAGNode):
         # TODO: If attrs supported init only args we could use that here
         # https://github.com/python-attrs/attrs/issues/342
         self._check_for_group_id_collisions(self.add_suffix_on_collision)
+
+        if self._group_id and not self.parent_group and self.dag:
+            # Support `tg = TaskGroup(x, dag=dag)`
+            self.parent_group = self.dag.task_group
 
         if self.parent_group:
             self.parent_group.add(self)
