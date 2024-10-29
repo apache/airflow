@@ -17,26 +17,19 @@
  * under the License.
  */
 import { Box, SimpleGrid, Skeleton } from "@chakra-ui/react";
-import {
-  type CoreRow,
-  flexRender,
-  type Table as TanStackTable,
-} from "@tanstack/react-table";
-import type { SyntheticEvent } from "react";
+import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
 
 import type { CardDef } from "./types";
 
 type DataTableProps<TData> = {
   readonly cardDef: CardDef<TData>;
   readonly isLoading?: boolean;
-  readonly onRowClick?: (e: SyntheticEvent, row: CoreRow<TData>) => void;
   readonly table: TanStackTable<TData>;
 };
 
 export const CardList = <TData,>({
   cardDef,
   isLoading,
-  onRowClick,
   table,
 }: DataTableProps<TData>) => {
   const defaultGridProps = { column: { base: 1 }, spacing: 2 };
@@ -45,12 +38,7 @@ export const CardList = <TData,>({
     <Box overflow="auto" width="100%">
       <SimpleGrid {...{ ...defaultGridProps, ...cardDef.gridProps }}>
         {table.getRowModel().rows.map((row) => (
-          <Box
-            _hover={onRowClick ? { cursor: "pointer" } : undefined}
-            key={row.id}
-            onClick={onRowClick ? (event) => onRowClick(event, row) : undefined}
-            title={onRowClick ? "View details" : undefined}
-          >
+          <Box key={row.id}>
             {Boolean(isLoading) &&
               (cardDef.meta?.customSkeleton ?? (
                 <Skeleton

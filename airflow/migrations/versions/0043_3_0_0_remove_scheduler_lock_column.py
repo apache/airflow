@@ -17,11 +17,11 @@
 # under the License.
 
 """
-Add exception_reason and logical_date to BackfillDagRun.
+remove scheduler_lock column.
 
-Revision ID: 3a8972ecb8f9
-Revises: fb2d4922cd79
-Create Date: 2024-10-18 16:24:38.932005
+Revision ID: 486ac7936b78
+Revises: d59cbbef95eb
+Create Date: 2024-10-23 07:48:52.494396
 
 """
 
@@ -30,24 +30,20 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.utils.sqlalchemy import UtcDateTime
-
-revision = "3a8972ecb8f9"
-down_revision = "fb2d4922cd79"
+revision = "486ac7936b78"
+down_revision = "d59cbbef95eb"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
 
 
 def upgrade():
-    """Apply Add exception_reason and logical_date to BackfillDagRun."""
-    with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("exception_reason", sa.String(length=250), nullable=True))
-        batch_op.add_column(sa.Column("logical_date", UtcDateTime(timezone=True), nullable=False))
+    """Apply remove scheduler_lock column."""
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_column("scheduler_lock")
 
 
 def downgrade():
-    """Unapply Add exception_reason and logical_date to BackfillDagRun."""
-    with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
-        batch_op.drop_column("logical_date")
-        batch_op.drop_column("exception_reason")
+    """Unapply remove scheduler_lock column."""
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("scheduler_lock", sa.BOOLEAN(), autoincrement=False, nullable=True))

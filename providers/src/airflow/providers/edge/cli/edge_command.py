@@ -238,14 +238,18 @@ class _EdgeWorkerCli:
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("r") as logfile:
+                    push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)
-                    logdata = logfile.read()
-                    EdgeLogs.push_logs(
-                        task=job.edge_job.key,
-                        log_chunk_time=datetime.now(),
-                        log_chunk_data=logdata,
-                    )
-                    job.logsize += len(logdata)
+                    while True:
+                        logdata = logfile.read(push_log_chunk_size)
+                        if not logdata:
+                            break
+                        EdgeLogs.push_logs(
+                            task=job.edge_job.key,
+                            log_chunk_time=datetime.now(),
+                            log_chunk_data=logdata,
+                        )
+                        job.logsize += len(logdata)
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""

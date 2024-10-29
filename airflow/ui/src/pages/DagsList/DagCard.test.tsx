@@ -53,7 +53,6 @@ const mockDag = {
   next_dagrun_data_interval_start: "2024-08-22T00:00:00+00:00",
   owners: ["airflow"],
   pickle_id: null,
-  scheduler_lock: null,
   tags: [],
   timetable_description: "",
   timetable_summary: "",
@@ -82,6 +81,6 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.getByText("+1 more")).toBeInTheDocument();
+    expect(screen.getByText(", +1 more")).toBeInTheDocument();
   });
 });

@@ -74,6 +74,7 @@ CANARY_LABEL = "canary"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
@@ -1445,3 +1446,7 @@ class SelectiveChecks:
             sys.exit(1)
         else:
             return True
+
+    @cached_property
+    def force_pip(self):
+        return FORCE_PIP_LABEL in self._pr_labels

@@ -2571,7 +2571,6 @@ class DAG(LoggingMixin):
         orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
-        asset_op.add_asset_active_references(orm_assets.values(), session=session)
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
@@ -2819,8 +2818,6 @@ class DagModel(Base):
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
-    # Whether (one  of) the scheduler is scheduling this DAG at the moment
-    scheduler_lock = Column(Boolean)
     # Foreign key to the latest pickle_id
     pickle_id = Column(Integer)
     # The location of the file containing the DAG object
