@@ -232,3 +232,32 @@ class TestS3ToDynamoDBOperator:
         mock_put_item.assert_has_calls(batch_writer_calls)
         mock_client.delete_table.assert_called_once_with(TableName=exist_table_op.tmp_table_name)
         assert res == "arn:aws:dynamodb"
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.transfers.s3_to_dynamodb.S3ToDynamoDBOperator._load_into_new_table"
+    )
+    @mock.patch.object(DynamoDBHook, "get_conn")
+    def test_load_into_existing_table_exception(self, mock_get_conn, new_table_load_mock, exist_table_op):
+        mock_conn = mock.MagicMock()
+        mock_client = mock.Mock()
+
+        mock_client.get_paginator.paginate.side_effect = AirflowException()
+        mock_conn.meta.client = mock_client
+        mock_conn.Table.return_value.table_arn = "arn:aws:dynamodb"
+        mock_get_conn.return_value = mock_conn
+
+        res = exist_table_op._load_into_existing_table()
+
+        new_table_load_mock.assert_called_once_with(
+            table_name=exist_table_op.tmp_table_name, delete_on_error=False
+        )
+        mock_client.get_paginator.assert_called_once_with("scan")
+        mock_client.get_paginator.return_value.paginate.assert_called_once_with(
+            TableName=exist_table_op.tmp_table_name,
+            Select="ALL_ATTRIBUTES",
+            ReturnConsumedCapacity="NONE",
+            ConsistentRead=True,
+        )
+        mock_conn.Table.assert_called_with("test-table")
+        mock_client.delete_table.assert_called_once_with(TableName=exist_table_op.tmp_table_name)
+        assert res == "arn:aws:dynamodb"
