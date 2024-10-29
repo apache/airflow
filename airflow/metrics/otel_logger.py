@@ -203,9 +203,8 @@ class SafeOtelLogger(StatsLogger):
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        full_metric_name = self.get_name(metric_name, tags)
-
-        if self.metrics_validator.test(full_metric_name):
+        if self.metrics_validator.test(metric_name):
+            full_metric_name = self.get_name(metric_name, tags)
             counter = self.metrics_map.get_counter(full_metric_name, attributes=tags)
             counter.add(count, attributes=tags)
             return counter
@@ -231,8 +230,8 @@ class SafeOtelLogger(StatsLogger):
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        full_metric_name = self.get_name(metric_name, tags)
-        if self.metrics_validator.test(full_metric_name):
+        if self.metrics_validator.test(metric_name):
+            full_metric_name = self.get_name(metric_name, tags)
             counter = self.metrics_map.get_counter(full_metric_name)
             counter.add(-count, attributes=tags)
             return counter
@@ -268,8 +267,8 @@ class SafeOtelLogger(StatsLogger):
                 full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
             )
 
-        full_metric_name = self.get_name(metric_name, tags)
-        if self.metrics_validator.test(full_metric_name):
+        if self.metrics_validator.test(metric_name):
+            full_metric_name = self.get_name(metric_name, tags)
             self.metrics_map.set_gauge_value(full_metric_name, value, delta, tags)
 
     def timing(
@@ -280,11 +279,11 @@ class SafeOtelLogger(StatsLogger):
         tags: Attributes = None,
     ) -> None:
         """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
-        full_metric_name = self.get_name(metric_name, tags)
         if dt is None:
             log.warning("The duration (dt) cannot be None. Skipping timing update.")
             return
-        if self.metrics_validator.test(full_metric_name):
+        if self.metrics_validator.test(metric_name):
+            full_metric_name = self.get_name(metric_name, tags)
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
             self.metrics_map.set_gauge_value(full_metric_name, float(dt), False, tags)
@@ -304,10 +303,12 @@ class SafeOtelLogger(StatsLogger):
         if not metric_name:
             raise InvalidStatsNameException("The stat name cannot be None or an empty string.")
 
-        full_metric_name = full_name(name=metric_name, prefix=self.prefix)
-        if not name_is_otel_safe(self.prefix, metric_name):
-            raise ValueError(f"Metric name `{full_metric_name}` is not OTel-safe.")
-        return full_metric_name
+        base_metric_name = metric_name
+
+        if not name_is_otel_safe(self.prefix, base_metric_name):
+            raise ValueError(f"Metric name `{base_metric_name}` is not OTel-safe.")
+
+        return full_name(name=base_metric_name, prefix=self.prefix)
 
 
 class MetricsMap:
