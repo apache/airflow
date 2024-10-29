@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 import methodtools
 import re2
 
-from airflow.exceptions import AirflowException
 from airflow.sdk.definitions.mixins import DependencyMixin
 
 if TYPE_CHECKING:
@@ -146,7 +145,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         dags: set[DAG] = {task.dag for task in [*self.roots, *task_list] if task.has_dag() and task.dag}
 
         if len(dags) > 1:
-            raise AirflowException(f"Tried to set relationships between tasks in more than one DAG: {dags}")
+            raise RuntimeError(f"Tried to set relationships between tasks in more than one DAG: {dags}")
         elif len(dags) == 1:
             dag = dags.pop()
         else:
