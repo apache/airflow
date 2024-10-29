@@ -60,7 +60,7 @@ Example:
 
 .. code-block:: bash
 
-    airflow backfill create --dag tutorial \
+    airflow backfill create --dag-id tutorial \
         --start-date 2015-06-01 \
         --end-date 2015-06-07 \
         --reprocessing-behavior failed \
