@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.security import permissions
 from airflow.www import app as application
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from providers.tests.fab.auth_manager.views import _assert_dataset_deprecation_warning
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.www import client_with_login
 
@@ -66,13 +68,22 @@ def client_permissions_reader(fab_app, user_permissions_reader):
 @pytest.mark.db_test
 class TestPermissionsView:
     def test_action_model_view(self, client_permissions_reader):
-        resp = client_permissions_reader.get("/actions/list/", follow_redirects=True)
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            resp = client_permissions_reader.get("/actions/list/", follow_redirects=True)
+
+        _assert_dataset_deprecation_warning(record)
         assert resp.status_code == 200
 
     def test_permission_pair_model_view(self, client_permissions_reader):
-        resp = client_permissions_reader.get("/permissions/list/", follow_redirects=True)
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            resp = client_permissions_reader.get("/permissions/list/", follow_redirects=True)
+
+        _assert_dataset_deprecation_warning(record)
         assert resp.status_code == 200
 
     def test_resource_model_view(self, client_permissions_reader):
-        resp = client_permissions_reader.get("/resources/list/", follow_redirects=True)
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            resp = client_permissions_reader.get("/resources/list/", follow_redirects=True)
+
+        _assert_dataset_deprecation_warning(record)
         assert resp.status_code == 200
