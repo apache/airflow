@@ -1233,7 +1233,7 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
-    put: {
+    patch: {
       req: UpdateDagRunStateData;
       res: {
         /**

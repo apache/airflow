@@ -415,9 +415,6 @@ export type VariableServicePostVariableMutationResult = Awaited<
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
 >;
-export type DagRunServiceUpdateDagRunStateMutationResult = Awaited<
-  ReturnType<typeof DagRunService.updateDagRunState>
->;
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
@@ -426,6 +423,9 @@ export type DagServicePatchDagMutationResult = Awaited<
 >;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
+>;
+export type DagRunServiceUpdateDagRunStateMutationResult = Awaited<
+  ReturnType<typeof DagRunService.updateDagRunState>
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.patchPool>
