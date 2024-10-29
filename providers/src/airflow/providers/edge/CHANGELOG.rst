@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.5.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker triggers graceful shutdown, if worker version and main instance do not match.``
+
 0.4.0pre0
 .........
 
