@@ -514,11 +514,16 @@ class DAG:
 
         from airflow.utils import timezone
 
-        # TODO: Task-SDK: get default dag tz from settings
-        tz = timezone.utc
-        if instance.start_date and (tzinfo := instance.start_date.tzinfo):
-            tzinfo = None if tzinfo else tz
-            tz = pendulum.instance(instance.start_date, tz=tzinfo).timezone
+        start_date = instance.start_date or instance.default_args.get("start_date")
+
+        if start_date:
+            if not isinstance(start_date, datetime):
+                start_date = timezone.parse(start_date)
+            tzinfo = start_date.tzinfo or settings.TIMEZONE
+            tz = pendulum.instance(start_date, tz=tzinfo).timezone
+        else:
+            tz = settings.TIMEZONE
+
         return tz
 
     @has_on_success_callback.default
