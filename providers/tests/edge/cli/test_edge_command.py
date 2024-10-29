@@ -270,7 +270,7 @@ class TestEdgeWorkerCli:
     def test_version_mismatch(self, mock_set_state, worker_with_job):
         mock_set_state.side_effect = EdgeWorkerVersionException("")
         worker_with_job.heartbeat()
-        assert worker_with_job.drain == True
+        assert worker_with_job.drain
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
