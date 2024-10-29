@@ -314,7 +314,7 @@ def _convert_max_consecutive_failed_dag_runs(val: int) -> int:
 
 
 @functools.total_ordering
-@attrs.define(hash=False, repr=False, eq=False)
+@attrs.define(hash=False, repr=False, eq=False, slots=False)
 class DAG(TaskSDKDag, LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional dependencies.

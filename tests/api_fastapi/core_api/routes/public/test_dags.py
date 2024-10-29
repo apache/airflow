@@ -320,7 +320,6 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
             "next_dagrun_data_interval_start": None,
-            "orientation": "LR",
             "owners": ["airflow"],
             "params": {
                 "foo": {

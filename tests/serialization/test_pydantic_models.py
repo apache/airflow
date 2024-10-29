@@ -81,11 +81,10 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
 def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, dag_maker):
     op_class_dict_expected = {
         "_needs_expansion": True,
-        "_task_type": "_PythonDecoratedOperator",
+        "task_type": "_PythonDecoratedOperator",
         "downstream_task_ids": [],
         "start_from_trigger": False,
         "start_trigger_args": None,
-        "_operator_name": "@task",
         "ui_fgcolor": "#000",
         "ui_color": "#ffefeb",
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
@@ -128,6 +127,8 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     assert desered.task.__class__ == MappedOperator
 
     assert desered.task.operator_class == op_class_dict_expected
+    assert desered.task.task_type == "_PythonDecoratedOperator"
+    assert desered.task.operator_name == "@task"
 
     desered.refresh_from_task(deser_task)
 

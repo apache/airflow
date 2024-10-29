@@ -95,7 +95,6 @@ export type DAGDetailsResponse = {
   start_date: string | null;
   end_date: string | null;
   is_paused_upon_creation: boolean | null;
-  orientation: string;
   params: {
     [key: string]: unknown;
   } | null;
