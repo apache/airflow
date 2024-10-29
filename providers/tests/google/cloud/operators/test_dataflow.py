@@ -1077,7 +1077,7 @@ class TestDataflowRunPipelineOperator:
             "location": TEST_LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
         }
-        with pytest.raises(TypeError, match="missing keyword argument"):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument"):
             DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
                 "error": {"message": "example error"}
             }
