@@ -1,4 +1,0 @@
-page_size paramters has been removed from providers/google/ads
-
-This param is no longer support by the Google APIs and does not need to be backwards compatible. 
-https://developers.google.com/google-ads/api/docs/sunset-dates
