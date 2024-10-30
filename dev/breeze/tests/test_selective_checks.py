@@ -1909,11 +1909,8 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
-            # TODO: revert it when we fix self-hosted runners
             '["ubuntu-22.04"]',
-            '["self-hosted", "asf-runner"]',
-            # '["self-hosted", "Linux", "X64"]',
-            # TODO: revert it when we fix self-hosted runners
+            '["ubuntu-22.04"]',
             "false",
             "false",
             # "true",
