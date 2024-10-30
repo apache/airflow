@@ -128,13 +128,11 @@ local1. First, add this new version number to the top of the provider.yaml file.
 an environment variable PACKAGE_LIST. For providers in nested directories, replace the directory separator
 (/) with a period. For example, to build the Microsoft Azure provider, set the provider ID to microsoft.azure.
 
-.. code-block::
-   export PACKAGE_LIST=microsoft.azure
+``export PACKAGE_LIST=microsoft.azure``
 
 Then build the provider:
 
-.. code-block::
-   breeze release-management prepare-provider-packages --package-format both --version-suffix-for-pypi=local1
+``breeze release-management prepare-provider-packages --package-format both --version-suffix-for-pypi=local1``
 
 Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use:
 
