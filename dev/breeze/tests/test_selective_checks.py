@@ -871,6 +871,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
                     "run-ui-tests": "true",
+                    "only-new-ui-files": "true",
                     "testable-integrations": "[]",
                 },
                 id="Run only ui tests for PR with new UI only changes.",

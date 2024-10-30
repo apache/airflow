@@ -182,6 +182,7 @@ jobs:
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    if: inputs.build-docs == 'true'
     strategy:
       fail-fast: false
       matrix:
