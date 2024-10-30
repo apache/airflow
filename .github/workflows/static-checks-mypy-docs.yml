@@ -92,6 +92,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources (true/false)"
         required: true
         type: string
+      docs-build:
+        description: "Whether to build docs (true/false)"
+        required: true
+        type: string
 jobs:
   static-checks:
     timeout-minutes: 45
