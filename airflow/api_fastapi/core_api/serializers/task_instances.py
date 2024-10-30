@@ -62,3 +62,10 @@ class TaskInstanceResponse(BaseModel):
     )
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
+
+
+class TaskInstanceCollectionResponse(BaseModel):
+    """Task Instance Collection serializer for responses."""
+
+    task_instances: list[TaskInstanceResponse]
+    total_entries: int
