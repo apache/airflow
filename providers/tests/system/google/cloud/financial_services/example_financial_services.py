@@ -36,6 +36,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 LOCATION = os.environ.get("SYSTEM_TESTS_GCP_LOCATION", "us-central1")
 KMS_KEY = os.environ.get("SYSTEM_TESTS_GCP_KMS_KEY")
+assert KMS_KEY is not None
 
 DAG_ID = "financial_services_instance"
 INSTANCE_ID = f"instance_{DAG_ID}_{ENV_ID}"
