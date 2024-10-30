@@ -1,3 +1,5 @@
+/* eslint-disable react/jsx-boolean-value */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -44,7 +46,7 @@ const DagRunInfo = ({ dag }: Props) => (
     }
   >
     <Text>
-      <Time datetime={dag.next_dagrun} />
+      <Time datetime={dag.next_dagrun} tooltip={false} />
     </Text>
   </Tooltip>
 );
