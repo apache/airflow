@@ -88,10 +88,12 @@ class BaseDBManager(LoggingMixin):
 
     def _create_db_from_orm(self):
         """Create database from ORM."""
+        self.log.info("Creating %s tables from the ORM", self.__class__.__name__)
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
         command.stamp(config, "head")
+        self.log.info("%s tables have been created from the ORM", self.__class__.__name__)
 
     def drop_tables(self, connection):
         self.metadata.drop_all(connection)
@@ -105,6 +107,7 @@ class BaseDBManager(LoggingMixin):
         connection = settings.engine.connect()
 
         with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), connection.begin():
+            self.log.info("Dropping %s tables", self.__class__.__name__)
             self.drop_tables(connection)
         if not skip_init:
             self.initdb()
@@ -123,6 +126,7 @@ class BaseDBManager(LoggingMixin):
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
+        self.log.info("Upgraded the %s database", self.__class__.__name__)
 
     def downgrade(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""

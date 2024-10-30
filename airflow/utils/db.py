@@ -749,6 +749,7 @@ def _get_flask_db(sql_database_uri):
 
 
 def _create_db_from_orm(session):
+    log.info("Creating Airflow database tables from the ORM")
     from alembic import command
 
     from airflow.models.base import Base
@@ -764,6 +765,7 @@ def _create_db_from_orm(session):
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
+        log.info("Airflow database tables created")
 
 
 @provide_session
@@ -1169,7 +1171,7 @@ def upgradedb(
 
         previous_revision = _get_current_revision(session=session)
 
-        log.info("Creating tables")
+        log.info("Upgrading the Airflow database")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
         try:
             # Reconfigure the ORM to use _EXACTLY_ one connection, otherwise some db engines hang forever
@@ -1193,6 +1195,7 @@ def upgradedb(
             settings.reconfigure_orm()
 
         if reserialize_dags and current_revision != previous_revision:
+            log.info("Reserializing the DAGs")
             _reserialize_dags(session=session)
         add_default_pool_if_not_exists(session=session)
         synchronize_log_template(session=session)
@@ -1203,23 +1206,21 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
-    log.info("Dropping tables that exist")
-    original_logging_level = logging.root.level
-    try:
-        import_all_models()
+    log.info("Dropping Airflow tables that exist")
 
-        connection = settings.engine.connect()
+    import_all_models()
 
-        with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
-            drop_airflow_models(connection)
-            drop_airflow_moved_tables(connection)
-            external_db_manager = RunDBManager()
-            external_db_manager.drop_tables(session, connection)
+    connection = settings.engine.connect()
 
-        if not skip_init:
-            initdb(session=session)
-    finally:
-        logging.root.setLevel(original_logging_level)
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        drop_airflow_models(connection)
+        drop_airflow_moved_tables(connection)
+        log.info("Dropped all Airflow tables")
+        external_db_manager = RunDBManager()
+        external_db_manager.drop_tables(session, connection)
+
+    if not skip_init:
+        initdb(session=session)
 
 
 @provide_session
@@ -1271,7 +1272,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             revision_range = f"{from_revision}:{to_revision}"
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
-            log.info("Applying downgrade migrations.")
+            log.info("Applying downgrade migrations to Airflow database.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
 
