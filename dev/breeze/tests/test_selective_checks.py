@@ -848,6 +848,33 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 id="All tests should be run when tests_common/ change",
             )
         ),
+        (
+            pytest.param(
+                ("airflow/ui/src/index.tsx",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "full-tests-needed": "false",
+                    "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "",
+                    "needs-mypy": "false",
+                    "mypy-checks": "[]",
+                    "run-ui-tests": "true",
+                },
+                id="Run only ui tests for PR with new UI only changes.",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
