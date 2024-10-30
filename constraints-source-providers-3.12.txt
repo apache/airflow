@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-29T19:47:15.576321
+# This constraints file was automatically generated on 2024-10-30T07:49:13.322318
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -208,7 +208,7 @@ google-api-python-client==2.149.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.35.0
-google-cloud-aiplatform==1.70.0
+google-cloud-aiplatform==1.71.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.14.0
@@ -361,7 +361,7 @@ multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.50
-mypy-boto3-redshift-data==1.35.10
+mypy-boto3-redshift-data==1.35.51
 mypy-boto3-s3==1.35.46
 mypy-extensions==1.0.0
 mypy==1.9.0
@@ -463,7 +463,7 @@ pypsrp==0.8.1
 pyspark==3.5.3
 pyspnego==0.11.1
 pytest-asyncio==0.24.0
-pytest-cov==5.0.0
+pytest-cov==6.0.0
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
@@ -525,7 +525,7 @@ shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.16.0
-slack_sdk==3.33.2
+slack_sdk==3.33.3
 smbprotocol==1.14.0
 smmap==5.0.1
 sniffio==1.3.1
@@ -592,10 +592,10 @@ types-PyYAML==6.0.12.20240917
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
-types-croniter==3.0.4.20241027
+types-croniter==4.0.0.20241030
 types-docutils==0.21.0.20241005
 types-paramiko==3.5.0.20240928
-types-protobuf==5.28.3.20241029
+types-protobuf==5.28.3.20241030
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241003
 types-python-slugify==8.0.2.20240310
