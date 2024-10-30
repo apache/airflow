@@ -29,6 +29,10 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
     """
     Create a Financial Services Anti-Money Laundering AI instance.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FinancialServicesCreateInstanceOperator`
+
     :param instance_id: Identifier for the instance to create
     :param location_resource_uri: URI of the location to create the instance in
         (format: 'projects/<Project ID>/locations/<Location>)
@@ -84,6 +88,10 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
     Delete a Financial Services Anti-Money Laundering AI instance.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FinancialServicesDeleteInstanceOperator`
+
     :param instance_resource_uri: URI of the instance to delete (format:
         'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
     :param discovery_doc: Discovery document for building the Financial Services API
@@ -122,6 +130,10 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
 class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
     """
     Get a Financial Services Anti-Money Laundering AI instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FinancialServicesGetInstanceOperator`
 
     :param instance_resource_uri: URI of the instance to get (format:
         'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)

@@ -60,7 +60,6 @@ More information
 See Google Cloud Financial Services API documentation to `create an instance
 <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/create>`_.
 
-.. _howto/operator:FinancialServicesCreateInstanceOperator:
 
 
 .. _howto/operator:FinancialServicesGetInstanceOperator:
@@ -95,7 +94,6 @@ More information
 See Google Cloud Financial Services API documentation to `get an instance
 <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/get>`_.
 
-.. _howto/operator:FinancialServicesGetInstanceOperator:
 
 
 .. _howto/operator:FinancialServicesDeleteInstanceOperator:
@@ -130,7 +128,6 @@ More information
 See Google Cloud Financial Services API documentation to `delete an instance
 <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/delete>`_.
 
-.. _howto/operator:FinancialServicesDeleteInstanceOperator:
 
 
 Sensors
@@ -156,7 +153,7 @@ Using the sensor
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/financial_services.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/sensors/financial_services.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_financial_services_operation_template_fields]
@@ -167,5 +164,3 @@ More information
 
 See Google Cloud Financial Services API documentation to `get an operation
 <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.operations/get>`_.
-
-.. _howto/sensor:FinancialServicesOperationSensor:

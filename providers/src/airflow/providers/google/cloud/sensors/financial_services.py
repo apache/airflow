@@ -30,6 +30,10 @@ class FinancialServicesOperationSensor(BaseSensorOperator):
     """
     Check status of AML AI operation.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/sensor:FinancialServicesOperationSensor`
+
     :param operation_resource_uri: URI of the operation (format:
         'projects/<Project ID>/locations/<Location>/operations/<Operation ID>)
     :param discovery_doc: Discovery document for building the Financial Services API
