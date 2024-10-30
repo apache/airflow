@@ -33,12 +33,13 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:FinancialServicesCreateInstanceOperator`
 
-    :param instance_id: Identifier for the instance to create
-    :param location_resource_uri: URI of the location to create the instance in
-        (format: 'projects/<Project ID>/locations/<Location>)
-    :param kms_key_uri: URI of the KMS key to that will be used for instance
-        encryption (format: 'projects/<Project ID>/locations/<Location>/keyRings/
-        <Key Ring>/cryptoKeys/<Key>')
+    :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+    :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+    :param instance_id:  Required. The ID of the instance, which is used as the final component of the
+        instances's name.
+    :param kms_key_ring_id:  Required. The ID of the Google Cloud KMS key ring containing the key to
+        use for instance encryption
+    :param kms_key_id:  Required. The ID of the Google Cloud KMS key to use for instance encryption
     :param discovery_doc: Discovery document for building the Financial Services API
         as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
@@ -47,9 +48,11 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
 
     # [START howto_operator_financial_services_create_instance_template_fields]
     template_fields: Sequence[str] = (
+        "project_id",
+        "region",
         "instance_id",
-        "location_resource_uri",
-        "kms_key_uri",
+        "kms_key_ring_id",
+        "kms_key_id",
         "discovery_doc",
         "gcp_conn_id",
     )
@@ -57,17 +60,21 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
 
     def __init__(
         self,
+        project_id: str,
+        region: str,
         instance_id: str,
-        location_resource_uri: str,
-        kms_key_uri: str,
+        kms_key_ring_id: str,
+        kms_key_id: str,
         discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
         self.instance_id = instance_id
-        self.location_resource_uri = location_resource_uri
-        self.kms_key_uri = kms_key_uri
+        self.kms_key_ring_id = kms_key_ring_id
+        self.kms_key_id = kms_key_id
         self.discovery_doc = discovery_doc
         self.gcp_conn_id = gcp_conn_id
 
@@ -76,10 +83,14 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
             discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
+        self.log.info("Creating Financial Services instance: %s", self.instance_id)
+
         response = hook.create_instance(
+            project_id=self.project_id,
+            region=self.region,
             instance_id=self.instance_id,
-            kms_key_uri=self.kms_key_uri,
-            location_resource_uri=self.location_resource_uri,
+            kms_key_ring_id=self.kms_key_ring_id,
+            kms_key_id=self.kms_key_id,
         )
         return response["name"]
 
@@ -101,18 +112,22 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
 
     # [START howto_operator_financial_services_get_instance_template_fields]
-    template_fields: Sequence[str] = ("instance_resource_uri", "discovery_doc", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "region", "instance_id", "discovery_doc", "gcp_conn_id")
     # [END howto_operator_financial_services_get_instance_template_fields]
 
     def __init__(
         self,
-        instance_resource_uri: str,
+        project_id: str,
+        region: str,
+        instance_id: str,
         discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.instance_resource_uri = instance_resource_uri
+        self.project_id = project_id
+        self.region = region
+        self.instance_id = instance_id
         self.discovery_doc = discovery_doc
         self.gcp_conn_id = gcp_conn_id
 
@@ -121,8 +136,12 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
             discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
+        self.log.info("Deleting Financial Services instance: %s", self.instance_id)
+
         response = hook.delete_instance(
-            instance_resource_uri=self.instance_resource_uri,
+            project_id=self.project_id,
+            region=self.region,
+            instance_id=self.instance_id,
         )
         return response["name"]
 
@@ -144,18 +163,22 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
     """
 
     # [START howto_operator_financial_services_delete_instance_template_fields]
-    template_fields: Sequence[str] = ("instance_resource_uri", "discovery_doc", "gcp_conn_id")
+    template_fields: Sequence[str] = ("project_id", "region", "instance_id", "discovery_doc", "gcp_conn_id")
     # [END howto_operator_financial_services_delete_instance_template_fields]
 
     def __init__(
         self,
-        instance_resource_uri: str,
+        project_id: str,
+        region: str,
+        instance_id: str,
         discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.instance_resource_uri = instance_resource_uri
+        self.project_id = project_id
+        self.region = region
+        self.instance_id = instance_id
         self.discovery_doc = discovery_doc
         self.gcp_conn_id = gcp_conn_id
 
@@ -164,7 +187,9 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
             discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
+        self.log.info("Fetching Financial Services instance: %s", self.instance_id)
+
         response = hook.get_instance(
-            instance_resource_uri=self.instance_resource_uri,
+            project_id=self.project_id, region=self.region, instance_id=self.instance_id
         )
         return response
