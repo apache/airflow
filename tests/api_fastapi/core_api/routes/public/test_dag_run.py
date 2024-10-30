@@ -198,3 +198,11 @@ class TestDeleteDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestClearDagRun:
+    def test_clear_dag_run_not_found(self, test_client):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/invalid/clear")
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
