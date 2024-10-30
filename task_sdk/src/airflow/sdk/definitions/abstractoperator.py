@@ -87,7 +87,7 @@ class AbstractOperator(DAGNode):
 
     outlets: list
     inlets: list
-    # TODO:
+
     trigger_rule: TriggerRule
     _needs_expansion: bool | None = None
     _on_failure_fail_dagrun = False

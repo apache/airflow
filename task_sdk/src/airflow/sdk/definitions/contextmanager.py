@@ -94,8 +94,7 @@ class DagContext(ContextStack[DAG]):
 
     """
 
-    # TODO: Task-SDK, should module type be optional? Will that break more?
-    autoregistered_dags: set[tuple[DAG, ModuleType | None]] = set()
+    autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 
     @classmethod
