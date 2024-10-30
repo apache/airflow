@@ -134,9 +134,9 @@ Then build the provider:
 
 ``breeze release-management prepare-provider-packages --package-format both --version-suffix-for-pypi=local1``
 
-Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use:
+Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use. If this is ~/airflow/test-airflow/local_providers, you can use the following command:
 
-cp dist/apache_airflow_providers_microsoft_azure-10.5.2rc1-py3-none-any.whl ~/airflow/test-airflow/local_providers/
+``cp dist/apache_airflow_providers_microsoft_azure-10.5.2rc1-py3-none-any.whl ~/airflow/test-airflow/local_providers/``
 
 
 Naming Conventions for provider packages
