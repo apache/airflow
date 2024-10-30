@@ -115,7 +115,7 @@ class GoogleAdsHook(BaseHook):
         self.authentication_method: Literal["service_account", "developer_token"] = "service_account"
 
     def search(
-        self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
+        self, client_ids: list[str], query: str, **kwargs
     ) -> list[GoogleAdsRow]:
         """
         Pull data from the Google Ads API.
@@ -132,16 +132,15 @@ class GoogleAdsHook(BaseHook):
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
-        :param page_size: Number of results to return per page. Max 10000.
         :return: Google Ads API response, converted to Google Ads Row objects.
         """
-        data_proto_plus = self._search(client_ids, query, page_size, **kwargs)
+        data_proto_plus = self._search(client_ids, query, **kwargs)
         data_native_pb = [row._pb for row in data_proto_plus]
 
         return data_native_pb
 
     def search_proto_plus(
-        self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
+        self, client_ids: list[str], query: str, **kwargs
     ) -> list[GoogleAdsRow]:
         """
         Pull data from the Google Ads API.
@@ -151,10 +150,9 @@ class GoogleAdsHook(BaseHook):
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
-        :param page_size: Number of results to return per page. Max 10000.
         :return: Google Ads API response, converted to Google Ads Row objects
         """
-        return self._search(client_ids, query, page_size, **kwargs)
+        return self._search(client_ids, query, **kwargs)
 
     def list_accessible_customers(self) -> list[str]:
         """
@@ -266,14 +264,13 @@ class GoogleAdsHook(BaseHook):
         self.google_ads_config["json_key_file_path"] = secrets_temp.name
 
     def _search(
-        self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
+        self, client_ids: list[str], query: str, **kwargs
     ) -> list[GoogleAdsRow]:
         """
         Pull data from the Google Ads API.
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
-        :param page_size: Number of results to return per page. Max 10000.
 
         :return: Google Ads API response, converted to Google Ads Row objects
         """
@@ -282,7 +279,7 @@ class GoogleAdsHook(BaseHook):
         iterators = []
         for client_id in client_ids:
             iterator = service.search(
-                request={"customer_id": client_id, "query": query, "page_size": page_size}
+                request={"customer_id": client_id, "query": query}
             )
             iterators.append(iterator)
 

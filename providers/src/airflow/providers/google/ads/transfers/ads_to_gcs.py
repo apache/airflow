@@ -51,7 +51,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
     :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
     :param gcp_conn_id: Airflow Google Cloud connection ID
     :param google_ads_conn_id: Airflow Google Ads connection ID
-    :param page_size: The number of results per API page request. Max 10,000
     :param gzip: Option to compress local file or file data for upload
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -83,7 +82,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
         obj: str,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
-        page_size: int = 10000,
         gzip: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         api_version: str | None = None,
@@ -97,7 +95,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.obj = obj
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
-        self.page_size = page_size
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
@@ -108,7 +105,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
             google_ads_conn_id=self.google_ads_conn_id,
             api_version=self.api_version,
         )
-        rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
+        rows = service.search(client_ids=self.client_ids, query=self.query)
 
         try:
             getter = attrgetter(*self.attributes)
