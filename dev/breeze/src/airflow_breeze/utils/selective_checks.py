@@ -801,12 +801,17 @@ class SelectiveChecks:
         test_always_files = self._matching_files(
             FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
+        test_ui_files = self._matching_files(
+            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+
         remaining_files = (
             set(all_source_files)
             - set(matched_files)
             - set(kubernetes_files)
             - set(system_test_files)
             - set(test_always_files)
+            - set(test_ui_files)
         )
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
