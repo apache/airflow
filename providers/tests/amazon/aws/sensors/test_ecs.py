@@ -115,7 +115,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
     @pytest.mark.parametrize("return_state", ["FAILED", "INACTIVE"])
-    def test_default_values_terminal_state(self, create_task_of_operator, return_state):
+    def test_default_values_terminal_state(self, return_state):
         task = self.create_rendered_task(EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME)
         with mock.patch.object(task.hook, "get_cluster_state") as m:
             m.return_value = return_state
