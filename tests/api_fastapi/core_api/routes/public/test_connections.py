@@ -30,7 +30,6 @@ TEST_CONN_TYPE = "test_type"
 TEST_CONN_DESCRIPTION = "some_description_a"
 TEST_CONN_HOST = "some_host_a"
 TEST_CONN_PORT = 8080
-TEST_PASS = "test-password"
 
 
 TEST_CONN_ID_2 = "test_connection_id_2"
@@ -38,7 +37,6 @@ TEST_CONN_TYPE_2 = "test_type_2"
 TEST_CONN_DESCRIPTION_2 = "some_description_b"
 TEST_CONN_HOST_2 = "some_host_b"
 TEST_CONN_PORT_2 = 8081
-TEST_PASS_2 = "test-password_2"
 
 
 @provide_session
@@ -49,7 +47,6 @@ def _create_connection(session) -> None:
         description=TEST_CONN_DESCRIPTION,
         host=TEST_CONN_HOST,
         port=TEST_CONN_PORT,
-        password=TEST_PASS,
     )
     session.add(connection_model)
 
@@ -63,7 +60,6 @@ def _create_connections(session) -> None:
         description=TEST_CONN_DESCRIPTION_2,
         host=TEST_CONN_HOST_2,
         port=TEST_CONN_PORT_2,
-        password=TEST_PASS_2,
     )
     session.add(connection_model_2)
 
@@ -248,8 +244,8 @@ class TestPostConnection(TestConnectionEndpoint):
             },
         ],
     )
-    def test_post_should_response_201_redact_password(self, test_client, body):
+    def test_post_should_response_201_redacted_password(self, test_client, body):
         response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 201
         connection = response.json()
-        assert connection["password"] == "***"
+        assert "password" not in connection
