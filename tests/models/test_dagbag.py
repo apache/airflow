@@ -667,7 +667,7 @@ with airflow.DAG(
         """Test that dagbag.sync_to_db is retried on OperationalError"""
 
         dagbag = DagBag("/dev/null")
-        mock_dag = mock.MagicMock(spec=DAG)
+        mock_dag = mock.MagicMock()
         dagbag.dags["mock_dag"] = mock_dag
 
         op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)

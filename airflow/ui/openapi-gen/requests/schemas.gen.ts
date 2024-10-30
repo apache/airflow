@@ -517,10 +517,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Is Paused Upon Creation",
     },
-    orientation: {
-      type: "string",
-      title: "Orientation",
-    },
     params: {
       anyOf: [
         {
@@ -619,7 +615,6 @@ export const $DAGDetailsResponse = {
     "start_date",
     "end_date",
     "is_paused_upon_creation",
-    "orientation",
     "params",
     "render_template_as_native_obj",
     "template_search_path",

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -70,7 +70,7 @@ class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyti
         "create_application_kwargs",
         "application_description",
     )
-    template_fields_renderers: dict = {
+    template_fields_renderers: ClassVar[dict] = {
         "create_application_kwargs": "json",
     }
 
@@ -149,7 +149,7 @@ class KinesisAnalyticsV2StartApplicationOperator(AwsBaseOperator[KinesisAnalytic
         "application_name",
         "run_configuration",
     )
-    template_fields_renderers: dict = {
+    template_fields_renderers: ClassVar[dict] = {
         "run_configuration": "json",
     }
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
@@ -72,7 +72,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     )
 
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     conn_id_field = "databricks_conn_id"
 
     def __init__(

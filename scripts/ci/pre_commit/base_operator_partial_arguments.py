@@ -27,6 +27,7 @@ import typing
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
 BASEOPERATOR_PY = ROOT_DIR.joinpath("airflow", "models", "baseoperator.py")
+SDK_BASEOPERATOR_PY = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "baseoperator.py")
 MAPPEDOPERATOR_PY = ROOT_DIR.joinpath("airflow", "models", "mappedoperator.py")
 
 IGNORED = {
@@ -51,11 +52,30 @@ IGNORED = {
     # Only on MappedOperator.
     "expand_input",
     "partial_kwargs",
+    "operator_class",
+    # Task-SDK migration ones.
+    "deps",
+    "downstream_task_ids",
+    "on_execute_callback",
+    "on_failure_callback",
+    "on_retry_callback",
+    "on_skipped_callback",
+    "on_success_callback",
+    "operator_extra_links",
+    "start_from_trigger",
+    "start_trigger_args",
+    "upstream_task_ids",
+    "logger_name",
+    "sla",
 }
 
 
 BO_MOD = ast.parse(BASEOPERATOR_PY.read_text("utf-8"), str(BASEOPERATOR_PY))
+SDK_BO_MOD = ast.parse(SDK_BASEOPERATOR_PY.read_text("utf-8"), str(SDK_BASEOPERATOR_PY))
 MO_MOD = ast.parse(MAPPEDOPERATOR_PY.read_text("utf-8"), str(MAPPEDOPERATOR_PY))
+
+# TODO: Task-SDK: Look at the BaseOperator init functions in both airflow.models.baseoperator and combine
+# them, until we fully remove BaseOperator class from core.
 
 BO_CLS = next(
     node
@@ -67,9 +87,27 @@ BO_INIT = next(
     for node in ast.iter_child_nodes(BO_CLS)
     if isinstance(node, ast.FunctionDef) and node.name == "__init__"
 )
-BO_PARTIAL = next(
+
+SDK_BO_CLS = next(
+    node
+    for node in ast.iter_child_nodes(SDK_BO_MOD)
+    if isinstance(node, ast.ClassDef) and node.name == "BaseOperator"
+)
+SDK_BO_INIT = next(
+    node
+    for node in ast.iter_child_nodes(SDK_BO_CLS)
+    if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+)
+
+# We now define the signature in a type checking block, the runtime impl uses **kwargs
+BO_TYPE_CHECKING_BLOCKS = (
     node
     for node in ast.iter_child_nodes(BO_MOD)
+    if isinstance(node, ast.If) and node.test.id == "TYPE_CHECKING"  # type: ignore[attr-defined]
+)
+BO_PARTIAL = next(
+    node
+    for node in itertools.chain.from_iterable(map(ast.iter_child_nodes, BO_TYPE_CHECKING_BLOCKS))
     if isinstance(node, ast.FunctionDef) and node.name == "partial"
 )
 MO_CLS = next(
@@ -79,23 +117,27 @@ MO_CLS = next(
 )
 
 
-def _compare(a: set[str], b: set[str], *, excludes: set[str]) -> tuple[set[str], set[str]]:
-    only_in_a = {n for n in a if n not in b and n not in excludes and n[0] != "_"}
-    only_in_b = {n for n in b if n not in a and n not in excludes and n[0] != "_"}
+def _compare(a: set[str], b: set[str]) -> tuple[set[str], set[str]]:
+    only_in_a = a - b - IGNORED
+    only_in_b = b - a - IGNORED
     return only_in_a, only_in_b
 
 
-def _iter_arg_names(func: ast.FunctionDef) -> typing.Iterator[str]:
-    func_args = func.args
-    for arg in itertools.chain(func_args.args, getattr(func_args, "posonlyargs", ()), func_args.kwonlyargs):
-        yield arg.arg
+def _iter_arg_names(*funcs: ast.FunctionDef) -> typing.Iterator[str]:
+    for func in funcs:
+        func_args = func.args
+        for arg in itertools.chain(
+            func_args.args, getattr(func_args, "posonlyargs", ()), func_args.kwonlyargs
+        ):
+            if arg.arg == "self" or arg.arg.startswith("_"):
+                continue
+            yield arg.arg
 
 
 def check_baseoperator_partial_arguments() -> bool:
     only_in_init, only_in_partial = _compare(
-        set(itertools.islice(_iter_arg_names(BO_INIT), 1, None)),
-        set(itertools.islice(_iter_arg_names(BO_PARTIAL), 1, None)),
-        excludes=IGNORED,
+        set(_iter_arg_names(SDK_BO_INIT, BO_INIT)),
+        set(_iter_arg_names(BO_PARTIAL)),
     )
     if only_in_init:
         print("Arguments in BaseOperator missing from partial():", ", ".join(sorted(only_in_init)))
@@ -109,6 +151,8 @@ def check_baseoperator_partial_arguments() -> bool:
 def _iter_assignment_to_self_attributes(targets: typing.Iterable[ast.expr]) -> typing.Iterator[str]:
     for t in targets:
         if isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name) and t.value.id == "self":
+            if t.attr.startswith("_"):
+                continue
             yield t.attr  # Something like "self.foo = ...".
         else:
             # Recursively visit nodes in unpacking assignments like "a, b = ...".
@@ -132,20 +176,24 @@ def _is_property(f: ast.FunctionDef) -> bool:
 
 def _iter_member_names(klass: ast.ClassDef) -> typing.Iterator[str]:
     for node in ast.iter_child_nodes(klass):
+        name = ""
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            yield node.target.id
+            name = node.target.id
         elif isinstance(node, ast.FunctionDef) and _is_property(node):
-            yield node.name
+            name = node.name
         elif isinstance(node, ast.Assign):
             if len(node.targets) == 1 and isinstance(target := node.targets[0], ast.Name):
-                yield target.id
+                name = target.id
+        else:
+            continue
+        if not name.startswith("_"):
+            yield name
 
 
 def check_operator_member_parity() -> bool:
     only_in_base, only_in_mapped = _compare(
-        set(itertools.chain(_iter_assignment_targets(BO_INIT), _iter_member_names(BO_CLS))),
+        set(itertools.chain(_iter_assignment_targets(SDK_BO_INIT), _iter_member_names(SDK_BO_CLS))),
         set(_iter_member_names(MO_CLS)),
-        excludes=IGNORED,
     )
     if only_in_base:
         print("Members on BaseOperator missing from MappedOperator:", ", ".join(sorted(only_in_base)))

@@ -208,7 +208,7 @@ class TestBranchDayOfWeekOperator:
 
     def test_branch_with_no_weekday(self, dag_maker):
         """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'week_day'"):
             with dag_maker(
                 "branch_day_of_week_operator_test",
                 start_date=DEFAULT_DATE,

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import ClassVar, Sequence
 
 from deprecated import deprecated
 
@@ -51,7 +51,7 @@ class SqliteOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#cdaaed"
 
     def __init__(self, *, sqlite_conn_id: str = "sqlite_default", **kwargs) -> None:

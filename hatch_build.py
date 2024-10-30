@@ -254,6 +254,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
         "jmespath>=0.7.0",
+        "kgb>=7.0.0",
         "pytest-asyncio>=0.23.6",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
@@ -411,7 +412,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.6.4",
+    "pydantic>=2.7.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
