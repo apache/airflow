@@ -194,6 +194,7 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "end_date": None,
         "is_paused_upon_creation": None,
         "render_template_as_native_obj": False,
+        "call_on_kill_on_dagrun_timeout": True,
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
@@ -258,6 +259,7 @@ def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serialize
         "end_date": None,
         "is_paused_upon_creation": None,
         "render_template_as_native_obj": False,
+        "call_on_kill_on_dagrun_timeout": True,
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})

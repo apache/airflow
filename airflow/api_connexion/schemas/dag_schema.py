@@ -111,6 +111,7 @@ class DAGDetailSchema(DAGSchema):
     template_searchpath = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)
     last_loaded = fields.DateTime(dump_only=True, data_key="last_parsed")
+    call_on_kill_on_dagrun_timeout = fields.Boolean(dump_only=True)
 
     @staticmethod
     def get_tags(obj: DAG):
