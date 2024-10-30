@@ -23,17 +23,6 @@ import pytest
 from airflow.assets import Asset
 from airflow.decorators.assets import AssetRef, _AssetMainOperator, asset
 
-pytestmark = pytest.mark.db_test
-
-
-@pytest.fixture
-def clear_assets():
-    from tests_common.test_utils.db import clear_db_assets
-
-    clear_db_assets()
-    yield
-    clear_db_assets()
-
 
 @pytest.fixture
 def example_asset_func(request):
