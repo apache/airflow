@@ -227,7 +227,7 @@ class TestGoogleCloudPlatformContainerOperator:
 
     @mock.patch(GKE_HOOK_PATH)
     def test_create_execute_error_location(self, mock_hook):
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'location'"):
             GKECreateClusterOperator(
                 project_id=TEST_GCP_PROJECT_ID, body=PROJECT_BODY, task_id=PROJECT_TASK_ID
             )
@@ -270,14 +270,14 @@ class TestGoogleCloudPlatformContainerOperator:
 
     @mock.patch(GKE_HOOK_PATH)
     def test_delete_execute_error_cluster_name(self, mock_hook):
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'name'"):
             GKEDeleteClusterOperator(
                 project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, task_id=PROJECT_TASK_ID
             )
 
     @mock.patch(GKE_HOOK_PATH)
     def test_delete_execute_error_location(self, mock_hook):
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'location'"):
             GKEDeleteClusterOperator(
                 project_id=TEST_GCP_PROJECT_ID, name=CLUSTER_NAME, task_id=PROJECT_TASK_ID
             )
@@ -1270,7 +1270,7 @@ class TestGKEStartKueueJobOperator:
         fetch_cluster_info_mock.assert_called_once()
 
     def test_config_file_throws_error(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'queue_name'"):
             GKEStartKueueJobOperator(
                 project_id=TEST_GCP_PROJECT_ID,
                 location=PROJECT_LOCATION,
@@ -1478,7 +1478,9 @@ class TestGKESuspendJobOperator:
         )
 
     def test_config_file_throws_error(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            (TypeError, AirflowException), match="Invalid arguments were passed to .*\n.*'config_file'"
+        ):
             GKESuspendJobOperator(
                 project_id=TEST_GCP_PROJECT_ID,
                 location=PROJECT_LOCATION,
@@ -1586,7 +1588,9 @@ class TestGKEResumeJobOperator:
         )
 
     def test_config_file_throws_error(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            (TypeError, AirflowException), match="Invalid arguments were passed to .*\n.*'config_file'"
+        ):
             GKEResumeJobOperator(
                 project_id=TEST_GCP_PROJECT_ID,
                 location=PROJECT_LOCATION,

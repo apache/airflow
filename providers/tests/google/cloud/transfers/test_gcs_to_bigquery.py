@@ -906,7 +906,7 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'bucket'"):
+        with pytest.raises((TypeError, AirflowException), match=r"missing keyword argument 'bucket'"):
             GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 source_objects=TEST_SOURCE_OBJECTS,
@@ -926,7 +926,7 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'source_objects'"):
+        with pytest.raises((TypeError, AirflowException), match=r"missing keyword argument 'source_objects'"):
             GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 destination_project_dataset_table=TEST_EXPLICIT_DEST,
@@ -947,7 +947,8 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
         with pytest.raises(
-            AirflowException, match=r"missing keyword argument 'destination_project_dataset_table'"
+            (TypeError, AirflowException),
+            match=r"missing keyword argument 'destination_project_dataset_table'",
         ):
             GCSToBigQueryOperator(
                 task_id=TASK_ID,

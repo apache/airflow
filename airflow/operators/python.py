@@ -197,10 +197,7 @@ class PythonOperator(BaseOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = (
-        "python_callable",
-        "op_kwargs",
-    )
+    shallow_copy_attrs: Sequence[str] = ("python_callable", "op_kwargs")
 
     def __init__(
         self,

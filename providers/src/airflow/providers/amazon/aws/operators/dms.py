@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -75,7 +75,7 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         "migration_type",
         "create_task_kwargs",
     )
-    template_fields_renderers = {
+    template_fields_renderers: ClassVar[dict] = {
         "table_mappings": "json",
         "create_task_kwargs": "json",
     }
@@ -184,7 +184,7 @@ class DmsDescribeTasksOperator(AwsBaseOperator[DmsHook]):
 
     aws_hook_class = DmsHook
     template_fields: Sequence[str] = aws_template_fields("describe_tasks_kwargs")
-    template_fields_renderers: dict[str, str] = {"describe_tasks_kwargs": "json"}
+    template_fields_renderers: ClassVar[dict[str, str]] = {"describe_tasks_kwargs": "json"}
 
     def __init__(self, *, describe_tasks_kwargs: dict | None = None, **kwargs):
         super().__init__(**kwargs)

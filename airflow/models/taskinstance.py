@@ -157,9 +157,10 @@ if TYPE_CHECKING:
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.sdk import DAG
     from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -931,7 +932,7 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    dag: DAG,
+    dag: SchedulerDAG,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
@@ -961,7 +962,8 @@ def _get_template_context(
         assert task.dag
 
     if task.dag.__class__ is AttributeRemoved:
-        task.dag = dag  # required after deserialization
+        # TODO: Task-SDK: Remove this after AIP-44 code is removed
+        task.dag = dag  # type: ignore[assignment]  # required after deserialization
 
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
@@ -1319,8 +1321,10 @@ def _record_task_map_for_downstreams(
     """
     from airflow.models.mappedoperator import MappedOperator
 
+    # TODO: Task-SDK: Remove this after AIP-44 code is removed
     if task.dag.__class__ is AttributeRemoved:
-        task.dag = dag  # required after deserialization
+        # required after deserialization
+        task.dag = dag  # type: ignore[assignment]
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
