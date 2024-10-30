@@ -1,0 +1,21 @@
+Direct Access to Deprecated ``airflow.configuration`` Module Functions Removed
+
+Functions previously accessible directly via the ``airflow.configuration`` module,
+such as ``get``, ``getboolean``, ``getfloat``, ``getint``, ``has_option``, ``remove_option``, ``as_dict``, and ``set``,
+have been removed. These functions should now be accessed through ``airflow.configuration.conf``.
+
+Before:
+
+.. code-block:: python
+
+    from airflow.configuration import get
+
+    value = get("section", "key")
+
+After:
+
+.. code-block:: python
+
+    from airflow.configuration import conf
+
+    value = conf.get("section", "key")
