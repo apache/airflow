@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-30T07:49:13.476010
+# This constraints file was automatically generated on 2024-10-30T13:52:36.023500
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -576,7 +576,7 @@ tableauserverclient==0.34
 tabulate==0.9.0
 tenacity==8.5.0
 teradatasql==20.0.0.20
-teradatasqlalchemy==20.0.0.2
+teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
