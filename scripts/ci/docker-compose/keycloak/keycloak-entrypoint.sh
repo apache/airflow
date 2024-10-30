@@ -20,12 +20,14 @@
 # We exit in case cd fails
 cd /opt/keycloak/bin/ || exit
 
+http_port="${KC_HOSTNAME_PORT}"
+
 # Start Keycloak in the background
-./kc.sh start-dev --http-port=38080 &
+./kc.sh start-dev --http-port="$http_port" &
 
 # Wait for Keycloak to be ready
-echo "Waiting for Keycloak to start..."
-while ! (echo > /dev/tcp/localhost/38080) 2>/dev/null; do
+echo "Waiting for Keycloak to start on port $http_port..."
+while ! (echo > /dev/tcp/localhost/"$http_port") 2>/dev/null; do
   echo "keycloak still not started"
   sleep 5
 done
@@ -35,8 +37,8 @@ echo "Keycloak is running (probably...)"
 # The below commands are used to disable the ssl requirement to use the admin panel of keycloak
 echo "Configuring admin console access without ssl/https"
 # Get credentials to make the below update to the realm settings
-./kcadm.sh config credentials --server http://localhost:38080 --realm master --user admin --password admin
-./kcadm.sh update realms/master -s sslRequired=NONE --server http://localhost:38080
+./kcadm.sh config credentials --server http://localhost:"$http_port" --realm master --user admin --password admin
+./kcadm.sh update realms/master -s sslRequired=NONE --server http://localhost:"$http_port"
 echo "Configuring complete!"
 
 # Keep the container running

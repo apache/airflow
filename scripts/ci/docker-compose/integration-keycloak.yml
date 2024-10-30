@@ -19,11 +19,11 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.6
     labels:
-      breeze.description: "Integration for manual testing multi-team Airflow."
+      breeze.description: "Integration for manual testing of multi-team Airflow."
     entrypoint: /opt/keycloak/keycloak-entrypoint.sh
     environment:
       KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 38080
+      KC_HOSTNAME_PORT: 48080
       KC_HOSTNAME_STRICT_BACKCHANNEL: false
       KC_HTTP_ENABLED: true
       KC_HOSTNAME_STRICT: true
@@ -36,7 +36,7 @@ services:
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
     ports:
-      - 38080:38080
+      - 48080:48080
     restart: always
     depends_on:
       postgres:
