@@ -63,7 +63,7 @@ async def get_event_log(
     )
 
 
-@event_logs_router.get("/")
+@event_logs_router.get("/", responses=create_openapi_http_exception_doc([401, 403]))
 async def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,

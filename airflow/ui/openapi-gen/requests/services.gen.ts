@@ -857,6 +857,8 @@ export class EventLogService {
         order_by: data.orderBy,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
