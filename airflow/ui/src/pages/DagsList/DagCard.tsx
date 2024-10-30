@@ -22,7 +22,6 @@ import {
   HStack,
   Heading,
   SimpleGrid,
-  Tooltip,
   VStack,
   Link,
 } from "@chakra-ui/react";
@@ -31,6 +30,7 @@ import { Link as RouterLink } from "react-router-dom";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
+import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "./DagTags";
 import { LatestRun } from "./LatestRun";
@@ -43,28 +43,28 @@ type Props = {
 
 export const DagCard = ({ dag }: Props) => (
   <Box
-    borderColor="gray.emphasized"
+    borderColor="border.emphasized"
     borderRadius={8}
     borderWidth={1}
     overflow="hidden"
   >
     <Flex
       alignItems="center"
-      bg="blue.minimal"
+      bg="bg.muted"
       justifyContent="space-between"
       px={3}
       py={2}
     >
       <HStack>
-        <Tooltip hasArrow label={dag.description}>
-          <Link
-            as={RouterLink}
-            color="blue.contrast"
-            fontSize="md"
-            fontWeight="bold"
-            to={`/dags/${dag.dag_id}`}
-          >
-            {dag.dag_display_name}
+        <Tooltip
+          content={dag.description}
+          disabled={!Boolean(dag.description)}
+          showArrow
+        >
+          <Link asChild color="fg.info" fontWeight="bold">
+            <RouterLink to={`/dags/${dag.dag_id}`}>
+              {dag.dag_display_name}
+            </RouterLink>
           </Link>
         </Tooltip>
         <DagTags tags={dag.tags} />
@@ -73,20 +73,20 @@ export const DagCard = ({ dag }: Props) => (
         <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
       </HStack>
     </Flex>
-    <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
-      <VStack align="flex-start" spacing={1}>
+    <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+      <VStack align="flex-start" gap={1}>
         <Heading color="gray.500" fontSize="xs">
           Schedule
         </Heading>
         <Schedule dag={dag} />
       </VStack>
-      <VStack align="flex-start" spacing={1}>
+      <VStack align="flex-start" gap={1}>
         <Heading color="gray.500" fontSize="xs">
           Latest Run
         </Heading>
         <LatestRun latestRun={dag.latest_dag_runs[0]} />
       </VStack>
-      <VStack align="flex-start" spacing={1}>
+      <VStack align="flex-start" gap={1}>
         <Heading color="gray.500" fontSize="xs">
           Next Run
         </Heading>

@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Alert, AlertIcon } from "@chakra-ui/react";
 import type { ApiError } from "openapi-gen/requests/core/ApiError";
 import type {
   HTTPExceptionResponse,
   HTTPValidationError,
 } from "openapi-gen/requests/types.gen";
+import { FiAlertTriangle } from "react-icons/fi";
+
+import { Alert } from "./ui/Alert";
 
 type ExpandedApiError = {
   body: HTTPExceptionResponse | HTTPValidationError;
@@ -58,7 +60,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
 
   return (
     <Alert status="error">
-      <AlertIcon />
+      <FiAlertTriangle />
       {error.message}
       <br />
       {detailMessage}
