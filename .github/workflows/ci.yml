@@ -314,6 +314,7 @@ jobs:
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      docs-build: ${{ needs.build-info.outputs.docs-build }}
 
   providers:
     name: "Provider checks"
