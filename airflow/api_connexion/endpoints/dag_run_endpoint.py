@@ -402,6 +402,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
     return dagrun_schema.dump(dag_run)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @action_logging
 @provide_session

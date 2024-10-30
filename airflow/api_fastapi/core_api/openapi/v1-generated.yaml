@@ -1228,6 +1228,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run
+      operationId: clear_dag_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -2151,6 +2206,15 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunClearBody:
+      properties:
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+      type: object
+      title: DAGRunClearBody
+      description: DAG Run serializer for clear endpoint body.
     DAGRunPatchBody:
       properties:
         state:

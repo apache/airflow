@@ -23,6 +23,7 @@ import {
 } from "../requests/services.gen";
 import {
   DAGPatchBody,
+  DAGRunClearBody,
   DAGRunPatchBody,
   DagRunState,
   PoolPatchBody,
@@ -728,6 +729,52 @@ export const useVariableServicePostVariable = <
   >({
     mutationFn: ({ requestBody }) =>
       VariableService.postVariable({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Clear Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.requestBody
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceClearDagRun = <
+  TData = Common.DagRunServiceClearDagRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: DAGRunClearBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: DAGRunClearBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
+      DagRunService.clearDagRun({
+        dagId,
+        dagRunId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

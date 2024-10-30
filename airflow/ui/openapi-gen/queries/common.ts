@@ -429,6 +429,9 @@ export const UseEventLogServiceGetEventLogKeyFn = (
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
+export type DagRunServiceClearDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.clearDagRun>
+>;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
 >;

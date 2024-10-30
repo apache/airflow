@@ -40,6 +40,12 @@ class DAGRunPatchBody(BaseModel):
     state: DAGRunPatchStates
 
 
+class DAGRunClearBody(BaseModel):
+    """DAG Run serializer for clear endpoint body."""
+
+    dry_run: bool = True
+
+
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 

@@ -31,6 +31,7 @@ from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.dag_run import (
+    DAGRunClearBody,
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
@@ -108,3 +109,30 @@ async def patch_dag_run_state(
     dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+
+
+@dag_run_router.post("/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([401, 403, 404]))
+async def clear_dag_run(
+    dag_id: str, dag_run_id: str, dry_run: DAGRunClearBody, session: Annotated[Session, Depends(get_session)]
+):
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    if dag_run is None:
+        raise HTTPException(
+            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+        )
+
+    if dry_run.dry_run:
+        task_instances = dag_run.clear(
+            start_date=dag_run.start_date,
+            end_date=dag_run.end_date,
+            task_ids=None,
+            only_failed=False,
+            dry_run=True,
+        )
+        return task_instances  # Need to create TaskInstance serializer
+    else:
+        dag_run.clear(
+            start_date=dag_run.start_date, end_date=dag_run.end_date, task_ids=None, only_failed=False
+        )
+        dag_run_cleared = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+        return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
