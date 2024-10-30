@@ -357,3 +357,38 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID` and task_id: `print_the_context` was not found"
         }
+
+    def test_raises_404_for_mapped_task_instance_with_multiple_indexes(self, test_client, session):
+        tis = self.create_task_instances(session)
+
+        old_ti = tis[0]
+
+        ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=2)
+        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            setattr(ti, attr, getattr(old_ti, attr))
+        session.add(ti)
+        session.commit()
+
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Task instance is mapped, add the map_index value to the URL"}
+
+    def test_raises_404_for_mapped_task_instance_with_one_index(self, test_client, session):
+        tis = self.create_task_instances(session)
+
+        old_ti = tis[0]
+
+        ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=2)
+        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+            setattr(ti, attr, getattr(old_ti, attr))
+        session.add(ti)
+        session.delete(old_ti)
+        session.commit()
+
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Task instance is mapped, add the map_index value to the URL"}

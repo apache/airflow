@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException
-from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import select
 from typing_extensions import Annotated
@@ -46,10 +45,8 @@ async def get_task_instance(
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
-    try:
-        task_instance = session.scalar(query)
-    except MultipleResultsFound:
-        raise HTTPException(404, "Task instance is mapped, add the map_index value to the URL")
+    task_instance = session.scalar(query)
+
     if task_instance is None:
         raise HTTPException(
             404,
