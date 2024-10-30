@@ -17,16 +17,25 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
+from airflow.api.common.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
+    set_dag_run_state_to_success,
+)
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.models import DagRun
+from airflow.api_fastapi.core_api.serializers.dag_run import (
+    DAGRunPatchBody,
+    DAGRunPatchStates,
+    DAGRunResponse,
+)
+from airflow.models import DAG, DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -57,3 +66,45 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
         )
 
     session.delete(dag_run)
+
+
+@dag_run_router.patch("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+async def patch_dag_run_state(
+    dag_id: str,
+    dag_run_id: str,
+    patch_body: DAGRunPatchBody,
+    session: Annotated[Session, Depends(get_session)],
+    request: Request,
+    update_mask: list[str] | None = Query(None),
+) -> DAGRunResponse:
+    """Modify a DAG Run."""
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    if dag_run is None:
+        raise HTTPException(
+            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+        )
+
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+
+    if not dag:
+        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+
+    if update_mask:
+        if update_mask != ["state"]:
+            raise HTTPException(400, "Only `state` field can be updated through the REST API")
+    else:
+        update_mask = ["state"]
+
+    for attr_name in update_mask:
+        if attr_name == "state":
+            state = getattr(patch_body, attr_name)
+            if state == DAGRunPatchStates.SUCCESS:
+                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
+            elif state == DAGRunPatchStates.QUEUED:
+                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
+            else:
+                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
+
+    dag_run = session.get(DagRun, dag_run.id)
+
+    return DAGRunResponse.model_validate(dag_run, from_attributes=True)

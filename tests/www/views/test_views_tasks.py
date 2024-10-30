@@ -931,7 +931,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
 
 
 def test_task_instance_clear_failure(admin_client):
-    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    rowid = "00000000-0000-0000-0000-000000000000"  # F.A.B. crashes if the rowid is *too* invalid.
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": "clear", "rowid": rowid},
@@ -979,7 +979,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
-    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    rowid = "00000000-0000-0000-0000-000000000000"  # F.A.B. crashes if the rowid is *too* invalid.
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": action, "rowid": rowid},
@@ -1108,6 +1108,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1143,6 +1144,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1178,6 +1180,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1213,6 +1216,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1248,6 +1252,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1283,6 +1288,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1318,6 +1324,7 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "id": unittest.mock.ANY,  # Ignore the `id` field
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,

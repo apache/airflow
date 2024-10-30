@@ -954,6 +954,14 @@ export interface components {
       dag_run_conf?: { [key: string]: unknown } | null;
       /** @description is_paused */
       is_paused?: boolean | null;
+      /**
+       * @description Controls whether new runs will be created when there's an existing run
+       * for a given logical date.
+       *
+       * @default none
+       * @enum {string}
+       */
+      reprocess_behavior?: "none" | "failed" | "completed";
       /** @description max_active_runs */
       max_active_runs?: number | null;
       /** @description created_at */
@@ -1058,12 +1066,6 @@ export interface components {
        * *New in version 2.3.0*
        */
       last_expired?: string | null;
-      /**
-       * @description Whether (one of) the scheduler is scheduling this DAG at the moment
-       *
-       * *New in version 2.3.0*
-       */
-      scheduler_lock?: boolean | null;
       /**
        * @description Foreign key to the latest pickle_id
        *
@@ -2256,6 +2258,13 @@ export interface components {
       end_date_lte?: string;
     };
     ListTaskInstanceForm: {
+      /** @description The number of items to skip before starting to collect the result set. */
+      page_offset?: number;
+      /**
+       * @description The numbers of items to return.
+       * @default 100
+       */
+      page_limit?: number;
       /**
        * @description Return objects with specific DAG IDs.
        * The value can be repeated to retrieve multiple matching values (OR condition).

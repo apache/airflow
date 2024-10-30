@@ -13,6 +13,7 @@ import {
   DagService,
   DagsService,
   DashboardService,
+  EventLogService,
   MonitorService,
   PluginService,
   PoolService,
@@ -22,6 +23,7 @@ import {
 } from "../requests/services.gen";
 import {
   DAGPatchBody,
+  DAGRunPatchBody,
   DagRunState,
   PoolPatchBody,
   PoolPostBody,
@@ -664,6 +666,34 @@ export const useVersionServiceGetVersion = <
     ...options,
   });
 /**
+ * Get Event Log
+ * @param data The data for the request.
+ * @param data.eventLogId
+ * @returns EventLogResponse Successful Response
+ * @throws ApiError
+ */
+export const useEventLogServiceGetEventLog = <
+  TData = Common.EventLogServiceGetEventLogDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    eventLogId,
+  }: {
+    eventLogId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
+      { eventLogId },
+      queryKey,
+    ),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+    ...options,
+  });
+/**
  * Post Variable
  * Create a variable.
  * @param data The data for the request.
@@ -916,6 +946,57 @@ export const useVariableServicePatchVariable = <
         requestBody,
         updateMask,
         variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Dag Run State
+ * Modify a DAG Run.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServicePatchDagRunState = <
+  TData = Common.DagRunServicePatchDagRunStateMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: DAGRunPatchBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: DAGRunPatchBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) =>
+      DagRunService.patchDagRunState({
+        dagId,
+        dagRunId,
+        requestBody,
+        updateMask,
       }) as unknown as Promise<TData>,
     ...options,
   });

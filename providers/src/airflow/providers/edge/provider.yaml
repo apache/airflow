@@ -27,7 +27,7 @@ source-date-epoch: 1729683247
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.4.0pre0
+  - 0.5.0pre0
 
 dependencies:
   - apache-airflow>=2.10.0

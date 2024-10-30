@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1728485162
+source-date-epoch: 1730012771
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.25.0
   - 10.24.0
   - 10.23.0
   - 10.22.0
@@ -105,7 +106,7 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
-  - google-ads>=25.0.0
+  - google-ads>=25.1.0
   - google-analytics-admin>=0.9.0
   # Google-api-core 2.16.0 back-compat issue:
   # - https://github.com/googleapis/python-api-core/issues/576

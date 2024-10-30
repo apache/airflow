@@ -39,6 +39,7 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -50,6 +51,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
     and_,
     delete,
     false,
@@ -59,6 +61,7 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -93,7 +96,6 @@ from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -794,6 +796,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 def _set_ti_attrs(target, source, include_dag_run=False):
     # Fields ordered per model definition
+    target.id = source.id
     target.start_date = source.start_date
     target.end_date = source.end_date
     target.duration = source.duration
@@ -1793,6 +1796,11 @@ def _handle_reschedule(
     return ti
 
 
+def uuid7() -> str:
+    """Generate a new UUID7 string."""
+    return str(uuid6.uuid7())
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance.
@@ -1813,10 +1821,16 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        default=uuid7,
+        nullable=False,
+    )
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -1869,7 +1883,8 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
-        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
+        PrimaryKeyConstraint("id", name="task_instance_pkey"),
+        UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -1938,6 +1953,8 @@ class TaskInstance(Base, LoggingMixin):
         self.run_id = run_id
         self.try_number = 0
         self.max_tries = self.task.retries
+        if not self.id:
+            self.id = uuid7()
         self.unixname = getuser()
         if state:
             self.state = state
@@ -3169,9 +3186,15 @@ class TaskInstance(Base, LoggingMixin):
         fail_stop: bool = False,
     ):
         """
-        Handle Failure for the TaskInstance.
+        Fetch the context needed to handle a failure.
 
-        :param fail_stop: if true, stop remaining tasks in dag
+        :param ti: TaskInstance
+        :param error: if specified, log the specific exception if thrown
+        :param test_mode: doesn't record success or failure in the DB if True
+        :param context: Jinja2 context
+        :param force_fail: if True, task does not retry
+        :param session: SQLAlchemy ORM Session
+        :param fail_stop: if True, fail all downstream tasks
         """
         if error:
             if isinstance(error, BaseException):
@@ -3192,9 +3215,6 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
-
-            # Log failure duration
-            session.add(TaskFail(ti=ti))
 
         ti.clear_next_method_args()
 
@@ -3831,7 +3851,6 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskFail,
             TaskInstanceNote,
             TaskReschedule,
             XCom,

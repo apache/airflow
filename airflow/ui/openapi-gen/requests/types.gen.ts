@@ -69,7 +69,6 @@ export type DAGDetailsResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
@@ -132,7 +131,6 @@ export type DAGResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
@@ -155,6 +153,18 @@ export type DAGResponse = {
    */
   readonly file_token: string;
 };
+
+/**
+ * DAG Run Serializer for PATCH requests.
+ */
+export type DAGRunPatchBody = {
+  state: DAGRunPatchStates;
+};
+
+/**
+ * Enum for DAG Run states when updating a DAG Run.
+ */
+export type DAGRunPatchStates = "queued" | "success" | "failed";
 
 /**
  * DAG Run serializer for responses.
@@ -225,7 +235,6 @@ export type DAGWithLatestDagRunsResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
@@ -295,6 +304,23 @@ export type DagRunType =
 export type DagTagPydantic = {
   name: string;
   dag_id: string;
+};
+
+/**
+ * Event Log Response.
+ */
+export type EventLogResponse = {
+  event_log_id: number;
+  when: string;
+  dag_id: string | null;
+  task_id: string | null;
+  run_id: string | null;
+  map_index: number | null;
+  try_number: number | null;
+  event: string;
+  logical_date: string | null;
+  owner: string | null;
+  extra: string | null;
 };
 
 /**
@@ -666,6 +692,15 @@ export type DeleteDagRunData = {
 
 export type DeleteDagRunResponse = void;
 
+export type PatchDagRunStateData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagRunStateResponse = DAGRunResponse;
+
 export type GetHealthResponse = HealthInfoSchema;
 
 export type DeletePoolData = {
@@ -717,6 +752,12 @@ export type GetPluginsData = {
 export type GetPluginsResponse = PluginCollectionResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type GetEventLogData = {
+  eventLogId: number;
+};
+
+export type GetEventLogResponse = EventLogResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -1216,6 +1257,35 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    patch: {
+      req: PatchDagRunStateData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/public/monitor/health": {
     get: {
@@ -1397,6 +1467,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/eventLogs/{event_log_id}": {
+    get: {
+      req: GetEventLogData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: EventLogResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

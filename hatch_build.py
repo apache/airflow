@@ -243,7 +243,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.0",
+        "ruff==0.7.1",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -437,6 +437,7 @@ DEPENDENCIES = [
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
+    "uuid6>=2024.7.10",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
