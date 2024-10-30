@@ -160,9 +160,9 @@ async def patch_connection(
         raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
 
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask) - non_update_fields, exclude_none=True)
+        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
     else:
-        data = patch_body.model_dump(exclude=non_update_fields, exclude_none=True)
+        data = patch_body.model_dump(exclude=non_update_fields)
 
     for key, val in data.items():
         setattr(connection, key, val)

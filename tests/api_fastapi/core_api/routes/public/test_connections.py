@@ -333,8 +333,8 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "conn_type": TEST_CONN_TYPE,
                     "extra": None,
                     "host": TEST_CONN_HOST,
-                    "login": TEST_CONN_LOGIN,
-                    "port": TEST_CONN_PORT,
+                    "login": None,
+                    "port": None,
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
@@ -495,10 +495,28 @@ class TestPatchConnection(TestConnectionEndpoint):
         ],
     )
     def test_patch_should_respond_404(self, test_client, payload):
-        payload = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": 90}
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
+        response = test_client.patch(f"/public/connections/{payload['connection_id']}", json=payload)
         assert response.status_code == 404
-        print(response.json())
         assert {
-            "detail": f"The Connection with connection_id: `{TEST_CONN_ID}` was not found",
+            "detail": f"The Connection with connection_id: `{payload['connection_id']}` was not found",
         } == response.json()
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_LOGIN_2, "password": "?>@#+!_%()#"},
+            {
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "password": "A!rF|0wi$aw3s0m3",
+                "extra": '{"password": "test-password"}',
+            },
+        ],
+    )
+    def test_patch_should_response_201_redacted_password(self, test_client, body):
+        self.create_connection()
+        response = test_client.patch(f"/public/connections/{body['connection_id']}", json=body)
+        assert response.status_code == 200
+        connection = response.json()
+        assert "password" not in connection
