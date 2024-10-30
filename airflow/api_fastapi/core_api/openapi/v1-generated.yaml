@@ -1156,6 +1156,78 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - DagRun
+      summary: Patch Dag Run State
+      description: Modify a DAG Run.
+      operationId: patch_dag_run_state
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -1506,6 +1578,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+  /public/eventLogs/{event_log_id}:
+    get:
+      tags:
+      - Event Log
+      summary: Get Event Log
+      operationId: get_event_log
+      parameters:
+      - name: event_log_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Event Log Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventLogResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -2035,6 +2151,23 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunPatchBody:
+      properties:
+        state:
+          $ref: '#/components/schemas/DAGRunPatchStates'
+      type: object
+      required:
+      - state
+      title: DAGRunPatchBody
+      description: DAG Run Serializer for PATCH requests.
+    DAGRunPatchStates:
+      type: string
+      enum:
+      - queued
+      - success
+      - failed
+      title: DAGRunPatchStates
+      description: Enum for DAG Run states when updating a DAG Run.
     DAGRunResponse:
       properties:
         run_id:
@@ -2415,6 +2548,74 @@ components:
       title: DagTagPydantic
       description: Serializable representation of the DagTag ORM SqlAlchemyModel used
         by internal API.
+    EventLogResponse:
+      properties:
+        event_log_id:
+          type: integer
+          title: Event Log Id
+        when:
+          type: string
+          format: date-time
+          title: When
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+        map_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+        try_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
+        event:
+          type: string
+          title: Event
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        owner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+      type: object
+      required:
+      - event_log_id
+      - when
+      - dag_id
+      - task_id
+      - run_id
+      - map_index
+      - try_number
+      - event
+      - logical_date
+      - owner
+      - extra
+      title: EventLogResponse
+      description: Event Log Response.
     FastAPIAppResponse:
       properties:
         app:

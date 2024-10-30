@@ -64,7 +64,6 @@ from airflow.models.param import process_params
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
@@ -157,7 +156,6 @@ class TestTaskInstance:
         db.clear_db_dags()
         db.clear_db_pools()
         db.clear_db_runs()
-        db.clear_db_task_fail()
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
         db.clear_db_assets()
@@ -2228,13 +2226,6 @@ class TestTaskInstance:
         assert body.startswith("Try 0")  # try number only incremented by the scheduler
         assert "test_email_alert" in body
 
-        tf = (
-            session.query(TaskFail)
-            .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-            .one_or_none()
-        )
-        assert tf, "TaskFail was recorded"
-
     def test_set_duration(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
         ti = TI(task=task)
@@ -4074,13 +4065,13 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_clear_db_references(self, session, create_task_instance):
-        tables = [TaskFail, RenderedTaskInstanceFields, XCom]
+        tables = [RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
         ti.note = "sample note"
 
         session.merge(ti)
         session.commit()
-        for table in [TaskFail, RenderedTaskInstanceFields]:
+        for table in [RenderedTaskInstanceFields]:
             session.add(table(ti))
         XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()

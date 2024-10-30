@@ -117,10 +117,10 @@ class CapturedWarning:
         But we should not use it to filter it out, only for show in different groups.
         """
         if self.filename.startswith("airflow/"):
-            if self.filename.startswith("airflow/providers/"):
-                return "providers"
             return "airflow"
-        elif self.filename.startswith("tests/"):
+        elif self.filename.startswith("providers/src/"):
+            return "providers"
+        elif self.filename.startswith("tests/") or self.filename.startswith("providers/tests/"):
             return "tests"
         return "other"
 

@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.edge import __version__ as edge_provider_version
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_logs import EdgeLogs
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
 from airflow.utils import cli as cli_utils
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -175,6 +175,9 @@ class _EdgeWorkerCli:
             self.last_hb = EdgeWorker.register_worker(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
             ).last_update
+        except EdgeWorkerVersionException as e:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            raise SystemExit(str(e))
         except AirflowException as e:
             if "404:NOT FOUND" in str(e):
                 raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
@@ -186,7 +189,10 @@ class _EdgeWorkerCli:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
-            EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            try:
+                EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            except EdgeWorkerVersionException:
+                logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
             remove_existing_pidfile(self.pid_file_path)
 
@@ -259,7 +265,11 @@ class _EdgeWorkerCli:
             else EdgeWorkerState.IDLE
         )
         sysinfo = self._get_sysinfo()
-        self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        try:
+            self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        except EdgeWorkerVersionException:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            _EdgeWorkerCli.drain = True
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""
