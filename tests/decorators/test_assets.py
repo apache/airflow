@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.assets import Asset
-from airflow.decorators.assets import asset
+from airflow.decorators.assets import AssetRef, _AssetMainOperator, asset
 
 pytestmark = pytest.mark.db_test
 
@@ -58,7 +58,7 @@ def example_asset_definition(example_asset_func):
 
 @pytest.fixture
 def example_asset_func_with_valid_arg_as_inlet_asset():
-    def _example_asset_func(inlet_asset_1, inlet_asset_2):
+    def _example_asset_func(context, inlet_asset_1, inlet_asset_2):
         return "This is example_asset"
 
     _example_asset_func.__name__ = "example_asset_func"
@@ -146,3 +146,23 @@ class TestAssetDefinition:
             python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
             definition_name="example_asset_func",
         )
+
+
+class Test_AssetMainOperator:
+    def test_determine_kwargs(self, example_asset_func_with_valid_arg_as_inlet_asset):
+        asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
+            example_asset_func_with_valid_arg_as_inlet_asset
+        )
+
+        op = _AssetMainOperator(
+            task_id="__main__",
+            inlets=[],
+            outlets=[asset_definition],
+            python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
+            definition_name="example_asset_func",
+        )
+        assert op.determine_kwargs(context={"k": "v"}) == {
+            "context": {"k": "v"},
+            "inlet_asset_1": AssetRef(name="inlet_asset_1"),
+            "inlet_asset_2": AssetRef(name="inlet_asset_2"),
+        }
