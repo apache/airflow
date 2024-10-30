@@ -216,6 +216,17 @@ export const $ConnectionBody = {
       ],
       title: "Port",
     },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
     extra: {
       anyOf: [
         {

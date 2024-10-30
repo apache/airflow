@@ -133,7 +133,7 @@ async def post_connection(
     if connection is not None:
         raise HTTPException(409, f"Connection with connection_id: `{post_body.connection_id}` already exists")
 
-    connection = Connection(**post_body.model_dump(by_alias=True, exclude_none=True))
+    connection = Connection(**post_body.model_dump(by_alias=True))
     session.add(connection)
 
     return ConnectionResponse.model_validate(connection, from_attributes=True)

@@ -69,4 +69,5 @@ class ConnectionBody(BaseModel):
     login: str | None = Field(default=None)
     schema_: str | None = Field(None, alias="schema")
     port: int | None = Field(default=None)
+    password: str | None = Field(default=None)
     extra: str | None = Field(default=None)

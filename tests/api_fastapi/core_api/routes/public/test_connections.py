@@ -30,6 +30,7 @@ TEST_CONN_TYPE = "test_type"
 TEST_CONN_DESCRIPTION = "some_description_a"
 TEST_CONN_HOST = "some_host_a"
 TEST_CONN_PORT = 8080
+TEST_PASS = "test-password"
 
 
 TEST_CONN_ID_2 = "test_connection_id_2"
@@ -37,6 +38,7 @@ TEST_CONN_TYPE_2 = "test_type_2"
 TEST_CONN_DESCRIPTION_2 = "some_description_b"
 TEST_CONN_HOST_2 = "some_host_b"
 TEST_CONN_PORT_2 = 8081
+TEST_PASS_2 = "test-password_2"
 
 
 @provide_session
@@ -47,6 +49,7 @@ def _create_connection(session) -> None:
         description=TEST_CONN_DESCRIPTION,
         host=TEST_CONN_HOST,
         port=TEST_CONN_PORT,
+        password=TEST_PASS,
     )
     session.add(connection_model)
 
@@ -60,6 +63,7 @@ def _create_connections(session) -> None:
         description=TEST_CONN_DESCRIPTION_2,
         host=TEST_CONN_HOST_2,
         port=TEST_CONN_PORT_2,
+        password=TEST_PASS_2,
     )
     session.add(connection_model_2)
 
@@ -192,7 +196,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_200(self, test_client, session, body):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
         assert len(connection) == 1
@@ -207,7 +211,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_400_for_invalid_conn_id(self, test_client, body):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 400
         connection_id = body["connection_id"]
         assert response.json() == {
@@ -222,11 +226,30 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_already_exist(self, test_client, body):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 201
         # Another request
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 409
         assert response.json() == {
             "detail": "Connection with connection_id: `test-connection-id` already exists",
         }
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "password": "test-password"},
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "password": "?>@#+!_%()#"},
+            {
+                "connection_id": "test-connection-id",
+                "conn_type": "test_type",
+                "password": "A!rF|0wi$aw3s0m3",
+                "extra": '{"password": "test-password"}',
+            },
+        ],
+    )
+    def test_post_should_response_201_redact_password(self, test_client, body):
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 201
+        connection = response.json()
+        assert connection["password"] == "***"
