@@ -56,67 +56,85 @@ class FinancialServicesHook(GoogleBaseHook):
 
         return self.connection
 
-    def get_instance(self, instance_resource_uri: str) -> dict:
+    def get_instance(self, project_id: str, region: str, instance_id: str) -> dict:
         """
         Get a Financial Services Anti-Money Laundering AI instance.
 
-        :param instance_resource_uri: URI of the instance to get (format:
-            'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
+        :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+        :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+        :param instance_id:  Required. The ID of the instance, which is used as the final component of the
+            instances's name.
 
         :returns: A dictionary containing the instance metadata
         """
         conn = self.get_conn()
-        response = conn.projects().locations().instances().get(name=instance_resource_uri).execute()
+        name = f"projects/{project_id}/locations/{region}/instances/{instance_id}"
+        response = conn.projects().locations().instances().get(name=name).execute()
         return response
 
-    def create_instance(self, instance_id: str, kms_key_uri: str, location_resource_uri: str) -> dict:
+    def create_instance(
+        self, project_id: str, region: str, instance_id: str, kms_key_ring_id: str, kms_key_id: str
+    ) -> dict:
         """
         Create a Financial Services Anti-Money Laundering AI instance.
 
-        :param instance_id: Identifier for the instance to create
-        :param kms_key_uri: URI of the KMS key to that will be used for instance encryption
-            (format: 'projects/<Project ID>/locations/<Location>/keyRings/<Key Ring>/
-            cryptoKeys/<Key>')
+        :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+        :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+        :param instance_id:  Required. The ID of the instance, which is used as the final component of the
+            instances's name.
+        :param kms_key_ring_id:  Required. The ID of the Google Cloud KMS key ring containing the key to
+            use for instance encryption
+        :param kms_key_id:  Required. The ID of the Google Cloud KMS key to use for instance encryption
 
         :returns: A dictionary containing metadata for the create instance operation
         """
         conn = self.get_conn()
+        parent = f"projects/{project_id}/locations/{region}"
+        kms_key = (
+            f"projects/{project_id}/locations/{region}/keyRings/{kms_key_ring_id}/cryptoKeys{kms_key_id}"
+        )
         response = (
             conn.projects()
             .locations()
             .instances()
             .create(
-                parent=location_resource_uri,
+                parent=parent,
                 instanceId=instance_id,
-                body={"kmsKey": kms_key_uri},
+                body={"kmsKey": kms_key},
             )
             .execute()
         )
         return response
 
-    def delete_instance(self, instance_resource_uri: str) -> dict:
+    def delete_instance(self, project_id: str, region: str, instance_id: str) -> dict:
         """
         Delete a Financial Services Anti-Money Laundering AI instance.
 
-        :param instance_resource_uri: URI of the instance to delete (format:
-                'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
+        :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+        :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+        :param instance_id:  Required. The ID of the instance, which is used as the final component of the
+            instances's name.
 
         :returns: A dictionary containing metadata for the delete instance
                 operation
         """
         conn = self.get_conn()
-        response = conn.projects().locations().instances().delete(name=instance_resource_uri).execute()
+        name = f"projects/{project_id}/locations/{region}/instances/{instance_id}"
+        response = conn.projects().locations().instances().delete(name=name).execute()
         return response
 
-    def get_operation(self, operation_resource_uri: str) -> dict:
+    def get_operation(self, project_id: str, region: str, operation_id: str) -> dict:
         """
         Get a Financial Services Anti-Money Laundering AI operation.
 
-        :param operation_resource_uri: URI of the operation to get (format:
-            'projects/<Project ID>/locations/<Location>/operations/<Operation ID>)
+        :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+        :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+        :param operation_id:  Required. The ID of the operation, which is used as the final component of the
+            operation's name.
 
         :return: A dictionary containing metadata for the operation
         """
         conn = self.get_conn()
-        response = conn.projects().locations().operations().get(name=operation_resource_uri).execute()
+        name = f"projects/{project_id}/locations/{region}/operations/{operation_id}"
+        response = conn.projects().locations().operations().get(name=name).execute()
         return response
