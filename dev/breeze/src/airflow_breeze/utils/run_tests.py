@@ -31,7 +31,6 @@ from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
 DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
-COMMON_TESTS_PYTEST_PLUGIN = "tests_common.pytest_plugin"
 
 
 def verify_an_image(
@@ -339,10 +338,6 @@ def generate_args_for_pytest(
             "-rfEX",
         ]
     )
-    if test_type != HELM_TESTS:
-        # Helm tests previously did not make use of the pytest plugin from their conftest file. So do not
-        # enable it for those tests with the new mechanism
-        args.append(f"-p {COMMON_TESTS_PYTEST_PLUGIN}")
     if skip_db_tests:
         args.append("--skip-db-tests")
     if run_db_tests_only:

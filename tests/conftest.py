@@ -29,6 +29,8 @@ from tests_common.test_utils.log_handlers import non_pytest_handlers
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
+pytest_plugins = "tests_common.pytest_plugin"
+
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
     "tests/dags/subdir1/test_ignore_this.py",
@@ -36,6 +38,14 @@ collect_ignore = [
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests_common.test_utils/perf/dags/elastic_dag.py",
 ]
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    dep_path = [config.rootpath.joinpath("tests", "deprecations_ignore.yml")]
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )
 
 
 @pytest.fixture
