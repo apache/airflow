@@ -1095,6 +1095,26 @@ export const $DAGRunTypes = {
   description: "DAG Run Types for responses.",
 } as const;
 
+export const $DAGSourceResponse = {
+  properties: {
+    content: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Content",
+    },
+  },
+  type: "object",
+  required: ["content"],
+  title: "DAGSourceResponse",
+  description: "DAG Source serializer for responses.",
+} as const;
+
 export const $DAGTagCollectionResponse = {
   properties: {
     tags: {
