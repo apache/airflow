@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-30T13:52:35.795203
+# This constraints file was automatically generated on 2024-10-30T19:47:46.177977
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -131,7 +131,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.18.2
+cfn-lint==1.18.3
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -162,7 +162,7 @@ db-dtypes==1.3.0
 debugpy==1.8.7
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.20.2
+deltalake==0.21.0
 diagrams==0.23.4
 dill==0.3.9
 distlib==0.3.9
@@ -321,6 +321,7 @@ jupyter_client==8.6.3
 jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.5.0
+kgb==7.1.1
 kombu==5.4.2
 krb5==0.7.0
 kubernetes==31.0.0
@@ -376,7 +377,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.52.2
+openai==1.53.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
