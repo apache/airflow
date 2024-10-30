@@ -126,7 +126,7 @@ be accomplished using breeze. First, choose a version number that will never be 
 For example, if the latest release is 10.5.1, you can release your provider as 10.5.1.1 with the suffix
 local1. First, add this new version number to the top of the provider.yaml file. Then, set the provider id in
 an environment variable PACKAGE_LIST. For providers in nested directories, replace the directory separator
-(/) with a period. For example, to build the Microsoft Azure provider, set the provider ID to microsoft.azure.
+(/) with a period. For example, to build the Microsoft Azure provider, set the provider ID to 'microsoft.azure'.
 
 ``export PACKAGE_LIST=microsoft.azure``
 
