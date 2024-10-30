@@ -30,7 +30,7 @@ import { FiCalendar, FiPlay } from "react-icons/fi";
 
 import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
-import Time from "src/components/Time";
+import DagRunInfo from "src/components/DagRunInfo";
 import { TogglePause } from "src/components/TogglePause";
 import { Tooltip } from "src/components/ui";
 
@@ -88,16 +88,26 @@ export const Header = ({
           <Heading color="fg.muted" fontSize="xs">
             Next Run
           </Heading>
-          {Boolean(dag?.next_dagrun) ? (
-            <Text fontSize="sm">
-              <Time datetime={dag?.next_dagrun} />
-            </Text>
-          ) : undefined}
+          {Boolean(dag?.next_dagrun) ? <DagRunInfo dag={dag!} /> : undefined}
         </VStack>
         <div />
         <div />
       </SimpleGrid>
     </Box>
+    <Flex
+      alignItems="center"
+      bg={grayBg}
+      borderTopColor={grayBorder}
+      borderTopWidth={1}
+      color="gray.400"
+      fontSize="sm"
+      justifyContent="space-between"
+      px={2}
+      py={1}
+    >
+      <Text>Owner: {dag?.owners.join(", ")}</Text>
+      <DagTags tags={dag?.tags ?? []} />
+    </Flex>
     <Flex
       alignItems="center"
       bg="bg.muted"

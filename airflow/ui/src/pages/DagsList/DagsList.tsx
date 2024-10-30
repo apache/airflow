@@ -34,13 +34,13 @@ import type {
   DagRunState,
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
+import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import { Select } from "src/components/ui";
 import {
@@ -88,9 +88,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      Boolean(original.next_dagrun) ? (
-        <Time datetime={original.next_dagrun} />
-      ) : undefined,
+      Boolean(original.next_dagrun) ? <DagRunInfo dag={original} /> : undefined,
     enableSorting: false,
     header: "Next Dag Run",
   },

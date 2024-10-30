@@ -28,7 +28,7 @@ import {
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+import DagRunInfo from "src/components/DagRunInfo";
 import { TogglePause } from "src/components/TogglePause";
 import { Tooltip } from "src/components/ui";
 
@@ -90,7 +90,7 @@ export const DagCard = ({ dag }: Props) => (
         <Heading color="gray.500" fontSize="xs">
           Next Run
         </Heading>
-        <Time datetime={dag.next_dagrun} />
+        {Boolean(dag.next_dagrun) ? <DagRunInfo dag={dag} /> : undefined}
       </VStack>
       <RecentRuns latestRuns={dag.latest_dag_runs} />
     </SimpleGrid>
