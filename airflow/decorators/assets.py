@@ -93,7 +93,12 @@ class AssetDefinition(Asset):
         dag._wrapped_definition = self
 
     def serialize(self):
-        return "AssetDefinition"
+        return {
+            "uri": self.uri,
+            "name": self.name,
+            "group": self.group,
+            "extra": self.extra,
+        }
 
 
 @attrs.define(kw_only=True)

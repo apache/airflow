@@ -53,6 +53,21 @@
         { "type": "integer" }
       ]
     },
+    "asset_definition": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "name": { "type": "string" },
+        "group": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
     "asset": {
       "type": "object",
       "properties": {
@@ -182,9 +197,7 @@
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
         "_wrapped_definition": {
           "anyOf": [
-            { "type": "null" },
-            { "type": "string" },
-            { "$ref": "#/definitions/asset"}
+            { "$ref": "#/definitions/asset_definition"}
           ]
         }
       },
