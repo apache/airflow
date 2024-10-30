@@ -170,18 +170,17 @@ and ``area:providers``. This is especially important since these are now
 being released and versioned independently.
 
 There are more detailed areas of the Core Airflow project such as Scheduler, Webserver,
-API, UI, Logging, and Kubernetes, which are all conceptually under the
+API, UI, Logging, and Metrics, which are all conceptually under the
 "Airflow Core" area of the project.
 
 Similarly within Airflow Providers, the larger providers such as Apache, AWS, Azure,
 and Google who have many hooks and operators within them, have labels directly
-associated with them such as ``provider:Apache``, ``provider:AWS``,
-``provider:Azure``, and ``provider:Google``.
+associated with them such as ``provider:amazon-aws``, ``provider:microsoft-azure``, and ``provider:google``.
 
 These make it easier for developers working on a single provider to
 track issues for that provider.
 
-Some provider labels may couple several providers for example: ``provider:Protocols``
+Note: each provider has it's own unique label. It is possible for issue to be tagged with more than 1 provider label.
 
 Most issues need a combination of "kind" and "area" labels to be actionable.
 For example:
