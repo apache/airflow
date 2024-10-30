@@ -1344,11 +1344,22 @@ class SelectiveChecks:
 
     @cached_property
     def testable_integrations(self) -> list[str]:
-        return [
-            integration
-            for integration in TESTABLE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-        ]
+        all_source_files = self._matching_files(
+            FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+        test_ui_files = self._matching_files(
+            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+        remaining_files = set(all_source_files) - set(test_ui_files)
+
+        if not remaining_files:
+            return []
+        else:
+            return [
+                integration
+                for integration in TESTABLE_INTEGRATIONS
+                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            ]
 
     @cached_property
     def is_committer_build(self):
