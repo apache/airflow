@@ -892,9 +892,20 @@ export const $DAGRunPatchBody = {
     state: {
       $ref: "#/components/schemas/DAGRunPatchStates",
     },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
   },
   type: "object",
-  required: ["state"],
+  required: ["state", "note"],
   title: "DAGRunPatchBody",
   description: "DAG Run Serializer for PATCH requests.",
 } as const;

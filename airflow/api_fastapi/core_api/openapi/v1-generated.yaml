@@ -2155,9 +2155,15 @@ components:
       properties:
         state:
           $ref: '#/components/schemas/DAGRunPatchStates'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
       type: object
       required:
       - state
+      - note
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
     DAGRunPatchStates:

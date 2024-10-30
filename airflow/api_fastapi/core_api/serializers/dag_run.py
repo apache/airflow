@@ -38,6 +38,7 @@ class DAGRunPatchBody(BaseModel):
     """DAG Run Serializer for PATCH requests."""
 
     state: DAGRunPatchStates
+    note: str | None
 
 
 class DAGRunResponse(BaseModel):

@@ -159,6 +159,7 @@ export type DAGResponse = {
  */
 export type DAGRunPatchBody = {
   state: DAGRunPatchStates;
+  note: string | null;
 };
 
 /**

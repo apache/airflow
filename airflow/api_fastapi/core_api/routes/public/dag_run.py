@@ -78,6 +78,7 @@ async def patch_dag_run_state(
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
+    ALLOWED_FIELD_MASK = ["state", "note"]
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
@@ -90,10 +91,11 @@ async def patch_dag_run_state(
         raise HTTPException(404, f"Dag with id {dag_id} was not found")
 
     if update_mask:
-        if update_mask != ["state"]:
-            raise HTTPException(400, "Only `state` field can be updated through the REST API")
+        for each in update_mask:
+            if each not in ALLOWED_FIELD_MASK:
+                raise HTTPException(400, f"Invalid field `{each}` in update mask")
     else:
-        update_mask = ["state"]
+        update_mask = ALLOWED_FIELD_MASK
 
     for attr_name in update_mask:
         if attr_name == "state":
@@ -104,6 +106,9 @@ async def patch_dag_run_state(
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
             else:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
+        elif attr_name == "note":
+            # Need to figure out how to get current user id
+            pass
 
     dag_run = session.get(DagRun, dag_run.id)
 
