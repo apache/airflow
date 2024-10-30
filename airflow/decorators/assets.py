@@ -70,7 +70,6 @@ class AssetDefinition(Asset):
     :meta private:
     """
 
-    name: str  # TODO: This should be stored on Asset.
     function: types.FunctionType
     schedule: ScheduleArg
 
@@ -79,8 +78,11 @@ class AssetDefinition(Asset):
         with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True) as dag:
             _AssetMainOperator(
                 task_id="__main__",
-                # TODO: This should use the name argument instead.
-                inlets=[Asset(uri=k) for k in parameters if k not in ("self", "context")],
+                inlets=[
+                    Asset(name=inlet_aset_name)
+                    for inlet_aset_name in parameters
+                    if inlet_aset_name not in ("self", "context")
+                ],
                 outlets=[self],
                 python_callable=self.function,
                 definition_name=self.name,
@@ -89,6 +91,9 @@ class AssetDefinition(Asset):
         # When we create UI for assets, we should add logic to serde so the
         # serialized DAG contains appropriate asset information.
         dag._wrapped_definition = self
+
+    def serialize(self):
+        return "AssetDefinition"
 
 
 @attrs.define(kw_only=True)

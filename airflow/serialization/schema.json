@@ -183,7 +183,8 @@
         "_wrapped_definition": {
           "anyOf": [
             { "type": "null" },
-            { "type": "string" }
+            { "type": "string" },
+            { "$ref": "#/definitions/asset"}
           ]
         }
       },
