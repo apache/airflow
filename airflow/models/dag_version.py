@@ -136,8 +136,6 @@ class DagVersion(Base):
 
     @property
     def version(self):
-        if not self.version_name and not self.version_number:
-            return None
         sep = "-"
         return str(self.version_name) + sep + str(self.version_number)
 
