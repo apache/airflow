@@ -336,6 +336,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "login": None,
                     "port": None,
                     "schema": None,
+                    "password": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
                 {"update_mask": ["login", "port"]},
@@ -350,6 +351,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "login": TEST_CONN_LOGIN,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "password": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
                 {"update_mask": ["host"]},
@@ -369,6 +371,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "login": TEST_CONN_LOGIN,
                     "port": 80,
                     "schema": None,
+                    "password": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
                 {"update_mask": ["host", "port"]},
@@ -383,6 +386,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "login": "test_login_patch",
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "password": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
                 {"update_mask": ["login"]},
@@ -401,6 +405,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "host": TEST_CONN_HOST,
                     "login": TEST_CONN_LOGIN,
                     "port": TEST_CONN_PORT,
+                    "password": None,
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
@@ -412,10 +417,9 @@ class TestPatchConnection(TestConnectionEndpoint):
         self, test_client, session, payload, updated_connection, update_mask
     ):
         self.create_connection()
-        test_connection = TEST_CONN_ID
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload, params=update_mask)
         assert response.status_code == 200
-        connection = session.query(Connection).filter_by(conn_id=test_connection).first()
+        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
         assert connection.password is None
         assert response.json() == updated_connection
 
@@ -554,7 +558,8 @@ class TestPatchConnection(TestConnectionEndpoint):
             ),
         ],
     )
-    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
-        response = test_client.post("/public/connections/", json=body)
-        assert response.status_code == 201
+    def test_patch_should_response_200_redacted_password(self, test_client, session, body, expected_response):
+        self.create_connections()
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
+        assert response.status_code == 200
         assert response.json() == expected_response
