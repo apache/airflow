@@ -36,18 +36,26 @@ Features
 * ``Add 'SageMakerProcessingSensor' (#43144)``
 * ``Make 'RedshiftDataOperator'  handle multiple queries (#42900)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): alias is_authorized_dataset to is_authorized_asset (#43470)``
+* ``Remove returns in final clause of athena hooks (#43426)``
+
 Misc
 ~~~~
 
 * ``Remove sqlalchemy-redshift dependency (#43271)``
 * ``feat(providers/amazon): Use asset in common provider (#43110)``
 * ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
-
+* ``Limit mypy-boto3-appflow (#43436)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove TaskContextLogger (#43183)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Prepare docs for Oct 2nd wave of providers (#43409)``
 
 9.0.0
 .....
