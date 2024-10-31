@@ -122,21 +122,25 @@ Local Development Release of a Specific Provider
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you develop a provider, you can release it locally and test it in your Airflow environment. This should
-be accomplished using breeze. First, choose a version number that will never be used in an official release.
-For example, if the latest release is 10.5.1, you can release your provider as 10.5.1.1 with the suffix
-local1. First, add this new version number to the top of the provider.yaml file. Then, set the provider id in
-an environment variable PACKAGE_LIST. For providers in nested directories, replace the directory separator
-(/) with a period. For example, to build the Microsoft Azure provider, set the provider ID to 'microsoft.azure'.
+be accomplished using breeze. Choose a suffix for the release such as "dev1" and run the breeze build for
+that provider. Remember Provider IDs use a dot ('.') for directory separators so the Provider ID for the
+Microsoft Azure provider is 'microsoft.azure'. This can be provided in the PACKAGE_LIST environment variable
+or passed on the command line.
 
 ``export PACKAGE_LIST=microsoft.azure``
 
-Then build the provider:
+Then build the provider (you don't need to pass the package ID if you set the environment variable above):
 
-``breeze release-management prepare-provider-packages --package-format both --version-suffix-for-pypi=local1``
+```bash
+breeze release-management prepare-provider-packages \
+    --package-format both --version-suffix-for-pypi=dev1 \
+    --skip-tag-check microsoft.azure
+```
 
-Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use. If this is ~/airflow/test-airflow/local_providers, you can use the following command:
+Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use.
+If this is ~/airflow/test-airflow/local_providers, you can use the following command:
 
-``cp dist/apache_airflow_providers_microsoft_azure-10.5.2rc1-py3-none-any.whl ~/airflow/test-airflow/local_providers/``
+``cp dist/apache_airflow_providers_microsoft_azure-10.5.2+dev1-py3-none-any.whl ~/airflow/test-airflow/local_providers/``
 
 
 Naming Conventions for provider packages
