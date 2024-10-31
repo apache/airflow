@@ -913,7 +913,6 @@ export const $DAGRunPatchBody = {
     },
   },
   type: "object",
-  required: ["state"],
   title: "DAGRunPatchBody",
   description: "DAG Run Serializer for PATCH requests.",
 } as const;

@@ -103,7 +103,7 @@ async def patch_dag_run_state(
         attr_value = getattr(patch_body, attr_name)
         if attr_name == "state":
             if attr_value is None:
-                raise HTTPException(400, "state cannot be empty when it is included in the update mask")
+                continue
             if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
             elif attr_value == DAGRunPatchStates.QUEUED:
@@ -118,8 +118,8 @@ async def patch_dag_run_state(
                 dag_run.note = (attr_value, None)
             else:
                 dag_run.dag_run_note.content = attr_value
-                dag_run.dag_run_note.user_id = None
     session.commit()
     dag_run = session.get(DagRun, dag_run.id)
+    print(f"return val: {dag_run.dag_run_note.content}")
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
