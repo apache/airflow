@@ -25,6 +25,8 @@ from airflow.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import clear_db_dags
 
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+
 
 class TestDagVersion:
     def setup_method(self):
