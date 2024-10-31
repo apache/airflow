@@ -1278,8 +1278,6 @@ def _refresh_from_task(
     :meta private:
     """
     task_instance.task = task
-    print(task_instance)
-    print(task)
     task_instance.queue = task.queue
     task_instance.pool = pool_override or task.pool
     task_instance.pool_slots = task.pool_slots

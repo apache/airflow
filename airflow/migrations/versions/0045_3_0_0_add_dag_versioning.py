@@ -57,7 +57,9 @@ def upgrade():
             ("dag_id",), ["dag.dag_id"], name=op.f("dag_version_dag_id_fkey"), ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
-        sa.UniqueConstraint("dag_id", "version_number", name="dag_id_version_number_unique_constraint"),
+        sa.UniqueConstraint(
+            "dag_id", "version_name", "version_number", name="dag_id_v_name_v_number_unique_constraint"
+        ),
     )
     with op.batch_alter_table("dag_code", recreate="always", naming_convention=naming_convention) as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")

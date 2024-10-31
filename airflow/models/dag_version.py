@@ -70,7 +70,9 @@ class DagVersion(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow)
 
     __table_args__ = (
-        UniqueConstraint("dag_id", "version_number", name="dag_id_version_number_unique_constraint"),
+        UniqueConstraint(
+            "dag_id", "version_name", "version_number", name="dag_id_v_name_v_number_unique_constraint"
+        ),
     )
 
     def __repr__(self):
@@ -135,7 +137,7 @@ class DagVersion(Base):
     @property
     def version(self):
         sep = "-"
-        return str(self.version_name) + sep + str(self.version_number)
+        return self.dag_id + sep + self.version_name + sep + str(self.version_number)
 
     @classmethod
     @provide_session
