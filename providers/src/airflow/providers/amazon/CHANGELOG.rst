@@ -55,7 +55,7 @@ Misc
    * ``Remove TaskContextLogger (#43183)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
    * ``Start porting DAG definition code to the Task SDK (#43076)``
-  * ``Prepare docs for Oct 2nd wave of providers (#43409)``
+   * ``Prepare docs for Oct 2nd wave of providers (#43409)``
 
 9.0.0
 .....
