@@ -52,7 +52,7 @@ from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
     get_dag,
     get_dag_by_file_location,
@@ -61,7 +61,6 @@ from airflow.utils.cli import (
     should_ignore_depends_on_past,
     suppress_logs_and_warning,
 )
-from airflow.utils.dates import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO

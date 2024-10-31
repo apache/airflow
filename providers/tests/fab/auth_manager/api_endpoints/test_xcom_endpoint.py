@@ -26,7 +26,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
-from airflow.utils.dates import parse_execution_date
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
@@ -118,7 +118,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id_1 = "test-dag-id-1"
         task_id_1 = "test-task-id-1"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         dag_run_id_1 = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_1, dag_run_id_1, execution_date_parsed, task_id_1)
 

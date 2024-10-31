@@ -26,7 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dates import parse_execution_date
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
@@ -111,7 +111,7 @@ class TestGetXComEntry(TestXComEndpoint):
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key, {"key": "value"})
         response = self.client.get(
@@ -137,7 +137,7 @@ class TestGetXComEntry(TestXComEndpoint):
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key, {"key": "value"})
         response = self.client.get(
@@ -164,7 +164,7 @@ class TestGetXComEntry(TestXComEndpoint):
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         value_non_serializable_key = {("201009_NB502104_0421_AHJY23BGXG (SEQ_WF: 138898)", None): 82359}
         self._create_xcom_entry(
@@ -193,7 +193,7 @@ class TestGetXComEntry(TestXComEndpoint):
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
@@ -208,7 +208,7 @@ class TestGetXComEntry(TestXComEndpoint):
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
@@ -222,7 +222,7 @@ class TestGetXComEntry(TestXComEndpoint):
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
 
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
@@ -318,7 +318,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id = "test-dag-id"
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
 
         self._create_xcom_entries(dag_id, run_id, execution_date_parsed, task_id)
@@ -360,7 +360,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id_1 = "test-dag-id-1"
         task_id_1 = "test-task-id-1"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id_1 = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_1, run_id_1, execution_date_parsed, task_id_1)
 
@@ -423,7 +423,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id = "test-dag-id"
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, task_id, mapped_ti=True)
 
@@ -467,7 +467,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id = "test-dag-id"
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, task_id, mapped_ti=True)
 
@@ -509,7 +509,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id = "test-dag-id"
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id, run_id, execution_date_parsed, task_id)
 
@@ -594,7 +594,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
         self.dag_id = "test-dag-id"
         self.task_id = "test-task-id"
         self.execution_date = "2005-04-02T00:00:00+00:00"
-        self.execution_date_parsed = parse_execution_date(self.execution_date)
+        self.execution_date_parsed = timezone.parse(self.execution_date)
         self.run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.execution_date_parsed)
 
     @pytest.mark.parametrize(
