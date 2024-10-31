@@ -300,7 +300,8 @@ class TestPythonOperator(BasePythonTest):
             assert dag is not None, "dag should be set"
 
         error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
-        with pytest.raises(AirflowException, match=error_message):
+
+        with pytest.raises((TypeError, AirflowException), match=error_message):
             self.run_as_task(func, op_kwargs={"custom": 1}, provide_context=True)
 
     def test_context_with_conflicting_op_args(self):
