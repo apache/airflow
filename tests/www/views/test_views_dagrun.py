@@ -24,14 +24,19 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www.views import DagRunModelView
-from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -93,7 +98,7 @@ def client_dr_without_dag_run_create(app):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_dagrun():
+def _init_blank_dagrun():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -104,7 +109,7 @@ def init_blank_dagrun():
 
 
 @pytest.fixture(autouse=True)
-def reset_dagrun():
+def _reset_dagrun():
     yield
     with create_session() as session:
         session.query(DagRun).delete()
@@ -302,3 +307,79 @@ def test_dag_runs_queue_new_tasks_action(session, admin_client, completed_dag_ru
     check_content_in_response("runme_2", resp)
     check_content_not_in_response("runme_1", resp)
     assert resp.status_code == 200
+
+
+@pytest.fixture
+def dag_run_with_all_done_task(session):
+    """Creates a DAG run for example_bash_decorator with tasks in various states and an ALL_DONE task not yet run."""
+    dag = DagBag().get_dag("example_bash_decorator")
+
+    # Re-sync the DAG to the DB
+    dag.sync_to_db()
+
+    execution_date = timezone.datetime(2016, 1, 9)
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dr = dag.create_dagrun(
+        state="running",
+        execution_date=execution_date,
+        data_interval=(execution_date, execution_date),
+        run_id="test_dagrun_failed",
+        session=session,
+        **triggered_by_kwargs,
+    )
+
+    # Create task instances in various states to test the ALL_DONE trigger rule
+    tis = [
+        # runme_loop tasks
+        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
+        TaskInstance(dag.get_task("runme_2"), run_id=dr.run_id, state="running"),
+        # Other tasks before run_this_last
+        TaskInstance(dag.get_task("run_after_loop"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("also_run_this"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("also_run_this_again"), run_id=dr.run_id, state="skipped"),
+        TaskInstance(dag.get_task("this_will_skip"), run_id=dr.run_id, state="running"),
+        # The task with trigger_rule=ALL_DONE
+        TaskInstance(dag.get_task("run_this_last"), run_id=dr.run_id, state=None),
+    ]
+    session.bulk_save_objects(tis)
+    session.commit()
+
+    return dag, dr
+
+
+def test_dagrun_failed(session, admin_client, dag_run_with_all_done_task):
+    """Test marking a dag run as failed with a task having trigger_rule='all_done'"""
+    dag, dr = dag_run_with_all_done_task
+
+    # Verify task instances were created
+    task_instances = (
+        session.query(TaskInstance)
+        .filter(TaskInstance.dag_id == dr.dag_id, TaskInstance.run_id == dr.run_id)
+        .all()
+    )
+    assert len(task_instances) > 0
+
+    resp = admin_client.post(
+        "/dagrun_failed",
+        data={"dag_id": dr.dag_id, "dag_run_id": dr.run_id, "confirmed": "true"},
+        follow_redirects=True,
+    )
+
+    assert resp.status_code == 200
+
+    with create_session() as session:
+        updated_dr = (
+            session.query(DagRun).filter(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id).first()
+        )
+        assert updated_dr.state == "failed"
+
+        task_instances = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dr.dag_id, TaskInstance.run_id == dr.run_id)
+            .all()
+        )
+
+        done_states = {"success", "failed", "skipped", "upstream_failed"}
+        for ti in task_instances:
+            assert ti.state in done_states

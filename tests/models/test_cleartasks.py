@@ -34,9 +34,10 @@ from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
 from tests.models import DEFAULT_DATE
-from tests.test_utils import db
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -596,7 +597,7 @@ class TestClearTasks:
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
-        session.get(TaskInstance, ti0.key.primary).try_number += 1
+        session.get(TaskInstance, ti0.id).try_number += 1
         session.commit()
         # Next try to run will be try 1
         assert ti0.try_number == 1
@@ -610,7 +611,7 @@ class TestClearTasks:
         assert ti0.max_tries == 1
 
         assert ti1.max_tries == 2
-        session.get(TaskInstance, ti1.key.primary).try_number += 1
+        session.get(TaskInstance, ti1.id).try_number += 1
         session.commit()
         ti1.run()
 
@@ -657,7 +658,7 @@ class TestClearTasks:
 
         # test clear all dags
         for i in range(num_of_dags):
-            session.get(TaskInstance, tis[i].key.primary).try_number += 1
+            session.get(TaskInstance, tis[i].id).try_number += 1
             session.commit()
             tis[i].run()
             assert tis[i].state == State.SUCCESS
@@ -674,7 +675,7 @@ class TestClearTasks:
 
         # test dry_run
         for i in range(num_of_dags):
-            session.get(TaskInstance, tis[i].key.primary).try_number += 1
+            session.get(TaskInstance, tis[i].id).try_number += 1
             session.commit()
             tis[i].run()
             assert tis[i].state == State.SUCCESS
@@ -727,7 +728,7 @@ class TestClearTasks:
         ti1.task = op1
         ti2.task = op2
 
-        session.get(TaskInstance, ti2.key.primary).try_number += 1
+        session.get(TaskInstance, ti2.id).try_number += 1
         session.commit()
         ti2.run()
         # Dependency not met
@@ -736,14 +737,14 @@ class TestClearTasks:
 
         op2.clear(upstream=True)
         # max tries will be set to retries + curr try number == 1 + 1 == 2
-        assert session.get(TaskInstance, ti2.key.primary).max_tries == 2
+        assert session.get(TaskInstance, ti2.id).max_tries == 2
 
-        session.get(TaskInstance, ti1.key.primary).try_number += 1
+        session.get(TaskInstance, ti1.id).try_number += 1
         session.commit()
         ti1.run()
         assert ti1.try_number == 1
 
-        session.get(TaskInstance, ti2.key.primary).try_number += 1
+        session.get(TaskInstance, ti2.id).try_number += 1
         session.commit()
         ti2.run(ignore_ti_state=True)
         # max_tries is 0 because there is no task instance in db for ti1

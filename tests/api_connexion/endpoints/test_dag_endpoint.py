@@ -30,10 +30,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.www import _check_last_log
+
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -131,14 +132,14 @@ class TestDagEndpoint:
         session.add(dag_model)
 
     @provide_session
-    def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
+    def _create_dag_model_for_details_endpoint_with_asset_expression(self, dag_id, session=None):
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
             timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
-            dataset_expression={
+            asset_expression={
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -187,10 +188,8 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         } == response.json
 
     @conf_vars({("webserver", "secret_key"): "mysecret"})
@@ -228,10 +227,8 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         } == response.json
 
     def test_should_respond_404(self):
@@ -299,7 +296,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -332,10 +329,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -344,8 +339,8 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_should_respond_200_with_dataset_expression(self, url_safe_serializer):
-        self._create_dag_model_for_details_endpoint_with_dataset_expression(self.dag_id)
+    def test_should_respond_200_with_asset_expression(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint_with_asset_expression(self.dag_id)
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -357,7 +352,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": {
+            "asset_expression": {
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -395,10 +390,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -420,7 +413,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag2",
             "dag_display_name": "test_dag2",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": None,
@@ -446,10 +439,8 @@ class TestGetDagDetails(TestDagEndpoint):
             "orientation": "LR",
             "owners": [],
             "params": {},
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -471,7 +462,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag3",
             "dag_display_name": "test_dag3",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": None,
@@ -497,10 +488,8 @@ class TestGetDagDetails(TestDagEndpoint):
             "orientation": "LR",
             "owners": [],
             "params": {},
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": None,
             "tags": [],
             "template_searchpath": None,
@@ -525,7 +514,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -557,10 +546,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -586,7 +573,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -618,10 +605,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -717,10 +702,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -745,10 +728,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -785,10 +766,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -826,10 +805,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -854,10 +831,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1011,10 +986,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1051,10 +1024,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1091,10 +1062,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
@@ -1119,10 +1088,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1139,6 +1106,26 @@ class TestGetDags(TestDagEndpoint):
         assert response.status_code == 200
 
         res_json = response.json
+        for dag in res_json["dags"]:
+            assert len(dag.keys()) == len(fields)
+            for field in fields:
+                assert field in dag
+
+    def test_should_return_specified_fields_and_total_entries(self):
+        total = 4
+        self._create_dag_models(total)
+        self._create_deactivated_dag()
+
+        limit = 2
+        fields = ["dag_id"]
+        response = self.client.get(
+            f"api/v1/dags?limit={limit}&fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+
+        res_json = response.json
+        assert res_json["total_entries"] == total
+        assert len(res_json["dags"]) == limit
         for dag in res_json["dags"]:
             assert len(dag.keys()) == len(fields)
             for field in fields:
@@ -1189,10 +1176,8 @@ class TestPatchDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert response.json == expected_response
         _check_last_log(
@@ -1288,10 +1273,8 @@ class TestPatchDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert response.json == expected_response
 
@@ -1383,10 +1366,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1411,10 +1392,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1464,10 +1443,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1492,10 +1469,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1585,10 +1560,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1634,10 +1607,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -1662,10 +1633,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1861,10 +1830,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1889,10 +1856,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1938,10 +1903,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_10",
@@ -1966,10 +1929,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -2017,10 +1978,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_1",
@@ -2045,10 +2004,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,

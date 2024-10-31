@@ -27,7 +27,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from airflow_breeze import NAME
@@ -221,7 +221,7 @@ def get_used_airflow_sources() -> Path:
     return current_sources
 
 
-@lru_cache(maxsize=None)
+@cache
 def find_airflow_sources_root_to_operate_on() -> Path:
     """
     Find the root of airflow sources we operate on. Handle the case when Breeze is installed via `pipx` from
@@ -281,9 +281,12 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 AIRFLOW_UI_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui"
-TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+AIRFLOW_OLD_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+AIRFLOW_PROVIDERS_PROJECT = AIRFLOW_SOURCES_ROOT / "providers"
+AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_PROJECT / "src"
+AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"
+TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests"
+SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests" / "system"
 DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
 GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"

@@ -186,8 +186,8 @@ Below is the code snippet from the Airflow scheduler that runs periodically to d
 
 .. exampleinclude:: /../../airflow/jobs/scheduler_job_runner.py
     :language: python
-    :start-after: [START find_zombies]
-    :end-before: [END find_zombies]
+    :start-after: [START find_and_purge_zombies]
+    :end-before: [END find_and_purge_zombies]
 
 
 The explanation of the criteria used in the above snippet to detect zombie tasks is as below:
@@ -233,7 +233,7 @@ If you'd like to reproduce zombie tasks for development/testing processes, follo
 .. code-block:: python
 
     from airflow.decorators import dag
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from datetime import datetime
 
 

@@ -670,11 +670,11 @@ class AirflowConfigParser(ConfigParser):
         This is required by the UI for ajax queries.
         """
         old_value = self.get("api", "auth_backends", fallback="")
-        if old_value in ("airflow.api.auth.backend.default", ""):
-            # handled by deprecated_values
-            pass
-        elif old_value.find("airflow.api.auth.backend.session") == -1:
-            new_value = old_value + ",airflow.api.auth.backend.session"
+        if (
+            old_value.find("airflow.api.auth.backend.session") == -1
+            and old_value.find("airflow.providers.fab.auth_manager.api.auth.backend.session") == -1
+        ):
+            new_value = old_value + ",airflow.providers.fab.auth_manager.api.auth.backend.session"
             self._update_env_var(section="api", name="auth_backends", new_value=new_value)
             self.upgraded_values[("api", "auth_backends")] = old_value
 
@@ -771,6 +771,21 @@ class AirflowConfigParser(ConfigParser):
             FutureWarning,
             stacklevel=3,
         )
+
+    def mask_secrets(self):
+        from airflow.utils.log.secrets_masker import mask_secret
+
+        for section, key in self.sensitive_config_values:
+            try:
+                value = self.get(section, key, suppress_warnings=True)
+            except AirflowConfigException:
+                log.debug(
+                    "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
+                    section,
+                    key,
+                )
+                continue
+            mask_secret(value)
 
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
@@ -1790,9 +1805,7 @@ class AirflowConfigParser(ConfigParser):
                     )
         self._default_values = create_default_config_parser(self.configuration_description)
         # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
-        # the cached values, and it will be refreshed on next access. This has been an implementation
-        # detail in Python 3.8 but as of Python 3.9 it is documented behaviour.
-        # See https://docs.python.org/3/library/functools.html#functools.cached_property
+        # the cached values, and it will be refreshed on next access.
         try:
             del self.sensitive_config_values
         except AttributeError:
@@ -2030,114 +2043,6 @@ def make_group_other_inaccessible(file_path: str):
         )
 
 
-def get(*args, **kwargs) -> ConfigType | None:
-    """Historical get."""
-    warnings.warn(
-        "Accessing configuration method 'get' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.get'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.get(*args, **kwargs)
-
-
-def getboolean(*args, **kwargs) -> bool:
-    """Historical getboolean."""
-    warnings.warn(
-        "Accessing configuration method 'getboolean' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.getboolean'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.getboolean(*args, **kwargs)
-
-
-def getfloat(*args, **kwargs) -> float:
-    """Historical getfloat."""
-    warnings.warn(
-        "Accessing configuration method 'getfloat' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.getfloat'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.getfloat(*args, **kwargs)
-
-
-def getint(*args, **kwargs) -> int:
-    """Historical getint."""
-    warnings.warn(
-        "Accessing configuration method 'getint' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.getint'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.getint(*args, **kwargs)
-
-
-def getsection(*args, **kwargs) -> ConfigOptionsDictType | None:
-    """Historical getsection."""
-    warnings.warn(
-        "Accessing configuration method 'getsection' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.getsection'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.getsection(*args, **kwargs)
-
-
-def has_option(*args, **kwargs) -> bool:
-    """Historical has_option."""
-    warnings.warn(
-        "Accessing configuration method 'has_option' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.has_option'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.has_option(*args, **kwargs)
-
-
-def remove_option(*args, **kwargs) -> bool:
-    """Historical remove_option."""
-    warnings.warn(
-        "Accessing configuration method 'remove_option' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.remove_option'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.remove_option(*args, **kwargs)
-
-
-def as_dict(*args, **kwargs) -> ConfigSourcesType:
-    """Historical as_dict."""
-    warnings.warn(
-        "Accessing configuration method 'as_dict' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.as_dict'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return conf.as_dict(*args, **kwargs)
-
-
-def set(*args, **kwargs) -> None:
-    """Historical set."""
-    warnings.warn(
-        "Accessing configuration method 'set' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.set'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    conf.set(*args, **kwargs)
-
-
 def ensure_secrets_loaded() -> list[BaseSecretsBackend]:
     """
     Ensure that all secrets backends are loaded.
@@ -2192,39 +2097,6 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
         backend_list.append(secrets_backend_cls())
 
     return backend_list
-
-
-@functools.lru_cache(maxsize=None)
-def _DEFAULT_CONFIG() -> str:
-    path = _default_config_file_path("default_airflow.cfg")
-    with open(path) as fh:
-        return fh.read()
-
-
-@functools.lru_cache(maxsize=None)
-def _TEST_CONFIG() -> str:
-    path = _default_config_file_path("default_test.cfg")
-    with open(path) as fh:
-        return fh.read()
-
-
-_deprecated = {
-    "DEFAULT_CONFIG": _DEFAULT_CONFIG,
-    "TEST_CONFIG": _TEST_CONFIG,
-    "TEST_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_test.cfg"),
-    "DEFAULT_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_airflow.cfg"),
-}
-
-
-def __getattr__(name):
-    if name in _deprecated:
-        warnings.warn(
-            f"{__name__}.{name} is deprecated and will be removed in future",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return _deprecated[name]()
-    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 def initialize_auth_manager() -> BaseAuthManager:

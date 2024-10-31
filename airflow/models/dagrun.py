@@ -57,6 +57,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
+from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
@@ -90,7 +91,7 @@ if TYPE_CHECKING:
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
 
-RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
+RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
 
 class TISchedulingDecision(NamedTuple):
@@ -207,7 +208,7 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         cascade="all, delete, delete-orphan",
     )
-    backfill = relationship("Backfill", uselist=False)
+    backfill = relationship(Backfill, uselist=False)
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
 
@@ -385,21 +386,24 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def active_runs_of_dags(
         cls,
-        dag_ids: Iterable[str] | None = None,
-        only_running: bool = False,
+        *,
+        dag_ids: Iterable[str],
+        exclude_backfill,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
-        """Get the number of active dag runs for each dag."""
-        query = select(cls.dag_id, func.count("*"))
-        if dag_ids is not None:
-            # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
-            # because SQLAlchemy doesn't accept a set here.
-            query = query.where(cls.dag_id.in_(set(dag_ids)))
-        if only_running:
-            query = query.where(cls.state == DagRunState.RUNNING)
-        else:
-            query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
-        query = query.group_by(cls.dag_id)
+        """
+        Get the number of active dag runs for each dag.
+
+        :meta private:
+        """
+        query = (
+            select(cls.dag_id, func.count("*"))
+            .where(cls.dag_id.in_(set(dag_ids)))
+            .where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
+            .group_by(cls.dag_id)
+        )
+        if exclude_backfill:
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         return dict(iter(session.execute(query)))
 
     @classmethod
@@ -1110,7 +1114,7 @@ class DagRun(Base, LoggingMixin):
         elif self.state == DagRunState.FAILED:
             get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
         # deliberately not notifying on QUEUED
-        # we can't get all the state changes on SchedulerJob, BackfillJob
+        # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def _get_ready_tis(

@@ -30,13 +30,13 @@ import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
+from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
-from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -197,10 +197,7 @@ class PythonOperator(BaseOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = (
-        "python_callable",
-        "op_kwargs",
-    )
+    shallow_copy_attrs: Sequence[str] = ("python_callable", "op_kwargs")
 
     def __init__(
         self,

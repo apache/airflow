@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     import datetime
     from collections.abc import Sized
 
-    from airflow.models import DAG, DagRun
+    from airflow.models import DagRun
 
 
 class AirflowException(Exception):
@@ -273,13 +273,13 @@ class FailStopDagInvalidTriggerRule(AirflowException):
     _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
 
     @classmethod
-    def check(cls, *, dag: DAG | None, trigger_rule: TriggerRule):
+    def check(cls, *, fail_stop: bool, trigger_rule: TriggerRule):
         """
         Check that fail_stop dag tasks have allowable trigger rules.
 
         :meta private:
         """
-        if dag is not None and dag.fail_stop and trigger_rule not in cls._allowed_rules:
+        if fail_stop and trigger_rule not in cls._allowed_rules:
             raise cls()
 
     def __str__(self) -> str:
@@ -325,31 +325,6 @@ class TaskInstanceNotFound(AirflowNotFoundException):
 
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
-
-
-class NoAvailablePoolSlot(AirflowException):
-    """Raise when there is not enough slots in pool."""
-
-
-class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG max_active_tasks limit is reached."""
-
-
-class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task max_active_tasks limit is reached."""
-
-
-class BackfillUnfinished(AirflowException):
-    """
-    Raises when not all tasks succeed in backfill.
-
-    :param message: The human-readable description of the exception
-    :param ti_status: The information about all task statuses
-    """
-
-    def __init__(self, message, ti_status):
-        super().__init__(message)
-        self.ti_status = ti_status
 
 
 class FileSyntaxError(NamedTuple):

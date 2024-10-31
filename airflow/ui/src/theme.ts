@@ -19,58 +19,70 @@
 import { tableAnatomy } from "@chakra-ui/anatomy";
 import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 
-// Chakra has bad types for this util, so is registered as unbound
-// eslint-disable-next-line @typescript-eslint/unbound-method
 const { defineMultiStyleConfig, definePartsStyle } =
   createMultiStyleConfigHelpers(tableAnatomy.keys);
 
-const baseStyle = definePartsStyle((props) => {
-  const { colorMode, colorScheme } = props;
-
-  return {
-    tbody: {
-      tr: {
-        "&:nth-of-type(even)": {
-          "th, td": {
-            borderBottomWidth: "0px",
-          },
-        },
-        "&:nth-of-type(odd)": {
-          td: {
-            background:
-              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
-          },
-          "th, td": {
-            borderBottomWidth: "0px",
-            borderColor:
-              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
-          },
+const baseStyle = definePartsStyle(() => ({
+  tbody: {
+    tr: {
+      "&:nth-of-type(even)": {
+        "th, td": {
+          borderBottomWidth: "0px",
         },
       },
-    },
-    thead: {
-      tr: {
-        th: {
-          borderBottomWidth: 0,
+      "&:nth-of-type(odd)": {
+        td: {
+          background: "blue.minimal",
         },
-      },
-    },
-  };
-});
-
-export const tableTheme = defineMultiStyleConfig({ baseStyle });
-
-const theme = extendTheme({
-  components: {
-    Table: tableTheme,
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
+        "th, td": {
+          borderBottomWidth: "0px",
+          borderColor: "blue.subtle",
+        },
       },
     },
   },
+  thead: {
+    tr: {
+      th: {
+        borderBottomWidth: 0,
+      },
+    },
+  },
+}));
+
+export const tableTheme = defineMultiStyleConfig({ baseStyle });
+
+const generateSemanticColors = (color: string) => ({
+  /* eslint-disable perfectionist/sort-objects */
+  contrast: { _dark: `${color}.200`, _light: `${color}.600` },
+  focusRing: `${color}.500`,
+  fg: { _dark: `${color}.600`, _light: `${color}.400` },
+  emphasized: { _dark: `${color}.700`, _light: `${color}.300` },
+  solid: { _dark: `${color}.800`, _light: `${color}.200` },
+  muted: { _dark: `${color}.900`, _light: `${color}.100` },
+  subtle: { _dark: `${color}.950`, _light: `${color}.50` },
+  minimal: { _dark: "gray.900", _light: `${color}.50` },
+  /* eslint-enable perfectionist/sort-objects */
+});
+
+const theme = extendTheme({
+  colors: {
+    blue: {
+      950: "#0c142e",
+    },
+  },
+  components: {
+    Table: tableTheme,
+  },
   config: {
+    initialColorMode: "system",
     useSystemColorMode: true,
+  },
+  semanticTokens: {
+    colors: {
+      blue: generateSemanticColors("blue"),
+      gray: generateSemanticColors("gray"),
+    },
   },
   styles: {
     global: {

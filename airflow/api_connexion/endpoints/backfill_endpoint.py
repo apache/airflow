@@ -19,14 +19,14 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-import pendulum
-from pendulum import DateTime
+from flask import request
+from marshmallow import ValidationError
 from sqlalchemy import select
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import Conflict, NotFound
+from airflow.api_connexion.exceptions import BadRequest, Conflict, NotFound
 from airflow.api_connexion.schemas.backfill_schema import (
     BackfillCollection,
     backfill_collection_schema,
@@ -35,6 +35,7 @@ from airflow.api_connexion.schemas.backfill_schema import (
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
+    ReprocessBehavior,
     _cancel_backfill,
     _create_backfill,
 )
@@ -42,6 +43,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
@@ -119,24 +122,47 @@ def get_backfill(*, backfill_id: int, session: Session = NEW_SESSION, **kwargs):
     raise NotFound("Backfill not found")
 
 
+def backfill_obj_to_kwargs(f):
+    """
+    Convert the request body (containing backfill object json) to kwargs.
+
+    The main point here is to be compatible with the ``requires_access_dag`` decorator,
+    which takes dag_id kwarg and doesn't support json request body.
+    """
+
+    @wraps(f)
+    def inner():
+        body = request.json
+        try:
+            obj = backfill_schema.load(body)
+        except ValidationError as err:
+            raise BadRequest(detail=str(err.messages))
+        return f(**obj)
+
+    return inner
+
+
+@backfill_obj_to_kwargs
 @security.requires_access_dag("PUT")
 @action_logging
 def create_backfill(
     dag_id: str,
-    from_date: str,
-    to_date: str,
+    from_date: datetime,
+    to_date: datetime,
     max_active_runs: int = 10,
     reverse: bool = False,
     dag_run_conf: dict | None = None,
+    reprocess_behavior: ReprocessBehavior | None = None,
 ) -> APIResponse:
     try:
         backfill_obj = _create_backfill(
             dag_id=dag_id,
-            from_date=cast(DateTime, pendulum.parse(from_date)),
-            to_date=cast(DateTime, pendulum.parse(to_date)),
+            from_date=from_date,
+            to_date=to_date,
             max_active_runs=max_active_runs,
             reverse=reverse,
             dag_run_conf=dag_run_conf,
+            reprocess_behavior=reprocess_behavior,
         )
         return backfill_schema.dump(backfill_obj)
     except AlreadyRunningBackfill:

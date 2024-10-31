@@ -22,19 +22,16 @@ from unittest import mock
 
 import pytest
 
-from airflow import plugins_manager
 from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
-
-# Plugin Manager creates new modules, which is difficult to mock, so we use test isolation by a unique name.
-TEST_PLUGIN_NAME = "unique_plugin_name_to_avoid_collision_i_love_kitties"
 
 
 class FakeExecutor:
@@ -43,11 +40,6 @@ class FakeExecutor:
 
 class FakeSingleThreadedExecutor:
     is_single_threaded = True
-
-
-class FakePlugin(plugins_manager.AirflowPlugin):
-    name = TEST_PLUGIN_NAME
-    executors = [FakeExecutor]
 
 
 class TestExecutorLoader:
@@ -88,17 +80,6 @@ class TestExecutorLoader:
             assert executor.name == ExecutorName(ExecutorLoader.executors[executor_name], alias=executor_name)
             assert executor.name.connector_source == ConnectorSource.CORE
 
-    @mock.patch("airflow.plugins_manager.plugins", [FakePlugin()])
-    @mock.patch("airflow.plugins_manager.executors_modules", None)
-    def test_should_support_plugins(self):
-        with conf_vars({("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"}):
-            executor = ExecutorLoader.get_default_executor()
-            assert executor is not None
-            assert "FakeExecutor" == executor.__class__.__name__
-            assert executor.name is not None
-            assert executor.name == ExecutorName(f"{TEST_PLUGIN_NAME}.FakeExecutor")
-            assert executor.name.connector_source == ConnectorSource.PLUGIN
-
     def test_should_support_custom_path(self):
         with conf_vars({("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
@@ -123,7 +104,7 @@ class TestExecutorLoader:
             ),
             # Core executors and custom module path executor and plugin
             (
-                f"CeleryExecutor, LocalExecutor, tests.executors.test_executor_loader.FakeExecutor, {TEST_PLUGIN_NAME}.FakeExecutor",
+                "CeleryExecutor, LocalExecutor, tests.executors.test_executor_loader.FakeExecutor",
                 [
                     ExecutorName(
                         "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
@@ -137,17 +118,12 @@ class TestExecutorLoader:
                         "tests.executors.test_executor_loader.FakeExecutor",
                         None,
                     ),
-                    ExecutorName(
-                        f"{TEST_PLUGIN_NAME}.FakeExecutor",
-                        None,
-                    ),
                 ],
             ),
             # Core executors and custom module path executor and plugin with aliases
             (
                 (
-                    "CeleryExecutor, LocalExecutor, fake_exec:tests.executors.test_executor_loader.FakeExecutor, "
-                    f"plugin_exec:{TEST_PLUGIN_NAME}.FakeExecutor"
+                    "CeleryExecutor, LocalExecutor, fake_exec:tests.executors.test_executor_loader.FakeExecutor"
                 ),
                 [
                     ExecutorName(
@@ -161,10 +137,6 @@ class TestExecutorLoader:
                     ExecutorName(
                         "tests.executors.test_executor_loader.FakeExecutor",
                         "fake_exec",
-                    ),
-                    ExecutorName(
-                        f"{TEST_PLUGIN_NAME}.FakeExecutor",
-                        "plugin_exec",
                     ),
                 ],
             ),
@@ -193,8 +165,6 @@ class TestExecutorLoader:
             "CeleryExecutor, my.module.path, my.module.path",
             "CeleryExecutor, my_alias:my.module.path, my.module.path",
             "CeleryExecutor, my_alias:my.module.path, other_alias:my.module.path",
-            f"CeleryExecutor, {TEST_PLUGIN_NAME}.FakeExecutor, {TEST_PLUGIN_NAME}.FakeExecutor",
-            f"my_alias:{TEST_PLUGIN_NAME}.FakeExecutor, other_alias:{TEST_PLUGIN_NAME}.FakeExecutor",
         ],
     )
     def test_get_hybrid_executors_from_config_duplicates_should_fail(self, executor_config):
@@ -237,21 +207,6 @@ class TestExecutorLoader:
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert expected_value == executor.__name__
             assert import_source == ConnectorSource.CORE
-
-    @mock.patch("airflow.plugins_manager.plugins", [FakePlugin()])
-    @mock.patch("airflow.plugins_manager.executors_modules", None)
-    @pytest.mark.parametrize(
-        ("executor_config"),
-        [
-            (f"{TEST_PLUGIN_NAME}.FakeExecutor"),
-            (f"my_cool_alias:{TEST_PLUGIN_NAME}.FakeExecutor, CeleryExecutor"),
-        ],
-    )
-    def test_should_support_import_plugins(self, executor_config):
-        with conf_vars({("core", "executor"): executor_config}):
-            executor, import_source = ExecutorLoader.import_default_executor_cls()
-            assert "FakeExecutor" == executor.__name__
-            assert import_source == ConnectorSource.PLUGIN
 
     @pytest.mark.parametrize(
         "executor_config",

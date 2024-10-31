@@ -377,7 +377,8 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
         if any(
-            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            filename.endswith("conftest.py")
+            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
             for filename, _, _, _ in airflow_frames
         ):
             # This is a fixture call or testing utilities
@@ -739,6 +740,9 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
     configure_orm()
     configure_action_logging()
+
+    # mask the sensitive_config_values
+    conf.mask_secrets()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()

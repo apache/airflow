@@ -36,9 +36,9 @@ from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import ShortCircuitOperator
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -46,11 +46,12 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
+
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
-from tests.test_utils import db
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_operators import MockOperator
+from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_operators import MockOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -87,7 +88,6 @@ class TestDagRun:
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()
-        db.clear_db_task_fail()
 
     def create_dag_run(
         self,
@@ -853,7 +853,9 @@ class TestDagRun:
         )
 
         prev_ti = TI(task, run_id=dag_run_1.run_id)
+        prev_ti.refresh_from_db()
         ti = TI(task, run_id=dag_run_2.run_id)
+        ti.refresh_from_db()
 
         prev_ti.set_state(prev_ti_state)
         ti.set_state(TaskInstanceState.QUEUED)
@@ -891,7 +893,9 @@ class TestDagRun:
         )
 
         prev_ti_downstream = TI(task=downstream, run_id=dag_run_1.run_id)
+        prev_ti_downstream.refresh_from_db()
         ti = TI(task=upstream, run_id=dag_run_2.run_id)
+        ti.refresh_from_db()
         prev_ti = ti.get_previous_ti()
         prev_ti.set_state(TaskInstanceState.SUCCESS)
         assert prev_ti.state == TaskInstanceState.SUCCESS
@@ -1049,6 +1053,41 @@ class TestDagRun:
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
+
+    def test_update_state_one_unfinished(self, dag_maker, session):
+        """
+        Previously this lived in test_scheduler_job.py
+
+        It only really tested the behavior of DagRun.update_state.
+
+        As far as I can tell, it checks that if you null out the state on a TI of a finished dag,
+        and then you call ``update_state``, then the DR will be set to running.
+        """
+        with dag_maker(session=session) as dag:
+            PythonOperator(task_id="t1", python_callable=lambda: print)
+            PythonOperator(task_id="t2", python_callable=lambda: print)
+        dr = dag.create_dagrun(
+            state=DagRunState.FAILED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_id="abc123",
+            session=session,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.FAILED
+        session.commit()
+        session.expunge_all()
+        dr = session.get(DagRun, dr.id)
+        assert dr.state == DagRunState.FAILED
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = State.NONE
+        session.commit()
+        dr = session.get(DagRun, dr.id)
+        assert dr.state == DagRunState.FAILED
+        dr.dag = dag
+        dr.update_state(session=session)
+        session.commit()
+        dr = session.get(DagRun, dr.id)
+        assert dr.state == State.RUNNING
 
 
 @pytest.mark.parametrize(
@@ -2484,12 +2523,11 @@ def test_mapped_task_depends_on_past(dag_maker, session):
 def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     """
     Test that clearing a task and moving from non-mapped to mapped clears existing
-    references in XCom, TaskFail, TaskInstanceNote, TaskReschedule and
+    references in XCom, TaskInstanceNote, TaskReschedule and
     RenderedTaskInstanceFields. To be able to test this, RenderedTaskInstanceFields
     was not used in the test since it would require that the task is expanded first.
     """
 
-    from airflow.models.taskfail import TaskFail
     from airflow.models.xcom import XCom
 
     @task
@@ -2523,13 +2561,12 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
     session.add(tr)
-    session.add(TaskFail(ti))
     XCom.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
     session.commit()
-    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 1
     dr1.task_instance_scheduling_decisions(session)
-    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 0
 
 
@@ -2773,13 +2810,13 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
         # run_ids
         ["", "scheduled__2023-01-01T00:00:00+00:00", True],
         ["", "manual__2023-01-01T00:00:00+00:00", True],
-        ["", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["", "asset_triggered__2023-01-01T00:00:00+00:00", True],
         ["", "scheduled_2023-01-01T00", False],
         ["", "manual_2023-01-01T00", False],
-        ["", "dataset_triggered_2023-01-01T00", False],
+        ["", "asset_triggered_2023-01-01T00", False],
         ["^[0-9]", "scheduled__2023-01-01T00:00:00+00:00", True],
         ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
-        ["^[a-z]", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["^[a-z]", "asset_triggered__2023-01-01T00:00:00+00:00", True],
     ],
 )
 def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):

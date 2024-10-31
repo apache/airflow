@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import itertools
-import os
 import re
 import time
 from datetime import datetime
@@ -45,7 +44,8 @@ from airflow.www.utils import (
     wrapped_markdown,
 )
 from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -712,7 +712,3 @@ class TestWidgets:
 
         assert 'readonly="true"' in html_output
         assert "form-control" in html_output
-
-
-def is_db_isolation_mode():
-    return os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true"

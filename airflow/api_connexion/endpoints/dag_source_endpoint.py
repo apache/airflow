@@ -28,6 +28,7 @@ from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.CODE)
 @provide_session
 def get_dag_source(*, file_token: str, session: Session = NEW_SESSION) -> Response:

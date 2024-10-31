@@ -19,18 +19,18 @@ from __future__ import annotations
 
 import itertools
 import multiprocessing
+import operator
 import os
 import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, delete, func, not_, or_, select, text, update
+from sqlalchemy import and_, delete, exists, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -45,15 +45,18 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
 from airflow.models.asset import (
+    AssetActive,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
@@ -81,7 +84,6 @@ if TYPE_CHECKING:
     from datetime import datetime
     from types import FrameType
 
-    from sqlalchemy.engine import Result
     from sqlalchemy.orm import Query, Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -97,7 +99,6 @@ DR = DagRun
 DM = DagModel
 
 
-@dataclass
 class ConcurrencyMap:
     """
     Dataclass to represent concurrency maps.
@@ -107,17 +108,24 @@ class ConcurrencyMap:
     to # of task instances in the given state list in each DAG run.
     """
 
-    dag_active_tasks_map: dict[str, int]
-    task_concurrency_map: dict[tuple[str, str], int]
-    task_dagrun_concurrency_map: dict[tuple[str, str, str], int]
+    def __init__(self):
+        self.dag_run_active_tasks_map: Counter[tuple[str, str]] = Counter()
+        self.task_concurrency_map: Counter[tuple[str, str]] = Counter()
+        self.task_dagrun_concurrency_map: Counter[tuple[str, str, str]] = Counter()
 
-    @classmethod
-    def from_concurrency_map(cls, mapping: dict[tuple[str, str, str], int]) -> ConcurrencyMap:
-        instance = cls(Counter(), Counter(), Counter(mapping))
-        for (d, _, t), c in mapping.items():
-            instance.dag_active_tasks_map[d] += c
-            instance.task_concurrency_map[(d, t)] += c
-        return instance
+    def load(self, session: Session) -> None:
+        self.dag_run_active_tasks_map.clear()
+        self.task_concurrency_map.clear()
+        self.task_dagrun_concurrency_map.clear()
+        query = session.execute(
+            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
+            .where(TI.state.in_(EXECUTION_STATES))
+            .group_by(TI.task_id, TI.run_id, TI.dag_id)
+        )
+        for dag_id, task_id, run_id, c in query:
+            self.dag_run_active_tasks_map[dag_id, run_id] += c
+            self.task_concurrency_map[(dag_id, task_id)] += c
+            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
 
 
 def _is_parent_process() -> bool:
@@ -256,22 +264,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor.debug_dump()
             self.log.info("-" * 80)
 
-    def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
-        """
-        Get the concurrency maps.
-
-        :param states: List of states to query for
-        :return: Concurrency map
-        """
-        ti_concurrency_query: Result = session.execute(
-            select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
-            .where(TI.state.in_(states))
-            .group_by(TI.task_id, TI.run_id, TI.dag_id)
-        )
-        return ConcurrencyMap.from_concurrency_map(
-            {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
-        )
-
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -324,7 +316,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = self.__get_concurrency_maps(states=EXECUTION_STATES, session=session)
+        concurrency_map = ConcurrencyMap()
+        concurrency_map.load(session=session)
 
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
@@ -463,22 +456,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Check to make sure that the task max_active_tasks of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
-
-                current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
-                max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
+                dag_run_key = (dag_id, task_instance.run_id)
+                current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
+                dag_max_active_tasks = task_instance.dag_model.max_active_tasks
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
                     dag_id,
-                    current_active_tasks_per_dag,
-                    max_active_tasks_per_dag_limit,
+                    current_active_tasks_per_dag_run,
+                    dag_max_active_tasks,
                 )
-                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+                if current_active_tasks_per_dag_run >= dag_max_active_tasks:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
                         "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
                         task_instance,
                         dag_id,
-                        max_active_tasks_per_dag_limit,
+                        dag_max_active_tasks,
                     )
                     starved_dags.add(dag_id)
                     continue
@@ -569,7 +562,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                concurrency_map.dag_active_tasks_map[dag_id] += 1
+                concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
                 concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
                 concurrency_map.task_dagrun_concurrency_map[
                     (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
@@ -1064,13 +1057,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
+            30,
+            self._mark_backfills_complete,
+        )
+
+        timers.call_regular_interval(
             conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
             self._emit_pool_metrics,
         )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "zombie_detection_interval", fallback=10.0),
-            self._find_zombies,
+            self._find_and_purge_zombies,
         )
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
@@ -1082,7 +1080,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
-            self._orphan_unreferenced_assets,
+            self._update_asset_orphanage,
         )
 
         if self._standalone_dag_processor:
@@ -1092,16 +1090,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span:
+            with Trace.start_span(
+                span_name="scheduler_job_loop", component="SchedulerJobRunner"
+            ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 span.set_attribute("category", "scheduler")
                 span.set_attribute("loop_count", loop_count)
-                with Stats.timer("scheduler.scheduler_loop_duration") as timer:
-                    if self.using_sqlite and self.processor_agent:
-                        self.processor_agent.run_single_parsing_loop()
-                        # For the sqlite case w/ 1 thread, wait until the processor
-                        # is finished to avoid concurrent access to the DB.
-                        self.log.debug("Waiting for processors to finish since we're using sqlite")
-                        self.processor_agent.wait_until_finished()
+
+                if self.using_sqlite and self.processor_agent:
+                    self.processor_agent.run_single_parsing_loop()
+                    # For the sqlite case w/ 1 thread, wait until the processor
+                    # is finished to avoid concurrent access to the DB.
+                    self.log.debug("Waiting for processors to finish since we're using sqlite")
+                    self.processor_agent.wait_until_finished()
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
@@ -1274,19 +1274,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
-        dataset_triggered_dags = [
-            dag for dag in all_dags_needing_dag_runs if dag.dag_id in dataset_triggered_dag_info
+        asset_triggered_dags = [
+            dag for dag in all_dags_needing_dag_runs if dag.dag_id in asset_triggered_dag_info
         ]
-        non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
-        self._create_dag_runs(non_dataset_dags, session)
-        if dataset_triggered_dags:
-            self._create_dag_runs_asset_triggered(dataset_triggered_dags, dataset_triggered_dag_info, session)
+        non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
+        self._create_dag_runs(non_asset_dags, session)
+        if asset_triggered_dags:
+            self._create_dag_runs_asset_triggered(asset_triggered_dags, asset_triggered_dag_info, session)
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
         # END: create dagruns
+
+    @provide_session
+    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+        """Mark completed backfills as completed."""
+        self.log.debug("checking for completed backfills.")
+        unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
+        now = timezone.utcnow()
+        # todo: AIP-78 simplify this function to an update statement
+        query = select(Backfill).where(
+            Backfill.completed_at.is_(None),
+            ~exists(
+                select(DagRun.id).where(
+                    and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
+                )
+            ),
+        )
+        backfills = session.scalars(query).all()
+        if not backfills:
+            return
+        self.log.info("marking %s backfills as complete", len(backfills))
+        for b in backfills:
+            b.completed_at = now
 
     @add_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
@@ -1308,8 +1330,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .all()
         )
 
+        # backfill runs are not created by scheduler and their concurrency is separate
+        # so we exclude them here
+        dag_ids = (dm.dag_id for dm in dag_models)
         active_runs_of_dags = Counter(
-            DagRun.active_runs_of_dags(dag_ids=(dm.dag_id for dm in dag_models), session=session),
+            DagRun.active_runs_of_dags(
+                dag_ids=dag_ids,
+                exclude_backfill=True,
+                session=session,
+            )
         )
 
         for dag_model in dag_models:
@@ -1354,7 +1383,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag,
                 dag_model,
                 last_dag_run=None,
-                total_active_runs=active_runs_of_dags[dag.dag_id],
+                active_non_backfill_runs=active_runs_of_dags[dag.dag_id],
                 session=session,
             ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
@@ -1364,7 +1393,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
-        dataset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
+        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
@@ -1374,7 +1403,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # duplicate dag runs
         exec_dates = {
             dag_id: timezone.coerce_datetime(last_time)
-            for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
+            for dag_id, (_, last_time) in asset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
@@ -1392,7 +1421,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
-                    "DAG '%s' was asset-scheduled, but didn't have a AssetTriggeredTimetable!",
+                    "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
                 )
                 continue
@@ -1414,7 +1443,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(
                         DagRun.dag_id == dag.dag_id,
                         DagRun.execution_date < exec_date,
-                        DagRun.run_type == DagRunType.DATASET_TRIGGERED,
+                        DagRun.run_type == DagRunType.ASSET_TRIGGERED,
                     )
                     .order_by(DagRun.execution_date.desc())
                     .limit(1)
@@ -1430,14 +1459,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetEvent)
                     .join(
                         DagScheduleAssetReference,
-                        AssetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
+                        AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
                     )
                     .where(*asset_event_filters)
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
-                    run_type=DagRunType.DATASET_TRIGGERED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     logical_date=exec_date,
                     data_interval=data_interval,
                     session=session,
@@ -1446,7 +1475,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
-                    run_type=DagRunType.DATASET_TRIGGERED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     execution_date=exec_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
@@ -1454,10 +1483,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     dag_hash=dag_hash,
                     creating_job_id=self.job.id,
-                    triggered_by=DagRunTriggeredByType.DATASET,
+                    triggered_by=DagRunTriggeredByType.ASSET,
                 )
                 Stats.incr("asset.triggered_dagruns")
-                dag_run.consumed_dataset_events.extend(asset_events)
+                dag_run.consumed_asset_events.extend(asset_events)
                 session.execute(
                     delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
@@ -1468,7 +1497,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_model: DagModel,
         *,
         last_dag_run: DagRun | None = None,
-        total_active_runs: int | None = None,
+        active_non_backfill_runs: int | None = None,
         session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
@@ -1483,15 +1512,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag.timetable.can_be_scheduled:
             return False
 
-        # get active dag runs from DB if not available
-        if not total_active_runs:
-            total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
+        if active_non_backfill_runs is None:
+            runs_dict = DagRun.active_runs_of_dags(
+                dag_ids=[dag.dag_id],
+                exclude_backfill=True,
+                session=session,
+            )
+            active_non_backfill_runs = runs_dict.get(dag.dag_id, 0)
 
-        if total_active_runs and total_active_runs >= dag.max_active_runs:
+        if active_non_backfill_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
-                total_active_runs,
+                active_non_backfill_runs,
                 dag.max_active_runs,
             )
             dag_model.next_dagrun_create_after = None
@@ -1924,73 +1957,76 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
-    # [START find_zombies]
-    def _find_zombies(self) -> None:
+    # [START find_and_purge_zombies]
+    def _find_and_purge_zombies(self) -> None:
         """
-        Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
+        Find and purge zombie task instances.
 
-        Zombie instances are tasks haven't heartbeated for too long or have a no-longer-running LocalTaskJob.
+        Zombie instances are tasks that failed to heartbeat for too long, or
+        have a no-longer-running LocalTaskJob.
+
+        A TaskCallbackRequest is also created for the killed zombie to be
+        handled by the DAG processor, and the executor is informed to no longer
+        count the zombie as running when it calculates parallelism.
         """
+        with create_session() as session:
+            if zombies := self._find_zombies(session=session):
+                self._purge_zombies(zombies, session=session)
+
+    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
         from airflow.jobs.job import Job
 
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-
-        with create_session() as session:
-            zombies: list[tuple[TI, str, str]] = (
-                session.execute(
-                    select(TI, DM.fileloc, DM.processor_subdir)
-                    .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                    .join(Job, TI.job_id == Job.id)
-                    .join(DM, TI.dag_id == DM.dag_id)
-                    .where(TI.state == TaskInstanceState.RUNNING)
-                    .where(
-                        or_(
-                            Job.state != JobState.RUNNING,
-                            Job.latest_heartbeat < limit_dttm,
-                        )
-                    )
-                    .where(Job.job_type == "LocalTaskJob")
-                    .where(TI.queued_by_job_id == self.job.id)
-                )
-                .unique()
-                .all()
-            )
-
+        zombies = session.execute(
+            select(TI, DM.fileloc, DM.processor_subdir)
+            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .join(Job, TI.job_id == Job.id)
+            .join(DM, TI.dag_id == DM.dag_id)
+            .where(TI.state == TaskInstanceState.RUNNING)
+            .where(or_(Job.state != JobState.RUNNING, Job.latest_heartbeat < limit_dttm))
+            .where(Job.job_type == "LocalTaskJob")
+            .where(TI.queued_by_job_id == self.job.id)
+        ).all()
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+        return zombies
 
-        with create_session() as session:
-            for ti, file_loc, processor_subdir in zombies:
-                zombie_message_details = self._generate_zombie_message_details(ti)
-                request = TaskCallbackRequest(
-                    full_filepath=file_loc,
-                    processor_subdir=processor_subdir,
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    msg=str(zombie_message_details),
+    def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:
+        for ti, file_loc, processor_subdir in zombies:
+            zombie_message_details = self._generate_zombie_message_details(ti)
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                processor_subdir=processor_subdir,
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg=str(zombie_message_details),
+            )
+            session.add(
+                Log(
+                    event="heartbeat timeout",
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
+                        "seconds) and will be terminated. "
+                        "See https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/core-concepts/tasks.html#zombie-undead-tasks"
+                    ),
                 )
-                session.add(
-                    Log(
-                        event="heartbeat timeout",
-                        task_instance=ti.key,
-                        extra=(
-                            f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
-                            "seconds) and will be terminated. "
-                            "See https://airflow.apache.org/docs/apache-airflow/"
-                            "stable/core-concepts/tasks.html#zombie-undead-tasks"
-                        ),
-                    )
-                )
-                self.log.error(
-                    "Detected zombie job: %s "
-                    "(See https://airflow.apache.org/docs/apache-airflow/"
-                    "stable/core-concepts/tasks.html#zombie-undead-tasks)",
-                    request,
-                )
-                self.job.executor.send_callback(request)
-                Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+            )
+            self.log.error(
+                "Detected zombie job: %s "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                request,
+            )
+            self.job.executor.send_callback(request)
+            if (executor := self._try_to_load_executor(ti.executor)) is None:
+                self.log.warning("Cannot clean up zombie %r with non-existent executor %s", ti, ti.executor)
+                continue
+            executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
+            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
-    # [END find_zombies]
+    # [END find_and_purge_zombies]
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
@@ -2034,40 +2070,106 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
-    def _set_orphaned(self, asset: AssetModel) -> int:
-        self.log.info("Orphaning unreferenced asset '%s'", asset.uri)
-        asset.is_orphaned = expression.true()
-        return 1
-
     @provide_session
-    def _orphan_unreferenced_assets(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
         """
-        Detect orphaned assets and set is_orphaned flag to True.
+        Check assets orphanization and update their active entry.
 
-        An orphaned asset is no longer referenced in any DAG schedule parameters or task outlets.
+        An orphaned asset is no longer referenced in any DAG schedule parameters
+        or task outlets. Active assets (non-orphaned) have entries in AssetActive
+        and must have unique names and URIs.
         """
-        orphaned_asset_query = session.scalars(
-            select(AssetModel)
-            .join(
-                DagScheduleAssetReference,
-                isouter=True,
-            )
-            .join(
-                TaskOutletAssetReference,
-                isouter=True,
-            )
+        # Group assets into orphaned=True and orphaned=False groups.
+        orphaned = (
+            (func.count(DagScheduleAssetReference.dag_id) + func.count(TaskOutletAssetReference.dag_id)) == 0
+        ).label("orphaned")
+        asset_reference_query = session.execute(
+            select(orphaned, AssetModel)
+            .outerjoin(DagScheduleAssetReference)
+            .outerjoin(TaskOutletAssetReference)
             .group_by(AssetModel.id)
-            .where(~AssetModel.is_orphaned)
-            .having(
-                and_(
-                    func.count(DagScheduleAssetReference.dag_id) == 0,
-                    func.count(TaskOutletAssetReference.dag_id) == 0,
+            .order_by(orphaned)
+        )
+        asset_orphanation: dict[bool, Collection[AssetModel]] = {
+            orphaned: [asset for _, asset in group]
+            for orphaned, group in itertools.groupby(asset_reference_query, key=operator.itemgetter(0))
+        }
+        self._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
+        self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
+
+    @staticmethod
+    def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
+        if assets:
+            session.execute(
+                delete(AssetActive).where(
+                    tuple_in_condition((AssetActive.name, AssetActive.uri), ((a.name, a.uri) for a in assets))
+                )
+            )
+        Stats.gauge("asset.orphaned", len(assets))
+
+    @staticmethod
+    def _activate_referenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
+        if not assets:
+            return
+
+        active_assets = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_in_condition((AssetActive.name, AssetActive.uri), ((a.name, a.uri) for a in assets))
                 )
             )
         )
 
-        updated_count = sum(self._set_orphaned(asset) for asset in orphaned_asset_query)
-        Stats.gauge("asset.orphaned", updated_count)
+        active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
+        active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
+
+        def _generate_dag_warnings(offending: AssetModel, attr: str, value: str) -> Iterator[DagWarning]:
+            for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
+                yield DagWarning(
+                    dag_id=ref.dag_id,
+                    error_type=DagWarningType.ASSET_CONFLICT,
+                    message=f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
+                )
+
+        def _activate_assets_generate_warnings() -> Iterator[DagWarning]:
+            incoming_name_to_uri: dict[str, str] = {}
+            incoming_uri_to_name: dict[str, str] = {}
+            for asset in assets:
+                if (asset.name, asset.uri) in active_assets:
+                    continue
+                existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
+                if existing_uri is not None and existing_uri != asset.uri:
+                    yield from _generate_dag_warnings(asset, "name", existing_uri)
+                    continue
+                existing_name = active_uri_to_name.get(asset.uri) or incoming_uri_to_name.get(asset.uri)
+                if existing_name is not None and existing_name != asset.name:
+                    yield from _generate_dag_warnings(asset, "uri", existing_name)
+                    continue
+                incoming_name_to_uri[asset.name] = asset.uri
+                incoming_uri_to_name[asset.uri] = asset.name
+                session.add(AssetActive.for_asset(asset))
+
+        warnings_to_have = {w.dag_id: w for w in _activate_assets_generate_warnings()}
+        session.execute(
+            delete(DagWarning).where(
+                DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
+                DagWarning.dag_id.not_in(warnings_to_have),
+            )
+        )
+        existing_warned_dag_ids: set[str] = set(
+            session.scalars(
+                select(DagWarning.dag_id).where(
+                    DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
+                    DagWarning.dag_id.not_in(warnings_to_have),
+                )
+            )
+        )
+        for dag_id, warning in warnings_to_have.items():
+            if dag_id in existing_warned_dag_ids:
+                session.merge(warning)
+                continue
+            session.add(warning)
+            existing_warned_dag_ids.add(warning.dag_id)
 
     def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""

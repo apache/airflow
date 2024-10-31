@@ -107,6 +107,12 @@ Airflow 2.10.0 (2024-08-15)
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
+Scarf based telemetry: Airflow now collect telemetry data (#39510)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by
+setting the ``[usage_data_collection]enabled`` option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+See :ref:`Usage data collection FAQ <usage-data-collection>` for more information.
+
 Datasets no longer trigger inactive DAGs (#38891)
 """""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -154,12 +160,6 @@ Using Multiple Executors Concurrently (#40701)
 Previously known as hybrid executors, this new feature allows Airflow to use multiple executors concurrently. DAGs, or even individual tasks, can be configured
 to use a specific executor that suits its needs best. A single DAG can contain tasks all using different executors. Please see the Airflow documentation for
 more details. Note: This feature is still experimental. See `documentation on Executor <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_ for a more detailed description.
-
-Scarf based telemetry: Does Airflow collect any telemetry data? (#39510)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by setting the ``[usage_data_collection]enabled`` option to False, or the SCARF_ANALYTICS=false environment variable.
-See `FAQ on this <https://airflow.apache.org/docs/apache-airflow/stable/faq.html#does-airflow-collect-any-telemetry-data>`_ for more information.
-
 
 New Features
 """"""""""""
@@ -3251,8 +3251,7 @@ And to mark a task as producing a dataset pass the dataset(s) to the ``outlets``
 .. code-block:: python
 
     @task(outlets=[dataset])
-    def my_task():
-        ...
+    def my_task(): ...
 
 
     # Or for classic operators
@@ -3286,8 +3285,7 @@ Previously you had to assign a DAG to a module-level variable in order for Airfl
 
 
    @dag
-   def dag_maker():
-       ...
+   def dag_maker(): ...
 
 
    dag2 = dag_maker()
@@ -3302,8 +3300,7 @@ can become
 
 
    @dag
-   def dag_maker():
-       ...
+   def dag_maker(): ...
 
 
    dag_maker()
@@ -3634,13 +3631,11 @@ For example, in your ``custom_config.py``:
 
 
     # before
-    class YourCustomFormatter(logging.Formatter):
-        ...
+    class YourCustomFormatter(logging.Formatter): ...
 
 
     # after
-    class YourCustomFormatter(TimezoneAware):
-        ...
+    class YourCustomFormatter(TimezoneAware): ...
 
 
     AIRFLOW_FORMATTER = LOGGING_CONFIG["formatters"]["airflow"]
@@ -6330,27 +6325,22 @@ The old syntax of passing ``context`` as a dictionary will continue to work with
 
 .. code-block:: python
 
-   def execution_date_fn(execution_date, ctx):
-       ...
+   def execution_date_fn(execution_date, ctx): ...
 
 ``execution_date_fn`` can take in any number of keyword arguments available in the task context dictionary. The following forms of ``execution_date_fn`` are all supported:
 
 .. code-block:: python
 
-   def execution_date_fn(dt):
-       ...
+   def execution_date_fn(dt): ...
 
 
-   def execution_date_fn(execution_date):
-       ...
+   def execution_date_fn(execution_date): ...
 
 
-   def execution_date_fn(execution_date, ds_nodash):
-       ...
+   def execution_date_fn(execution_date, ds_nodash): ...
 
 
-   def execution_date_fn(execution_date, ds_nodash, dag):
-       ...
+   def execution_date_fn(execution_date, ds_nodash, dag): ...
 
 The default value for ``[webserver] cookie_samesite`` has been changed to ``Lax``
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -7077,8 +7067,7 @@ Previous signature:
        external_trigger=False,
        conf=None,
        session=None,
-   ):
-       ...
+   ): ...
 
 current:
 
@@ -7094,8 +7083,7 @@ current:
        conf=None,
        run_type=None,
        session=None,
-   ):
-       ...
+   ): ...
 
 If user provides ``run_id`` then the ``run_type`` will be derived from it by checking prefix, allowed types
 : ``manual``\ , ``scheduled``\ , ``backfill`` (defined by ``airflow.utils.types.DagRunType``\ ).
@@ -7193,8 +7181,9 @@ can be replaced by the following code:
 
    logger = logging.getLogger("custom-logger")
 
-   with redirect_stdout(StreamLogWriter(logger, logging.INFO)), redirect_stderr(
-       StreamLogWriter(logger, logging.WARN)
+   with (
+       redirect_stdout(StreamLogWriter(logger, logging.INFO)),
+       redirect_stderr(StreamLogWriter(logger, logging.WARN)),
    ):
        print("I Love Airflow")
 
@@ -7223,8 +7212,7 @@ are deprecated and will be removed in future versions.
        include_examples=conf.getboolean("core", "LOAD_EXAMPLES"),
        safe_mode=conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
        store_serialized_dags=False,
-   ):
-       ...
+   ): ...
 
 **current**\ :
 
@@ -7235,8 +7223,7 @@ are deprecated and will be removed in future versions.
        include_examples=conf.getboolean("core", "LOAD_EXAMPLES"),
        safe_mode=conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
        read_dags_from_db=False,
-   ):
-       ...
+   ): ...
 
 If you were using positional arguments, it requires no change but if you were using keyword
 arguments, please change ``store_serialized_dags`` to ``read_dags_from_db``.
@@ -8058,8 +8045,7 @@ Before:
        dataset_id: str,
        dataset_resource: dict,
        # ...
-   ):
-       ...
+   ): ...
 
 After:
 
@@ -8069,8 +8055,7 @@ After:
        dataset_resource: dict,
        dataset_id: Optional[str] = None,
        # ...
-   ):
-       ...
+   ): ...
 
 Changes in ``amazon`` provider package
 """"""""""""""""""""""""""""""""""""""""""
@@ -10150,16 +10135,14 @@ Old signature:
 
 .. code-block:: python
 
-   def get_task_instances(self, session, start_date=None, end_date=None):
-       ...
+   def get_task_instances(self, session, start_date=None, end_date=None): ...
 
 New signature:
 
 .. code-block:: python
 
    @provide_session
-   def get_task_instances(self, start_date=None, end_date=None, session=None):
-       ...
+   def get_task_instances(self, start_date=None, end_date=None, session=None): ...
 
 For ``DAG``
 ~~~~~~~~~~~~~~~
@@ -10168,16 +10151,14 @@ Old signature:
 
 .. code-block:: python
 
-   def get_task_instances(self, session, start_date=None, end_date=None, state=None):
-       ...
+   def get_task_instances(self, session, start_date=None, end_date=None, state=None): ...
 
 New signature:
 
 .. code-block:: python
 
    @provide_session
-   def get_task_instances(self, start_date=None, end_date=None, state=None, session=None):
-       ...
+   def get_task_instances(self, start_date=None, end_date=None, state=None, session=None): ...
 
 In either case, it is necessary to rewrite calls to the ``get_task_instances`` method that currently provide the ``session`` positional argument. New calls to this method look like:
 
@@ -10658,15 +10639,13 @@ Old signature:
 
 .. code-block:: python
 
-   def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
-       ...
+   def create_transfer_job(self, description, schedule, transfer_spec, project_id=None): ...
 
 New signature:
 
 .. code-block:: python
 
-   def create_transfer_job(self, body):
-       ...
+   def create_transfer_job(self, body): ...
 
 It is necessary to rewrite calls to method. The new call looks like this:
 
@@ -10691,15 +10670,13 @@ Old signature:
 
 .. code-block:: python
 
-   def wait_for_transfer_job(self, job):
-       ...
+   def wait_for_transfer_job(self, job): ...
 
 New signature:
 
 .. code-block:: python
 
-   def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)):
-       ...
+   def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)): ...
 
 The behavior of ``wait_for_transfer_job`` has changed:
 

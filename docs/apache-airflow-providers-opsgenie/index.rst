@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/opsgenie/index>
+    System Tests <_api/tests/system/opsgenie/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-opsgenie/|version|/tests/system/providers/opsgenie>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-opsgenie/|version|/providers/tests/system/opsgenie>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-opsgenie/>
     Installing from sources <installing-providers-from-sources>
 

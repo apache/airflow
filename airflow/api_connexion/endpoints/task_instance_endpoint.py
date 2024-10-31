@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
 
 from flask import g
 from marshmallow import ValidationError
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 
@@ -48,7 +48,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.api_connexion.security import get_readable_dags
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.exceptions import TaskNotFound
-from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -84,27 +83,18 @@ def get_task_instance(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
-        .outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.execution_date == DR.execution_date,
-                SlaMiss.task_id == TI.task_id,
-            ),
-        )
-        .add_columns(SlaMiss)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
     try:
-        task_instance = session.execute(query).one_or_none()
+        task_instance = session.scalar(query)
     except MultipleResultsFound:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
     if task_instance is None:
         raise NotFound("Task instance not found")
-    if task_instance[0].map_index != -1:
+    if task_instance.map_index != -1:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
@@ -127,18 +117,9 @@ def get_mapped_task_instance(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
         .join(TI.dag_run)
-        .outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.execution_date == DR.execution_date,
-                SlaMiss.task_id == TI.task_id,
-            ),
-        )
-        .add_columns(SlaMiss)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
-    task_instance = session.execute(query).one_or_none()
+    task_instance = session.scalar(query)
 
     if task_instance is None:
         raise NotFound("Task instance not found")
@@ -232,28 +213,13 @@ def get_mapped_task_instances(
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
 
-    # Add SLA miss
-    entry_query = (
-        base_query.outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.task_id == TI.task_id,
-                SlaMiss.execution_date == DR.execution_date,
-            ),
-        )
-        .add_columns(SlaMiss)
-        .options(joinedload(TI.rendered_task_instance_fields))
-    )
-
     try:
         order_by_params = _get_order_by_params(order_by)
-        entry_query = entry_query.order_by(*order_by_params)
+        entry_query = base_query.order_by(*order_by_params)
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
+    task_instances = session.scalars(entry_query.offset(offset).limit(limit))
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -384,28 +350,13 @@ def get_task_instances(
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
 
-    # Add join
-    entry_query = (
-        base_query.outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.task_id == TI.task_id,
-                SlaMiss.execution_date == DR.execution_date,
-            ),
-        )
-        .add_columns(SlaMiss)
-        .options(joinedload(TI.rendered_task_instance_fields))
-    )
-
     try:
         order_by_params = _get_order_by_params(order_by)
-        entry_query = entry_query.order_by(*order_by_params)
+        entry_query = base_query.order_by(*order_by_params)
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
+    task_instances = session.scalars(entry_query.offset(offset).limit(limit))
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -463,16 +414,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
-    # Add join
-    base_query = base_query.join(
-        SlaMiss,
-        and_(
-            SlaMiss.dag_id == TI.dag_id,
-            SlaMiss.task_id == TI.task_id,
-            SlaMiss.execution_date == DR.execution_date,
-        ),
-        isouter=True,
-    ).add_columns(SlaMiss)
+
     ti_query = base_query.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
@@ -483,8 +425,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(ti_query).all()
+    ti_query = ti_query.offset(data["page_offset"]).limit(data["page_limit"])
+    task_instances = session.scalars(ti_query)
 
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
@@ -592,9 +534,11 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
             detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
         )
 
-    if run_id and not session.get(
-        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": -1}
-    ):
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
+    )
+
+    if run_id and not session.scalars(select_stmt).one_or_none():
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
         raise NotFound(detail=error_message)
 
@@ -640,9 +584,11 @@ def patch_task_instance(
     if not dag.has_task(task_id):
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
 
-    ti: TI | None = session.get(
-        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": dag_run_id, "map_index": map_index}
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == dag_run_id, TI.map_index == map_index
     )
+
+    ti: TI | None = session.scalars(select_stmt).one_or_none()
 
     if not ti:
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
@@ -690,15 +636,6 @@ def set_task_instance_note(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
-        .outerjoin(
-            SlaMiss,
-            and_(
-                SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.execution_date == DR.execution_date,
-                SlaMiss.task_id == TI.task_id,
-            ),
-        )
-        .add_columns(SlaMiss)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
     if map_index == -1:
@@ -707,16 +644,14 @@ def set_task_instance_note(
         query = query.where(TI.map_index == map_index)
 
     try:
-        result = session.execute(query).one_or_none()
+        ti = session.scalar(query)
     except MultipleResultsFound:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
-    if result is None:
+    if ti is None:
         error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
         raise NotFound(error_message)
-
-    ti, sla_miss = result
 
     current_user_id = get_auth_manager().get_user_id()
     if ti.task_instance_note is None:
@@ -725,7 +660,7 @@ def set_task_instance_note(
         ti.task_instance_note.content = new_note
         ti.task_instance_note.user_id = current_user_id
     session.commit()
-    return task_instance_schema.dump((ti, sla_miss))
+    return task_instance_schema.dump(ti)
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)

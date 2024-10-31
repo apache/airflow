@@ -26,10 +26,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     import jinja2
 
-    from airflow import DAG
     from airflow.models.operator import Operator
+    from airflow.sdk import DAG
     from airflow.utils.context import Context
 
 
@@ -106,7 +108,7 @@ class Templater(LoggingMixin):
         self,
         parent: Any,
         template_fields: Iterable[str],
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
     ) -> None:
@@ -121,7 +123,7 @@ class Templater(LoggingMixin):
             if rendered_content:
                 setattr(parent, attr_name, rendered_content)
 
-    def _render(self, template, context, dag: DAG | None = None) -> Any:
+    def _render(self, template, context, dag=None) -> Any:
         if dag and dag.render_template_as_native_obj:
             return render_template_as_native(template, context)
         return render_template_to_string(template, context)
@@ -129,7 +131,7 @@ class Templater(LoggingMixin):
     def render_template(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment | None = None,
         seen_oids: set[int] | None = None,
     ) -> Any:
@@ -172,7 +174,8 @@ class Templater(LoggingMixin):
         if isinstance(value, ObjectStoragePath):
             return self._render_object_storage_path(value, context, jinja_env)
         if isinstance(value, ResolveMixin):
-            return value.resolve(context, include_xcom=True)
+            # TODO: Task-SDK: Tidy up the typing on template context
+            return value.resolve(context, include_xcom=True)  # type: ignore[arg-type]
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
@@ -191,7 +194,7 @@ class Templater(LoggingMixin):
         return value
 
     def _render_object_storage_path(
-        self, value: ObjectStoragePath, context: Context, jinja_env: jinja2.Environment
+        self, value: ObjectStoragePath, context: Mapping[str, Any], jinja_env: jinja2.Environment
     ) -> ObjectStoragePath:
         serialized_path = value.serialize()
         path_version = value.__version__
@@ -201,7 +204,7 @@ class Templater(LoggingMixin):
     def _render_nested_template_fields(
         self,
         value: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
     ) -> None:

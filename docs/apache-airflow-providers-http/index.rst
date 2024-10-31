@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/http/index>
+    System Tests <_api/tests/system/http/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-http/|version|/tests/system/providers/http>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-http/|version|/providers/tests/system/http>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-http/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,7 @@ apache-airflow-providers-http package
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 4.13.1
+Release: 4.13.2
 
 Provider package
 ----------------
@@ -102,7 +102,7 @@ PIP package            Version required
 =====================  ==================
 ``apache-airflow``     ``>=2.8.0``
 ``requests``           ``>=2.27.0,<3``
-``requests_toolbelt``
+``requests-toolbelt``  ``>=0.4.0``
 ``aiohttp``            ``>=3.9.2``
-``asgiref``
+``asgiref``            ``>=2.3.0``
 =====================  ==================

@@ -25,22 +25,28 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
-from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
+
 from tests.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
-from tests.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
-class PluginHook(BaseHook):
-    pass
+class AirflowNewLink(BaseOperatorLink):
+    """Operator Link for Apache Airflow Website."""
+
+    name = "airflowtestlink"
+
+    def get_link(self, operator, *, ti_key):
+        return "https://airflow.apache.org"
 
 
 class TestPlugin(AirflowPlugin):
     name = "test-plugin-cli"
-    hooks = [PluginHook]
+    global_operator_extra_links = [AirflowNewLink()]
 
 
 class TestPluginsCommand:
@@ -68,7 +74,6 @@ class TestPluginsCommand:
                 "admin_views": [],
                 "macros": ["tests.plugins.test_plugin.plugin_macro"],
                 "menu_links": [],
-                "executors": ["tests.plugins.test_plugin.PluginExecutor"],
                 "flask_blueprints": [
                     "<flask.blueprints.Blueprint: name='test_plugin' import_name='tests.plugins.test_plugin'>"
                 ],
@@ -88,17 +93,16 @@ class TestPluginsCommand:
                     }
                 ],
                 "global_operator_extra_links": [
-                    "<tests.test_utils.mock_operators.AirflowLink object>",
-                    "<tests.test_utils.mock_operators.GithubLink object>",
+                    "<tests_common.test_utils.mock_operators.AirflowLink object>",
+                    "<tests_common.test_utils.mock_operators.GithubLink object>",
                 ],
                 "timetables": ["tests.plugins.test_plugin.CustomCronDataIntervalTimetable"],
                 "operator_extra_links": [
-                    "<tests.test_utils.mock_operators.GoogleLink object>",
-                    "<tests.test_utils.mock_operators.AirflowLink2 object>",
-                    "<tests.test_utils.mock_operators.CustomOpLink object>",
-                    "<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>",
+                    "<tests_common.test_utils.mock_operators.GoogleLink object>",
+                    "<tests_common.test_utils.mock_operators.AirflowLink2 object>",
+                    "<tests_common.test_utils.mock_operators.CustomOpLink object>",
+                    "<tests_common.test_utils.mock_operators.CustomBaseIndexOpLink object>",
                 ],
-                "hooks": ["tests.plugins.test_plugin.PluginHook"],
                 "listeners": [
                     "tests.listeners.empty_listener",
                     "tests.listeners.class_listener.ClassBasedListener",
@@ -129,9 +133,9 @@ class TestPluginsCommand:
         # Assert that only columns with values are displayed
         expected_output = textwrap.dedent(
             """\
-            name            | hooks
-            ================+===================================================
-            test-plugin-cli | tests.cli.commands.test_plugins_command.PluginHook
+            name            | global_operator_extra_links
+            ================+================================================================
+            test-plugin-cli | <tests.cli.commands.test_plugins_command.AirflowNewLink object>
             """
         )
         assert stdout == expected_output

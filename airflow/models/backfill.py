@@ -24,26 +24,36 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, update
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKeyConstraint,
+    Integer,
+    UniqueConstraint,
+    desc,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
 from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun
 from airflow.models.base import Base, StringID
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
+    from datetime import datetime
+
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +64,18 @@ class AlreadyRunningBackfill(AirflowException):
 
     :meta private:
     """
+
+
+class ReprocessBehavior(str, Enum):
+    """
+    Internal enum for setting reprocess behavior in a backfill.
+
+    :meta private:
+    """
+
+    FAILED = "failed"
+    COMPLETED = "completed"
+    NONE = "none"
 
 
 class Backfill(Base):
@@ -72,6 +94,7 @@ class Backfill(Base):
 
     Does not pause existing dag runs.
     """
+    reprocess_behavior = Column(StringID(), nullable=False, default=ReprocessBehavior.NONE)
     max_active_runs = Column(Integer, default=10, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at = Column(UtcDateTime, nullable=True)
@@ -83,15 +106,27 @@ class Backfill(Base):
         return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
 
 
+class BackfillDagRunExceptionReason(str, Enum):
+    """
+    Enum for storing reasons why dag run not created.
+
+    :meta private:
+    """
+
+    IN_FLIGHT = "in flight"
+    ALREADY_EXISTS = "already exists"
+    UNKNOWN = "unknown"
+
+
 class BackfillDagRun(Base):
     """Mapping table between backfill run and dag run."""
 
     __tablename__ = "backfill_dag_run"
     id = Column(Integer, primary_key=True, autoincrement=True)
     backfill_id = Column(Integer, nullable=False)
-    dag_run_id = Column(
-        Integer, nullable=True
-    )  # the run might already exist; we could store the reason we did not create
+    dag_run_id = Column(Integer, nullable=True)
+    exception_reason = Column(StringID())
+    logical_date = Column(UtcDateTime, nullable=False)
     sort_ordinal = Column(Integer, nullable=False)
 
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
@@ -120,38 +155,120 @@ class BackfillDagRun(Base):
         return val
 
 
+def _create_backfill_dag_run(
+    *,
+    dag,
+    info,
+    reprocess_behavior: ReprocessBehavior,
+    backfill_id,
+    dag_run_conf,
+    backfill_sort_ordinal,
+    session,
+):
+    from airflow.models import DagRun
+
+    with session.begin_nested() as nested:
+        dr = session.scalar(
+            with_row_locks(
+                select(DagRun)
+                .where(DagRun.execution_date == info.logical_date)
+                .order_by(nulls_first(desc(DagRun.start_date), session=session))
+                .limit(1),
+                session=session,
+            )
+        )
+        if dr:
+            non_create_reason = None
+            if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
+                non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
+            elif reprocess_behavior is ReprocessBehavior.NONE:
+                non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+            elif reprocess_behavior is ReprocessBehavior.FAILED:
+                if dr.state != DagRunState.FAILED:
+                    non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
+            if non_create_reason:
+                # rolling back here restores to start of this nested tran
+                # which releases the lock on the latest dag run, since we
+                # are not creating a new one
+                nested.rollback()
+                session.add(
+                    BackfillDagRun(
+                        backfill_id=backfill_id,
+                        dag_run_id=None,
+                        logical_date=info.logical_date,
+                        exception_reason=non_create_reason,
+                        sort_ordinal=backfill_sort_ordinal,
+                    )
+                )
+                return
+
+        dr = dag.create_dagrun(
+            triggered_by=DagRunTriggeredByType.BACKFILL,
+            execution_date=info.logical_date,
+            data_interval=info.data_interval,
+            start_date=timezone.utcnow(),
+            state=DagRunState.QUEUED,
+            external_trigger=False,
+            conf=dag_run_conf,
+            run_type=DagRunType.BACKFILL_JOB,
+            creating_job_id=None,
+            session=session,
+            backfill_id=backfill_id,
+        )
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=dr.id,
+                sort_ordinal=backfill_sort_ordinal,
+                logical_date=info.logical_date,
+            )
+        )
+
+
+def _get_info_list(
+    *,
+    from_date,
+    to_date,
+    reverse,
+    dag,
+):
+    infos = dag.iter_dagrun_infos_between(from_date, to_date)
+    now = timezone.utcnow()
+    dagrun_info_list = (x for x in infos if x.data_interval.end < now)
+    if reverse:
+        dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+    return dagrun_info_list
+
+
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: DateTime,
-    to_date: DateTime,
+    from_date: datetime,
+    to_date: datetime,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
+    reprocess_behavior: ReprocessBehavior | None = None,
 ) -> Backfill | None:
+    from airflow.models import DagModel
+    from airflow.models.serialized_dag import SerializedDagModel
+
     with create_session() as session:
         serdag = session.get(SerializedDagModel, dag_id)
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
-
+        # todo: if dag has no schedule, raise
         num_active = session.scalar(
-            select(func.count()).where(Backfill.dag_id == dag_id, Backfill.completed_at.is_(None))
+            select(func.count()).where(
+                Backfill.dag_id == dag_id,
+                Backfill.completed_at.is_(None),
+            )
         )
         if num_active > 0:
             raise AlreadyRunningBackfill(
                 f"Another backfill is running for dag {dag_id}. "
                 f"There can be only one running backfill per dag."
             )
-
-        br = Backfill(
-            dag_id=dag_id,
-            from_date=from_date,
-            to_date=to_date,
-            max_active_runs=max_active_runs,
-            dag_run_conf=dag_run_conf,
-        )
-        session.add(br)
-        session.commit()
 
         dag = serdag.dag
         depends_on_past = any(x.depends_on_past for x in dag.tasks)
@@ -160,44 +277,61 @@ def _create_backfill(
                 raise ValueError(
                     "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
                 )
+            if reprocess_behavior in (None, ReprocessBehavior.NONE):
+                raise ValueError(
+                    "Dag has task for which depends_on_past is true. "
+                    "You must set reprocess behavior to reprocess completed or "
+                    "reprocess failed"
+                )
+        br = Backfill(
+            dag_id=dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=max_active_runs,
+            dag_run_conf=dag_run_conf,
+            reprocess_behavior=reprocess_behavior,
+        )
+        session.add(br)
+        session.commit()
 
         backfill_sort_ordinal = 0
-        dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
-        if reverse:
-            dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+
+        dagrun_info_list = _get_info_list(
+            from_date=from_date,
+            to_date=to_date,
+            reverse=reverse,
+            dag=dag,
+        )
+
+        log.info("obtaining lock on dag %s", dag_id)
+        # we obtain a lock on dag model so that nothing else will create
+        # dag runs at the same time. mainly this is required by non-uniqueness
+        # of logical_date. otherwise we could just create run in a try-except.
+        dag_model = session.scalar(
+            with_row_locks(
+                select(DagModel).where(DagModel.dag_id == dag_id),
+                session=session,
+            )
+        )
+        if not dag_model:
+            raise RuntimeError(f"Dag {dag_id} not found")
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
-            log.info("creating backfill dag run %s dag_id=%s backfill_id=%s, info=", dag.dag_id, br.id, info)
-            dr = None
-            try:
-                dr = dag.create_dagrun(
-                    triggered_by=DagRunTriggeredByType.BACKFILL,
-                    execution_date=info.logical_date,
-                    data_interval=info.data_interval,
-                    start_date=timezone.utcnow(),
-                    state=DagRunState.QUEUED,
-                    external_trigger=False,
-                    conf=br.dag_run_conf,
-                    run_type=DagRunType.BACKFILL_JOB,
-                    creating_job_id=None,
-                    session=session,
-                    backfill_id=br.id,
-                )
-            except Exception:
-                dag.log.exception(
-                    "Error while attempting to create a dag run dag_id='%s' logical_date='%s'",
-                    dag.dag_id,
-                    info.logical_date,
-                )
-                session.rollback()
-            session.add(
-                BackfillDagRun(
-                    backfill_id=br.id,
-                    dag_run_id=dr.id if dr else None,  # this means we failed to create the dag run
-                    sort_ordinal=backfill_sort_ordinal,
-                )
+            _create_backfill_dag_run(
+                dag=dag,
+                info=info,
+                backfill_id=br.id,
+                dag_run_conf=br.dag_run_conf,
+                reprocess_behavior=br.reprocess_behavior,
+                backfill_sort_ordinal=backfill_sort_ordinal,
+                session=session,
             )
-            session.commit()
+            log.info(
+                "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
+                dag.dag_id,
+                br.id,
+                info,
+            )
     return br
 
 
@@ -214,6 +348,8 @@ def _cancel_backfill(backfill_id) -> Backfill:
             b.is_paused = True
 
         session.commit()
+
+        from airflow.models import DagRun
 
         # now, let's mark all queued dag runs as failed
         query = (

@@ -22,8 +22,22 @@ from __future__ import annotations
 
 import json
 import platform
+import sys
 from enum import Enum
-from functools import lru_cache
+
+from airflow_breeze.utils.console import get_console
+
+try:
+    from functools import cache
+except ImportError:
+    get_console().print(
+        "\n[error]Breeze doesn't support Python version <=3.8\n\n"
+        "[warning]Use Python 3.9 and force reinstall breeze with pipx\n\n"
+        "     pipx install --force -e ./dev/breeze\n"
+        "\nTo find out more, visit [info]https://github.com/apache/airflow/"
+        "blob/main/dev/breeze/doc/01_installation.rst#the-pipx-tool[/]\n"
+    )
+    sys.exit(1)
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
@@ -45,13 +59,17 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-# Database Backends used when starting Breeze. The "none" value means that invalid configuration
-# Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
+# Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
+# No database will be started - access to a database will fail.
+SQLITE_BACKEND = "sqlite"
+MYSQL_BACKEND = "mysql"
+POSTGRES_BACKEND = "postgres"
+NONE_BACKEND = "none"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 CELERY_INTEGRATION = "celery"
 TESTABLE_INTEGRATIONS = [
@@ -68,7 +86,14 @@ TESTABLE_INTEGRATIONS = [
     "trino",
     "ydb",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
+    "mssql",
+]
+KEYCLOAK_INTEGRATION = "keycloak"
+STATSD_INTEGRATION = "statsd"
+OTEL_INTEGRATION = "otel"
+OPENLINEAGE_INTEGRATION = "openlineage"
+OTHER_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, OPENLINEAGE_INTEGRATION, KEYCLOAK_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
@@ -92,20 +117,26 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
 ALLOWED_KUBERNETES_VERSIONS = ["v1.28.13", "v1.29.8", "v1.30.4", "v1.31.0"]
+
+LOCAL_EXECUTOR = "LocalExecutor"
+KUBERNETES_EXECUTOR = "KubernetesExecutor"
+CELERY_EXECUTOR = "CeleryExecutor"
+CELERY_K8S_EXECUTOR = "CeleryKubernetesExecutor"
+EDGE_EXECUTOR = "EdgeExecutor"
+SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 ALLOWED_EXECUTORS = [
-    "LocalExecutor",
-    "KubernetesExecutor",
-    "CeleryExecutor",
-    "CeleryKubernetesExecutor",
-    "SequentialExecutor",
+    LOCAL_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+    CELERY_EXECUTOR,
+    CELERY_K8S_EXECUTOR,
+    EDGE_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
 ]
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
-START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
+START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR, SEQUENTIAL_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
-ALLOWED_CELERY_EXECUTORS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
-
-SEQUENTIAL_EXECUTOR = "SequentialExecutor"
+ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
 
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -147,7 +178,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.0"
+PIP_VERSION = "24.3.1"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -161,12 +192,12 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-@lru_cache(maxsize=None)
+@cache
 def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
 
 
-@lru_cache(maxsize=None)
+@cache
 def all_selective_test_types_except_providers() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
 
@@ -202,7 +233,7 @@ ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
 ]
 
 
-@lru_cache(maxsize=None)
+@cache
 def all_helm_test_packages() -> list[str]:
     return sorted(
         [
@@ -216,6 +247,23 @@ def all_helm_test_packages() -> list[str]:
 ALLOWED_HELM_TEST_PACKAGES = [
     "all",
     *all_helm_test_packages(),
+]
+
+
+@cache
+def all_task_sdk_test_packages() -> list[str]:
+    return sorted(
+        [
+            candidate.name
+            for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
+        ]
+    )
+
+
+ALLOWED_TASK_SDK_TEST_PACKAGES = [
+    "all",
+    *all_task_sdk_test_packages(),
 ]
 
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
@@ -263,7 +311,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -316,6 +364,12 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.8.2": ["3.8", "3.9", "3.10", "3.11"],
     "2.8.3": ["3.8", "3.9", "3.10", "3.11"],
     "2.9.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -347,6 +401,7 @@ COMMITTERS = [
     "bolkedebruin",
     "criccomini",
     "dimberman",
+    "dirrao",
     "dstandish",
     "eladkal",
     "ephraimbuddy",
@@ -408,7 +463,7 @@ def get_airflow_version():
     return airflow_version
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
@@ -444,7 +499,7 @@ FILES_FOR_REBUILD_CHECK = [
 ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
-CURRENT_EXECUTORS = ["KubernetesExecutor"]
+CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
@@ -502,24 +557,24 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join([])
+CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon"])
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.8",
+        "python-version": "3.9",
         "airflow-version": "2.8.4",
         "remove-providers": "cloudant fab edge standard",
         "run-tests": "true",
     },
     {
-        "python-version": "3.8",
+        "python-version": "3.9",
         "airflow-version": "2.9.3",
         "remove-providers": "cloudant edge standard",
         "run-tests": "true",
     },
     {
-        "python-version": "3.8",
+        "python-version": "3.9",
         "airflow-version": "2.10.1",
         "remove-providers": "cloudant",
         "run-tests": "true",
@@ -538,6 +593,6 @@ class GithubEvents(Enum):
     WORKFLOW_RUN = "workflow_run"
 
 
-@lru_cache(maxsize=None)
+@cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]

@@ -158,6 +158,7 @@ balancers
 Banco
 Bas
 BaseClient
+BaseHook
 BaseObject
 BaseOperator
 baseOperator
@@ -227,7 +228,6 @@ cgi
 Cgroups
 cgroups
 cgroupspy
-Chainable
 chakra
 Changelog
 changelog

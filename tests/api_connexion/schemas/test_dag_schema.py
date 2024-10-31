@@ -70,10 +70,8 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "last_pickled": None,
         "default_view": None,
         "last_parsed_time": None,
-        "scheduler_lock": None,
         "timetable_description": None,
         "has_import_errors": None,
-        "pickle_id": None,
     } == serialized_dag
 
 
@@ -107,10 +105,8 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
-                "scheduler_lock": None,
                 "timetable_description": None,
                 "has_import_errors": None,
-                "pickle_id": None,
             },
             {
                 "dag_id": "test_dag_id_b",
@@ -135,10 +131,8 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
-                "scheduler_lock": None,
                 "timetable_description": None,
                 "has_import_errors": None,
-                "pickle_id": None,
             },
         ],
         "total_entries": 2,
@@ -193,7 +187,6 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
-        "pickle_id": None,
         "end_date": None,
         "is_paused_upon_creation": None,
         "render_template_as_native_obj": False,
@@ -257,7 +250,6 @@ def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serialize
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
-        "pickle_id": None,
         "end_date": None,
         "is_paused_upon_creation": None,
         "render_template_as_native_obj": False,

@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, cast, overload
 
 import attr
 from sqlalchemy import select
@@ -38,7 +39,10 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Asset", "AssetAll", "AssetAny"]
+__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
+
+
+log = logging.getLogger(__name__)
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -70,12 +74,6 @@ def _sanitize_uri(uri: str) -> str:
     This checks for URI validity, and normalizes the URI if needed. A fully
     normalized URI is returned.
     """
-    if not uri:
-        raise ValueError("Asset URI cannot be empty")
-    if uri.isspace():
-        raise ValueError("Asset URI cannot be just whitespace")
-    if not uri.isascii():
-        raise ValueError("Asset URI must only consist of ASCII characters")
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
@@ -109,15 +107,35 @@ def _sanitize_uri(uri: str) -> str:
         try:
             parsed = normalizer(parsed)
         except ValueError as exception:
-            if conf.getboolean("core", "strict_asset_uri_validation", fallback=False):
+            if conf.getboolean("core", "strict_asset_uri_validation", fallback=True):
+                log.error(
+                    (
+                        "The Asset URI %s is not AIP-60 compliant: %s. "
+                        "Please check https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html"
+                    ),
+                    uri,
+                    exception,
+                )
                 raise
-            warnings.warn(
-                f"The Asset URI {uri} is not AIP-60 compliant: {exception}. "
-                f"In Airflow 3, this will raise an exception.",
-                UserWarning,
-                stacklevel=3,
-            )
     return urllib.parse.urlunsplit(parsed)
+
+
+def _validate_identifier(instance, attribute, value):
+    if not isinstance(value, str):
+        raise ValueError(f"{type(instance).__name__} {attribute.name} must be a string")
+    if len(value) > 1500:
+        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
+    if value.isspace():
+        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
+    if not value.isascii():
+        raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
+    return value
+
+
+def _validate_non_empty_identifier(instance, attribute, value):
+    if not _validate_identifier(instance, attribute, value):
+        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be empty")
+    return value
 
 
 def extract_event_key(value: str | Asset | AssetAlias) -> str:
@@ -151,7 +169,7 @@ def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SE
         select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
     )
     if asset_alias_obj:
-        return [Asset(uri=asset.uri, extra=asset.extra) for asset in asset_alias_obj.datasets]
+        return [asset.to_public() for asset in asset_alias_obj.assets]
     return []
 
 
@@ -208,7 +226,12 @@ class BaseAsset:
 class AssetAlias(BaseAsset):
     """A represeation of asset alias which is used to create asset during the runtime."""
 
-    name: str
+    name: str = attr.field(validator=_validate_non_empty_identifier)
+    group: str = attr.field(
+        kw_only=True,
+        default="",
+        validator=[attr.validators.max_len(1500), _validate_identifier],
+    )
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
@@ -250,17 +273,49 @@ def _set_extra_default(extra: dict | None) -> dict:
     return extra
 
 
-@attr.define(unsafe_hash=False)
+@attr.define(init=False, unsafe_hash=False)
 class Asset(os.PathLike, BaseAsset):
-    """A representation of data dependencies between workflows."""
+    """A representation of data asset dependencies between workflows."""
 
-    uri: str = attr.field(
-        converter=_sanitize_uri,
-        validator=[attr.validators.min_len(1), attr.validators.max_len(1500)],
-    )
-    extra: dict[str, Any] = attr.field(factory=dict, converter=_set_extra_default)
+    name: str
+    uri: str
+    group: str
+    extra: dict[str, Any]
 
+    asset_type: ClassVar[str] = ""
     __version__: ClassVar[int] = 1
+
+    @overload
+    def __init__(self, name: str, uri: str, *, group: str = "", extra: dict | None = None) -> None:
+        """Canonical; both name and uri are provided."""
+
+    @overload
+    def __init__(self, name: str, *, group: str = "", extra: dict | None = None) -> None:
+        """It's possible to only provide the name, either by keyword or as the only positional argument."""
+
+    @overload
+    def __init__(self, *, uri: str, group: str = "", extra: dict | None = None) -> None:
+        """It's possible to only provide the URI as a keyword argument."""
+
+    def __init__(
+        self,
+        name: str | None = None,
+        uri: str | None = None,
+        *,
+        group: str = "",
+        extra: dict | None = None,
+    ) -> None:
+        if name is None and uri is None:
+            raise TypeError("Asset() requires either 'name' or 'uri'")
+        elif name is None:
+            name = uri
+        elif uri is None:
+            uri = name
+        fields = attr.fields_dict(Asset)
+        self.name = _validate_non_empty_identifier(self, fields["name"], name)
+        self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
+        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
+        self.extra = _set_extra_default(extra)
 
     def __fspath__(self) -> str:
         return self.uri
@@ -316,6 +371,18 @@ class Asset(os.PathLike, BaseAsset):
             dependency_type="asset",
             dependency_id=self.uri,
         )
+
+
+class Dataset(Asset):
+    """A representation of dataset dependencies between workflows."""
+
+    asset_type: ClassVar[str] = "dataset"
+
+
+class Model(Asset):
+    """A representation of model dependencies between workflows."""
+
+    asset_type: ClassVar[str] = "model"
 
 
 class _AssetBooleanCondition(BaseAsset):

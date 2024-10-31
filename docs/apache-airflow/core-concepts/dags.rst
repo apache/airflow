@@ -125,7 +125,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[EmptyOperator(task_id=f"op{i}") for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different from the *cross dependencies* created by ``cross_downstream``!)::
 
@@ -574,7 +574,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     from airflow import DAG
     from airflow.decorators import task_group
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.operators.empty import EmptyOperator
 
     with DAG(
@@ -663,6 +663,7 @@ This is especially useful if your tasks are built dynamically from configuration
     """
     ### My great DAG
     """
+
     import pendulum
 
     dag = DAG(

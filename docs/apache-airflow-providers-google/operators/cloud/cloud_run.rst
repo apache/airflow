@@ -35,7 +35,7 @@ For more information about the Job object fields, visit `Google Cloud Run Job de
 
 A simple job configuration can be created with a Job object:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 0
     :start-after: [START howto_cloud_run_job_instance_creation]
@@ -43,7 +43,7 @@ A simple job configuration can be created with a Job object:
 
 or with a Python dictionary:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 0
     :start-after: [START howto_cloud_run_job_dict_creation]
@@ -52,7 +52,7 @@ or with a Python dictionary:
 You can create a Cloud Run Job with any of these configurations :
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunCreateJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_create_job]
@@ -69,7 +69,7 @@ For more information about the Service object fields, visit `Google Cloud Run Se
 
 A simple service configuration can look as follows:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_cloud_run_service_creation]
@@ -79,7 +79,7 @@ A simple service configuration can look as follows:
 With this configuration we can create the service:
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunCreateServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_create_service]
@@ -94,7 +94,7 @@ Delete a service
 With this configuration we can delete the service:
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunDeleteServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_delete_service]
@@ -110,7 +110,7 @@ To execute a job, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_execute_job]
@@ -120,7 +120,7 @@ or you can define the same operator in the deferrable mode:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_execute_job_deferrable_mode]
@@ -130,7 +130,7 @@ You can also specify overrides that allow you to give a new entrypoint command t
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_execute_job_with_overrides]
@@ -144,7 +144,7 @@ To update a job, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunUpdateJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_update_job]
@@ -161,7 +161,7 @@ To list the jobs, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunListJobsOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_run_list_jobs]
@@ -177,7 +177,7 @@ To delete a job you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunDeleteJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloud_delete_job]

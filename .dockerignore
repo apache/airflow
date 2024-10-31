@@ -34,12 +34,15 @@
 !chart
 !docs
 !licenses
+!providers/
+!task_sdk/
 
 # Add those folders to the context so that they are available in the CI container
 !scripts
 
 # Add tests and kubernetes_tests to context.
 !tests
+!tests_common
 !kubernetes_tests
 !helm_tests
 !docker_tests

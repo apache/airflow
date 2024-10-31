@@ -114,6 +114,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
 jobs:
 
   build-prod-packages:
@@ -176,6 +180,11 @@ jobs:
         shell: bash
         run: >
           breeze release-management prepare-airflow-package --package-format wheel
+        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Prepare task-sdk package"
+        shell: bash
+        run: >
+          breeze release-management prepare-task-sdk-package --package-format wheel
         if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
@@ -276,6 +285,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
+          DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
@@ -291,6 +301,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
+          DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
