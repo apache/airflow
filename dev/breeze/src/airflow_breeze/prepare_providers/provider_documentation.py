@@ -320,6 +320,7 @@ def _get_all_changes_for_package(
     providers_folder_paths = [
         provider_details.source_provider_package_path,
         provider_details.old_source_provider_package_path,
+        provider_details.documentation_provider_package_path,
     ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
