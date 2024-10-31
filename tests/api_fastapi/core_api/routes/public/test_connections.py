@@ -501,22 +501,60 @@ class TestPatchConnection(TestConnectionEndpoint):
             "detail": f"The Connection with connection_id: `{payload['connection_id']}` was not found",
         } == response.json()
 
+    @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body",
+        "body, expected_response",
         [
-            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
-            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_LOGIN_2, "password": "?>@#+!_%()#"},
-            {
-                "connection_id": TEST_CONN_ID,
-                "conn_type": TEST_CONN_TYPE,
-                "password": "A!rF|0wi$aw3s0m3",
-                "extra": '{"password": "test-password"}',
-            },
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "?>@#+!_%()#"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "password": "A!rF|0wi$aw3s0m3",
+                    "extra": '{"password": "test-password"}',
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": '{"password": "***"}',
+                    "host": None,
+                    "login": None,
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
         ],
     )
-    def test_patch_should_response_201_redacted_password(self, test_client, body):
-        self.create_connection()
-        response = test_client.patch(f"/public/connections/{body['connection_id']}", json=body)
-        assert response.status_code == 200
-        connection = response.json()
-        assert "password" not in connection
+    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 201
+        assert response.json() == expected_response
