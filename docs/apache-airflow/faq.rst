@@ -256,10 +256,7 @@ important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
 
-It is also important to note that the task's ``start_date``, in the context of a
-backfill CLI command, gets overridden by the backfill's ``start_date`` commands.
-This allows for a backfill on tasks that have ``depends_on_past=True`` to
-actually start. If this were not the case, the backfill just would not start.
+It is also important to note that the task's ``start_date`` is ignored in backfills.
 
 Using time zones
 ----------------

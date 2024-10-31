@@ -307,7 +307,7 @@ class DagScheduleAssetAliasReference(Base):
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
-            name="dsaar_dag_fkey",
+            name="dsaar_dag_id_fkey",
             ondelete="CASCADE",
         ),
         Index("idx_dag_schedule_asset_alias_reference_dag_id", dag_id),

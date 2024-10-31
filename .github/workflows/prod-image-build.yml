@@ -181,6 +181,11 @@ jobs:
         run: >
           breeze release-management prepare-airflow-package --package-format wheel
         if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+      - name: "Prepare task-sdk package"
+        shell: bash
+        run: >
+          breeze release-management prepare-task-sdk-package --package-format wheel
+        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
         with:

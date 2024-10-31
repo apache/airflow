@@ -74,6 +74,7 @@ CANARY_LABEL = "canary"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
@@ -275,8 +276,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^airflow/operators/python.py",
-    r"^tests/operators/test_python.py",
+    r"^providers/src/providers/standard/operators/python.py",
+    r"^providers/tests/standard/operators/test_python.py",
 ]
 
 TEST_TYPE_MATCHES = HashableDict(
@@ -800,12 +801,17 @@ class SelectiveChecks:
         test_always_files = self._matching_files(
             FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
+        test_ui_files = self._matching_files(
+            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+
         remaining_files = (
             set(all_source_files)
             - set(matched_files)
             - set(kubernetes_files)
             - set(system_test_files)
             - set(test_always_files)
+            - set(test_ui_files)
         )
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
@@ -1337,12 +1343,32 @@ class SelectiveChecks:
         return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
+    def only_new_ui_files(self) -> bool:
+        all_source_files = set(
+            self._matching_files(
+                FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        )
+        new_ui_source_files = set(
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+        )
+        remaining_files = all_source_files - new_ui_source_files
+
+        if all_source_files and new_ui_source_files and not remaining_files:
+            return True
+        else:
+            return False
+
+    @cached_property
     def testable_integrations(self) -> list[str]:
-        return [
-            integration
-            for integration in TESTABLE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-        ]
+        if self.only_new_ui_files:
+            return []
+        else:
+            return [
+                integration
+                for integration in TESTABLE_INTEGRATIONS
+                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            ]
 
     @cached_property
     def is_committer_build(self):
@@ -1445,3 +1471,7 @@ class SelectiveChecks:
             sys.exit(1)
         else:
             return True
+
+    @cached_property
+    def force_pip(self):
+        return FORCE_PIP_LABEL in self._pr_labels

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import datetime
 import itertools
 import logging
@@ -24,7 +25,7 @@ import os
 import random
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Mapping, Sequence
 
 import jwt
 import packaging.version
@@ -1107,7 +1108,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]] | Collection[str]] | None = None,
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1128,7 +1129,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         if access_control is not None:
             self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)
-            self._sync_dag_view_permissions(dag_id, access_control.copy())
+            self._sync_dag_view_permissions(dag_id, copy.copy(access_control))
         else:
             self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
@@ -1149,7 +1150,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _sync_dag_view_permissions(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]] | Collection[str]],
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]],
     ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.

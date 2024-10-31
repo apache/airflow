@@ -52,6 +52,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -69,6 +70,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance(
@@ -425,6 +427,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
+    ti_query = ti_query.offset(data["page_offset"]).limit(data["page_limit"])
     task_instances = session.scalars(ti_query)
 
     return task_instance_collection_schema.dump(
@@ -533,9 +536,11 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
             detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
         )
 
-    if run_id and not session.get(
-        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": -1}
-    ):
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
+    )
+
+    if run_id and not session.scalars(select_stmt).one_or_none():
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
         raise NotFound(detail=error_message)
 
@@ -581,9 +586,11 @@ def patch_task_instance(
     if not dag.has_task(task_id):
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
 
-    ti: TI | None = session.get(
-        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": dag_run_id, "map_index": map_index}
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == dag_run_id, TI.map_index == map_index
     )
+
+    ti: TI | None = session.scalars(select_stmt).one_or_none()
 
     if not ti:
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
