@@ -21,7 +21,7 @@ import logging
 from datetime import datetime
 
 from airflow.decorators import dag, task
-from airflow.operators.python import is_venv_installed
+from airflow.providers.standard.operators.python import is_venv_installed
 
 log = logging.getLogger(__name__)
 

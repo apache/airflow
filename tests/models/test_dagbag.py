@@ -629,7 +629,7 @@ import datetime
 import time
 
 import airflow
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 time.sleep(1)
 
