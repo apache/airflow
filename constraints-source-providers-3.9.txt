@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-28T09:12:35.803275
+# This constraints file was automatically generated on 2024-10-31T11:07:13.514691
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -133,7 +133,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.18.1
+cfn-lint==1.18.3
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -148,14 +148,14 @@ cloudant==2.15.0
 cloudpickle==2.2.1
 cohere==4.57
 colorama==0.4.6
-colorlog==6.8.2
+colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.6.0
 connexion==2.14.2
 coverage==7.6.4
 crcmod==1.7
 cron-descriptor==1.4.5
-croniter==3.0.4
+croniter==5.0.1
 cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -164,7 +164,7 @@ db-dtypes==1.3.0
 debugpy==1.8.7
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.20.2
+deltalake==0.21.0
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -203,12 +203,12 @@ gevent==24.10.3
 gitdb==4.0.11
 google-ads==25.1.0
 google-analytics-admin==0.23.1
-google-api-core==2.21.0
+google-api-core==2.22.0
 google-api-python-client==2.149.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.35.0
-google-cloud-aiplatform==1.70.0
+google-cloud-aiplatform==1.71.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.14.0
@@ -216,7 +216,7 @@ google-cloud-batch==0.17.30
 google-cloud-bigquery-datatransfer==3.17.0
 google-cloud-bigquery==3.20.1
 google-cloud-bigtable==2.26.0
-google-cloud-build==3.26.0
+google-cloud-build==3.27.0
 google-cloud-compute==1.20.0
 google-cloud-container==2.53.0
 google-cloud-core==2.4.1
@@ -354,8 +354,8 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.46
-mypy-boto3-redshift-data==1.35.10
+mypy-boto3-rds==1.35.50
+mypy-boto3-redshift-data==1.35.51
 mypy-boto3-s3==1.35.46
 mypy-extensions==1.0.0
 mypy==1.9.0
@@ -371,7 +371,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.52.2
+openai==1.53.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -461,7 +461,7 @@ pypsrp==0.8.1
 pyspark==3.5.3
 pyspnego==0.11.1
 pytest-asyncio==0.24.0
-pytest-cov==5.0.0
+pytest-cov==6.0.0
 pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
@@ -484,7 +484,7 @@ python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.12.0
+qdrant-client==1.12.1
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.2.0
@@ -521,7 +521,7 @@ shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.16.0
-slack_sdk==3.33.2
+slack_sdk==3.33.3
 smbprotocol==1.14.0
 smmap==5.0.1
 sniffio==1.3.1
@@ -564,7 +564,7 @@ tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==8.5.0
 teradatasql==20.0.0.20
-teradatasqlalchemy==20.0.0.2
+teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
@@ -575,7 +575,7 @@ tomli_w==1.1.0
 tomlkit==0.13.2
 tornado==6.4.1
 towncrier==24.8.0
-tqdm==4.66.5
+tqdm==4.66.6
 traitlets==5.14.3
 trino==0.330.0
 trove-classifiers==2024.10.21.16
@@ -588,10 +588,10 @@ types-PyYAML==6.0.12.20240917
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
-types-croniter==3.0.4.20241027
+types-croniter==4.0.0.20241030
 types-docutils==0.21.0.20241005
 types-paramiko==3.5.0.20240928
-types-protobuf==5.28.0.20240924
+types-protobuf==5.28.3.20241030
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241003
 types-python-slugify==8.0.2.20240310
@@ -615,7 +615,7 @@ uv==0.4.1
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.27.0
+virtualenv==20.27.1
 watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.8.0
@@ -627,7 +627,7 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.323.0
-yarl==1.16.0
+yarl==1.17.1
 ydb==3.18.6
 zeep==4.3.1
 zenpy==2.0.54
