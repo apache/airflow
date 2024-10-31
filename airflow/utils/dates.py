@@ -18,11 +18,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 from croniter import croniter
 
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 
 cron_presets: dict[str, str] = {
@@ -121,41 +120,6 @@ def round_time(
     # in the special case when start_date > dt the search for upper will
     # immediately stop for upper == 1 which results in lower = upper // 2 = 0
     # and this function returns start_date.
-
-
-TimeUnit = Literal["days", "hours", "minutes", "seconds"]
-
-
-def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
-    """
-    Determine the most appropriate time unit for given durations (in seconds).
-
-    e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
-    """
-    if not time_seconds_arr:
-        return "hours"
-    max_time_seconds = max(time_seconds_arr)
-    if max_time_seconds <= 60 * 2:
-        return "seconds"
-    elif max_time_seconds <= 60 * 60 * 2:
-        return "minutes"
-    elif max_time_seconds <= 24 * 60 * 60 * 2:
-        return "hours"
-    else:
-        return "days"
-
-
-def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Collection[float]:
-    """Convert an array of time durations in seconds to the specified time unit."""
-    if unit == "minutes":
-        factor = 60
-    elif unit == "hours":
-        factor = 60 * 60
-    elif unit == "days":
-        factor = 24 * 60 * 60
-    else:
-        factor = 1
-    return [x / factor for x in time_seconds_arr]
 
 
 def parse_execution_date(execution_date_str):
