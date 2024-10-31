@@ -553,7 +553,7 @@ option_force_sa_warnings = click.option(
 @option_use_packages_from_dist
 @option_use_xdist
 @option_verbose
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def command_for_tests(**kwargs):
     _run_test_command(**kwargs)
 
@@ -877,8 +877,16 @@ def _run_test_command(
         )
     else:
         if shell_params.test_type == "Default":
-            if any([arg.startswith("tests") for arg in extra_pytest_args]):
+            if any(
+                [
+                    arg.startswith("tests/")
+                    or arg.startswith("providers/tests/")
+                    or arg.startswith("task_sdk/tests/")
+                    for arg in extra_pytest_args
+                ]
+            ):
                 # in case some tests are specified as parameters, do not pass "tests" as default
+                # test_type = "All" as default and it will run all "tests" by default then
                 shell_params.test_type = "None"
                 shell_params.parallel_test_types_list = []
             else:

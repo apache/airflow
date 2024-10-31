@@ -212,6 +212,12 @@ PROVIDERS_LIST_PREFIX = "Providers["
 PROVIDERS_LIST_EXCLUDE_PREFIX = "Providers[-"
 
 ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
+    # TODO: This is not really correct now - we should allow to run both providers and airflow
+    # as "ALL" tests - currently it is not possible due to conftest.py present at top-level of
+    # all different test suites ("tests", "providers/tests", "task_sdk/tests")
+    # The only reason it is working now in CI is because we run tests in parallel (both DB and non-DB)
+    # each test subfolder is separately specified in the pytest command line
+    # This should be solved as part of https://github.com/apache/airflow/issues/42632
     "All": ("tests",),
     "All-Long": ("tests", "-m", "long_running", "--include-long-running"),
     "All-Quarantined": ("tests", "-m", "quarantined", "--include-quarantined"),
