@@ -44,7 +44,6 @@ async def get_task_instance(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
-
     task_instance = session.scalar(query)
 
     if task_instance is None:
@@ -54,5 +53,33 @@ async def get_task_instance(
         )
     if task_instance.map_index != -1:
         raise HTTPException(404, "Task instance is mapped, add the map_index value to the URL")
+
+    return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+
+
+@task_instances_router.get(
+    "/{task_id}/{map_index}", responses=create_openapi_http_exception_doc([401, 403, 404])
+)
+async def get_mapped_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> TaskInstanceResponse:
+    """Get task instance."""
+    query = (
+        select(TI)
+        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
+    )
+    task_instance = session.scalar(query)
+
+    if task_instance is None:
+        raise HTTPException(
+            404,
+            f"The Mapped Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and map_index: `{map_index}` was not found",
+        )
 
     return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
