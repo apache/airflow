@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import inspect
 import types
-from typing import TYPE_CHECKING, Any, Iterator, Mapping
+from collections.abc import Callable
+from functools import wraps
+from typing import TYPE_CHECKING, Any, Iterator, Mapping, cast
 
 import attrs
 
@@ -28,6 +30,8 @@ from airflow.models.dag import DAG, ScheduleArg
 from airflow.operators.python import PythonOperator
 
 if TYPE_CHECKING:
+    from typing import Sequence
+
     from airflow.io.path import ObjectStoragePath
 
 
@@ -46,6 +50,7 @@ class _AssetMainOperator(PythonOperator):
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
         for key in inspect.signature(self.python_callable).parameters:
             if key == "self":
+                key = "_self"
                 value: Any = AssetRef(name=self._definition_name)
             elif key == "context":
                 value = context
@@ -62,6 +67,14 @@ class _AssetMainOperator(PythonOperator):
         return dict(self._iter_kwargs(context))
 
 
+def _handle_self_argument(func: types.FunctionType) -> types.FunctionType:
+    @wraps(func)
+    def wrapper(_self: Any, *args: Sequence[Any], **kwargs: dict[str, Any]) -> Any:
+        return func(_self, *args, **kwargs)
+
+    return cast(types.FunctionType, wrapper)
+
+
 @attrs.define(kw_only=True)
 class AssetDefinition(Asset):
     """
@@ -75,13 +88,16 @@ class AssetDefinition(Asset):
 
     def __attrs_post_init__(self) -> None:
         parameters = inspect.signature(self.function).parameters
+        if "self" in parameters:
+            self.function: types.FunctionType = _handle_self_argument(cast(types.FunctionType, self.function))  # type: ignore[assignment]
+
         with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True) as dag:
             _AssetMainOperator(
                 task_id="__main__",
                 inlets=[
-                    Asset(name=inlet_aset_name)
-                    for inlet_aset_name in parameters
-                    if inlet_aset_name not in ("self", "context")
+                    Asset(name=inlet_asset_name)
+                    for inlet_asset_name in parameters
+                    if inlet_asset_name not in ("self", "context")
                 ],
                 outlets=[self],
                 python_callable=self.function,
@@ -114,7 +130,7 @@ class asset:
     )
     extra: dict[str, Any] = attrs.field(factory=dict)
 
-    def __call__(self, f: types.FunctionType) -> AssetDefinition:
+    def __call__(self, f: Callable) -> AssetDefinition:
         if (name := f.__name__) != f.__qualname__:
             raise ValueError("nested function not supported")
         if name == "self" or name == "context":
@@ -124,6 +140,6 @@ class asset:
             uri=name if self.uri is None else str(self.uri),
             group=self.group,
             extra=self.extra,
-            function=f,
+            function=cast(types.FunctionType, f),
             schedule=self.schedule,
         )

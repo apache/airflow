@@ -119,6 +119,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
+    from airflow.decorators.assets import AssetDefinition
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
@@ -436,6 +437,9 @@ class DAG(TaskSDKDag, LoggingMixin):
     # this will only be set at serialization time
     # it's only use is for determining the relative fileloc based only on the serialize dag
     _processor_dags_folder: str | None = attrs.field(init=False, default=None)
+
+    # Additional information if this is created from an @asset definition.
+    _wrapped_definition: AssetDefinition | None = None
 
     # Override the default from parent class to use config
     max_consecutive_failed_dag_runs: int = attrs.field(
@@ -777,9 +781,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @classmethod
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
-        return TaskSDKDag.get_serialized_fields() | {
-            "_processor_dags_folder",
-        }
+        return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder", "_wrapped_definition"}
 
     @staticmethod
     @internal_api_call

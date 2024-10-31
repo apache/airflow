@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
 
@@ -47,7 +48,7 @@ def example_asset_definition(example_asset_func):
 
 @pytest.fixture
 def example_asset_func_with_valid_arg_as_inlet_asset():
-    def _example_asset_func(context, inlet_asset_1, inlet_asset_2):
+    def _example_asset_func(self, context, inlet_asset_1, inlet_asset_2):
         return "This is example_asset"
 
     _example_asset_func.__name__ = "example_asset_func"
@@ -132,9 +133,12 @@ class TestAssetDefinition:
                 Asset(name="inlet_asset_2", uri="inlet_asset_2", group="", extra={}),
             ],
             outlets=[asset_definition],
-            python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
+            python_callable=ANY,
             definition_name="example_asset_func",
         )
+
+        python_callable = _AssetMainOperator.call_args.kwargs["python_callable"]
+        assert python_callable.__wrapped__ == example_asset_func_with_valid_arg_as_inlet_asset
 
 
 class Test_AssetMainOperator:
@@ -151,6 +155,7 @@ class Test_AssetMainOperator:
             definition_name="example_asset_func",
         )
         assert op.determine_kwargs(context={"k": "v"}) == {
+            "_self": AssetRef(name="example_asset_func"),
             "context": {"k": "v"},
             "inlet_asset_1": AssetRef(name="inlet_asset_1"),
             "inlet_asset_2": AssetRef(name="inlet_asset_2"),

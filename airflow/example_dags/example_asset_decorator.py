@@ -19,28 +19,29 @@ from __future__ import annotations
 import pendulum
 
 from airflow.assets import Asset
+from airflow.decorators import dag, task
 from airflow.decorators.assets import asset
-from airflow.models.dag import DAG
-from airflow.providers.standard.operators.bash import BashOperator
 
-asset1 = Asset(uri="s3://bucket/object")
+asset1 = Asset(uri="s3://bucket/object", name="asset1")
 
 
 @asset(uri="s3://bucket/asset_decorator", schedule=None)
-def asset_decorator(asset1, asset2):
+def asset_decorator(self, context, asset1, asset2):
     pass
 
 
-with DAG(
-    dag_id="asset_consumes_1",
-    catchup=False,
-    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+@dag(
     schedule=[Asset(name="asset_decorator", uri="s3://bucket/asset_decorator")],
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
     tags=["consumes", "asset-scheduled"],
-) as dag3:
-    # [END dag_dep]
-    BashOperator(
-        outlets=[Asset("s3://consuming_1_task/asset_other.txt")],
-        task_id="consuming_1",
-        bash_command="sleep 5",
-    )
+)
+def consumes_asset_decorator():
+    @task(outlets=[Asset("s3://consuming_1_task/asset_other.txt")])
+    def process_nothing():
+        pass
+
+    process_nothing()
+
+
+consumes_asset_decorator()
