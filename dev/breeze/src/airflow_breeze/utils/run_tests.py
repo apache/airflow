@@ -31,7 +31,6 @@ from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
 DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
-COMMON_TESTS_PYTEST_PLUGIN = "tests_common.pytest_plugin"
 
 
 def verify_an_image(
@@ -136,10 +135,10 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
     "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
     "BranchPythonVenv": [
-        "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
+        "providers/tests/standard/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
     "BranchExternalPython": [
-        "tests/operators/test_python.py::TestBranchExternalPythonOperator",
+        "providers/tests/standard/operators/test_python.py::TestBranchExternalPythonOperator",
     ],
     "CLI": ["tests/cli"],
     "Core": [
@@ -151,7 +150,7 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/utils",
     ],
     "ExternalPython": [
-        "tests/operators/test_python.py::TestExternalPythonOperator",
+        "providers/tests/standard/operators/test_python.py::TestExternalPythonOperator",
     ],
     "Integration": ["tests/integration"],
     # Operators test type excludes Virtualenv/External tests - they have their own test types
@@ -159,12 +158,12 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     # this one is mysteriously failing dill serialization. It could be removed once
     # https://github.com/pytest-dev/pytest/issues/10845 is fixed
     "PlainAsserts": [
-        "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
+        "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
         "--assert=plain",
     ],
     "Providers": ["providers/tests"],
     "PythonVenv": [
-        "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+        "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator",
     ],
     "Serialization": [
         "tests/serialization",
@@ -213,6 +212,12 @@ PROVIDERS_LIST_PREFIX = "Providers["
 PROVIDERS_LIST_EXCLUDE_PREFIX = "Providers[-"
 
 ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
+    # TODO: This is not really correct now - we should allow to run both providers and airflow
+    # as "ALL" tests - currently it is not possible due to conftest.py present at top-level of
+    # all different test suites ("tests", "providers/tests", "task_sdk/tests")
+    # The only reason it is working now in CI is because we run tests in parallel (both DB and non-DB)
+    # each test subfolder is separately specified in the pytest command line
+    # This should be solved as part of https://github.com/apache/airflow/issues/42632
     "All": ("tests",),
     "All-Long": ("tests", "-m", "long_running", "--include-long-running"),
     "All-Quarantined": ("tests", "-m", "quarantined", "--include-quarantined"),
@@ -339,10 +344,6 @@ def generate_args_for_pytest(
             "-rfEX",
         ]
     )
-    if test_type != HELM_TESTS:
-        # Helm tests previously did not make use of the pytest plugin from their conftest file. So do not
-        # enable it for those tests with the new mechanism
-        args.append(f"-p {COMMON_TESTS_PYTEST_PLUGIN}")
     if skip_db_tests:
         args.append("--skip-db-tests")
     if run_db_tests_only:

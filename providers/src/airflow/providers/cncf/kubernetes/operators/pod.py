@@ -27,7 +27,7 @@ import re
 import shlex
 import string
 import warnings
-from collections.abc import Container
+from collections.abc import Container, Mapping
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
@@ -436,7 +436,7 @@ class KubernetesPodOperator(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:

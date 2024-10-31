@@ -23,8 +23,8 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
 from airflow.utils.decorators import remove_task_decorator
-from airflow.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
 
 
 class TestPrepareVirtualenv:
@@ -60,7 +60,7 @@ class TestPrepareVirtualenv:
         for term in unexpected_pip_conf_content:
             assert term not in generated_conf
 
-    @mock.patch("airflow.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     def test_should_create_virtualenv(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=False, requirements=[]
@@ -70,7 +70,7 @@ class TestPrepareVirtualenv:
             [sys.executable, "-m", "virtualenv", "/VENV", "--python=pythonVER"]
         )
 
-    @mock.patch("airflow.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     def test_should_create_virtualenv_with_system_packages(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=True, requirements=[]
@@ -80,7 +80,7 @@ class TestPrepareVirtualenv:
             [sys.executable, "-m", "virtualenv", "/VENV", "--system-site-packages", "--python=pythonVER"]
         )
 
-    @mock.patch("airflow.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     def test_pip_install_options(self, mock_execute_in_subprocess):
         pip_install_options = ["--no-deps"]
         python_bin = prepare_virtualenv(
@@ -99,7 +99,7 @@ class TestPrepareVirtualenv:
             ["/VENV/bin/pip", "install", *pip_install_options, "apache-beam[gcp]"]
         )
 
-    @mock.patch("airflow.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     def test_should_create_virtualenv_with_extra_packages(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",

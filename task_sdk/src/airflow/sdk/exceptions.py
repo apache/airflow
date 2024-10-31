@@ -14,16 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import os
-
-import pytest
-
-# Task SDK does not need access to the Airflow database
-os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: pytest.Config) -> None:
-    config.inicfg["airflow_deprecations_ignore"] = []

@@ -69,7 +69,7 @@ if len(sys.argv) > 5:
     import json
     from types import ModuleType
 
-    from airflow.operators import python as airflow_python
+    from airflow.providers.standard.operators import python as airflow_python
     from airflow.serialization.serialized_objects import BaseSerialization
 
 
@@ -85,7 +85,7 @@ if len(sys.argv) > 5:
 
 
     MockPython = _MockPython("MockPython")
-    sys.modules["airflow.operators.python"] = MockPython
+    sys.modules["airflow.providers.standard.operators.python"] = MockPython
 {% endif %}
 
 try:

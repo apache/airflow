@@ -92,6 +92,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources (true/false)"
         required: true
         type: string
+      docs-build:
+        description: "Whether to build docs (true/false)"
+        required: true
+        type: string
 jobs:
   static-checks:
     timeout-minutes: 45
@@ -182,6 +186,7 @@ jobs:
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    if: inputs.docs-build == 'true'
     strategy:
       fail-fast: false
       matrix:

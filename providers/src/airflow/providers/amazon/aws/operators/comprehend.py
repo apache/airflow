@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -55,7 +55,7 @@ class ComprehendBaseOperator(AwsBaseOperator[ComprehendHook]):
         "input_data_config", "output_data_config", "data_access_role_arn", "language_code"
     )
 
-    template_fields_renderers: dict = {"input_data_config": "json", "output_data_config": "json"}
+    template_fields_renderers: ClassVar[dict] = {"input_data_config": "json", "output_data_config": "json"}
 
     def __init__(
         self,
@@ -248,7 +248,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         "document_classifier_kwargs",
     )
 
-    template_fields_renderers: dict = {
+    template_fields_renderers: ClassVar[dict] = {
         "input_data_config": "json",
         "output_data_config": "json",
         "document_classifier_kwargs": "json",

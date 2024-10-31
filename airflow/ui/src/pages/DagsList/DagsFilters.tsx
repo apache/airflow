@@ -133,7 +133,7 @@ export const DagsFilters = () => {
             onClick={handleStateChange}
             value="success"
           >
-            Successful
+            Success
           </QuickFilterButton>
         </HStack>
         <Select
