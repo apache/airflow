@@ -363,10 +363,12 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
         old_ti = tis[0]
 
-        ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=2)
-        for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
-            setattr(ti, attr, getattr(old_ti, attr))
-        session.add(ti)
+        for index in range(3):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=index)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
+        session.delete(old_ti)
         session.commit()
 
         response = test_client.get(
