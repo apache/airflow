@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from google.api_core.exceptions import AlreadyExists
+
 from airflow.providers.google.cloud.hooks.financial_services import FinancialServicesHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
@@ -67,6 +69,7 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         kms_key_id: str,
         discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
+        timeout: float = 60.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -77,6 +80,7 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         self.kms_key_id = kms_key_id
         self.discovery_doc = discovery_doc
         self.gcp_conn_id = gcp_conn_id
+        self.timeout = timeout
 
     def execute(self, context: Context):
         hook = FinancialServicesHook(
@@ -85,14 +89,23 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Creating Financial Services instance: %s", self.instance_id)
 
-        response = hook.create_instance(
-            project_id=self.project_id,
-            region=self.region,
-            instance_id=self.instance_id,
-            kms_key_ring_id=self.kms_key_ring_id,
-            kms_key_id=self.kms_key_id,
-        )
-        return response["name"]
+        try:
+            operation = hook.create_instance(
+                project_id=self.project_id,
+                region=self.region,
+                instance_id=self.instance_id,
+                kms_key_ring_id=self.kms_key_ring_id,
+                kms_key_id=self.kms_key_id,
+            )
+            instance = hook.wait_for_operation(
+                operation=operation,
+                timeout=self.timeout,
+            )
+        except AlreadyExists:
+            instance = hook.get_instance(
+                project_id=self.project_id, region=self.region, instance_id=self.instance_id
+            )
+        return instance
 
 
 class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
@@ -122,6 +135,7 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         instance_id: str,
         discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
+        timeout: float = 60.0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -130,6 +144,7 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         self.instance_id = instance_id
         self.discovery_doc = discovery_doc
         self.gcp_conn_id = gcp_conn_id
+        self.timeout = timeout
 
     def execute(self, context: Context):
         hook = FinancialServicesHook(
@@ -138,12 +153,12 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Deleting Financial Services instance: %s", self.instance_id)
 
-        response = hook.delete_instance(
+        operation = hook.delete_instance(
             project_id=self.project_id,
             region=self.region,
             instance_id=self.instance_id,
         )
-        return response["name"]
+        hook.wait_for_operation(operation=operation, timeout=self.timeout)
 
 
 class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):

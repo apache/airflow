@@ -16,8 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from google.api_core import operations_v1
+from google.api_core.future import polling
+from google.api_core.operation import Operation
+from google.protobuf.empty_pb2 import Empty
 from googleapiclient.discovery import Resource, build_from_document
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -45,6 +50,18 @@ class FinancialServicesHook(GoogleBaseHook):
         )
         self.discovery_doc = discovery_doc
 
+    def get_operations_client(self):
+        if not self.operations_client:
+            credentials = self.get_credentials()
+            self.operations_transport = operations_v1.OperationsRestTransport(
+                host="financialservices.googleapis.com", credentials=credentials
+            )
+            self.operations_client = operations_v1.AbstractOperationsClient(
+                transport=self.operations_transport
+            )
+
+        return self.operations_client
+
     def get_conn(self) -> Resource:
         """
         Establish a connection to the Google Financial Services API.
@@ -55,6 +72,14 @@ class FinancialServicesHook(GoogleBaseHook):
             self.connection = build_from_document(self.discovery_doc)
 
         return self.connection
+
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
+        """Wait for long-lasting operation to complete."""
+        try:
+            return operation.result(timeout=timeout)
+        except Exception:
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
 
     def get_instance(self, project_id: str, region: str, instance_id: str) -> dict:
         """
@@ -74,7 +99,7 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def create_instance(
         self, project_id: str, region: str, instance_id: str, kms_key_ring_id: str, kms_key_id: str
-    ) -> dict:
+    ) -> Operation:
         """
         Create a Financial Services Anti-Money Laundering AI instance.
 
@@ -89,11 +114,13 @@ class FinancialServicesHook(GoogleBaseHook):
         :returns: A dictionary containing metadata for the create instance operation
         """
         conn = self.get_conn()
+        operations_client = self.get_operations_client()
+
         parent = f"projects/{project_id}/locations/{region}"
         kms_key = (
             f"projects/{project_id}/locations/{region}/keyRings/{kms_key_ring_id}/cryptoKeys{kms_key_id}"
         )
-        response = (
+        operation_json = (
             conn.projects()
             .locations()
             .instances()
@@ -104,9 +131,16 @@ class FinancialServicesHook(GoogleBaseHook):
             )
             .execute()
         )
-        return response
+        return Operation(
+            operation=operation_json,
+            refresh=lambda: operations_client.get_operation(operation_json["name"]),
+            cancel=lambda: operations_client.cancel_operation(operation_json["name"]),
+            result_type=Empty,
+            # metadata_type=OperationMetadata,
+            polling=polling.DEFAULT_POLLING.with_timeout(timeout=21600),
+        )
 
-    def delete_instance(self, project_id: str, region: str, instance_id: str) -> dict:
+    def delete_instance(self, project_id: str, region: str, instance_id: str) -> Operation:
         """
         Delete a Financial Services Anti-Money Laundering AI instance.
 
@@ -119,9 +153,19 @@ class FinancialServicesHook(GoogleBaseHook):
                 operation
         """
         conn = self.get_conn()
+        operations_client = self.get_operations_client()
+
         name = f"projects/{project_id}/locations/{region}/instances/{instance_id}"
-        response = conn.projects().locations().instances().delete(name=name).execute()
-        return response
+        operation_json = conn.projects().locations().instances().delete(name=name).execute()
+
+        return Operation(
+            operation=operation_json,
+            refresh=lambda: operations_client.get_operation(operation_json["name"]),
+            cancel=lambda: operations_client.cancel_operation(operation_json["name"]),
+            result_type=Empty,
+            # metadata_type=OperationMetadata,
+            polling=polling.DEFAULT_POLLING.with_timeout(timeout=21600),
+        )
 
     def get_operation(self, project_id: str, region: str, operation_id: str) -> dict:
         """
