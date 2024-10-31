@@ -847,9 +847,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
                 span.set_attribute("pid", ti.pid)
                 if span.is_recording():
-                    span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
-                    span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
-                    span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
+                    if ti.queued_dttm:
+                        span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
+                    if ti.start_date:
+                        span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
+                    if ti.end_date:
+                        span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
                 if conf.has_option("traces", "otel_task_log_event") and conf.getboolean(
                     "traces", "otel_task_log_event"
                 ):
