@@ -25,7 +25,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dates import parse_execution_date
+from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
@@ -44,7 +44,7 @@ TEST_DAG_ID = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
-execution_date_parsed = parse_execution_date(TEST_EXECUTION_DATE)
+execution_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
 run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
 
 
