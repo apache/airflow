@@ -58,8 +58,8 @@ files_not_fully_covered = [
     "airflow/dag_processing/manager.py",
     "airflow/dag_processing/processor.py",
     "airflow/triggers/base.py",
-    "airflow/triggers/external_task.py",
-    "airflow/triggers/file.py",
+    "providers/src/airflow/providers/standard/triggers/external_task.py",
+    "providers/src/airflow/providers/standard/triggers/file.py",
     "airflow/triggers/testing.py",
 ]
 

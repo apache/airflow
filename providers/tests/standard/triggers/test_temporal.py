@@ -23,8 +23,8 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
@@ -56,7 +56,7 @@ def test_datetime_trigger_serialization():
     moment = pendulum.instance(datetime.datetime(2020, 4, 1, 13, 0), pendulum.UTC)
     trigger = DateTimeTrigger(moment)
     classpath, kwargs = trigger.serialize()
-    assert classpath == "airflow.triggers.temporal.DateTimeTrigger"
+    assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
     assert kwargs == {"moment": moment, "end_from_trigger": False}
 
 
@@ -68,7 +68,7 @@ def test_timedelta_trigger_serialization():
     trigger = TimeDeltaTrigger(datetime.timedelta(seconds=10))
     expected_moment = timezone.utcnow() + datetime.timedelta(seconds=10)
     classpath, kwargs = trigger.serialize()
-    assert classpath == "airflow.triggers.temporal.DateTimeTrigger"
+    assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
     # We need to allow for a little time difference to avoid this test being
     # flaky if it runs over the boundary of a single second
     assert -2 < (kwargs["moment"] - expected_moment).total_seconds() < 2
@@ -113,8 +113,8 @@ async def test_datetime_trigger_timing(tz, end_from_trigger):
     assert result.payload == expected_payload
 
 
-@mock.patch("airflow.triggers.temporal.timezone.utcnow")
-@mock.patch("airflow.triggers.temporal.asyncio.sleep")
+@mock.patch("airflow.providers.standard.triggers.temporal.timezone.utcnow")
+@mock.patch("airflow.providers.standard.triggers.temporal.asyncio.sleep")
 @pytest.mark.asyncio
 async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
     """

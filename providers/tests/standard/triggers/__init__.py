@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
-
-from tests.models import DEFAULT_DATE
-
-with DAG(
-    dag_id="test_external_task_sensor_check_existence_ext",
-    schedule=None,
-    start_date=DEFAULT_DATE,
-) as dag1:
-    EmptyOperator(task_id="empty")
-
-with DAG(
-    dag_id="test_external_task_sensor_check_existence",
-    schedule=None,
-    start_date=DEFAULT_DATE,
-) as dag2:
-    ExternalTaskSensor(
-        task_id="external_task_sensor",
-        external_dag_id="test_external_task_sensor_check_existence_ext",
-        external_task_id="empty",
-        check_existence=True,
-    )

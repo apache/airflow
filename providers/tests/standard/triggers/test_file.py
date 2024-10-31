@@ -20,7 +20,7 @@ import asyncio
 
 import pytest
 
-from airflow.triggers.file import FileTrigger
+from airflow.providers.standard.triggers.file import FileTrigger
 
 
 class TestFileTrigger:
@@ -30,7 +30,7 @@ class TestFileTrigger:
         """Asserts that the trigger correctly serializes its arguments and classpath."""
         trigger = FileTrigger(filepath=self.FILE_PATH, poll_interval=5)
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.triggers.file.FileTrigger"
+        assert classpath == "airflow.providers.standard.triggers.file.FileTrigger"
         assert kwargs == {
             "filepath": self.FILE_PATH,
             "poke_interval": 5,

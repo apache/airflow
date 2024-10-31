@@ -1505,7 +1505,7 @@ class TestStringifiedDAGs:
         Tests serialize_operator, make sure the deps is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_deps_sorted", schedule=None, start_date=execution_date) as dag:
@@ -1620,7 +1620,7 @@ class TestStringifiedDAGs:
         Tests DAG dependency detection for sensors, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
             pass
@@ -1651,7 +1651,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -1740,7 +1740,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -2198,7 +2198,7 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+                trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
                 trigger_kwargs={"delta": timedelta(seconds=1)},
                 next_method="execute_complete",
                 next_kwargs=None,

@@ -39,12 +39,12 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time import TimeSensor
-from airflow.sensors.external_task import (
+from airflow.providers.standard.triggers.external_task import WorkflowTrigger
+from airflow.providers.standard.sensors.external_task import (
     ExternalTaskMarker,
     ExternalTaskSensor,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState

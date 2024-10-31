@@ -1016,7 +1016,7 @@ class DependencyDetector:
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
         """Detect dependencies caused by tasks."""
         from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         deps = []
         if isinstance(task, TriggerDagRunOperator):

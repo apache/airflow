@@ -73,7 +73,7 @@ from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import Asset, AssetAlias, BaseAsset
+from airflow.assets import BaseAsset
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -1115,7 +1115,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
-            from airflow.sensors.external_task import ExternalTaskMarker
+            from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
 
             query = tis
             if as_pk_tuple:
