@@ -86,12 +86,6 @@ def to_iso(val):
 
 
 class TestBackfillEndpoint:
-    # @pytest.fixture(autouse=True)
-    # def setup_attrs(self):
-    #     self.dag_id = DAG_ID
-    #     self.dag2_id = DAG2_ID
-    #     self.dag3_id = DAG3_ID
-
     @provide_session
     def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
         dags = []
