@@ -52,6 +52,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -69,6 +70,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance(
