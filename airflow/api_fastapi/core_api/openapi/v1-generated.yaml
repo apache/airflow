@@ -2158,12 +2158,12 @@ components:
         note:
           anyOf:
           - type: string
+            maxLength: 1000
           - type: 'null'
           title: Note
       type: object
       required:
       - state
-      - note
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
     DAGRunPatchStates:

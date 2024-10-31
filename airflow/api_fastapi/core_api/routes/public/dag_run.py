@@ -98,17 +98,23 @@ async def patch_dag_run_state(
         update_mask = ALLOWED_FIELD_MASK
 
     for attr_name in update_mask:
+        attr_value = getattr(patch_body, attr_name)
         if attr_name == "state":
-            state = getattr(patch_body, attr_name)
-            if state == DAGRunPatchStates.SUCCESS:
+            if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
-            elif state == DAGRunPatchStates.QUEUED:
+            elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
             else:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
         elif attr_name == "note":
-            # Need to figure out how to get current user id
-            pass
+            # Once Authentication is implemented in this FastAPI app,
+            # user id will be added when updating dag run note
+            # Refer to https://github.com/apache/airflow/issues/43534
+            if dag_run.dag_run_note is None:
+                dag_run.note = (attr_value, None)
+            else:
+                dag_run.dag_run_note.content = attr_value
+                dag_run.dag_run_note.user_id = None
 
     dag_run = session.get(DagRun, dag_run.id)
 

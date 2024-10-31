@@ -896,6 +896,7 @@ export const $DAGRunPatchBody = {
       anyOf: [
         {
           type: "string",
+          maxLength: 1000,
         },
         {
           type: "null",
@@ -905,7 +906,7 @@ export const $DAGRunPatchBody = {
     },
   },
   type: "object",
-  required: ["state", "note"],
+  required: ["state"],
   title: "DAGRunPatchBody",
   description: "DAG Run Serializer for PATCH requests.",
 } as const;
