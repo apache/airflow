@@ -22,13 +22,16 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
-from airflow.models import DagBag, DagModel
-from airflow.models.backfill import Backfill, ReprocessBehavior
+from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.db import (
     clear_db_backfills,
@@ -103,16 +106,14 @@ class TestBackfillEndpoint:
 
 
 class TestListBackfills(TestBackfillEndpoint):
-    def test_should_respond_200(self, test_client, session):
+    def test_list_backfill(self, test_client, session):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
         b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(b)
         session.commit()
-        response = test_client.get(
-            f"/public/backfills?dag_id={dag.dag_id}",
-        )
+        response = test_client.get(f"/public/backfills?dag_id={dag.dag_id}")
         assert response.status_code == 200
         assert response.json() == {
             "backfills": [
@@ -135,7 +136,7 @@ class TestListBackfills(TestBackfillEndpoint):
 
 
 class TestGetBackfill(TestBackfillEndpoint):
-    def test_should_respond_200(self, session, test_client):
+    def test_get_backfill(self, session, test_client):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -159,24 +160,9 @@ class TestGetBackfill(TestBackfillEndpoint):
         }
 
     def test_no_exist(self, session, test_client):
-        response = test_client.get(f"/public/backfills/{23198409834208}")
+        response = test_client.get(f"/public/backfills/{231984098}")
         assert response.status_code == 404
         assert response.json().get("detail") == "Backfill not found"
-
-    def test_should_respond_200_with_granular_dag_access(self, session, test_client):
-        (dag,) = self._create_dag_models()
-        from_date = timezone.utcnow()
-        to_date = timezone.utcnow()
-        backfill = Backfill(
-            dag_id=dag.dag_id,
-            from_date=from_date,
-            to_date=to_date,
-        )
-        session.add(backfill)
-        session.commit()
-        kwargs = {}
-        response = test_client.get(f"/public/backfills/{backfill.id}", **kwargs)
-        assert response.status_code == 200, response.json()
 
 
 class TestCreateBackfill(TestBackfillEndpoint):
@@ -230,7 +216,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
 
 
 class TestCancelBackfill(TestBackfillEndpoint):
-    def test_should_respond_200(self, session, test_client):
+    def test_cancel_backfill(self, session, test_client):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -262,30 +248,44 @@ class TestCancelBackfill(TestBackfillEndpoint):
         response = test_client.put(f"/public/backfills/{backfill.id}/cancel")
         assert response.status_code == 409
 
-    def test_should_respond_200_with_granular_dag_access(self, session, test_client):
-        (dag,) = self._create_dag_models()
-        from_date = timezone.utcnow()
-        to_date = timezone.utcnow()
-        backfill = Backfill(
+    def test_cancel_backfill_end_states(self, dag_maker, session, test_client):
+        """
+        Queued runs should be marked *failed*.
+        Every other dag run should be left alone.
+        """
+        with dag_maker(schedule="@daily") as dag:
+            PythonOperator(task_id="hi", python_callable=print)
+        b = _create_backfill(
             dag_id=dag.dag_id,
-            from_date=from_date,
-            to_date=to_date,
+            from_date=timezone.datetime(2021, 1, 1),
+            to_date=timezone.datetime(2021, 1, 5),
+            max_active_runs=2,
+            reverse=False,
+            dag_run_conf={},
         )
-        session.add(backfill)
+        query = (
+            select(DagRun)
+            .join(BackfillDagRun.dag_run)
+            .where(BackfillDagRun.backfill_id == b.id)
+            .order_by(BackfillDagRun.sort_ordinal)
+        )
+        dag_runs = session.scalars(query).all()
+        dates = [str(x.logical_date.date()) for x in dag_runs]
+        expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
+        assert dates == expected_dates
+        assert all(x.state == DagRunState.QUEUED for x in dag_runs)
+        dag_runs[0].state = "running"
         session.commit()
-        kwargs = {}
-        response = test_client.put(f"/public/backfills/{backfill.id}/cancel")
+        response = test_client.put(f"/public/backfills/{b.id}/cancel")
         assert response.status_code == 200
-        # now it is marked as completed
-        assert pendulum.parse(response.json()["completed_at"])
-
-        # get conflict when canceling already-canceled backfill
-        response = test_client.put(f"/public/backfills/{backfill.id}/cancel", **kwargs)
-        assert response.status_code == 409
+        session.expunge_all()
+        dag_runs = session.scalars(query).all()
+        states = [x.state for x in dag_runs]
+        assert states == ["running", "failed", "failed", "failed", "failed"]
 
 
 class TestPauseBackfill(TestBackfillEndpoint):
-    def test_should_respond_200(self, session, test_client):
+    def test_pause_backfill(self, session, test_client):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -307,17 +307,3 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
-
-    def test_should_respond_200_with_granular_dag_access(self, session, test_client):
-        (dag,) = self._create_dag_models()
-        from_date = timezone.utcnow()
-        to_date = timezone.utcnow()
-        backfill = Backfill(
-            dag_id=dag.dag_id,
-            from_date=from_date,
-            to_date=to_date,
-        )
-        session.add(backfill)
-        session.commit()
-        response = test_client.put(f"/public/backfills/{backfill.id}/pause")
-        assert response.status_code == 200
