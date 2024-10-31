@@ -28,7 +28,6 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
-    FilterParam,
     QueryLimit,
     QueryOffset,
     SortParam,
@@ -63,7 +62,10 @@ async def get_event_log(
     )
 
 
-@event_logs_router.get("/", responses=create_openapi_http_exception_doc([401, 403]))
+@event_logs_router.get(
+    "/",
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+)
 async def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -101,21 +103,32 @@ async def get_event_logs(
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
     base_select = select(Log).group_by(Log.id)
+    # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
+    if dag_id is not None:
+        base_select = base_select.where(Log.dag_id == dag_id)
+    if task_id is not None:
+        base_select = base_select.where(Log.task_id == task_id)
+    if run_id is not None:
+        base_select = base_select.where(Log.run_id == run_id)
+    if map_index is not None:
+        base_select = base_select.where(Log.map_index == map_index)
+    if try_number is not None:
+        base_select = base_select.where(Log.try_number == try_number)
+    if owner is not None:
+        base_select = base_select.where(Log.owner == owner)
+    if event is not None:
+        base_select = base_select.where(Log.event == event)
+    if excluded_events is not None:
+        base_select = base_select.where(Log.event.notin_(excluded_events))
+    if included_events is not None:
+        base_select = base_select.where(Log.event.in_(included_events))
+    if before is not None:
+        base_select = base_select.where(Log.dttm < before)
+    if after is not None:
+        base_select = base_select.where(Log.dttm > after)
     event_logs_select, total_entries = paginated_select(
         base_select,
-        [
-            FilterParam(Log.dag_id, dag_id),
-            FilterParam(Log.task_id, task_id),
-            FilterParam(Log.run_id, run_id),
-            FilterParam(Log.map_index, map_index),
-            FilterParam(Log.event, event),
-            FilterParam(Log.try_number, try_number),
-            FilterParam(Log.owner, owner),
-            FilterParam(Log.event, excluded_events, "not_in"),
-            FilterParam(Log.event, included_events, "in"),
-            FilterParam(Log.dttm, before, "lt"),
-            FilterParam(Log.dttm, after, "gt"),
-        ],
+        [],
         order_by,
         offset,
         limit,
