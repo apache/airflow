@@ -17,36 +17,63 @@
  * under the License.
  */
 import { Tooltip, VStack, Text } from "@chakra-ui/react";
+import dayjs from "dayjs";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 
 type Props = {
-  readonly dag: DAGResponse;
+  readonly dataIntervalEnd?: string | null;
+  readonly dataIntervalStart?: string | null;
+  readonly endDate?: string | null;
+  readonly logicalDate?: string | null;
+  readonly nextDagrunCreateAfter?: string | null;
+  readonly startDate?: string | null;
 };
 
-const DagRunInfo = ({ dag }: Props) => (
-  <Tooltip
-    hasArrow
-    label={
-      <VStack align="left" gap={0}>
-        <Text>Data Interval</Text>
-        <Text>
-          Start: <Time datetime={dag.next_dagrun_data_interval_start} />
-        </Text>
-        <Text>
-          End: <Time datetime={dag.next_dagrun_data_interval_end} />
-        </Text>
-        <Text>
-          Run After: <Time datetime={dag.next_dagrun_create_after} />
-        </Text>
-      </VStack>
-    }
-  >
-    <Text fontSize="sm">
-      <Time datetime={dag.next_dagrun} showTooltip={false} />
-    </Text>
-  </Tooltip>
-);
+const DagRunInfo = ({
+  dataIntervalEnd,
+  dataIntervalStart,
+  endDate,
+  logicalDate,
+  nextDagrunCreateAfter,
+  startDate,
+}: Props) =>
+  Boolean(dataIntervalStart) && Boolean(dataIntervalEnd) ? (
+    <Tooltip
+      hasArrow
+      label={
+        <VStack align="left" gap={0}>
+          <Text>
+            Data Interval Start: <Time datetime={dataIntervalStart} />
+          </Text>
+          <Text>
+            Data Interval End: <Time datetime={dataIntervalEnd} />
+          </Text>
+          {Boolean(nextDagrunCreateAfter) ? (
+            <Text>
+              Run After: <Time datetime={nextDagrunCreateAfter} />
+            </Text>
+          ) : undefined}
+          {Boolean(logicalDate) ? (
+            <Text>Logical Date: {logicalDate}</Text>
+          ) : undefined}
+          {Boolean(startDate) ? (
+            <Text>Start Date: {startDate}</Text>
+          ) : undefined}
+          {Boolean(endDate) ? <Text>End Date: {endDate}</Text> : undefined}
+          {Boolean(startDate) && Boolean(endDate) ? (
+            <Text>
+              Duration:{" "}
+              {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s{" "}
+            </Text>
+          ) : undefined}
+        </VStack>
+      }
+    >
+      <Text fontSize="sm">
+        <Time datetime={dataIntervalStart} showTooltip={false} />
+      </Text>
+    </Tooltip>
+  ) : undefined;
 
 export default DagRunInfo;

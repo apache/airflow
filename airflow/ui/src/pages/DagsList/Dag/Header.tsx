@@ -35,7 +35,6 @@ import { TogglePause } from "src/components/TogglePause";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagTags";
-import { LatestRun } from "../LatestRun";
 
 export const Header = ({
   dag,
@@ -81,14 +80,27 @@ export const Header = ({
           <Heading color="fg.muted" fontSize="xs">
             Last Run
           </Heading>
-          <LatestRun latestRun={latestRun} />
-          <LatestRun />
+          {Boolean(latestRun) && latestRun !== undefined ? (
+            <DagRunInfo
+              dataIntervalEnd={latestRun.data_interval_end}
+              dataIntervalStart={latestRun.data_interval_start}
+              endDate={latestRun.end_date}
+              logicalDate={latestRun.logical_date}
+              startDate={latestRun.start_date}
+            />
+          ) : undefined}
         </VStack>
         <VStack align="flex-start" gap={1}>
           <Heading color="fg.muted" fontSize="xs">
             Next Run
           </Heading>
-          {Boolean(dag?.next_dagrun) ? <DagRunInfo dag={dag!} /> : undefined}
+          {Boolean(dag?.next_dagrun) && dag !== undefined ? (
+            <DagRunInfo
+              dataIntervalEnd={dag.next_dagrun_data_interval_end}
+              dataIntervalStart={dag.next_dagrun_data_interval_start}
+              nextDagrunCreateAfter={dag.next_dagrun_create_after}
+            />
+          ) : undefined}
         </VStack>
         <div />
         <div />
