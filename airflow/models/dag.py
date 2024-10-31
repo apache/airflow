@@ -1730,7 +1730,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :param creating_job_id: id of the job creating this DagRun
         :param session: database session
-        :param dag_version_id: The DagVersion ID to run with
+        :param dag_version_id: The DagVersion ID for this run
         :param data_interval: Data interval of the DagRun
         :param backfill_id: id of the backfill run if one exists
         """

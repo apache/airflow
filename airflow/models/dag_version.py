@@ -75,7 +75,7 @@ class DagVersion(Base):
     )
 
     def __repr__(self):
-        return f"<DagVersion {self.dag_id} - {self.version_name}>"
+        return f"<DagVersion {self.dag_id} {self.version}>"
 
     @classmethod
     @provide_session
