@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Collection, Mapping, Sequence
 
-from airflow.operators.python import PythonOperator, get_current_context
+from airflow.providers.common.compat.standard.operators import PythonOperator, get_current_context
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.snowpark import inject_session_into_op_kwargs
 

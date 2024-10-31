@@ -33,10 +33,12 @@ from collections.abc import Container
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
 
 import lazy_object_proxy
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -49,6 +51,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
+from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
@@ -56,12 +59,16 @@ from airflow.utils.context import context_copy_partial, context_get_outlet_event
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
-from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
 if TYPE_CHECKING:
+    from pendulum.datetime import DateTime
+
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
@@ -75,38 +82,6 @@ def is_venv_installed() -> bool:
     if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
         return True
     return False
-
-
-def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Use :func:`airflow.decorators.task` instead, this is deprecated.
-
-    Calls ``@task.python`` and allows users to turn a Python function into
-    an Airflow task.
-
-    :param python_callable: A reference to an object that is callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function (templated)
-    :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable (templated)
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
-    """
-    # To maintain backwards compatibility, we import the task object into this file
-    # This prevents breakages in dags that use `from airflow.operators.python import task`
-    from airflow.decorators.python import python_task
-
-    warnings.warn(
-        """airflow.operators.python.task is deprecated. Please use the following instead
-
-        from airflow.decorators import task
-        @task
-        def my_task()""",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
 
 
 @cache
@@ -210,13 +185,6 @@ class PythonOperator(BaseOperator):
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
-        if kwargs.get("provide_context"):
-            warnings.warn(
-                "provide_context is deprecated as of 2.0 and is no longer required",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            kwargs.pop("provide_context", None)
         super().__init__(**kwargs)
         if not callable(python_callable):
             raise AirflowException("`python_callable` param must be callable")
@@ -332,12 +300,20 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
 
         self.log.info("Skipping downstream tasks")
+        if AIRFLOW_V_3_0_PLUS:
+            self.skip(
+                dag_run=dag_run,
+                tasks=to_skip,
+                map_index=context["ti"].map_index,
+            )
+        else:
+            self.skip(
+                dag_run=dag_run,
+                tasks=to_skip,
+                execution_date=cast("DateTime", dag_run.execution_date),  # type: ignore[call-arg]
+                map_index=context["ti"].map_index,
+            )
 
-        self.skip(
-            dag_run=dag_run,
-            tasks=to_skip,
-            map_index=context["ti"].map_index,
-        )
         self.log.info("Done.")
         # returns the result of the super execute method as it is instead of returning None
         return condition
@@ -414,6 +390,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_start_date_success",
         "prev_end_date_success",
     }
+
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
         "conf",
@@ -421,7 +398,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_asset_events",
+        "triggering_asset_events" if AIRFLOW_V_3_0_PLUS else "triggering_dataset_events",
     }
 
     def __init__(
@@ -729,12 +706,10 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 f"Sys version: {sys.version_info}. Virtual environment version: {python_version}"
             )
         if python_version is not None and not isinstance(python_version, str):
-            warnings.warn(
-                "Passing non-string types (e.g. int or float) as python_version "
-                "is deprecated. Please use string value instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
+            raise AirflowException(
+                "Passing non-string types (e.g. int or float) as python_version not supported"
             )
+
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if use_airflow_context and (not expect_airflow and not system_site_packages):
@@ -1165,7 +1140,7 @@ def get_current_context() -> Context:
 
     .. code:: python
 
-        from airflow.operators.python import get_current_context
+        from airflow.providers.standard.operators.python import get_current_context
 
 
         def my_task():

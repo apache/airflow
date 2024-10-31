@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from airflow.decorators.base import get_unique_task_id, task_decorator_factory
-from airflow.sensors.python import PythonSensor
+from airflow.providers.standard.sensors.python import PythonSensor
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator

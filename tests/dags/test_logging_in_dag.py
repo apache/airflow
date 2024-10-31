@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 
 logger = logging.getLogger(__name__)

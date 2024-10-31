@@ -81,6 +81,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "google"
     ],
     "excluded-python-versions": [
@@ -285,7 +286,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -396,7 +398,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "openlineage"
+      "openlineage",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -516,7 +519,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -532,7 +537,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },

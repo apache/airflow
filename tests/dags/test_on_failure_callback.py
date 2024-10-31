@@ -21,8 +21,8 @@ from datetime import datetime
 
 from airflow.exceptions import AirflowFailException
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

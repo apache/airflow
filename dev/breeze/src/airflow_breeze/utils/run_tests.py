@@ -135,10 +135,10 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
     "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
     "BranchPythonVenv": [
-        "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
+        "providers/tests/standard/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
     "BranchExternalPython": [
-        "tests/operators/test_python.py::TestBranchExternalPythonOperator",
+        "providers/tests/standard/operators/test_python.py::TestBranchExternalPythonOperator",
     ],
     "CLI": ["tests/cli"],
     "Core": [
@@ -150,7 +150,7 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/utils",
     ],
     "ExternalPython": [
-        "tests/operators/test_python.py::TestExternalPythonOperator",
+        "providers/tests/standard/operators/test_python.py::TestExternalPythonOperator",
     ],
     "Integration": ["tests/integration"],
     # Operators test type excludes Virtualenv/External tests - they have their own test types
@@ -158,12 +158,12 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     # this one is mysteriously failing dill serialization. It could be removed once
     # https://github.com/pytest-dev/pytest/issues/10845 is fixed
     "PlainAsserts": [
-        "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
+        "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
         "--assert=plain",
     ],
     "Providers": ["providers/tests"],
     "PythonVenv": [
-        "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+        "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator",
     ],
     "Serialization": [
         "tests/serialization",

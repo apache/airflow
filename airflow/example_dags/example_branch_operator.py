@@ -29,12 +29,12 @@ from pathlib import Path
 
 import pendulum
 
-from airflow.operators.python import is_venv_installed
+from airflow.providers.standard.operators.python import is_venv_installed
 
 if is_venv_installed():
     from airflow.models.dag import DAG
     from airflow.operators.empty import EmptyOperator
-    from airflow.operators.python import (
+    from airflow.providers.standard.operators.python import (
         BranchExternalPythonOperator,
         BranchPythonOperator,
         BranchPythonVirtualenvOperator,

@@ -14,26 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import datetime
+from typing import TYPE_CHECKING
 
-from airflow.decorators import task
-from airflow.models.dag import DAG
-from airflow.providers.standard.operators.python import PythonOperator
-
-
-@task
-def make_arg_lists():
-    return [[1], [2], [{"a": "b"}]]
-
-
-def consumer(value):
-    print(repr(value))
+if TYPE_CHECKING:
+    from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
+else:
+    try:
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
+    except ModuleNotFoundError:
+        from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 
-with DAG(dag_id="test_mapped_classic", schedule=None, start_date=datetime.datetime(2022, 1, 1)) as dag:
-    PythonOperator.partial(task_id="consumer", python_callable=consumer).expand(op_args=make_arg_lists())
-    PythonOperator.partial(task_id="consumer_literal", python_callable=consumer).expand(
-        op_args=[[1], [2], [3]],
-    )
+__all__ = ["write_python_script", "prepare_virtualenv"]
