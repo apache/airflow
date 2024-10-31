@@ -45,7 +45,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+from airflow.task.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -1035,10 +1035,10 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-@mock.patch("airflow.task.task_runner.get_task_runner")
-def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
+@mock.patch("airflow.task.standard_task_runner.StandardTaskRunner")
+def test_number_of_queries_single_loop(mock_task_runner, dag_maker):
     codes: list[int | None] = 9 * [None] + [0]
-    mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
+    mock_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())
     with dag_maker(dag_id=f"{unique_prefix}_test_number_of_queries", serialized=True):
@@ -1051,7 +1051,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
 
     job = Job(dag_id=ti.dag_id, executor=MockExecutor())
     job_runner = LocalTaskJobRunner(job=job, task_instance=ti)
-    with assert_queries_count(18):
+    with assert_queries_count(15):
         run_job(job=job, execute_callable=job_runner._execute)
 
 

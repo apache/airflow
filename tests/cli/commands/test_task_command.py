@@ -918,7 +918,7 @@ class TestLogsfromTaskRunCommand:
             session.delete(pool)
             session.commit()
 
-    @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
+    @mock.patch("airflow.task.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self, session):
         ti = self.dr.get_task_instances(session=session)[0]
         _set_state_and_try_num(ti, session)
@@ -933,7 +933,7 @@ class TestLogsfromTaskRunCommand:
         logs_list = logs.splitlines()
 
         assert f"Subtask {self.task_id}" in logs
-        assert "base_task_runner.py" in logs
+        assert "standard_task_runner.py" in logs
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
