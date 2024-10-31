@@ -250,7 +250,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-tests": [
         "aiofiles>=23.2.0",
         "aioresponses>=0.7.6",
-        "backports.zoneinfo>=0.2.1;python_version<'3.9'",
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
