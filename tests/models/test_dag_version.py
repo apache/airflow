@@ -42,7 +42,7 @@ class TestDagVersion:
 
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version_number == 1
-        assert latest_version.version_name
+        assert not latest_version.version_name
         assert latest_version.dag_id == dag.dag_id
 
     @pytest.mark.need_serialized_dag
@@ -122,3 +122,20 @@ class TestDagVersion:
         latest_versions_for_the_dags = {f"dag1-{version_name}-2", f"dag2-{version_name2}-2"}
         latest_versions = DagVersion.get_latest_dag_versions(["dag1", "dag2"])
         assert latest_versions_for_the_dags == {x.version for x in latest_versions}
+
+    @pytest.mark.need_serialized_dag
+    def test_version_property(self, dag_maker):
+        version_name = "my_version"
+        with dag_maker("test1", version_name=version_name) as dag:
+            pass
+
+        latest_version = DagVersion.get_latest_version(dag.dag_id)
+        assert latest_version.version == f"test1-{version_name}-1"
+
+    @pytest.mark.need_serialized_dag
+    def test_version_property_with_null_version_name(self, dag_maker):
+        with dag_maker("test1") as dag:
+            pass
+
+        latest_version = DagVersion.get_latest_version(dag.dag_id)
+        assert latest_version.version == "test1-1"

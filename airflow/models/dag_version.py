@@ -18,8 +18,6 @@
 from __future__ import annotations
 
 import logging
-import random
-import string
 from typing import TYPE_CHECKING
 
 import uuid6
@@ -38,17 +36,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _gen_random_str():
-    return "".join(random.choices(string.ascii_letters + string.digits, k=10))
-
-
 class DagVersion(Base):
     """Model to track the versions of DAGs in the database."""
 
     __tablename__ = "dag_version"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     version_number = Column(Integer, nullable=False, default=1)
-    version_name = Column(StringID(), default=_gen_random_str, nullable=False)
+    version_name = Column(StringID())
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False)
     dag_model = relationship("DagModel", back_populates="dag_versions")
     dag_code = relationship(
@@ -70,9 +64,7 @@ class DagVersion(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow)
 
     __table_args__ = (
-        UniqueConstraint(
-            "dag_id", "version_name", "version_number", name="dag_id_v_name_v_number_unique_constraint"
-        ),
+        UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
     )
 
     def __repr__(self):
@@ -94,8 +86,6 @@ class DagVersion(Base):
         )
         if existing_dag_version:
             version_number = existing_dag_version.version_number + 1
-        if existing_dag_version and not version_name:
-            version_name = existing_dag_version.version_name
 
         dag_version = DagVersion(
             dag_id=dag_id,
@@ -136,8 +126,12 @@ class DagVersion(Base):
 
     @property
     def version(self):
-        sep = "-"
-        return self.dag_id + sep + self.version_name + sep + str(self.version_number)
+        name = self.dag_id
+        if self.version_name:
+            name = f"{name}-{self.version_name}-{self.version_number}"
+        else:
+            name = f"{name}-{self.version_number}"
+        return name
 
     @classmethod
     @provide_session
