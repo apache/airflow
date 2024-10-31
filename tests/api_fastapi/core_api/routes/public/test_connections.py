@@ -228,7 +228,7 @@ class TestPostConnection(TestConnectionEndpoint):
         response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 409
         assert response.json() == {
-            "detail": "Connection with connection_id: `test-connection-id` already exists",
+            "detail": f"Connection with connection_id: `{TEST_CONN_ID}` already exists",
         }
 
     @pytest.mark.enable_redact

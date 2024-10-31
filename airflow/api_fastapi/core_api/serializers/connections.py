@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing_extensions import Self
+from pydantic import BaseModel, Field, field_validator
 
 from airflow.utils.log.secrets_masker import redact
 
@@ -39,12 +38,12 @@ class ConnectionResponse(BaseModel):
     password: str | None
     extra: str | None
 
-    @model_validator(mode="after")
-    def redact_password(self) -> Self:
-        if self.password is None:
-            return self
-        self.password = redact(self.password)
-        return self
+    @field_validator("password", mode="after")
+    @classmethod
+    def redact_password(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return redact(v)
 
     @field_validator("extra", mode="before")
     @classmethod
