@@ -67,7 +67,7 @@ class StatsLogger(Protocol):
     def timing(
         self,
         metric_name: str,
-        dt: DeltaType | None,
+        dt: DeltaType,
         *,
         tags: dict[str, Any] | None = None,
     ) -> None:
