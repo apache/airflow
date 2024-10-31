@@ -380,8 +380,8 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
             id="version-with-platform-marker",
         ),
         pytest.param(
-            "backports.zoneinfo>=0.2.1;python_version<'3.9'",
-            ("backports.zoneinfo", '>=0.2.1; python_version < "3.9"'),
+            "pendulum>=2.1.2,<4.0;python_version<'3.12'",
+            ("pendulum", '>=2.1.2,<4.0; python_version < "3.12"'),
             id="version-with-python-marker",
         ),
         pytest.param(
