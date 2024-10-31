@@ -35,7 +35,6 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-
 log = logging.getLogger(__name__)
 
 
@@ -122,15 +121,14 @@ class DagVersion(Base):
     def get_version(
         cls,
         dag_id: str,
-        version_name: str | None = None,
-        version_number: int | None = None,
+        version_name: str,
+        version_number: int = 1,
         session: Session = NEW_SESSION,
     ):
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
-        if version_name:
-            version_select_obj = version_select_obj.where(cls.version_name == version_name)
-        if version_number:
-            version_select_obj = version_select_obj.where(cls.version_number == version_number)
+        version_select_obj = version_select_obj.where(
+            cls.version_name == version_name, cls.version_number == version_number
+        )
         version_select_obj = version_select_obj.order_by(cls.version_number.desc()).limit(1)
         return session.scalar(version_select_obj)
 
