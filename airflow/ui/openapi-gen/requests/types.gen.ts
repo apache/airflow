@@ -704,7 +704,7 @@ export type ClearDagRunData = {
   requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = unknown;
+export type ClearDagRunResponse = TaskInstanceResponse | DAGRunResponse;
 
 export type GetDagSourceData = {
   accept?: string;
@@ -1101,7 +1101,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: TaskInstanceResponse | DAGRunResponse;
         /**
          * Unauthorized
          */

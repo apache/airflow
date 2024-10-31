@@ -36,6 +36,7 @@ from airflow.api_fastapi.core_api.serializers.dag_run import (
     DAGRunPatchStates,
     DAGRunResponse,
 )
+from airflow.api_fastapi.core_api.serializers.task_instances import TaskInstanceResponse
 from airflow.models import DAG, DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
@@ -114,7 +115,7 @@ async def patch_dag_run_state(
 @dag_run_router.post("/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([401, 403, 404]))
 async def clear_dag_run(
     dag_id: str, dag_run_id: str, dry_run: DAGRunClearBody, session: Annotated[Session, Depends(get_session)]
-):
+) -> TaskInstanceResponse | DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
@@ -129,7 +130,7 @@ async def clear_dag_run(
             only_failed=False,
             dry_run=True,
         )
-        return task_instances  # Need to create TaskInstance serializer
+        return TaskInstanceResponse.model_validate(task_instances, from_attributes=True)
     else:
         dag_run.clear(
             start_date=dag_run.start_date, end_date=dag_run.end_date, task_ids=None, only_failed=False

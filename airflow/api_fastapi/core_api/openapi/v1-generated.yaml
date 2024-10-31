@@ -519,7 +519,11 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/TaskInstanceResponse'
+                - $ref: '#/components/schemas/DAGRunResponse'
+                title: Response Clear Dag Run
         '401':
           content:
             application/json:
