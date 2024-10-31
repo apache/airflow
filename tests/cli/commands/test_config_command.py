@@ -143,9 +143,11 @@ class TestCliConfigList:
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)
-        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+        assert any(
+            line.startswith("# hostname_callable = airflow.utils.net.getfqdn") for line in lines if line
+        )
 
-    @conf_vars({("core", "task_runner"): "test-runner"})
+    @conf_vars({("core", "hostname_callable"): "testfn"})
     def test_cli_show_config_defaults_not_show_conf_changes(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(
@@ -153,9 +155,11 @@ class TestCliConfigList:
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+        assert any(
+            line.startswith("# hostname_callable = airflow.utils.net.getfqdn") for line in lines if line
+        )
 
-    @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
+    @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
     def test_cli_show_config_defaults_do_not_show_env_changes(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(
@@ -163,23 +167,25 @@ class TestCliConfigList:
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+        assert any(
+            line.startswith("# hostname_callable = airflow.utils.net.getfqdn") for line in lines if line
+        )
 
-    @conf_vars({("core", "task_runner"): "test-runner"})
+    @conf_vars({("core", "hostname_callable"): "testfn"})
     def test_cli_show_changed_defaults_when_overridden_in_conf(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("task_runner = test-runner") for line in lines if line)
+        assert any(line.startswith("hostname_callable = testfn") for line in lines if line)
 
-    @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
+    @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
     def test_cli_show_changed_defaults_when_overridden_in_env(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("task_runner = test-env-runner") for line in lines if line)
+        assert any(line.startswith("hostname_callable = test_env") for line in lines if line)
 
     def test_cli_has_providers(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
