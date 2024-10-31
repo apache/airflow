@@ -29,7 +29,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import configuration
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
@@ -1146,22 +1145,6 @@ sql_alchemy_conn=sqlite://test
         ):
             # Test when you read using the old section you get told to change your `conf.get` call
             assert test_conf.get("old_section", "val") == expected
-
-    def test_deprecated_funcs(self):
-        for func in [
-            "get",
-            "getboolean",
-            "getfloat",
-            "getint",
-            "has_option",
-            "remove_option",
-            "as_dict",
-            "set",
-        ]:
-            with mock.patch(f"airflow.configuration.conf.{func}") as mock_method:
-                with pytest.warns(DeprecationWarning):
-                    getattr(configuration, func)()
-                mock_method.assert_called_once()
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
