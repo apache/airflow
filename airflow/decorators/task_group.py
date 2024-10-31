@@ -38,8 +38,8 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     MappedArgument,
 )
-from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.node import DAGNode
 from airflow.typing_compat import ParamSpec
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup

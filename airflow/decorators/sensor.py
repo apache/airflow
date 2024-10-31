@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from airflow.decorators.base import get_unique_task_id, task_decorator_factory
 from airflow.sensors.python import PythonSensor
@@ -42,7 +42,7 @@ class DecoratedSensorOperator(PythonSensor):
     """
 
     template_fields: Sequence[str] = ("op_args", "op_kwargs")
-    template_fields_renderers: dict[str, str] = {"op_args": "py", "op_kwargs": "py"}
+    template_fields_renderers: ClassVar[dict[str, str]] = {"op_args": "py", "op_kwargs": "py"}
 
     custom_operator_name = "@task.sensor"
 

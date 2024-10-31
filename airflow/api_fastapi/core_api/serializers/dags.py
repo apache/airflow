@@ -116,7 +116,6 @@ class DAGDetailsResponse(DAGResponse):
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    orientation: str
     params: abc.MutableMapping | None
     render_template_as_native_obj: bool
     template_search_path: Iterable[str] | None

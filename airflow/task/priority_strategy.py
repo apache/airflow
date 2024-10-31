@@ -22,8 +22,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
@@ -150,5 +148,5 @@ def validate_and_load_priority_weight_strategy(
         priority_weight_strategy_class = qualname(priority_weight_strategy)
     loaded_priority_weight_strategy = _get_registered_priority_weight_strategy(priority_weight_strategy_class)
     if loaded_priority_weight_strategy is None:
-        raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_class}")
+        raise ValueError(f"Unknown priority strategy {priority_weight_strategy_class}")
     return loaded_priority_weight_strategy()

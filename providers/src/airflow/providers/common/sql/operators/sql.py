@@ -20,7 +20,7 @@ from __future__ import annotations
 import ast
 import re
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
@@ -224,7 +224,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     template_fields: Sequence[str] = ("sql", "parameters", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (".sql", ".json")
-    template_fields_renderers = {"sql": "sql", "parameters": "json"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
 
     def __init__(
@@ -428,7 +428,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     """
 
     template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     sql_check_template = """
         SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
@@ -657,7 +657,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
 
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     sql_check_template = """
     SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
@@ -776,7 +776,7 @@ class SQLCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#fff7e6"
 
     def __init__(
@@ -822,7 +822,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#fff7e6"
 
     def __init__(
@@ -919,7 +919,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql1": "sql", "sql2": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql1": "sql", "sql2": "sql"}
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -1052,7 +1052,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     def __init__(
         self,
@@ -1147,7 +1147,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
     template_fields: Sequence[str] = ("sql", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 

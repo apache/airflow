@@ -201,8 +201,8 @@ class OperatorPartial:
         task_id = partial_kwargs.pop("task_id")
         dag = partial_kwargs.pop("dag")
         task_group = partial_kwargs.pop("task_group")
-        start_date = partial_kwargs.pop("start_date")
-        end_date = partial_kwargs.pop("end_date")
+        start_date = partial_kwargs.pop("start_date", None)
+        end_date = partial_kwargs.pop("end_date", None)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -333,7 +333,8 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return frozenset(attr.fields_dict(MappedOperator)) - {
+        return (frozenset(attr.fields_dict(MappedOperator)) | {"task_type"}) - {
+            "_task_type",
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.

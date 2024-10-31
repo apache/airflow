@@ -211,7 +211,10 @@ class DagModelOperation(NamedTuple):
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
             dm.default_view = dag.default_view
-            dm._dag_display_property_value = dag._dag_display_property_value
+            if hasattr(dag, "_dag_display_property_value"):
+                dm._dag_display_property_value = dag._dag_display_property_value
+            elif dag.dag_display_name != dag.dag_id:
+                dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
             dm.max_active_tasks = dag.max_active_tasks
             dm.max_active_runs = dag.max_active_runs

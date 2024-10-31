@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, ClassVar, Sequence
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -64,7 +64,7 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         "migration_type",
         "create_task_kwargs",
     )
-    template_fields_renderers = {
+    template_fields_renderers: ClassVar[dict] = {
         "table_mappings": "json",
         "create_task_kwargs": "json",
     }
@@ -173,7 +173,7 @@ class DmsDescribeTasksOperator(AwsBaseOperator[DmsHook]):
 
     aws_hook_class = DmsHook
     template_fields: Sequence[str] = aws_template_fields("describe_tasks_kwargs")
-    template_fields_renderers: dict[str, str] = {"describe_tasks_kwargs": "json"}
+    template_fields_renderers: ClassVar[dict[str, str]] = {"describe_tasks_kwargs": "json"}
 
     def __init__(self, *, describe_tasks_kwargs: dict | None = None, **kwargs):
         super().__init__(**kwargs)

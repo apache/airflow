@@ -30,19 +30,22 @@ import {
 } from "@chakra-ui/react";
 import { FiCalendar, FiPlay } from "react-icons/fi";
 
-import type { DAGResponse } from "openapi/requests/types.gen";
+import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 
 import { DagTags } from "../DagTags";
+import { LatestRun } from "../LatestRun";
 
 export const Header = ({
   dag,
   dagId,
+  latestRun,
 }: {
   readonly dag?: DAGResponse;
   readonly dagId?: string;
+  readonly latestRun?: DAGRunResponse;
 }) => {
   const grayBg = useColorModeValue("gray.100", "gray.900");
   const grayBorder = useColorModeValue("gray.200", "gray.700");
@@ -74,6 +77,8 @@ export const Header = ({
             <Heading color="gray.500" fontSize="xs">
               Last Run
             </Heading>
+            <LatestRun latestRun={latestRun} />
+            <LatestRun />
           </VStack>
           <VStack align="flex-start" spacing={1}>
             <Heading color="gray.500" fontSize="xs">
