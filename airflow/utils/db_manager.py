@@ -126,7 +126,7 @@ class BaseDBManager(LoggingMixin):
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
-        self.log.info("Upgraded the %s database", self.__class__.__name__)
+        self.log.info("Migrated the %s database", self.__class__.__name__)
 
     def downgrade(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""

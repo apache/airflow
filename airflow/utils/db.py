@@ -1171,7 +1171,7 @@ def upgradedb(
 
         previous_revision = _get_current_revision(session=session)
 
-        log.info("Upgrading the Airflow database")
+        log.info("Migrating the Airflow database")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
         try:
             # Reconfigure the ORM to use _EXACTLY_ one connection, otherwise some db engines hang forever
