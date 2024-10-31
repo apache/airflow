@@ -53,15 +53,14 @@ def prepare_metric_name_with_tags(fn: T) -> T:
     def wrapper(
         self, metric_name: str | None = None, tags: dict[str, str] | None = None
     ) -> Callable[[str], str]:
-        if metric_name is None:
-            metric_name = ""
+        metric_name = metric_name or ""
 
         if self.influxdb_tags_enabled and tags:
             valid_tags: dict[str, str] = {}
 
             for k, v in tags.items():
                 if self.metric_tags_validator.test(k):
-                    if all(c not in [",", "="] for c in v) and all(c not in [",", "="] for c in k):
+                    if all(c not in [",", "="] for c in f"{v}{k}"):
                         valid_tags[k] = v
                     else:
                         log.error("Dropping invalid tag: %s=%s.", k, v)
@@ -134,7 +133,7 @@ class SafeStatsdLogger(StatsLogger):
     def timing(
         self,
         metric_name: str,
-        dt: DeltaType | None,
+        dt: DeltaType,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
