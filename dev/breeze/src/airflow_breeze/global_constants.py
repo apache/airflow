@@ -408,6 +408,7 @@ COMMITTERS = [
     "feluelle",
     "feng-tao",
     "ferruzzi",
+    "gopidesupavan",
     "houqp",
     "hussein-awala",
     "jedcunningham",

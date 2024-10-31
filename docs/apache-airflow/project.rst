@@ -81,6 +81,7 @@ Committers
 - Pankaj Koti (@pankajkoti)
 - Pankaj Singh (@pankajastro)
 - Patrick Leo Tardif (@pltardif)
+- Pavan Kumar Gopidesu (@gopidesupavan)
 - Phani Kumar (@phanikumv)
 - Pierre Jeambrun (@pierrejeambrun)
 - Ping Zhang (@pingzh)
