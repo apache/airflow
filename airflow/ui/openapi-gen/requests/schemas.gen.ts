@@ -890,7 +890,14 @@ export const $DAGResponse = {
 export const $DAGRunPatchBody = {
   properties: {
     state: {
-      $ref: "#/components/schemas/DAGRunPatchStates",
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DAGRunPatchStates",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     note: {
       anyOf: [

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing_extensions import Annotated
 
 from airflow.api.common.mark_tasks import (
@@ -79,7 +79,9 @@ async def patch_dag_run_state(
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
     ALLOWED_FIELD_MASK = ["state", "note"]
-    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    dag_run = session.scalar(
+        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_run_note))
+    )
     if dag_run is None:
         raise HTTPException(
             404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
@@ -100,6 +102,8 @@ async def patch_dag_run_state(
     for attr_name in update_mask:
         attr_value = getattr(patch_body, attr_name)
         if attr_name == "state":
+            if attr_value is None:
+                raise HTTPException(400, "state cannot be empty when it is included in the update mask")
             if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
             elif attr_value == DAGRunPatchStates.QUEUED:
@@ -115,7 +119,7 @@ async def patch_dag_run_state(
             else:
                 dag_run.dag_run_note.content = attr_value
                 dag_run.dag_run_note.user_id = None
-
+    session.commit()
     dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)

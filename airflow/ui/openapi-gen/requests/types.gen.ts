@@ -158,7 +158,7 @@ export type DAGResponse = {
  * DAG Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
-  state: DAGRunPatchStates;
+  state: DAGRunPatchStates | null;
   note?: string | null;
 };
 

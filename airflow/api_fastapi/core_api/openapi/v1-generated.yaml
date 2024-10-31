@@ -2154,7 +2154,9 @@ components:
     DAGRunPatchBody:
       properties:
         state:
-          $ref: '#/components/schemas/DAGRunPatchStates'
+          anyOf:
+          - $ref: '#/components/schemas/DAGRunPatchStates'
+          - type: 'null'
         note:
           anyOf:
           - type: string
