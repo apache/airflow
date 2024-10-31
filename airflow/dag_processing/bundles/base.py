@@ -28,9 +28,16 @@ class BaseDagBundle(ABC):
     """
     Base class for DAG bundles.
 
-    DAG bundles can be used in 2 ways:
-      - In an ephemeral manner, essentially to run a task. This may mean a specific version of the DAG bundle is retrieved.
-      - In an ongoing manner, by the DAG processor, to keep the DAGs in the bundle up to date.
+    DAG bundles are used both by the DAG processor and by a worker when running a task. These usage
+    patterns are different, however.
+
+    When running a task, we know what version of the bundle we need (assuming the bundle supports versioning).
+    And we likely only need to keep this specific bundle version around for as long as we have tasks running using
+    that bundle version. This also means, that on a single worker, it's possible that multiple versions of the same
+    bundle are used at the same time.
+
+    In contrast, the DAG processor uses a bundle to keep the DAGs from that bundle up to date. There will not be
+    multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
 
     :param name: String identifier for the DAG bundle
     :param version: Version of the DAG bundle (Optional)
@@ -43,8 +50,12 @@ class BaseDagBundle(ABC):
         self.version = version
 
     @property
-    def _dag_bundle_storage_path(self) -> Path:
-        """Where Airflow can store DAG bundles on disk (if local disk is required)."""
+    def _dag_bundle_root_storage_path(self) -> Path:
+        """
+        Where bundles can store DAGs on disk (if local disk is required).
+
+        This is the root path, shared by various bundles. Each bundle should have its own subdirectory.
+        """
         if configured_location := conf.get("core", "dag_bundle_storage_path"):
             return Path(configured_location)
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
@@ -52,15 +63,23 @@ class BaseDagBundle(ABC):
     @property
     @abstractmethod
     def path(self) -> Path:
-        """Path where the DAGs from this backend live."""
+        """
+        Path for this bundle.
+
+        Airflow will use this path to load/execute the DAGs from the bundle.
+        """
 
     @abstractmethod
     def get_current_version(self) -> str:
-        """Version that represents the version of the DAGs."""
+        """
+        Version that represents the version of the DAG bundle.
+
+        Airflow can later use this version to retrieve the exact same bundle version.
+        """
 
     @abstractmethod
     def refresh(self) -> None:
-        """Make sure the backend has the latest DAGs."""
+        """Make sure the backend has the latest bundle version (thus the latest DAGs)."""
 
     @abstractmethod
     def cleanup(self) -> None:

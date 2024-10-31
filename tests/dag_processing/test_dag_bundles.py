@@ -26,7 +26,8 @@ from git import Repo
 from airflow.dag_processing.bundles.git import GitDagBundle
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import AirflowException
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +39,7 @@ def bundle_temp_dir(tmp_path):
 def test_default_dag_storage_path():
     with conf_vars({("core", "dag_bundle_storage_path"): ""}):
         bundle = LocalDagBundle(name="test", local_folder="/hello")
-        assert bundle._dag_bundle_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+        assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 class TestLocalDagBundle:
@@ -71,10 +72,10 @@ class TestGitDagBundle:
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
 
-    def test_uses_dag_bundle_storage_path(self, git_repo):
+    def test_uses_dag_bundle_root_storage_path(self, git_repo):
         repo_path, repo = git_repo
         bundle = GitDagBundle(name="test", repo_url=repo_path, head="master")
-        assert str(bundle._dag_bundle_storage_path) in str(bundle.path)
+        assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
 
     def test_get_current_version(self, git_repo):
         repo_path, repo = git_repo
