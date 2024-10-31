@@ -14,6 +14,7 @@ import {
   PluginService,
   PoolService,
   ProviderService,
+  TaskInstanceService,
   VariableService,
   VersionService,
 } from "../requests/services.gen";
@@ -186,6 +187,54 @@ export const prefetchUseConnectionServiceGetConnections = (
     queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
   });
 /**
+ * Get Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagRunServiceGetDagRun = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
+  });
+/**
+ * Get Dag Source
+ * Get source code using file token.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @param data.accept
+ * @returns DAGSourceResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagSourceServiceGetDagSource = (
+  queryClient: QueryClient,
+  {
+    accept,
+    fileToken,
+  }: {
+    accept?: string;
+    fileToken: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
+      accept,
+      fileToken,
+    }),
+    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
+  });
+/**
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
@@ -331,52 +380,23 @@ export const prefetchUseDagServiceGetDagDetails = (
     queryFn: () => DagService.getDagDetails({ dagId }),
   });
 /**
- * Get Dag Run
+ * Get Event Log
  * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
+ * @param data.eventLogId
+ * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagRunServiceGetDagRun = (
+export const prefetchUseEventLogServiceGetEventLog = (
   queryClient: QueryClient,
   {
-    dagId,
-    dagRunId,
+    eventLogId,
   }: {
-    dagId: string;
-    dagRunId: string;
+    eventLogId: number;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
-  });
-/**
- * Get Dag Source
- * Get source code using file token.
- * @param data The data for the request.
- * @param data.fileToken
- * @param data.accept
- * @returns DAGSourceResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagSourceServiceGetDagSource = (
-  queryClient: QueryClient,
-  {
-    accept,
-    fileToken,
-  }: {
-    accept?: string;
-    fileToken: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
-      accept,
-      fileToken,
-    }),
-    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });
 /**
  * Get Health
@@ -387,6 +407,28 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
     queryFn: () => MonitorService.getHealth(),
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePluginServiceGetPlugins = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
+    queryFn: () => PluginService.getPlugins({ limit, offset }),
   });
 /**
  * Get Pool
@@ -458,56 +500,35 @@ export const prefetchUseProviderServiceGetProviders = (
     queryFn: () => ProviderService.getProviders({ limit, offset }),
   });
 /**
- * Get Plugins
+ * Get Task Instance
+ * Get task instance.
  * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @returns PluginCollectionResponse Successful Response
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns TaskInstanceResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUsePluginServiceGetPlugins = (
+export const prefetchUseTaskInstanceServiceGetTaskInstance = (
   queryClient: QueryClient,
   {
-    limit,
-    offset,
+    dagId,
+    dagRunId,
+    taskId,
   }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
-    queryFn: () => PluginService.getPlugins({ limit, offset }),
-  });
-/**
- * Get Version
- * Get version information.
- * @returns VersionInfo Successful Response
- * @throws ApiError
- */
-export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
-    queryFn: () => VersionService.getVersion(),
-  });
-/**
- * Get Event Log
- * @param data The data for the request.
- * @param data.eventLogId
- * @returns EventLogResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseEventLogServiceGetEventLog = (
-  queryClient: QueryClient,
-  {
-    eventLogId,
-  }: {
-    eventLogId: number;
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
-    queryFn: () => EventLogService.getEventLog({ eventLogId }),
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({
+      dagId,
+      dagRunId,
+      taskId,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }),
   });
 /**
  * Get Variable
@@ -558,4 +579,15 @@ export const prefetchUseVariableServiceGetVariables = (
       orderBy,
     }),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
+    queryFn: () => VersionService.getVersion(),
   });
