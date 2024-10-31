@@ -1734,6 +1734,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads
