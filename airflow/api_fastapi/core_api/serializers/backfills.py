@@ -18,20 +18,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Callable
 
 from pydantic import BaseModel
 
 from airflow.models.backfill import ReprocessBehavior
-
-
-def _call_function(function: Callable[[], int]) -> int:
-    """
-    Call the given function.
-
-    Used for the BeforeValidator to get the actual values from the bound method.
-    """
-    return function()
 
 
 class BackfillPostBody(BaseModel):

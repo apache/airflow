@@ -21,7 +21,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
@@ -50,9 +51,24 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 )
 async def list_backfills(
     dag_id: str,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(SortParam(["id"], Backfill).dynamic_depends()),
+    ],
     session: Annotated[Session, Depends(get_session)],
 ):
-    backfills = session.scalars(select(Backfill).where(Backfill.dag_id == dag_id)).all()
+    select_stmt, total_entries = paginated_select(
+        select(select(Backfill).where(Backfill.dag_id == dag_id)),
+        [],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    backfills = session.scalars(select_stmt).all()
+
     return BackfillCollectionResponse(
         backfills=[BackfillResponse.model_validate(x, from_attributes=True) for x in backfills],
         total_entries=len(backfills),
@@ -101,7 +117,6 @@ async def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(g
         raise HTTPException(409, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
-    session.commit()
     return BackfillResponse.model_validate(b, from_attributes=True)
 
 
@@ -116,11 +131,10 @@ async def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(ge
     if b.completed_at is not None:
         raise HTTPException(409, "Backfill is already completed.")
 
-    # first, pause
+    # first, pause, and commit immediately to ensure no other dag runs are started
     if not b.is_paused:
         b.is_paused = True
-
-    session.commit()
+        session.commit()  # ensure no new runs started
 
     query = (
         update(DagRun)
@@ -138,10 +152,11 @@ async def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(ge
         .execution_options(synchronize_session=False)
     )
     session.execute(query)
-    session.commit()
+    session.commit()  # this will fail all the queued dag runs in this backfill
 
+    # this is in separate transaction just to avoid potential conflicts
+    session.refresh(b)
     b.completed_at = timezone.utcnow()
-    session.commit()
     return BackfillResponse.model_validate(b, from_attributes=True)
 
 
