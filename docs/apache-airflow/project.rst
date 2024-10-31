@@ -84,6 +84,7 @@ Committers
 - Phani Kumar (@phanikumv)
 - Pierre Jeambrun (@pierrejeambrun)
 - Ping Zhang (@pingzh)
+- Pavan Kumar Gopidesu (@gopidesupavan)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
 - Rom Sharon (@romsharon98)
