@@ -118,7 +118,6 @@ List of default extras in the production Dockerfile:
 * ssh
 * statsd
 * uv
-* virtualenv
 
 .. END OF EXTRAS LIST UPDATED BY PRE COMMIT
 
