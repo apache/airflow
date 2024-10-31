@@ -32,12 +32,13 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix revoke Dag stale permission on airflow < 2.10 (#42844)``
+* ``fix(providers/fab): alias is_authorized_dataset to is_authorized_asset (#43469)``
 
 Misc
 ~~~~
 
-* ``Bump Flask-AppBuilder to ''4.5.2'' (#43309)``
-* ``Upgrade FAB to 4.5.1 (#43251)``
+* ``Upgrade Flask-AppBuilder to 4.5.2 (#43309)``
+* ``Upgrade Flask-AppBuilder to 4.5.1 (#43251)``
 * ``Move user and roles schemas to fab provider (#42869)``
 * ``Move the session auth backend to FAB auth manager (#42878)``
 
@@ -45,6 +46,8 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Prepare docs for Oct 2nd wave of providers (#43409)``
 
 1.4.1
 .....

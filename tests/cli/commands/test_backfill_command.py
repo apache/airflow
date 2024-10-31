@@ -77,7 +77,7 @@ class TestCliBackfill:
         args = [
             "backfill",
             "create",
-            "--dag",
+            "--dag-id",
             "example_bash_operator",
             "--from-date",
             DEFAULT_DATE.isoformat(),

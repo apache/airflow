@@ -19,7 +19,6 @@
 import { Box, Flex, Icon, VStack } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import {
-  FiBarChart2,
   FiCornerUpLeft,
   FiDatabase,
   FiGlobe,
@@ -69,12 +68,6 @@ export const Nav = () => (
         isDisabled
         title="Assets"
         to="assets"
-      />
-      <NavButton
-        icon={<FiBarChart2 size="1.75rem" />}
-        isDisabled
-        title="Dag Runs"
-        to="dag_runs"
       />
       <NavButton
         icon={<FiGlobe size="1.75rem" />}

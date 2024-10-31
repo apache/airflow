@@ -115,9 +115,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self._overtime = 0.0
 
     def _execute(self) -> int | None:
-        from airflow.task.task_runner import get_task_runner
+        from airflow.task.standard_task_runner import StandardTaskRunner
 
-        self.task_runner = get_task_runner(self)
+        self.task_runner = StandardTaskRunner(self)
 
         # Print a marker post execution for internals of post task processing
         self.log.info("::group::Pre task execution logs")

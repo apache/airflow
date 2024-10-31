@@ -626,7 +626,7 @@ labelPRBasedOnFilePath:
 
   area:Scheduler:
     - airflow/jobs/**/*
-    - airflow/task/task_runner/**/*
+    - airflow/task/standard_task_runner.py
     - airflow/dag_processing/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/jobs/**/*

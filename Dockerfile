@@ -55,7 +55,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=24.3.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.4.28
+ARG AIRFLOW_UV_VERSION=0.4.29
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -718,6 +718,7 @@ COPY <<"EOF" /install_from_docker_context_files.sh
 
 
 function install_airflow_and_providers_from_docker_context_files(){
+    local flags=()
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
@@ -756,10 +757,10 @@ function install_airflow_and_providers_from_docker_context_files(){
         install_airflow_package=("apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}")
     fi
 
-    # Find Provider packages in docker-context files
-    readarray -t installing_providers_packages< <(python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
+    # Find Provider/TaskSDK packages in docker-context files
+    readarray -t airflow_packages< <(python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?{providers,task?sdk}*.{whl,tar.gz} 2>/dev/null || true)
     echo
-    echo "${COLOR_BLUE}Found provider packages in docker-context-files folder: ${installing_providers_packages[*]}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Found provider packages in docker-context-files folder: ${airflow_packages[*]}${COLOR_RESET}"
     echo
 
     if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=} == "true" ]]; then
@@ -772,11 +773,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo "${COLOR_BLUE}Installing docker-context-files packages with constraints found in ${local_constraints_file}${COLOR_RESET}"
             echo
             # force reinstall all airflow + provider packages with constraints found in
-            set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade \
-                ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
-                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
-            set +x
+            flags=(--upgrade --constraint "${local_constraints_file}")
             echo
             echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
             echo
@@ -785,23 +782,21 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo
             echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
             echo
-            set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
-                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                --constraint "${HOME}/constraints.txt" \
-                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
-            set +x
+            flags=(--constraint "${HOME}/constraints.txt")
         fi
     else
         echo
         echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
         echo
-        set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
-        set +x
+        flags=()
     fi
+
+    set -x
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+        ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        "${flags[@]}" \
+        "${install_airflow_package[@]}" "${airflow_packages[@]}"
+    set +x
     common::install_packaging_tools
     pip check
 }

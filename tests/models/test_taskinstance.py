@@ -64,7 +64,6 @@ from airflow.models.param import process_params
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
@@ -78,10 +77,10 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator, PythonOperator
+from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sensors.base import BaseSensorOperator
-from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.settings import TIMEZONE, TracebackSessionForTests
 from airflow.stats import Stats
@@ -157,7 +156,6 @@ class TestTaskInstance:
         db.clear_db_dags()
         db.clear_db_pools()
         db.clear_db_runs()
-        db.clear_db_task_fail()
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
         db.clear_db_assets()
@@ -231,7 +229,7 @@ class TestTaskInstance:
 
         # no dag assigned
         assert not op.has_dag()
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             getattr(op, "dag")
 
         # no improper assignment
@@ -241,7 +239,7 @@ class TestTaskInstance:
         op.dag = dag
 
         # no reassignment
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             op.dag = dag2
 
         # but assigning the same dag is ok
@@ -263,7 +261,7 @@ class TestTaskInstance:
         assert [i.has_dag() for i in [op1, op2, op3, op4]] == [False, False, True, True]
 
         # can't combine operators with no dags
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             op1.set_downstream(op2)
 
         # op2 should infer dag from op1
@@ -272,9 +270,9 @@ class TestTaskInstance:
         assert op2.dag is dag
 
         # can't assign across multiple DAGs
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             op1.set_downstream(op4)
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             op1.set_downstream([op3, op4])
 
     def test_bitshift_compose_operators(self, dag_maker):
@@ -2228,13 +2226,6 @@ class TestTaskInstance:
         assert body.startswith("Try 0")  # try number only incremented by the scheduler
         assert "test_email_alert" in body
 
-        tf = (
-            session.query(TaskFail)
-            .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-            .one_or_none()
-        )
-        assert tf, "TaskFail was recorded"
-
     def test_set_duration(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
         ti = TI(task=task)
@@ -3837,7 +3828,7 @@ class TestTaskInstance:
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_get_current_context_works_in_template(self, dag_maker):
         def user_defined_macro():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
 
@@ -4074,13 +4065,13 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_clear_db_references(self, session, create_task_instance):
-        tables = [TaskFail, RenderedTaskInstanceFields, XCom]
+        tables = [RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
         ti.note = "sample note"
 
         session.merge(ti)
         session.commit()
-        for table in [TaskFail, RenderedTaskInstanceFields]:
+        for table in [RenderedTaskInstanceFields]:
             session.add(table(ti))
         XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()
