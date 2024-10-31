@@ -19,12 +19,50 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from google.api_core.operation import Operation
+
+from google.api_core.exceptions import GoogleAPICallError
+
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from google.cloud.translate_v2 import Client
 
+from google.cloud.translate_v3 import TranslationServiceClient
+
+from google.cloud.translate_v3.types import (
+    TranslateTextRequest,
+    TransliterationConfig,
+    TranslateTextGlossaryConfig,
+    TranslateTextGlossaryConfig,
+    InputConfig,
+    OutputConfig
+)
+
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+
+
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class CloudTranslateHook(GoogleBaseHook):
@@ -106,7 +144,6 @@ class CloudTranslateHook(GoogleBaseHook):
                  values and translations differ.
         """
         client = self.get_conn()
-
         return client.translate(
             values=values,
             target_language=target_language,
@@ -114,3 +151,125 @@ class CloudTranslateHook(GoogleBaseHook):
             source_language=source_language,
             model=model,
         )
+
+
+class TranslateHook(GoogleBaseHook):
+    """
+    Translate V3 hook
+    """
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+        )
+        self._client: TranslationServiceClient | None = None
+
+    def get_client(self) -> TranslationServiceClient:
+        """
+        Retrieve connection to Translation service.
+
+        :return: Google Cloud Translation Service client object.
+        """
+        if self._client is None:
+            self._client = TranslationServiceClient(
+                credentials=self.get_credentials(), client_info=CLIENT_INFO
+            )
+        return self._client
+
+    def wait_for_operation(self, operation: Operation, timeout: int | None = None):
+        """Wait for long-lasting operation to complete."""
+        try:
+            return operation.result(timeout=timeout)
+        except GoogleAPICallError:
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
+
+    def translate_text(
+            self,
+            *,
+            project_id: str = PROVIDE_PROJECT_ID,
+            contents: Sequence[str],
+            target_language_code: str,
+            source_language_code: str | None = None,
+            mime_type: str | None = None,
+            location: str | None = None,
+            model: str | None = None,
+            transliteration_config: TransliterationConfig | None = None,
+            glossary_config: TranslateTextGlossaryConfig | None = None,
+            labels: str | None = None,
+            timeout: float | _MethodDefault = DEFAULT,
+            metadata: Sequence[tuple[str, str]] = (),
+            retry: Retry | _MethodDefault | None = DEFAULT,
+    ) -> dict:
+        client = self.get_client()
+        location_id = 'global' if not location else location
+        parent = f"projects/{project_id or self.project_id}/locations/{location_id}"
+
+        result = client.translate_text(
+            request={
+                'parent': parent,
+                'source_language_code': source_language_code,
+                'target_language_code': target_language_code,
+                'contents': contents,
+                'mime_type': mime_type,
+                'glossary_config': glossary_config,
+                'transliteration_config': transliteration_config,
+                'model': model,
+                'labels': labels,
+            },
+            timeout=timeout,
+            retry=retry,
+            metadata=metadata,
+        )
+        return cast(dict, type(result).to_dict(result))
+
+    def batch_translate_text(
+            self,
+            *,
+            project_id: str = PROVIDE_PROJECT_ID,
+            location: str,
+            target_language_codes: MutableSequence[str],
+            source_language_code: str,
+            input_configs: MutableSequence[InputConfig | dict],
+            output_config: OutputConfig | dict,
+            models: str | None = None,
+            glossaries: MutableMapping[str, TranslateTextGlossaryConfig] | None = None,
+            labels: MutableMapping[str, str] | None = None,
+            timeout: float | _MethodDefault = DEFAULT,
+            metadata: Sequence[tuple[str, str]] = (),
+            retry: Retry | _MethodDefault | None = DEFAULT,
+    ) -> Operation:
+        client = self.get_client()
+        if location == 'global':
+            raise AirflowException(
+                'Global location is not allowed for the batch text translation, '
+                'please provide the correct value!'
+            )
+        parent = f"projects/{project_id or self.project_id}/locations/{location}"
+        result = client.batch_translate_text(
+            request={
+                'parent': parent,
+                'source_language_code': source_language_code,
+                'target_language_codes': target_language_codes,
+                'input_configs': input_configs,
+                'output_config': output_config,
+                'glossaries': glossaries,
+                'models': models,
+                'labels': labels,
+            },
+            timeout=timeout,
+            retry=retry,
+            metadata=metadata,
+        )
+        return result
