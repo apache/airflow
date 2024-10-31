@@ -517,10 +517,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Is Paused Upon Creation",
     },
-    orientation: {
-      type: "string",
-      title: "Orientation",
-    },
     params: {
       anyOf: [
         {
@@ -619,7 +615,6 @@ export const $DAGDetailsResponse = {
     "start_date",
     "end_date",
     "is_paused_upon_creation",
-    "orientation",
     "params",
     "render_template_as_native_obj",
     "template_search_path",
@@ -1093,6 +1088,26 @@ export const $DAGRunTypes = {
   required: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DAGRunTypes",
   description: "DAG Run Types for responses.",
+} as const;
+
+export const $DAGSourceResponse = {
+  properties: {
+    content: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Content",
+    },
+  },
+  type: "object",
+  required: ["content"],
+  title: "DAGSourceResponse",
+  description: "DAG Source serializer for responses.",
 } as const;
 
 export const $DAGTagCollectionResponse = {

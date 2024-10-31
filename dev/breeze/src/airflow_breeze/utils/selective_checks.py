@@ -1343,12 +1343,32 @@ class SelectiveChecks:
         return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
+    def only_new_ui_files(self) -> bool:
+        all_source_files = set(
+            self._matching_files(
+                FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        )
+        new_ui_source_files = set(
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+        )
+        remaining_files = all_source_files - new_ui_source_files
+
+        if all_source_files and new_ui_source_files and not remaining_files:
+            return True
+        else:
+            return False
+
+    @cached_property
     def testable_integrations(self) -> list[str]:
-        return [
-            integration
-            for integration in TESTABLE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-        ]
+        if self.only_new_ui_files:
+            return []
+        else:
+            return [
+                integration
+                for integration in TESTABLE_INTEGRATIONS
+                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            ]
 
     @cached_property
     def is_committer_build(self):

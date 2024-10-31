@@ -24,13 +24,14 @@ import type { DagTagPydantic } from "openapi/requests/types.gen";
 const MAX_TAGS = 3;
 
 type Props = {
+  readonly hideIcon?: boolean;
   readonly tags: Array<DagTagPydantic>;
 };
 
-export const DagTags = ({ tags }: Props) =>
+export const DagTags = ({ hideIcon = false, tags }: Props) =>
   tags.length ? (
     <Flex alignItems="center" ml={2}>
-      <FiTag data-testid="dag-tag" />
+      {hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
       <Text ml={1}>
         {tags
           .slice(0, MAX_TAGS)

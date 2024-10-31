@@ -190,7 +190,6 @@ class TestGetDag(TestDagEndpoint):
             "last_parsed_time": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         } == response.json
 
     @conf_vars({("webserver", "secret_key"): "mysecret"})
@@ -230,7 +229,6 @@ class TestGetDag(TestDagEndpoint):
             "last_parsed_time": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         } == response.json
 
     def test_should_respond_404(self):
@@ -331,7 +329,6 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -393,7 +390,6 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -443,7 +439,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "orientation": "LR",
             "owners": [],
             "params": {},
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -493,7 +488,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "orientation": "LR",
             "owners": [],
             "params": {},
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
             "start_date": None,
@@ -552,7 +546,6 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -612,7 +605,6 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -712,7 +704,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -739,7 +730,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -778,7 +768,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -818,7 +807,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -845,7 +833,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1001,7 +988,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1040,7 +1026,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1079,7 +1064,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
@@ -1106,7 +1090,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1195,7 +1178,6 @@ class TestPatchDag(TestDagEndpoint):
             "last_parsed_time": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert response.json == expected_response
         _check_last_log(
@@ -1293,7 +1275,6 @@ class TestPatchDag(TestDagEndpoint):
             "last_parsed_time": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert response.json == expected_response
 
@@ -1387,7 +1368,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1414,7 +1394,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1466,7 +1445,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1493,7 +1471,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1585,7 +1562,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1633,7 +1609,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -1660,7 +1635,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1858,7 +1832,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1885,7 +1858,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1933,7 +1905,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_10",
@@ -1960,7 +1931,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -2010,7 +1980,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_1",
@@ -2037,7 +2006,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_parsed_time": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,

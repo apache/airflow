@@ -658,6 +658,8 @@ repos:
           ^docs/exts/removemarktransform.py$|
           ^newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
+          ^scripts/ci/docker-compose/integration-keycloak.yml$|
+          ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
           ^providers/tests/|
           ^.pre-commit-config\.yaml$|
@@ -1189,6 +1191,8 @@ repos:
           ^airflow/utils/helpers.py$ |
           ^providers/src/airflow/providers/ |
           ^(providers/)?tests/ |
+          task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          task_sdk/src/airflow/sdk/definitions/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |

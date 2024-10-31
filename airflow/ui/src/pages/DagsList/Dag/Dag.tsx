@@ -29,7 +29,10 @@ import {
 import { FiChevronsLeft } from "react-icons/fi";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useDagsServiceRecentDagRuns,
+} from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { Header } from "./Header";
@@ -45,6 +48,17 @@ export const Dag = () => {
     dagId: dagId ?? "",
   });
 
+  // TODO: replace with with a list dag runs by dag id request
+  const {
+    data: runsData,
+    error: runsError,
+    isLoading: isLoadingRuns,
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" });
+
+  const runs =
+    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
+      ?.latest_dag_runs ?? [];
+
   return (
     <Box>
       <Button
@@ -56,18 +70,19 @@ export const Dag = () => {
       >
         Back to all dags
       </Button>
-      <Header dag={dag} dagId={dagId} />
-      <ErrorAlert error={error} />
+      <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+      <ErrorAlert error={error ?? runsError} />
       <Progress
         isIndeterminate
         size="xs"
-        visibility={isLoading ? "visible" : "hidden"}
+        visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
       />
       <Tabs>
         <TabList>
           <Tab>Overview</Tab>
           <Tab>Runs</Tab>
           <Tab>Tasks</Tab>
+          <Tab>Events</Tab>
         </TabList>
 
         <TabPanels>

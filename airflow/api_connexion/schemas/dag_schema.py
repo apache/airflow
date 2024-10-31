@@ -56,7 +56,6 @@ class DAGSchema(SQLAlchemySchema):
     last_parsed_time = auto_field(dump_only=True)
     last_pickled = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
-    pickle_id = auto_field(dump_only=True)
     default_view = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
     file_token = fields.Method("get_token", dump_only=True)
