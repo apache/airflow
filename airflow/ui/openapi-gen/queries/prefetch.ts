@@ -531,6 +531,46 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (
       TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }),
   });
 /**
+ * Get Mapped Task Instance
+ * Get task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }),
+  });
+/**
  * Get Variable
  * Get a variable entry.
  * @param data The data for the request.
