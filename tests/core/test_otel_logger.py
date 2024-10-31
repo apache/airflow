@@ -143,6 +143,18 @@ class TestOtelMetrics:
         assert mock_random.call_count == 2
         assert self.map[full_name(name)].add.call_count == 1
 
+    def test_incr_new_metric_with_count(self):
+        metric_name = "test_metric"
+        count = 5
+        tags = {"env": "prod"}
+
+        self.stats.incr(metric_name, count=count, tags=tags)
+
+        counter = self.stats.metrics_map.get_counter(
+            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
+        )
+        counter.add.assert_called_with(count, attributes=tags)
+
     def test_decr_existing_metric(self, name):
         expected_calls = [
             mock.call(1, attributes=None),
@@ -156,6 +168,18 @@ class TestOtelMetrics:
 
         self.map[full_name(name)].add.assert_has_calls(expected_calls)
         assert self.map[full_name(name)].add.call_count == len(expected_calls)
+
+    def test_decr_new_metric_with_count(self):
+        metric_name = "test_metric"
+        count = 3
+        tags = {"env": "prod"}
+
+        self.stats.decr(metric_name, count=count, tags=tags)
+
+        counter = self.stats.metrics_map.get_counter(
+            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
+        )
+        counter.add.assert_called_with(-count, attributes=tags)
 
     @mock.patch("random.random", side_effect=[0.1, 0.9])
     def test_decr_with_rate_limit_works(self, mock_random, name):
@@ -356,73 +380,6 @@ class TestOtelMetrics:
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(name), callbacks=ANY
         )
-
-    def test_incr_counter(self):
-        metric_name = "test_metric"
-        count = 5
-        tags = {"env": "prod"}
-
-        self.stats.incr(metric_name, count=count, tags=tags)
-
-        counter = self.stats.metrics_map.get_counter(
-            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
-        )
-        counter.add.assert_called_with(count, attributes=tags)
-
-    def test_decr_counter(self):
-        metric_name = "test_metric"
-        count = 3
-        tags = {"env": "prod"}
-
-        self.stats.decr(metric_name, count=count, tags=tags)
-
-        counter = self.stats.metrics_map.get_counter(
-            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
-        )
-        counter.add.assert_called_with(-count, attributes=tags)
-
-    @pytest.mark.parametrize("expected_duration", [2.5, 1.0, 3.0])
-    def test_timing(self, expected_duration):
-        metric_name = "test_metric"
-        tags = {"env": "prod"}
-
-        # Mocking time.perf_counter to simulate timing
-        with mock.patch.object(time, "perf_counter", side_effect=[0.0, expected_duration]):
-            with self.stats.timer(metric_name, tags=tags) as timer:
-                pass
-
-        acceptable_margin = 0.1
-        assert isinstance(timer.duration, float)
-        assert timer.duration >= expected_duration - acceptable_margin
-        assert timer.duration <= expected_duration + acceptable_margin
-        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
-            name=full_name(prefix=self.stats.prefix, name=metric_name), callbacks=ANY
-        )
-
-    @pytest.mark.parametrize(
-        "metric_name, initial_value, delta, expected_value, tags",
-        [
-            ("test_metric", 42, False, 42, {"env": "prod"}),
-            ("test_metric", 10, True, 10, {"env": "prod"}),
-            ("test_metric", 5, True, 0, {"env": "prod"}),
-        ],
-    )
-    def test_gauge_operations(self, metric_name, initial_value, delta, expected_value, tags):
-        if delta and expected_value == 0:
-            self.stats.gauge(metric_name, initial_value, delta=True, tags=tags)
-            current_value_after_increment = self.stats.metrics_map.poke_gauge(
-                full_name(prefix=self.stats.prefix, name=metric_name), tags
-            )
-            assert current_value_after_increment == initial_value
-
-            self.stats.gauge(metric_name, -initial_value, delta=True, tags=tags)
-        else:
-            self.stats.gauge(metric_name, initial_value, delta=delta, tags=tags)
-
-        current_value = self.stats.metrics_map.poke_gauge(
-            full_name(prefix=self.stats.prefix, name=metric_name), tags
-        )
-        assert current_value == expected_value
 
     def test_get_name_invalid_cases(self):
         invalid_name = "invalid/metric/name"
