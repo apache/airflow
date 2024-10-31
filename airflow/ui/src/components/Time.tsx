@@ -34,10 +34,14 @@ dayjs.extend(advancedFormat);
 type Props = {
   readonly datetime?: string | null;
   readonly format?: string;
-  readonly tooltip?: boolean;
+  readonly showTooltip?: boolean;
 };
 
-const Time = ({ datetime, format = defaultFormat, tooltip = true }: Props) => {
+const Time = ({
+  datetime,
+  format = defaultFormat,
+  showTooltip = true,
+}: Props) => {
   const { selectedTimezone } = useTimezone();
   const time = dayjs(datetime);
 
@@ -53,7 +57,7 @@ const Time = ({ datetime, format = defaultFormat, tooltip = true }: Props) => {
       dateTime={datetime}
       // show title if date is not UTC
       title={
-        selectedTimezone.toUpperCase() !== "UTC" && tooltip
+        selectedTimezone.toUpperCase() !== "UTC" && showTooltip
           ? utcTime
           : undefined
       }
