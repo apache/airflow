@@ -157,7 +157,7 @@ Endpoint                                                                        
 /dags                                                                              GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     PATCH  DAGs.can_edit                                                     User
-/dags/{dag_id}/clearTaskInstances                                                  POST   DAGs.can_edit, DAG Runs.can_read, Task Instances.can_edit         User
+/dags/{dag_id}/clearTaskInstances                                                  PUT    DAGs.can_edit, DAG Runs.can_edit, Task Instances.can_edit         User
 /dags/{dag_id}/details                                                             GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
