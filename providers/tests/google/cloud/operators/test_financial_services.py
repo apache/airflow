@@ -23,74 +23,72 @@ from airflow.providers.google.cloud.operators.financial_services import (
     FinancialServicesDeleteInstanceOperator,
 )
 
-TEST_KMS_KEY_URI = "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key"
-TEST_LOCATION_RESOURCE_URI = "projects/test-project/locations/us-central1"
-TEST_INSTANCE_ID = "test-instance"
-TEST_INSTANCE_RESOURCE_URI = f"{TEST_LOCATION_RESOURCE_URI}/instances/{TEST_INSTANCE_ID}"
-TEST_OPERATION = {"name": "test-operation", "metadata": {}, "done": False}
-TEST_INSTANCE = {
-    "name": "test-instance",
-    "createTime": "2014-10-02T15:01:23Z",
-    "updateTime": "2014-10-02T15:01:23Z",
-    "labels": {},
-    "state": "ACTIVE",
-    "kmsKey": TEST_KMS_KEY_URI,
-}
+PROJECT_ID = "test-project"
+REGION = "us-central1"
+KMS_KEY_RING = "test-key-ring"
+KMS_KEY = "test-key"
+INSTANCE_ID = "test-instance"
 
 
 class TestFinancialServicesCreateInstanceOperator:
     @mock.patch("airflow.providers.google.cloud.operators.financial_services.FinancialServicesHook")
     def test_execute(self, mock_hook):
-        mock_hook.return_value.create_instance.return_value = TEST_OPERATION
-
         op = FinancialServicesCreateInstanceOperator(
             task_id="test_create_instance_task",
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
+            kms_key_ring_id=KMS_KEY_RING,
+            kms_key_id=KMS_KEY,
             discovery_doc={},
-            instance_id=TEST_INSTANCE_ID,
-            kms_key_uri=TEST_KMS_KEY_URI,
-            location_resource_uri=TEST_LOCATION_RESOURCE_URI,
         )
         op.execute(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
-            instance_id=TEST_INSTANCE_ID,
-            kms_key_uri=TEST_KMS_KEY_URI,
-            location_resource_uri=TEST_LOCATION_RESOURCE_URI,
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
+            kms_key_ring_id=KMS_KEY_RING,
+            kms_key_id=KMS_KEY,
         )
 
 
 class TestFinancialServicesDeleteInstanceOperator:
     @mock.patch("airflow.providers.google.cloud.operators.financial_services.FinancialServicesHook")
     def test_execute(self, mock_hook):
-        mock_hook.return_value.delete_instance.return_value = TEST_OPERATION
-
         op = FinancialServicesDeleteInstanceOperator(
             task_id="test_delete_instance_task",
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
             discovery_doc={},
-            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI,
         )
         op.execute(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
-            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
         )
 
 
 class TestFinancialServicesGetInstanceOperator:
     @mock.patch("airflow.providers.google.cloud.operators.financial_services.FinancialServicesHook")
     def test_execute(self, mock_hook):
-        mock_hook.return_value.get_instance.return_value = TEST_INSTANCE
-
         op = FinancialServicesDeleteInstanceOperator(
             task_id="test_get_instance_task",
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
             discovery_doc={},
-            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI,
         )
         op.execute(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
-            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
         )

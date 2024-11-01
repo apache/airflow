@@ -20,19 +20,11 @@ from unittest.mock import patch
 
 from airflow.providers.google.cloud.hooks.financial_services import FinancialServicesHook
 
-TEST_KMS_KEY_URI = "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key"
-TEST_LOCATION_RESOURCE_URI = "projects/test-project/locations/us-central1"
-TEST_INSTANCE_ID = "test-instance"
-TEST_INSTANCE_RESOURCE_URI = f"{TEST_LOCATION_RESOURCE_URI}/instances/{TEST_INSTANCE_ID}"
-TEST_OPERATION = {"name": "test-operation", "metadata": {}, "done": False}
-TEST_INSTANCE = {
-    "name": "test-instance",
-    "createTime": "2014-10-02T15:01:23Z",
-    "updateTime": "2014-10-02T15:01:23Z",
-    "labels": {},
-    "state": "ACTIVE",
-    "kmsKey": TEST_KMS_KEY_URI,
-}
+PROJECT_ID = "test-project"
+REGION = "us-central1"
+KMS_KEY_RING = "test-key-ring"
+KMS_KEY = "test-key"
+INSTANCE_ID = "test-instance"
 
 
 def mock_init(
@@ -66,13 +58,13 @@ class TestFinancialServicesHook:
         projects = self.financial_services_hook.connection.projects.return_value
         locations = projects.locations.return_value
         instances = locations.instances.return_value
-        instances.get.return_value.execute.return_value = TEST_INSTANCE
 
-        response = self.financial_services_hook.get_instance(instance_resource_uri=TEST_INSTANCE_RESOURCE_URI)
-
-        instances.get.assert_called_once_with(name=TEST_INSTANCE_RESOURCE_URI)
-
-        assert response == TEST_INSTANCE
+        self.financial_services_hook.get_instance(
+            project_id=PROJECT_ID, region=REGION, instance_id=INSTANCE_ID
+        )
+        instances.get.assert_called_once_with(
+            name=f"projects/{PROJECT_ID}/locations/{REGION}/instances/{INSTANCE_ID}"
+        )
 
     @patch("airflow.providers.google.cloud.hooks.financial_services.FinancialServicesHook.get_conn")
     def test_create_instance(self, mock_get_conn):
@@ -81,21 +73,22 @@ class TestFinancialServicesHook:
         projects = self.financial_services_hook.connection.projects.return_value
         locations = projects.locations.return_value
         instances = locations.instances.return_value
-        instances.create.return_value.execute.return_value = TEST_OPERATION
 
-        response = self.financial_services_hook.create_instance(
-            instance_id=TEST_INSTANCE_ID,
-            kms_key_uri=TEST_KMS_KEY_URI,
-            location_resource_uri=TEST_LOCATION_RESOURCE_URI,
+        self.financial_services_hook.create_instance(
+            project_id=PROJECT_ID,
+            region=REGION,
+            instance_id=INSTANCE_ID,
+            kms_key_ring_id=KMS_KEY_RING,
+            kms_key_id=KMS_KEY,
         )
 
         instances.create.assert_called_once_with(
-            parent=TEST_LOCATION_RESOURCE_URI,
-            instanceId=TEST_INSTANCE_ID,
-            body={"kmsKey": TEST_KMS_KEY_URI},
+            parent=f"projects/{PROJECT_ID}/locations/{REGION}",
+            instanceId=INSTANCE_ID,
+            body={
+                "kmsKey": f"projects/{PROJECT_ID}/locations/{REGION}/keyRings/{KMS_KEY_RING}/cryptoKeys/{KMS_KEY}"
+            },
         )
-
-        assert response == TEST_OPERATION
 
     @patch("airflow.providers.google.cloud.hooks.financial_services.FinancialServicesHook.get_conn")
     def test_delete_instance(self, mock_get_conn):
@@ -104,12 +97,11 @@ class TestFinancialServicesHook:
         projects = self.financial_services_hook.connection.projects.return_value
         locations = projects.locations.return_value
         instances = locations.instances.return_value
-        instances.delete.return_value.execute.return_value = TEST_OPERATION
 
-        response = self.financial_services_hook.delete_instance(
-            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI
+        self.financial_services_hook.delete_instance(
+            project_id=PROJECT_ID, region=REGION, instance_id=INSTANCE_ID
         )
 
-        instances.delete.assert_called_once_with(name=TEST_INSTANCE_RESOURCE_URI)
-
-        assert response == TEST_OPERATION
+        instances.delete.assert_called_once_with(
+            name=f"projects/{PROJECT_ID}/locations/{REGION}/instances/{INSTANCE_ID}"
+        )
