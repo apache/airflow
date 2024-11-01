@@ -34,6 +34,7 @@ import sys
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
+from threading import local
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -391,6 +392,8 @@ class ExecutorSafeguard:
     """
 
     test_mode = conf.getboolean("core", "unit_test_mode")
+    _sentinel = local()
+    _sentinel.callers = {}
 
     @classmethod
     def decorator(cls, func):
@@ -398,7 +401,13 @@ class ExecutorSafeguard:
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
 
-            sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+            sentinel_key = f"{self.__class__.__name__}__sentinel"
+            sentinel = kwargs.pop(sentinel_key, None)
+
+            if sentinel:
+                cls._sentinel.callers[sentinel_key] = sentinel
+            else:
+                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
             if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
