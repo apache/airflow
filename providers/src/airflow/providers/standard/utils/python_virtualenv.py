@@ -29,12 +29,13 @@ from jinja2 import select_autoescape
 from airflow.utils.process_utils import execute_in_subprocess
 
 
-def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
-    cmd = [sys.executable, "-m", "virtualenv", tmp_dir]
+def _generate_venv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
+    """We are using venv command instead of venv module to allow creation of venv for different python versions."""
+    if python_bin is None:
+        python_bin = sys.executable
+    cmd = [python_bin, "-m", "venv", tmp_dir]
     if system_site_packages:
         cmd.append("--system-site-packages")
-    if python_bin is not None:
-        cmd.append(f"--python={python_bin}")
     return cmd
 
 
@@ -90,8 +91,8 @@ def prepare_virtualenv(
     if index_urls is not None:
         _generate_pip_conf(Path(venv_directory) / "pip.conf", index_urls)
 
-    virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
-    execute_in_subprocess(virtualenv_cmd)
+    venv_cmd = _generate_venv_cmd(venv_directory, python_bin, system_site_packages)
+    execute_in_subprocess(venv_cmd)
 
     if requirements is not None and requirements_file_path is not None:
         raise ValueError("Either requirements OR requirements_file_path has to be passed, but not both")

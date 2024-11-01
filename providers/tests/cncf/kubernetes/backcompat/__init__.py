@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import hashlib
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from _typeshed import ReadableBuffer
-
-
-def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
-    """
-    Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
-
-    :param __string: The data to hash. Default to empty str byte.
-    :return: The hashed value.
-    """
-    return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
