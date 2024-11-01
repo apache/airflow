@@ -1802,7 +1802,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         As a compromise between always failing a stuck task and always rescheduling a stuck task (which could
         lead to tasks being stuck in queued forever without informing the user), we have creating the config
-        `AIRFLOW__CORE__NUM_STUCK_RETRIES`. With this new configuration, an airflow admin can decide how
+        `[core] num_stuck_reschedules`. With this new configuration, an airflow admin can decide how
         sensitive they would like their airflow to be WRT failing stuck tasks.
         """
         self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
