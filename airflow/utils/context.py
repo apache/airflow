@@ -44,6 +44,7 @@ from airflow.assets import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
+    AssetRef,
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -249,6 +250,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
     _inlets: list[Any]
     _assets: dict[str, Asset]
     _asset_aliases: dict[str, AssetAlias]
+    _asset_refs: dict[str, AssetRef]
     _session: Session
 
     def __init__(self, inlets: list, *, session: Session) -> None:
@@ -256,12 +258,15 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
         self._session = session
         self._assets = {}
         self._asset_aliases = {}
+        self._asset_refs = {}
 
         for inlet in inlets:
             if isinstance(inlet, Asset):
                 self._assets[inlet.uri] = inlet
             elif isinstance(inlet, AssetAlias):
                 self._asset_aliases[inlet.name] = inlet
+            elif isinstance(inlet, AssetRef):
+                self._asset_refs[inlet.name] = inlet
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._inlets)
@@ -270,10 +275,15 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
         return len(self._inlets)
 
     def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
+        from airflow.decorators.assets import _fetch_active_assets_by_name
+
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
-            if not isinstance(obj, (Asset, AssetAlias)):
+            if not isinstance(obj, (Asset, AssetAlias, Asset)):
                 raise IndexError(key)
+
+            if isinstance(obj, AssetRef):
+                obj = _fetch_active_assets_by_name([obj.name])
         else:
             obj = key
 
@@ -281,7 +291,17 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
             asset_alias = self._asset_aliases[obj.name]
             join_clause = AssetEvent.source_aliases
             where_clause = AssetAliasModel.name == asset_alias.name
-        elif isinstance(obj, (Asset, str)):
+        elif isinstance(obj, Asset):
+            join_clause = AssetEvent.asset
+
+            asset = self._assets.get(obj.uri, None)
+            if not asset:
+                asset_name = self._asset_refs[obj.name].name
+            else:
+                asset_name = asset.name
+
+            where_clause = AssetModel.name == asset_name
+        elif isinstance(obj, str):
             asset = self._assets[extract_event_key(obj)]
             join_clause = AssetEvent.asset
             where_clause = AssetModel.uri == asset.uri

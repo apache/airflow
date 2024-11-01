@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Mapping, cast
 import attrs
 from sqlalchemy import select
 
-from airflow.assets import Asset, _validate_identifier
+from airflow.assets import Asset, AssetRef, _validate_identifier
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.providers.standard.operators.python import PythonOperator
@@ -52,13 +52,6 @@ def _fetch_active_assets_by_name(
             .where(AssetActive.name.in_(name for name in names))
         )
     }
-
-
-@attrs.define(kw_only=True)
-class AssetRef:
-    """Reference to an asset."""
-
-    name: str
 
 
 class _AssetMainOperator(PythonOperator):
