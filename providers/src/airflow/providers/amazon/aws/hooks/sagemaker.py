@@ -153,7 +153,9 @@ class SageMakerHook(AwsBaseHook):
     non_terminal_states = {"InProgress", "Stopping"}
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
     pipeline_non_terminal_states = {"Executing", "Stopping"}
+    processing_job_non_terminal_states = {"InProgress", "Stopping"}
     failed_states = {"Failed"}
+    processing_job_failed_states = {*failed_states, "Stopped"}
     training_failed_states = {*failed_states, "Stopped"}
 
     def __init__(self, *args, **kwargs):

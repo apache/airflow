@@ -22,7 +22,7 @@ from __future__ import annotations
 import ast
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence, Tuple
+from typing import TYPE_CHECKING, Sequence, Tuple, cast
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.automl_v1beta1 import (
@@ -280,17 +280,22 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
 
+    @cached_property
+    def model(self) -> Model | None:
+        if self.model_id:
+            hook = cast(CloudAutoMLHook, self.hook)
+            return hook.get_model(
+                model_id=self.model_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return None
+
     def _check_model_type(self):
-        hook = self.hook
-        model = hook.get_model(
-            model_id=self.model_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        if not hasattr(model, "translation_model_metadata"):
+        if not hasattr(self.model, "translation_model_metadata"):
             raise AirflowException(
                 "AutoMLPredictOperator for text, image, and video prediction has been deprecated. "
                 "Please use endpoint_id param instead of model_id param."
@@ -329,11 +334,13 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
             )
 
         project_id = self.project_id or hook.project_id
-        if project_id and self.model_id:
+        dataset_id: str | None = self.model.dataset_id if self.model else None
+        if project_id and self.model_id and dataset_id:
             TranslationLegacyModelPredictLink.persist(
                 context=context,
                 task_instance=self,
                 model_id=self.model_id,
+                dataset_id=dataset_id,
                 project_id=project_id,
             )
         return PredictResponse.to_dict(result)
@@ -431,12 +438,16 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
         self.input_config = input_config
         self.output_config = output_config
 
-    def execute(self, context: Context):
-        hook = CloudAutoMLHook(
+    @cached_property
+    def hook(self) -> CloudAutoMLHook:
+        return CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.model: Model = hook.get_model(
+
+    @cached_property
+    def model(self) -> Model:
+        return self.hook.get_model(
             model_id=self.model_id,
             location=self.location,
             project_id=self.project_id,
@@ -445,6 +456,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
 
+    def execute(self, context: Context):
         if not hasattr(self.model, "translation_model_metadata"):
             _raise_exception_for_deprecated_operator(
                 self.__class__.__name__,
@@ -456,7 +468,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
                 ],
             )
         self.log.info("Fetch batch prediction.")
-        operation = hook.batch_predict(
+        operation = self.hook.batch_predict(
             model_id=self.model_id,
             input_config=self.input_config,
             output_config=self.output_config,
@@ -467,16 +479,17 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        operation_result = self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
         result = BatchPredictResult.to_dict(operation_result)
         self.log.info("Batch prediction is ready.")
-        project_id = self.project_id or hook.project_id
+        project_id = self.project_id or self.hook.project_id
         if project_id:
             TranslationLegacyModelPredictLink.persist(
                 context=context,
                 task_instance=self,
                 model_id=self.model_id,
                 project_id=project_id,
+                dataset_id=self.model.dataset_id,
             )
         return result
 

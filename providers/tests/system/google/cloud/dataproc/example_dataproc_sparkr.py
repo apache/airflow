@@ -66,6 +66,9 @@ CLUSTER_CONFIG = {
         "machine_type_uri": "n1-standard-4",
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
+    "software_config": {
+        "image_version": "2.0.116-debian10",
+    },
 }
 
 # Jobs definitions

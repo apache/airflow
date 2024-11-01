@@ -35,6 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.1.0
+.....
+
+Latest change: 2024-10-30
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+`39dba929bb <https://github.com/apache/airflow/commit/39dba929bbc593e853dc2f106be5b62b739d630c>`_  2024-10-29   ``fix(providers/amazon): alias is_authorized_dataset to is_authorized_asset (#43470)``
+`9811f1d6d0 <https://github.com/apache/airflow/commit/9811f1d6d0fe557ab204b20ad5cdf7423926bd22>`_  2024-10-28   ``Limit mypy-boto3-appflow (#43436)``
+`1f13f26144 <https://github.com/apache/airflow/commit/1f13f261447b9c5239b86d706d7c4f715a644395>`_  2024-10-28   ``Remove returns in final clause of athena hooks (#43426)``
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
+`6786032d4b <https://github.com/apache/airflow/commit/6786032d4b69e9b3a44165daf04d2270d40271ad>`_  2024-10-23   ``Remove sqlalchemy-redshift dependency (#43271)``
+`be553780e5 <https://github.com/apache/airflow/commit/be553780e56cf8c34a65aecf2c52a33b82e0e039>`_  2024-10-22   ``feat: add OpenLineage support for RedshiftToS3Operator (#41632)``
+`72f2b2e951 <https://github.com/apache/airflow/commit/72f2b2e951a3421e838ae715f954a1520d494464>`_  2024-10-18   ``Remove TaskContextLogger (#43183)``
+`b4269f33c7 <https://github.com/apache/airflow/commit/b4269f33c7151e6d61e07333003ec1e219285b07>`_  2024-10-18   ``Add 'SageMakerProcessingSensor' (#43144)``
+`a2b32d6e7c <https://github.com/apache/airflow/commit/a2b32d6e7c35a331353c20fb8d8868dcd5324db6>`_  2024-10-17   ``feat(providers/amazon): Use asset in common provider (#43110)``
+`fe0cc6e830 <https://github.com/apache/airflow/commit/fe0cc6e83024b525c4247ff75683d79b78e220ea>`_  2024-10-15   ``Make 'RedshiftDataOperator'  handle multiple queries (#42900)``
+`7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 9.0.0
 .....
 
@@ -43,6 +66,7 @@ Latest change: 2024-10-09
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `d395c1f1f8 <https://github.com/apache/airflow/commit/d395c1f1f8dad18a1daf5275a522f4f62bcf6aec>`_  2024-10-09   ``Revert "Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)" (#42864)``
 `3b4c73a644 <https://github.com/apache/airflow/commit/3b4c73a644f40013927fb72227dfe018dc47a97f>`_  2024-10-08   ``Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)``
 `63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``

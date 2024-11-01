@@ -91,7 +91,7 @@ if TYPE_CHECKING:
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
 
-RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
+RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
 
 class TISchedulingDecision(NamedTuple):
@@ -386,7 +386,9 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def active_runs_of_dags(
         cls,
+        *,
         dag_ids: Iterable[str],
+        exclude_backfill,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
         """
@@ -400,6 +402,8 @@ class DagRun(Base, LoggingMixin):
             .where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
             .group_by(cls.dag_id)
         )
+        if exclude_backfill:
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         return dict(iter(session.execute(query)))
 
     @classmethod

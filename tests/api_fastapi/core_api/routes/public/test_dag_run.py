@@ -43,9 +43,9 @@ DAG2_RUN2_STATE = DagRunState.SUCCESS
 DAG1_RUN1_RUN_TYPE = DagRunType.MANUAL
 DAG1_RUN2_RUN_TYPE = DagRunType.SCHEDULED
 DAG2_RUN1_RUN_TYPE = DagRunType.BACKFILL_JOB
-DAG2_RUN2_RUN_TYPE = DagRunType.DATASET_TRIGGERED
+DAG2_RUN2_RUN_TYPE = DagRunType.ASSET_TRIGGERED
 DAG1_RUN1_TRIGGERED_BY = DagRunTriggeredByType.UI
-DAG1_RUN2_TRIGGERED_BY = DagRunTriggeredByType.DATASET
+DAG1_RUN2_TRIGGERED_BY = DagRunTriggeredByType.ASSET
 DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
 DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
 START_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
@@ -136,6 +136,56 @@ class TestGetDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestPatchDagRun:
+    @pytest.mark.parametrize(
+        "dag_id, run_id, state, response_state",
+        [
+            (DAG1_ID, DAG1_RUN1_ID, DagRunState.FAILED, DagRunState.FAILED),
+            (DAG1_ID, DAG1_RUN2_ID, DagRunState.SUCCESS, DagRunState.SUCCESS),
+            (DAG2_ID, DAG2_RUN1_ID, DagRunState.QUEUED, DagRunState.QUEUED),
+        ],
+    )
+    def test_patch_dag_run(self, test_client, dag_id, run_id, state, response_state):
+        response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json={"state": state})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_id"] == dag_id
+        assert body["run_id"] == run_id
+        assert body["state"] == response_state
+
+    @pytest.mark.parametrize(
+        "query_params,patch_body, expected_status_code",
+        [
+            ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, 200),
+            ({}, {"state": DagRunState.SUCCESS}, 200),
+            ({"update_mask": ["random"]}, {"state": DagRunState.SUCCESS}, 400),
+        ],
+    )
+    def test_patch_dag_run_with_update_mask(
+        self, test_client, query_params, patch_body, expected_status_code
+    ):
+        response = test_client.patch(
+            f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", params=query_params, json=patch_body
+        )
+        assert response.status_code == expected_status_code
+
+    def test_patch_dag_run_not_found(self, test_client):
+        response = test_client.patch(
+            f"/public/dags/{DAG1_ID}/dagRuns/invalid", json={"state": DagRunState.SUCCESS}
+        )
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+    def test_patch_dag_run_bad_request(self, test_client):
+        response = test_client.patch(
+            f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": "running"}
+        )
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
 
 class TestDeleteDagRun:

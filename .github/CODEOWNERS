@@ -11,7 +11,7 @@
 
 # Kubernetes
 /airflow/kubernetes/ @dstandish @jedcunningham
-/airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
+/providers/src/airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
 
 # Helm Chart
 /chart/ @dstandish @jedcunningham @hussein-awala
@@ -61,27 +61,28 @@
 /airflow/secrets  @dstandish @potiuk @ashb
 
 # Providers
-/airflow/providers/amazon/ @eladkal @o-nikolas
-/airflow/providers/celery/ @hussein-awala
-/airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
-/airflow/providers/common/sql/ @eladkal
-/airflow/providers/dbt/cloud/ @josh-fell
-/airflow/providers/edge @jscheffl
-/airflow/providers/hashicorp/ @hussein-awala
-/airflow/providers/openlineage/ @mobuchowski
-/airflow/providers/slack/ @eladkal
-/airflow/providers/smtp/ @hussein-awala
-/airflow/providers/snowflake/ @potiuk @mik-laj
-/airflow/providers/tabular/ @Fokko
+/providers/src/airflow/providers/amazon/ @eladkal @o-nikolas
+/providers/src/airflow/providers/celery/ @hussein-awala
+/providers/src/airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
+/providers/src/airflow/providers/common/sql/ @eladkal
+/providers/src/airflow/providers/dbt/cloud/ @josh-fell
+/providers/src/airflow/providers/edge @jscheffl
+/providers/src/airflow/providers/hashicorp/ @hussein-awala
+/providers/src/airflow/providers/openlineage/ @mobuchowski
+/providers/src/airflow/providers/slack/ @eladkal
+/providers/src/airflow/providers/smtp/ @hussein-awala
+/providers/src/airflow/providers/snowflake/ @potiuk @mik-laj
+/providers/src/airflow/providers/apache/iceberg/ @Fokko
+/providers/tests/apache/iceberg/ @Fokko
 /docs/apache-airflow-providers-amazon/ @eladkal @o-nikolas
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 /docs/apache-airflow-providers-common-sql/ @eladkal
 /docs/apache-airflow-providers-openlineage/ @mobuchowski
 /docs/apache-airflow-providers-slack/ @eladkal
-/tests/providers/amazon/ @eladkal @o-nikolas
-/tests/providers/common/sql/ @eladkal
-/tests/providers/openlineage/ @mobuchowski
-/tests/providers/slack/ @eladkal
+/providers/tests/amazon/ @eladkal @o-nikolas
+/providers/tests/common/sql/ @eladkal
+/providers/tests/openlineage/ @mobuchowski
+/providers/tests/slack/ @eladkal
 /tests/system/providers/amazon/ @eladkal @o-nikolas
 
 # Dev tools
@@ -108,6 +109,6 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 
 # AIP-58 - Object Storage
 /airflow/io/ @bolkedebruin
-/airflow/providers/**/fs/ @bolkedebruin
-/airflow/providers/common/io/ @bolkedebruin
+/providers/src/airflow/providers/**/fs/ @bolkedebruin
+/providers/src/airflow/providers/common/io/ @bolkedebruin
 /docs/apache-airflow/core-concepts/objectstorage.rst @bolkedebruin

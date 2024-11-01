@@ -22,9 +22,10 @@ description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 state: ready
-source-date-epoch: 1728484593
+source-date-epoch: 1730012148
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.11.2
   - 4.11.1
   - 4.11.0
   - 4.10.0

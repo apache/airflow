@@ -28,6 +28,7 @@ from airflow.api_connexion.schemas.provider_schema import (
 )
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.providers_manager import ProvidersManager
+from airflow.utils.api_migration import mark_fastapi_migration_done
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
@@ -46,6 +47,7 @@ def _provider_mapper(provider: ProviderInfo) -> Provider:
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_view(AccessView.PROVIDERS)
 def get_providers() -> APIResponse:
     """Get providers."""

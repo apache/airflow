@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -45,6 +46,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -90,6 +92,23 @@ class TestBaseSQLOperator:
         assert operator.conn_id == "my_conn_id"
         assert operator.database == "my_database"
         assert operator.hook_params == {"key": "value"}
+
+    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_get_hook_method(self):
+        """
+        Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
+        for this provider, you should remove the obsolete get_hook method in the BaseSQLOperator operator
+        and remove this test.  This test was added to make sure to not forget to remove the fallback code
+        for backward compatibility with Airflow 2.8.x which isn't need anymore once this provider depends on
+        Airflow 3.0.0 or higher.
+        """
+        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-common-sql")
+
+        # Check if the current Airflow version is 3.0.0 or higher
+        if min_airflow_version[0] >= 3:
+            method_source = inspect.getsource(BaseSQLOperator.get_hook)
+            raise AirflowProviderDeprecationWarning(
+                f"Check TODO's to remove obsolete get_hook method in BaseSQLOperator:\n\r\n\r\t\t\t{method_source}"
+            )
 
 
 class TestSQLExecuteQueryOperator:

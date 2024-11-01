@@ -1146,6 +1146,7 @@ paths:
         Get asset for a dag run.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents"
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_upstream_asset_events
       tags: [DAGRun, Asset]
@@ -1211,6 +1212,7 @@ paths:
         Get a queued asset event for a DAG.
 
         *New in version 2.9.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dag_asset_queued_event
       parameters:
@@ -1236,6 +1238,7 @@ paths:
         Delete a queued Asset event for a DAG.
 
         *New in version 2.9.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: delete_dag_asset_queued_event
       parameters:
@@ -1263,6 +1266,7 @@ paths:
         Get queued Asset events for a DAG.
 
         *New in version 2.9.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dag_asset_queued_events
       parameters:
@@ -1288,6 +1292,7 @@ paths:
         Delete queued Asset events for a DAG.
 
         *New in version 2.9.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: delete_dag_asset_queued_events
       parameters:
@@ -1336,6 +1341,7 @@ paths:
         Get queued Asset events for an Asset
 
         *New in version 2.9.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_asset_queued_events
       parameters:
@@ -1358,9 +1364,10 @@ paths:
     delete:
       summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Asset events for a Asset.
+        Delete queued Asset events for an Asset.
 
         *New in version 2.9.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: delete_asset_queued_events
       parameters:
@@ -2480,6 +2487,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_assets
       tags: [Asset]
+      description: |
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets"
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
@@ -2517,7 +2526,10 @@ paths:
       - $ref: "#/components/parameters/AssetURI"
     get:
       summary: Get an asset
-      description: Get an asset by uri.
+      description: |
+        Get an asset by uri.
+
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/{uri}"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_asset
       tags: [Asset]
@@ -2538,7 +2550,10 @@ paths:
   /assets/events:
     get:
       summary: Get asset events
-      description: Get asset events
+      description: |
+        Get asset events
+
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_asset_events
       tags: [Asset]
@@ -2566,7 +2581,10 @@ paths:
           $ref: "#/components/responses/NotFound"
     post:
       summary: Create asset event
-      description: Create asset event
+      description: |
+        Create asset event
+
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: create_asset_event
       tags: [Asset]
@@ -2884,6 +2902,16 @@ components:
           type: boolean
           nullable: true
           description: is_paused
+        reprocess_behavior:
+          type: string
+          default: none
+          enum:
+            - none
+            - failed
+            - completed
+          description: |
+            Controls whether new runs will be created when there's an existing run
+            for a given logical date.
         max_active_runs:
           type: integer
           nullable: true
@@ -3050,14 +3078,6 @@ components:
           description: |
             Time when the DAG last received a refresh signal
             (e.g. the DAG's "refresh" button was clicked in the web UI)
-
-            *New in version 2.3.0*
-        scheduler_lock:
-          type: boolean
-          readOnly: true
-          nullable: true
-          description: |
-            Whether (one of) the scheduler is scheduling this DAG at the moment
 
             *New in version 2.3.0*
         pickle_id:
@@ -3299,7 +3319,9 @@ components:
             - backfill
             - manual
             - scheduled
-            - dataset_triggered
+            - asset_triggered
+          description: |
+            *Changed in 3.0.0*: The asset_triggered value was renamed from dataset_triggered.
         state:
           $ref: "#/components/schemas/DagState"
         external_trigger:
@@ -4088,9 +4110,12 @@ components:
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
               nullable: true
-            dataset_expression:
+            asset_expression:
               type: object
-              description: Nested asset any/all conditions
+              description: |
+                Nested asset any/all conditions
+
+                *Changed in 3.0.0*: The asset_expression value was renamed from dataset_expression.
               nullable: true
             doc_md:
               type: string
@@ -4475,6 +4500,7 @@ components:
         An asset item.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from Dataset.
       type: object
       properties:
         id:
@@ -4510,6 +4536,7 @@ components:
         An asset reference to an upstream task.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from TaskOutletDatasetReference.
       type: object
       properties:
         dag_id:
@@ -4534,6 +4561,7 @@ components:
         An asset reference to a downstream DAG.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DagScheduleDatasetReference.
       type: object
       properties:
         dag_id:
@@ -4554,6 +4582,7 @@ components:
         A collection of assets.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DatasetCollection.
       type: object
       allOf:
         - type: object
@@ -4562,6 +4591,8 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/Asset"
+              description: |
+                *Changed in 3.0.0*: This was renamed from datasets.
         - $ref: "#/components/schemas/CollectionInfo"
 
     AssetEvent:
@@ -4569,14 +4600,21 @@ components:
         An asset event.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DatasetEvent.
       type: object
       properties:
-        dataset_id:
+        asset_id:
           type: integer
-          description: The asset id
-        dataset_uri:
+          description: |
+            The asset id
+
+            *Changed in 3.0.0*: This was renamed from dataset_id.
+        asset_uri:
           type: string
-          description: The URI of the asset
+          description: |
+            The URI of the asset
+
+            *Changed in 3.0.0*: This was renamed from dataset_uri.
           nullable: false
         extra:
           type: object
@@ -4611,10 +4649,15 @@ components:
       type: object
       required:
         - asset_uri
+      description: |
+        *Changed in 3.0.0*: This was renamed from CreateDatasetEvent.
       properties:
         asset_uri:
           type: string
-          description: The URI of the asset
+          description: |
+            The URI of the asset
+
+            *Changed in 3.0.0*: This was renamed from dataset_uri.
           nullable: false
         extra:
           type: object
@@ -4705,12 +4748,15 @@ components:
         A collection of asset events.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DatasetEventCollection.
       type: object
       allOf:
         - type: object
           properties:
             asset_events:
               type: array
+              description: |
+                *Changed in 3.0.0*: This was renamed from dataset_events.
               items:
                 $ref: "#/components/schemas/AssetEvent"
         - $ref: "#/components/schemas/CollectionInfo"
@@ -4994,6 +5040,15 @@ components:
     ListTaskInstanceForm:
       type: object
       properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
         dag_ids:
           type: array
           items:
@@ -5515,7 +5570,10 @@ components:
         type: string
         format: path
       required: true
-      description: The encoded Asset URI
+      description: |
+        The encoded Asset URI
+
+        *Changed in 3.0.0*: This was renamed from DatasetURI.
 
     PoolName:
       in: path
@@ -5701,7 +5759,10 @@ components:
       name: asset_id
       schema:
         type: integer
-      description: The Asset ID that updated the asset.
+      description: |
+        The Asset ID that updated the asset.
+
+        *Changed in 3.0.0*: This was renamed from FilterDatasetID.
 
     FilterSourceDAGID:
       in: query

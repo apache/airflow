@@ -30,8 +30,22 @@ from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, console
 FILES_TO_UPDATE = [
     AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile",
     AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile.ci",
+    AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh",
     AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "docker" / "common.sh",
     AIRFLOW_SOURCES_ROOT_PATH / "pyproject.toml",
+    AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py",
+    AIRFLOW_SOURCES_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "commands"
+    / "release_management_commands.py",
+]
+
+
+DOC_FILES_TO_UPDATE: list[Path] = [
+    AIRFLOW_SOURCES_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md"
 ]
 
 
@@ -43,12 +57,38 @@ def get_latest_pypi_version(package_name: str) -> str:
     return latest_version
 
 
-PIP_PATTERN = re.compile(r"AIRFLOW_PIP_VERSION=[0-9.]+")
-UV_PATTERN = re.compile(r"AIRFLOW_UV_VERSION=[0-9.]+")
-UV_GREATER_PATTERN = re.compile(r'"uv>=[0-9]+[0-9.]+"')
+AIRFLOW_PIP_PATTERN = re.compile(r"(AIRFLOW_PIP_VERSION=)([0-9.]+)")
+AIRFLOW_PIP_QUOTED_PATTERN = re.compile(r"(AIRFLOW_PIP_VERSION = )(\"[0-9.]+\")")
+PIP_QUOTED_PATTERN = re.compile(r"(PIP_VERSION = )(\"[0-9.]+\")")
+AIRFLOW_PIP_DOC_PATTERN = re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)")
+AIRFLOW_PIP_UPGRADE_PATTERN = re.compile(r"(python -m pip install --upgrade pip==)([0-9.]+)")
+
+AIRFLOW_UV_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)")
+AIRFLOW_UV_QUOTED_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")")
+AIRFLOW_UV_DOC_PATTERN = re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)")
+UV_GREATER_PATTERN = re.compile(r'"(uv>=)([0-9]+)"')
 
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
+
+
+def replace_group_2_while_keeping_total_length(pattern: re.Pattern[str], replacement: str, text: str) -> str:
+    def replacer(match):
+        original_length = len(match.group(2))
+        padding = ""
+        if len(match.groups()) > 2:
+            padding = match.group(3)
+            new_length = len(replacement)
+            diff = new_length - original_length
+            if diff <= 0:
+                padding = " " * -diff + padding
+            else:
+                padding = padding[diff:]
+        padded_replacement = match.group(1) + replacement + padding
+        return padded_replacement.strip()
+
+    return re.sub(pattern, replacer, text)
+
 
 if __name__ == "__main__":
     pip_version = get_latest_pypi_version("pip")
@@ -62,10 +102,44 @@ if __name__ == "__main__":
         file_content = file.read_text()
         new_content = file_content
         if UPGRADE_PIP:
-            new_content = re.sub(PIP_PATTERN, f"AIRFLOW_PIP_VERSION={pip_version}", new_content, re.MULTILINE)
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_PIP_PATTERN, pip_version, new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_PIP_UPGRADE_PATTERN, pip_version, new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_PIP_QUOTED_PATTERN, f'"{pip_version}"', new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
+                PIP_QUOTED_PATTERN, f'"{pip_version}"', new_content
+            )
         if UPGRADE_UV:
-            new_content = re.sub(UV_PATTERN, f"AIRFLOW_UV_VERSION={uv_version}", new_content, re.MULTILINE)
-            new_content = re.sub(UV_GREATER_PATTERN, f'"uv>={uv_version}"', new_content, re.MULTILINE)
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_UV_PATTERN, uv_version, new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_UV_QUOTED_PATTERN, f'"{uv_version}"', new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
+                UV_GREATER_PATTERN, uv_version, new_content
+            )
+        if new_content != file_content:
+            file.write_text(new_content)
+            console.print(f"[bright_blue]Updated {file}")
+            changed = True
+    for file in DOC_FILES_TO_UPDATE:
+        console.print(f"[bright_blue]Updating {file}")
+        file_content = file.read_text()
+        new_content = file_content
+        if UPGRADE_PIP:
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_PIP_DOC_PATTERN, f"`{pip_version}`", new_content
+            )
+        if UPGRADE_UV:
+            new_content = replace_group_2_while_keeping_total_length(
+                AIRFLOW_UV_DOC_PATTERN, f"`{uv_version}`", new_content
+            )
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")

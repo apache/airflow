@@ -52,9 +52,9 @@ def check_content_in_response(text, resp, resp_code=200):
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
-            assert line in resp_html, f"Couldn't find {line!r}"
+            assert line in resp_html, f"Couldn't find {line!r}\nThe response was:\n{resp_html!r}"
     else:
-        assert text in resp_html, f"Couldn't find {text!r}"
+        assert text in resp_html, f"Couldn't find {text!r}\nThe response was:\n{resp_html!r}"
 
 
 def check_content_not_in_response(text, resp, resp_code=200):
