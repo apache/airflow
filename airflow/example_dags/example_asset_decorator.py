@@ -22,22 +22,27 @@ from airflow.assets import Asset
 from airflow.decorators import dag, task
 from airflow.decorators.assets import asset
 
-asset1 = Asset(uri="s3://bucket/object", name="asset1")
 
-
-@asset(uri="s3://bucket/asset_decorator", schedule=None)
-def asset_decorator(self, context, asset1, asset2):
+@asset(uri="s3://bucket/asset1_producer", schedule=None)
+def asset1_producer():
     pass
 
 
+@asset(uri="s3://bucket/object", schedule=None)
+def asset2_producer(self, context, asset1_producer):
+    print(self)
+    print(context["inlet_events"][asset1_producer])
+
+
 @dag(
-    schedule=[Asset(name="asset_decorator", uri="s3://bucket/asset_decorator")],
+    schedule=Asset(uri="s3://bucket/asset1_producer", name="asset1_producer")
+    | Asset(uri="s3://bucket/object", name="asset2_producer"),
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["consumes", "asset-scheduled"],
 )
 def consumes_asset_decorator():
-    @task(outlets=[Asset("s3://consuming_1_task/asset_other.txt")])
+    @task(outlets=[Asset(uri="s3://consuming_1_task/asset_other.txt", name="endpoint")])
     def process_nothing():
         pass
 
