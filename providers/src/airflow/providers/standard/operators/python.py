@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
 import inspect
 import json
 import logging
@@ -71,17 +70,6 @@ if TYPE_CHECKING:
 
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
-
-
-def is_venv_installed() -> bool:
-    """
-    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
-
-    :return: True if it is. Whichever way of checking it works, is fine.
-    """
-    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
-        return True
-    return False
 
 
 @cache
@@ -710,8 +698,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "Passing non-string types (e.g. int or float) as python_version not supported"
             )
 
-        if not is_venv_installed():
-            raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if use_airflow_context and (not expect_airflow and not system_site_packages):
             error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
             raise AirflowException(error_msg)

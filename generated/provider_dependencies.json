@@ -1286,8 +1286,7 @@
   "standard": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.18.0",
-      "apache-airflow>=2.8.0",
-      "virtualenv>=20.26.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
