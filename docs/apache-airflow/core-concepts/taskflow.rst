@@ -25,7 +25,7 @@ If you write most of your DAGs using plain Python code rather than Operators, th
 TaskFlow takes care of moving inputs and outputs between your Tasks using XComs for you, as well as automatically calculating dependencies - when you call a TaskFlow function in your DAG file, rather than executing it, you will get an object representing the XCom for the result (an ``XComArg``), that you can then use as inputs to downstream tasks or operators. For example::
 
     from airflow.decorators import task
-    from airflow.operators.email import EmailOperator
+    from airflow.providers.standard.operators.email import EmailOperator
 
     @task
     def get_ip():

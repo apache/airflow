@@ -359,7 +359,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 
     start_op >> branch_op >> [continue_op, stop_op]
 
-If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
+If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.providers.standard.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
 .. note::
     The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
@@ -765,7 +765,7 @@ While dependencies between tasks in a DAG are explicitly defined through upstrea
 relationships, dependencies between DAGs are a bit more complex. In general, there are two ways
 in which one DAG can depend on another:
 
-- triggering - :class:`~airflow.operators.trigger_dagrun.TriggerDagRunOperator`
+- triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
 - waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
 
 Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG

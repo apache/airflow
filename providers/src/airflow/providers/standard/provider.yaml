@@ -46,6 +46,10 @@ operators:
       - airflow.providers.standard.operators.bash
       - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
+      - airflow.providers.standard.operators.branch
+      - airflow.providers.standard.operators.email
+      - airflow.providers.standard.operators.latest_only
+      - airflow.providers.standard.operators.trigger_dagrun
 
 sensors:
   - integration-name: Standard
@@ -56,9 +60,18 @@ sensors:
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
       - airflow.providers.standard.sensors.python
+      - airflow.providers.standard.sensors.external_task
+      - airflow.providers.standard.sensors.filesystem
 hooks:
   - integration-name: Standard
     python-modules:
       - airflow.providers.standard.hooks.filesystem
       - airflow.providers.standard.hooks.package_index
       - airflow.providers.standard.hooks.subprocess
+
+triggers:
+  - integration-name: Standard
+    python-modules:
+      - airflow.providers.standard.triggers.external_task
+      - airflow.providers.standard.triggers.file
+      - airflow.providers.standard.triggers.temporal

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Iterable
 
 import pendulum
 
-from airflow.operators.branch import BaseBranchOperator
+from airflow.providers.standard.operators.branch import BaseBranchOperator
 
 if TYPE_CHECKING:
     from airflow.models import DAG, DagRun

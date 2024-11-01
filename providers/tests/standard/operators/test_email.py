@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.email import EmailOperator
+from airflow.providers.standard.operators.email import EmailOperator
 from airflow.utils import timezone
 
 from tests_common.test_utils.config import conf_vars

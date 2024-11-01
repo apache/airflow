@@ -30,7 +30,7 @@ Airflow has a very extensive set of operators available, with some built-in to t
 
 - :class:`~airflow.providers.standard.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.providers.standard.operators.python.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.providers.standard.operators.email.EmailOperator` - sends an email
 - Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
 
 .. note::

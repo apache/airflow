@@ -53,13 +53,13 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.providers.standard.operators.bash`
      - :doc:`How to use <howto/operator/bash>`
 
-   * - :mod:`airflow.operators.branch`
+   * - :mod:`airflow.providers.standard.operators.branch`
      -
 
    * - :mod:`airflow.operators.empty`
      -
 
-   * - :mod:`airflow.operators.email`
+   * - :mod:`airflow.providers.standard.operators.email`
      -
 
    * - :mod:`airflow.operators.generic_transfer`
@@ -71,7 +71,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.providers.standard.operators.python`
      - :doc:`How to use <howto/operator/python>`
 
-   * - :mod:`airflow.operators.trigger_dagrun`
+   * - :mod:`airflow.providers.standard.operators.trigger_dagrun`
      -
 
 **Sensors:**
@@ -85,10 +85,10 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.providers.standard.sensors.bash`
      - :ref:`How to use <howto/operator:BashSensor>`
 
-   * - :mod:`airflow.sensors.external_task`
+   * - :mod:`airflow.providers.standard.sensors.external_task`
      - :doc:`How to use <howto/operator/external_task_sensor>`
 
-   * - :mod:`airflow.sensors.filesystem`
+   * - :mod:`airflow.providers.standard.sensors.filesystem`
      - :ref:`How to use <howto/operator:FileSensor>`
 
    * - :mod:`airflow.providers.standard.sensors.python`

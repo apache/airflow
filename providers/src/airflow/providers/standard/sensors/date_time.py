@@ -20,9 +20,9 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any, NoReturn, Sequence
 
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.base import StartTriggerArgs
-from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
 if TYPE_CHECKING:

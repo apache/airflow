@@ -50,7 +50,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
-from airflow.operators.branch import BranchMixIn
+from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal

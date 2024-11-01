@@ -24,7 +24,7 @@ import pendulum
 
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.email import EmailOperator
+from airflow.providers.standard.operators.email import EmailOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
