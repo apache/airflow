@@ -42,7 +42,7 @@ def asset2_producer(self, context, asset1_producer):
     tags=["consumes", "asset-scheduled"],
 )
 def consumes_asset_decorator():
-    @task(outlets=[Asset(uri="s3://consuming_1_task/asset_other.txt", name="endpoint")])
+    @task(outlets=[Asset(name="process_nothing")])
     def process_nothing():
         pass
 

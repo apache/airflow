@@ -199,6 +199,10 @@ def test_should_be_importable(example: str):
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):
+    if example.endswith("airflow/example_dags/example_asset_decorator.py"):
+        # The asset decorator tries to write DAG and Asset into db which is expected
+        return
+
     with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,

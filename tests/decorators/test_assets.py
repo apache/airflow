@@ -24,6 +24,8 @@ import pytest
 from airflow.assets import Asset
 from airflow.decorators.assets import AssetRef, _AssetMainOperator, asset
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def example_asset_func(request):
@@ -129,12 +131,13 @@ class TestAssetDefinition:
         _AssetMainOperator.assert_called_once_with(
             task_id="__main__",
             inlets=[
-                Asset(name="inlet_asset_1", uri="inlet_asset_1", group="", extra={}),
-                Asset(name="inlet_asset_2", uri="inlet_asset_2", group="", extra={}),
+                AssetRef(name="inlet_asset_1"),
+                AssetRef(name="inlet_asset_2"),
             ],
             outlets=[asset_definition],
             python_callable=ANY,
             definition_name="example_asset_func",
+            uri="s3://bucket/object",
         )
 
         python_callable = _AssetMainOperator.call_args.kwargs["python_callable"]
@@ -155,8 +158,8 @@ class Test_AssetMainOperator:
             definition_name="example_asset_func",
         )
         assert op.determine_kwargs(context={"k": "v"}) == {
-            "_self": AssetRef(name="example_asset_func"),
+            "_self": Asset(name="example_asset_func"),
             "context": {"k": "v"},
-            "inlet_asset_1": AssetRef(name="inlet_asset_1"),
-            "inlet_asset_2": AssetRef(name="inlet_asset_2"),
+            "inlet_asset_1": Asset(name="inlet_asset_1"),
+            "inlet_asset_2": Asset(name="inlet_asset_2"),
         }

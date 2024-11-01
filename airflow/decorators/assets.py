@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class _AssetMainOperator(PythonOperator):
-    def __init__(self, *, definition_name: str, uri: str, **kwargs) -> None:
+    def __init__(self, *, definition_name: str, uri: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self._definition_name = definition_name
         self._uri = uri
@@ -49,6 +49,10 @@ class _AssetMainOperator(PythonOperator):
             if key == "self":
                 key = "_self"
                 value = self._active_assets.get(self._definition_name)
+                if not value:
+                    value = Asset(name=self._definition_name)
+                    if self._uri is not None:
+                        value.uri = self._uri
             elif key == "context":
                 value = context
             else:
@@ -97,7 +101,7 @@ class AssetDefinition(Asset):
                     for inlet_asset_name in parameters
                     if inlet_asset_name not in ("self", "context")
                 ],
-                outlets=[self],
+                outlets=[self.to_asset()],
                 python_callable=self.function,
                 definition_name=self.name,
                 uri=self.uri,
@@ -109,6 +113,14 @@ class AssetDefinition(Asset):
         dag._wrapped_definition = self
 
         DAG.bulk_write_to_db([dag])
+
+    def to_asset(self) -> Asset:
+        return Asset(
+            name=self.name,
+            uri=self.uri,
+            group=self.group,
+            extra=self.extra,
+        )
 
     def serialize(self):
         return {
