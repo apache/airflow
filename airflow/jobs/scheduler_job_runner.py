@@ -1831,7 +1831,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 event=RETRY_STUCK_IN_QUEUED_EVENT,
                                 task_instance=ti.key,
                                 extra=(
-                                    f"Task was stuck in queued and will be retried, once it has hit {num_allowed_retries} attempts"
+                                    f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
                                     "Task will be marked as failed. After that, if the task instance has "
                                     "available retries, it will be retried."
                                 ),
