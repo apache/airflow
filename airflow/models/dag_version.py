@@ -32,6 +32,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class DagVersion(Base):
         version_name: str | None = None,
         version_number: int = 1,
         session: Session = NEW_SESSION,
-    ):
+    ) -> DagVersion:
         """Write a new DagVersion into database."""
         existing_dag_version = session.scalar(
             with_row_locks(cls._latest_version_select(dag_id), of=DagVersion, session=session, nowait=True)
@@ -100,12 +101,12 @@ class DagVersion(Base):
         return dag_version
 
     @classmethod
-    def _latest_version_select(cls, dag_id: str):
+    def _latest_version_select(cls, dag_id: str) -> Select:
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
     @provide_session
-    def get_latest_version(cls, dag_id: str, session: Session = NEW_SESSION):
+    def get_latest_version(cls, dag_id: str, session: Session = NEW_SESSION) -> DagVersion | None:
         return session.scalar(cls._latest_version_select(dag_id))
 
     @classmethod
@@ -113,29 +114,28 @@ class DagVersion(Base):
     def get_version(
         cls,
         dag_id: str,
-        version_name: str,
         version_number: int = 1,
         session: Session = NEW_SESSION,
-    ):
-        version_select_obj = select(cls).where(cls.dag_id == dag_id)
-        version_select_obj = version_select_obj.where(
-            cls.version_name == version_name, cls.version_number == version_number
+    ) -> DagVersion | None:
+        version_select_obj = (
+            select(cls)
+            .where(cls.dag_id == dag_id, cls.version_number == version_number)
+            .order_by(cls.version_number.desc())
+            .limit(1)
         )
-        version_select_obj = version_select_obj.order_by(cls.version_number.desc()).limit(1)
         return session.scalar(version_select_obj)
 
     @property
-    def version(self):
-        name = self.dag_id
+    def version(self) -> str:
+        """Return the version name."""
+        name = f"{self.version_number}"
         if self.version_name:
-            name = f"{name}-{self.version_name}-{self.version_number}"
-        else:
-            name = f"{name}-{self.version_number}"
+            name = f"{self.version_name}-{self.version_number}"
         return name
 
     @classmethod
     @provide_session
-    def get_latest_dag_versions(cls, dag_ids: list[str], session: Session = NEW_SESSION):
+    def get_latest_dag_versions(cls, dag_ids: list[str], session: Session = NEW_SESSION) -> list[DagVersion]:
         """Get the latest version of DAGs."""
         # Subquery to get the latest version number per dag_id
         latest_version_subquery = (
