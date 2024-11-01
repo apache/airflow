@@ -19,39 +19,15 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from airflow.typing_compat import TypedDict
+import airflow.sdk.types
+from airflow.typing_compat import TypeAlias, TypedDict
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+ArgNotSet: TypeAlias = airflow.sdk.types.ArgNotSet
 
-class ArgNotSet:
-    """
-    Sentinel type for annotations, useful when None is not viable.
-
-    Use like this::
-
-        def is_arg_passed(arg: Union[ArgNotSet, None] = NOTSET) -> bool:
-            if arg is NOTSET:
-                return False
-            return True
-
-
-        is_arg_passed()  # False.
-        is_arg_passed(None)  # True.
-    """
-
-    @staticmethod
-    def serialize():
-        return "NOTSET"
-
-    @classmethod
-    def deserialize(cls):
-        return cls
-
-
-NOTSET = ArgNotSet()
-"""Sentinel value for argument default. See ``ArgNotSet``."""
+NOTSET = airflow.sdk.types.NOTSET
 
 
 class AttributeRemoved:
