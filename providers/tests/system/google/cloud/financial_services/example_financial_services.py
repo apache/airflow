@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.financial_services import (
     FinancialServicesCreateInstanceOperator,
@@ -50,19 +48,9 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
-    @task()
-    def load_discovery_doc() -> str:
-        with open(RESOURCE_DIR_PATH) as file:
-            doc = json.load(file)
-            return doc
-
-    discovery_doc = load_discovery_doc()
-
     # [START howto_operator_financial_services_create_instance]
     create_instance_task = FinancialServicesCreateInstanceOperator(
         task_id="create_instance_task",
-        discovery_doc=discovery_doc,
         project_id=PROJECT_ID,
         region=LOCATION,
         instance_id=INSTANCE_ID,
@@ -74,7 +62,6 @@ with DAG(
     # [START howto_operator_financial_services_get_instance]
     get_instance_task = FinancialServicesGetInstanceOperator(
         task_id="get_instance_task",
-        discovery_doc=discovery_doc,
         project_id=PROJECT_ID,
         region=LOCATION,
         instance_id=INSTANCE_ID,
@@ -84,14 +71,13 @@ with DAG(
     # [START howto_operator_financial_services_delete_instance]
     delete_instance_task = FinancialServicesDeleteInstanceOperator(
         task_id="delete_instance_task",
-        discovery_doc=discovery_doc,
         project_id=PROJECT_ID,
         region=LOCATION,
         instance_id=INSTANCE_ID,
     )
     # [END howto_operator_financial_services_delete_instance]
 
-    (discovery_doc >> create_instance_task >> get_instance_task >> delete_instance_task)
+    (create_instance_task >> get_instance_task >> delete_instance_task)
 
     from tests_common.test_utils.watcher import watcher
 

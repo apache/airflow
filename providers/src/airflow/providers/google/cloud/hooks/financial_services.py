@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from pathlib import PurePath
 
 from google.api_core.future import polling
@@ -23,9 +24,10 @@ from google.api_core.operation import Operation
 from google.longrunning import operations_pb2
 from google.protobuf.empty_pb2 import Empty
 from google.protobuf.json_format import ParseDict
-from googleapiclient.discovery import Resource, build_from_document
+from googleapiclient.discovery import Resource, build, build_from_document
 
 from airflow.exceptions import AirflowException
+from airflow.models import Variable
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -43,7 +45,6 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def __init__(
         self,
-        discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
@@ -51,7 +52,18 @@ class FinancialServicesHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=None,
         )
-        self.discovery_doc = discovery_doc
+
+    def _get_developer_key(self) -> str | None:
+        return Variable.get("financial_services_api_key", default_var=None)
+
+    def _get_discovery_doc(self) -> dict | None:
+        discovery_doc_path = Variable.get("financial_services_discovery_doc_path", default_var=None)
+        if not discovery_doc_path:
+            discovery_doc = None
+        else:
+            with open(discovery_doc_path) as file:
+                discovery_doc = json.load(file)
+        return discovery_doc
 
     def get_conn(self) -> Resource:
         """
@@ -60,7 +72,26 @@ class FinancialServicesHook(GoogleBaseHook):
         :return: A Google Cloud Financial Services API service resource.
         """
         if not self.connection:
-            self.connection = build_from_document(self.discovery_doc)
+            developer_key = self._get_developer_key()
+            discovery_doc = self._get_discovery_doc()
+
+            if developer_key:
+                credentials = self.get_credentials()
+                self.connection = build(
+                    serviceName="financialservices",
+                    version="v1",
+                    developerKey=developer_key,
+                    discoveryServiceUrl="https://financialservices.googleapis.com/$discovery/rest?version=v1",
+                    credentials=credentials,
+                )
+            elif discovery_doc:
+                self.connection = build_from_document(discovery_doc)
+            else:
+                raise AirflowException(
+                    "Connecting to financialservices.googleapis.com requires either 'financial_services_api_key' or "
+                    "'financial_services_discovery_doc_path' to be set in Airflow variables. Use 'airflow variables set financial_services_api_key <API KEY VALUE>' "
+                    "to set the variable"
+                )
 
         return self.connection
 
