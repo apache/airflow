@@ -23,6 +23,7 @@ import pytest
 
 from airflow.assets import Asset
 from airflow.decorators.assets import AssetRef, _AssetMainOperator, asset
+from airflow.models.asset import AssetActive, AssetModel
 
 pytestmark = pytest.mark.db_test
 
@@ -145,14 +146,19 @@ class TestAssetDefinition:
 
 
 class Test_AssetMainOperator:
-    def test_determine_kwargs(self, example_asset_func_with_valid_arg_as_inlet_asset):
+    def test_determine_kwargs(self, example_asset_func_with_valid_arg_as_inlet_asset, session):
+        example_asset = AssetModel(uri="s3://bucket/object1", name="inlet_asset_1")
+        session.add(example_asset)
+        session.add(AssetActive.for_asset(example_asset))
+        session.commit()
+
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
             example_asset_func_with_valid_arg_as_inlet_asset
         )
 
         op = _AssetMainOperator(
             task_id="__main__",
-            inlets=[],
+            inlets=[AssetRef(name="inlet_asset_1"), AssetRef(name="inlet_asset_2")],
             outlets=[asset_definition],
             python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
             definition_name="example_asset_func",
@@ -160,6 +166,6 @@ class Test_AssetMainOperator:
         assert op.determine_kwargs(context={"k": "v"}) == {
             "_self": Asset(name="example_asset_func"),
             "context": {"k": "v"},
-            "inlet_asset_1": Asset(name="inlet_asset_1"),
+            "inlet_asset_1": Asset(name="inlet_asset_1", uri="s3://bucket/object1"),
             "inlet_asset_2": Asset(name="inlet_asset_2"),
         }
