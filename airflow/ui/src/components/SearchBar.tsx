@@ -52,7 +52,7 @@ export const SearchBar = ({
         <FiSearch />
       </InputLeftElement>
       <Input
-        placeholder="Search DAGs"
+        placeholder="Search Dags"
         pr={150}
         {...inputProps}
         onChange={handleSearchChange}

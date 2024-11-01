@@ -22,13 +22,6 @@ from unittest import mock
 
 import pendulum
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import (
-    clear_db_backfills,
-    clear_db_dags,
-    clear_db_runs,
-    clear_db_serialized_dags,
-)
 
 from airflow.models import DagBag, DagModel
 from airflow.models.dag import DAG
@@ -39,6 +32,13 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import (
+    clear_db_backfills,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 try:
     from airflow.models.backfill import Backfill
@@ -220,6 +220,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "from_date": from_date_iso,
             "id": mock.ANY,
             "is_paused": False,
+            "reprocess_behavior": "none",
             "max_active_runs": 5,
             "to_date": to_date_iso,
             "updated_at": mock.ANY,

@@ -77,7 +77,7 @@ const config = {
     toggleTheme: `${JS_DIR}/toggle_theme.js`,
     grid: `${JS_DIR}/dag/index.tsx`,
     clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
-    datasets: `${JS_DIR}/datasets/index.tsx`,
+    assets: `${JS_DIR}/assets/index.tsx`,
     trigger: `${JS_DIR}/trigger.js`,
     variableEdit: `${JS_DIR}/variable_edit.js`,
   },

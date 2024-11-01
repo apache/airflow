@@ -21,12 +21,13 @@ import json
 import os
 
 import pytest
-from tests_common.test_utils.db import clear_db_connections
-from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
-from tests_common.test_utils.system_tests import get_test_run
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
+from tests_common.test_utils.system_tests import get_test_run
 
 TOKEN = os.environ.get("DATAPREP_TOKEN")
 EXTRA = {"token": TOKEN}

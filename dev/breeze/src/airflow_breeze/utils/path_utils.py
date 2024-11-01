@@ -281,6 +281,7 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 AIRFLOW_UI_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui"
+AIRFLOW_OLD_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 AIRFLOW_PROVIDERS_PROJECT = AIRFLOW_SOURCES_ROOT / "providers"
 AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_PROJECT / "src"
 AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"

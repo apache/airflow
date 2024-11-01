@@ -27,7 +27,7 @@ import re
 import shlex
 import string
 import warnings
-from collections.abc import Container
+from collections.abc import Container, Mapping
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
@@ -170,7 +170,7 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
-    :param node_selector: A dict containing a group of scheduling rules.
+    :param node_selector: A dict containing a group of scheduling rules. (templated)
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b
@@ -258,6 +258,8 @@ class KubernetesPodOperator(BaseOperator):
         "volume_mounts",
         "cluster_context",
         "env_from",
+        "node_selector",
+        "kubernetes_conn_id",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -434,7 +436,7 @@ class KubernetesPodOperator(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:

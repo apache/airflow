@@ -60,47 +60,57 @@ triggers (and the list changes continuously).
 
   .. code-block:: bash
 
-      airflow/
-             ├── providers/<NEW_PROVIDER>/
-             │              ├── __init__.py
-             │              ├── executors/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              ├── hooks/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              ├── operators/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              ├── transfers/
-             │              │   ├── __init__.py
-             │              │   └── *.py
-             │              └── triggers/
-             │                  ├── __init__.py
-             │                  └── *.py
-             └── tests
-                     ├── providers/<NEW_PROVIDER>/
-                     │              ├── __init__.py
-                     │              ├── executors/
-                     │              │   ├── __init__.py
-                     │              │   └── test_*.py
-                     │              ├── hooks/
-                     │              │   ├── __init__.py
-                     │              │   └── test_*>.py
-                     │              ├── operators/
-                     │              │   ├── __init__.py
-                     │              │   ├── test_*.py
-                     │              ...
-                     │              ├── transfers/
-                     │              │   ├── __init__.py
-                     │              │   └── test_*.py
-                     │              └── triggers/
-                     │                  ├── __init__.py
-                     │                  └── test_*.py
-                     └── system/providers/<NEW_PROVIDER>/
-                                           ├── __init__.py
-                                           └── example_*.py
+    └── airflow/
+        ├── providers/
+        │   ├── src/
+        │   │   └── airflow/
+        │   │       └── providers/<NEW_PROVIDER>/
+        │   │           ├── __init__.py
+        │   │           ├── executors/
+        │   │           │   ├── __init__.py
+        │   │           │   └── *.py
+        │   │           ├── hooks/
+        │   │           │   ├── __init__.py
+        │   │           │   └── *.py
+        │   │           ├── notifications/
+        │   │           │   ├── __init__.py
+        │   │           │   └── *.py
+        │   │           ├── operators/
+        │   │           │   ├── __init__.py
+        │   │           │   └── *.py
+        │   │           ├── transfers/
+        │   │           │   ├── __init__.py
+        │   │           │   └── *.py
+        │   │           └── triggers/
+        │   │               ├── __init__.py
+        │   │               └── *.py
+        │   └── tests/
+        │       └── providers/<NEW_PROVIDER>/
+        │           ├── __init__.py
+        │           ├── executors/
+        │           │   ├── __init__.py
+        │           │   └── test_*.py
+        │           ├── hooks/
+        │           │   ├── __init__.py
+        │           │   └── test_*.py
+        │           ├── notifications/
+        │           │   ├── __init__.py
+        │           │   └── test_*.py
+        │           ├── operators/
+        │           │   ├── __init__.py
+        │           │   └── test_*.py
+        │           ├── transfers/
+        │           │   ├── __init__.py
+        │           │   └── test_*.py
+        │           └── triggers/
+        │               ├── __init__.py
+        │               └── test_*.py
+        └── tests/system/providers/<NEW_PROVIDER>/
+            ├── __init__.py
+            └── example_*.py
 
+.. note::
+      The above structure is work in progress and subject to change till Task SDK feature is complete.
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using

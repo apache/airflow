@@ -27,7 +27,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
-from tests_common.test_utils import db
 from urllib3 import HTTPResponse
 
 from airflow.exceptions import (
@@ -51,6 +50,8 @@ from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils import db
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

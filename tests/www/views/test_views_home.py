@@ -27,6 +27,8 @@ from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.www import (
@@ -34,8 +36,6 @@ from tests_common.test_utils.www import (
     check_content_not_in_response,
     client_with_login,
 )
-
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 pytestmark = pytest.mark.db_test
 
@@ -457,20 +457,6 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, _working_da
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index
-
-
-@pytest.mark.parametrize("is_enabled, should_have_pixel", [(False, False), (True, True)])
-def test_analytics_pixel(user_client, is_enabled, should_have_pixel):
-    """
-    Test that the analytics pixel is not included when the feature is disabled
-    """
-    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled):
-        resp = user_client.get("home", follow_redirects=True)
-
-    if should_have_pixel:
-        check_content_in_response("apacheairflow.gateway.scarf.sh", resp)
-    else:
-        check_content_not_in_response("apacheairflow.gateway.scarf.sh", resp)
 
 
 @pytest.mark.parametrize(

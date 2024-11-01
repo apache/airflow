@@ -43,6 +43,7 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+
 from tests_common.test_utils.config import conf_vars
 
 
@@ -349,9 +350,9 @@ class TestSerDe:
                 "__type": "dict",
             },
         }
-        dataset = deserialize(data)
-        assert dataset.extra == {"hi": "bye"}
-        assert dataset.uri == uri
+        asset = deserialize(data)
+        assert asset.extra == {"hi": "bye"}
+        assert asset.uri == uri
 
     def test_backwards_compat_wrapped(self):
         """
@@ -363,10 +364,10 @@ class TestSerDe:
         e = deserialize(i)
         assert e["extra"] == {"hi": "bye"}
 
-    def test_encode_dataset(self):
-        dataset = Asset("mytest://dataset")
-        obj = deserialize(serialize(dataset))
-        assert dataset.uri == obj.uri
+    def test_encode_asset(self):
+        asset = Asset("mytest://asset")
+        obj = deserialize(serialize(asset))
+        assert asset.uri == obj.uri
 
     def test_serializers_importable_and_str(self):
         """test if all distributed serializers are lazy loading and can be imported"""

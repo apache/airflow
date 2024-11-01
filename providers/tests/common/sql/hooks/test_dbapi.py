@@ -24,12 +24,13 @@ from unittest import mock
 
 import pytest
 from pyodbc import Cursor
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
@@ -48,6 +49,7 @@ class TestDbApiHook:
     def setup_method(self, **kwargs):
         self.cur = mock.MagicMock(
             rowcount=0,
+            fast_executemany=False,
             spec=Cursor,
         )
         self.conn = mock.MagicMock()
@@ -187,6 +189,21 @@ class TestDbApiHook:
         self.db_hook.insert_rows(table, rows, executemany=True)
 
         assert self.conn.close.call_count == 1
+        assert not self.cur.fast_executemany
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+        self.cur.executemany.assert_any_call(sql, rows)
+
+    def test_insert_rows_fast_executemany(self):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, executemany=True, fast_executemany=True)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.fast_executemany
         assert self.cur.close.call_count == 1
         assert self.conn.commit.call_count == 2
 

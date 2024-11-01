@@ -22,12 +22,21 @@ from unittest import mock
 
 import pytest
 from boto3.session import Session
-from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    DocumentationDatasetFacet,
+    Fields,
+    InputField,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+)
+
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestRedshiftToS3Transfer:
@@ -590,3 +599,325 @@ class TestRedshiftToS3Transfer:
         )
         # test sql arg
         assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args.kwargs["Sql"], unload_query)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    def test_get_openlineage_facets_on_complete_default(
+        self, mock_get_facets, mock_run, mock_session, mock_connection, mock_hook
+    ):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = mock.MagicMock(
+            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
+        )
+        mock_facets = {
+            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "documentation": DocumentationDatasetFacet(description="mock_description"),
+        }
+        mock_get_facets.return_value = mock_facets
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        op = RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+        )
+        op.execute(None)
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+        # Hook called only one time - on operator execution - we mocked querying to fetch schema
+        assert mock_run.call_count == 1
+
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0].name == f"{s3_key}/{table}_"
+        assert lineage.outputs[0].namespace == f"s3://{s3_bucket}"
+        assert lineage.inputs[0].name == f"database.{schema}.{table}"
+        assert lineage.inputs[0].namespace == "redshift://cluster.region:5439"
+
+        assert lineage.inputs[0].facets == mock_facets
+        assert lineage.outputs[0].facets == {
+            "columnLineage": ColumnLineageDatasetFacet(
+                fields={
+                    "col": Fields(
+                        inputFields=[
+                            InputField(
+                                namespace="redshift://cluster.region:5439",
+                                name=f"database.{schema}.{table}",
+                                field="col",
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    )
+                }
+            ),
+            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+        }
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    def test_get_openlineage_facets_on_complete_with_select_query(
+        self, mock_get_facets, mock_run, mock_session, mock_connection, mock_hook
+    ):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = mock.MagicMock(
+            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
+        )
+        mock_facets = {
+            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "documentation": DocumentationDatasetFacet(description="mock_description"),
+        }
+        mock_get_facets.return_value = mock_facets
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        query = """
+        SELECT
+            c.customer_id,
+            c.first_name,
+            c.last_name,
+            o.order_id,
+            o.order_date,
+            o.total_amount
+        FROM
+            schema1.customers c
+        INNER JOIN
+            schema2.orders o
+        ON
+            c.customer_id = o.customer_id
+        ORDER BY
+            o.order_date DESC;
+        """
+        op = RedshiftToS3Operator(
+            schema=schema,  # should be ignored
+            table=table,  # should be ignored
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            table_as_file_name=False,
+            select_query=query,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+        )
+        op.execute(None)
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+
+        assert len(lineage.inputs) == 2
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0].name == s3_key
+        assert lineage.outputs[0].namespace == f"s3://{s3_bucket}"
+        assert lineage.inputs[0].name == "database.schema1.customers"
+        assert lineage.inputs[0].namespace == "redshift://cluster.region:5439"
+        assert lineage.inputs[1].name == "database.schema2.orders"
+        assert lineage.inputs[1].namespace == "redshift://cluster.region:5439"
+
+        assert lineage.inputs[0].facets == mock_facets
+        assert lineage.outputs[0].facets == {}
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.region_name",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    def test_get_openlineage_facets_on_complete_using_redshift_data_api(
+        self, mock_get_facets, mock_rs_region, mock_rs, mock_session, mock_connection, mock_hook
+    ):
+        """
+        Using the Redshift Data API instead of the SQL-based connection
+        """
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_hook.return_value = Connection()
+        mock_rs.execute_statement.return_value = {"Id": "STATEMENT_ID"}
+        mock_rs.describe_statement.return_value = {"Status": "FINISHED"}
+
+        mock_rs_region.return_value = "region"
+        mock_facets = {
+            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "documentation": DocumentationDatasetFacet(description="mock_description"),
+        }
+        mock_get_facets.return_value = mock_facets
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        # RS Data API params
+        database = "database"
+        cluster_identifier = "cluster"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+
+        op = RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            redshift_data_api_kwargs=dict(
+                database=database,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+            ),
+        )
+        op.execute(None)
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0].name == f"{s3_key}/{table}_"
+        assert lineage.outputs[0].namespace == f"s3://{s3_bucket}"
+        assert lineage.inputs[0].name == f"database.{schema}.{table}"
+        assert lineage.inputs[0].namespace == "redshift://cluster.region:5439"
+
+        assert lineage.inputs[0].facets == mock_facets
+        assert lineage.outputs[0].facets == {
+            "columnLineage": ColumnLineageDatasetFacet(
+                fields={
+                    "col": Fields(
+                        inputFields=[
+                            InputField(
+                                namespace="redshift://cluster.region:5439",
+                                name=f"database.{schema}.{table}",
+                                field="col",
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    )
+                }
+            ),
+            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+        }
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection.get_connection_from_secrets")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.region_name",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_facets_from_redshift_table")
+    def test_get_openlineage_facets_on_complete_data_and_sql_hooks_aligned(
+        self, mock_get_facets, mock_rs_region, mock_rs, mock_run, mock_session, mock_connection, mock_hook
+    ):
+        """
+        Ensuring both supported hooks - RedshiftDataHook and RedshiftSQLHook return same lineage.
+        """
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = mock.MagicMock(
+            schema="database", port=5439, host="cluster.id.region.redshift.amazonaws.com", extra_dejson={}
+        )
+        mock_hook.return_value = Connection()
+        mock_rs.execute_statement.return_value = {"Id": "STATEMENT_ID"}
+        mock_rs.describe_statement.return_value = {"Status": "FINISHED"}
+
+        mock_rs_region.return_value = "region"
+        mock_facets = {
+            "schema": SchemaDatasetFacet(fields=[SchemaDatasetFacetFields(name="col", type="STRING")]),
+            "documentation": DocumentationDatasetFacet(description="mock_description"),
+        }
+        mock_get_facets.return_value = mock_facets
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        # RS Data API params
+        database = "database"
+        cluster_identifier = "cluster"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+
+        op_rs_data = RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            redshift_data_api_kwargs=dict(
+                database=database,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+            ),
+        )
+        op_rs_data.execute(None)
+        rs_data_lineage = op_rs_data.get_openlineage_facets_on_complete(None)
+
+        op_rs_sql = RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+        )
+        op_rs_sql.execute(None)
+        rs_sql_lineage = op_rs_sql.get_openlineage_facets_on_complete(None)
+
+        assert len(rs_sql_lineage.inputs) == 1
+        assert len(rs_sql_lineage.outputs) == 1
+        assert rs_sql_lineage.inputs == rs_data_lineage.inputs
+        assert rs_sql_lineage.outputs == rs_data_lineage.outputs
+        assert rs_sql_lineage.job_facets == rs_data_lineage.job_facets
+        assert rs_sql_lineage.run_facets == rs_data_lineage.run_facets

@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Sequence
 
 import attr
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.xcom import XCom
+
 from tests_common.test_utils.compat import BaseOperatorLink
 
 if TYPE_CHECKING:
@@ -66,7 +67,7 @@ class MockOperatorWithNestedFields(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
@@ -203,14 +204,3 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         return "https://github.com/apache/airflow"
-
-
-class DeprecatedOperator(BaseOperator):
-    """Deprecated Operator for testing purposes."""
-
-    def __init__(self, **kwargs):
-        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
-        super().__init__(**kwargs)
-
-    def execute(self, context: Context):
-        pass

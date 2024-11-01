@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -69,7 +70,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param kubernetes_conn_id: the connection to Kubernetes cluster
     """
 
-    template_fields = ["application_file", "namespace", "template_spec"]
+    template_fields = ["application_file", "namespace", "template_spec", "kubernetes_conn_id"]
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
@@ -127,7 +128,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:

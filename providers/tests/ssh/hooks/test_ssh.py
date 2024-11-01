@@ -362,6 +362,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -381,6 +382,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
@@ -569,6 +571,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -592,6 +595,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -654,6 +658,7 @@ class TestSSHHook:
             password="password",
             conn_timeout=20,
             key_file="fake.file",
+            auth_timeout=10,
         )
 
         with hook.get_conn():
@@ -668,6 +673,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=10,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -695,6 +701,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -718,6 +725,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -743,6 +751,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -768,6 +777,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @pytest.mark.parametrize(
@@ -837,6 +847,7 @@ class TestSSHHook:
                 port="port",
                 sock=None,
                 look_for_keys=True,
+                auth_timeout=None,
             )
 
     @pytest.mark.parametrize(
@@ -901,6 +912,7 @@ class TestSSHHook:
                 sock=None,
                 look_for_keys=True,
                 disabled_algorithms=TEST_DISABLED_ALGORITHMS,
+                auth_timeout=None,
             )
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")

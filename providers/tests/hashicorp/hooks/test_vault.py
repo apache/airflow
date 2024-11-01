@@ -22,11 +22,12 @@ from unittest.mock import PropertyMock, mock_open, patch
 
 import pytest
 from hvac.exceptions import VaultError
-from tests_common.test_utils.config import conf_vars
 
 from airflow.configuration import AirflowConfigParser
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.hashicorp.hooks.vault import VaultHook
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestVaultHook:

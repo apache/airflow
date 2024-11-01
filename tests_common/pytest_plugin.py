@@ -26,16 +26,29 @@ import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Generator, Protocol, TypeVar
 
 import pytest
 import time_machine
 
 if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
+    from sqlalchemy.orm import Session
+
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dag import DAG, ScheduleArg
+    from airflow.models.dagrun import DagRun, DagRunType
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.operators.empty import EmptyOperator
+    from airflow.timetables.base import DataInterval
+    from airflow.typing_compat import Self
+    from airflow.utils.state import DagRunState, TaskInstanceState
+    from airflow.utils.trigger_rule import TriggerRule
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
+
+    Op = TypeVar("Op", bound=BaseOperator)
 
 # https://docs.pytest.org/en/stable/reference/reference.html#stash
 capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
@@ -114,7 +127,7 @@ if run_db_tests_only:
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_SOURCES_ROOT_DIR = (
-    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[2]
+    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[1]
 ).resolve()
 AIRFLOW_TESTS_DIR = AIRFLOW_SOURCES_ROOT_DIR / "tests"
 
@@ -371,19 +384,24 @@ def initialize_airflow_tests(request):
 def pytest_configure(config: pytest.Config) -> None:
     # Ensure that the airflow sources dir is at the end of the sys path if it's not already there. Needed to
     # run import from `providers/tests/`
-    desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
-    for path in sys.path:
-        if path == desired:
-            break
-    else:
-        sys.path.append(desired)
+    if os.environ.get("USE_AIRFLOW_VERSION") == "":
+        # if USE_AIRFLOW_VERSION is not empty, we are running tests against the installed version of Airflow
+        # and providers so there is no need to add the sources directory to the path
+        desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
+        for path in sys.path:
+            if path == desired:
+                break
+        else:
+            # This "desired" path should be the Airflow source directory (repo root)
+            assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
+            sys.path.append(desired)
 
-    if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
-        msg = (
-            f"Provided DB backend {backend!r} not supported, "
-            f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
-        )
-        pytest.exit(msg, returncode=6)
+        if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
+            msg = (
+                f"Provided DB backend {backend!r} not supported, "
+                f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
+            )
+            pytest.exit(msg, returncode=6)
 
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
@@ -399,6 +417,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
     )
+    config.addinivalue_line("markers", "want_activate_assets: mark tests that require assets to be activated")
     config.addinivalue_line(
         "markers",
         "db_test: mark tests that require database to be present",
@@ -715,8 +734,41 @@ def frozen_sleep(monkeypatch):
         traveller.stop()
 
 
+class DagMaker(Protocol):
+    """
+    Interface definition for dag_maker return value.
+
+    This class exists so tests can import the class for type hints. The actual
+    implementation is done in the dag_maker fixture.
+    """
+
+    session: Session
+
+    def __enter__(self) -> DAG: ...
+
+    def __exit__(self, type, value, traceback) -> None: ...
+
+    def get_serialized_data(self) -> dict[str, Any]: ...
+
+    def create_dagrun(self, **kwargs) -> DagRun: ...
+
+    def create_dagrun_after(self, dagrun: DagRun, **kwargs) -> DagRun: ...
+
+    def __call__(
+        self,
+        dag_id: str = "test_dag",
+        schedule: ScheduleArg = timedelta(days=1),
+        serialized: bool = ...,
+        activate_assets: bool = ...,
+        fileloc: str | None = None,
+        processor_subdir: str | None = None,
+        session: Session | None = None,
+        **kwargs,
+    ) -> Self: ...
+
+
 @pytest.fixture
-def dag_maker(request):
+def dag_maker(request) -> Generator[DagMaker, None, None]:
     """
     Fixture to help create DAG, DagModel, and SerializedDAG automatically.
 
@@ -754,16 +806,18 @@ def dag_maker(request):
     # and "baked" in to various constants
 
     want_serialized = False
+    want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
 
     # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or
     # `@pytest.mark.need_serialized_dag(False)`
-    serialized_marker = request.node.get_closest_marker("need_serialized_dag")
-    if serialized_marker:
+    if serialized_marker := request.node.get_closest_marker("need_serialized_dag"):
         (want_serialized,) = serialized_marker.args or (True,)
+    if serialized_marker := request.node.get_closest_marker("want_activate_assets"):
+        (want_activate_assets,) = serialized_marker.args or (True,)
 
     from airflow.utils.log.logging_mixin import LoggingMixin
 
-    class DagFactory(LoggingMixin):
+    class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
 
         def __init__(self):
@@ -797,9 +851,25 @@ def dag_maker(request):
                 return self.dagbag.bag_dag(dag, root_dag=dag)
             return self.dagbag.bag_dag(dag)
 
+        def _activate_assets(self):
+            from sqlalchemy import select
+
+            from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+            from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+
+            assets = self.session.scalars(
+                select(AssetModel).where(
+                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
+                    | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+                )
+            ).all()
+            SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
+
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
+
+            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             dag = self.dag
             dag.__exit__(type, value, traceback)
@@ -817,6 +887,8 @@ def dag_maker(request):
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self._bag_dag_compat(serialized_dag)
+                if AIRFLOW_V_3_0_PLUS and self.want_activate_assets:
+                    self._activate_assets()
                 self.session.flush()
             else:
                 self._bag_dag_compat(self.dag)
@@ -825,6 +897,7 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
+
             from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             if AIRFLOW_V_3_0_PLUS:
@@ -881,6 +954,7 @@ def dag_maker(request):
             dag_id="test_dag",
             schedule=timedelta(days=1),
             serialized=want_serialized,
+            activate_assets=want_activate_assets,
             fileloc=None,
             processor_subdir=None,
             session=None,
@@ -913,6 +987,7 @@ def dag_maker(request):
             self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
+            self.want_activate_assets = activate_assets
             self.processor_subdir = processor_subdir
 
             return self
@@ -922,6 +997,7 @@ def dag_maker(request):
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
+
             from tests_common.test_utils.compat import AssetEvent
 
             for attempt in run_with_db_retries(logger=self.log):
@@ -967,8 +1043,32 @@ def dag_maker(request):
             del factory.session
 
 
+class CreateDummyDAG(Protocol):
+    """Type stub for create_dummy_dag."""
+
+    def __call__(
+        self,
+        *,
+        dag_id: str = "dag",
+        task_id: str = "op1",
+        task_display_name: str = ...,
+        max_active_tis_per_dag: int = 16,
+        max_active_tis_per_dagrun: int = ...,
+        pool: str = "default_pool",
+        executor_config: dict = ...,
+        trigger_rule: TriggerRule = ...,
+        on_success_callback: Callable = ...,
+        on_execute_callback: Callable = ...,
+        on_failure_callback: Callable = ...,
+        on_retry_callback: Callable = ...,
+        email: str = ...,
+        with_dagrun_type="scheduled",
+        **kwargs,
+    ) -> tuple[DAG, EmptyOperator]: ...
+
+
 @pytest.fixture
-def create_dummy_dag(dag_maker):
+def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
     """
     Create a `DAG` with a single `EmptyOperator` task.
 
@@ -1032,12 +1132,39 @@ def create_dummy_dag(dag_maker):
     return create_dag
 
 
-if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
+class CreateTaskInstance(Protocol):
+    """Type stub for create_task_instance."""
+
+    def __call__(
+        self,
+        *,
+        execution_date: datetime = ...,
+        dagrun_state: DagRunState = ...,
+        state: TaskInstanceState = ...,
+        run_id: str = ...,
+        run_type: DagRunType = ...,
+        data_interval: DataInterval = ...,
+        external_executor_id: str = ...,
+        dag_id: str = "dag",
+        task_id: str = "op1",
+        task_display_name: str = ...,
+        max_active_tis_per_dag: int = 16,
+        max_active_tis_per_dagrun: int = ...,
+        pool: str = "default_pool",
+        executor_config: dict = ...,
+        trigger_rule: TriggerRule = ...,
+        on_success_callback: Callable = ...,
+        on_execute_callback: Callable = ...,
+        on_failure_callback: Callable = ...,
+        on_retry_callback: Callable = ...,
+        email: str = ...,
+        map_index: int = -1,
+        **kwargs,
+    ) -> TaskInstance: ...
 
 
 @pytest.fixture
-def create_task_instance(dag_maker, create_dummy_dag):
+def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) -> CreateTaskInstance:
     """
     Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
@@ -1124,7 +1251,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
 
 
 @pytest.fixture
-def create_serialized_task_instance_of_operator(dag_maker):
+def create_serialized_task_instance_of_operator(dag_maker: DagMaker):
     def _create_task_instance(
         operator_class,
         *,
@@ -1145,8 +1272,14 @@ def create_serialized_task_instance_of_operator(dag_maker):
     return _create_task_instance
 
 
+class CreateTaskInstanceOfOperator(Protocol):
+    """Type stub for create_task_instance_of_operator."""
+
+    def __call__(self, operator_class: type[BaseOperator], *args, **kwargs) -> TaskInstance: ...
+
+
 @pytest.fixture
-def create_task_instance_of_operator(dag_maker):
+def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
     def _create_task_instance(
         operator_class,
         *,
@@ -1167,8 +1300,14 @@ def create_task_instance_of_operator(dag_maker):
     return _create_task_instance
 
 
+class CreateTaskOfOperator(Protocol):
+    """Type stub for create_task_of_operator."""
+
+    def __call__(self, operator_class: type[Op], *args, **kwargs) -> Op: ...
+
+
 @pytest.fixture
-def create_task_of_operator(dag_maker):
+def create_task_of_operator(dag_maker: DagMaker) -> CreateTaskOfOperator:
     def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
         with dag_maker(dag_id=dag_id, session=session):
             task = operator_class(**operator_kwargs)

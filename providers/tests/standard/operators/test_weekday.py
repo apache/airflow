@@ -21,7 +21,6 @@ import datetime
 
 import pytest
 import time_machine
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -33,6 +32,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.weekday import WeekDay
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -207,7 +208,7 @@ class TestBranchDayOfWeekOperator:
 
     def test_branch_with_no_weekday(self, dag_maker):
         """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
-        with pytest.raises(AirflowException):
+        with pytest.raises((TypeError, AirflowException), match="missing keyword argument 'week_day'"):
             with dag_maker(
                 "branch_day_of_week_operator_test",
                 start_date=DEFAULT_DATE,

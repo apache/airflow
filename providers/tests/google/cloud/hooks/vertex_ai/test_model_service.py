@@ -37,7 +37,7 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_MODEL = None
-TEST_PARENT_MODEL = "test-parent-model"
+TEST_PARENT_MODEL = "projects/test-project-id/locations/test-region/models/test-parent-model"
 TEST_MODEL_NAME: str = "test_model_name"
 TEST_OUTPUT_CONFIG: dict = {}
 
@@ -148,7 +148,7 @@ class TestModelServiceWithDefaultProjectIdHook:
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 model=TEST_MODEL,
-                parent_model=TEST_PARENT_MODEL,
+                parent_model=mock_client.return_value.model_path.return_value,
             ),
             metadata=(),
             retry=DEFAULT,
@@ -352,7 +352,7 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 model=TEST_MODEL,
-                parent_model=TEST_PARENT_MODEL,
+                parent_model=mock_client.return_value.model_path.return_value,
             ),
             metadata=(),
             retry=DEFAULT,

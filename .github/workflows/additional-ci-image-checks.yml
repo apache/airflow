@@ -84,6 +84,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
 jobs:
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
@@ -113,7 +117,7 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: "true"
+      use-uv: ${{ inputs.use-uv}}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
@@ -170,7 +174,7 @@ jobs:
 #      platform: "linux/arm64"
 #      branch: ${{ inputs.branch }}
 #      constraints-branch: ${{ inputs.constraints-branch }}
-#      use-uv: "true"
+#      use-uv: ${{ inputs.use-uv}}
 #      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
 #      docker-cache: ${{ inputs.docker-cache }}
 #      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}

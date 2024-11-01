@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import datetime
 import itertools
 import logging
@@ -24,7 +25,7 @@ import os
 import random
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Mapping, Sequence
 
 import jwt
 import packaging.version
@@ -117,10 +118,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.security.permissions import RESOURCE_ASSET
 else:
-    try:
-        from airflow.security.permissions import RESOURCE_ASSET
-    except ImportError:
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
 log = logging.getLogger(__name__)
 
@@ -1110,7 +1108,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]]] | None = None,
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1131,7 +1129,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         if access_control is not None:
             self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)
-            self._sync_dag_view_permissions(dag_id, access_control.copy())
+            self._sync_dag_view_permissions(dag_id, copy.copy(access_control))
         else:
             self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
@@ -1152,7 +1150,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _sync_dag_view_permissions(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]]],
+        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]],
     ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
@@ -1178,7 +1176,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 for perm in existing_dag_perms:
                     non_admin_roles = [role for role in perm.role if role.name != "Admin"]
                     for role in non_admin_roles:
-                        target_perms_for_role = access_control.get(role.name, {}).get(resource_name, set())
+                        access_control_role = access_control.get(role.name)
+                        target_perms_for_role = set()
+                        if access_control_role:
+                            if isinstance(access_control_role, set):
+                                target_perms_for_role = access_control_role
+                            elif isinstance(access_control_role, dict):
+                                target_perms_for_role = access_control_role.get(resource_name, set())
                         if perm.action.name not in target_perms_for_role:
                             self.log.info(
                                 "Revoking '%s' on DAG '%s' for role '%s'",
@@ -1197,7 +1201,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            if isinstance(resource_actions, (set, list)):
+            if not isinstance(resource_actions, dict):
                 # Support for old-style access_control where only the actions are specified
                 resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
 

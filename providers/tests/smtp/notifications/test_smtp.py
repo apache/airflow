@@ -21,11 +21,8 @@ import tempfile
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-from tests_common.test_utils.config import conf_vars
 
 from airflow.configuration import conf
-from airflow.models import SlaMiss
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 from airflow.providers.smtp.notifications.smtp import (
@@ -33,6 +30,9 @@ from airflow.providers.smtp.notifications.smtp import (
     send_smtp_notification,
 )
 from airflow.utils import timezone
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -144,38 +144,6 @@ class TestSmtpNotifier:
         )
         content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
         assert f"{NUM_TRY} of 1" in content
-
-    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_defaults_sla(self, mock_smtphook_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
-        context = {
-            "dag": dag,
-            "slas": [SlaMiss(task_id="op", dag_id=dag.dag_id, execution_date=timezone.datetime(2018, 1, 1))],
-            "task_list": [],
-            "blocking_task_list": [],
-            "blocking_tis": [],
-        }
-        notifier = SmtpNotifier(
-            from_email=conf.get("smtp", "smtp_mail_from"),
-            to="test_reciver@test.com",
-        )
-        notifier(context)
-        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
-            from_email=conf.get("smtp", "smtp_mail_from"),
-            to="test_reciver@test.com",
-            subject="SLA Missed for DAG test_notifier - Task op",
-            html_content=mock.ANY,
-            smtp_conn_id="smtp_default",
-            files=None,
-            cc=None,
-            bcc=None,
-            mime_subtype="mixed",
-            mime_charset="utf-8",
-            custom_headers=None,
-        )
-        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
-        assert "Task List:" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):

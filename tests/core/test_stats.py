@@ -36,6 +36,7 @@ from airflow.metrics.validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
 )
+
 from tests_common.test_utils.config import conf_vars
 
 

@@ -21,12 +21,12 @@ import json
 import os
 import subprocess
 
-from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from tests_common.test_utils.logging_command_executor import CommandExecutor
-
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+
+from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from tests_common.test_utils.logging_command_executor import CommandExecutor
 
 # Please keep these variables in alphabetical order.
 

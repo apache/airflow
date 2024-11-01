@@ -28,12 +28,14 @@ from __future__ import annotations
 import copy
 import platform
 import time
+from asyncio.exceptions import TimeoutError
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import aiohttp
 import requests
+from aiohttp.client_exceptions import ClientConnectorError
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -515,6 +517,11 @@ class BaseDatabricksHook(BaseHook):
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
 
+    def _endpoint_url(self, endpoint):
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+        schema = self.databricks_conn.schema or "https"
+        return f"{schema}://{self.host}{port}/{endpoint}"
+
     def _do_api_call(
         self,
         endpoint_info: tuple[str, str],
@@ -533,7 +540,7 @@ class BaseDatabricksHook(BaseHook):
         method, endpoint = endpoint_info
 
         # TODO: get rid of explicit 'api/' in the endpoint specification
-        url = f"https://{self.host}/{endpoint}"
+        url = self._endpoint_url(endpoint)
 
         aad_headers = self._get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -599,7 +606,7 @@ class BaseDatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        url = f"https://{self.host}/{endpoint}"
+        url = self._endpoint_url(endpoint)
 
         aad_headers = await self._a_get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -638,7 +645,7 @@ class BaseDatabricksHook(BaseHook):
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
                     ) as response:
-                        self.log.debug("Response Status Code: %s", response.status_code)
+                        self.log.debug("Response Status Code: %s", response.status)
                         self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
                         return await response.json()
@@ -677,6 +684,9 @@ class BaseDatabricksHook(BaseHook):
         if isinstance(exception, aiohttp.ClientResponseError):
             if exception.status >= 500 or exception.status == 429:
                 return True
+
+        if isinstance(exception, (ClientConnectorError, TimeoutError)):
+            return True
 
         return False
 

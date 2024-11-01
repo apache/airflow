@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterator
 
-from airflow.providers.common.compat.openlineage.utils.utils import translate_airflow_asset
+from airflow.providers.common.compat.openlineage.utils.utils import (
+    translate_airflow_asset,
+)
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
@@ -61,7 +63,8 @@ class ExtractorManager(LoggingMixin):
             extractor: type[BaseExtractor] | None = try_import_from_string(extractor_path)
             if not extractor:
                 self.log.warning(
-                    "OpenLineage is unable to import custom extractor `%s`; will ignore it.", extractor_path
+                    "OpenLineage is unable to import custom extractor `%s`; will ignore it.",
+                    extractor_path,
                 )
                 continue
             for operator_class in extractor.get_operator_classnames():
@@ -95,13 +98,21 @@ class ExtractorManager(LoggingMixin):
             # Extracting advanced metadata is only possible when extractor for particular operator
             # is defined. Without it, we can't extract any input or output data.
             try:
-                self.log.debug("Using extractor %s %s", extractor.__class__.__name__, str(task_info))
+                self.log.debug(
+                    "Using extractor %s %s",
+                    extractor.__class__.__name__,
+                    str(task_info),
+                )
                 if complete:
                     task_metadata = extractor.extract_on_complete(task_instance)
                 else:
                     task_metadata = extractor.extract()
 
-                self.log.debug("Found task metadata for operation %s: %s", task.task_id, str(task_metadata))
+                self.log.debug(
+                    "Found task metadata for operation %s: %s",
+                    task.task_id,
+                    str(task_metadata),
+                )
                 task_metadata = self.validate_task_metadata(task_metadata)
                 if task_metadata:
                     if (not task_metadata.inputs) and (not task_metadata.outputs):
@@ -115,7 +126,10 @@ class ExtractorManager(LoggingMixin):
 
             except Exception as e:
                 self.log.warning(
-                    "Failed to extract metadata using found extractor %s - %s %s", extractor, e, task_info
+                    "Failed to extract metadata using found extractor %s - %s %s",
+                    extractor,
+                    e,
+                    task_info,
                 )
         elif (hook_lineage := self.get_hook_lineage()) is not None:
             inputs, outputs = hook_lineage
@@ -178,16 +192,9 @@ class ExtractorManager(LoggingMixin):
 
     def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
         try:
-            from importlib.util import find_spec
-
-            if find_spec("airflow.assets"):
-                from airflow.lineage.hook import get_hook_lineage_collector
-            else:
-                # TODO: import from common.compat directly after common.compat providers with
-                # asset_compat_lineage_collector released
-                from airflow.providers.openlineage.utils.asset_compat_lineage_collector import (
-                    get_hook_lineage_collector,
-                )
+            from airflow.providers.common.compat.lineage.hook import (
+                get_hook_lineage_collector,
+            )
         except ImportError:
             return None
 

@@ -71,7 +71,7 @@ const HistoricalMetrics = () => {
                   pr={4}
                   colorPalette={{
                     backfill: stateColors.deferred,
-                    datasetTriggered: stateColors.queued,
+                    assetTriggered: stateColors.queued,
                     manual: stateColors.success,
                     scheduled: stateColors.scheduled,
                   }}

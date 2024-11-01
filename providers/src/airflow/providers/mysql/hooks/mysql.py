@@ -127,12 +127,17 @@ class MySqlHook(DbApiHook):
         if conn.extra_dejson.get("cursor", False):
             import MySQLdb.cursors
 
-            if (conn.extra_dejson["cursor"]).lower() == "sscursor":
-                conn_config["cursorclass"] = MySQLdb.cursors.SSCursor
-            elif (conn.extra_dejson["cursor"]).lower() == "dictcursor":
-                conn_config["cursorclass"] = MySQLdb.cursors.DictCursor
-            elif (conn.extra_dejson["cursor"]).lower() == "ssdictcursor":
-                conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
+            cursor_type = conn.extra_dejson.get("cursor", "").lower()
+            # Dictionary mapping cursor types to their respective classes
+            cursor_classes = {
+                "sscursor": MySQLdb.cursors.SSCursor,
+                "dictcursor": MySQLdb.cursors.DictCursor,
+                "ssdictcursor": MySQLdb.cursors.SSDictCursor,
+            }
+            # Set the cursor class in the connection configuration based on the cursor type
+            if cursor_type in cursor_classes:
+                conn_config["cursorclass"] = cursor_classes[cursor_type]
+
         if conn.extra_dejson.get("ssl", False):
             # SSL parameter for MySQL has to be a dictionary and in case
             # of extra/dejson we can get string if extra is passed via

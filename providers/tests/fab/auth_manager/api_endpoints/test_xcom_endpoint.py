@@ -19,8 +19,6 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
@@ -28,11 +26,13 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
-from airflow.utils.dates import parse_execution_date
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
 pytestmark = [
     pytest.mark.db_test,
@@ -118,7 +118,7 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_id_1 = "test-dag-id-1"
         task_id_1 = "test-task-id-1"
         execution_date = "2005-04-02T00:00:00+00:00"
-        execution_date_parsed = parse_execution_date(execution_date)
+        execution_date_parsed = timezone.parse(execution_date)
         dag_run_id_1 = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
         self._create_xcom_entries(dag_id_1, dag_run_id_1, execution_date_parsed, task_id_1)
 

@@ -22,12 +22,13 @@ from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
-from tests_common.test_utils.db import clear_db_connections
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
+
+from tests_common.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.db_test
 
@@ -41,6 +42,18 @@ def get_after(sentinel, iterable):
 
 class TestSparkSqlHook:
     _config = {
+        "conn_id": "spark_default",
+        "executor_cores": 4,
+        "executor_memory": "22g",
+        "keytab": "privileged_user.keytab",
+        "name": "spark-job",
+        "num_executors": 10,
+        "verbose": True,
+        "sql": " /path/to/sql/file.sql ",
+        "conf": {"key": "value", "PROP": "VALUE"},
+    }
+
+    _config_str = {
         "conn_id": "spark_default",
         "executor_cores": 4,
         "executor_memory": "22g",
@@ -77,7 +90,29 @@ class TestSparkSqlHook:
         assert self._config["sql"].strip() == sql_path
 
         # Check if all config settings are there
-        for key_value in self._config["conf"].split(","):
+        for k, v in self._config["conf"].items():
+            assert f"--conf {k}={v}" in cmd
+
+        if self._config["verbose"]:
+            assert "--verbose" in cmd
+
+    def test_build_command_with_str_conf(self):
+        hook = SparkSqlHook(**self._config_str)
+
+        # The subprocess requires an array but we build the cmd by joining on a space
+        cmd = " ".join(hook._prepare_command(""))
+
+        # Check all the parameters
+        assert f"--executor-cores {self._config_str['executor_cores']}" in cmd
+        assert f"--executor-memory {self._config_str['executor_memory']}" in cmd
+        assert f"--keytab {self._config_str['keytab']}" in cmd
+        assert f"--name {self._config_str['name']}" in cmd
+        assert f"--num-executors {self._config_str['num_executors']}" in cmd
+        sql_path = get_after("-f", hook._prepare_command(""))
+        assert self._config_str["sql"].strip() == sql_path
+
+        # Check if all config settings are there
+        for key_value in self._config_str["conf"].split(","):
             k, v = key_value.split("=")
             assert f"--conf {k}={v}" in cmd
 

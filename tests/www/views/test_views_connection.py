@@ -27,6 +27,7 @@ import pytest
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
+
 from tests_common.test_utils.www import (
     _check_last_log,
     _check_last_log_masked_connection,

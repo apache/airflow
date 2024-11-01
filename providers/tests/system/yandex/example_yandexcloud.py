@@ -27,12 +27,13 @@ import yandex.cloud.dataproc.v1.job_service_pb2 as job_service_pb
 import yandex.cloud.dataproc.v1.job_service_pb2_grpc as job_service_grpc_pb
 import yandex.cloud.dataproc.v1.subcluster_pb2 as subcluster_pb
 from google.protobuf.json_format import MessageToDict
-from tests_common.test_utils.system_tests import get_test_env_id
 from yandexcloud.operations import OperationError
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+
+from tests_common.test_utils.system_tests import get_test_env_id
 
 ENV_ID = get_test_env_id()
 DAG_ID = "example_yandexcloud_hook"

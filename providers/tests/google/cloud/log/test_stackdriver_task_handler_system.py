@@ -23,13 +23,6 @@ import subprocess
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.gcp_system_helpers import (
-    GoogleSystemTest,
-    provide_gcp_context,
-    resolve_full_gcp_key_path,
-)
 
 from airflow import settings
 from airflow.example_dags import example_complex
@@ -38,6 +31,13 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+    resolve_full_gcp_key_path,
+)
 
 
 @pytest.mark.system("google")

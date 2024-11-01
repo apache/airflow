@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from tests_common.test_utils.system_tests import get_test_env_id
-
 from airflow import DAG
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -29,6 +27,8 @@ from airflow.providers.yandex.operators.dataproc import (
 
 # Name of the datacenter where Dataproc cluster will be created
 from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.system_tests import get_test_env_id
 
 # should be filled with appropriate ids
 

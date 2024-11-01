@@ -71,4 +71,4 @@ docker tag ghcr.io/apache/airflow/main/ci/python3.10 your-image-name:tag
 
 -----
 
-Read next about [Static checks](04_static_checks.md)
+Read next about [Selective checks](04_selective_checks.md)

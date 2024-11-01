@@ -82,7 +82,7 @@ with DAG(
             "output_topic": f"projects/{PROJECT_ID}/topics/{TOPIC_ID}",
             "streaming": True,
         },
-        py_requirements=["apache-beam[gcp]==2.47.0"],
+        py_requirements=["apache-beam[gcp]==2.59.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},

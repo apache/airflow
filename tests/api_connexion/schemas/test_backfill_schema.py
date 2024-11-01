@@ -45,6 +45,7 @@ class TestBackfillSchema:
                     "from_date": now_iso,
                     "id": None,
                     "is_paused": None,
+                    "reprocess_behavior": None,
                     "max_active_runs": None,
                     "to_date": now_iso,
                     "updated_at": now_iso,
