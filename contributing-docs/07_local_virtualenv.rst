@@ -125,6 +125,25 @@ The full list of extras is available in `pyproject.toml <../pyproject.toml>`_ an
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
+Developing community providers in local virtualenv
+..................................................
+
+While the above installation is good enough to work on Airflow code, in order to develop
+providers, you also need to install them in the virtualenv you work on (after installing
+the extras in airflow, that correspond to the provider you want to develop).
+
+If you want to develop google providers, for example you can run the following commands:
+
+.. code:: bash
+
+    pip install -e ".[devel,devel-tests,google]"
+    pip install -e "./providers"
+
+The first command installs airflow, it's development dependencies, test dependencies and
+both runtime and development dependencies of the google provider.
+
+The second one installs providers source code in development mode, so that modifications
+to the code are automatically reflected in your installed virtualenv.
 
 Using Hatch
 -----------

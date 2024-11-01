@@ -197,9 +197,9 @@ class SortParam(BaseParam[str]):
         primary_key_column = self.get_primary_key_column()
 
         if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), primary_key_column)
+            return select.order_by(nullscheck, column.desc(), primary_key_column.desc())
         else:
-            return select.order_by(nullscheck, column.asc(), primary_key_column)
+            return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
@@ -265,6 +265,17 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+class _DagTagNamePatternSearch(_SearchParam):
+    """Search on dag_tag.name."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(DagTag.name, skip_none)
+
+    def depends(self, tag_name_pattern: str | None = None) -> _DagTagNamePatternSearch:
+        tag_name_pattern = super().transform_aliases(tag_name_pattern)
+        return self.set_value(tag_name_pattern)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -299,3 +310,5 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# DAGTags
+QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]

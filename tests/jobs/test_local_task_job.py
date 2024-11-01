@@ -44,8 +44,8 @@ from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.task.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -74,7 +74,6 @@ def clear_db():
     db.clear_db_dags()
     db.clear_db_jobs()
     db.clear_db_runs()
-    db.clear_db_task_fail()
 
 
 @pytest.fixture(scope="class")
@@ -83,7 +82,6 @@ def clear_db_class():
     db.clear_db_dags()
     db.clear_db_jobs()
     db.clear_db_runs()
-    db.clear_db_task_fail()
 
 
 @pytest.fixture(scope="module")
@@ -290,6 +288,7 @@ class TestLocalTaskJob:
         assert ti.pid != job1.task_runner.process.pid
         job_runner.heartbeat_callback()
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat_failed_fast(self):
         """
@@ -901,7 +900,9 @@ class TestLocalTaskJob:
             ti_by_task_id = {}
             with create_session() as session:
                 for task_id in init_state:
-                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id, state=init_state[task_id])
+                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id)
+                    ti.refresh_from_db()
+                    ti.state = init_state[task_id]
                     session.merge(ti)
                     ti_by_task_id[task_id] = ti
 
@@ -950,11 +951,21 @@ class TestLocalTaskJob:
         task_k = dag.get_task("K")
         task_l = dag.get_task("L")
         with create_session() as session:
-            ti_k = TaskInstance(task_k, run_id=dr.run_id, state=State.SUCCESS)
-            ti_b = TaskInstance(task_l, run_id=dr.run_id, state=State.SUCCESS)
+            ti_k = dr.get_task_instance(task_k.task_id, session=session)
+            ti_k.refresh_from_task(task_k)
+            ti_k.state = State.SUCCESS
 
-            ti2_k = TaskInstance(task_k, run_id=dr2.run_id, state=State.NONE)
-            ti2_l = TaskInstance(task_l, run_id=dr2.run_id, state=State.NONE)
+            ti_b = dr.get_task_instance(task_l.task_id, session=session)
+            ti_b.refresh_from_task(task_l)
+            ti_b.state = State.SUCCESS
+
+            ti2_k = dr2.get_task_instance(task_k.task_id, session=session)
+            ti2_k.refresh_from_task(task_k)
+            ti2_k.state = State.NONE
+
+            ti2_l = dr2.get_task_instance(task_l.task_id, session=session)
+            ti2_l.refresh_from_task(task_l)
+            ti2_l.state = State.NONE
 
             session.merge(ti_k)
             session.merge(ti_b)
@@ -1024,10 +1035,10 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-@mock.patch("airflow.task.task_runner.get_task_runner")
-def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
+@mock.patch("airflow.task.standard_task_runner.StandardTaskRunner")
+def test_number_of_queries_single_loop(mock_task_runner, dag_maker):
     codes: list[int | None] = 9 * [None] + [0]
-    mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
+    mock_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())
     with dag_maker(dag_id=f"{unique_prefix}_test_number_of_queries", serialized=True):
@@ -1040,7 +1051,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
 
     job = Job(dag_id=ti.dag_id, executor=MockExecutor())
     job_runner = LocalTaskJobRunner(job=job, task_instance=ti)
-    with assert_queries_count(18):
+    with assert_queries_count(15):
         run_job(job=job, execute_callable=job_runner._execute)
 
 

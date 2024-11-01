@@ -231,7 +231,88 @@ Executing commands from files
 Both the ``BashOperator`` and ``@task.bash`` TaskFlow decorator enables you to execute Bash commands stored
 in files. The files **must** have a ``.sh`` or ``.bash`` extension.
 
-Note the space after the script name (more on this in the next section).
+With Jinja template
+"""""""""""""""""""
+
+You can execute bash script which contains Jinja templates. When you do so, Airflow
+loads the content of your file, render the templates, and write the rendered script
+into a temporary file. By default, the file is placed in a temporary directory
+(under ``/tmp``). You can change this location with the ``cwd`` parameter.
+
+.. caution::
+
+    Airflow must have write access to ``/tmp`` or the ``cwd`` directory, to be
+    able to write the temporary file to the disk.
+
+
+To execute a bash script, place it in a location relative to the directory containing
+the DAG file. So if your DAG file is in ``/usr/local/airflow/dags/test_dag.py``, you can
+move your ``test.sh`` file to any location under ``/usr/local/airflow/dags/`` (Example:
+``/usr/local/airflow/dags/scripts/test.sh``) and pass the relative path to ``bash_command``
+as shown below:
+
+.. tab-set::
+
+    .. tab-item:: @tash.bash
+        :sync: taskflow
+
+        .. code-block:: python
+
+            @task.bash
+            def bash_example():
+                # "scripts" folder is under "/usr/local/airflow/dags"
+                return "scripts/test.sh"
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. code-block:: python
+
+            t2 = BashOperator(
+                task_id="bash_example",
+                # "scripts" folder is under "/usr/local/airflow/dags"
+                bash_command="scripts/test.sh",
+            )
+
+Creating separate folder for Bash scripts may be desirable for many reasons, like
+separating your script's logic and pipeline code, allowing for proper code highlighting
+in files composed in different languages, and general flexibility in structuring
+pipelines.
+
+It is also possible to define your ``template_searchpath`` as pointing to any folder
+locations in the DAG constructor call.
+
+.. tab-set::
+
+    .. tab-item:: @task.bash
+        :sync: taskflow
+
+        .. code-block:: python
+            :emphasize-lines: 1
+
+            @dag(..., template_searchpath="/opt/scripts")
+            def example_bash_dag():
+                @task.bash
+                def bash_example():
+                    return "test.sh "
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. code-block:: python
+            :emphasize-lines: 1
+
+            with DAG("example_bash_dag", ..., template_searchpath="/opt/scripts"):
+                t2 = BashOperator(
+                    task_id="bash_example",
+                    bash_command="test.sh ",
+                )
+
+Without Jinja template
+""""""""""""""""""""""
+
+If your script doesn't contains any Jinja template, disable Airflow's rendering by
+adding a space after the script name.
 
 .. tab-set::
 
@@ -294,68 +375,7 @@ script name. This is because Airflow tries to apply a Jinja template to it, whic
             )
 
 However, if you want to use templating in your Bash script, do not add the space
-and instead put your Bash script in a location relative to the directory containing
-the DAG file. So if your DAG file is in ``/usr/local/airflow/dags/test_dag.py``, you can
-move your ``test.sh`` file to any location under ``/usr/local/airflow/dags/`` (Example:
-``/usr/local/airflow/dags/scripts/test.sh``) and pass the relative path to ``bash_command``
-as shown below:
-
-.. tab-set::
-
-    .. tab-item:: @tash.bash
-        :sync: taskflow
-
-        .. code-block:: python
-
-            @task.bash
-            def bash_example():
-                # "scripts" folder is under "/usr/local/airflow/dags"
-                return "scripts/test.sh"
-
-    .. tab-item:: BashOperator
-        :sync: operator
-
-        .. code-block:: python
-
-            t2 = BashOperator(
-                task_id="bash_example",
-                # "scripts" folder is under "/usr/local/airflow/dags"
-                bash_command="scripts/test.sh",
-            )
-
-Creating separate folder for Bash scripts may be desirable for many reasons, like
-separating your script's logic and pipeline code, allowing for proper code highlighting
-in files composed in different languages, and general flexibility in structuring
-pipelines.
-
-It is also possible to define your ``template_searchpath`` as pointing to any folder
-locations in the DAG constructor call.
-
-.. tab-set::
-
-    .. tab-item:: @task.bash
-        :sync: taskflow
-
-        .. code-block:: python
-            :emphasize-lines: 1
-
-            @dag(..., template_searchpath="/opt/scripts")
-            def example_bash_dag():
-                @task.bash
-                def bash_example():
-                    return "test.sh "
-
-    .. tab-item:: BashOperator
-        :sync: operator
-
-        .. code-block:: python
-            :emphasize-lines: 1
-
-            with DAG("example_bash_dag", ..., template_searchpath="/opt/scripts"):
-                t2 = BashOperator(
-                    task_id="bash_example",
-                    bash_command="test.sh ",
-                )
+and instead check the `bash script with Jinja template <#with-jinja-template>`_ section.
 
 Enriching Bash with Python
 --------------------------

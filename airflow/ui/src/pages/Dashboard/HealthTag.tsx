@@ -18,6 +18,7 @@
  */
 import { Skeleton, Tag, TagLabel, Text, Tooltip } from "@chakra-ui/react";
 
+import Time from "src/components/Time";
 import { capitalize } from "src/utils";
 
 export const HealthTag = ({
@@ -27,8 +28,8 @@ export const HealthTag = ({
   title,
 }: {
   readonly isLoading: boolean;
-  readonly latestHeartbeat?: null | string;
-  readonly status?: null | string;
+  readonly latestHeartbeat?: string | null;
+  readonly status?: string | null;
   readonly title: string;
 }) => {
   if (isLoading) {
@@ -42,7 +43,9 @@ export const HealthTag = ({
       label={
         <div>
           <Text>Status: {capitalize(status)}</Text>
-          <Text>Last Heartbeat: {latestHeartbeat}</Text>
+          <Text>
+            Last Heartbeat: <Time datetime={latestHeartbeat} />
+          </Text>
         </div>
       }
       shouldWrapChildren

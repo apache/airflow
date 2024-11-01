@@ -19,39 +19,15 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from airflow.typing_compat import TypedDict
+import airflow.sdk.types
+from airflow.typing_compat import TypeAlias, TypedDict
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+ArgNotSet: TypeAlias = airflow.sdk.types.ArgNotSet
 
-class ArgNotSet:
-    """
-    Sentinel type for annotations, useful when None is not viable.
-
-    Use like this::
-
-        def is_arg_passed(arg: Union[ArgNotSet, None] = NOTSET) -> bool:
-            if arg is NOTSET:
-                return False
-            return True
-
-
-        is_arg_passed()  # False.
-        is_arg_passed(None)  # True.
-    """
-
-    @staticmethod
-    def serialize():
-        return "NOTSET"
-
-    @classmethod
-    def deserialize(cls):
-        return cls
-
-
-NOTSET = ArgNotSet()
-"""Sentinel value for argument default. See ``ArgNotSet``."""
+NOTSET = airflow.sdk.types.NOTSET
 
 
 class AttributeRemoved:
@@ -86,7 +62,7 @@ class DagRunType(str, enum.Enum):
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
-    DATASET_TRIGGERED = "dataset_triggered"
+    ASSET_TRIGGERED = "asset_triggered"
 
     def __str__(self) -> str:
         return self.value
@@ -118,5 +94,5 @@ class DagRunTriggeredByType(enum.Enum):
     UI = "ui"  # for clicking the `Trigger DAG` button
     TEST = "test"  # for dag.test()
     TIMETABLE = "timetable"  # for timetable based triggering
-    DATASET = "dataset"  # for dataset_triggered run type
+    ASSET = "asset"  # for asset_triggered run type
     BACKFILL = "backfill"

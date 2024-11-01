@@ -169,6 +169,54 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze testing task-sdk-tests": [
+        {
+            "name": "Test options",
+            "options": [
+                "--test-timeout",
+                "--enable-coverage",
+                "--collect-only",
+            ],
+        },
+        {
+            "name": "Test environment",
+            "options": [
+                "--python",
+                "--forward-credentials",
+                "--force-sa-warnings",
+            ],
+        },
+        {
+            "name": "Options for parallel test commands",
+            "options": [
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+        {
+            "name": "Upgrading/downgrading/removing selected packages",
+            "options": [
+                "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
+                "--remove-arm-packages",
+            ],
+        },
+        {
+            "name": "Advanced flag for tests command",
+            "options": [
+                "--airflow-constraints-reference",
+                "--clean-airflow-installation",
+                "--github-repository",
+                "--image-tag",
+                "--package-format",
+                "--mount-sources",
+                "--skip-docker-compose-down",
+                "--keep-env-variables",
+            ],
+        },
+    ],
     "breeze testing db-tests": [
         {
             "name": "Select tests to run",

@@ -20,10 +20,10 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { RouterProvider } from "react-router-dom";
 
-import { App } from "src/App";
-
+import { TimezoneProvider } from "./context/timezone";
+import { router } from "./router";
 import theme from "./theme";
 
 const queryClient = new QueryClient({
@@ -61,11 +61,11 @@ axios.interceptors.response.use(
 const root = createRoot(document.querySelector("#root") as HTMLDivElement);
 
 root.render(
-  <BrowserRouter basename="/webapp">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
+  <ChakraProvider theme={theme}>
+    <QueryClientProvider client={queryClient}>
+      <TimezoneProvider>
+        <RouterProvider router={router} />
+      </TimezoneProvider>
+    </QueryClientProvider>
+  </ChakraProvider>,
 );

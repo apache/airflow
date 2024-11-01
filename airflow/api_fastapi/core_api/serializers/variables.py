@@ -58,3 +58,10 @@ class VariableBody(VariableBase):
     """Variable serializer for bodies."""
 
     value: str | None
+
+
+class VariableCollectionResponse(BaseModel):
+    """Variable Collection serializer for responses."""
+
+    variables: list[VariableResponse]
+    total_entries: int

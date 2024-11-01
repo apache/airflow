@@ -21,10 +21,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.variables import VariableBody, VariableResponse
+from airflow.api_fastapi.core_api.serializers.variables import (
+    VariableBody,
+    VariableCollectionResponse,
+    VariableResponse,
+)
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -58,6 +63,42 @@ async def get_variable(
     return VariableResponse.model_validate(variable, from_attributes=True)
 
 
+@variables_router.get(
+    "/",
+    responses=create_openapi_http_exception_doc([401, 403]),
+)
+async def get_variables(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["key", "id"],
+                Variable,
+            ).dynamic_depends()
+        ),
+    ],
+    session: Annotated[Session, Depends(get_session)],
+) -> VariableCollectionResponse:
+    """Get all Variables entries."""
+    variable_select, total_entries = paginated_select(
+        select(Variable),
+        [],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    variables = session.scalars(variable_select).all()
+
+    return VariableCollectionResponse(
+        variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
+        total_entries=total_entries,
+    )
+
+
 @variables_router.patch("/{variable_key}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_variable(
     variable_key: str,
@@ -78,7 +119,6 @@ async def patch_variable(
         data = patch_body.model_dump(exclude=non_update_fields)
     for key, val in data.items():
         setattr(variable, key, val)
-    session.add(variable)
     return variable
 
 

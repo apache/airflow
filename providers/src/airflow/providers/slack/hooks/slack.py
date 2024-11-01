@@ -203,6 +203,7 @@ class SlackHook(BaseHook):
         filetype: str | None = None,
         initial_comment: str | None = None,
         title: str | None = None,
+        **kwargs,
     ) -> SlackResponse:
         """
         Create or upload an existing file.
@@ -295,7 +296,8 @@ class SlackHook(BaseHook):
         filename: str | None = None,
         initial_comment: str | None = None,
         title: str | None = None,
-        filetype: str | None = None,
+        snippet_type: str | None = None,
+        **kwargs,
     ) -> list[SlackResponse]:
         """
         Smooth transition between ``send_file`` and ``send_file_v2`` methods.
@@ -308,7 +310,7 @@ class SlackHook(BaseHook):
         :param filename: Displayed filename.
         :param initial_comment: The message text introducing the file in specified ``channels``.
         :param title: Title of the file.
-        :param filetype: A file type identifier.
+        :param snippet_type: Syntax type for the content being uploaded.
         """
         if not exactly_one(file, content):
             raise ValueError("Either `file` or `content` must be provided, not both.")
@@ -318,7 +320,7 @@ class SlackHook(BaseHook):
         else:
             file_uploads = {"content": content, "filename": filename}
 
-        file_uploads.update({"title": title, "snippet_type": filetype})
+        file_uploads.update({"title": title, "snippet_type": snippet_type})
 
         if channels:
             if isinstance(channels, str):

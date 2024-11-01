@@ -144,14 +144,14 @@ class TestDagEndpoint:
         session.add(dag_model)
 
     @provide_session
-    def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
+    def _create_dag_model_for_details_endpoint_with_asset_expression(self, dag_id, session=None):
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
             timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
-            dataset_expression={
+            asset_expression={
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},

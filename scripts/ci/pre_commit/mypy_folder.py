@@ -31,7 +31,13 @@ from common_precommit_utils import (
 
 initialize_breeze_precommit(__name__, __file__)
 
-ALLOWED_FOLDERS = ["airflow", "providers/src/airflow/providers", "dev", "docs"]
+ALLOWED_FOLDERS = [
+    "airflow",
+    "providers/src/airflow/providers",
+    "dev",
+    "docs",
+    "task_sdk/src/airflow/sdk",
+]
 
 if len(sys.argv) < 2:
     console.print(f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n")
@@ -47,6 +53,13 @@ if mypy_folder == "providers/src/airflow/providers":
     arguments.extend(
         [
             "providers/tests",
+            "--namespace-packages",
+        ]
+    )
+if mypy_folder == "task_sdk/src/airflow/sdk":
+    arguments.extend(
+        [
+            "task_sdk/tests",
             "--namespace-packages",
         ]
     )

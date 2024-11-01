@@ -330,3 +330,35 @@ class SageMakerAutoMLSensor(SageMakerBaseSensor):
 
     def state_from_response(self, response: dict) -> str:
         return response["AutoMLJobStatus"]
+
+
+class SageMakerProcessingSensor(SageMakerBaseSensor):
+    """
+    Poll the processing job until it reaches a terminal state; raise AirflowException with the failure reason.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerProcessingSensor`
+
+    :param job_name: Name of the processing job to watch.
+    """
+
+    template_fields: Sequence[str] = ("job_name",)
+    template_ext: Sequence[str] = ()
+
+    def __init__(self, *, job_name: str, **kwargs):
+        super().__init__(**kwargs)
+        self.job_name = job_name
+
+    def non_terminal_states(self) -> set[str]:
+        return SageMakerHook.processing_job_non_terminal_states
+
+    def failed_states(self) -> set[str]:
+        return SageMakerHook.processing_job_failed_states
+
+    def get_sagemaker_response(self) -> dict:
+        self.log.info("Poking Sagemaker ProcessingJob %s", self.job_name)
+        return self.hook.describe_processing_job(self.job_name)
+
+    def state_from_response(self, response: dict) -> str:
+        return response["ProcessingJobStatus"]

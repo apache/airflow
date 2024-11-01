@@ -21,6 +21,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 
+import { TimezoneProvider } from "src/context/timezone";
+
 export const Wrapper = ({ children }: PropsWithChildren) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -33,7 +35,9 @@ export const Wrapper = ({ children }: PropsWithChildren) => {
   return (
     <ChakraProvider>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>{children}</MemoryRouter>
+        <MemoryRouter>
+          <TimezoneProvider>{children}</TimezoneProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     </ChakraProvider>
   );

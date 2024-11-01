@@ -32,8 +32,8 @@ const CustomEdge = ({ data }: EdgeProps) => {
   const { colors } = useTheme();
   if (!data) return null;
   const { rest } = data;
-  // We can not actually say a dataset is upstream of a particular task so do not render the edge
-  if (rest.isSourceDataset) return null;
+  // We can not actually say an asset is upstream of a particular task so do not render the edge
+  if (rest.isSourceAsset) return null;
   let strokeWidth = 2;
   if (rest.isSelected) strokeWidth = 3;
   if (rest.isZoomedOut) strokeWidth = 5;

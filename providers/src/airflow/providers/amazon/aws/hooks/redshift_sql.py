@@ -163,7 +163,7 @@ class RedshiftSQLHook(DbApiHook):
         # Compatibility: The 'create' factory method was added in SQLAlchemy 1.4
         # to replace calling the default URL constructor directly.
         create_url = getattr(URL, "create", URL)
-        return str(create_url(drivername="redshift+redshift_connector", **conn_params))
+        return str(create_url(drivername="postgresql", **conn_params))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overridden to pass Redshift-specific arguments."""
