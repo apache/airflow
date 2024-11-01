@@ -20,9 +20,10 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1728485226
+source-date-epoch: 1730013072
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 11.0.0
   - 10.5.1
   - 10.5.0
   - 10.4.0
@@ -190,6 +191,8 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Power BI
     external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/powerbi.rst
     tags: [azure]
 
 operators:

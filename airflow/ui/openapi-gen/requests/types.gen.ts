@@ -69,7 +69,6 @@ export type DAGDetailsResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
@@ -96,7 +95,6 @@ export type DAGDetailsResponse = {
   start_date: string | null;
   end_date: string | null;
   is_paused_upon_creation: boolean | null;
-  orientation: string;
   params: {
     [key: string]: unknown;
   } | null;
@@ -132,7 +130,6 @@ export type DAGResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
@@ -155,6 +152,18 @@ export type DAGResponse = {
    */
   readonly file_token: string;
 };
+
+/**
+ * DAG Run Serializer for PATCH requests.
+ */
+export type DAGRunPatchBody = {
+  state: DAGRunPatchStates;
+};
+
+/**
+ * Enum for DAG Run states when updating a DAG Run.
+ */
+export type DAGRunPatchStates = "queued" | "success" | "failed";
 
 /**
  * DAG Run serializer for responses.
@@ -199,11 +208,61 @@ export type DAGRunTypes = {
 };
 
 /**
+ * DAG Source serializer for responses.
+ */
+export type DAGSourceResponse = {
+  content: string | null;
+};
+
+/**
  * DAG Tags Collection serializer for responses.
  */
 export type DAGTagCollectionResponse = {
   tags: Array<string>;
   total_entries: number;
+};
+
+/**
+ * DAG with latest dag runs collection response serializer.
+ */
+export type DAGWithLatestDagRunsCollectionResponse = {
+  total_entries: number;
+  dags: Array<DAGWithLatestDagRunsResponse>;
+};
+
+/**
+ * DAG with latest dag runs response serializer.
+ */
+export type DAGWithLatestDagRunsResponse = {
+  dag_id: string;
+  dag_display_name: string;
+  is_paused: boolean;
+  is_active: boolean;
+  last_parsed_time: string | null;
+  last_pickled: string | null;
+  last_expired: string | null;
+  pickle_id: string | null;
+  default_view: string | null;
+  fileloc: string;
+  description: string | null;
+  timetable_summary: string | null;
+  timetable_description: string | null;
+  tags: Array<DagTagPydantic>;
+  max_active_tasks: number;
+  max_active_runs: number | null;
+  max_consecutive_failed_dag_runs: number;
+  has_task_concurrency_limits: boolean;
+  has_import_errors: boolean;
+  next_dagrun: string | null;
+  next_dagrun_data_interval_start: string | null;
+  next_dagrun_data_interval_end: string | null;
+  next_dagrun_create_after: string | null;
+  owners: Array<string>;
+  latest_dag_runs: Array<DAGRunResponse>;
+  /**
+   * Return file token.
+   */
+  readonly file_token: string;
 };
 
 /**
@@ -254,6 +313,23 @@ export type DagTagPydantic = {
 };
 
 /**
+ * Event Log Response.
+ */
+export type EventLogResponse = {
+  event_log_id: number;
+  when: string;
+  dag_id: string | null;
+  task_id: string | null;
+  run_id: string | null;
+  map_index: number | null;
+  try_number: number | null;
+  event: string;
+  logical_date: string | null;
+  owner: string | null;
+  extra: string | null;
+};
+
+/**
  * Serializer for Plugin FastAPI App responses.
  */
 export type FastAPIAppResponse = {
@@ -294,7 +370,23 @@ export type HealthInfoSchema = {
 export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
-  task_instance_states: TaskInstanceState;
+  task_instance_states: airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState;
+};
+
+/**
+ * Job serializer for responses.
+ */
+export type JobResponse = {
+  id: number;
+  dag_id: string | null;
+  state: string | null;
+  job_type: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  latest_heartbeat: string | null;
+  executor_class: string | null;
+  hostname: string | null;
+  unixname: string | null;
 };
 
 /**
@@ -310,7 +402,6 @@ export type PluginCollectionResponse = {
  */
 export type PluginResponse = {
   name: string;
-  hooks: Array<string>;
   macros: Array<string>;
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
@@ -325,9 +416,17 @@ export type PluginResponse = {
 };
 
 /**
- * Pool serializer for bodies.
+ * Pool Collection serializer for responses.
  */
-export type PoolBody = {
+export type PoolCollectionResponse = {
+  pools: Array<PoolResponse>;
+  total_entries: number;
+};
+
+/**
+ * Pool serializer for patch bodies.
+ */
+export type PoolPatchBody = {
   pool?: string | null;
   slots?: number | null;
   description?: string | null;
@@ -335,11 +434,13 @@ export type PoolBody = {
 };
 
 /**
- * Pool Collection serializer for responses.
+ * Pool serializer for post bodies.
  */
-export type PoolCollectionResponse = {
-  pools: Array<PoolResponse>;
-  total_entries: number;
+export type PoolPostBody = {
+  name: string;
+  slots: number;
+  description?: string | null;
+  include_deferred?: boolean;
 };
 
 /**
@@ -386,20 +487,48 @@ export type SchedulerInfoSchema = {
 /**
  * TaskInstance serializer for responses.
  */
-export type TaskInstanceState = {
-  no_status: number;
-  removed: number;
-  scheduled: number;
-  queued: number;
-  running: number;
-  success: number;
-  restarting: number;
-  failed: number;
-  up_for_retry: number;
-  up_for_reschedule: number;
-  upstream_failed: number;
-  skipped: number;
-  deferred: number;
+export type TaskInstanceResponse = {
+  task_id: string;
+  dag_id: string;
+  dag_run_id: string;
+  map_index: number;
+  logical_date: string;
+  start_date: string | null;
+  end_date: string | null;
+  duration: number | null;
+  state: airflow__utils__state__TaskInstanceState | null;
+  try_number: number;
+  max_tries: number;
+  task_display_name: string;
+  hostname: string | null;
+  unixname: string | null;
+  pool: string;
+  pool_slots: number;
+  queue: string | null;
+  priority_weight: number | null;
+  operator: string | null;
+  queued_when: string | null;
+  pid: number | null;
+  executor: string | null;
+  executor_config: string;
+  note: string | null;
+  rendered_map_index: string | null;
+  rendered_fields?: {
+    [key: string]: unknown;
+  };
+  trigger: TriggerResponse | null;
+  triggerer_job: JobResponse | null;
+};
+
+/**
+ * Trigger serializer for responses.
+ */
+export type TriggerResponse = {
+  id: number;
+  classpath: string;
+  kwargs: string;
+  created_date: string;
+  triggerer_id: number | null;
 };
 
 /**
@@ -442,6 +571,53 @@ export type VariableResponse = {
   value: string | null;
 };
 
+/**
+ * Version information serializer for responses.
+ */
+export type VersionInfo = {
+  version: string;
+  git_version: string | null;
+};
+
+/**
+ * TaskInstance serializer for responses.
+ */
+export type airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState =
+  {
+    no_status: number;
+    removed: number;
+    scheduled: number;
+    queued: number;
+    running: number;
+    success: number;
+    restarting: number;
+    failed: number;
+    up_for_retry: number;
+    up_for_reschedule: number;
+    upstream_failed: number;
+    skipped: number;
+    deferred: number;
+  };
+
+/**
+ * All possible states that a Task Instance can be in.
+ *
+ * Note that None is also allowed, so always use this in a type hint with Optional.
+ */
+export type airflow__utils__state__TaskInstanceState =
+  | "removed"
+  | "scheduled"
+  | "queued"
+  | "running"
+  | "success"
+  | "restarting"
+  | "failed"
+  | "up_for_retry"
+  | "up_for_reschedule"
+  | "upstream_failed"
+  | "skipped"
+  | "deferred";
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -456,6 +632,71 @@ export type HistoricalMetricsData = {
 };
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type RecentDagRunsData = {
+  dagDisplayNamePattern?: string | null;
+  dagIdPattern?: string | null;
+  dagRunsLimit?: number;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  tags?: Array<string>;
+};
+
+export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type DeleteConnectionData = {
+  connectionId: string;
+};
+
+export type DeleteConnectionResponse = void;
+
+export type GetConnectionData = {
+  connectionId: string;
+};
+
+export type GetConnectionResponse = ConnectionResponse;
+
+export type GetConnectionsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetConnectionsResponse = ConnectionCollectionResponse;
+
+export type GetDagRunData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type GetDagRunResponse = DAGRunResponse;
+
+export type DeleteDagRunData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type DeleteDagRunResponse = void;
+
+export type PatchDagRunStateData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagRunStateResponse = DAGRunResponse;
+
+export type GetDagSourceData = {
+  accept?: string;
+  fileToken: string;
+};
+
+export type GetDagSourceResponse = DAGSourceResponse;
 
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
@@ -522,25 +763,78 @@ export type GetDagDetailsData = {
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
 
-export type DeleteConnectionData = {
-  connectionId: string;
+export type GetEventLogData = {
+  eventLogId: number;
 };
 
-export type DeleteConnectionResponse = void;
+export type GetEventLogResponse = EventLogResponse;
 
-export type GetConnectionData = {
-  connectionId: string;
+export type GetHealthResponse = HealthInfoSchema;
+
+export type GetPluginsData = {
+  limit?: number;
+  offset?: number;
 };
 
-export type GetConnectionResponse = ConnectionResponse;
+export type GetPluginsResponse = PluginCollectionResponse;
 
-export type GetConnectionsData = {
+export type DeletePoolData = {
+  poolName: string;
+};
+
+export type DeletePoolResponse = void;
+
+export type GetPoolData = {
+  poolName: string;
+};
+
+export type GetPoolResponse = PoolResponse;
+
+export type PatchPoolData = {
+  poolName: string;
+  requestBody: PoolPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchPoolResponse = PoolResponse;
+
+export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
 };
 
-export type GetConnectionsResponse = ConnectionCollectionResponse;
+export type GetPoolsResponse = PoolCollectionResponse;
+
+export type PostPoolData = {
+  requestBody: PoolPostBody;
+};
+
+export type PostPoolResponse = PoolResponse;
+
+export type GetProvidersData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetProvidersResponse = ProviderCollectionResponse;
+
+export type GetTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+};
+
+export type GetTaskInstanceResponse = TaskInstanceResponse;
+
+export type GetMappedTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 
 export type DeleteVariableData = {
   variableKey: string;
@@ -576,63 +870,7 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
-export type GetDagRunData = {
-  dagId: string;
-  dagRunId: string;
-};
-
-export type GetDagRunResponse = DAGRunResponse;
-
-export type DeleteDagRunData = {
-  dagId: string;
-  dagRunId: string;
-};
-
-export type DeleteDagRunResponse = void;
-
-export type GetHealthResponse = HealthInfoSchema;
-
-export type DeletePoolData = {
-  poolName: string;
-};
-
-export type DeletePoolResponse = void;
-
-export type GetPoolData = {
-  poolName: string;
-};
-
-export type GetPoolResponse = PoolResponse;
-
-export type PatchPoolData = {
-  poolName: string;
-  requestBody: PoolBody;
-  updateMask?: Array<string> | null;
-};
-
-export type PatchPoolResponse = PoolResponse;
-
-export type GetPoolsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type GetPoolsResponse = PoolCollectionResponse;
-
-export type GetProvidersData = {
-  limit?: number;
-  offset?: number;
-};
-
-export type GetProvidersResponse = ProviderCollectionResponse;
-
-export type GetPluginsData = {
-  limit?: number;
-  offset?: number;
-};
-
-export type GetPluginsResponse = PluginCollectionResponse;
+export type GetVersionResponse = VersionInfo;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -664,6 +902,220 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dags/recent_dag_runs": {
+    get: {
+      req: RecentDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWithLatestDagRunsCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/{connection_id}": {
+    delete: {
+      req: DeleteConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/": {
+    get: {
+      req: GetConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}": {
+    get: {
+      req: GetDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchDagRunStateData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagSources/{file_token}": {
+    get: {
+      req: GetDagSourceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGSourceResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -858,39 +1310,14 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/{connection_id}": {
-    delete: {
-      req: DeleteConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
+  "/public/eventLogs/{event_log_id}": {
     get: {
-      req: GetConnectionData;
+      req: GetEventLogData;
       res: {
         /**
          * Successful Response
          */
-        200: ConnectionResponse;
+        200: EventLogResponse;
         /**
          * Unauthorized
          */
@@ -910,14 +1337,214 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/": {
+  "/public/monitor/health": {
     get: {
-      req: GetConnectionsData;
       res: {
         /**
          * Successful Response
          */
-        200: ConnectionCollectionResponse;
+        200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/plugins/": {
+    get: {
+      req: GetPluginsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/{pool_name}": {
+    delete: {
+      req: DeletePoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/": {
+    get: {
+      req: GetPoolsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/providers/": {
+    get: {
+      req: GetProvidersData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ProviderCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
+    get: {
+      req: GetTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
+    get: {
+      req: GetMappedTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
         /**
          * Unauthorized
          */
@@ -1062,211 +1689,13 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}": {
-    get: {
-      req: GetDagRunData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGRunResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    delete: {
-      req: DeleteDagRunData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/monitor/health": {
+  "/public/version/": {
     get: {
       res: {
         /**
          * Successful Response
          */
-        200: HealthInfoSchema;
-      };
-    };
-  };
-  "/public/pools/{pool_name}": {
-    delete: {
-      req: DeletePoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    get: {
-      req: GetPoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PoolResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: PatchPoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PoolResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/pools/": {
-    get: {
-      req: GetPoolsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PoolCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/providers/": {
-    get: {
-      req: GetProvidersData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ProviderCollectionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/plugins/": {
-    get: {
-      req: GetPluginsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PluginCollectionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
+        200: VersionInfo;
       };
     };
   };

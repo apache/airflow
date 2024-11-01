@@ -41,7 +41,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils.dates import timezone as tz
+from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
 
@@ -629,9 +629,9 @@ import datetime
 import time
 
 import airflow
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
-time.sleep(31)
+time.sleep(1)
 
 with airflow.DAG(
     "import_timeout",
@@ -639,7 +639,7 @@ with airflow.DAG(
     schedule=None) as dag:
     def f():
         print("Sleeping")
-        time.sleep(2)
+        time.sleep(1)
 
 
     for ind in range(10):
@@ -652,8 +652,9 @@ with airflow.DAG(
         with open("tmp_file.py", "w") as f:
             f.write(code_to_save)
 
-        dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
-        dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+        with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
+            dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
+            dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
 
         assert dag is not None
         assert "tmp_file.py" in dagbag.import_errors
@@ -666,7 +667,7 @@ with airflow.DAG(
         """Test that dagbag.sync_to_db is retried on OperationalError"""
 
         dagbag = DagBag("/dev/null")
-        mock_dag = mock.MagicMock(spec=DAG)
+        mock_dag = mock.MagicMock()
         dagbag.dags["mock_dag"] = mock_dag
 
         op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)

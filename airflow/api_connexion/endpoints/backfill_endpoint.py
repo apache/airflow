@@ -35,6 +35,7 @@ from airflow.api_connexion.schemas.backfill_schema import (
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
+    ReprocessBehavior,
     _cancel_backfill,
     _create_backfill,
 )
@@ -151,6 +152,7 @@ def create_backfill(
     max_active_runs: int = 10,
     reverse: bool = False,
     dag_run_conf: dict | None = None,
+    reprocess_behavior: ReprocessBehavior | None = None,
 ) -> APIResponse:
     try:
         backfill_obj = _create_backfill(
@@ -160,6 +162,7 @@ def create_backfill(
             max_active_runs=max_active_runs,
             reverse=reverse,
             dag_run_conf=dag_run_conf,
+            reprocess_behavior=reprocess_behavior,
         )
         return backfill_schema.dump(backfill_obj)
     except AlreadyRunningBackfill:

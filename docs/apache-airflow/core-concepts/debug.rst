@@ -76,8 +76,7 @@ The ``dag.test`` command has the following benefits over the :class:`~airflow.ex
 class, which is now deprecated:
 
 1. It does not require running an executor at all. Tasks are run one at a time with no executor or scheduler logs.
-2. It is significantly faster than running code with a DebugExecutor as it does not need to go through a scheduler loop.
-3. It does not perform a backfill.
+2. It is faster than running code with a DebugExecutor as it does not need to go through a scheduler loop.
 
 
 Debugging Airflow DAGs on the command line

@@ -295,18 +295,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Expired",
     },
-    scheduler_lock: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Scheduler Lock",
-    },
     pickle_id: {
       anyOf: [
         {
@@ -529,10 +517,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Is Paused Upon Creation",
     },
-    orientation: {
-      type: "string",
-      title: "Orientation",
-    },
     params: {
       anyOf: [
         {
@@ -607,7 +591,6 @@ export const $DAGDetailsResponse = {
     "last_parsed_time",
     "last_pickled",
     "last_expired",
-    "scheduler_lock",
     "pickle_id",
     "default_view",
     "fileloc",
@@ -632,7 +615,6 @@ export const $DAGDetailsResponse = {
     "start_date",
     "end_date",
     "is_paused_upon_creation",
-    "orientation",
     "params",
     "render_template_as_native_obj",
     "template_search_path",
@@ -711,18 +693,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    scheduler_lock: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Scheduler Lock",
     },
     pickle_id: {
       anyOf: [
@@ -889,7 +859,6 @@ export const $DAGResponse = {
     "last_parsed_time",
     "last_pickled",
     "last_expired",
-    "scheduler_lock",
     "pickle_id",
     "default_view",
     "fileloc",
@@ -911,6 +880,25 @@ export const $DAGResponse = {
   ],
   title: "DAGResponse",
   description: "DAG serializer for responses.",
+} as const;
+
+export const $DAGRunPatchBody = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DAGRunPatchStates",
+    },
+  },
+  type: "object",
+  required: ["state"],
+  title: "DAGRunPatchBody",
+  description: "DAG Run Serializer for PATCH requests.",
+} as const;
+
+export const $DAGRunPatchStates = {
+  type: "string",
+  enum: ["queued", "success", "failed"],
+  title: "DAGRunPatchStates",
+  description: "Enum for DAG Run states when updating a DAG Run.",
 } as const;
 
 export const $DAGRunResponse = {
@@ -1102,6 +1090,26 @@ export const $DAGRunTypes = {
   description: "DAG Run Types for responses.",
 } as const;
 
+export const $DAGSourceResponse = {
+  properties: {
+    content: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Content",
+    },
+  },
+  type: "object",
+  required: ["content"],
+  title: "DAGSourceResponse",
+  description: "DAG Source serializer for responses.",
+} as const;
+
 export const $DAGTagCollectionResponse = {
   properties: {
     tags: {
@@ -1120,6 +1128,276 @@ export const $DAGTagCollectionResponse = {
   required: ["tags", "total_entries"],
   title: "DAGTagCollectionResponse",
   description: "DAG Tags Collection serializer for responses.",
+} as const;
+
+export const $DAGWithLatestDagRunsCollectionResponse = {
+  properties: {
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+    dags: {
+      items: {
+        $ref: "#/components/schemas/DAGWithLatestDagRunsResponse",
+      },
+      type: "array",
+      title: "Dags",
+    },
+  },
+  type: "object",
+  required: ["total_entries", "dags"],
+  title: "DAGWithLatestDagRunsCollectionResponse",
+  description: "DAG with latest dag runs collection response serializer.",
+} as const;
+
+export const $DAGWithLatestDagRunsResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
+    is_paused: {
+      type: "boolean",
+      title: "Is Paused",
+    },
+    is_active: {
+      type: "boolean",
+      title: "Is Active",
+    },
+    last_parsed_time: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Parsed Time",
+    },
+    last_pickled: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Pickled",
+    },
+    last_expired: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Expired",
+    },
+    pickle_id: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pickle Id",
+    },
+    default_view: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default View",
+    },
+    fileloc: {
+      type: "string",
+      title: "Fileloc",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    timetable_summary: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timetable Summary",
+    },
+    timetable_description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timetable Description",
+    },
+    tags: {
+      items: {
+        $ref: "#/components/schemas/DagTagPydantic",
+      },
+      type: "array",
+      title: "Tags",
+    },
+    max_active_tasks: {
+      type: "integer",
+      title: "Max Active Tasks",
+    },
+    max_active_runs: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Active Runs",
+    },
+    max_consecutive_failed_dag_runs: {
+      type: "integer",
+      title: "Max Consecutive Failed Dag Runs",
+    },
+    has_task_concurrency_limits: {
+      type: "boolean",
+      title: "Has Task Concurrency Limits",
+    },
+    has_import_errors: {
+      type: "boolean",
+      title: "Has Import Errors",
+    },
+    next_dagrun: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun",
+    },
+    next_dagrun_data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun Data Interval Start",
+    },
+    next_dagrun_data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun Data Interval End",
+    },
+    next_dagrun_create_after: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun Create After",
+    },
+    owners: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Owners",
+    },
+    latest_dag_runs: {
+      items: {
+        $ref: "#/components/schemas/DAGRunResponse",
+      },
+      type: "array",
+      title: "Latest Dag Runs",
+    },
+    file_token: {
+      type: "string",
+      title: "File Token",
+      description: "Return file token.",
+      readOnly: true,
+    },
+  },
+  type: "object",
+  required: [
+    "dag_id",
+    "dag_display_name",
+    "is_paused",
+    "is_active",
+    "last_parsed_time",
+    "last_pickled",
+    "last_expired",
+    "pickle_id",
+    "default_view",
+    "fileloc",
+    "description",
+    "timetable_summary",
+    "timetable_description",
+    "tags",
+    "max_active_tasks",
+    "max_active_runs",
+    "max_consecutive_failed_dag_runs",
+    "has_task_concurrency_limits",
+    "has_import_errors",
+    "next_dagrun",
+    "next_dagrun_data_interval_start",
+    "next_dagrun_data_interval_end",
+    "next_dagrun_create_after",
+    "owners",
+    "latest_dag_runs",
+    "file_token",
+  ],
+  title: "DAGWithLatestDagRunsResponse",
+  description: "DAG with latest dag runs response serializer.",
 } as const;
 
 export const $DagProcessorInfoSchema = {
@@ -1203,6 +1481,129 @@ export const $DagTagPydantic = {
   title: "DagTagPydantic",
   description:
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+} as const;
+
+export const $EventLogResponse = {
+  properties: {
+    event_log_id: {
+      type: "integer",
+      title: "Event Log Id",
+    },
+    when: {
+      type: "string",
+      format: "date-time",
+      title: "When",
+    },
+    dag_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Id",
+    },
+    task_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Task Id",
+    },
+    run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run Id",
+    },
+    map_index: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Map Index",
+    },
+    try_number: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Try Number",
+    },
+    event: {
+      type: "string",
+      title: "Event",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    owner: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Owner",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+  },
+  type: "object",
+  required: [
+    "event_log_id",
+    "when",
+    "dag_id",
+    "task_id",
+    "run_id",
+    "map_index",
+    "try_number",
+    "event",
+    "logical_date",
+    "owner",
+    "extra",
+  ],
+  title: "EventLogResponse",
+  description: "Event Log Response.",
 } as const;
 
 export const $FastAPIAppResponse = {
@@ -1291,13 +1692,140 @@ export const $HistoricalMetricDataResponse = {
       $ref: "#/components/schemas/DAGRunStates",
     },
     task_instance_states: {
-      $ref: "#/components/schemas/TaskInstanceState",
+      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState",
     },
   },
   type: "object",
   required: ["dag_run_types", "dag_run_states", "task_instance_states"],
   title: "HistoricalMetricDataResponse",
   description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $JobResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    dag_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Id",
+    },
+    state: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "State",
+    },
+    job_type: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Job Type",
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    latest_heartbeat: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Latest Heartbeat",
+    },
+    executor_class: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Executor Class",
+    },
+    hostname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hostname",
+    },
+    unixname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Unixname",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "dag_id",
+    "state",
+    "job_type",
+    "start_date",
+    "end_date",
+    "latest_heartbeat",
+    "executor_class",
+    "hostname",
+    "unixname",
+  ],
+  title: "JobResponse",
+  description: "Job serializer for responses.",
 } as const;
 
 export const $PluginCollectionResponse = {
@@ -1325,13 +1853,6 @@ export const $PluginResponse = {
     name: {
       type: "string",
       title: "Name",
-    },
-    hooks: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Hooks",
     },
     macros: {
       items: {
@@ -1411,7 +1932,6 @@ export const $PluginResponse = {
   type: "object",
   required: [
     "name",
-    "hooks",
     "macros",
     "flask_blueprints",
     "fastapi_apps",
@@ -1428,7 +1948,27 @@ export const $PluginResponse = {
   description: "Plugin serializer.",
 } as const;
 
-export const $PoolBody = {
+export const $PoolCollectionResponse = {
+  properties: {
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolResponse",
+      },
+      type: "array",
+      title: "Pools",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["pools", "total_entries"],
+  title: "PoolCollectionResponse",
+  description: "Pool Collection serializer for responses.",
+} as const;
+
+export const $PoolPatchBody = {
   properties: {
     pool: {
       anyOf: [
@@ -1476,28 +2016,41 @@ export const $PoolBody = {
     },
   },
   type: "object",
-  title: "PoolBody",
-  description: "Pool serializer for bodies.",
+  title: "PoolPatchBody",
+  description: "Pool serializer for patch bodies.",
 } as const;
 
-export const $PoolCollectionResponse = {
+export const $PoolPostBody = {
   properties: {
-    pools: {
-      items: {
-        $ref: "#/components/schemas/PoolResponse",
-      },
-      type: "array",
-      title: "Pools",
+    name: {
+      type: "string",
+      title: "Name",
     },
-    total_entries: {
+    slots: {
       type: "integer",
-      title: "Total Entries",
+      title: "Slots",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    include_deferred: {
+      type: "boolean",
+      title: "Include Deferred",
+      default: false,
     },
   },
   type: "object",
-  required: ["pools", "total_entries"],
-  title: "PoolCollectionResponse",
-  description: "Pool Collection serializer for responses.",
+  required: ["name", "slots"],
+  title: "PoolPostBody",
+  description: "Pool serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
@@ -1639,79 +2192,304 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
-export const $TaskInstanceState = {
+export const $TaskInstanceResponse = {
   properties: {
-    no_status: {
-      type: "integer",
-      title: "No Status",
+    task_id: {
+      type: "string",
+      title: "Task Id",
     },
-    removed: {
-      type: "integer",
-      title: "Removed",
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
     },
-    scheduled: {
-      type: "integer",
-      title: "Scheduled",
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
     },
-    queued: {
+    map_index: {
       type: "integer",
-      title: "Queued",
+      title: "Map Index",
     },
-    running: {
-      type: "integer",
-      title: "Running",
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
     },
-    success: {
-      type: "integer",
-      title: "Success",
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
     },
-    restarting: {
-      type: "integer",
-      title: "Restarting",
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
     },
-    failed: {
-      type: "integer",
-      title: "Failed",
+    duration: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration",
     },
-    up_for_retry: {
-      type: "integer",
-      title: "Up For Retry",
+    state: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/airflow__utils__state__TaskInstanceState",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
-    up_for_reschedule: {
+    try_number: {
       type: "integer",
-      title: "Up For Reschedule",
+      title: "Try Number",
     },
-    upstream_failed: {
+    max_tries: {
       type: "integer",
-      title: "Upstream Failed",
+      title: "Max Tries",
     },
-    skipped: {
-      type: "integer",
-      title: "Skipped",
+    task_display_name: {
+      type: "string",
+      title: "Task Display Name",
     },
-    deferred: {
+    hostname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hostname",
+    },
+    unixname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Unixname",
+    },
+    pool: {
+      type: "string",
+      title: "Pool",
+    },
+    pool_slots: {
       type: "integer",
-      title: "Deferred",
+      title: "Pool Slots",
+    },
+    queue: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queue",
+    },
+    priority_weight: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Priority Weight",
+    },
+    operator: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Operator",
+    },
+    queued_when: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued When",
+    },
+    pid: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pid",
+    },
+    executor: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Executor",
+    },
+    executor_config: {
+      type: "string",
+      title: "Executor Config",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    rendered_map_index: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Rendered Map Index",
+    },
+    rendered_fields: {
+      type: "object",
+      title: "Rendered Fields",
+      default: {},
+    },
+    trigger: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/TriggerResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    triggerer_job: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/JobResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
   type: "object",
   required: [
-    "no_status",
-    "removed",
-    "scheduled",
-    "queued",
-    "running",
-    "success",
-    "restarting",
-    "failed",
-    "up_for_retry",
-    "up_for_reschedule",
-    "upstream_failed",
-    "skipped",
-    "deferred",
+    "task_id",
+    "dag_id",
+    "dag_run_id",
+    "map_index",
+    "logical_date",
+    "start_date",
+    "end_date",
+    "duration",
+    "state",
+    "try_number",
+    "max_tries",
+    "task_display_name",
+    "hostname",
+    "unixname",
+    "pool",
+    "pool_slots",
+    "queue",
+    "priority_weight",
+    "operator",
+    "queued_when",
+    "pid",
+    "executor",
+    "executor_config",
+    "note",
+    "rendered_map_index",
+    "trigger",
+    "triggerer_job",
   ],
-  title: "TaskInstanceState",
+  title: "TaskInstanceResponse",
   description: "TaskInstance serializer for responses.",
+} as const;
+
+export const $TriggerResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    classpath: {
+      type: "string",
+      title: "Classpath",
+    },
+    kwargs: {
+      type: "string",
+      title: "Kwargs",
+    },
+    created_date: {
+      type: "string",
+      format: "date-time",
+      title: "Created Date",
+    },
+    triggerer_id: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Triggerer Id",
+    },
+  },
+  type: "object",
+  required: ["id", "classpath", "kwargs", "created_date", "triggerer_id"],
+  title: "TriggerResponse",
+  description: "Trigger serializer for responses.",
 } as const;
 
 export const $TriggererInfoSchema = {
@@ -1863,4 +2641,126 @@ export const $VariableResponse = {
   required: ["key", "description", "value"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
+} as const;
+
+export const $VersionInfo = {
+  properties: {
+    version: {
+      type: "string",
+      title: "Version",
+    },
+    git_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Version",
+    },
+  },
+  type: "object",
+  required: ["version", "git_version"],
+  title: "VersionInfo",
+  description: "Version information serializer for responses.",
+} as const;
+
+export const $airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState =
+  {
+    properties: {
+      no_status: {
+        type: "integer",
+        title: "No Status",
+      },
+      removed: {
+        type: "integer",
+        title: "Removed",
+      },
+      scheduled: {
+        type: "integer",
+        title: "Scheduled",
+      },
+      queued: {
+        type: "integer",
+        title: "Queued",
+      },
+      running: {
+        type: "integer",
+        title: "Running",
+      },
+      success: {
+        type: "integer",
+        title: "Success",
+      },
+      restarting: {
+        type: "integer",
+        title: "Restarting",
+      },
+      failed: {
+        type: "integer",
+        title: "Failed",
+      },
+      up_for_retry: {
+        type: "integer",
+        title: "Up For Retry",
+      },
+      up_for_reschedule: {
+        type: "integer",
+        title: "Up For Reschedule",
+      },
+      upstream_failed: {
+        type: "integer",
+        title: "Upstream Failed",
+      },
+      skipped: {
+        type: "integer",
+        title: "Skipped",
+      },
+      deferred: {
+        type: "integer",
+        title: "Deferred",
+      },
+    },
+    type: "object",
+    required: [
+      "no_status",
+      "removed",
+      "scheduled",
+      "queued",
+      "running",
+      "success",
+      "restarting",
+      "failed",
+      "up_for_retry",
+      "up_for_reschedule",
+      "upstream_failed",
+      "skipped",
+      "deferred",
+    ],
+    title: "TaskInstanceState",
+    description: "TaskInstance serializer for responses.",
+  } as const;
+
+export const $airflow__utils__state__TaskInstanceState = {
+  type: "string",
+  enum: [
+    "removed",
+    "scheduled",
+    "queued",
+    "running",
+    "success",
+    "restarting",
+    "failed",
+    "up_for_retry",
+    "up_for_reschedule",
+    "upstream_failed",
+    "skipped",
+    "deferred",
+  ],
+  title: "TaskInstanceState",
+  description: `All possible states that a Task Instance can be in.
+
+Note that None is also allowed, so always use this in a type hint with Optional.`,
 } as const;

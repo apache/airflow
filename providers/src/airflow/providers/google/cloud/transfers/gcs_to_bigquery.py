@@ -391,17 +391,21 @@ class GCSToBigQueryOperator(BaseOperator):
                     location=self.location,
                     job_id=job_id,
                 )
-                if job.state in self.reattach_states:
-                    # We are reattaching to a job
-                    job._begin()
-                    self._handle_job_error(job)
-                else:
-                    # Same job configuration so we need force_rerun
+                if job.state not in self.reattach_states:
+                    # Same job configuration, so we need force_rerun
                     raise AirflowException(
                         f"Job with id: {job_id} already exists and is in {job.state} state. If you "
                         f"want to force rerun it consider setting `force_rerun=True`."
                         f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                     )
+                else:
+                    # Job already reached state DONE
+                    if job.state == "DONE":
+                        raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+
+                    # We are reattaching to a job
+                    self.log.info("Reattaching to existing Job in state %s", job.state)
+                    self._handle_job_error(job)
 
             job_types = {
                 LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],

@@ -137,9 +137,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "uv": [
         "uv>=0.1.32",
     ],
-    "virtualenv": [
-        "virtualenv",
-    ],
 }
 
 DOC_EXTRAS: dict[str, list[str]] = {
@@ -192,8 +189,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
-        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
-        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
+        "incremental>=24.7.2",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
@@ -216,22 +212,24 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
         "mypy==1.9.0",
-        "types-Deprecated",
-        "types-Markdown",
-        "types-PyMySQL",
-        "types-PyYAML",
-        "types-aiofiles",
-        "types-certifi",
-        "types-croniter",
-        "types-docutils",
-        "types-paramiko",
-        "types-protobuf",
-        "types-python-dateutil",
-        "types-python-slugify",
-        "types-pytz",
-        "types-redis",
-        "types-requests",
-        "types-setuptools",
+        "types-Deprecated>=1.2.9.20240311",
+        "types-Markdown>=3.6.0.20240316",
+        "types-PyMySQL>=1.1.0.20240425",
+        "types-PyYAML>=6.0.12.20240724",
+        "types-aiofiles>=23.2.0.20240403",
+        "types-certifi>=2021.10.8.3",
+        "types-croniter>=2.0.0.20240423",
+        "types-docutils>=0.21.0.20240704",
+        "types-paramiko>=3.4.0.20240423",
+        "types-protobuf>=5.26.0.20240422",
+        "types-python-dateutil>=2.9.0.20240316",
+        "types-python-slugify>=8.0.2.20240310",
+        "types-pytz>=2024.1.0.20240417",
+        "types-redis>=4.6.0.20240425",
+        # aiobotocore>=2.9.0 requires urllib<2. types-requests>=2.31.0.7 uses urllib>2.
+        # hence, 2.31.0.6 is required for aiobotocore>=2.9.0
+        "types-requests>=2.31.0.6",
+        "types-setuptools>=69.5.0.20240423",
         "types-tabulate",
         "types-termcolor",
         "types-toml",
@@ -240,20 +238,19 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "blinker>=1.7.0",
     ],
     "devel-static-checks": [
-        "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.0",
+        "ruff==0.7.1",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
         "aiofiles>=23.2.0",
         "aioresponses>=0.7.6",
-        "backports.zoneinfo>=0.2.1;python_version<'3.9'",
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
         "jmespath>=0.7.0",
+        "kgb>=7.0.0",
         "pytest-asyncio>=0.23.6",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
@@ -389,9 +386,6 @@ DEPENDENCIES = [
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
-    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
-    # see https://github.com/python/importlib_resources/issues/299
-    'importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<"3.9"',
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -411,7 +405,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.6.4",
+    "pydantic>=2.7.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -437,6 +431,7 @@ DEPENDENCIES = [
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
+    "uuid6>=2024.7.10",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
