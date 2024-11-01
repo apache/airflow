@@ -109,6 +109,7 @@ def test_convert_volume_normal_value(mock_convert_kube_model_object):
     volume = Mock()
     result = convert_volume(volume)
 
+    mock_convert_kube_model_object.assert_called_once_with(volume, k8s.V1Volume)
     assert result.name == "test_convert_volume"
 
 
@@ -121,6 +122,7 @@ def test_convert_volume_mount_normal_value(mock_convert_kube_model_object):
     volume = Mock()
     result = convert_volume_mount(volume)
 
+    mock_convert_kube_model_object.assert_called_once_with(volume, k8s.V1VolumeMount)
     assert result.name == "test_volume_mount"
     assert result.mount_path == "/mnt/test"
 
@@ -132,6 +134,7 @@ def test_convert_port_normal_value(mock_convert_kube_model_object):
     volume = Mock()
     result = convert_port(volume)
 
+    mock_convert_kube_model_object.assert_called_once_with(volume, k8s.V1ContainerPort)
     assert result.container_port == 80
 
 
@@ -140,8 +143,10 @@ def test_convert_env_vars_with_dict():
     # Normal value input case test
     env_vars = {"FOO": "bar", "BAZ": "qux"}
     result = convert_env_vars(env_vars)
-
     expected_result = [k8s.V1EnvVar(name="FOO", value="bar"), k8s.V1EnvVar(name="BAZ", value="qux")]
+
+    assert isinstance(result, list)
+    assert len(result) == 2
     assert result == expected_result
 
 
@@ -170,6 +175,12 @@ def test_convert_env_vars_or_raise_error_list_value():
     env_vars_list = [k8s.V1EnvVar(name="ENV1", value="value1"), k8s.V1EnvVar(name="ENV2", value="value2")]
     result = convert_env_vars_or_raise_error(env_vars_list)
 
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert result[0].name == "ENV1"
+    assert result[0].value == "value1"
+    assert result[1].name == "ENV2"
+    assert result[1].value == "value2"
     assert result == env_vars_list
 
 
@@ -188,6 +199,7 @@ def test_convert_pod_runtime_info_env_normal_value(mock_convert_kube_model_objec
     volume = Mock()
     result = convert_pod_runtime_info_env(volume)
 
+    mock_convert_kube_model_object.assert_called_once_with(volume, k8s.V1EnvVar)
     assert result.name == "FOO"
     assert result.value == "bar"
 
@@ -202,6 +214,8 @@ def test_convert_image_pull_secrets_normal_value():
         k8s.V1LocalObjectReference(name="secret2"),
         k8s.V1LocalObjectReference(name="secret3"),
     ]
+    assert isinstance(result, list)
+    assert len(result) == 3
     assert result == expected_result
 
 
@@ -209,6 +223,8 @@ def test_convert_image_pull_secrets_not_string():
     image_pull_secrets = ["single_secret"]
     result = convert_image_pull_secrets(image_pull_secrets)
 
+    assert isinstance(result, list)
+    assert len(result) == 1
     assert result == image_pull_secrets
 
 
@@ -250,4 +266,5 @@ def test_convert_toleration_normal_value(mock_convert_from_dict):
     result = convert_toleration(toleration)
 
     mock_convert_from_dict.assert_called_once_with(toleration, k8s.V1Toleration)
+    assert isinstance(result, k8s.V1Toleration)
     assert result == expected_result
