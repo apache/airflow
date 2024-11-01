@@ -121,7 +121,7 @@ class TestDagCode:
             for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
                 assert test_string in dag_code
 
-    def test_db_code_created_on_dag_file_change(self, file_updater, session):
+    def test_db_code_created_on_serdag_change(self, session):
         """Test new DagCode is created in DB when DAG file is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         SDM.write_dag(example_dag)
@@ -137,24 +137,23 @@ class TestDagCode:
         assert result.fileloc == example_dag.fileloc
         assert result.source_code is not None
 
-        with file_updater(example_dag.fileloc):
-            example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        SDM.write_dag(example_dag, processor_subdir="/tmp")
+        with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
+            mock_code.return_value = "# dummy code"
             SDM.write_dag(example_dag)
-            with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
-                mock_code.return_value = "# dummy code"
-                SDM.write_dag(example_dag)
 
-                new_result = (
-                    session.query(DagCode)
-                    .filter(DagCode.fileloc == example_dag.fileloc)
-                    .order_by(DagCode.last_updated.desc())
-                    .limit(1)
-                    .one()
-                )
+            new_result = (
+                session.query(DagCode)
+                .filter(DagCode.fileloc == example_dag.fileloc)
+                .order_by(DagCode.last_updated.desc())
+                .limit(1)
+                .one()
+            )
 
-                assert new_result.fileloc == example_dag.fileloc
-                assert new_result.source_code != result.source_code
-                assert new_result.last_updated > result.last_updated
+            assert new_result.fileloc == example_dag.fileloc
+            assert new_result.source_code != result.source_code
+            assert new_result.last_updated > result.last_updated
 
     def test_has_dag(self, dag_maker):
         """Test has_dag method."""
