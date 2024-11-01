@@ -70,6 +70,7 @@ Committers
 - Joshua Carp (@jmcarp)
 - Joy Gao (@joygao)
 - Kamil Breguła (@mik-laj)
+- Karthikeyan Singaravelan (@tirkarthi)
 - Kaxil Naik (@kaxil)
 - Kengo Seki (@sekikn)
 - Kevin Yang (@KevinYang21)
