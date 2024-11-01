@@ -580,10 +580,10 @@ class TestWasbHook:
         # `ContainerClient.delete_blobs()` in this test.
         assert mock_delete_blobs.call_count == 2
 
-    @mock.patch("WasbHook._get_blob_client")
+    @mock.patch.object(WasbHook, "_get_blob_client")
     def test_copy_blobs(self, mock_get_blob_client):
         # Arrange
-        hook = WasbHook()
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         source_container_name = "source-container"
         source_blob_name = "source-blob"
         destination_container_name = "destination-container"
