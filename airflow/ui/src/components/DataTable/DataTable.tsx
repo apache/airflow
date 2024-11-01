@@ -30,8 +30,7 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef } from "react";
 
-import Pagination from "../ui/Pagination";
-import { ProgressBar } from "../ui/ProgressBar";
+import { ProgressBar, Pagination } from "../ui";
 import { CardList } from "./CardList";
 import { TableList } from "./TableList";
 import { createSkeletonMock } from "./skeleton";

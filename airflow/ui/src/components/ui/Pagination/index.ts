@@ -16,17 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Ellipsis } from "./Ellipsis";
+import { Item } from "./Item";
+import { Items } from "./Items";
+import { NextTrigger } from "./NextTrigger";
+import { PageText } from "./PageText";
+import { PrevTrigger } from "./PrevTrigger";
+import { Root } from "./Root";
 
-export { default as Dialog } from "./Dialog";
-export { default as Pagination } from "./Pagination";
-export { default as Select } from "./Select";
-export { Alert } from "./Alert";
-export { CloseButton } from "./CloseButton";
-export { InputGroup } from "./InputGroup";
-
-export { Switch } from "./Switch";
-export { Tag } from "./Tag";
-export { Tooltip } from "./Tooltip";
-
-export { ProgressBar } from "./ProgressBar";
-export { default as Menu } from "./Menu";
+export const Pagination = {
+  Ellipsis,
+  Item,
+  Items,
+  NextTrigger,
+  PageText,
+  PrevTrigger,
+  Root,
+};

@@ -25,7 +25,7 @@ import {
   useDagServicePatchDag,
 } from "openapi/queries";
 
-import { Switch } from "./ui/Switch";
+import { Switch } from "./ui";
 
 type Props = {
   readonly dagId: string;

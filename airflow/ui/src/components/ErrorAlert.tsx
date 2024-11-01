@@ -23,7 +23,7 @@ import type {
 } from "openapi-gen/requests/types.gen";
 import { FiAlertTriangle } from "react-icons/fi";
 
-import { Alert } from "./ui/Alert";
+import { Alert } from "./ui";
 
 type ExpandedApiError = {
   body: HTTPExceptionResponse | HTTPValidationError;

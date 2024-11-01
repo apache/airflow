@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Dialog as ChakraDialog } from "@chakra-ui/react";
+import { Select as ChakraSelect } from "@chakra-ui/react";
 
-import { CloseTrigger } from "./CloseTrigger";
 import { Content } from "./Content";
+import { Item } from "./Item";
+import { ItemGroup } from "./ItemGroup";
+import { Root } from "./Root";
+import { Trigger } from "./Trigger";
+import { ValueText } from "./ValueText";
 
-const Dialog = {
-  ...ChakraDialog,
-  CloseTrigger,
+export const Select = {
+  ...ChakraSelect,
   Content,
+  Item,
+  ItemGroup,
+  Root,
+  Trigger,
+  ValueText,
 };
-
-export default Dialog;

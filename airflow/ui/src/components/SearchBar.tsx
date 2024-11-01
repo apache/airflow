@@ -26,7 +26,7 @@ import type { ChangeEvent } from "react";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
-import { InputGroup, type InputGroupProps } from "./ui/InputGroup";
+import { InputGroup, type InputGroupProps } from "./ui";
 
 const debounceDelay = 200;
 

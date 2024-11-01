@@ -24,23 +24,19 @@ type MenuContentProps = {
   portalRef?: React.RefObject<HTMLElement>;
 } & ChakraMenu.ContentProps;
 
-export const Content = forwardRef<HTMLDivElement, MenuContentProps>(
-  (props, ref) => {
-    const { portalled = true, portalRef, ...rest } = props;
+const Content = forwardRef<HTMLDivElement, MenuContentProps>((props, ref) => {
+  const { portalled = true, portalRef, ...rest } = props;
 
-    return (
-      <Portal container={portalRef} disabled={!portalled}>
-        <ChakraMenu.Positioner>
-          <ChakraMenu.Content ref={ref} {...rest} />
-        </ChakraMenu.Positioner>
-      </Portal>
-    );
-  },
-);
+  return (
+    <Portal container={portalRef} disabled={!portalled}>
+      <ChakraMenu.Positioner>
+        <ChakraMenu.Content ref={ref} {...rest} />
+      </ChakraMenu.Positioner>
+    </Portal>
+  );
+});
 
-const Menu = {
+export const Menu = {
   ...ChakraMenu,
   Content,
 };
-
-export default Menu;
