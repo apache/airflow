@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from google.api_core import operations_v1
+from pathlib import PurePath
+
 from google.api_core.future import polling
 from google.api_core.operation import Operation
+from google.longrunning import operations_pb2
 from google.protobuf.empty_pb2 import Empty
+from google.protobuf.json_format import ParseDict
 from googleapiclient.discovery import Resource, build_from_document
 
 from airflow.exceptions import AirflowException
@@ -49,18 +52,6 @@ class FinancialServicesHook(GoogleBaseHook):
             impersonation_chain=None,
         )
         self.discovery_doc = discovery_doc
-
-    def get_operations_client(self):
-        if not self.operations_client:
-            credentials = self.get_credentials()
-            self.operations_transport = operations_v1.OperationsRestTransport(
-                host="financialservices.googleapis.com", credentials=credentials
-            )
-            self.operations_client = operations_v1.AbstractOperationsClient(
-                transport=self.operations_transport
-            )
-
-        return self.operations_client
 
     def get_conn(self) -> Resource:
         """
@@ -111,16 +102,15 @@ class FinancialServicesHook(GoogleBaseHook):
             use for instance encryption
         :param kms_key_id:  Required. The ID of the Google Cloud KMS key to use for instance encryption
 
-        :returns: A dictionary containing metadata for the create instance operation
+        :returns: The create instance operation.
         """
         conn = self.get_conn()
-        operations_client = self.get_operations_client()
 
         parent = f"projects/{project_id}/locations/{region}"
         kms_key = (
-            f"projects/{project_id}/locations/{region}/keyRings/{kms_key_ring_id}/cryptoKeys{kms_key_id}"
+            f"projects/{project_id}/locations/{region}/keyRings/{kms_key_ring_id}/cryptoKeys/{kms_key_id}"
         )
-        operation_json = (
+        response = (
             conn.projects()
             .locations()
             .instances()
@@ -131,13 +121,15 @@ class FinancialServicesHook(GoogleBaseHook):
             )
             .execute()
         )
+        operation_id, operation_proto = self._parse_operation_proto(response)
+
         return Operation(
-            operation=operation_json,
-            refresh=lambda: operations_client.get_operation(operation_json["name"]),
-            cancel=lambda: operations_client.cancel_operation(operation_json["name"]),
+            operation=operation_proto,
+            refresh=lambda: self._get_operation(project_id, region, operation_id),
+            cancel=lambda: self._cancel_operation(project_id, region, operation_id),
             result_type=Empty,
-            # metadata_type=OperationMetadata,
-            polling=polling.DEFAULT_POLLING.with_timeout(timeout=21600),
+            metadata_type=Empty,
+            polling=polling.DEFAULT_POLLING,
         )
 
     def delete_instance(self, project_id: str, region: str, instance_id: str) -> Operation:
@@ -149,36 +141,68 @@ class FinancialServicesHook(GoogleBaseHook):
         :param instance_id:  Required. The ID of the instance, which is used as the final component of the
             instances's name.
 
-        :returns: A dictionary containing metadata for the delete instance
-                operation
+        :returns: The delete instance operation.
         """
         conn = self.get_conn()
-        operations_client = self.get_operations_client()
 
         name = f"projects/{project_id}/locations/{region}/instances/{instance_id}"
-        operation_json = conn.projects().locations().instances().delete(name=name).execute()
+        response = conn.projects().locations().instances().delete(name=name).execute()
+        operation_id, operation_proto = self._parse_operation_proto(response)
 
         return Operation(
-            operation=operation_json,
-            refresh=lambda: operations_client.get_operation(operation_json["name"]),
-            cancel=lambda: operations_client.cancel_operation(operation_json["name"]),
+            operation=operation_proto,
+            refresh=lambda: self._get_operation(project_id, region, operation_id),
+            cancel=lambda: self._cancel_operation(project_id, region, operation_id),
             result_type=Empty,
-            # metadata_type=OperationMetadata,
-            polling=polling.DEFAULT_POLLING.with_timeout(timeout=21600),
+            metadata_type=Empty,
+            polling=polling.DEFAULT_POLLING,
         )
 
-    def get_operation(self, project_id: str, region: str, operation_id: str) -> dict:
+    def _parse_operation_proto(self, json_response: dict) -> tuple[str, operations_pb2.Operation]:
         """
-        Get a Financial Services Anti-Money Laundering AI operation.
+        Parse an operation response from a Financial Services API call using operations_pb2.Operation.
+
+        :param json_response: Required. Long-running operation data returned from the Financial Services API in JSON format.
+
+        :returns: Tuple containing the operation ID and a parsed operations_pb2.Operation.
+        """
+        # Can not find message descriptor by type_url: type.googleapis.com/google.cloud.financialservices.v1.OperationMetadata
+        # replace operation metadata protobuf with Empty
+        json_response["metadata"] = {"@type": "type.googleapis.com/google.protobuf.Empty"}
+
+        if "response" in json_response.keys():
+            # Can not find message descriptor by type_url: type.googleapis.com/google.cloud.financialservices.v1.Instance
+            # replace instance protobuf with Empty; response can be parsed, but no instance data can be returned
+            json_response["response"] = {"@type": "type.googleapis.com/google.protobuf.Empty"}
+
+        operation_proto = ParseDict(js_dict=json_response, message=operations_pb2.Operation())
+        operation_id = PurePath(operation_proto.name).name
+        return operation_id, operation_proto
+
+    def _get_operation(self, project_id: str, region: str, operation_id: str) -> operations_pb2.Operation:
+        """
+        Get a long-running operation.
 
         :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
         :param region:  Required. The ID of the Google Cloud region that the service belongs to.
-        :param operation_id:  Required. The ID of the operation, which is used as the final component of the
-            operation's name.
+        :param operation_id:  Required. The ID of the long-running operation.
 
-        :return: A dictionary containing metadata for the operation
+        :returns: The parsed operations_pb2.Operation.
         """
         conn = self.get_conn()
         name = f"projects/{project_id}/locations/{region}/operations/{operation_id}"
         response = conn.projects().locations().operations().get(name=name).execute()
-        return response
+        _, operation_proto = self._parse_operation_proto(response)
+        return operation_proto
+
+    def _cancel_operation(self, project_id: str, region: str, operation_id: str):
+        """
+        Cancel a long-running operation.
+
+        :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+        :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+        :param operation_id:  Required. The ID of the long-running operation.
+        """
+        conn = self.get_conn()
+        name = f"projects/{project_id}/locations/{region}/operations/{operation_id}"
+        conn.projects().locations().operations().cancel(name=name).execute()

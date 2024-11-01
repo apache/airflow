@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from airflow.decorators import task
@@ -28,14 +28,16 @@ from airflow.providers.google.cloud.operators.financial_services import (
     FinancialServicesDeleteInstanceOperator,
     FinancialServicesGetInstanceOperator,
 )
-from airflow.providers.google.cloud.sensors.financial_services import FinancialServicesOperationSensor
 
+# from airflow.providers.google.cloud.sensors.financial_services import FinancialServicesOperationSensor
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 LOCATION = os.environ.get("SYSTEM_TESTS_GCP_LOCATION", "us-central1")
+KMS_KEY_RING = os.environ.get("SYSTEM_TESTS_GCP_KMS_KEY_RING")
 KMS_KEY = os.environ.get("SYSTEM_TESTS_GCP_KMS_KEY")
+assert KMS_KEY_RING is not None
 assert KMS_KEY is not None
 
 DAG_ID = "financial_services_instance"
@@ -61,27 +63,21 @@ with DAG(
     create_instance_task = FinancialServicesCreateInstanceOperator(
         task_id="create_instance_task",
         discovery_doc=discovery_doc,
+        project_id=PROJECT_ID,
+        region=LOCATION,
         instance_id=INSTANCE_ID,
-        location_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}",
-        kms_key_uri=KMS_KEY,
+        kms_key_ring_id=KMS_KEY_RING,
+        kms_key_id=KMS_KEY,
     )
     # [END howto_operator_financial_services_create_instance]
-
-    # [START howto_sensor_financial_services_operation]
-    create_instance_sensor = FinancialServicesOperationSensor(
-        task_id="create_instance_sensor",
-        discovery_doc=discovery_doc,
-        operation_resource_uri="{{ task_instance.xcom_pull(task_ids='create_instance_task', key='return_value') }}",
-        poke_interval=timedelta(seconds=5),
-        timeout=timedelta(hours=1),
-    )
-    # [END howto_sensor_financial_services_operation]
 
     # [START howto_operator_financial_services_get_instance]
     get_instance_task = FinancialServicesGetInstanceOperator(
         task_id="get_instance_task",
         discovery_doc=discovery_doc,
-        instance_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_ID}",
+        project_id=PROJECT_ID,
+        region=LOCATION,
+        instance_id=INSTANCE_ID,
     )
     # [END howto_operator_financial_services_get_instance]
 
@@ -89,26 +85,13 @@ with DAG(
     delete_instance_task = FinancialServicesDeleteInstanceOperator(
         task_id="delete_instance_task",
         discovery_doc=discovery_doc,
-        instance_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_ID}",
+        project_id=PROJECT_ID,
+        region=LOCATION,
+        instance_id=INSTANCE_ID,
     )
     # [END howto_operator_financial_services_delete_instance]
 
-    delete_instance_sensor = FinancialServicesOperationSensor(
-        task_id="delete_instance_sensor",
-        discovery_doc=discovery_doc,
-        operation_resource_uri="{{ task_instance.xcom_pull(task_ids='delete_instance_task', key='return_value') }}",
-        poke_interval=timedelta(seconds=5),
-        timeout=timedelta(hours=1),
-    )
-
-    (
-        discovery_doc
-        >> create_instance_task
-        >> create_instance_sensor
-        >> get_instance_task
-        >> delete_instance_task
-        >> delete_instance_sensor
-    )
+    (discovery_doc >> create_instance_task >> get_instance_task >> delete_instance_task)
 
     from tests_common.test_utils.watcher import watcher
 
