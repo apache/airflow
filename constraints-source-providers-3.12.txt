@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-01T13:52:35.693395
+# This constraints file was automatically generated on 2024-11-01T19:50:17.535257
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -337,7 +337,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.23.0
+marshmallow==3.23.1
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -508,7 +508,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
-rich==13.9.3
+rich==13.9.4
 rpds-py==0.20.1
 rsa==4.9
 ruff==0.7.1
@@ -627,7 +627,7 @@ virtualenv==20.27.1
 watchfiles==0.24.0
 watchtower==3.3.1
 wcwidth==0.2.13
-weaviate-client==4.9.1
+weaviate-client==4.9.2
 websocket-client==1.8.0
 websockets==13.1
 wheel==0.44.0
@@ -639,7 +639,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.323.0
 yarl==1.17.1
-ydb==3.18.7
+ydb==3.18.8
 zeep==4.3.1
 zenpy==2.0.54
 zipp==3.20.2
