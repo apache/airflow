@@ -17,16 +17,16 @@
  * under the License.
  */
 
-export { Dialog } from "./Dialog";
-export { Pagination } from "./Pagination";
-export { Select } from "./Select";
-export { Alert } from "./Alert";
-export { CloseButton } from "./CloseButton";
-export { InputGroup, type InputGroupProps } from "./InputGroup";
+export * from "./Dialog";
+export * from "./Pagination";
+export * from "./Select";
+export * from "./Alert";
+export * from "./CloseButton";
+export * from "./InputGroup";
 
-export { Switch } from "./Switch";
-export { Tag } from "./Tag";
-export { Tooltip } from "./Tooltip";
+export * from "./Switch";
+export * from "./Tag";
+export *from "./Tooltip";
 
-export { ProgressBar } from "./ProgressBar";
-export { Menu } from "./Menu";
+export * from "./ProgressBar";
+export * from "./Menu";
