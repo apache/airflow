@@ -98,6 +98,8 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
+RETRY_STUCK_IN_QUEUED_EVENT = "retrying stuck in queued"
+
 
 class ConcurrencyMap:
     """
@@ -1813,6 +1815,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
 
+        num_allowed_retries = conf.getint("core", "num_stuck_retries", fallback=2)
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
             try:
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
@@ -1825,18 +1828,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         session.add(
                             Log(
-                                event="stuck in queued",
+                                event=RETRY_STUCK_IN_QUEUED_EVENT,
                                 task_instance=ti.key,
                                 extra=(
-                                    "Task will be marked as failed. If the task instance has "
+                                    f"Task was stuck in queued and will be retried, once it has hit {num_allowed_retries} attempts"
+                                    "Task will be marked as failed. After that, if the task instance has "
                                     "available retries, it will be retried."
                                 ),
                             )
                         )
+
                         num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
-                        if num_times_stuck < conf.getint("core", "num_stuck_retries", fallback=2):
+                        if num_times_stuck < num_allowed_retries:
                             executor.change_state(ti.key, State.SCHEDULED)
                         else:
+                            session.add(
+                                Log(
+                                    event="failing stuck in queued",
+                                    task_instance=ti.key,
+                                    extra=(
+                                        "Task will be marked as failed. If the task instance has "
+                                        "available retries, it will be retried."
+                                    ),
+                                )
+                            )
                             executor.fail(ti.key)
 
 
@@ -1850,20 +1865,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """
-        return session.query(Log).filter(
+        return session.query(Log).where(
             Log.task_id == ti.task_id,
             Log.dag_id == ti.dag_id,
             Log.run_id == ti.run_id,
             Log.map_index == ti.map_index,
             Log.try_number == ti.try_number,
-            Log.event == "stuck in queued"
+            Log.event == RETRY_STUCK_IN_QUEUED_EVENT,
         ).count()
 
     @provide_session
     def _reset_task_instance(self, ti: TaskInstance, session: Session = NEW_SESSION):
         ti.external_executor_id = None
         ti.state = State.SCHEDULED
-        session.add(ti)
+        session.merge(ti)
         session.commit()
 
     @provide_session
