@@ -24,10 +24,13 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterator, Mapping, cast
 
 import attrs
+from sqlalchemy import select
 
 from airflow.assets import Asset, _validate_identifier
+from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.operators.python import PythonOperator
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from typing import Sequence
@@ -43,27 +46,38 @@ class AssetRef:
 
 
 class _AssetMainOperator(PythonOperator):
-    def __init__(self, *, definition_name: str, **kwargs) -> None:
+    def __init__(self, *, definition_name: str, uri: str, **kwargs) -> None:
         super().__init__(**kwargs)
         self._definition_name = definition_name
+        self._uri = uri
+        self._active_assets: dict[str, Asset] = {}
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
+        value: Any
         for key in inspect.signature(self.python_callable).parameters:
             if key == "self":
                 key = "_self"
-                value: Any = AssetRef(name=self._definition_name)
+                value = self._active_assets.get(self._definition_name)
             elif key == "context":
                 value = context
             else:
-                # TODO: This does not check if the upstream asset actually
-                # exists. Should we do a second pass in the DAG processor to
-                # raise parse-time errors if a non-existent asset is referenced?
-                # How? Should we also fail the task at runtime? Or should the
-                # dangling reference simply do nothing?
-                value = AssetRef(name=key)
+                value = self._active_assets.get(key, Asset(name=key))
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        asset_refs = [inlet for inlet in self.inlets if isinstance(inlet, AssetRef)]
+        if asset_refs:
+            with create_session() as session:
+                self._active_assets = {
+                    asset_row[0].name: Asset(
+                        name=asset_row[0].name, uri=asset_row[0].uri, group=asset_row[0].group
+                    )
+                    for asset_row in session.execute(
+                        select(AssetModel)
+                        .join(AssetActive, AssetActive.name == AssetModel.name)
+                        .where(AssetActive.name.in_(ref.name for ref in asset_refs))
+                    )
+                }
         return dict(self._iter_kwargs(context))
 
 
@@ -95,18 +109,23 @@ class AssetDefinition(Asset):
             _AssetMainOperator(
                 task_id="__main__",
                 inlets=[
-                    Asset(name=inlet_asset_name)
+                    AssetRef(name=inlet_asset_name)
+                    # Asset(name=inlet_asset_name)
                     for inlet_asset_name in parameters
                     if inlet_asset_name not in ("self", "context")
                 ],
                 outlets=[self],
                 python_callable=self.function,
                 definition_name=self.name,
+                uri=self.uri,
             )
+
         # TODO: Currently this just gets serialized into a string.
         # When we create UI for assets, we should add logic to serde so the
         # serialized DAG contains appropriate asset information.
         dag._wrapped_definition = self
+
+        DAG.bulk_write_to_db([dag])
 
     def serialize(self):
         return {
