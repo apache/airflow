@@ -622,6 +622,7 @@ jobs:
       kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
       kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
