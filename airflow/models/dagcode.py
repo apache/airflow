@@ -129,10 +129,7 @@ class DagCode(Base):
         fileloc_hash = cls.dag_fileloc_hash(fileloc)
         return (
             session.scalars(
-                select(literal(True))
-                .where(cls.fileloc_hash == fileloc_hash)
-                .order_by(cls.last_updated.desc())
-                .limit(1)
+                select(literal(True)).where(cls.fileloc_hash == fileloc_hash).limit(1)
             ).one_or_none()
             is not None
         )

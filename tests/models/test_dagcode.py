@@ -155,3 +155,17 @@ class TestDagCode:
                 assert new_result.fileloc == example_dag.fileloc
                 assert new_result.source_code != result.source_code
                 assert new_result.last_updated > result.last_updated
+
+    def test_has_dag(self, dag_maker):
+        """Test has_dag method."""
+        with dag_maker("test_has_dag") as dag:
+            pass
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+
+        with dag_maker() as dag2:
+            pass
+        dag2.sync_to_db()
+        SDM.write_dag(dag2)
+
+        assert DagCode.has_dag(dag.fileloc)
