@@ -501,14 +501,13 @@ class WasbHook(BaseHook):
         destination_blob_name: str,
     ) -> None:
         """
-        Copy the specified blobs from one blob prefix to another, within the same container
-        or across different source and destination containers
+        Copy the specified blobs from one blob prefix to another.
 
-        :param source_container_name: The name of the source container containing the blobs
-        :param source_blob_name: The full source blob path without the container name
+        :param source_container_name: The name of the source container containing the blobs.
+        :param source_blob_name: The full source blob path without the container name.
         :param destination_container_name: The name of the destination container where the blobs
-            will be copied to
-        :param destination_blob_name: The full destination blob path without the container name
+            will be copied to.
+        :param destination_blob_name: The full destination blob path without the container name.
         """
         source_blob_client = self._get_blob_client(
             container_name=source_container_name, blob_name=source_blob_name
