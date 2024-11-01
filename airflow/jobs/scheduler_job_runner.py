@@ -1815,7 +1815,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
 
-        num_allowed_retries = conf.getint("core", "num_stuck_retries", fallback=2)
+        num_allowed_retries = conf.getint("core", "num_stuck_reschedules")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
             try:
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
