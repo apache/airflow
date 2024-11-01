@@ -98,7 +98,7 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
-RETRY_STUCK_IN_QUEUED_EVENT = "retrying stuck in queued"
+RESCHEDULE_STUCK_IN_QUEUED_EVENT = "rescheduling stuck in queued"
 
 
 class ConcurrencyMap:
@@ -1828,7 +1828,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         session.add(
                             Log(
-                                event=RETRY_STUCK_IN_QUEUED_EVENT,
+                                event=RESCHEDULE_STUCK_IN_QUEUED_EVENT,
                                 task_instance=ti.key,
                                 extra=(
                                     f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
@@ -1871,7 +1871,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Log.run_id == ti.run_id,
             Log.map_index == ti.map_index,
             Log.try_number == ti.try_number,
-            Log.event == RETRY_STUCK_IN_QUEUED_EVENT,
+            Log.event == RESCHEDULE_STUCK_IN_QUEUED_EVENT,
         ).count()
 
     @provide_session
