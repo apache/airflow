@@ -25,7 +25,7 @@ import { Nav } from "./Nav";
 export const BaseLayout = ({ children }: PropsWithChildren) => (
   <>
     <Nav />
-    <Box ml={24} p={3}>
+    <Box ml={20} p={3}>
       {children ?? <Outlet />}
     </Box>
   </>

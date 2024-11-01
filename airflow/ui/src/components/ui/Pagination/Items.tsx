@@ -16,21 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ButtonProps } from "@chakra-ui/react";
+import { Pagination as ChakraPagination } from "@chakra-ui/react";
 
-export const navButtonProps: ButtonProps = {
-  _active: {
-    backgroundColor: "blue.emphasized",
-  },
-  _hover: {
-    backgroundColor: "blue.solid",
-  },
-  alignItems: "center",
-  borderRadius: "none",
-  flexDir: "column",
-  height: 16,
-  transition: "0.2s background-color ease-in-out",
-  variant: "ghost",
-  whiteSpace: "wrap",
-  width: 24,
-};
+import { Ellipsis } from "./Ellipsis";
+import { Item } from "./Item";
+
+export const Items = (props: React.HTMLAttributes<HTMLElement>) => (
+  <ChakraPagination.Context>
+    {({ pages }) =>
+      pages.map((page, index) =>
+        page.type === "ellipsis" ? (
+          <Ellipsis index={index} key={page.type} {...props} />
+        ) : (
+          <Item key={page.value} type="page" value={page.value} {...props} />
+        ),
+      )
+    }
+  </ChakraPagination.Context>
+);
