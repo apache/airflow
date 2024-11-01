@@ -461,7 +461,11 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                python_path = create_venv(
+                    Path(tmp_dir_name) / ".venv",
+                    pip_version=AIRFLOW_PIP_VERSION,
+                    uv_version=AIRFLOW_UV_VERSION,
+                )
                 pip_command = create_pip_command(python_path)
                 venv_created = True
 
