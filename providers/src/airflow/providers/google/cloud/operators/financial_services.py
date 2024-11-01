@@ -40,10 +40,9 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
     :param kms_key_ring_id:  Required. The ID of the Google Cloud KMS key ring containing the key to
         use for instance encryption
     :param kms_key_id:  Required. The ID of the Google Cloud KMS key to use for instance encryption
-    :param discovery_doc: Discovery document for building the Financial Services API
-        as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
+    :param timeout: The maximum time to wait for a long-running operation to complete.
     """
 
     # [START howto_operator_financial_services_create_instance_template_fields]
@@ -104,12 +103,13 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:FinancialServicesDeleteInstanceOperator`
 
-    :param instance_resource_uri: URI of the instance to delete (format:
-        'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
-    :param discovery_doc: Discovery document for building the Financial Services API
-        as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
+    :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+    :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+    :param instance_id:  Required. The ID of the instance, which is the final component of the
+        instances's name.
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
+    :param timeout: The maximum time to wait for a long-running operation to complete.
     """
 
     # [START howto_operator_financial_services_get_instance_template_fields]
@@ -154,10 +154,10 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:FinancialServicesGetInstanceOperator`
 
-    :param instance_resource_uri: URI of the instance to get (format:
-        'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
-    :param discovery_doc: Discovery document for building the Financial Services API
-        as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
+    :param project_id:  Required. The ID of the Google Cloud project that the service belongs to.
+    :param region:  Required. The ID of the Google Cloud region that the service belongs to.
+    :param instance_id:  Required. The ID of the instance, which is the final component of the
+        instances's name.
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
     """

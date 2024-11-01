@@ -35,8 +35,6 @@ class FinancialServicesHook(GoogleBaseHook):
     """
     Hook for interacting with the Google Financial Services API.
 
-    :param discovery_doc: Discovery document for building the Financial Services API
-        as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
     """
@@ -54,9 +52,19 @@ class FinancialServicesHook(GoogleBaseHook):
         )
 
     def _get_developer_key(self) -> str | None:
+        """
+        Get a developer key for accessing the Financial Services discovery API.
+
+        :return: A developer key for discovery API access.
+        """
         return Variable.get("financial_services_api_key", default_var=None)
 
     def _get_discovery_doc(self) -> dict | None:
+        """
+        Get the Financial Services discovery document from local storage.
+
+        :return: Financial Services discovery document.
+        """
         discovery_doc_path = Variable.get("financial_services_discovery_doc_path", default_var=None)
         if not discovery_doc_path:
             discovery_doc = None
@@ -89,14 +97,21 @@ class FinancialServicesHook(GoogleBaseHook):
             else:
                 raise AirflowException(
                     "Connecting to financialservices.googleapis.com requires either 'financial_services_api_key' or "
-                    "'financial_services_discovery_doc_path' to be set in Airflow variables. Use 'airflow variables set financial_services_api_key <API KEY VALUE>' "
-                    "to set the variable"
+                    "'financial_services_discovery_doc_path' to be set in Airflow variables. Use 'airflow variables "
+                    "set financial_services_api_key <API KEY VALUE>' to set the variable"
                 )
 
         return self.connection
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
+        """
+        Wait for the completion of a long-running operation.
+
+        :param operation: The long-running operation to wait for completion.
+        :param timeout: Timeout in seconds to wait for completion.
+
+        :return: The result of the operation after completion.
+        """
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -195,7 +210,7 @@ class FinancialServicesHook(GoogleBaseHook):
 
         :param json_response: Required. Long-running operation data returned from the Financial Services API in JSON format.
 
-        :returns: Tuple containing the operation ID and a parsed operations_pb2.Operation.
+        :returns: The operation ID and a parsed pb2 operation.
         """
         # Can not find message descriptor by type_url: type.googleapis.com/google.cloud.financialservices.v1.OperationMetadata
         # replace operation metadata protobuf with Empty
@@ -218,7 +233,7 @@ class FinancialServicesHook(GoogleBaseHook):
         :param region:  Required. The ID of the Google Cloud region that the service belongs to.
         :param operation_id:  Required. The ID of the long-running operation.
 
-        :returns: The parsed operations_pb2.Operation.
+        :returns: The parsed pb2 operation.
         """
         conn = self.get_conn()
         name = f"projects/{project_id}/locations/{region}/operations/{operation_id}"

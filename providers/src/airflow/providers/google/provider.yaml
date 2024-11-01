@@ -751,9 +751,6 @@ sensors:
   - integration-name: Google Dataproc Metastore
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc_metastore
-  - integration-name: Google Cloud Financial Services
-    python-modules:
-      - airflow.providers.google.cloud.sensors.financial_services
   - integration-name: Google Cloud Storage (GCS)
     python-modules:
       - airflow.providers.google.cloud.sensors.gcs
