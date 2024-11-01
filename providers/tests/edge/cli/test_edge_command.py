@@ -16,36 +16,66 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from subprocess import Popen
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException
-from airflow.providers.edge.cli.edge_command import (
-    _EdgeWorkerCli,
-    _get_sysinfo,
-    _Job,
-)
+from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_job import EdgeJob
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 
+
+def test_write_pid_to_pidfile_success(caplog, tmp_path):
+    with caplog.at_level(logging.DEBUG):
+        pid_file_path = tmp_path / "file.pid"
+        _write_pid_to_pidfile(pid_file_path)
+        assert pid_file_path.exists()
+        assert "An existing PID file has been found" not in caplog.text
+
+
+def test_write_pid_to_pidfile_called_twice(tmp_path):
+    pid_file_path = tmp_path / "file.pid"
+    _write_pid_to_pidfile(pid_file_path)
+    with pytest.raises(SystemExit, match=r"A PID file has already been written"):
+        _write_pid_to_pidfile(pid_file_path)
+    assert pid_file_path.exists()
+
+
+def test_write_pid_to_pidfile_created_by_other_instance(tmp_path):
+    # write a PID file with the PID of this process
+    pid_file_path = tmp_path / "file.pid"
+    _write_pid_to_pidfile(pid_file_path)
+    # write a PID file, but set the current PID to 0
+    with patch("os.getpid", return_value=0):
+        with pytest.raises(SystemExit, match=r"contains the PID of another running process"):
+            _write_pid_to_pidfile(pid_file_path)
+
+
+def test_write_pid_to_pidfile_created_by_crashed_instance(tmp_path):
+    # write a PID file with process ID 0
+    with patch("os.getpid", return_value=0):
+        pid_file_path = tmp_path / "file.pid"
+        _write_pid_to_pidfile(pid_file_path)
+        assert "0" == pid_file_path.read_text().strip()
+    # write a PID file with the current process ID, call should not raise an exception
+    _write_pid_to_pidfile(pid_file_path)
+    assert str(os.getpid()) == pid_file_path.read_text().strip()
+
+
 # Ignore the following error for mocking
 # mypy: disable-error-code="attr-defined"
-
-
-def test_get_sysinfo():
-    sysinfo = _get_sysinfo()
-    assert "airflow_version" in sysinfo
-    assert "edge_provider_version" in sysinfo
 
 
 class TestEdgeWorkerCli:
@@ -90,7 +120,7 @@ class TestEdgeWorkerCli:
 
     @pytest.fixture
     def worker_with_job(self, tmp_path: Path, dummy_joblist: list[_Job]) -> _EdgeWorkerCli:
-        test_worker = _EdgeWorkerCli(tmp_path / "dummy.pid", "dummy", None, 8, 5, 5)
+        test_worker = _EdgeWorkerCli(str(tmp_path / "dummy.pid"), "dummy", None, 8, 5, 5)
         test_worker.jobs = dummy_joblist
         return test_worker
 
@@ -173,7 +203,9 @@ class TestEdgeWorkerCli:
         job = worker_with_job.jobs[0]
         job.process.generated_returncode = None
         job.logfile.write_text("some log content")
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars(
+            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         mock_push_logs.assert_called_once_with(
@@ -188,12 +220,29 @@ class TestEdgeWorkerCli:
         job.logfile.write_text("hello ")
         job.logsize = job.logfile.stat().st_size
         job.logfile.write_text("hello world")
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars(
+            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         mock_push_logs.assert_called_once_with(
             task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="world"
         )
+
+    @time_machine.travel(datetime.now(), tick=False)
+    @patch("airflow.providers.edge.models.edge_logs.EdgeLogs.push_logs")
+    def test_check_running_jobs_log_push_chunks(self, mock_push_logs, worker_with_job: _EdgeWorkerCli):
+        job = worker_with_job.jobs[0]
+        job.process.generated_returncode = None
+        job.logfile.write_text("log1log2log3")
+        with conf_vars({("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "4"}):
+            worker_with_job.check_running_jobs()
+        assert len(worker_with_job.jobs) == 1
+        calls = mock_push_logs.call_args_list
+        len(calls) == 3
+        assert calls[0] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log1")
+        assert calls[1] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log2")
+        assert calls[2] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log3")
 
     @pytest.mark.parametrize(
         "drain, jobs, expected_state",
@@ -208,9 +257,20 @@ class TestEdgeWorkerCli:
         if not jobs:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
+        mock_set_state.return_value = ["queue1", "queue2"]
         with conf_vars({("edge", "api_url"): "https://mock.server"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
+        queue_list = worker_with_job.queues or []
+        assert len(queue_list) == 2
+        assert "queue1" in (queue_list)
+        assert "queue2" in (queue_list)
+
+    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
+    def test_version_mismatch(self, mock_set_state, worker_with_job):
+        mock_set_state.side_effect = EdgeWorkerVersionException("")
+        worker_with_job.heartbeat()
+        assert worker_with_job.drain
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
@@ -258,3 +318,12 @@ class TestEdgeWorkerCli:
         mock_register_worker.assert_called_once()
         mock_loop.assert_called_once()
         mock_set_state.assert_called_once()
+
+    def test_get_sysinfo(self, worker_with_job: _EdgeWorkerCli):
+        concurrency = 8
+        worker_with_job.concurrency = concurrency
+        sysinfo = worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert sysinfo["concurrency"] == concurrency

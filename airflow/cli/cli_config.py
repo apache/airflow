@@ -304,7 +304,7 @@ ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 
 # backfill
-ARG_BACKFILL_DAG = Arg(flags=("--dag",), help="The dag to backfill.", required=True)
+ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
 ARG_BACKFILL_FROM_DATE = Arg(
     ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
 )
@@ -324,6 +324,19 @@ ARG_MAX_ACTIVE_RUNS = Arg(
     ("--max-active-runs",),
     type=positive_int(allow_zero=False),
     help="Max active runs for this backfill.",
+)
+ARG_BACKFILL_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
+    ("--reprocess-behavior",),
+    help=(
+        "When a run exists for the logical date, controls whether new runs will be "
+        "created for the date. Default is none."
+    ),
+    choices=("none", "completed", "failed"),
 )
 
 
@@ -1030,6 +1043,8 @@ BACKFILL_COMMANDS = (
             ARG_DAG_RUN_CONF,
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
+            ARG_BACKFILL_REPROCESS_BEHAVIOR,
+            ARG_BACKFILL_DRY_RUN,
         ),
     ),
 )

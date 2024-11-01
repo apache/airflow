@@ -452,6 +452,39 @@ tests are applied when you commit your code.
 
 To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
 
+.. note::
+
+    We have recently started to recommend ``uv`` for our local development. Currently (October 2024) ``uv``
+    speeds up installation more than 10x comparing to ``pip``. While we still describe ``pip`` and ``pipx``
+    below, we also show the ``uv`` alternatives.
+
+.. note::
+
+    Remember to have global python set to Python >= 3.9 - Python 3.8 is end-of-life already and we've
+    started to use Python 3.9+ features in Airflow and accompanying scripts.
+
+
+Installing pre-commit is best done with ``pipx``:
+
+.. code-block:: bash
+
+    pipx install pre-commit
+
+You can still add uv support for pre-commit if you use pipx using the commands:
+
+.. code-block:: bash
+
+    pipx install pre-commit
+    pipx inject
+    pipx inject pre-commit pre-commit-uv
+
+Also, if you already use ``uvx`` instead of ``pipx``, use this command:
+
+.. code-block:: bash
+
+    uv tool install pre-commit --with pre-commit-uv --force-reinstall
+
+
 1.  Installing required packages
 
 on Debian / Ubuntu, install via

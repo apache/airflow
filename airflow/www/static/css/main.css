@@ -652,7 +652,7 @@ details summary {
   overflow-y: auto;
 }
 
-.next-dataset-triggered:hover {
+.next-asset-triggered:hover {
   cursor: pointer;
   background-color: #cbcbcb;
 }

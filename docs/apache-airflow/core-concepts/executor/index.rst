@@ -221,7 +221,7 @@ Therefore using these types of executors is no longer recommended.
 Writing Your Own Executor
 -------------------------
 
-All Airflow executors implement a common interface so that they are pluggable and any executor has access to all abilities and integrations within Airflow. Primarily, the Airflow scheduler uses this interface to interact with the executor, but other components such as logging, CLI and backfill do as well.
+All Airflow executors implement a common interface so that they are pluggable and any executor has access to all abilities and integrations within Airflow. Primarily, the Airflow scheduler uses this interface to interact with the executor, but other components such as logging and CLI do as well.
 The public interface is the :class:`~airflow.executors.base_executor.BaseExecutor`. You can look through the code for the most detailed and up to date interface, but some important highlights are outlined below.
 
 .. note::
@@ -260,8 +260,8 @@ Optional Interface Methods to Implement
 
 The following methods aren't required to override to have a functional Airflow executor. However, some powerful capabilities and stability can come from implementing them:
 
-* ``start``: The Airflow scheduler (and backfill) job will call this method after it initializes the executor object. Any additional setup required by the executor can be completed here.
-* ``end``: The Airflow scheduler (and backfill) job will call this method as it is tearing down. Any synchronous cleanup required to finish running jobs should be done here.
+* ``start``: The Airflow scheduler job will call this method after it initializes the executor object. Any additional setup required by the executor can be completed here.
+* ``end``: The Airflow scheduler job will call this method as it is tearing down. Any synchronous cleanup required to finish running jobs should be done here.
 * ``terminate``: More forcefully stop the executor, even killing/stopping in-flight tasks instead of synchronously waiting for completion.
 * ``cleanup_stuck_queued_tasks``: If tasks are stuck in the queued state for longer than ``task_queued_timeout`` then they are collected by the scheduler and provided to the executor to have an opportunity to handle them (perform any graceful cleanup/teardown) via this method and return the Task Instances for a warning message displayed to users.
 * ``try_adopt_task_instances``: Tasks that have been abandoned (e.g. from a scheduler job that died) are provided to the executor to adopt or otherwise handle them via this method. Any tasks that cannot be adopted (by default the BaseExecutor assumes all cannot be adopted) should be returned.

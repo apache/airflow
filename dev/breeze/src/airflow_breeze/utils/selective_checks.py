@@ -74,6 +74,7 @@ CANARY_LABEL = "canary"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
@@ -88,12 +89,12 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
     "CLI Core ExternalPython Operators Other PlainAsserts "
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
-    "PythonVenv Serialization TaskSDK WWW"
+    "PythonVenv Serialization WWW"
 )
 
 ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
     "API Always BranchExternalPython BranchPythonVenv CLI Core "
-    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization TaskSDK WWW"
+    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
 )
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
@@ -180,6 +181,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.py$",
             r"^chart",
             r"^providers/src/",
+            r"^task_sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -274,8 +276,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^airflow/operators/python.py",
-    r"^tests/operators/test_python.py",
+    r"^providers/src/providers/standard/operators/python.py",
+    r"^providers/tests/standard/operators/test_python.py",
 ]
 
 TEST_TYPE_MATCHES = HashableDict(
@@ -306,10 +308,6 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveUnitTestTypes.SERIALIZATION: [
             r"^airflow/serialization/",
             r"^tests/serialization/",
-        ],
-        SelectiveUnitTestTypes.TASK_SDK: [
-            r"^task_sdk/src/airflow/sdk/",
-            r"^task_sdk/tests/",
         ],
         SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
         SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
@@ -646,41 +644,46 @@ class SelectiveChecks:
             return False
 
     @cached_property
-    def mypy_folders(self) -> list[str]:
-        folders_to_check: list[str] = []
+    def mypy_checks(self) -> list[str]:
+        checks_to_run: list[str] = []
         if (
             self._matching_files(
                 FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("airflow")
+            checks_to_run.append("mypy-airflow")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
-            folders_to_check.append("providers")
+            checks_to_run.append("mypy-providers")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("docs")
+            checks_to_run.append("mypy-docs")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("dev")
-        return folders_to_check
+            checks_to_run.append("mypy-dev")
+        if (
+            self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            or self.full_tests_needed
+        ):
+            checks_to_run.append("mypy-task-sdk")
+        return checks_to_run
 
     @cached_property
     def needs_mypy(self) -> bool:
-        return self.mypy_folders != []
+        return self.mypy_checks != []
 
     @cached_property
     def needs_python_scans(self) -> bool:
@@ -798,12 +801,17 @@ class SelectiveChecks:
         test_always_files = self._matching_files(
             FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
+        test_ui_files = self._matching_files(
+            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+
         remaining_files = (
             set(all_source_files)
             - set(matched_files)
             - set(kubernetes_files)
             - set(system_test_files)
             - set(test_always_files)
+            - set(test_ui_files)
         )
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
@@ -820,6 +828,8 @@ class SelectiveChecks:
                 f"into Core/Other category[/]"
             )
             get_console().print(remaining_files)
+            if self.run_task_sdk_tests:
+                candidate_test_types.add("PythonVenv")
             candidate_test_types.update(all_selective_test_types_except_providers())
         else:
             if "Providers" in candidate_test_types or "API" in candidate_test_types:
@@ -1078,7 +1088,9 @@ class SelectiveChecks:
         # whole package rather than for individual files. That's why we skip those checks in CI
         # and run them via `mypy-all` command instead and dedicated CI job in matrix
         # This will also speed up static-checks job usually as the jobs will be running in parallel
-        pre_commits_to_skip.update({"mypy-providers", "mypy-airflow", "mypy-docs", "mypy-dev"})
+        pre_commits_to_skip.update(
+            {"mypy-providers", "mypy-airflow", "mypy-docs", "mypy-dev", "mypy-task-sdk"}
+        )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
@@ -1216,10 +1228,11 @@ class SelectiveChecks:
 
     @cached_property
     def runs_on_as_json_docs_build(self) -> str:
-        if self._is_canary_run():
-            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-        else:
-            return RUNS_ON_PUBLIC_RUNNER
+        # We used to run docs build on self-hosted runners because they had more space, but
+        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
+        # but in the future we might want to switch back to self-hosted runners so we have this
+        # separate property to determine that and place to implement different logic if needed
+        return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:
@@ -1331,12 +1344,32 @@ class SelectiveChecks:
         return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
+    def only_new_ui_files(self) -> bool:
+        all_source_files = set(
+            self._matching_files(
+                FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        )
+        new_ui_source_files = set(
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+        )
+        remaining_files = all_source_files - new_ui_source_files
+
+        if all_source_files and new_ui_source_files and not remaining_files:
+            return True
+        else:
+            return False
+
+    @cached_property
     def testable_integrations(self) -> list[str]:
-        return [
-            integration
-            for integration in TESTABLE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-        ]
+        if self.only_new_ui_files:
+            return []
+        else:
+            return [
+                integration
+                for integration in TESTABLE_INTEGRATIONS
+                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            ]
 
     @cached_property
     def is_committer_build(self):
@@ -1439,3 +1472,7 @@ class SelectiveChecks:
             sys.exit(1)
         else:
             return True
+
+    @cached_property
+    def force_pip(self):
+        return FORCE_PIP_LABEL in self._pr_labels

@@ -219,7 +219,7 @@ class ModelServiceHook(GoogleBaseHook):
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param model:  Required. The Model to create.
-        :param parent_model: The name of the parent model to create a new version under.
+        :param parent_model: The ID of the parent model to create a new version under.
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
@@ -233,7 +233,7 @@ class ModelServiceHook(GoogleBaseHook):
         }
 
         if parent_model:
-            request["parent_model"] = parent_model
+            request["parent_model"] = client.model_path(project_id, region, parent_model)
 
         result = client.upload_model(
             request=request,

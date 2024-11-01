@@ -110,7 +110,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "PlainAsserts",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
+                "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
                 "--assert=plain",
             ],
             False,
@@ -123,28 +123,28 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "PythonVenv",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+                "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator",
             ],
             False,
         ),
         (
             "BranchPythonVenv",
             [
-                "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
+                "providers/tests/standard/operators/test_python.py::TestBranchPythonVirtualenvOperator",
             ],
             False,
         ),
         (
             "ExternalPython",
             [
-                "tests/operators/test_python.py::TestExternalPythonOperator",
+                "providers/tests/standard/operators/test_python.py::TestExternalPythonOperator",
             ],
             False,
         ),
         (
             "BranchExternalPython",
             [
-                "tests/operators/test_python.py::TestBranchExternalPythonOperator",
+                "providers/tests/standard/operators/test_python.py::TestBranchExternalPythonOperator",
             ],
             False,
         ),

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -94,3 +95,22 @@ def init_plugins(app: FastAPI) -> None:
 
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
+
+
+def init_config(app: FastAPI) -> None:
+    from airflow.configuration import conf
+
+    allow_origins = conf.getlist("api", "access_control_allow_origins")
+    allow_methods = conf.getlist("api", "access_control_allow_methods")
+    allow_headers = conf.getlist("api", "access_control_allow_headers")
+
+    if allow_origins or allow_methods or allow_headers:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allow_origins,
+            allow_credentials=True,
+            allow_methods=allow_methods,
+            allow_headers=allow_headers,
+        )
+
+    app.state.secret_key = conf.get("webserver", "secret_key")

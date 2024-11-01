@@ -27,13 +27,13 @@ from datetime import datetime
 from google.cloud import batch_v1
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchDeleteJobOperator,
     CloudBatchListJobsOperator,
     CloudBatchListTasksOperator,
     CloudBatchSubmitJobOperator,
 )
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
