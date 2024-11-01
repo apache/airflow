@@ -201,6 +201,14 @@ class TestDeleteDagRun:
 
 
 class TestClearDagRun:
+
+    def test_clear_dag_run(self, test_client):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json={})
+        breakpoint()
+        assert response.status_code == 204
+        body = response.json()
+        assert body['dag_id'] == DAG1_ID
+
     def test_clear_dag_run_not_found(self, test_client):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/invalid/clear")
         assert response.status_code == 404

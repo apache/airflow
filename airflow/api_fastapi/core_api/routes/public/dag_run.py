@@ -36,8 +36,11 @@ from airflow.api_fastapi.core_api.serializers.dag_run import (
     DAGRunPatchStates,
     DAGRunResponse,
 )
-from airflow.api_fastapi.core_api.serializers.task_instances import TaskInstanceResponse
-from airflow.models import DAG, DagRun
+from airflow.api_fastapi.core_api.serializers.task_instances import (
+    TaskInstanceResponse,
+    TaskInstanceCollectionResponse,
+)
+from airflow.models import DAG, DagRun, TaskInstance
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -114,7 +117,11 @@ async def patch_dag_run_state(
 
 @dag_run_router.post("/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([401, 403, 404]))
 async def clear_dag_run(
-    dag_id: str, dag_run_id: str, dry_run: DAGRunClearBody, session: Annotated[Session, Depends(get_session)]
+    dag_id: str,
+    dag_run_id: str,
+    patch_body: DAGRunClearBody,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
 ) -> TaskInstanceResponse | DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
@@ -122,18 +129,22 @@ async def clear_dag_run(
             404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
         )
 
-    if dry_run.dry_run:
-        task_instances = dag_run.clear(
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+
+    if patch_body.dry_run:
+        task_instances = dag.clear(
             start_date=dag_run.start_date,
             end_date=dag_run.end_date,
             task_ids=None,
             only_failed=False,
             dry_run=True,
         )
-        return TaskInstanceResponse.model_validate(task_instances, from_attributes=True)
-    else:
-        dag_run.clear(
-            start_date=dag_run.start_date, end_date=dag_run.end_date, task_ids=None, only_failed=False
+        tis = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id)
+        return TaskInstanceCollectionResponse(
+            dags=[TaskInstanceResponse.model_validate(ti, from_attributes=True) for ti in task_instances],
+            total_entries=len(task_instances),
         )
+    else:
+        dag.clear(start_date=dag_run.start_date, end_date=dag_run.end_date, task_ids=None, only_failed=False)
         dag_run_cleared = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)

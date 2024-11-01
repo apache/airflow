@@ -43,7 +43,7 @@ class DAGRunPatchBody(BaseModel):
 class DAGRunClearBody(BaseModel):
     """DAG Run serializer for clear endpoint body."""
 
-    dry_run: bool = True
+    dry_run: bool | None = True
 
 
 class DAGRunResponse(BaseModel):
