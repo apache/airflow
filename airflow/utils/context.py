@@ -48,7 +48,7 @@ from airflow.assets import (
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -275,8 +275,6 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
         return len(self._inlets)
 
     def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
-        from airflow.decorators.assets import _fetch_active_assets_by_name
-
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, Asset)):

@@ -24,34 +24,16 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterator, Mapping, cast
 
 import attrs
-from sqlalchemy import select
 
 from airflow.assets import Asset, AssetRef, _validate_identifier
-from airflow.models.asset import AssetActive, AssetModel
+from airflow.models.asset import _fetch_active_assets_by_name
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from typing import Sequence
 
     from airflow.io.path import ObjectStoragePath
-    from airflow.utils.session import Session
-
-
-@provide_session
-def _fetch_active_assets_by_name(
-    names: Sequence[str],
-    session: Session = NEW_SESSION,
-) -> dict[str, Asset]:
-    return {
-        asset_row[0]: Asset(name=asset_row[0], uri=asset_row[1], group=asset_row[2], extra=asset_row[3])
-        for asset_row in session.execute(
-            select(AssetModel.name, AssetModel.uri, AssetModel.group, AssetModel.extra)
-            .join(AssetActive, AssetActive.name == AssetModel.name)
-            .where(AssetActive.name.in_(name for name in names))
-        )
-    }
 
 
 class _AssetMainOperator(PythonOperator):
