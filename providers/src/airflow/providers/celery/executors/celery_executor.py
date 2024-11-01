@@ -450,7 +450,6 @@ class CeleryExecutor(BaseExecutor):
         for ti in tis:
             readable_tis.append(repr(ti))
             task_instance_key = ti.key
-            self.fail(task_instance_key, None)
             celery_async_result = self.tasks.pop(task_instance_key, None)
             if celery_async_result:
                 try:
