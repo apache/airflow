@@ -22,6 +22,8 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
+
 import { DataTable } from "./DataTable.tsx";
 import type { CardDef } from "./types.ts";
 
@@ -52,6 +54,9 @@ describe("DataTable", () => {
         onStateChange={onStateChange}
         total={2}
       />,
+      {
+        wrapper: ChakraWrapper,
+      },
     );
 
     expect(screen.getByText("John Doe")).toBeInTheDocument();
@@ -67,10 +72,12 @@ describe("DataTable", () => {
         onStateChange={onStateChange}
         total={2}
       />,
+      {
+        wrapper: ChakraWrapper,
+      },
     );
 
-    expect(screen.getByText("<<")).toBeDisabled();
-    expect(screen.getByText("<")).toBeDisabled();
+    expect(screen.getByTestId("prev")).toBeDisabled();
   });
 
   it("disables next button when on last page", () => {
@@ -79,26 +86,32 @@ describe("DataTable", () => {
         columns={columns}
         data={data}
         initialState={{
-          pagination: { pageIndex: 1, pageSize: 10 },
+          pagination: { pageIndex: 0, pageSize: 10 },
           sorting: [],
         }}
         onStateChange={onStateChange}
         total={2}
       />,
+      {
+        wrapper: ChakraWrapper,
+      },
     );
 
-    expect(screen.getByText(">>")).toBeDisabled();
-    expect(screen.getByText(">")).toBeDisabled();
+    expect(screen.getByTestId("next")).toBeDisabled();
   });
 
   it("when isLoading renders skeleton columns", () => {
-    render(<DataTable columns={columns} data={data} isLoading />);
+    render(<DataTable columns={columns} data={data} isLoading />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(screen.getAllByTestId("skeleton")).toHaveLength(10);
   });
 
   it("still displays table if mode is card but there is no cardDef", () => {
-    render(<DataTable columns={columns} data={data} displayMode="card" />);
+    render(<DataTable columns={columns} data={data} displayMode="card" />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(screen.getByText("Name")).toBeInTheDocument();
   });
@@ -111,6 +124,9 @@ describe("DataTable", () => {
         data={data}
         displayMode="card"
       />,
+      {
+        wrapper: ChakraWrapper,
+      },
     );
 
     expect(screen.getByText("My name is John Doe.")).toBeInTheDocument();
@@ -126,6 +142,9 @@ describe("DataTable", () => {
         isLoading
         skeletonCount={5}
       />,
+      {
+        wrapper: ChakraWrapper,
+      },
     );
 
     expect(screen.getAllByTestId("skeleton")).toHaveLength(5);

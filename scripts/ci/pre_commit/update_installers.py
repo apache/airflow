@@ -65,6 +65,7 @@ AIRFLOW_PIP_UPGRADE_PATTERN = re.compile(r"(python -m pip install --upgrade pip=
 
 AIRFLOW_UV_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)")
 AIRFLOW_UV_QUOTED_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")")
+UV_QUOTED_PATTERN = re.compile(r"(UV_VERSION = )(\"[0-9.]+\")")
 AIRFLOW_UV_DOC_PATTERN = re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)")
 UV_GREATER_PATTERN = re.compile(r'"(uv>=)([0-9]+)"')
 
@@ -119,10 +120,13 @@ if __name__ == "__main__":
                 AIRFLOW_UV_PATTERN, uv_version, new_content
             )
             new_content = replace_group_2_while_keeping_total_length(
+                UV_GREATER_PATTERN, uv_version, new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
                 AIRFLOW_UV_QUOTED_PATTERN, f'"{uv_version}"', new_content
             )
             new_content = replace_group_2_while_keeping_total_length(
-                UV_GREATER_PATTERN, uv_version, new_content
+                UV_QUOTED_PATTERN, f'"{uv_version}"', new_content
             )
         if new_content != file_content:
             file.write_text(new_content)

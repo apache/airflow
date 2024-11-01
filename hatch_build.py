@@ -230,9 +230,9 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # hence, 2.31.0.6 is required for aiobotocore>=2.9.0
         "types-requests>=2.31.0.6",
         "types-setuptools>=69.5.0.20240423",
-        "types-tabulate",
-        "types-termcolor",
-        "types-toml",
+        "types-tabulate>=0.9.0.20240106",
+        "types-termcolor>=1.1.6.2",
+        "types-toml>=0.10.8.20240310",
     ],
     "devel-sentry": [
         "blinker>=1.7.0",

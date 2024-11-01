@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box, Tooltip, Text } from "@chakra-ui/react";
+import { Flex, Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
 import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
@@ -53,9 +54,7 @@ export const RecentRuns = ({
     <Flex alignItems="flex-end" flexDirection="row-reverse">
       {runsWithDuration.map((run) => (
         <Tooltip
-          hasArrow
-          key={run.run_id}
-          label={
+          content={
             <Box>
               <Text>State: {run.state}</Text>
               <Text>
@@ -64,8 +63,15 @@ export const RecentRuns = ({
               <Text>Duration: {run.duration.toFixed(2)}s</Text>
             </Box>
           }
-          offset={[10, 5]}
-          placement="bottom-start"
+          key={run.run_id}
+          positioning={{
+            offset: {
+              crossAxis: 5,
+              mainAxis: 5,
+            },
+            placement: "bottom-start",
+          }}
+          showArrow
         >
           <Box p={1}>
             <Box
