@@ -301,14 +301,12 @@ def dag_run_with_all_done_task(session):
     dag.sync_to_db()
 
     execution_date = timezone.datetime(2016, 1, 9)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
         execution_date=execution_date,
         data_interval=(execution_date, execution_date),
         run_id="test_dagrun_failed",
         session=session,
-        **triggered_by_kwargs,
     )
 
     # Create task instances in various states to test the ALL_DONE trigger rule
