@@ -49,9 +49,7 @@ class GitDagBundle(BaseDagBundle):
 
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
         self._ensure_bare_repo_exists()
-        if self.version:
-            self._ensure_version_in_bare_repo()
-
+        self._ensure_version_in_bare_repo()
         self._ensure_repo_exists()
 
         if self.version:
