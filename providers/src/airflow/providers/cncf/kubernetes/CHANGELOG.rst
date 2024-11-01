@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+
+main
+.....
+
+.. warning::
+  Set the default value of ``namespace`` in _KubernetesDecoratedOperator to ``None``, so it uses the cluster namespace when ``in_cluster`` is True. To retain the previous behavior, set ``namespace="default"``
+
+
 9.0.1
 .....
 
