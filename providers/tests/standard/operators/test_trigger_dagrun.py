@@ -31,13 +31,15 @@ from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.settings import TracebackSessionForTests
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -76,7 +78,10 @@ class TestDagRunOperator:
     def re_sync_triggered_dag_to_db(self, dag, dag_maker):
         TracebackSessionForTests.set_allow_db_access(dag_maker.session, True)
         dagbag = DagBag(self.f_name, read_dags_from_db=False, include_examples=False)
-        dagbag.bag_dag(dag)
+        if AIRFLOW_V_3_0_PLUS:
+            dagbag.bag_dag(dag, root_dag=dag)
+        else:
+            dagbag.bag_dag(dag)
         dagbag.sync_to_db(session=dag_maker.session)
         TracebackSessionForTests.set_allow_db_access(dag_maker.session, False)
 
@@ -108,7 +113,9 @@ class TestDagRunOperator:
             )
             .one()
         )
-        with mock.patch("airflow.operators.trigger_dagrun.build_airflow_url_with_query") as mock_build_url:
+        with mock.patch(
+            "airflow.providers.standard.operators.trigger_dagrun.build_airflow_url_with_query"
+        ) as mock_build_url:
             triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
         assert mock_build_url.called
         args, _ = mock_build_url.call_args

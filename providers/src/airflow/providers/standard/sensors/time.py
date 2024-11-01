@@ -68,7 +68,7 @@ class TimeSensorAsync(BaseSensorOperator):
     """
 
     start_trigger_args = StartTriggerArgs(
-        trigger_cls="airflow.triggers.temporal.DateTimeTrigger",
+        trigger_cls="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
         trigger_kwargs={"moment": "", "end_from_trigger": False},
         next_method="execute_complete",
         next_kwargs=None,

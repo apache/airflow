@@ -53,7 +53,7 @@ class DateTimeTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            "airflow.triggers.temporal.DateTimeTrigger",
+            "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
             {"moment": self.moment, "end_from_trigger": self.end_from_trigger},
         )
 
