@@ -137,9 +137,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "uv": [
         "uv>=0.1.32",
     ],
-    "virtualenv": [
-        "virtualenv>=20.26.0",
-    ],
 }
 
 DOC_EXTRAS: dict[str, list[str]] = {
@@ -192,8 +189,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
-        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
-        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
+        "incremental>=24.7.2",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",

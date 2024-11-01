@@ -78,8 +78,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
-# virtualenv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
 #
 # END CORE EXTRAS HERE
 #
