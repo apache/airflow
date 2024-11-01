@@ -26,6 +26,8 @@ KMS_KEY_RING = "test-key-ring"
 KMS_KEY = "test-key"
 INSTANCE_ID = "test-instance"
 
+API_KEY = "*********************"
+
 
 def mock_init(
     self,
@@ -41,10 +43,23 @@ class TestFinancialServicesHook:
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_init,
         ):
-            self.financial_services_hook = FinancialServicesHook(discovery_doc={})
+            self.financial_services_hook = FinancialServicesHook()
 
+    @patch("airflow.providers.google.cloud.hooks.financial_services.FinancialServicesHook.get_credentials")
+    @patch("airflow.providers.google.cloud.hooks.financial_services.FinancialServicesHook._get_developer_key")
+    @patch("airflow.providers.google.cloud.hooks.financial_services.build")
+    def test_get_conn_with_api_key(self, mock_build, mock_developer_key, mock_get_credentials):
+        mock_developer_key.return_value = API_KEY
+        conn = self.financial_services_hook.get_conn()
+
+        mock_build.assert_called_once()
+        assert conn == mock_build.return_value
+        assert conn == self.financial_services_hook.connection
+
+    @patch("airflow.providers.google.cloud.hooks.financial_services.FinancialServicesHook._get_discovery_doc")
     @patch("airflow.providers.google.cloud.hooks.financial_services.build_from_document")
-    def test_get_conn(self, mock_build):
+    def test_get_conn_with_discovery_doc(self, mock_build, mock_discovery_doc):
+        mock_discovery_doc.return_value = {"schemas": {}}
         conn = self.financial_services_hook.get_conn()
 
         mock_build.assert_called_once()

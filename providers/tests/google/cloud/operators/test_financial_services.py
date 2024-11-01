@@ -40,11 +40,10 @@ class TestFinancialServicesCreateInstanceOperator:
             instance_id=INSTANCE_ID,
             kms_key_ring_id=KMS_KEY_RING,
             kms_key_id=KMS_KEY,
-            discovery_doc={},
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             region=REGION,
@@ -62,11 +61,10 @@ class TestFinancialServicesDeleteInstanceOperator:
             project_id=PROJECT_ID,
             region=REGION,
             instance_id=INSTANCE_ID,
-            discovery_doc={},
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             region=REGION,
@@ -82,11 +80,10 @@ class TestFinancialServicesGetInstanceOperator:
             project_id=PROJECT_ID,
             region=REGION,
             instance_id=INSTANCE_ID,
-            discovery_doc={},
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID,
             region=REGION,
