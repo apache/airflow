@@ -114,8 +114,8 @@ spec:
             {{- end }}
             - name: tmp
               mountPath: /tmp
-            - name: opt
-              mountPath: /opt/airflow                           
+            - name: airflow-home
+              mountPath: {{ .Values.airflowHome }}                          
           ports:
             - name: flower-ui
               containerPort: {{ .Values.ports.flowerUI }}
@@ -173,7 +173,7 @@ spec:
         {{- end }}
         - emptyDir: {}
           name: tmp    
-        - name: opt
+        - name: airflow-home
           emptyDir: {}               
 {{- end }}
 {{- end }}

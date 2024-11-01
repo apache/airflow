@@ -346,8 +346,8 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
-            - name: worker-opt
-              mountPath: /opt/airflow             
+            - name: airflow-home
+              mountPath: {{ .Values.airflowHome }}             
         {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos

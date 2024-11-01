@@ -233,8 +233,8 @@ spec:
         {{- end }}
             - name: tmp
               mountPath: /tmp 
-            - name: opt
-              mountPath: /opt/airflow                      
+            - name: airflow-home
+              mountPath: {{ .Values.airflowHome }}                      
       volumes:
         - name: config
           configMap:
@@ -271,7 +271,7 @@ spec:
         - emptyDir: {}
           name: tmp     
         - emptyDir: {}
-          name: opt      
+          name: airflow-home      
         - name: tmp-logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}                    
 {{- end }}

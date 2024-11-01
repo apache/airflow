@@ -276,8 +276,8 @@ spec:
               value: "{{ .Values.airflowHome }}"
           {{- end }}
           volumeMounts:
-            - name: opt
-              mountPath: /opt/airflow              
+            - name: airflow-home
+              mountPath: {{ .Values.airflowHome }}             
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             {{- include "airflow_config_mount" . | nindent 12 }}
@@ -327,7 +327,7 @@ spec:
         - name: tmp
           emptyDir: {}  
         - emptyDir: {}
-          name: opt                        
+          name: airflow-home                        
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
