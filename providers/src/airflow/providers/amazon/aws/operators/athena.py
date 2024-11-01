@@ -313,7 +313,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 SchemaDatasetFacetFields(
                     name=column["Name"],
                     type=column["Type"],
-                    description=column["Comment"] if 'Comment' in column else None
+                    description=column.get("Comment"),
                 )
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]
