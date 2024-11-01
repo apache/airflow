@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.10.3 (2024-10-23)
+Airflow 2.10.3 (2024-11-04)
 ---------------------------
 
 Significant Changes
@@ -55,6 +55,13 @@ Bug Fixes
 - Execute templated bash script as file in BashOperator (#43191)
 - Fixes schedule_downstream_tasks to include upstream tasks for one_success trigger rule (#42582) (#43299)
 - Add retry logic in the scheduler for updating trigger timeouts in case of deadlocks. (#41429) (#42651)
+- Mark all tasks as skipped when failing a dag_run manually (#43572)
+- Fix ``TrySelector`` for Mapped Tasks in Logs and Details Grid Panel (#43566)
+- Conditionally add OTEL events when processing executor events (#43558) (#43567)
+- Fix broken stat ``scheduler_loop_duration`` (#42886) (#43544)
+- Ensure total_entries in /api/v1/dags (#43377) (#43429)
+- Include limit and offset in request body schema for List task instances (batch) endpoint (#43479)
+- Don't raise a warning in ExecutorSafeguard when execute is called from an extended operator (#42849) (#43577)
 
 Miscellaneous
 """""""""""""
@@ -65,6 +72,7 @@ Miscellaneous
 - Correct docstring format in _get_template_context (#42244) (#42272)
 - Backport: Bump Flask-AppBuilder to ``4.5.2`` (#43309) (#43318)
 - Check python version that was used to install pre-commit venvs (#43282) (#43310)
+- Resolve warning in Dataset Alias migration (#43425)
 
 Doc Only Changes
 """"""""""""""""
