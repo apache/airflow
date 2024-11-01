@@ -29,13 +29,29 @@ from sqlalchemy import select
 from airflow.assets import Asset, _validate_identifier
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.dag import DAG, ScheduleArg
-from airflow.operators.python import PythonOperator
-from airflow.utils.session import create_session
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from typing import Sequence
 
     from airflow.io.path import ObjectStoragePath
+    from airflow.utils.session import Session
+
+
+@provide_session
+def _fetch_active_assets_by_name(
+    names: Sequence[str],
+    session: Session = NEW_SESSION,
+) -> dict[str, Asset]:
+    return {
+        asset_row[0]: Asset(name=asset_row[0], uri=asset_row[1], group=asset_row[2], extra=asset_row[3])
+        for asset_row in session.execute(
+            select(AssetModel.name, AssetModel.uri, AssetModel.group, AssetModel.extra)
+            .join(AssetActive, AssetActive.name == AssetModel.name)
+            .where(AssetActive.name.in_(name for name in names))
+        )
+    }
 
 
 @attrs.define(kw_only=True)
@@ -65,19 +81,12 @@ class _AssetMainOperator(PythonOperator):
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        asset_refs = [inlet for inlet in self.inlets if isinstance(inlet, AssetRef)]
-        if asset_refs:
-            with create_session() as session:
-                self._active_assets = {
-                    asset_row[0].name: Asset(
-                        name=asset_row[0].name, uri=asset_row[0].uri, group=asset_row[0].group
-                    )
-                    for asset_row in session.execute(
-                        select(AssetModel)
-                        .join(AssetActive, AssetActive.name == AssetModel.name)
-                        .where(AssetActive.name.in_(ref.name for ref in asset_refs))
-                    )
-                }
+        asset_names = [asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)]
+        if "self" in inspect.signature(self.python_callable).parameters:
+            asset_names.append(self._definition_name)
+
+        if asset_names:
+            self._active_assets = _fetch_active_assets_by_name(asset_names)
         return dict(self._iter_kwargs(context))
 
 
@@ -110,7 +119,6 @@ class AssetDefinition(Asset):
                 task_id="__main__",
                 inlets=[
                     AssetRef(name=inlet_asset_name)
-                    # Asset(name=inlet_asset_name)
                     for inlet_asset_name in parameters
                     if inlet_asset_name not in ("self", "context")
                 ],
