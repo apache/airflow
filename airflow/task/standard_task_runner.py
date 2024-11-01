@@ -101,7 +101,6 @@ class StandardTaskRunner(LoggingMixin):
             raw=True,
             pickle_id=self.job_runner.pickle_id,
             mark_success=self.job_runner.mark_success,
-            job_id=self.job_runner.job.id,
             pool=self.job_runner.pool,
             cfg_path=cfg_path,
         )
@@ -159,15 +158,10 @@ class StandardTaskRunner(LoggingMixin):
             # [1:] - remove "airflow" from the start of the command
             args = parser.parse_args(self._command[1:])
 
-            # We prefer the job_id passed on the command-line because at this time, the
-            # task instance may not have been updated.
-            job_id = getattr(args, "job_id", self._task_instance.job_id)
             self.log.info("Running: %s", self._command)
-            self.log.info("Job %s: Subtask %s", job_id, self._task_instance.task_id)
+            self.log.info("Subtask %s", self._task_instance.task_id)
 
             proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
-            if job_id is not None:
-                proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
             return_code = 0
             try:
@@ -183,8 +177,7 @@ class StandardTaskRunner(LoggingMixin):
                 return_code = 1
 
                 self.log.exception(
-                    "Failed to execute job %s for task %s (%s; %r)",
-                    job_id,
+                    "Failed to execute task %s (%s; %r)",
                     self._task_instance.task_id,
                     exc,
                     os.getpid(),
@@ -250,10 +243,10 @@ class StandardTaskRunner(LoggingMixin):
         if self._rc == -signal.SIGKILL:
             self.log.error(
                 (
-                    "Job %s was killed before it finished (likely due to running out of memory)",
+                    "TI %s was killed before it finished (likely due to running out of memory)",
                     "For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#LocalTaskJob-killed",
                 ),
-                self._task_instance.job_id,
+                self._task_instance.id,
             )
 
     def get_process_pid(self) -> int:
@@ -286,8 +279,7 @@ class StandardTaskRunner(LoggingMixin):
             if not line:
                 break
             self.log.info(
-                "Job %s: Subtask %s %s",
-                self._task_instance.job_id,
+                "Subtask %s %s",
                 self._task_instance.task_id,
                 line.rstrip("\n"),
             )
