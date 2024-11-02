@@ -41,7 +41,7 @@ def _is_uv_installed() -> bool:
 
 def _generate_uv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
     """Build the command to install the venv via UV."""
-    cmd = ["uv", "venv"]
+    cmd = ["uv", "venv", "--allow-existing", "--seed"]
     if python_bin is not None:
         cmd += ["--python", python_bin]
     if system_site_packages:
