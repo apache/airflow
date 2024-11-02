@@ -90,7 +90,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "authlib>=1.0.0",
     ],
     "graphviz": [
-        "graphviz>=0.12",
+        # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
+        # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
+        # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
+        "graphviz>=0.12; sys_platform != 'darwin'",
     ],
     "kerberos": [
         "pykerberos>=1.1.13",
@@ -101,7 +104,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel>=1.5.1",
+        # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
+        # OS version. It's usually next to impossible to install it at least for a few months after the new
+        # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
+        "plyvel>=1.5.1; sys_platform != 'darwin'",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus>=0.47b0",
