@@ -419,9 +419,9 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
-    @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
-    @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
+    @mock.patch("airflow.providers.standard.triggers.file.glob", return_value=["/tmp/test"])
+    @mock.patch("airflow.providers.standard.triggers.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
     def test_cli_test_with_deferrable_operator(
         self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog

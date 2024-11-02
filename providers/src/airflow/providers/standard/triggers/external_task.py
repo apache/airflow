@@ -78,7 +78,7 @@ class WorkflowTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger param and module path."""
         return (
-            "airflow.triggers.external_task.WorkflowTrigger",
+            "airflow.providers.standard.triggers.external_task.WorkflowTrigger",
             {
                 "external_dag_id": self.external_dag_id,
                 "external_task_ids": self.external_task_ids,
@@ -159,7 +159,7 @@ class DagStateTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize DagStateTrigger arguments and classpath."""
         return (
-            "airflow.triggers.external_task.DagStateTrigger",
+            "airflow.providers.standard.triggers.external_task.DagStateTrigger",
             {
                 "dag_id": self.dag_id,
                 "states": self.states,

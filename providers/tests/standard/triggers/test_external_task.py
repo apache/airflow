@@ -24,8 +24,8 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.providers.standard.triggers.external_task import DagStateTrigger, WorkflowTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.external_task import DagStateTrigger, WorkflowTrigger
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
@@ -37,7 +37,7 @@ class TestWorkflowTrigger:
     STATES = ["success", "fail"]
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_success(self, mock_get_count):
         """check the db count get called correctly."""
@@ -70,7 +70,7 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_failed(self, mock_get_count):
         mock_get_count.side_effect = mocked_get_count
@@ -102,7 +102,7 @@ class TestWorkflowTrigger:
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
         mock_get_count.return_value = 0
@@ -133,7 +133,7 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_skipped(self, mock_get_count):
         mock_get_count.side_effect = mocked_get_count
@@ -162,7 +162,7 @@ class TestWorkflowTrigger:
             states=["success", "fail"],
         )
 
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @mock.patch("asyncio.sleep")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_sleep_success(self, mock_sleep, mock_get_count):
@@ -203,7 +203,7 @@ class TestWorkflowTrigger:
             poke_interval=5,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.triggers.external_task.WorkflowTrigger"
+        assert classpath == "airflow.providers.standard.triggers.external_task.WorkflowTrigger"
         assert kwargs == {
             "external_dag_id": self.DAG_ID,
             "logical_dates": [timezone.datetime(2022, 1, 1)],
@@ -271,7 +271,7 @@ class TestDagStateTrigger:
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.triggers.external_task.DagStateTrigger"
+        assert classpath == "airflow.providers.standard.triggers.external_task.DagStateTrigger"
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,

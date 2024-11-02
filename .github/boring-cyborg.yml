@@ -647,12 +647,12 @@ labelPRBasedOnFilePath:
     - airflow/cli/commands/triggerer_command.py
     - airflow/jobs/triggerer_job_runner.py
     - airflow/models/trigger.py
-    - airflow/triggers/**/*
+    - providers/src/airflow/providers/standard/triggers/*
     - tests/cli/commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
     - tests/jobs/test_triggerer_job_logging.py
-    - tests/triggers/**/*
+    - providers/tests/standard/triggers/*
 
   area:Serialization:
     - airflow/serialization/**/*

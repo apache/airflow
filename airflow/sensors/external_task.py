@@ -30,8 +30,8 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
