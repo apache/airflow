@@ -22,9 +22,8 @@ import pytest
 
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Valid for Airflow 3.0+ only")
 
-
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Valid for Airflow 3.0+ only")
 class TestModuleRedirectFinder:
     def test_module_redirect_finder_for_old_location(self):
         assert (
