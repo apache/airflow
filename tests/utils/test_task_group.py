@@ -34,12 +34,11 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
 from tests.models import DEFAULT_DATE
-from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import BashOperator, PythonOperator
 
 
 def make_task(name, type_="classic"):

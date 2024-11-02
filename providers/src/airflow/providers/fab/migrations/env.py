@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+from logging import getLogger
 from logging.config import fileConfig
 
 from alembic import context
@@ -32,7 +33,7 @@ version_table = FABDBManager.version_table_name
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None:
+if not getLogger().handlers and config.config_file_name:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here

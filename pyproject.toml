@@ -78,8 +78,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
-# virtualenv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
 #
 # END CORE EXTRAS HERE
 #
@@ -410,13 +409,6 @@ banned-module-level-imports = ["numpy", "pandas"]
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
-"airflow.PY36".msg = "Use sys.version_info >= (3, 6) instead."
-"airflow.PY37".msg = "Use sys.version_info >= (3, 7) instead."
-"airflow.PY38".msg = "Use sys.version_info >= (3, 8) instead."
-"airflow.PY39".msg = "Use sys.version_info >= (3, 9) instead."
-"airflow.PY310".msg = "Use sys.version_info >= (3, 10) instead."
-"airflow.PY311".msg = "Use sys.version_info >= (3, 11) instead."
-"airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"

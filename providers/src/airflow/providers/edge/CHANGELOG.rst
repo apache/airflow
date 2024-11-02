@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.5.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove warning about missing config in edge plugin loading.``
+
 0.5.0pre0
 .........
 
