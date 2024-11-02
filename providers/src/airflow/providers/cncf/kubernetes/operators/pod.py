@@ -261,6 +261,7 @@ class KubernetesPodOperator(BaseOperator):
         "node_selector",
         "kubernetes_conn_id",
         "name",
+        "hostname",
     )
     template_fields_renderers = {"env_vars": "py"}
 
