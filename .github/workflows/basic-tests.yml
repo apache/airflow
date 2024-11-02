@@ -285,16 +285,11 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
         with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: "\
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-\
-            ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-"
+          python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
         with:
