@@ -45,7 +45,6 @@ class DAGResponse(BaseModel):
     last_parsed_time: datetime | None
     last_pickled: datetime | None
     last_expired: datetime | None
-    scheduler_lock: datetime | None
     pickle_id: datetime | None
     default_view: str | None
     fileloc: str
@@ -117,7 +116,6 @@ class DAGDetailsResponse(DAGResponse):
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    orientation: str
     params: abc.MutableMapping | None
     render_template_as_native_obj: bool
     template_search_path: Iterable[str] | None

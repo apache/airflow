@@ -106,7 +106,7 @@ class EdgeWorkerHosts(BaseView):
 
 # Check if EdgeExecutor is actually loaded
 try:
-    EDGE_EXECUTOR_ACTIVE = conf.getboolean("edge", "api_enabled")
+    EDGE_EXECUTOR_ACTIVE = conf.getboolean("edge", "api_enabled", fallback="False")
 except AirflowConfigException:
     EDGE_EXECUTOR_ACTIVE = False
 

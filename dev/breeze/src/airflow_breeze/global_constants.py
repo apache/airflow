@@ -62,10 +62,14 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-# Database Backends used when starting Breeze. The "none" value means that invalid configuration
-# Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
+# Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
+# No database will be started - access to a database will fail.
+SQLITE_BACKEND = "sqlite"
+MYSQL_BACKEND = "mysql"
+POSTGRES_BACKEND = "postgres"
+NONE_BACKEND = "none"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 CELERY_INTEGRATION = "celery"
 TESTABLE_INTEGRATIONS = [
@@ -85,7 +89,11 @@ TESTABLE_INTEGRATIONS = [
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+KEYCLOAK_INTEGRATION = "keycloak"
+STATSD_INTEGRATION = "statsd"
+OTEL_INTEGRATION = "otel"
+OPENLINEAGE_INTEGRATION = "openlineage"
+OTHER_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, OPENLINEAGE_INTEGRATION, KEYCLOAK_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
@@ -171,6 +179,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
+UV_VERSION = "0.4.29"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -400,6 +409,7 @@ COMMITTERS = [
     "feluelle",
     "feng-tao",
     "ferruzzi",
+    "gopidesupavan",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -431,6 +441,7 @@ COMMITTERS = [
     "saguziel",
     "sekikn",
     "shahar1",
+    "tirkarthi",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -545,7 +556,6 @@ DEFAULT_EXTRAS = [
     "ssh",
     "statsd",
     "uv",
-    "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 

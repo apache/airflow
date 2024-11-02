@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
@@ -46,7 +47,7 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
@@ -270,6 +271,16 @@ class FabAuthManager(BaseAuthManager):
         self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
+
+    def is_authorized_dataset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
+        warnings.warn(
+            "is_authorized_dataset will be renamed as is_authorized_asset in Airflow 3 and will be removed when the minimum Airflow version is set to 3.0 for the fab provider",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_authorized_asset(method=method, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None

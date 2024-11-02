@@ -320,7 +320,6 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
             "next_dagrun_data_interval_start": None,
-            "orientation": "LR",
             "owners": ["airflow"],
             "params": {
                 "foo": {
@@ -333,7 +332,6 @@ class TestDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": None,
-            "scheduler_lock": None,
             "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
             "tags": [],
             "template_search_path": None,
@@ -386,7 +384,6 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": "grid",
             "last_parsed_time": last_parsed_time,
-            "scheduler_lock": None,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "pickle_id": None,

@@ -24,7 +24,7 @@ import pendulum
 import pytest
 
 from airflow.models import DagBag, DagModel
-from airflow.models.backfill import Backfill
+from airflow.models.backfill import Backfill, ReprocessBehavior
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -158,6 +158,7 @@ class TestListBackfills(TestBackfillEndpoint):
                     "from_date": from_date.isoformat(),
                     "id": b.id,
                     "is_paused": False,
+                    "reprocess_behavior": "none",
                     "max_active_runs": 10,
                     "to_date": to_date.isoformat(),
                     "updated_at": mock.ANY,
@@ -214,6 +215,7 @@ class TestGetBackfill(TestBackfillEndpoint):
             "from_date": from_date.isoformat(),
             "id": backfill.id,
             "is_paused": False,
+            "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_date.isoformat(),
             "updated_at": mock.ANY,
@@ -262,7 +264,18 @@ class TestCreateBackfill(TestBackfillEndpoint):
             (None, 401),
         ],
     )
-    def test_create_backfill(self, user, expected, session, dag_maker):
+    @pytest.mark.parametrize(
+        "repro_act, repro_exp",
+        [
+            (None, ReprocessBehavior.NONE),
+            ("none", ReprocessBehavior.NONE),
+            ("failed", ReprocessBehavior.FAILED),
+            ("completed", ReprocessBehavior.COMPLETED),
+        ],
+    )
+    def test_create_backfill(self, repro_act, repro_exp, user, expected, session, dag_maker):
+        if repro_act is not None and expected > 300:
+            pytest.skip("this combination not needed")
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
         session.query(DagModel).all()
@@ -279,6 +292,8 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "reverse": False,
             "dag_run_conf": {"param1": "val1", "param2": True},
         }
+        if repro_act is not None:
+            data["reprocess_behavior"] = repro_act
         kwargs = {}
         if user:
             kwargs.update(environ_overrides={"REMOTE_USER": user})
@@ -298,6 +313,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
                 "from_date": from_date_iso,
                 "id": mock.ANY,
                 "is_paused": False,
+                "reprocess_behavior": repro_exp,
                 "max_active_runs": 5,
                 "to_date": to_date_iso,
                 "updated_at": mock.ANY,
@@ -325,6 +341,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "from_date": from_date.isoformat(),
             "id": backfill.id,
             "is_paused": True,
+            "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_date.isoformat(),
             "updated_at": mock.ANY,
@@ -377,6 +394,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             "from_date": from_date.isoformat(),
             "id": backfill.id,
             "is_paused": True,
+            "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_date.isoformat(),
             "updated_at": mock.ANY,

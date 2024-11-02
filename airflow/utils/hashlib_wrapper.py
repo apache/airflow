@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import hashlib
-import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -32,6 +31,4 @@ def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     :param __string: The data to hash. Default to empty str byte.
     :return: The hashed value.
     """
-    if sys.version_info >= (3, 9):
-        return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
-    return hashlib.md5(__string)
+    return hashlib.md5(__string, usedforsecurity=False)  # type: ignore

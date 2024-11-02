@@ -1032,6 +1032,56 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response.status_code == 400
         assert expected in response.json["detail"]
 
+    def test_should_respond_200_for_pagination(self, session):
+        dag_id = "example_python_operator"
+
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        # First 5 items
+        response_batch1 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"page_limit": 5, "page_offset": 0},
+        )
+        assert response_batch1.status_code == 200, response_batch1.json
+        num_entries_batch1 = len(response_batch1.json["task_instances"])
+        assert num_entries_batch1 == 5
+        assert len(response_batch1.json["task_instances"]) == 5
+
+        # 5 items after that
+        response_batch2 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"page_limit": 5, "page_offset": 5},
+        )
+        assert response_batch2.status_code == 200, response_batch2.json
+        num_entries_batch2 = len(response_batch2.json["task_instances"])
+        assert num_entries_batch2 > 0
+        assert len(response_batch2.json["task_instances"]) > 0
+
+        # Match
+        ti_count = 9
+        assert response_batch1.json["total_entries"] == response_batch2.json["total_entries"] == ti_count
+        assert (num_entries_batch1 + num_entries_batch2) == ti_count
+        assert response_batch1 != response_batch2
+
+        # default limit and offset
+        response_batch3 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={},
+        )
+
+        num_entries_batch3 = len(response_batch3.json["task_instances"])
+        assert num_entries_batch3 == ti_count
+        assert len(response_batch3.json["task_instances"]) == ti_count
+
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
@@ -1983,15 +2033,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.get(
-            TaskInstance,
-            {
-                "task_id": "print_the_context",
-                "dag_id": "example_python_operator",
-                "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1,
-            },
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "example_python_operator",
+                TaskInstance.task_id == "print_the_context",
+                TaskInstance.run_id == "TEST_DAG_RUN_ID",
+                TaskInstance.map_index == -1,
+            )
+        ).one_or_none()
+
         response = self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={"REMOTE_USER": "test"},
@@ -2028,15 +2078,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.get(
-            TaskInstance,
-            {
-                "task_id": "print_the_context",
-                "dag_id": "example_python_operator",
-                "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1,
-            },
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "example_python_operator",
+                TaskInstance.task_id == "print_the_context",
+                TaskInstance.run_id == "TEST_DAG_RUN_ID",
+                TaskInstance.map_index == -1,
+            )
+        ).one_or_none()
+
         response = self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={"REMOTE_USER": "test"},

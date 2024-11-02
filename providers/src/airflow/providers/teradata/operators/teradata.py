@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, ClassVar, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -49,7 +49,7 @@ class TeradataOperator(SQLExecuteQueryOperator):
         "parameters",
     )
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#e07c24"
 
     def __init__(
