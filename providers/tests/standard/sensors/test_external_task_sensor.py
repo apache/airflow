@@ -1500,7 +1500,10 @@ def dag_bag_cyclic():
             task_a >> task_b
 
         for dag in dags:
-            dag_bag.bag_dag(dag=dag)
+            if AIRFLOW_V_3_0_PLUS:
+                dag_bag.bag_dag(dag=dag)
+            else:
+                dag_bag.bag_dag(dag=dag, root_dag=dag)
 
         return dag_bag
 

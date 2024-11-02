@@ -25,7 +25,7 @@ in the ``[email]`` section.
 .. code-block:: ini
 
   [email]
-  email_backend = airflow.utils.email.send_email_smtp
+  email_backend = airflow.providers.standard.utils.email.send_email_smtp
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
@@ -33,7 +33,7 @@ Equivalent environment variables look like:
 
 .. code-block:: sh
 
-  AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
+  AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.providers.standard.utils.email.send_email_smtp
   AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
   AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
 
@@ -63,7 +63,7 @@ the example below.
 .. code-block:: bash
 
     $ airflow config get-value email email_backend
-    airflow.utils.email.send_email_smtp
+    airflow.providers.standard.utils.email.send_email_smtp
 
 To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
 

@@ -47,6 +47,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
@@ -55,7 +56,7 @@ XCOM_RUN_ID = "trigger_run_id"
 AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType, DagRunType
+    from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

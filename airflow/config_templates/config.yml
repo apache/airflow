@@ -2060,7 +2060,7 @@ email:
       version_added: ~
       type: string
       example: ~
-      default: "airflow.utils.email.send_email_smtp"
+      default: "airflow.providers.standard.utils.email.send_email_smtp"
     email_conn_id:
       description: Email connection to use
       version_added: 2.1.0
@@ -2126,7 +2126,7 @@ email:
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
-    the airflow.utils.email.send_email_smtp function, you have to configure an
+    the airflow.providers.standard.utils.email.send_email_smtp function, you have to configure an
     smtp server here
   options:
     smtp_host:

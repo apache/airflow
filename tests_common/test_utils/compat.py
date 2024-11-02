@@ -56,6 +56,7 @@ try:
     from airflow.providers.standard.operators.python import PythonOperator
     from airflow.providers.standard.sensors.bash import BashSensor
     from airflow.providers.standard.sensors.date_time import DateTimeSensor
+    from airflow.providers.standard.utils import email
     from airflow.providers.standard.utils.python_virtualenv import write_python_script
 except ImportError:
     # Compatibility for Airflow < 2.10.*
@@ -64,6 +65,7 @@ except ImportError:
     from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
+    from airflow.utils import email  # type: ignore[no-redef,attr-defined]
     from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
 
 

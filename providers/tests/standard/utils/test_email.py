@@ -28,8 +28,8 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.providers.standard.utils import email
 
+from tests_common.test_utils.compat import email
 from tests_common.test_utils.config import conf_vars
 
 EMAILS = ["test1@example.com", "test2@example.com"]
@@ -81,17 +81,17 @@ class TestEmail:
         with pytest.raises(TypeError):
             email.get_email_address_list(emails_list)
 
-    @mock.patch("airflow.utils.email.send_email")
+    @mock.patch("airflow.providers.standard.utils.email.send_email")
     def test_default_backend(self, mock_send_email):
         res = email.send_email("to", "subject", "content")
         mock_send_email.assert_called_once_with("to", "subject", "content")
         assert mock_send_email.return_value == res
 
-    @mock.patch("airflow.utils.email.send_email_smtp")
+    @mock.patch("airflow.providers.standard.utils.email.send_email_smtp")
     def test_custom_backend(self, mock_send_email):
         with conf_vars(
             {
-                ("email", "email_backend"): "tests.utils.test_email.send_email_test",
+                ("email", "email_backend"): "providers.tests.standard.utils.test_email.send_email_test",
                 ("email", "email_conn_id"): "smtp_default",
             }
         ):
@@ -112,10 +112,10 @@ class TestEmail:
         )
         assert not mock_send_email.called
 
-    @mock.patch("airflow.utils.email.send_email_smtp")
+    @mock.patch("airflow.providers.standard.utils.email.send_email_smtp")
     @conf_vars(
         {
-            ("email", "email_backend"): "tests.utils.test_email.send_email_test",
+            ("email", "email_backend"): "providers.tests.standard.utils.test_email.send_email_test",
             ("email", "email_conn_id"): "smtp_default",
             ("email", "from_email"): "from@test.com",
         }
@@ -158,7 +158,7 @@ class TestEmailSmtp:
             json.dumps({"conn_type": "smtp", "login": "user", "password": "p@$$word"}),
         )
 
-    @mock.patch("airflow.utils.email.send_mime_email")
+    @mock.patch("airflow.providers.standard.utils.email.send_mime_email")
     def test_send_smtp(self, mock_send_mime, tmp_path):
         path = tmp_path / "testfile"
         path.write_text("attachment")
@@ -176,7 +176,7 @@ class TestEmailSmtp:
         mimeapp = MIMEApplication("attachment")
         assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
-    @mock.patch("airflow.utils.email.send_mime_email")
+    @mock.patch("airflow.providers.standard.utils.email.send_mime_email")
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
         email.send_email_smtp("to", "subject", "🔥", mime_charset="utf-8")
         assert mock_send_mime.called
@@ -185,7 +185,7 @@ class TestEmailSmtp:
         mimetext = MIMEText("🔥", "mixed", "utf-8")
         assert mimetext.get_payload() == msg.get_payload()[0].get_payload()
 
-    @mock.patch("airflow.utils.email.send_mime_email")
+    @mock.patch("airflow.providers.standard.utils.email.send_mime_email")
     def test_send_bcc_smtp(self, mock_send_mime, tmp_path):
         path = tmp_path / "testfile"
         path.write_text("attachment")
