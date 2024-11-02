@@ -168,6 +168,6 @@ module_redirects_references = {
     "airflow.hooks.filesystem": "airflow.providers.standard.hooks.filesystem",
     "airflow.hooks.package_index": "airflow.providers.standard.hooks.package_index",
     "airflow.hooks.subprocess": "airflow.providers.standard.hooks.subprocess",
-    "airflow.utils.python_virtualenv.py": "airflow.providers.standard.utils.python_virtualenv.py",
+    "airflow.utils.python_virtualenv": "airflow.providers.standard.utils.python_virtualenv",
 }
 sys.meta_path.append(ModuleRedirectFinder(module_redirects_references))
