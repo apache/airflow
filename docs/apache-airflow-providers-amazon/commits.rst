@@ -38,11 +38,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 9.1.0
 .....
 
-Latest change: 2024-10-23
+Latest change: 2024-10-30
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+`39dba929bb <https://github.com/apache/airflow/commit/39dba929bbc593e853dc2f106be5b62b739d630c>`_  2024-10-29   ``fix(providers/amazon): alias is_authorized_dataset to is_authorized_asset (#43470)``
+`9811f1d6d0 <https://github.com/apache/airflow/commit/9811f1d6d0fe557ab204b20ad5cdf7423926bd22>`_  2024-10-28   ``Limit mypy-boto3-appflow (#43436)``
+`1f13f26144 <https://github.com/apache/airflow/commit/1f13f261447b9c5239b86d706d7c4f715a644395>`_  2024-10-28   ``Remove returns in final clause of athena hooks (#43426)``
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
 `6786032d4b <https://github.com/apache/airflow/commit/6786032d4b69e9b3a44165daf04d2270d40271ad>`_  2024-10-23   ``Remove sqlalchemy-redshift dependency (#43271)``
 `be553780e5 <https://github.com/apache/airflow/commit/be553780e56cf8c34a65aecf2c52a33b82e0e039>`_  2024-10-22   ``feat: add OpenLineage support for RedshiftToS3Operator (#41632)``
 `72f2b2e951 <https://github.com/apache/airflow/commit/72f2b2e951a3421e838ae715f954a1520d494464>`_  2024-10-18   ``Remove TaskContextLogger (#43183)``

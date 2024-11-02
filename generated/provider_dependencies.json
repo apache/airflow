@@ -81,6 +81,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "google"
     ],
     "excluded-python-versions": [
@@ -285,7 +286,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -396,7 +398,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "openlineage"
+      "openlineage",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -516,7 +519,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -532,7 +537,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -633,7 +640,7 @@
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
-      "google-ads>=25.0.0",
+      "google-ads>=25.1.0",
       "google-analytics-admin>=0.9.0",
       "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
       "google-api-python-client>=2.0.2",
@@ -1279,13 +1286,13 @@
   "standard": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.18.0",
-      "apache-airflow>=2.10.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
-    "state": "not-ready"
+    "state": "ready"
   },
   "tableau": {
     "deps": [

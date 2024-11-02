@@ -304,7 +304,7 @@ ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 
 # backfill
-ARG_BACKFILL_DAG = Arg(flags=("--dag",), help="The dag to backfill.", required=True)
+ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
 ARG_BACKFILL_FROM_DATE = Arg(
     ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
 )

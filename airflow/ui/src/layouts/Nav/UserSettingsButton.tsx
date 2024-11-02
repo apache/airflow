@@ -16,42 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  IconButton,
-  Menu,
-  MenuButton,
-  useColorMode,
-  MenuItem,
-  MenuList,
-  useDisclosure,
-} from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { FiClock, FiMoon, FiSun, FiUser } from "react-icons/fi";
 
+import { Menu } from "src/components/ui";
+import { useColorMode } from "src/context/colorMode/useColorMode";
 import { useTimezone } from "src/context/timezone";
 
+import { NavButton } from "./NavButton";
 import TimezoneModal from "./TimezoneModal";
-import { navButtonProps } from "./navButtonProps";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export const UserSettingsButton = () => {
   const { colorMode, toggleColorMode } = useColorMode();
-  const { isOpen, onClose, onOpen } = useDisclosure();
+  const { onClose, onOpen, open } = useDisclosure();
   const { selectedTimezone } = useTimezone();
 
   return (
-    <Menu placement="right">
-      <MenuButton
-        as={IconButton}
-        icon={<FiUser size="1.75rem" />}
-        {...navButtonProps}
-      />
-      <MenuList>
-        <MenuItem onClick={toggleColorMode}>
+    <Menu.Root positioning={{ placement: "right" }}>
+      <Menu.Trigger asChild>
+        <NavButton icon={<FiUser size="1.75rem" />} title="User" />
+      </Menu.Trigger>
+      <Menu.Content>
+        <Menu.Item onClick={toggleColorMode} value="color-mode">
           {colorMode === "light" ? (
             <>
               <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
@@ -63,13 +55,13 @@ export const UserSettingsButton = () => {
               Switch to Light Mode
             </>
           )}
-        </MenuItem>
-        <MenuItem onClick={onOpen}>
+        </Menu.Item>
+        <Menu.Item onClick={onOpen} value="timezone">
           <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
           {dayjs().tz(selectedTimezone).format("HH:mm z (Z)")}
-        </MenuItem>
-      </MenuList>
-      <TimezoneModal isOpen={isOpen} onClose={onClose} />
-    </Menu>
+        </Menu.Item>
+      </Menu.Content>
+      <TimezoneModal isOpen={open} onClose={onClose} />
+    </Menu.Root>
   );
 };

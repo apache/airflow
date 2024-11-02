@@ -27,28 +27,26 @@ type Props = {
 };
 
 export const ToggleTableDisplay = ({ display, setDisplay }: Props) => (
-  <HStack pb={2} spacing={1}>
+  <HStack colorPalette="blue" gap={1} pb={2}>
     <IconButton
       aria-label="Show card view"
-      colorScheme="blue"
       height={8}
-      icon={<FiGrid />}
-      isActive={display === "card"}
       minWidth={8}
       onClick={() => setDisplay("card")}
-      variant="outline"
+      variant={display === "table" ? "outline" : "solid"}
       width={8}
-    />
+    >
+      <FiGrid />
+    </IconButton>
     <IconButton
       aria-label="Show table view"
-      colorScheme="blue"
       height={8}
-      icon={<FiAlignJustify />}
-      isActive={display === "table"}
       minWidth={8}
       onClick={() => setDisplay("table")}
-      variant="outline"
+      variant={display === "card" ? "outline" : "solid"}
       width={8}
-    />
+    >
+      <FiAlignJustify />
+    </IconButton>
   </HStack>
 );

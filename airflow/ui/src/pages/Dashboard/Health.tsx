@@ -36,7 +36,7 @@ export const Health = () => {
         </Heading>
       </Flex>
       <ErrorAlert error={error} />
-      <HStack alignItems="center" spacing={2}>
+      <HStack alignItems="center" gap={2}>
         <HealthTag
           isLoading={isLoading}
           status={data?.metadatabase.status}

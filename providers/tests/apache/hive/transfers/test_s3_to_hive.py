@@ -30,7 +30,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator
+from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator, uncompress_file
 
 boto3 = pytest.importorskip("boto3")
 moto = pytest.importorskip("moto")
@@ -122,7 +122,7 @@ class TestS3ToHiveTransfer:
 
     # Helper method to fetch a file of a
     # certain format (file extension and header)
-    def _get_fn(self, ext, header):
+    def _get_fn(self, ext, header=None):
         key = self._get_key(ext, header)
         return self.file_names[key]
 
@@ -279,3 +279,19 @@ class TestS3ToHiveTransfer:
                     expression=select_expression,
                     input_serialization=input_serialization,
                 )
+
+    def test_uncompress_file(self):
+        # Testing txt file type
+        with pytest.raises(NotImplementedError, match="^Received .txt format. Only gz and bz2.*"):
+            uncompress_file(
+                **{"input_file_name": None, "file_extension": ".txt", "dest_dir": None},
+            )
+        # Testing gz file type
+        fn_txt = self._get_fn(".txt")
+        fn_gz = self._get_fn(".gz")
+        txt_gz = uncompress_file(fn_gz, ".gz", self.tmp_dir)
+        assert filecmp.cmp(txt_gz, fn_txt, shallow=False), "Uncompressed file does not match original"
+        # Testing bz2 file type
+        fn_bz2 = self._get_fn(".bz2")
+        txt_bz2 = uncompress_file(fn_bz2, ".bz2", self.tmp_dir)
+        assert filecmp.cmp(txt_bz2, fn_txt, shallow=False), "Uncompressed file does not match original"
