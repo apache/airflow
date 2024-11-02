@@ -3053,7 +3053,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _execute_task(self, context, task_orig)
 
-    def update_last_heartbeat(self):
+    def update_heartbeat(self):
         cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
         with cm as session_or_null:
             _update_ti_heartbeat(self.id, timezone.utcnow(), session_or_null)

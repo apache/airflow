@@ -318,7 +318,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
                 raise AirflowException("PID of job runner does not match")
-            ti.update_last_heartbeat()
+            ti.update_heartbeat()
 
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
             self._overtime = (timezone.utcnow() - (ti.end_date or timezone.utcnow())).total_seconds()

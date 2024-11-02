@@ -932,7 +932,7 @@ class TestLogsfromTaskRunCommand:
         print(logs)  # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        assert f"Subtask {self.task_id}" in logs
+        assert f"Task {self.task_id}" in logs
         assert "standard_task_runner.py" in logs
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)

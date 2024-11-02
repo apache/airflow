@@ -59,6 +59,7 @@ def clear_assets():
 @pytest.fixture
 def mock_task_instance():
     return TaskInstancePydantic(
+        id="1",
         task_id="5",
         dag_id="7",
         run_id="11",

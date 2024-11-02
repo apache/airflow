@@ -68,7 +68,6 @@ class TestTaskInstanceEndpoint:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "job_id": 0,
         }
         clear_db_runs()
         clear_rendered_ti_fields()

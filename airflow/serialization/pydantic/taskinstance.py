@@ -106,7 +106,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     custom_operator_name: Optional[str]
     queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
-    last_heartbeat_at: Optional[datetime]
+    last_heartbeat_at: Optional[datetime] = None
     pid: Optional[int]
     executor: Optional[str]
     executor_config: Any
@@ -252,13 +252,8 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
-    def update_last_heartbeat(self):
-        """
-        Execute Task (optionally with a Timeout) and push Xcom results.
-
-        :param context: Jinja2 context
-        :param task_orig: origin task
-        """
+    def update_heartbeat(self):
+        """Update the recorded heartbeat for this task to "now"."""
         from airflow.models.taskinstance import _update_ti_heartbeat
 
         return _update_ti_heartbeat(self.id, timezone.utcnow())

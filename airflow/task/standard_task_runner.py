@@ -173,14 +173,11 @@ class StandardTaskRunner(LoggingMixin):
                     return_code = 0
                     if isinstance(ret, TaskReturnCode):
                         return_code = ret.value
-            except Exception as exc:
+            except Exception:
                 return_code = 1
 
                 self.log.exception(
-                    "Failed to execute task %s (%s; %r)",
-                    self._task_instance.task_id,
-                    exc,
-                    os.getpid(),
+                    "Failed to execute task_id=%s pid=%r", self._task_instance.task_id, os.getpid()
                 )
             except SystemExit as sys_ex:
                 # Someone called sys.exit() in the fork - mistakenly. You should not run sys.exit() in
@@ -279,7 +276,7 @@ class StandardTaskRunner(LoggingMixin):
             if not line:
                 break
             self.log.info(
-                "Subtask %s %s",
+                "Task %s %s",
                 self._task_instance.task_id,
                 line.rstrip("\n"),
             )
