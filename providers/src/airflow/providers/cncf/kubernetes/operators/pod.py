@@ -260,6 +260,7 @@ class KubernetesPodOperator(BaseOperator):
         "env_from",
         "node_selector",
         "kubernetes_conn_id",
+        "name",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -388,7 +389,8 @@ class KubernetesPodOperator(BaseOperator):
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.pod_template_dict = pod_template_dict
-        self.name = self._set_name(name)
+        name = self._set_name(name)
+        self.name = name
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
