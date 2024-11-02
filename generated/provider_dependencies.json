@@ -909,7 +909,7 @@
       "apache-airflow-providers-common-sql>=1.17.0",
       "apache-airflow>=2.8.0",
       "mysql-connector-python>=8.0.29",
-      "mysqlclient>=1.4.0"
+      "mysqlclient>=1.4.0; sys_platform != 'darwin'"
     ],
     "devel-deps": [],
     "plugins": [],
