@@ -46,7 +46,7 @@ class TestFileTrigger:
 
         trigger = FileTrigger(
             filepath=str(p.resolve()),
-            poke_interval=0.5,
+            poke_interval=0.2,
         )
 
         task = asyncio.create_task(trigger.run().__anext__())
