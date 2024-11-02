@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.utils.email import send_email
+from airflow.providers.standard.utils.email import send_email
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

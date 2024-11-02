@@ -79,9 +79,10 @@ class TestDagRunOperator:
         TracebackSessionForTests.set_allow_db_access(dag_maker.session, True)
         dagbag = DagBag(self.f_name, read_dags_from_db=False, include_examples=False)
         if AIRFLOW_V_3_0_PLUS:
-            dagbag.bag_dag(dag, root_dag=dag)
-        else:
             dagbag.bag_dag(dag)
+        else:
+            dagbag.bag_dag(dag, root_dag=dag)
+
         dagbag.sync_to_db(session=dag_maker.session)
         TracebackSessionForTests.set_allow_db_access(dag_maker.session, False)
 

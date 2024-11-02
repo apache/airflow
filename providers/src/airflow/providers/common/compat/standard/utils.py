@@ -20,12 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from airflow.providers.standard.utils.email import build_mime_message, get_email_address_list
     from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
 else:
     try:
+        from airflow.providers.standard.utils.email import build_mime_message, get_email_address_list
         from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
     except ModuleNotFoundError:
+        from airflow.utils.email import build_mime_message, get_email_address_list
         from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 
-__all__ = ["write_python_script", "prepare_virtualenv"]
+__all__ = ["write_python_script", "prepare_virtualenv", "build_mime_message", "get_email_address_list"]

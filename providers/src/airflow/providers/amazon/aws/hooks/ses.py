@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.email import build_mime_message
+from airflow.providers.common.compat.standard.utils import build_mime_message
 
 
 class SesHook(AwsBaseHook):

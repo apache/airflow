@@ -41,7 +41,7 @@ from sendgrid.helpers.mail import (
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.utils.email import get_email_address_list
+from airflow.providers.common.compat.standard.utils import get_email_address_list
 
 log = logging.getLogger(__name__)
 

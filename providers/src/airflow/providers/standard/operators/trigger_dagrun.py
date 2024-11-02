@@ -22,9 +22,11 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
+from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
+from airflow import __version__ as AIRFLOW_VERSION
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
@@ -45,11 +47,15 @@ from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
 
+
+AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -191,14 +197,23 @@ class TriggerDagRunOperator(BaseOperator):
             run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date)
 
         try:
-            dag_run = trigger_dag(
-                dag_id=self.trigger_dag_id,
-                run_id=run_id,
-                conf=self.conf,
-                execution_date=parsed_logical_date,
-                replace_microseconds=False,
-                triggered_by=DagRunTriggeredByType.OPERATOR,
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                dag_run = trigger_dag(
+                    dag_id=self.trigger_dag_id,
+                    run_id=run_id,
+                    conf=self.conf,
+                    execution_date=parsed_logical_date,
+                    replace_microseconds=False,
+                    triggered_by=DagRunTriggeredByType.OPERATOR,
+                )
+            else:
+                dag_run = trigger_dag(  # type: ignore[call-arg]
+                    dag_id=self.trigger_dag_id,
+                    run_id=run_id,
+                    conf=self.conf,
+                    execution_date=parsed_logical_date,
+                    replace_microseconds=False,
+                )
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:

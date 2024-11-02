@@ -28,7 +28,7 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.utils import email
+from airflow.providers.standard.utils import email
 
 from tests_common.test_utils.config import conf_vars
 
