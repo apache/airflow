@@ -549,19 +549,20 @@ class TestBaseChartTest:
         )
 
     def test_unsupported_executor(self):
-        with pytest.raises(CalledProcessError) as ex_ctx:
+        with pytest.raises(CalledProcessError):
             render_chart(
                 "test-basic",
                 {
                     "executor": "SequentialExecutor",
                 },
             )
-        assert (
-            'executor must be one of the following: "LocalExecutor", '
-            '"LocalKubernetesExecutor", "CeleryExecutor", '
-            '"KubernetesExecutor", "CeleryKubernetesExecutor", '
-            '"airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor", '
-            '"airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"' in ex_ctx.value.stderr.decode()
+
+    def test_support_multiple_executors(self):
+        render_chart(
+            "test-basic",
+            {
+                "executor": "CeleryExecutor,KubernetesExecutor",
+            },
         )
 
     @pytest.mark.parametrize(
