@@ -309,9 +309,7 @@ def generate_args_for_pytest(
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests and parallel_test_types_list:
-        args = convert_parallel_types_to_folders(
-            parallel_test_types_list, skip_provider_tests, python_version=python_version
-        )
+        args = convert_parallel_types_to_folders(parallel_test_types_list, skip_provider_tests)
     else:
         args = convert_test_type_to_pytest_args(
             test_type=test_type,
@@ -394,9 +392,7 @@ def generate_args_for_pytest(
     return args
 
 
-def convert_parallel_types_to_folders(
-    parallel_test_types_list: list[str], skip_provider_tests: bool, python_version: str
-):
+def convert_parallel_types_to_folders(parallel_test_types_list: list[str], skip_provider_tests: bool):
     args = []
     for _test_type in parallel_test_types_list:
         args.extend(
