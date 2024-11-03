@@ -154,7 +154,7 @@ class ModuleRedirectFinder(MetaPathFinder):
         return None
 
 
-module_redirects_references = {
+module_redirects_references: dict[str, str] = {
     "airflow.operators.python": "airflow.providers.standard.operators.python",
     "airflow.operators.bash": "airflow.providers.standard.operators.bash",
     "airflow.operators.datetime": "airflow.providers.standard.operators.datetime",
