@@ -157,7 +157,7 @@ export type DAGResponse = {
  * DAG Run serializer for clear endpoint body.
  */
 export type DAGRunClearBody = {
-  dry_run?: boolean;
+  dry_run?: boolean | null;
 };
 
 /**

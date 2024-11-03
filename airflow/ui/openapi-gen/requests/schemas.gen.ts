@@ -885,7 +885,14 @@ export const $DAGResponse = {
 export const $DAGRunClearBody = {
   properties: {
     dry_run: {
-      type: "boolean",
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Dry Run",
       default: true,
     },

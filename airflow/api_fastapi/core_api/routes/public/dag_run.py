@@ -37,8 +37,8 @@ from airflow.api_fastapi.core_api.serializers.dag_run import (
     DAGRunResponse,
 )
 from airflow.api_fastapi.core_api.serializers.task_instances import (
-    TaskInstanceResponse,
     TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
 )
 from airflow.models import DAG, DagRun, TaskInstance
 
@@ -133,13 +133,15 @@ async def clear_dag_run(
 
     if patch_body.dry_run:
         task_instances = dag.clear(
-            start_date=dag_run.start_date,
-            end_date=dag_run.end_date,
+            start_date=dag_run.logical_date,
+            end_date=dag_run.logical_date,
             task_ids=None,
             only_failed=False,
             dry_run=True,
         )
-        tis = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id)
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id
+        )
         return TaskInstanceCollectionResponse(
             dags=[TaskInstanceResponse.model_validate(ti, from_attributes=True) for ti in task_instances],
             total_entries=len(task_instances),

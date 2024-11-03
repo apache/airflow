@@ -2397,7 +2397,9 @@ components:
     DAGRunClearBody:
       properties:
         dry_run:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Dry Run
           default: true
       type: object
