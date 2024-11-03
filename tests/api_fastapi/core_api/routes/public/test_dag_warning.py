@@ -85,4 +85,4 @@ class TestGetDagWarnings:
         response = test_client.get("/public/dagWarnings", params={"warning_type": "invalid"})
         response_json = response.json()
         assert response.status_code == 422
-        assert response_json["detail"][0]["msg"] == "Input should be 'non-existent pool'"
+        assert response_json["detail"][0]["msg"] == "Input should be 'asset conflict' or 'non-existent pool'"
