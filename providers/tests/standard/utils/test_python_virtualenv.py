@@ -22,11 +22,28 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
 from airflow.utils.decorators import remove_task_decorator
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestPrepareVirtualenv:
+    @mock.patch("shutil")
+    def test_use_uv(self, mock_shutil):
+        with conf_vars({("standard", "venv_install_method"): "auto"}):
+            mock_shutil.which.side_effect = True
+            assert _use_uv() is True
+
+            mock_shutil.which.side_effect = False
+            assert _use_uv() is False
+
+        with conf_vars({("standard", "venv_install_method"): "uv"}):
+            assert _use_uv() is True
+
+        with conf_vars({("standard", "venv_install_method"): "pip"}):
+            assert _use_uv() is False
+
     @pytest.mark.parametrize(
         ("index_urls", "expected_pip_conf_content", "unexpected_pip_conf_content"),
         [

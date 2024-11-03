@@ -62,3 +62,20 @@ hooks:
       - airflow.providers.standard.hooks.filesystem
       - airflow.providers.standard.hooks.package_index
       - airflow.providers.standard.hooks.subprocess
+
+config:
+  standard:
+    description: Options for the standard operators
+    options:
+      venv_install_method:
+        description: |
+          Which python tooling should be used to install the virtual environment.
+
+          The following options are available:
+          - ``auto``: Automatically select, use `uv` if available, otherwise use ``pip``.
+          - ``pip``: Use pip to install the virtual environment.
+          - ``uv``: Use uv to install the virtual environment. Must be available in environment PATH.
+        version_added: ~
+        type: string
+        example: uv
+        default: auto

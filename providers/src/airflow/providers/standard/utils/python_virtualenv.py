@@ -27,6 +27,7 @@ from pathlib import Path
 import jinja2
 from jinja2 import select_autoescape
 
+from airflow.configuration import conf
 from airflow.utils.process_utils import execute_in_subprocess
 
 
@@ -37,6 +38,20 @@ def _is_uv_installed() -> bool:
     :return: True if it is. Whichever way of checking it works, is fine.
     """
     return bool(shutil.which("uv"))
+
+
+def _use_uv() -> bool:
+    """
+    Check if the uv tool should be used.
+
+    :return: True if uv should be used.
+    """
+    venv_install_method = conf.get("standard", "venv_install_method", fallback="auto").lower()
+    if venv_install_method == "auto":
+        return _is_uv_installed()
+    elif venv_install_method == "uv":
+        return True
+    return False
 
 
 def _generate_uv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
@@ -136,7 +151,7 @@ def prepare_virtualenv(
     if index_urls is not None:
         _generate_pip_conf(Path(venv_directory) / "pip.conf", index_urls)
 
-    if _is_uv_installed():
+    if _use_uv():
         venv_cmd = _generate_uv_cmd(venv_directory, python_bin, system_site_packages)
     else:
         venv_cmd = _generate_venv_cmd(venv_directory, python_bin, system_site_packages)
@@ -144,12 +159,12 @@ def prepare_virtualenv(
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
-        if _is_uv_installed():
+        if _use_uv():
             pip_cmd = _generate_uv_install_cmd_from_list(venv_directory, requirements, pip_install_options)
         else:
             pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements, pip_install_options)
     if requirements_file_path is not None and requirements_file_path:
-        if _is_uv_installed():
+        if _use_uv():
             pip_cmd = _generate_uv_install_cmd_from_file(
                 venv_directory, requirements_file_path, pip_install_options
             )
