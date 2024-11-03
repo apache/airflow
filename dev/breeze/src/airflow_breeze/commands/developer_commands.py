@@ -83,7 +83,6 @@ from airflow_breeze.commands.common_package_installation_options import (
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
-    option_test_type,
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
@@ -300,7 +299,6 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_python
 @option_restart
 @option_run_db_tests_only
-@option_test_type
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
@@ -361,7 +359,6 @@ def shell(
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
-    test_type: str,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
@@ -429,7 +426,6 @@ def shell(
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
-        test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,

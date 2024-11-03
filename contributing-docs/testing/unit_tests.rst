@@ -104,17 +104,7 @@ Those test types are defined:
   ``virtualenv_operator`` and ``external_python_operator`` test markers that the tests are marked with.
 * ``WWW`` - Tests for the Airflow webserver (www folder)
 * ``Providers`` - Tests for all Providers of Airflow (providers folder)
-* ``PlainAsserts`` - tests that require disabling ``assert-rewrite`` feature of Pytest (usually because
-  a buggy/complex implementation of an imported library) (``plain_asserts`` marker)
 * ``Other`` - all other tests remaining after the above tests are selected
-
-There are also Virtualenv/ExternalPython operator test types that are excluded from ``Operators`` test type
-and run as separate test types. Those are :
-
-* ``PythonVenv`` - tests for PythonVirtualenvOperator - selected directly as TestPythonVirtualenvOperator
-* ``BranchPythonVenv`` - tests for BranchPythonVirtualenvOperator - selected directly as TestBranchPythonVirtualenvOperator
-* ``ExternalPython`` - tests for ExternalPythonOperator - selected directly as TestExternalPythonOperator
-* ``BranchExternalPython`` - tests for BranchExternalPythonOperator - selected directly as TestBranchExternalPythonOperator
 
 We have also tests that run "all" tests (so they do not look at the folder, but at the ``pytest`` markers
 the tests are marked with to run with some filters applied.

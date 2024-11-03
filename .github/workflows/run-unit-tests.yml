@@ -28,6 +28,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The backend to run the tests on"
         required: true
         type: string
+      test-group:
+        description: "The group of the test to run: ('Core', 'Providers')"
+        required: true
+        type: string
       test-scope:
         description: "The scope of the test to run: ('DB', 'Non-DB', 'All', 'ARM collection')"
         required: true
@@ -61,8 +65,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Excluded combos (stringified JSON array of python-version/backend-version dicts)"
         required: true
         type: string
-      parallel-test-types-list-as-string:
-        description: "The list of parallel test types to run separated by spaces"
+      test-types-list-as-string:
+        description: "The list of test types to run separated by spaces"
         required: true
         type: string
       run-migration-tests:
@@ -119,7 +123,7 @@ jobs:
     name: "\
       ${{ inputs.test-scope }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
-      ${{matrix.python-version}}: ${{ inputs.parallel-test-types-list-as-string }}"
+      ${{matrix.python-version}}: ${{ inputs.core-test-types-list-as-string }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
@@ -147,7 +151,7 @@ jobs:
       # yamllint disable rule:line-length
       JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"
-      PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
+      PARALLEL_TEST_TYPES: "${{ inputs.core-test-types-list-as-string }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
@@ -166,32 +170,13 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
           Migration Tests:
-          ${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string }}
+          ${{ matrix.python-version }}:${{ inputs.core-test-types-list-as-string }}
         uses: ./.github/actions/migration_tests
         if: inputs.run-migration-tests == 'true'
       - name: >
-          ${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
-          Py${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string}}
-        run: |
-          if [[ "${{ inputs.test-scope }}" == "DB" ]]; then
-            breeze testing db-tests \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
-          elif [[ "${{ inputs.test-scope }}" == "Non-DB" ]]; then
-            breeze testing non-db-tests \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
-          elif [[ "${{ inputs.test-scope }}" == "All" ]]; then
-            breeze testing tests --run-in-parallel \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
-          elif [[ "${{ inputs.test-scope }}" == "Quarantined" ]]; then
-            breeze testing tests --test-type "All-Quarantined" || true
-          elif [[ "${{ inputs.test-scope }}" == "ARM collection" ]]; then
-            breeze testing tests --collect-only --remove-arm-packages
-          elif [[ "${{ inputs.test-scope }}" == "System" ]]; then
-            breeze testing tests tests/system/example_empty.py --system core
-          else
-            echo "Unknown test scope: ${{ inputs.test-scope }}"
-            exit 1
-          fi
+          ${{ inputs.test-group}}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
+          Py${{ matrix.python-version }}:${{ inputs.test-types-list-as-string}}
+        run: ./scripts/ci/testing/run_unit_tests.sh
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

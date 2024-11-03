@@ -28,7 +28,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
-      parallel-test-types-list-as-string:
+      core-test-types-list-as-string:
         description: "The list of parallel test types to run separated by spaces"
         required: true
         type: string
@@ -83,7 +83,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -106,7 +106,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -129,7 +129,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -152,7 +152,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -174,7 +174,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -196,7 +196,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -218,7 +218,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}

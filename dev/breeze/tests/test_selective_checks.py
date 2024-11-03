@@ -33,7 +33,6 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
-    ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
     ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
 )
@@ -113,7 +112,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("INTHEWILD.md",),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -126,9 +125,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": None,
+                    "core-test-types-list-as-string": None,
                     "providers-test-types-list-as-string": None,
-                    "separate-test-types-list-as-string": None,
+                    "individual-providers-test-types-list-as-string": None,
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
                 },
@@ -148,7 +147,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "affected-providers-list-as-string": "common.compat fab",
+                    "selected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -162,9 +161,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always Providers[common.compat,fab]",
+                    "core-test-types-list-as-string": "API Always",
                     "providers-test-types-list-as-string": "Providers[common.compat,fab]",
-                    "separate-test-types-list-as-string": "API Always Providers[common.compat] Providers[fab]",
+                    "individual-providers-test-types-list-as-string": "Providers[common.compat] Providers[fab]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -188,8 +187,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always",
-                    "separate-test-types-list-as-string": "API Always",
+                    "core-test-types-list-as-string": "API Always",
+                    "providers-test-types-list-as-string": "",
+                    "individual-providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -213,8 +213,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always",
-                    "separate-test-types-list-as-string": "API Always",
+                    "core-test-types-list-as-string": "API Always",
+                    "providers-test-types-list-as-string": "",
+                    "individual-providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -238,8 +239,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always",
-                    "separate-test-types-list-as-string": "API Always",
+                    "core-test-types-list-as-string": "API Always",
+                    "providers-test-types-list-as-string": "",
+                    "individual-providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -250,7 +252,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/operators/file.py",),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -264,9 +266,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Operators",
+                    "core-test-types-list-as-string": "Always Operators",
                     "providers-test-types-list-as-string": "",
-                    "separate-test-types-list-as-string": "Always Operators",
+                    "individual-providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -277,7 +279,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/src/airflow/providers/standard/operators/python.py",),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -291,9 +293,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[common.compat,standard]",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "Providers[common.compat,standard]",
-                    "separate-test-types-list-as-string": "Always Providers[common.compat] Providers[standard]",
+                    "individual-providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -304,7 +306,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/serialization/python.py",),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -318,9 +320,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Serialization",
+                    "core-test-types-list-as-string": "Always Serialization",
                     "providers-test-types-list-as-string": "",
-                    "separate-test-types-list-as-string": "Always Serialization",
+                    "individual-providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -334,7 +336,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/tests/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
+                    "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
                     "pgvector postgres",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -349,11 +351,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                     "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always Providers[amazon] "
-                    "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "core-test-types-list-as-string": "API Always",
                     "providers-test-types-list-as-string": "Providers[amazon] "
                     "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
-                    "separate-test-types-list-as-string": "API Always Providers[amazon] Providers[common.compat] Providers[common.sql] "
+                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[common.sql] "
                     "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
                     "Providers[postgres]",
                     "needs-mypy": "true",
@@ -366,7 +367,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/tests/apache/beam/file.py",),
                 {
-                    "affected-providers-list-as-string": "apache.beam common.compat google",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -383,9 +384,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[apache.beam,common.compat] Providers[google]",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
-                    "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -396,7 +397,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("docs/file.rst",),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -411,7 +412,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": None,
+                    "core-test-types-list-as-string": None,
                     "providers-test-types-list-as-string": None,
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
@@ -443,9 +444,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": (
-                        "API Always BranchExternalPython BranchPythonVenv CLI Core ExternalPython "
-                        "Operators Other PlainAsserts PythonVenv Serialization WWW"
+                    "core-test-types-list-as-string": (
+                        "API Always CLI Core Operators Other Serialization WWW"
                     ),
                     "providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
@@ -461,7 +461,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/tests/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.sql google openlineage "
+                    "selected-providers-list-as-string": "amazon common.sql google openlineage "
                     "pgvector postgres",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -477,8 +477,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[amazon] "
-                    "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "Providers[amazon] "
                     "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
                     "needs-mypy": "true",
@@ -496,7 +495,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/tests/http/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon apache.livy "
+                    "selected-providers-list-as-string": "amazon apache.livy "
                     "dbt.cloud dingding discord http",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -512,10 +511,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always "
-                    "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
-                    "separate-test-types-list-as-string": "Always Providers[amazon] "
+                    "individual-providers-test-types-list-as-string": "Providers[amazon] "
                     "Providers[apache.livy] Providers[dbt.cloud] "
                     "Providers[dingding] Providers[discord] Providers[http]",
                     "needs-mypy": "true",
@@ -533,7 +531,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/tests/airbyte/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "airbyte",
+                    "selected-providers-list-as-string": "airbyte",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -548,7 +546,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[airbyte]",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "Providers[airbyte]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
@@ -565,7 +563,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "foo/other.py",
                 ),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -580,7 +578,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
@@ -593,7 +591,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("generated/provider_dependencies.json",),
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
                     "python-versions": "['3.9', '3.10', '3.11', '3.12']",
@@ -607,7 +605,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -620,7 +618,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("generated/provider_dependencies.json",),
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
                     "python-versions": "['3.9', '3.10', '3.11', '3.12']",
@@ -634,7 +632,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -645,7 +643,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/amazon/__init__.py",),
             {
-                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
@@ -662,7 +660,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
-                "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "core-test-types-list-as-string": "Always",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -671,7 +670,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/tests/airbyte/__init__.py",),
             {
-                "affected-providers-list-as-string": "airbyte",
+                "selected-providers-list-as-string": "airbyte",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -686,7 +685,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[airbyte]",
+                "core-test-types-list-as-string": "Always",
+                "providers-test-types-list-as-string": "Providers[airbyte]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -695,7 +695,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/amazon/file.py",),
             {
-                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
@@ -712,7 +712,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "core-test-types-list-as-string": "Always",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -725,7 +726,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "providers/tests/common/io/operators/test_file_transfer.py",
             ),
             {
-                "affected-providers-list-as-string": "common.compat common.io openlineage",
+                "selected-providers-list-as-string": "common.compat common.io openlineage",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -740,7 +741,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[common.compat,common.io,openlineage]",
+                "core-test-types-list-as-string": "Always",
+                "providers-test-types-list-as-string": "Providers[common.compat,common.io,openlineage]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow', 'mypy-providers']",
             },
@@ -749,7 +751,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/standard/operators/bash.py",),
             {
-                "affected-providers-list-as-string": "common.compat standard",
+                "selected-providers-list-as-string": "common.compat standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -764,7 +766,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[common.compat,standard] Serialization",
+                "core-test-types-list-as-string": "Always Core Serialization",
+                "providers-test-types-list-as-string": "Providers[common.compat,standard]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -773,7 +776,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/standard/operators/bash.py",),
             {
-                "affected-providers-list-as-string": None,
+                "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -788,7 +791,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[common.compat,standard] Serialization",
+                "core-test-types-list-as-string": "Always Core Serialization",
+                "providers-test-types-list-as-string": "Providers[common.compat,standard]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -798,7 +802,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("tests/utils/test_cli_util.py",),
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -812,7 +816,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -824,7 +828,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("tests_common/__init__.py",),
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -838,7 +842,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -850,7 +854,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/ui/src/index.tsx",),
                 {
-                    "affected-providers-list-as-string": None,
+                    "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -864,7 +868,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "false",
                     "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always",
+                    "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "",
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
@@ -1019,7 +1023,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ("full tests needed", "all versions"),
                 "main",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-versions": "true",
                     "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
                     "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
@@ -1038,7 +1042,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -1053,7 +1057,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ("full tests needed", "default versions only"),
                 "main",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "all-versions": "false",
@@ -1072,7 +1076,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -1087,7 +1091,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ("full tests needed",),
                 "main",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "all-versions": "false",
@@ -1106,7 +1110,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -1121,7 +1125,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ("full tests needed", "latest versions only"),
                 "main",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.12']",
                     "all-python-versions-list-as-string": "3.12",
                     "all-versions": "false",
@@ -1141,7 +1145,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -1159,7 +1163,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ),
                 "main",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "all-versions": "false",
@@ -1176,7 +1180,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
@@ -1191,7 +1195,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ("full tests needed",),
                 "main",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "all-versions": "false",
@@ -1208,12 +1212,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
-                    "separate-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
-                    "CLI Core ExternalPython Operators Other PlainAsserts "
-                    + LIST_OF_ALL_PROVIDER_TESTS
-                    + " PythonVenv Serialization WWW",
+                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
@@ -1227,7 +1228,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                 ("full tests needed",),
                 "v2-7-stable",
                 {
-                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -1242,12 +1242,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always BranchExternalPython "
-                    "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
-                    "PythonVenv Serialization WWW",
-                    "separate-test-types-list-as-string": "API Always BranchExternalPython "
-                    "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
-                    "PythonVenv Serialization WWW",
+                    "core-test-types-list-as-string": "API Always CLI Core Operators Other "
+                    "Serialization WWW",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
@@ -1279,7 +1275,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             ("INTHEWILD.md",),
             {
-                "affected-providers-list-as-string": None,
+                "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "false",
@@ -1290,7 +1286,7 @@ def test_expected_output_full_tests_needed(
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": None,
+                "core-test-types-list-as-string": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1302,9 +1298,6 @@ def test_expected_output_full_tests_needed(
                 "providers/tests/google/file.py",
             ),
             {
-                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
-                "common.compat common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "needs-helm-tests": "false",
@@ -1317,7 +1310,7 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "Always",
+                "core-test-types-list-as-string": "Always",
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1331,10 +1324,6 @@ def test_expected_output_full_tests_needed(
                 "providers/tests/google/file.py",
             ),
             {
-                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.compat common.sql facebook google "
-                "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1347,7 +1336,7 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "Always CLI",
+                "core-test-types-list-as-string": "Always CLI",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1359,7 +1348,6 @@ def test_expected_output_full_tests_needed(
                 "providers/tests/google/file.py",
             ),
             {
-                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1372,8 +1360,7 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
-                "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
+                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1397,12 +1384,99 @@ def test_expected_output_pull_request_v2_7(
 
 
 @pytest.mark.parametrize(
+    "files, pr_labels, default_branch, expected_outputs,",
+    [
+        pytest.param(
+            ("INTHEWILD.md",),
+            (),
+            "main",
+            {
+                "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
+                "ci-image-build": "true",
+                "prod-image-build": "true",
+                "needs-helm-tests": "true",
+                "run-tests": "true",
+                "docs-build": "true",
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                "upgrade-to-newer-dependencies": "true",
+                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+            },
+            id="All tests run on push even if unimportant file changed",
+        ),
+        pytest.param(
+            ("INTHEWILD.md",),
+            (),
+            "v2-3-stable",
+            {
+                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
+                "ci-image-build": "true",
+                "prod-image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
+                "docs-list-as-string": "apache-airflow docker-stack",
+                "upgrade-to-newer-dependencies": "true",
+                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+            },
+            id="All tests except Providers and Helm run on push"
+            " even if unimportant file changed in non-main branch",
+        ),
+        pytest.param(
+            ("airflow/api.py",),
+            (),
+            "main",
+            {
+                "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
+                "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
+                "ci-image-build": "true",
+                "prod-image-build": "true",
+                "needs-helm-tests": "true",
+                "run-tests": "true",
+                "docs-build": "true",
+                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "upgrade-to-newer-dependencies": "true",
+                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+            },
+            id="All tests run on push if core file changed",
+        ),
+    ],
+)
+def test_expected_output_push(
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
+    default_branch: str,
+    expected_outputs: dict[str, str],
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        pr_labels=pr_labels,
+        default_branch=default_branch,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
     "files, expected_outputs,",
     [
         pytest.param(
             ("INTHEWILD.md",),
             {
-                "affected-providers-list-as-string": None,
+                "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "false",
@@ -1414,7 +1488,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
                 "mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": None,
+                "core-test-types-list-as-string": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1423,7 +1497,7 @@ def test_expected_output_pull_request_v2_7(
         pytest.param(
             ("tests/system/any_file.py",),
             {
-                "affected-providers-list-as-string": None,
+                "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1436,7 +1510,7 @@ def test_expected_output_pull_request_v2_7(
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "Always",
+                "core-test-types-list-as-string": "Always",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1449,7 +1523,7 @@ def test_expected_output_pull_request_v2_7(
                 "providers/tests/google/file.py",
             ),
             {
-                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
@@ -1468,8 +1542,8 @@ def test_expected_output_pull_request_v2_7(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "Always CLI Providers[amazon] "
-                "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
+                "core-test-types-list-as-string": "Always CLI",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
@@ -1486,7 +1560,7 @@ def test_expected_output_pull_request_v2_7(
                 "airflow/api/file.py",
             ),
             {
-                "affected-providers-list-as-string": "common.compat fab",
+                "selected-providers-list-as-string": "common.compat fab",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1500,7 +1574,8 @@ def test_expected_output_pull_request_v2_7(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "API Always CLI Operators Providers[common.compat,fab] WWW",
+                "core-test-types-list-as-string": "API Always CLI Operators WWW",
+                "providers-test-types-list-as-string": "Providers[common.compat,fab]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1522,7 +1597,7 @@ def test_expected_output_pull_request_v2_7(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
+                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1544,7 +1619,7 @@ def test_expected_output_pull_request_v2_7(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
+                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1554,7 +1629,7 @@ def test_expected_output_pull_request_v2_7(
         pytest.param(
             ("airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
             {
-                "affected-providers-list-as-string": None,
+                "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1566,7 +1641,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
                 "mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-www",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": None,
+                "core-test-types-list-as-string": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1584,95 +1659,6 @@ def test_expected_output_pull_request_target(
         github_event=GithubEvents.PULL_REQUEST_TARGET,
         pr_labels=(),
         default_branch="main",
-    )
-    assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
-@pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
-    [
-        pytest.param(
-            ("INTHEWILD.md",),
-            (),
-            "main",
-            {
-                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
-                "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
-                "ci-image-build": "true",
-                "prod-image-build": "true",
-                "needs-helm-tests": "true",
-                "run-tests": "true",
-                "docs-build": "true",
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
-                "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
-            },
-            id="All tests run on push even if unimportant file changed",
-        ),
-        pytest.param(
-            ("INTHEWILD.md",),
-            (),
-            "v2-3-stable",
-            {
-                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
-                "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
-                "ci-image-build": "true",
-                "prod-image-build": "true",
-                "needs-helm-tests": "false",
-                "run-tests": "true",
-                "docs-build": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
-                "docs-list-as-string": "apache-airflow docker-stack",
-                "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
-                "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
-            },
-            id="All tests except Providers and Helm run on push"
-            " even if unimportant file changed in non-main branch",
-        ),
-        pytest.param(
-            ("airflow/api.py",),
-            (),
-            "main",
-            {
-                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.9', '3.10', '3.11', '3.12']",
-                "all-python-versions-list-as-string": "3.9 3.10 3.11 3.12",
-                "ci-image-build": "true",
-                "prod-image-build": "true",
-                "needs-helm-tests": "true",
-                "run-tests": "true",
-                "docs-build": "true",
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
-            },
-            id="All tests run on push if core file changed",
-        ),
-    ],
-)
-def test_expected_output_push(
-    files: tuple[str, ...],
-    pr_labels: tuple[str, ...],
-    default_branch: str,
-    expected_outputs: dict[str, str],
-):
-    stderr = SelectiveChecks(
-        files=files,
-        commit_ref=NEUTRAL_COMMIT,
-        github_event=GithubEvents.PUSH,
-        pr_labels=pr_labels,
-        default_branch=default_branch,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
@@ -1708,7 +1694,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),
-            "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+            "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
             "needs-mypy": "true",
             "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
         },

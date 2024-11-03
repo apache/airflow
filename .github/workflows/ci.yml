@@ -58,8 +58,8 @@ jobs:
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
-      affected-providers-list-as-string: >-
-        ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
+      selected-providers-list-as-string: >-
+        ${{ steps.selective-checks.outputs.selected-providers-list-as-string }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
@@ -79,12 +79,12 @@ jobs:
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
       force-pip: ${{ steps.selective-checks.outputs.force-pip }}
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
-      parallel-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
-      separate-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
+      individual-providers-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.individual-providers-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
@@ -336,7 +336,7 @@ jobs:
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+      selected-providers-list-as-string: ${{ needs.build-info.outputs.selected-providers-list-as-string }}
       providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -379,7 +379,7 @@ jobs:
       backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -404,7 +404,7 @@ jobs:
       backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -431,7 +431,7 @@ jobs:
       backend-versions: "['']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -458,7 +458,7 @@ jobs:
       backend-versions: "['']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -480,7 +480,7 @@ jobs:
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      core-test-types-list-as-string: ${{ needs.build-info.outputs.core-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -531,7 +531,8 @@ jobs:
       backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: "[]"
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
+      # yamllint disable rule:line-length
+      core-test-types-list-as-string: ${{ needs.build-info.outputs.individual-providers-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}

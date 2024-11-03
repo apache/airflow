@@ -21,7 +21,7 @@ export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
 
 if [[ ! "$#" -eq 1 ]]; then
-    echo "${COLOR_RED}You must provide exactly one argument!.${COLOR_RESET}"
+    echo "${COLOR_RED}You must provide exactly one argument. Integration!.${COLOR_RESET}"
     exit 1
 fi
 

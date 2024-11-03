@@ -75,34 +75,28 @@ This applies to all kind of tests - all our tests can be run using pytest.
 Running unit tests with ``breeze testing`` commands
 ...................................................
 
-An option you have is that you can also run tests via built-in ``breeze testing tests`` command - which
-is a "swiss-army-knife" of unit testing with Breeze. This command has a lot of parameters and is very
-flexible thus might be a bit overwhelming.
-
-In most cases if you want to run tess you want to use dedicated ``breeze testing db-tests``
-or ``breeze testing non-db-tests`` commands that automatically run groups of tests that allow you to choose
-subset of tests to run (with ``--parallel-test-types`` flag)
+An option you have is that you can also run tests via built-in ``breeze testing *tests*`` commands - which
+is a "swiss-army-knife" of unit testing with Breeze. You can run all groups of tests with that Airflow
+supports with one of the commands below.
 
 
-Using ``breeze testing tests`` command
-......................................
+Using ``breeze testing core-tests`` command
+...........................................
 
-The ``breeze testing tests`` command is that you can easily specify sub-set of the tests -- including
-selecting specific Providers tests to run.
+The ``breeze testing core-tests`` command is that you can run for all or specify sub-set of the tests
+for Core.
 
-For example this will only run provider tests for airbyte and http providers:
+For example this will run all core tests :
 
 .. code-block:: bash
 
-   breeze testing tests --test-type "Providers[airbyte,http]"
+   breeze testing core-tests
 
-You can also exclude tests for some providers from being run when whole "Providers" test type is run.
-
-For example this will run tests for all providers except amazon and google provider tests:
+For example this will only run "Other" tests :
 
 .. code-block:: bash
 
-   breeze testing tests --test-type "Providers[-amazon,google]"
+   breeze testing core-tests --test-type "Other"
 
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
@@ -114,25 +108,17 @@ For example this will run API and WWW tests in parallel:
 
     breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
 
-There are few special types of tests that you can run:
-
-* ``All`` - all tests are run in single pytest run.
-* ``All-Postgres`` - runs all tests that require Postgres database
-* ``All-MySQL`` - runs all tests that require MySQL database
-* ``All-Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
-  decorator)
-
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
-.. image:: ./images/output_testing_tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_tests.svg
+.. image:: ./images/output_testing_core-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_core-tests.svg
   :width: 100%
-  :alt: Breeze testing tests
+  :alt: Breeze testing core-tests
 
-Using ``breeze testing db-tests`` command
-.........................................
+Using ``breeze testing core-db-tests`` command
+..............................................
 
-The ``breeze testing db-tests`` command is simplified version of the ``breeze testing tests`` command
+The ``breeze testing core-db-tests`` command is simplified version of the ``breeze testing core-tests`` command
 that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
 The DB-bound tests are the ones that require a database to be started and configured separately for
 each test type run and they are run in parallel containers/parallel docker compose projects to
@@ -147,33 +133,33 @@ Run all DB tests:
 
 .. code-block:: bash
 
-   breeze testing db-tests
+   breeze testing core-db-tests
 
 Only run DB tests from "API CLI WWW" test types:
 
 .. code-block:: bash
 
-   breeze testing db-tests --parallel-test-types "API CLI WWW"
+   breeze testing core-db-tests --parallel-test-types "API CLI WWW"
 
 Run all DB tests excluding those in CLI and WWW test types:
 
 .. code-block:: bash
 
-   breeze testing db-tests --excluded-parallel-test-types "CLI WWW"
+   breeze testing core-db-tests --excluded-parallel-test-types "CLI WWW"
 
-Here is the detailed set of options for the ``breeze testing db-tests`` command.
+Here is the detailed set of options for the ``breeze testing core-db-tests`` command.
 
-.. image:: ./images/output_testing_db-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_db-tests.svg
+.. image:: ./images/output_testing_core-db-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_core-db-tests.svg
   :width: 100%
-  :alt: Breeze testing db-tests
+  :alt: Breeze testing core-db-tests
 
 
-Using ``breeze testing non-db-tests`` command
-.........................................
+Using ``breeze testing core-non-db-tests`` command
+..................................................
 
-The ``breeze testing non-db-tests`` command is simplified version of the ``breeze testing tests`` command
-that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
+The ``breeze testing core-non-db-tests`` command is simplified version of the ``breeze testing core-tests``
+command that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
 The non-DB-bound tests are the ones that do not expect a database to be started and configured and we can
 utilise multiple CPUs your machine has via ``pytest-xdist`` plugin - thus allowing you to quickly
 run few groups of tests in parallel using single container rather than many of them as it is the case for
@@ -187,34 +173,136 @@ Run all non-DB tests:
 
 .. code-block:: bash
 
-   breeze testing non-db-tests
+   breeze testing core-non-db-tests
 
 Only run non-DB tests from "API CLI WWW" test types:
 
 .. code-block:: bash
 
-   breeze testing non-db-tests --parallel-test-types "API CLI WWW"
+   breeze testing core-non-db-tests --parallel-test-types "API CLI WWW"
 
 Run all non-DB tests excluding those in CLI and WWW test types:
 
 .. code-block:: bash
 
-   breeze testing non-db-tests --excluded-parallel-test-types "CLI WWW"
+   breeze testing core-non-db-tests --excluded-parallel-test-types "CLI WWW"
 
-Here is the detailed set of options for the ``breeze testing non-db-tests`` command.
+Here is the detailed set of options for the ``breeze testing core-non-db-tests`` command.
 
-.. image:: ./images/output_testing_non-db-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_non-db-tests.svg
+.. image:: ./images/output_testing_core-non-db-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_core-non-db-tests.svg
   :width: 100%
-  :alt: Breeze testing non-db-tests
+  :alt: Breeze testing core-non-db-tests
+
+Using ``breeze testing providers-tests`` command
+................................................
+
+The ``breeze testing providers-tests`` command is that you can run for all or specify sub-set of the tests
+for Providers.
+
+For example this will run all provider tests tests :
+
+.. code-block:: bash
+
+   breeze testing providers-tests
+
+This will only run "amazon" and "google" provider tests :
+
+.. code-block:: bash
+
+   breeze testing providers-tests --test-type "Providers[amazon,google]"
+
+You can also run "all but" provider tests - this will run all providers tests except amazon and google :
+
+.. code-block:: bash
+
+   breeze testing providers-tests --test-type "Providers[-amazon,google]"
+
+You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
+in parallel, but you can specify the test type that you want to run with space separated list of test
+types passed to ``--parallel-test-types`` flag.
+
+For example this will run API and WWW tests in parallel:
+
+.. code-block:: bash
+
+    breeze testing tests --parallel-test-types "Providers[amazon] Providers[google]" --run-in-parallel
+
+Here is the detailed set of options for the ``breeze testing providers-test`` command.
+
+.. image:: ./images/output_testing_providers-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-tests.svg
+  :width: 100%
+  :alt: Breeze testing providers-tests
+
+Using ``breeze testing providers-db-tests`` command
+...................................................
+
+The ``breeze testing providers-db-tests`` command is simplified version of the ``breeze testing providers-tests`` command
+that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
+The DB-bound tests are the ones that require a database to be started and configured separately for
+each test type run and they are run in parallel containers/parallel docker compose projects to
+utilise multiple CPUs your machine has - thus allowing you to quickly run few groups of tests in parallel.
+This command is used in CI to run DB tests.
+
+By default this command will run complete set of test types we have, thus allowing you to see result
+of all DB tests we have but you can choose a subset of test types to run by ``--parallel-test-types``
+flag or exclude some test types by specifying ``--excluded-parallel-test-types`` flag.
+
+Run all DB tests:
+
+.. code-block:: bash
+
+   breeze testing providers-db-tests
+
+You can also specify subset of tests similar to the ``breeze testing providers-tests`` command.
+
+Here is the detailed set of options for the ``breeze testing providers-db-tests`` command.
+
+.. image:: ./images/output_testing_providers-db-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-db-tests.svg
+  :width: 100%
+  :alt: Breeze testing providers-db-tests
+
+
+Using ``breeze testing providers-non-db-tests`` command
+.......................................................
+
+The ``breeze testing providers-non-db-tests`` command is simplified version of the ``breeze testing providers-tests``
+command that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
+The non-DB-bound tests are the ones that do not expect a database to be started and configured and we can
+utilise multiple CPUs your machine has via ``pytest-xdist`` plugin - thus allowing you to quickly
+run few groups of tests in parallel using single container rather than many of them as it is the case for
+DB-bound tests. This command is used in CI to run Non-DB tests.
+
+By default this command will run complete set of test types we have, thus allowing you to see result
+of all DB tests we have but you can choose a subset of test types to run by ``--parallel-test-types``
+flag or exclude some test types by specifying ``--excluded-parallel-test-types`` flag.
+
+Run all non-DB tests:
+
+.. code-block:: bash
+
+   breeze testing providers-non-db-tests
+
+Only run non-DB tests from "API CLI WWW" test types:
+
+You can also specify subset of tests similar to the ``breeze testing providers-tests`` command.
+
+Here is the detailed set of options for the ``breeze testing providers-non-db-tests`` command.
+
+.. image:: ./images/output_testing_providers-non-db-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_providers-non-db-tests.svg
+  :width: 100%
+  :alt: Breeze testing providers-non-db-tests
 
 
 Using ``breeze testing task-sdk-tests`` command
-............................................
+...............................................
 
-The ``breeze testing task-sdk-tests`` command is simplified version of the ``breeze testing tests`` command
-that allows you to run tests for Task SDK without initializing database. The Task SDK should not need
-database to be started so this acts as a good check to see if the Task SDK tests are working properly.
+The ``breeze testing task-sdk-tests`` command is  allows you to run tests for Task SDK without
+initializing database. The Task SDK should not need database to be started so this acts as a
+good check to see if the Task SDK tests are working properly.
 
 Run all Task SDK tests:
 
@@ -230,26 +318,90 @@ Here is the detailed set of options for the ``breeze testing task-sdk-tests`` co
   :alt: Breeze testing task-sdk-tests
 
 
-Running integration tests
-.........................
+Running integration core tests
+...............................
 
-You can also run integration tests via built-in ``breeze testing integration-tests`` command. Some of our
-tests require additional integrations to be started in docker-compose. The integration tests command will
-run the expected integration and tests that need that integration.
+You can also run integration core tests via built-in ``breeze testing integration-core-tests`` command.
+Some of our core tests require additional integrations to be started in docker-compose.
+The integration tests command will run the expected integration and tests that need that integration.
 
 For example this will only run kerberos tests:
 
 .. code-block:: bash
 
-   breeze testing integration-tests --integration kerberos
+   breeze testing integration-core-tests --integration kerberos
 
+Here is the detailed set of options for the ``breeze testing integration-core-tests`` command.
 
-Here is the detailed set of options for the ``breeze testing integration-tests`` command.
-
-.. image:: ./images/output_testing_integration-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_integration_tests.svg
+.. image:: ./images/output_testing_integration-core-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_integration-core-tests.svg
   :width: 100%
-  :alt: Breeze testing integration-tests
+  :alt: Breeze testing integration-core-tests
+
+Running integration providers tests
+...................................
+
+You can also run integration core tests via built-in ``breeze testing integration-providers-tests`` command.
+Some of our core tests require additional integrations to be started in docker-compose.
+The integration tests command will run the expected integration and tests that need that integration.
+
+For example this will only run kerberos tests:
+
+.. code-block:: bash
+
+   breeze testing integration-providers-tests --integration kerberos
+
+Here is the detailed set of options for the ``breeze testing integration-providers-tests`` command.
+
+.. image:: ./images/output_testing_integration-providers-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_integration-providers-tests.svg
+  :width: 100%
+  :alt: Breeze testing integration-providers-tests
+
+
+Running system core tests
+.........................
+
+You can also run system core tests via built-in ``breeze testing system-core-tests`` command.
+Some of our core system tests runs against external systems and we can run them providing that
+credentials are configured to connect to those systems. Usually you should run only one or
+set of related tests this way.
+
+For example this will only run example_external_task_child_deferrable tests:
+
+.. code-block:: bash
+
+   breeze testing system-core-tests tests/system/core/example_external_task_child_deferrable.py
+
+Here is the detailed set of options for the ``breeze testing system-core-tests`` command.
+
+.. image:: ./images/output_testing_system-core-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_system-core-tests.svg
+  :width: 100%
+  :alt: Breeze testing system-core-tests
+
+
+Running system providers tests
+..............................
+
+You can also run system providers tests via built-in ``breeze testing system-providers-tests`` command.
+Some of our providers system tests runs against external systems and we can run them providing that
+credentials are configured to connect to those systems. Usually you should run only one or
+set of related tests this way.
+
+For example this will only run providers/tests/system/amazon/aws/example_appflow.py tests:
+
+.. code-block:: bash
+
+   breeze testing system-providers-tests providers/tests/system/amazon/aws/example_appflow.py
+
+Here is the detailed set of options for the ``breeze testing system-providers-tests`` command.
+
+.. image:: ./images/output_testing_system-providers-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_system-providers-tests.svg
+  :width: 100%
+  :alt: Breeze testing system-providers-tests
+
 
 
 Running Helm unit tests

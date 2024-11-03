@@ -60,6 +60,7 @@ from airflow_breeze.global_constants import (
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
     GithubEvents,
+    GroupOfTests,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -162,7 +163,6 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    helm_test_package: str | None = None
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
@@ -200,11 +200,11 @@ class ShellParams:
     skip_environment_initialization: bool = False
     skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
-    skip_provider_tests: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
+    test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
     use_airflow_version: str | None = None
@@ -536,7 +536,6 @@ class ShellParams:
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
-        _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
@@ -578,6 +577,7 @@ class ShellParams:
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
+        _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)

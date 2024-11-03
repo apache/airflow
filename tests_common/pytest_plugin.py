@@ -293,18 +293,6 @@ def pytest_addoption(parser: pytest.Parser):
         dest="include_quarantined",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
     )
-    group.addoption(
-        "--exclude-virtualenv-operator",
-        action="store_true",
-        dest="exclude_virtualenv_operator",
-        help="Excludes virtualenv operators tests (marked with virtualenv_test marker).",
-    )
-    group.addoption(
-        "--exclude-external-python-operator",
-        action="store_true",
-        dest="exclude_external_python_operator",
-        help="Excludes external python operator tests (marked with external_python_test marker).",
-    )
     allowed_trace_sql_columns_list = ",".join(ALLOWED_TRACE_SQL_COLUMNS)
     group.addoption(
         "--trace-sql",
@@ -574,22 +562,6 @@ def skip_quarantined_test(item):
         )
 
 
-def skip_virtualenv_operator_test(item):
-    for _ in item.iter_markers(name="virtualenv_operator"):
-        pytest.skip(
-            f"The test is skipped because it has virtualenv_operator marker. "
-            f"And --exclude-virtualenv-operator flag is not passed to pytest. {item}"
-        )
-
-
-def skip_external_python_operator_test(item):
-    for _ in item.iter_markers(name="external_python_operator"):
-        pytest.skip(
-            f"The test is skipped because it has external_python_operator marker. "
-            f"And --exclude-external-python-operator flag is not passed to pytest. {item}"
-        )
-
-
 def skip_db_test(item):
     if next(item.iter_markers(name="db_test"), None):
         if next(item.iter_markers(name="non_db_test_override"), None):
@@ -677,8 +649,6 @@ def pytest_runtest_setup(item):
 
     include_long_running = item.config.option.include_long_running
     include_quarantined = item.config.option.include_quarantined
-    exclude_virtualenv_operator = item.config.option.exclude_virtualenv_operator
-    exclude_external_python_operator = item.config.option.exclude_external_python_operator
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
@@ -700,10 +670,6 @@ def pytest_runtest_setup(item):
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
-    if exclude_virtualenv_operator:
-        skip_virtualenv_operator_test(item)
-    if exclude_external_python_operator:
-        skip_external_python_operator_test(item)
     if skip_db_tests:
         skip_db_test(item)
     if run_db_tests_only:

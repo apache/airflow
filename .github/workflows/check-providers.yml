@@ -40,7 +40,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies"
         required: true
         type: string
-      affected-providers-list-as-string:
+      selected-providers-list-as-string:
         description: "List of affected providers as string"
         required: false
         type: string
@@ -163,7 +163,7 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
           --version-suffix-for-pypi dev0 --package-format sdist
-          ${{ inputs.affected-providers-list-as-string }}
+          ${{ inputs.selected-providers-list-as-string }}
       - name: "Prepare airflow package: sdist"
         run: >
           breeze release-management prepare-airflow-package
@@ -187,7 +187,7 @@ jobs:
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
           --run-in-parallel
-        if: inputs.affected-providers-list-as-string == ''
+        if: inputs.selected-providers-list-as-string == ''
       - name: "Install affected provider packages and airflow via sdist files"
         run: >
           breeze release-management install-provider-packages
@@ -198,7 +198,7 @@ jobs:
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
           --run-in-parallel
-        if: inputs.affected-providers-list-as-string != ''
+        if: inputs.selected-providers-list-as-string != ''
 
   providers-compatibility-checks:
     timeout-minutes: 80

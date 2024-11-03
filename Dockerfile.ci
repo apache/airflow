@@ -1068,12 +1068,6 @@ function check_run_tests() {
         python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
     fi
 
-    if [[ ${TEST_TYPE} == "PlainAsserts" ]]; then
-       # Plain asserts should be converted to env variable to make sure they are taken into account
-       # otherwise they will not be effective during test collection when plain assert is breaking collection
-       export PYTEST_PLAIN_ASSERTS="true"
-    fi
-
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Starting internal API server:${COLOR_RESET}"
         # We need to start the internal API server before running tests
