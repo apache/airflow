@@ -1109,7 +1109,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1145,7 +1145,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1181,7 +1181,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1217,7 +1217,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1253,7 +1253,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1289,7 +1289,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1325,7 +1325,7 @@ def test_task_instances(admin_client):
             "external_executor_id": None,
             "hostname": "",
             "id": unittest.mock.ANY,  # Ignore the `id` field
-            "job_id": None,
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,

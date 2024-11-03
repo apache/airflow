@@ -159,7 +159,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             wait_for_past_depends_before_skipping=self.wait_for_past_depends_before_skipping,
             ignore_task_deps=self.ignore_task_deps,
             ignore_ti_state=self.ignore_ti_state,
-            job_id=str(self.job.id),
             pool=self.pool,
             external_executor_id=self.external_executor_id,
         ):
@@ -319,6 +318,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
                 raise AirflowException("PID of job runner does not match")
+            ti.update_heartbeat()
+
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
             self._overtime = (timezone.utcnow() - (ti.end_date or timezone.utcnow())).total_seconds()
             if ti.state == TaskInstanceState.SKIPPED:
