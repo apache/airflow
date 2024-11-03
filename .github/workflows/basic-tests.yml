@@ -201,9 +201,6 @@ jobs:
               --package-format wheel --skip-tag-check
       - name: "Install Airflow with fab for webserver tests"
         run: pip install . dist/apache_airflow_providers_fab-*.whl
-      - name: "Prepare Standard provider packages: wheel"
-        run: >
-          breeze release-management prepare-provider-packages standard --package-format wheel --skip-tag-check
       - name: "Install Airflow with standard provider for webserver tests"
         run: pip install . dist/apache_airflow_providers_standard-*.whl
       - name: "Prepare Task SDK package: wheel"
@@ -288,16 +285,11 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
         with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: "\
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-\
-            ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-"
+          python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
         with:

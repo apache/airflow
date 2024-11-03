@@ -68,7 +68,6 @@ class TestTaskInstanceEndpoint:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "job_id": 0,
         }
         clear_db_runs()
         clear_rendered_ti_fields()
@@ -394,3 +393,69 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "Task instance is mapped, add the map_index value to the URL"}
+
+
+class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
+    def test_should_respond_200_mapped_task_instance_with_rtif(self, test_client, session):
+        """Verify we don't duplicate rows through join to RTIF"""
+        tis = self.create_task_instances(session)
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            response = test_client.get(
+                "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                f"/print_the_context/{map_index}",
+            )
+            assert response.status_code == 200
+
+            assert response.json() == {
+                "dag_id": "example_python_operator",
+                "duration": 10000.0,
+                "end_date": "2020-01-03T00:00:00Z",
+                "logical_date": "2020-01-01T00:00:00Z",
+                "executor": None,
+                "executor_config": "{}",
+                "hostname": "",
+                "map_index": map_index,
+                "max_tries": 0,
+                "note": "placeholder-note",
+                "operator": "PythonOperator",
+                "pid": 100,
+                "pool": "default_pool",
+                "pool_slots": 1,
+                "priority_weight": 9,
+                "queue": "default_queue",
+                "queued_when": None,
+                "start_date": "2020-01-02T00:00:00Z",
+                "state": "running",
+                "task_id": "print_the_context",
+                "task_display_name": "print_the_context",
+                "try_number": 0,
+                "unixname": getuser(),
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_map_index": None,
+                "trigger": None,
+                "triggerer_job": None,
+            }
+
+    def test_should_respond_404_wrong_map_index(self, test_client, session):
+        self.create_task_instances(session)
+
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/10",
+        )
+        assert response.status_code == 404
+
+        assert response.json() == {
+            "detail": "The Mapped Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, and map_index: `10` was not found"
+        }

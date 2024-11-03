@@ -104,6 +104,7 @@ def get_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instance(

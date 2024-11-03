@@ -32,10 +32,15 @@ try:
 except ImportError:
     get_console().print(
         "\n[error]Breeze doesn't support Python version <=3.8\n\n"
-        "[warning]Use Python 3.9 and force reinstall breeze with pipx\n\n"
-        "     pipx install --force -e ./dev/breeze\n"
+        "[warning]Use Python 3.9 and force reinstall breeze:"
+        ""
+        " either with uv: \n\n"
+        "     uv tool install --force --reinstall --editable ./dev/breeze\n\n"
+        ""
+        " or with pipx\n\n"
+        "     pipx install --force -e ./dev/breeze --python 3.9\n"
         "\nTo find out more, visit [info]https://github.com/apache/airflow/"
-        "blob/main/dev/breeze/doc/01_installation.rst#the-pipx-tool[/]\n"
+        "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
     )
     sys.exit(1)
 from pathlib import Path
@@ -179,6 +184,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
+UV_VERSION = "0.4.29"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -252,13 +258,16 @@ ALLOWED_HELM_TEST_PACKAGES = [
 
 @cache
 def all_task_sdk_test_packages() -> list[str]:
-    return sorted(
-        [
-            candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
-            if candidate.is_dir() and candidate.name != "__pycache__"
-        ]
-    )
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
 
 
 ALLOWED_TASK_SDK_TEST_PACKAGES = [
@@ -408,6 +417,7 @@ COMMITTERS = [
     "feluelle",
     "feng-tao",
     "ferruzzi",
+    "gopidesupavan",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -439,6 +449,7 @@ COMMITTERS = [
     "saguziel",
     "sekikn",
     "shahar1",
+    "tirkarthi",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -553,7 +564,6 @@ DEFAULT_EXTRAS = [
     "ssh",
     "statsd",
     "uv",
-    "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
@@ -347,7 +346,6 @@ def test_folders_for_parallel_test_types(
         convert_parallel_types_to_folders(
             parallel_test_types_list=parallel_test_types.split(" "),
             skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == folders
     )

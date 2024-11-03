@@ -22,9 +22,6 @@ from logging.config import dictConfig
 
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.listeners.listener import get_listener_manager
-
 
 @pytest.fixture(scope="module", autouse=True)
 def reset_to_default_logging():
@@ -33,6 +30,10 @@ def reset_to_default_logging():
     This fixture reset back logging to default after execution of separate module  in this test package.
     """
     yield
+
+    from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+    from airflow.listeners.listener import get_listener_manager
+
     airflow_logger = logging.getLogger("airflow")
     airflow_logger.handlers = []
     dictConfig(DEFAULT_LOGGING_CONFIG)

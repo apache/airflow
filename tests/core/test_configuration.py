@@ -1552,8 +1552,8 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg = AirflowConfigParser()
         airflow_cfg.remove_all_read_configurations()
         default_options = airflow_cfg.get_options_including_defaults("core")
-        assert "task_runner" in default_options
-        assert "StandardTaskRunner" == airflow_cfg.get("core", "task_runner")
+        assert "hostname_callable" in default_options
+        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
         assert "test-key" not in default_options
         no_options = airflow_cfg.get_options_including_defaults("test-section")
         assert no_options == []
@@ -1561,16 +1561,16 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg.set("test-section", "test-key", "test-value")
         test_section_options = airflow_cfg.get_options_including_defaults("test-section")
         assert "test-key" in test_section_options
-        assert "StandardTaskRunner" == airflow_cfg.get("core", "task_runner")
+        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
         airflow_cfg.add_section("core")
         airflow_cfg.set("core", "new-test-key", "test-value")
-        airflow_cfg.set("core", "task_runner", "test-runner")
+        airflow_cfg.set("core", "hostname_callable", "test-fn")
         all_core_options_including_defaults = airflow_cfg.get_options_including_defaults("core")
         assert "new-test-key" in all_core_options_including_defaults
         assert "dags_folder" in all_core_options_including_defaults
         assert "test-value" == airflow_cfg.get("core", "new-test-key")
-        assert "test-runner" == airflow_cfg.get("core", "task_runner")
-        assert sum(1 for option in all_core_options_including_defaults if option == "task_runner") == 1
+        assert "test-fn" == airflow_cfg.get("core", "hostname_callable")
+        assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
 
 def test_sensitive_values():

@@ -34,7 +34,7 @@ from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+from airflow.task.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
@@ -82,6 +82,38 @@ def propagate_task_logger():
     finally:
         if _propagate is False:
             h.maintain_propagate = _propagate
+
+
+@pytest.mark.parametrize(["impersonation"], (("nobody",), ("airflow",), (None,)))
+@mock.patch("subprocess.check_call")
+# Mock this to avoid DB calls in render template. Remove this once AIP-44 is removed as it should be able to
+# render without needing ti/DR to exist. Make it so
+@mock.patch("airflow.utils.log.logging_mixin.LoggingMixin._set_context")
+@mock.patch("airflow.task.standard_task_runner.tmp_configuration_copy")
+def test_config_copy_mode(tmp_configuration_copy, _set_context, subprocess_call, impersonation):
+    tmp_configuration_copy.return_value = "/tmp/some-string"
+
+    job = mock.Mock()
+    job.job_type = None
+    job.task_instance = mock.Mock()
+    job.task_instance.command_as_list.return_value = []
+    job.task_instance.run_as_user = impersonation
+
+    job_runner = LocalTaskJobRunner(job=job, task_instance=job.task_instance)
+    runner = StandardTaskRunner(job_runner)
+    # So we don't try to delete it -- cos the file won't exist
+    del runner._cfg_path
+
+    includes = bool(impersonation)
+
+    tmp_configuration_copy.assert_called_with(chmod=0o600, include_env=includes, include_cmds=includes)
+
+    if impersonation is None or impersonation == "airflow":
+        subprocess_call.not_assert_called()
+    else:
+        subprocess_call.assert_called_with(
+            ["sudo", "chown", impersonation, "/tmp/some-string"], close_fds=True
+        )
 
 
 @pytest.mark.usefixtures("reset_logging_config")
@@ -470,7 +502,7 @@ class TestStandardTaskRunner:
         )
 
     @pytest.mark.db_test
-    @mock.patch("airflow.task.task_runner.standard_task_runner.Stats.gauge")
+    @mock.patch("airflow.task.standard_task_runner.Stats.gauge")
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
     def test_read_task_utilization(self, mock_init, mock_stats, tmp_path):
         mock_init.return_value = (tmp_path / "test_read_task_utilization.log").as_posix()

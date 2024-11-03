@@ -102,7 +102,7 @@ class TestExecutorLoader:
                     ),
                 ],
             ),
-            # Core executors and custom module path executor and plugin
+            # Core executors and custom module path executor
             (
                 "CeleryExecutor, LocalExecutor, tests.executors.test_executor_loader.FakeExecutor",
                 [
@@ -120,7 +120,7 @@ class TestExecutorLoader:
                     ),
                 ],
             ),
-            # Core executors and custom module path executor and plugin with aliases
+            # Core executors and custom module path executor with aliases
             (
                 (
                     "CeleryExecutor, LocalExecutor, fake_exec:tests.executors.test_executor_loader.FakeExecutor"

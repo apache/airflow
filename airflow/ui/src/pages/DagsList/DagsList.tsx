@@ -19,18 +19,14 @@
 import {
   Heading,
   HStack,
-  Select,
   Skeleton,
   VStack,
   Link,
+  createListCollection,
+  type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  type ChangeEvent,
-  type ChangeEventHandler,
-  useCallback,
-  useState,
-} from "react";
+import { type ChangeEvent, useCallback, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -46,6 +42,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
+import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -74,13 +71,10 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "dag_id",
     cell: ({ row: { original } }) => (
-      <Link
-        as={RouterLink}
-        color="blue.contrast"
-        fontWeight="bold"
-        to={`/dags/${original.dag_id}`}
-      >
-        {original.dag_display_name}
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}`}>
+          {original.dag_display_name}
+        </RouterLink>
       </Link>
     ),
     header: "Dag",
@@ -136,6 +130,13 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 
 const DAGS_LIST_DISPLAY = "dags_list_display";
 
+const sortOptions = createListCollection({
+  items: [
+    { label: "Sort by Dag ID (A-Z)", value: "dag_id" },
+    { label: "Sort by Dag ID (Z-A)", value: "-dag_id" },
+  ],
+});
+
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(
@@ -188,13 +189,14 @@ export const DagsList = () => {
     tags: selectedTags,
   });
 
-  const handleSortChange = useCallback<ChangeEventHandler<HTMLSelectElement>>(
-    ({ currentTarget: { value } }) => {
+  const handleSortChange = useCallback(
+    ({ value }: SelectValueChangeDetails<Array<string>>) => {
       setTableURLState({
         pagination,
-        sorting: value
-          ? [{ desc: value.startsWith("-"), id: value.replace("-", "") }]
-          : [],
+        sorting: value.map((val) => ({
+          desc: val.startsWith("-"),
+          id: val.replace("-", ""),
+        })),
       });
     },
     [pagination, setTableURLState],
@@ -204,7 +206,7 @@ export const DagsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ isDisabled: true }}
+          buttonProps={{ disabled: true }}
           inputProps={{
             defaultValue: dagDisplayNamePattern,
             onChange: handleSearchChange,
@@ -216,17 +218,24 @@ export const DagsList = () => {
             {pluralize("Dag", data.total_entries)}
           </Heading>
           {display === "card" ? (
-            <Select
+            <Select.Root
+              collection={sortOptions}
               data-testid="sort-by-select"
-              onChange={handleSortChange}
-              placeholder="Sort by…"
-              value={orderBy}
-              variant="flushed"
+              onValueChange={handleSortChange}
+              value={orderBy === undefined ? undefined : [orderBy]}
               width="200px"
             >
-              <option value="dag_id">Sort by Dag ID (A-Z)</option>
-              <option value="-dag_id">Sort by Dag ID (Z-A)</option>
-            </Select>
+              <Select.Trigger>
+                <Select.ValueText placeholder="Sort by" />
+              </Select.Trigger>
+              <Select.Content>
+                {sortOptions.items.map((option) => (
+                  <Select.Item item={option} key={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
           ) : (
             false
           )}

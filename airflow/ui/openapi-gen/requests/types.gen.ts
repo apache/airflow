@@ -842,6 +842,15 @@ export type GetTaskInstanceData = {
 
 export type GetTaskInstanceResponse = TaskInstanceResponse;
 
+export type GetMappedTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
+
 export type DeleteVariableData = {
   variableKey: string;
 };
@@ -1546,6 +1555,33 @@ export type $OpenApiTs = {
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
     get: {
       req: GetTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
+    get: {
+      req: GetMappedTaskInstanceData;
       res: {
         /**
          * Successful Response
