@@ -341,7 +341,6 @@ def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
     """Run the main task handling code."""
     return ti._run_raw_task(
         mark_success=args.mark_success,
-        job_id=args.job_id,
         pool=args.pool,
     )
 
