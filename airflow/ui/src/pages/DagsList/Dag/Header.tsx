@@ -108,20 +108,6 @@ export const Header = ({
     </Box>
     <Flex
       alignItems="center"
-      bg={grayBg}
-      borderTopColor={grayBorder}
-      borderTopWidth={1}
-      color="gray.400"
-      fontSize="sm"
-      justifyContent="space-between"
-      px={2}
-      py={1}
-    >
-      <Text>Owner: {dag?.owners.join(", ")}</Text>
-      <DagTags tags={dag?.tags ?? []} />
-    </Flex>
-    <Flex
-      alignItems="center"
       bg="bg.muted"
       borderTopColor="border"
       borderTopWidth={1}

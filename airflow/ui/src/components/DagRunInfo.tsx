@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Tooltip, VStack, Text } from "@chakra-ui/react";
+import { VStack, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
 
 type Props = {
   readonly dataIntervalEnd?: string | null;
@@ -40,8 +41,7 @@ const DagRunInfo = ({
 }: Props) =>
   Boolean(dataIntervalStart) && Boolean(dataIntervalEnd) ? (
     <Tooltip
-      hasArrow
-      label={
+      content={
         <VStack align="left" gap={0}>
           <Text>
             Data Interval Start: <Time datetime={dataIntervalStart} />
@@ -69,6 +69,7 @@ const DagRunInfo = ({
           ) : undefined}
         </VStack>
       }
+      showArrow
     >
       <Text fontSize="sm">
         <Time datetime={dataIntervalStart} showTooltip={false} />
