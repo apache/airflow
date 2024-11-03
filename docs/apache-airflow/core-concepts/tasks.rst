@@ -182,38 +182,6 @@ many reasons, including:
 * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 
-Below is the code snippet from the Airflow scheduler that runs periodically to detect zombie tasks.
-
-.. exampleinclude:: /../../airflow/jobs/scheduler_job_runner.py
-    :language: python
-    :start-after: [START find_and_purge_zombies]
-    :end-before: [END find_and_purge_zombies]
-
-
-The explanation of the criteria used in the above snippet to detect zombie tasks is as below:
-
-1. **Task Instance State**
-
-    Only task instances in the RUNNING state are considered potential zombies.
-
-2. **Job State and Heartbeat Check**
-
-    Zombie tasks are identified if the associated job is not in the RUNNING state or if the latest heartbeat of the job is
-    earlier than the calculated time threshold (limit_dttm). The heartbeat is a mechanism to indicate that a task or job is
-    still alive and running.
-
-3. **Job Type**
-
-    The job associated with the task must be of type ``LocalTaskJob``.
-
-4. **Queued by Job ID**
-
-    Only tasks queued by the same job that is currently being processed are considered.
-
-These conditions collectively help identify running tasks that may be zombies based on their state, associated job
-state, heartbeat status, job type, and the specific job that queued them. If a task meets these criteria, it is
-considered a potential zombie, and further actions, such as logging and sending a callback request, are taken.
-
 Reproducing zombie tasks locally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
