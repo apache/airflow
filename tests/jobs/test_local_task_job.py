@@ -131,16 +131,20 @@ class TestLocalTaskJob:
         assert all(check_result_2)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_localtaskjob_heartbeat(self, dag_maker):
+    def test_localtaskjob_heartbeat(self, dag_maker, time_machine):
         session = settings.Session()
         with dag_maker("test_localtaskjob_heartbeat"):
             op1 = EmptyOperator(task_id="op1")
+
+        time_machine.move_to(DEFAULT_DATE, tick=False)
 
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
         ti.hostname = "blablabla"
         session.commit()
+
+        assert ti.last_heartbeat_at is None, "Pre-conditioncheck"
 
         job1 = Job(dag_id=ti.dag_id, executor=SequentialExecutor())
         job_runner = LocalTaskJobRunner(job=job1, task_instance=ti, ignore_ti_state=True)
@@ -149,8 +153,11 @@ class TestLocalTaskJob:
         job1.task_runner = StandardTaskRunner(job_runner)
         job1.task_runner.process = mock.Mock()
         job_runner.task_runner = job1.task_runner
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match="Hostname .* does not match"):
             job_runner.heartbeat_callback()
+
+        ti = session.get(TaskInstance, (ti.id,))
+        assert ti.last_heartbeat_at is None, "Should still be none"
 
         job1.task_runner.process.pid = 1
         ti.state = State.RUNNING
@@ -164,18 +171,21 @@ class TestLocalTaskJob:
         job_runner.heartbeat_callback(session=None)
 
         job1.task_runner.process.pid = 2
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match="PID .* does not match"):
             job_runner.heartbeat_callback()
 
         # Now, set the ti.pid to None and test that no error
         # is raised.
         ti.pid = None
-        session.merge(ti)
+        ti = session.merge(ti)
         session.commit()
         assert ti.pid != job1.task_runner.process.pid
         assert not ti.run_as_user
         assert not job1.task_runner.run_as_user
         job_runner.heartbeat_callback()
+
+        ti = session.get(TaskInstance, (ti.id,))
+        assert ti.last_heartbeat_at == DEFAULT_DATE
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @mock.patch("subprocess.check_call")
