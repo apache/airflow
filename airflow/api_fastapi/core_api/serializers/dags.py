@@ -45,7 +45,6 @@ class DAGResponse(BaseModel):
     last_parsed_time: datetime | None
     last_pickled: datetime | None
     last_expired: datetime | None
-    scheduler_lock: datetime | None
     pickle_id: datetime | None
     default_view: str | None
     fileloc: str
@@ -112,12 +111,11 @@ class DAGDetailsResponse(DAGResponse):
 
     catchup: bool
     dag_run_timeout: timedelta | None
-    dataset_expression: dict | None
+    asset_expression: dict | None
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    orientation: str
     params: abc.MutableMapping | None
     render_template_as_native_obj: bool
     template_search_path: Iterable[str] | None
@@ -156,3 +154,10 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
+
+
+class DAGTagCollectionResponse(BaseModel):
+    """DAG Tags Collection serializer for responses."""
+
+    tags: list[str]
+    total_entries: int

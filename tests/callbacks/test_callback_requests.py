@@ -124,6 +124,7 @@ class TestCallbackRequest:
             external_trigger=True,
         )
         ti = TaskInstance(task=op, run_id=dr.run_id)
+        ti.refresh_from_db()
         ti.set_state("SUCCESS")
         start_date = ti.start_date
         end_date = ti.end_date

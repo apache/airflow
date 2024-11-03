@@ -130,7 +130,7 @@ def get_upstream_asset_events(*, dag_id: str, dag_run_id: str, session: Session 
             "DAGRun not found",
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
-    events = dag_run.consumed_dataset_events
+    events = dag_run.consumed_asset_events
     return asset_event_collection_schema.dump(
         AssetEventCollection(asset_events=events, total_entries=len(events))
     )
@@ -373,6 +373,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
 @action_logging

@@ -41,7 +41,6 @@ __all__ = [
     "Pool",
     "RenderedTaskInstanceFields",
     "SkipMixin",
-    "TaskFail",
     "TaskInstance",
     "TaskReschedule",
     "Trigger",
@@ -103,7 +102,6 @@ __lazy_imports = {
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
     "SkipMixin": "airflow.models.skipmixin",
-    "TaskFail": "airflow.models.taskfail",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
     "Trigger": "airflow.models.trigger",
@@ -132,7 +130,6 @@ if TYPE_CHECKING:
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.skipmixin import SkipMixin
-    from airflow.models.taskfail import TaskFail
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
     from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule

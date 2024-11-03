@@ -820,10 +820,12 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. For example:
+   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
+   commands are:
 
 ```shell
-git checkout tags/providers-amazon-1.0.0rc1
+git fetch apache --tags
+git checkout providers-amazon/9.1.0rc1
 ```
 
 3) Remove all the packages you have in dist folder

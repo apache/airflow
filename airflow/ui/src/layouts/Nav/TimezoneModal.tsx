@@ -16,15 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-} from "@chakra-ui/react";
 import React from "react";
+
+import { Dialog } from "src/components/ui";
 
 import TimezoneSelector from "./TimezoneSelector";
 
@@ -34,16 +28,15 @@ type TimezoneModalProps = {
 };
 
 const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => (
-  <Modal isOpen={isOpen} onClose={onClose} size="xl">
-    <ModalOverlay />
-    <ModalContent>
-      <ModalHeader>Select Timezone</ModalHeader>
-      <ModalCloseButton />
-      <ModalBody>
+  <Dialog.Root onOpenChange={onClose} open={isOpen} size="xl">
+    <Dialog.Content backdrop>
+      <Dialog.Header>Select Timezone</Dialog.Header>
+      <Dialog.CloseTrigger />
+      <Dialog.Body>
         <TimezoneSelector />
-      </ModalBody>
-    </ModalContent>
-  </Modal>
+      </Dialog.Body>
+    </Dialog.Content>
+  </Dialog.Root>
 );
 
 export default TimezoneModal;

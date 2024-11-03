@@ -65,6 +65,8 @@ __all__ = [
     "DAG",
     "Asset",
     "XComArg",
+    # TODO: Remove this module in Airflow 3.2
+    "Dataset",
 ]
 
 # Perform side-effects unless someone has explicitly opted out before import
@@ -83,12 +85,13 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "version": (".version", "", False),
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
+    "Dataset": (".assets", "Dataset", True),
 }
 if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
-    from airflow.models.asset import Asset
+    from airflow.assets import Asset, Dataset
     from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg
 
@@ -97,15 +100,6 @@ def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
     module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
-        if name.startswith("PY3") and (py_minor := name[3:]) in ("6", "7", "8", "9", "10", "11", "12"):
-            warnings.warn(
-                f"Python version constraint {name!r} is deprecated and will be removed in the future. "
-                f"Please get version info from the 'sys.version_info'.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return sys.version_info >= (3, int(py_minor))
-
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     elif deprecated:
         warnings.warn(

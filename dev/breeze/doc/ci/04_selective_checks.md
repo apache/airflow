@@ -203,7 +203,7 @@ Github Actions to pass the list of parameters to a command to execute
 | kubernetes-combos-list-as-string       | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.9-v1.25.2 3.9-v1.26.4                   | *              |
 | kubernetes-versions                    | All Kubernetes versions to use for tests as JSON array                                               | ['v1.25.2']                               |                |
 | kubernetes-versions-list-as-string     | All Kubernetes versions to use for tests as space-separated string                                   | v1.25.2                                   | *              |
-| mypy-checks                           | List of folders to be considered for mypy                                                            | []                                        |                |
+| mypy-checks                            | List of folders to be considered for mypy                                                            | []                                        |                |
 | mysql-exclude                          | Which versions of MySQL to exclude for tests as JSON array                                           | []                                        |                |
 | mysql-versions                         | Which versions of MySQL to use for tests as JSON array                                               | ['5.7']                                   |                |
 | needs-api-codegen                      | Whether "api-codegen" are needed to run ("true"/"false")                                             | true                                      |                |
@@ -321,6 +321,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
 | disable image cache              | docker-cache                     | If set, the image cache is disables when building the image.                              |
+| force pip                        | force-pip                        | If set, the image build uses pip instead of uv.                                           |
 | full tests needed                | full-tests-needed                | If set, complete set of tests are run                                                     |
 | include success outputs          | include-success-outputs          | If set, outputs of successful parallel tests are shown not only failed outputs.           |
 | latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |

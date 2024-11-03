@@ -39,6 +39,7 @@ from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
+from airflow.utils.log.secrets_masker import should_hide_value_for_key
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -139,11 +140,18 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    sub_commands_to_check = {"users", "connections"}
+    sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
+    sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
     full_command = list(sys.argv)
     sub_command = full_command[1] if len(full_command) > 1 else None
-    if sub_command in sub_commands_to_check:
+    # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
+    if sub_command in sub_commands_to_check_for_sensitive_key:
+        key = full_command[-2] if len(full_command) > 3 else None
+        if key and should_hide_value_for_key(key):
+            # Mask the sensitive value since key contain sensitive keyword
+            full_command[-1] = "*" * 8
+    elif sub_command in sub_commands_to_check_for_sensitive_fields:
         for idx, command in enumerate(full_command):
             if command in sensitive_fields:
                 # For cases when password is passed as "--password xyz" (with space between key and value)

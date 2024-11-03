@@ -39,7 +39,7 @@ pytestmark = pytest.mark.db_test
 class TestEdgeWorker:
     @pytest.fixture
     def cli_worker(self, tmp_path: Path) -> _EdgeWorkerCli:
-        test_worker = _EdgeWorkerCli(tmp_path / "dummy.pid", "dummy", None, 8, 5, 5)
+        test_worker = _EdgeWorkerCli(str(tmp_path / "dummy.pid"), "dummy", None, 8, 5, 5)
         return test_worker
 
     @pytest.fixture(autouse=True)

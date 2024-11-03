@@ -17,54 +17,38 @@
  * under the License.
  */
 import { Box, SimpleGrid, Skeleton } from "@chakra-ui/react";
-import {
-  type CoreRow,
-  flexRender,
-  type Table as TanStackTable,
-} from "@tanstack/react-table";
-import type { SyntheticEvent } from "react";
+import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
 
 import type { CardDef } from "./types";
 
 type DataTableProps<TData> = {
   readonly cardDef: CardDef<TData>;
   readonly isLoading?: boolean;
-  readonly onRowClick?: (e: SyntheticEvent, row: CoreRow<TData>) => void;
   readonly table: TanStackTable<TData>;
 };
 
 export const CardList = <TData,>({
   cardDef,
   isLoading,
-  onRowClick,
   table,
-}: DataTableProps<TData>) => {
-  const defaultGridProps = { column: { base: 1 }, spacing: 2 };
-
-  return (
-    <Box overflow="auto" width="100%">
-      <SimpleGrid {...{ ...defaultGridProps, ...cardDef.gridProps }}>
-        {table.getRowModel().rows.map((row) => (
-          <Box
-            _hover={onRowClick ? { cursor: "pointer" } : undefined}
-            key={row.id}
-            onClick={onRowClick ? (event) => onRowClick(event, row) : undefined}
-            title={onRowClick ? "View details" : undefined}
-          >
-            {Boolean(isLoading) &&
-              (cardDef.meta?.customSkeleton ?? (
-                <Skeleton
-                  data-testid="skeleton"
-                  display="inline-block"
-                  height={80}
-                  width="100%"
-                />
-              ))}
-            {!Boolean(isLoading) &&
-              flexRender(cardDef.card, { row: row.original })}
-          </Box>
-        ))}
-      </SimpleGrid>
-    </Box>
-  );
-};
+}: DataTableProps<TData>) => (
+  <Box overflow="auto" width="100%">
+    <SimpleGrid {...{ column: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
+      {table.getRowModel().rows.map((row) => (
+        <Box key={row.id}>
+          {Boolean(isLoading) &&
+            (cardDef.meta?.customSkeleton ?? (
+              <Skeleton
+                data-testid="skeleton"
+                display="inline-block"
+                height={80}
+                width="100%"
+              />
+            ))}
+          {!Boolean(isLoading) &&
+            flexRender(cardDef.card, { row: row.original })}
+        </Box>
+      ))}
+    </SimpleGrid>
+  </Box>
+);

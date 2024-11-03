@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Progress, Text } from "@chakra-ui/react";
+import { HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -30,9 +30,9 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef } from "react";
 
+import { ProgressBar, Pagination } from "../ui";
 import { CardList } from "./CardList";
 import { TableList } from "./TableList";
-import { TablePaginator } from "./TablePaginator";
 import { createSkeletonMock } from "./skeleton";
 import type { CardDef, MetaColumn, TableState } from "./types";
 
@@ -122,8 +122,7 @@ export const DataTable = <TData,>({
 
   return (
     <>
-      <Progress
-        isIndeterminate
+      <ProgressBar
         size="xs"
         visibility={
           Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
@@ -137,7 +136,20 @@ export const DataTable = <TData,>({
       {display === "card" && cardDef !== undefined && (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       )}
-      <TablePaginator table={table} />
+      <Pagination.Root
+        count={table.getRowCount()}
+        my={2}
+        onPageChange={(page) => table.setPageIndex(page.page - 1)}
+        page={table.getState().pagination.pageIndex + 1}
+        pageSize={table.getState().pagination.pageSize}
+        siblingCount={1}
+      >
+        <HStack>
+          <Pagination.PrevTrigger data-testid="prev" />
+          <Pagination.Items />
+          <Pagination.NextTrigger data-testid="next" />
+        </HStack>
+      </Pagination.Root>
     </>
   );
 };

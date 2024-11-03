@@ -119,7 +119,6 @@ async def patch_variable(
         data = patch_body.model_dump(exclude=non_update_fields)
     for key, val in data.items():
         setattr(variable, key, val)
-    session.add(variable)
     return variable
 
 
