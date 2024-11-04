@@ -1944,7 +1944,7 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
-        dag_version_id: str | None = None,
+        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id

@@ -100,7 +100,7 @@ def _trigger_dag(
         state=DagRunState.QUEUED,
         conf=run_conf,
         external_trigger=True,
-        dag_version_id=dag_version.id,
+        dag_version=dag_version,
         data_interval=data_interval,
         triggered_by=triggered_by,
     )

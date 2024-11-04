@@ -238,7 +238,7 @@ class DagRun(Base, LoggingMixin):
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
         backfill_id: int | None = None,
-        dag_version_id: int | None = None,
+        dag_version: DagVersion | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -263,7 +263,7 @@ class DagRun(Base, LoggingMixin):
         self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
-        self.dag_version_id = dag_version_id
+        self.dag_version = dag_version
         super().__init__()
 
     def __repr__(self):

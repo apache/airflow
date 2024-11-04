@@ -1046,7 +1046,7 @@ class TestDag:
                 execution_date=execution_date,
                 state=State.FAILED,
                 data_interval=(execution_date, execution_date),
-                dag_version_id=dag_v.id,
+                dag_version=dag_v,
                 **triggered_by_kwargs,
             )
             ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)

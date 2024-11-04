@@ -119,7 +119,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
-    from sqlalchemy_utils import UUIDType
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
@@ -259,7 +258,7 @@ def _create_orm_dagrun(
     conf,
     state,
     run_type,
-    dag_version_id,
+    dag_version,
     creating_job_id,
     data_interval,
     backfill_id,
@@ -275,7 +274,7 @@ def _create_orm_dagrun(
         conf=conf,
         state=state,
         run_type=run_type,
-        dag_version_id=dag_version_id,
+        dag_version=dag_version,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
@@ -1711,7 +1710,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
-        dag_version_id: UUIDType | None = None,
+        dag_version: DagVersion | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         backfill_id: int | None = None,
@@ -1731,7 +1730,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :param creating_job_id: id of the job creating this DagRun
         :param session: database session
-        :param dag_version_id: The DagVersion ID for this run
+        :param dag_version: The DagVersion object for this run
         :param data_interval: Data interval of the DagRun
         :param backfill_id: id of the backfill run if one exists
         """
@@ -1803,7 +1802,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_version_id=dag_version_id,
+            dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             data_interval=data_interval,
@@ -2466,7 +2465,7 @@ def _get_or_create_dagrun(
         conf=conf,
         data_interval=data_interval,
         triggered_by=triggered_by,
-        dag_version_id=dag_version.id if dag_version else None,
+        dag_version=dag_version,
     )
     log.info("created dagrun %s", dr)
     return dr

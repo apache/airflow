@@ -1358,7 +1358,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         data_interval=data_interval,
                         external_trigger=False,
                         session=session,
-                        dag_version_id=latest_dag_version.id,
+                        dag_version=latest_dag_version,
                         creating_job_id=self.job.id,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
                     )
@@ -1472,7 +1472,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     state=DagRunState.QUEUED,
                     external_trigger=False,
                     session=session,
-                    dag_version_id=latest_dag_version.id,
+                    dag_version=latest_dag_version,
                     creating_job_id=self.job.id,
                     triggered_by=DagRunTriggeredByType.ASSET,
                 )
@@ -1751,7 +1751,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Return True if we determine that DAG still exists.
         """
         latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
-        latest_dag_version_id = latest_dag_version.id
+        latest_dag_version_id = latest_dag_version.id if latest_dag_version else None
         if dag_run.dag_version_id == latest_dag_version_id:
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
@@ -1761,7 +1761,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag_run.dag:
             return False
 
-        dag_run.dag_version_id = latest_dag_version.id
+        dag_run.dag_version = latest_dag_version
 
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)

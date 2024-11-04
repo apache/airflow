@@ -214,7 +214,7 @@ def _create_backfill_dag_run(
             creating_job_id=None,
             session=session,
             backfill_id=backfill_id,
-            dag_version_id=dag_version.id,
+            dag_version=dag_version,
         )
         session.add(
             BackfillDagRun(

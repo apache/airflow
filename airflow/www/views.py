@@ -2210,7 +2210,7 @@ class Airflow(AirflowBaseView):
                 state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
-                dag_version_id=dag_version.id,
+                dag_version=dag_version,
                 run_id=run_id,
                 triggered_by=DagRunTriggeredByType.UI,
             )

@@ -351,7 +351,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
-                dag_version_id=dag_version.id,
+                dag_version=dag_version,
                 session=session,
                 triggered_by=DagRunTriggeredByType.REST_API,
             )
