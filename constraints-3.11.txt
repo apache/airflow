@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-03T13:56:23.263688
+# This constraints file was automatically generated on 2024-11-04T07:56:30.070045
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -436,7 +436,7 @@ jupyter_client==8.6.3
 jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.5.0
-kgb==7.1.1
+kgb==7.2
 kombu==5.4.2
 krb5==0.7.0
 kubernetes==31.0.0
