@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -38,7 +38,9 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 @variables_router.delete(
     "/{variable_key}",
     status_code=204,
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def delete_variable(
     variable_key: str,
@@ -46,10 +48,17 @@ async def delete_variable(
 ):
     """Delete a variable entry."""
     if Variable.delete(variable_key, session) == 0:
-        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
+        )
 
 
-@variables_router.get("/{variable_key}", responses=create_openapi_http_exception_doc([401, 403, 404]))
+@variables_router.get(
+    "/{variable_key}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
+)
 async def get_variable(
     variable_key: str,
     session: Annotated[Session, Depends(get_session)],
@@ -58,14 +67,16 @@ async def get_variable(
     variable = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
 
     if variable is None:
-        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
+        )
 
     return VariableResponse.model_validate(variable, from_attributes=True)
 
 
 @variables_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([401, 403]),
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 async def get_variables(
     limit: QueryLimit,
@@ -99,7 +110,17 @@ async def get_variables(
     )
 
 
-@variables_router.patch("/{variable_key}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@variables_router.patch(
+    "/{variable_key}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def patch_variable(
     variable_key: str,
     patch_body: VariableBody,
@@ -108,11 +129,15 @@ async def patch_variable(
 ) -> VariableResponse:
     """Update a variable by key."""
     if patch_body.key != variable_key:
-        raise HTTPException(400, "Invalid body, key from request body doesn't match uri parameter")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
+        )
     non_update_fields = {"key"}
     variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
     if not variable:
-        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
+        )
     if update_mask:
         data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
     else:
@@ -122,7 +147,11 @@ async def patch_variable(
     return variable
 
 
-@variables_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
+@variables_router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+)
 async def post_variable(
     post_body: VariableBody,
     session: Annotated[Session, Depends(get_session)],
