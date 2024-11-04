@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Dialog } from "src/components/ui";
 import {
-  Dialog,
-  ModalOverlay,
-  ModalContent,
   useDisclosure,
   Box,
   Text,
@@ -48,7 +46,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   dagDisplayName,
   dagId,
 }) => {
-  const { isOpen, onClose, onOpen } = useDisclosure();
+  const { onClose, onOpen, open} = useDisclosure();
   const [dagParams, setDagParams] = useState<DagParams>({
     configJson: "{}",
     dagId,
@@ -67,30 +65,31 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <FiPlay />
       </Box>
 
-      <Dialog isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <VStack align="start" p={5} spacing={2}>
-            <Heading size="md">Trigger DAG</Heading>
+      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+        <Dialog.Content backdrop>
+          <Dialog.Header>
+            <VStack align="start" gap={2} p={5}>
+              <Heading size="md">Trigger DAG</Heading>
 
-            <Box>
-              <Heading mb={1} size="sm">
-                {dagDisplayName}
-              </Heading>
-              <Text color="gray.500" fontSize="xs">
-                DAG ID: {dagId}
-              </Text>
-            </Box>
-          </VStack>
+                <Heading mb={1} size="sm">
+                  {dagDisplayName}
+                </Heading>
+                <Text color="gray.500" fontSize="xs">
+                  DAG ID: {dagId}
+                </Text>
+            </VStack>
+          </Dialog.Header>
 
-          <TriggerDAGForm
-            dagParams={dagParams}
-            onClose={onClose}
-            onTrigger={handleTrigger}
-            setDagParams={setDagParams}
-          />
-        </ModalContent>
-      </Dialog>
+          <Dialog.Body>
+            <TriggerDAGForm
+              dagParams={dagParams}
+              onClose={onClose}
+              onTrigger={handleTrigger}
+              setDagParams={setDagParams}
+            />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 };
