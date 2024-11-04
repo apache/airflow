@@ -76,7 +76,6 @@ class TestGetDagWarnings:
         response = test_client.get("/public/dagWarnings", params=query_params)
         assert response.status_code == 200
         response_json = response.json()
-        # breakpoint()
         assert response_json["total_entries"] == expected_total_entries
         assert len(response_json["dag_warnings"]) == len(expected_messages)
         assert [dag_warning["message"] for dag_warning in response_json["dag_warnings"]] == expected_messages
