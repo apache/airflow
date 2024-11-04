@@ -117,8 +117,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     <>
       <Dialog.CloseTrigger />
 
-      <VStack align="stretch" gap={2} p={5}>
+      <VStack align="stretch" gap={2}>
         <Button
+          mb={9}
           onClick={() => setShowDetails(!showDetails)}
           variant="outline"
           width="full"
@@ -129,7 +130,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
         {showDetails ? (
           <VStack align="stretch" gap={3}>
             <Box>
-              <Text fontSize="sm" mb={1}>
+              <Text fontSize="md" mb={2}>
                 Logical date
               </Text>
               <Controller
@@ -147,7 +148,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
             </Box>
 
             <Box>
-              <Text fontSize="sm" mb={1}>
+              <Text fontSize="md" mb={2}>
                 Run ID (Optional)
               </Text>
               <Controller
@@ -163,8 +164,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
               />
             </Box>
 
-            <Box>
-              <Text fontSize="sm" mb={1}>
+            <Box mb={9}>
+              <Text fontSize="md" mb={2}>
                 Configuration JSON
               </Text>
               <Controller
@@ -199,13 +200,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
         ) : undefined}
       </VStack>
 
-      <Box
-        as="footer"
-        borderTopWidth="1px"
-        display="flex"
-        justifyContent="flex-end"
-        p={4}
-      >
+      <Box as="footer" display="flex" justifyContent="flex-end">
         <HStack w="full">
           {hasFormChanged() && (
             <Button colorScheme="red" onClick={handleReset}>

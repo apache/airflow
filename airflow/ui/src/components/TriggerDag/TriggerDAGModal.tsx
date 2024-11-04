@@ -63,13 +63,11 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <VStack align="start" gap={2} p={5}>
-              <Heading size="md">Trigger DAG</Heading>
+            <VStack align="start" gap={2}>
+              <Heading size="xl">Trigger DAG</Heading>
 
-              <Heading mb={1} size="sm">
-                {dagDisplayName}
-              </Heading>
-              <Text color="gray.500" fontSize="xs">
+              <Heading size="md">{dagDisplayName}</Heading>
+              <Text color="gray.500" fontSize="sm">
                 DAG ID: {dagId}
               </Text>
             </VStack>
