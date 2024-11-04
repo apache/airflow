@@ -65,7 +65,7 @@ hooks:
 
 config:
   standard:
-    description: Options for the standard operators
+    description: Options for the standard provider operators.
     options:
       venv_install_method:
         description: |
