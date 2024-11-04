@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.xcom_schema import (
     xcom_schema_string,
 )
 from airflow.models import DagRun, XCom
-from airflow.utils.dates import parse_execution_date
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
@@ -90,7 +90,7 @@ def create_xcom(create_task_instance, session):
 
 class TestXComCollectionItemSchema:
     default_time = "2016-04-02T21:00:00+00:00"
-    default_time_parsed = parse_execution_date(default_time)
+    default_time_parsed = timezone.parse(default_time)
 
     def test_serialize(self, create_xcom, session):
         create_xcom(
@@ -133,8 +133,8 @@ class TestXComCollectionItemSchema:
 class TestXComCollectionSchema:
     default_time_1 = "2016-04-02T21:00:00+00:00"
     default_time_2 = "2016-04-02T21:01:00+00:00"
-    time_1 = parse_execution_date(default_time_1)
-    time_2 = parse_execution_date(default_time_2)
+    time_1 = timezone.parse(default_time_1)
+    time_2 = timezone.parse(default_time_2)
 
     def test_serialize(self, create_xcom, session):
         create_xcom(
@@ -188,7 +188,7 @@ class TestXComCollectionSchema:
 
 class TestXComSchema:
     default_time = "2016-04-02T21:00:00+00:00"
-    default_time_parsed = parse_execution_date(default_time)
+    default_time_parsed = timezone.parse(default_time)
 
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_serialize(self, create_xcom, session):

@@ -25,11 +25,11 @@ import inspect
 import json
 import logging
 import os
-import sys
 import traceback
 import warnings
 from dataclasses import dataclass
 from functools import wraps
+from importlib.resources import files as resource_files
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar
 
@@ -47,10 +47,6 @@ from airflow.utils.singleton import Singleton
 
 log = logging.getLogger(__name__)
 
-if sys.version_info >= (3, 9):
-    from importlib.resources import files as resource_files
-else:
-    from importlib_resources import files as resource_files
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")

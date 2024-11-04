@@ -931,7 +931,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
 
 
 def test_task_instance_clear_failure(admin_client):
-    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    rowid = "00000000-0000-0000-0000-000000000000"  # F.A.B. crashes if the rowid is *too* invalid.
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": "clear", "rowid": rowid},
@@ -979,7 +979,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
-    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    rowid = "00000000-0000-0000-0000-000000000000"  # F.A.B. crashes if the rowid is *too* invalid.
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": action, "rowid": rowid},
@@ -1108,7 +1108,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1143,7 +1144,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1178,7 +1180,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1213,7 +1216,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1248,7 +1252,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1283,7 +1288,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1318,7 +1324,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,

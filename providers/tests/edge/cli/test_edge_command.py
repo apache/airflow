@@ -29,7 +29,7 @@ import time_machine
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_job import EdgeJob
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
@@ -203,7 +203,9 @@ class TestEdgeWorkerCli:
         job = worker_with_job.jobs[0]
         job.process.generated_returncode = None
         job.logfile.write_text("some log content")
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars(
+            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         mock_push_logs.assert_called_once_with(
@@ -218,7 +220,9 @@ class TestEdgeWorkerCli:
         job.logfile.write_text("hello ")
         job.logsize = job.logfile.stat().st_size
         job.logfile.write_text("hello world")
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars(
+            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         mock_push_logs.assert_called_once_with(
@@ -261,6 +265,12 @@ class TestEdgeWorkerCli:
         assert len(queue_list) == 2
         assert "queue1" in (queue_list)
         assert "queue2" in (queue_list)
+
+    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
+    def test_version_mismatch(self, mock_set_state, worker_with_job):
+        mock_set_state.side_effect = EdgeWorkerVersionException("")
+        worker_with_job.heartbeat()
+        assert worker_with_job.drain
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):

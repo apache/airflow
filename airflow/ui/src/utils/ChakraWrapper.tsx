@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 
 export const ChakraWrapper = ({ children }: PropsWithChildren) => (
-  <ChakraProvider>{children}</ChakraProvider>
+  <ChakraProvider value={defaultSystem}>{children}</ChakraProvider>
 );

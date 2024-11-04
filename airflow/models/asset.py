@@ -181,7 +181,7 @@ class AssetModel(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    active = relationship("AssetActive", uselist=False, viewonly=True)
+    active = relationship("AssetActive", uselist=False, viewonly=True, back_populates="asset")
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
@@ -221,7 +221,7 @@ class AssetModel(Base):
         return hash((self.name, self.uri))
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+        return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
         return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
@@ -264,6 +264,8 @@ class AssetActive(Base):
         nullable=False,
     )
 
+    asset = relationship("AssetModel", back_populates="active")
+
     __tablename__ = "asset_active"
     __table_args__ = (
         PrimaryKeyConstraint(name, uri, name="asset_active_pkey"),
@@ -305,7 +307,7 @@ class DagScheduleAssetAliasReference(Base):
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
-            name="dsaar_dag_fkey",
+            name="dsaar_dag_id_fkey",
             ondelete="CASCADE",
         ),
         Index("idx_dag_schedule_asset_alias_reference_dag_id", dag_id),

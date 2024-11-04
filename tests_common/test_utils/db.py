@@ -29,7 +29,6 @@ from airflow.models import (
     Log,
     Pool,
     RenderedTaskInstanceFields,
-    TaskFail,
     TaskInstance,
     TaskReschedule,
     Trigger,
@@ -194,11 +193,6 @@ def clear_db_jobs():
         session.query(Job).delete()
 
 
-def clear_db_task_fail():
-    with create_session() as session:
-        session.query(TaskFail).delete()
-
-
 def clear_db_task_reschedule():
     with create_session() as session:
         session.query(TaskReschedule).delete()
@@ -259,7 +253,6 @@ def clear_all():
     clear_db_dag_warnings()
     clear_db_logs()
     clear_db_jobs()
-    clear_db_task_fail()
     clear_db_task_reschedule()
     clear_db_xcom()
     clear_db_variables()

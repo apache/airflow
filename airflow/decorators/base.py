@@ -41,7 +41,6 @@ import re2
 import typing_extensions
 
 from airflow.assets import Asset
-from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,
     coerce_resources,
@@ -49,7 +48,6 @@ from airflow.models.baseoperator import (
     get_merged_defaults,
     parse_retries,
 )
-from airflow.models.dag import DagContext
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
@@ -57,27 +55,27 @@ from airflow.models.expandinput import (
     is_mappable,
 )
 from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
-from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
     from airflow.models.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
     from airflow.models.mappedoperator import ValidationSource
+    from airflow.sdk import DAG
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
@@ -141,13 +139,13 @@ def get_unique_task_id(
       ...
       task_id__20
     """
-    dag = dag or DagContext.get_current_dag()
+    dag = dag or DagContext.get_current()
     if not dag:
         return task_id
 
     # We need to check if we are in the context of TaskGroup as the task_id may
     # already be altered
-    task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+    task_group = task_group or TaskGroupContext.get_current(dag)
     tg_task_id = task_group.child_id(task_id) if task_group else task_id
 
     if tg_task_id not in dag.task_ids:
@@ -428,8 +426,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
-        dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
-        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
+        dag = task_kwargs.pop("dag", None) or DagContext.get_current()
+        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current(dag)
 
         default_args, partial_params = get_merged_defaults(
             dag=dag,
@@ -442,7 +440,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
         }
-        base_signature = inspect.signature(BaseOperator)
+        base_signature = inspect.signature(TaskSDKBaseOperator)
         ignore = {
             "default_args",  # This is target we are working on now.
             "kwargs",  # A common name for a keyword argument.
@@ -460,32 +458,26 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             task_id = task_group.child_id(task_id)
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
-        if "task_concurrency" in partial_kwargs:
-            raise TypeError("unexpected argument: task_concurrency")
         if partial_kwargs.get("wait_for_downstream"):
             partial_kwargs["depends_on_past"] = True
         start_date = timezone.convert_to_utc(partial_kwargs.pop("start_date", None))
         end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
-        if partial_kwargs.get("pool") is None:
-            partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
         if "pool_slots" in partial_kwargs:
             if partial_kwargs["pool_slots"] < 1:
                 dag_str = ""
                 if dag:
                     dag_str = f" in dag {dag.dag_id}"
                 raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
-        partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
-        partial_kwargs["retry_delay"] = coerce_timedelta(
-            partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
-            key="retry_delay",
-        )
-        max_retry_delay = partial_kwargs.get("max_retry_delay")
-        partial_kwargs["max_retry_delay"] = (
-            max_retry_delay
-            if max_retry_delay is None
-            else coerce_timedelta(max_retry_delay, key="max_retry_delay")
-        )
-        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
+
+        for fld, convert in (
+            ("retries", parse_retries),
+            ("retry_delay", coerce_timedelta),
+            ("max_retry_delay", coerce_timedelta),
+            ("resources", coerce_resources),
+        ):
+            if (v := partial_kwargs.get(fld, NOTSET)) is not NOTSET:
+                partial_kwargs[fld] = convert(v)  # type: ignore[operator]
+
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})

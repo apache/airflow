@@ -218,15 +218,6 @@ core:
       type: string
       example: ~
       default: "50"
-    task_runner:
-      description: |
-        The class to use for running task instances in a subprocess.
-        Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
-        when using a custom task runner.
-      version_added: ~
-      type: string
-      example: ~
-      default: "StandardTaskRunner"
     default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user

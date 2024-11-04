@@ -35,6 +35,23 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.0.1
+.....
+
+Latest change: 2024-10-20
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`57500b6608 <https://github.com/apache/airflow/commit/57500b6608fcbd3bfaa1ddbe6364899ac3f8c251>`_  2024-10-20   ``(fix): HybridExecutor tasks of other executor rescheduled in kubernetes executor (#43003)``
+`dfa6ad4b7e <https://github.com/apache/airflow/commit/dfa6ad4b7e5e584832b9e6c126a2318a8f48b3f8>`_  2024-10-16   ``add kubernetes_conn_id to templated fields (#42786)``
+`e939c42d4f <https://github.com/apache/airflow/commit/e939c42d4f67be77aab70969fac4dcf984242358>`_  2024-10-15   ``✨ Allow node_selector templating in KPO (#43051)``
+`2eaa90fd36 <https://github.com/apache/airflow/commit/2eaa90fd369ef9bd51e239ea2cd5c7641ffc4779>`_  2024-10-15   ``kubernetes package version bump to 31.0.0 (#42907)``
+`794b153fcd <https://github.com/apache/airflow/commit/794b153fcd72f1b2daf6b57ea14ee146d9c2a171>`_  2024-10-12   ``fix: use instance base_container_name to fetch logs on trigger_reentry (#42960)``
+`a052d9eebe <https://github.com/apache/airflow/commit/a052d9eebe3e7cd601c0718a4e48dbeff87deaaf>`_  2024-10-11   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505) (#42624)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  =================================================================================================
+
 9.0.0
 .....
 
@@ -43,6 +60,7 @@ Latest change: 2024-10-09
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `00d6ae72e2 <https://github.com/apache/airflow/commit/00d6ae72e2c712a77a9ee2ac262fcecf414ddff0>`_  2024-10-09   ``Fix mark as success when pod fails while fetching log (#42815)``
 `63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
 `e5a474bdd1 <https://github.com/apache/airflow/commit/e5a474bdd173263b628d9a8a2efa3860cb88a1c8>`_  2024-10-07   ``kubernetes executor cleanup_stuck_queued_tasks optimization (#41220)``
