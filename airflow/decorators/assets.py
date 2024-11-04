@@ -48,7 +48,7 @@ class _AssetMainOperator(PythonOperator):
         for key in inspect.signature(self.python_callable).parameters:
             if key == "self":
                 key = "_self"
-                value = self._active_assets.get(self._definition_name)
+                value = active_assets.get(self._definition_name)
                 if not value:
                     value = Asset(name=self._definition_name)
                     if self._uri is not None:
@@ -56,7 +56,7 @@ class _AssetMainOperator(PythonOperator):
             elif key == "context":
                 value = context
             else:
-                value = self._active_assets.get(key, Asset(name=key))
+                value = active_assets.get(key, Asset(name=key))
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:

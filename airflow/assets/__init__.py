@@ -123,6 +123,13 @@ def _validate_non_empty_identifier(instance, attribute, value):
     return value
 
 
+def _validate_asset_name(instance, attribute, value):
+    _validate_non_empty_identifier(instance, attribute, value)
+    if value == "self" or value == "context":
+        raise ValueError(f"prohibited name for asset: {value}")
+    return value
+
+
 def extract_event_key(value: str | Asset | AssetAlias) -> str:
     """
     Extract the key of an inlet or an outlet event.
@@ -218,11 +225,11 @@ class BaseAsset:
 class AssetAlias(BaseAsset):
     """A represeation of asset alias which is used to create asset during the runtime."""
 
-    name: str = attr.field(validator=_validate_non_empty_identifier)
-    group: str = attr.field(
+    name: str = attrs.field(validator=_validate_non_empty_identifier)
+    group: str = attrs.field(
         kw_only=True,
         default="",
-        validator=[attr.validators.max_len(1500), _validate_identifier],
+        validator=[attrs.validators.max_len(1500), _validate_identifier],
     )
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
@@ -303,8 +310,8 @@ class Asset(os.PathLike, BaseAsset):
             name = uri
         elif uri is None:
             uri = name
-        fields = attr.fields_dict(Asset)
-        self.name = _validate_non_empty_identifier(self, fields["name"], name)
+        fields = attrs.fields_dict(Asset)
+        self.name = _validate_asset_name(self, fields["name"], name)
         self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
         self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
         self.extra = _set_extra_default(extra)

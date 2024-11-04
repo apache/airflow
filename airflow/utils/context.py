@@ -277,7 +277,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
     def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
-            if not isinstance(obj, (Asset, AssetAlias, Asset)):
+            if not isinstance(obj, (Asset, AssetAlias)):
                 raise IndexError(key)
 
             if isinstance(obj, AssetRef):

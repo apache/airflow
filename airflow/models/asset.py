@@ -54,7 +54,7 @@ def _fetch_active_assets_by_name(
     session: Session = NEW_SESSION,
 ) -> dict[str, Asset]:
     return {
-        asset_model.name: asset_model.to_public()
+        asset_model[0].name: asset_model[0].to_public()
         for asset_model in session.execute(
             select(AssetModel)
             .join(AssetActive, AssetActive.name == AssetModel.name)
