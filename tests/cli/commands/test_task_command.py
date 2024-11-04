@@ -885,7 +885,7 @@ class TestLogsfromTaskRunCommand:
         logs_list = logs.splitlines()
 
         assert "INFO - Started process" in logs
-        assert f"Subtask {self.task_id}" in logs
+        assert f"Task {self.task_id}" in logs
         assert "standard_task_runner.py" in logs
         assert (
             f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
