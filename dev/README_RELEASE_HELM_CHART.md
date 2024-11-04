@@ -159,7 +159,7 @@ exit
 The minimum version of Kubernetes should be updated according to
 https://github.com/apache/airflow/blob/main/README.md#requirements in two places:
 
-* [../helm-chart/README.md](../helm-chart/README.md)
+* [../../helm-chart/README.md](../chart/README.md)
 * [../docs/helm-chart/index.rst](../docs/helm-chart/index.rst)
 
 

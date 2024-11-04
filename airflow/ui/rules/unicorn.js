@@ -655,25 +655,6 @@ export const unicornRules =
       [`${unicornNamespace}/prefer-array-find`]: ERROR,
 
       /**
-       * Prefer `Array#flatMap` over `Array#map(…).flat()`.
-       *
-       * @example
-       * ```typescript
-       * // ❌ Incorrect
-       * const foo = bar.map(unicorn).flat();
-       * const foo = bar.map(unicorn).flat(1);
-       *
-       * // ✅ Correct
-       * const foo = bar.flatMap(unicorn);
-       * const foo = bar.map(unicorn).flat(2);
-       * const foo = bar.map(unicorn).foo().flat();
-       * const foo = bar.flat().map(unicorn);
-       * ```
-       * @see [unicorn/prefer-array-flat-map](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-array-flat-map.md)
-       */
-      [`${unicornNamespace}/prefer-array-flat-map`]: ERROR,
-
-      /**
        * Prefer `Array#flat` over legacy techniques to flatten arrays.
        *
        * @example
@@ -699,6 +680,25 @@ export const unicornRules =
        * @see [unicorn/prefer-array-flat](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-array-flat.md)
        */
       [`${unicornNamespace}/prefer-array-flat`]: ERROR,
+
+      /**
+       * Prefer `Array#flatMap` over `Array#map(…).flat()`.
+       *
+       * @example
+       * ```typescript
+       * // ❌ Incorrect
+       * const foo = bar.map(unicorn).flat();
+       * const foo = bar.map(unicorn).flat(1);
+       *
+       * // ✅ Correct
+       * const foo = bar.flatMap(unicorn);
+       * const foo = bar.map(unicorn).flat(2);
+       * const foo = bar.map(unicorn).foo().flat();
+       * const foo = bar.flat().map(unicorn);
+       * ```
+       * @see [unicorn/prefer-array-flat-map](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-array-flat-map.md)
+       */
+      [`${unicornNamespace}/prefer-array-flat-map`]: ERROR,
 
       /**
        * Prefer `Array#indexOf` and `Array#lastIndexOf` over `Array#findIndex` and `Array#findLastIndex` when looking for the index of an item.

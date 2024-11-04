@@ -96,7 +96,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.0": "1949afb29106",
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
-    "3.0.0": "522625f6d606",
+    "2.10.3": "5f2621c13b39",
+    "3.0.0": "d8cd3297971e",
 }
 
 
@@ -476,6 +477,16 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="opensearch_default",
+            conn_type="opensearch",
+            host="localhost",
+            schema="http",
+            port=9200,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="opsgenie_default",
             conn_type="http",
             host="",
@@ -738,6 +749,7 @@ def _get_flask_db(sql_database_uri):
 
 
 def _create_db_from_orm(session):
+    log.info("Creating Airflow database tables from the ORM")
     from alembic import command
 
     from airflow.models.base import Base
@@ -753,6 +765,7 @@ def _create_db_from_orm(session):
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
+        log.info("Airflow database tables created")
 
 
 @provide_session
@@ -872,8 +885,8 @@ def check_and_run_migrations():
         verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb
-        command_name = "upgrade"
-        verb = "upgrade"
+        command_name = "migrate"
+        verb = "migrate"
 
     if sys.stdout.isatty() and verb:
         print()
@@ -1158,7 +1171,7 @@ def upgradedb(
 
         previous_revision = _get_current_revision(session=session)
 
-        log.info("Creating tables")
+        log.info("Migrating the Airflow database")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
         try:
             # Reconfigure the ORM to use _EXACTLY_ one connection, otherwise some db engines hang forever
@@ -1182,6 +1195,7 @@ def upgradedb(
             settings.reconfigure_orm()
 
         if reserialize_dags and current_revision != previous_revision:
+            log.info("Reserializing the DAGs")
             _reserialize_dags(session=session)
         add_default_pool_if_not_exists(session=session)
         synchronize_log_template(session=session)
@@ -1192,7 +1206,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
-    log.info("Dropping tables that exist")
+    log.info("Dropping Airflow tables that exist")
 
     import_all_models()
 
@@ -1201,6 +1215,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
+        log.info("Dropped all Airflow tables")
         external_db_manager = RunDBManager()
         external_db_manager.drop_tables(session, connection)
 
@@ -1257,7 +1272,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             revision_range = f"{from_revision}:{to_revision}"
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
-            log.info("Applying downgrade migrations.")
+            log.info("Applying downgrade migrations to Airflow database.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
 

@@ -40,7 +40,6 @@ from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
-from airflow.www.extensions.init_react_ui import init_react_ui
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
     init_api_auth,
@@ -155,7 +154,6 @@ def create_app(config=None, testing=False):
     with flask_app.app_context():
         init_appbuilder(flask_app)
 
-        init_react_ui(flask_app)
         init_appbuilder_views(flask_app)
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)

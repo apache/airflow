@@ -70,7 +70,6 @@ class TaskInstanceHistory(Base):
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))

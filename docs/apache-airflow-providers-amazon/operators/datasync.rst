@@ -64,7 +64,7 @@ Execute a task
 
 To execute a specific task, you can pass the ``task_arn`` to the operator.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_datasync.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_datasync.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_datasync_specific_task]
@@ -78,7 +78,7 @@ If one task is found, this one will be executed.
 If more than one task is found, the operator will raise an Exception. To avoid this, you can set
 ``allow_random_task_choice`` to ``True`` to randomly choose from candidate tasks.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_datasync.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_datasync.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_datasync_search_task]
@@ -97,7 +97,7 @@ existing Task was found. If these are left to their default value (None) then no
 Also, because ``delete_task_after_execution`` is set to ``True``, the task will be deleted
 from AWS DataSync after it completes successfully.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_datasync.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_datasync.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_datasync_create_task]

@@ -39,6 +39,7 @@ contributed by the community providers:
 
 * Celery Executor and related CLI commands: :doc:`apache-airflow-providers-celery:cli-ref`
 * Kubernetes Executor and related CLI commands: :doc:`apache-airflow-providers-cncf-kubernetes:cli-ref`
+* Edge Executor and related CLI commands: :doc:`apache-airflow-providers-edge:cli-ref`
 * AWS and related CLI commands: :doc:`apache-airflow-providers-amazon:cli-ref`
 * The ``users`` and ``roles`` CLI commands are described in FAB provider documentation :doc:`apache-airflow-providers-fab:cli-ref`
 

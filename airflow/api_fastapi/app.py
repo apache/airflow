@@ -16,50 +16,47 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 
-from airflow.www.extensions.init_dagbag import get_dag_bag
+from airflow.api_fastapi.core_api.app import init_config, init_dag_bag, init_plugins, init_views
+from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+
+log = logging.getLogger(__name__)
 
 app: FastAPI | None = None
 
 
-def init_dag_bag(app: FastAPI) -> None:
-    """
-    Create global DagBag for the FastAPI application.
+def create_app(apps: str = "all") -> FastAPI:
+    apps_list = apps.split(",") if apps else ["all"]
 
-    To access it use ``request.app.state.dag_bag``.
-    """
-    app.state.dag_bag = get_dag_bag()
-
-
-def create_app() -> FastAPI:
     app = FastAPI(
+        title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on those but use the public ones instead."
+        "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
     )
 
-    init_dag_bag(app)
+    if "core" in apps_list or "all" in apps_list:
+        init_dag_bag(app)
+        init_views(app)
+        init_plugins(app)
 
-    init_views(app)
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app(app)
+        app.mount("/execution", task_exec_api_app)
+
+    init_config(app)
 
     return app
 
 
-def init_views(app) -> None:
-    """Init views by registering the different routers."""
-    from airflow.api_fastapi.views.public import public_router
-    from airflow.api_fastapi.views.ui import ui_router
-
-    app.include_router(ui_router)
-    app.include_router(public_router)
-
-
-def cached_app(config=None, testing=False) -> FastAPI:
-    """Return cached instance of Airflow UI app."""
+def cached_app(config=None, testing=False, apps="all") -> FastAPI:
+    """Return cached instance of Airflow API app."""
     global app
     if not app:
-        app = create_app()
+        app = create_app(apps=apps)
     return app
 
 

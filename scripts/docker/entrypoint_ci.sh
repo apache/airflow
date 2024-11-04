@@ -40,7 +40,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -138,6 +138,9 @@ function environment_initialization() {
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
+
+    # Directory where simple auth manager store generated passwords
+    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -374,7 +377,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
     set +x
 }
 

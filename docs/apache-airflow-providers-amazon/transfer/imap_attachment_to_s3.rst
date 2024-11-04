@@ -38,7 +38,7 @@ Imap Attachment To Amazon S3 transfer operator
 To save an email attachment via IMAP protocol from an email server to an Amazon S3 Bucket you can use
 :class:`~airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapAttachmentToS3Operator`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_imap_attachment_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_imap_attachment_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_imap_attachment_to_s3]

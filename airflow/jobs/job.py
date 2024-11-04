@@ -77,8 +77,6 @@ class Job(Base, LoggingMixin):
     The ORM class representing Job stored in the database.
 
     Jobs are processing items with state and duration that aren't task instances.
-    For instance a BackfillJob is a collection of task instance runs,
-    but should have its own state, start and end time.
     """
 
     __tablename__ = "job"
@@ -117,7 +115,7 @@ class Job(Base, LoggingMixin):
     """
     TaskInstances which have been enqueued by this Job.
 
-    Only makes sense for SchedulerJob and BackfillJob instances.
+    Only makes sense for SchedulerJob.
     """
 
     def __init__(self, executor: BaseExecutor | None = None, heartrate=None, **kwargs):

@@ -29,12 +29,12 @@ This allows you to iterate on dependencies without having to run `--upgrade-to-n
 Typical workflow in this case is:
 
 * download and copy the constraint file to the folder (for example via
-[The GitHub Raw Link](https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt)
+[The GitHub Raw Link](https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt)
 * modify the constraint file in "constraints" folder
 * build the image using this command
 
 ```bash
-breeze ci-image build --python 3.8 --airflow-constraints-location constraints/constraints-3.8txt
+breeze ci-image build --python 3.9 --airflow-constraints-location constraints/constraints-3.9.txt
 ```
 
 You can continue iterating and updating the constraint file (and rebuilding the image)
@@ -46,7 +46,7 @@ pip freeze | sort | \
     grep -v "apache_airflow" | \
     grep -v "apache-airflow==" | \
     grep -v "@" | \
-    grep -v "/opt/airflow" > /opt/airflow/constraints/constraints-3.8.txt
+    grep -v "/opt/airflow" > /opt/airflow/constraints/constraints-3.9.txt
 ```
 
 If you are working with others on updating the dependencies, you can also commit the constraint

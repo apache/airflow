@@ -1,0 +1,7 @@
+``DatasetManager.create_datasets`` now takes ``Dataset`` objects
+
+This function previously accepts a list of ``DatasetModel`` objects. it now
+receives ``Dataset`` objects instead. A list of ``DatasetModel`` objects are
+created inside, and returned by the function.
+
+Also, the ``session`` argument is now keyword-only.

@@ -1,0 +1,7 @@
+# Ignore init files in these non-provider folders. I.e. we relrease atlassian/jira, but not atlassian
+src/airflow/providers/apache/__init__.py
+src/airflow/providers/atlassian/__init__.py
+src/airflow/providers/cncf/__init__.py
+src/airflow/providers/common/__init__.py
+src/airflow/providers/dbt/__init__.py
+src/airflow/providers/microsoft/__init__.py

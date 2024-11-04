@@ -23,10 +23,7 @@ import logging
 import os
 import pickle
 import re
-import warnings
-import weakref
 from datetime import timedelta
-from importlib import reload
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -37,53 +34,48 @@ import pendulum
 import pytest
 import time_machine
 from sqlalchemy import inspect, select
-from sqlalchemy.exc import SAWarning
 
 from airflow import settings
+from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
-    DuplicateTaskIdFound,
     ParamValidationError,
     UnknownExecutorException,
 )
-from airflow.executors import executor_loader
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    TaskOutletAssetReference,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
-    DAG_ARGS_EXPECTED_TYPES,
     DagModel,
     DagOwnerAttributes,
     DagTag,
     ExecutorLoader,
     dag as dag_decorator,
-    get_dataset_triggered_next_run_info,
+    get_asset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
-    DatasetAliasModel,
-    DatasetDagRunQueue,
-    DatasetEvent,
-    DatasetModel,
-    TaskOutletDatasetReference,
-)
-from airflow.models.param import DagParam, Param, ParamsDict
+from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import TaskGroup
+from airflow.sdk.definitions.contextmanager import TaskGroupContext
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
-    ContinuousTimetable,
-    DatasetTriggeredTimetable,
+    AssetTriggeredTimetable,
     NullTimetable,
     OnceTimetable,
 )
@@ -91,25 +83,29 @@ from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
+
 from tests.models import DEFAULT_DATE
 from tests.plugins.priority_weight_strategy import (
     FactorPriorityWeightStrategy,
-    NotRegisteredPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
 )
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_plugins import mock_plugin_manager
-from tests.test_utils.timetables import cron_timetable, delta_timetable
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
+from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -134,24 +130,24 @@ def clear_dags():
 
 
 @pytest.fixture
-def clear_datasets():
-    clear_db_datasets()
+def clear_assets():
+    clear_db_assets()
     yield
-    clear_db_datasets()
+    clear_db_assets()
 
 
 class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         self.patcher_dag_code = mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db")
         self.patcher_dag_code.start()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         self.patcher_dag_code.stop()
 
     @staticmethod
@@ -159,7 +155,6 @@ class TestDag:
         with create_session() as session:
             session.query(DagRun).filter(DagRun.dag_id == dag_id).delete(synchronize_session=False)
             session.query(TI).filter(TI.dag_id == dag_id).delete(synchronize_session=False)
-            session.query(TaskFail).filter(TaskFail.dag_id == dag_id).delete(synchronize_session=False)
 
     @staticmethod
     def _occur_before(a, b, list_):
@@ -174,150 +169,6 @@ class TestDag:
             if e.task_id == b:
                 b_index = i
         return 0 <= a_index < b_index
-
-    def test_params_not_passed_is_empty_dict(self):
-        """
-        Test that when 'params' is _not_ passed to a new Dag, that the params
-        attribute is set to an empty dictionary.
-        """
-        dag = DAG("test-dag", schedule=None)
-
-        assert isinstance(dag.params, ParamsDict)
-        assert 0 == len(dag.params)
-
-    def test_params_passed_and_params_in_default_args_no_override(self):
-        """
-        Test that when 'params' exists as a key passed to the default_args dict
-        in addition to params being passed explicitly as an argument to the
-        dag, that the 'params' key of the default_args dict is merged with the
-        dict of the params argument.
-        """
-        params1 = {"parameter1": 1}
-        params2 = {"parameter2": 2}
-
-        dag = DAG("test-dag", schedule=None, default_args={"params": params1}, params=params2)
-
-        assert params1["parameter1"] == dag.params["parameter1"]
-        assert params2["parameter2"] == dag.params["parameter2"]
-
-    def test_not_none_schedule_with_non_default_params(self):
-        """
-        Test if there is a DAG with not None schedule and have some params that
-        don't have a default value raise a error while DAG parsing
-        """
-        params = {"param1": Param(type="string")}
-
-        with pytest.raises(AirflowException):
-            DAG("dummy-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
-
-    def test_dag_invalid_default_view(self):
-        """
-        Test invalid `default_view` of DAG initialization
-        """
-        with pytest.raises(AirflowException, match="Invalid values of dag.default_view: only support"):
-            DAG(dag_id="test-invalid-default_view", schedule=None, default_view="airflow")
-
-    def test_dag_default_view_default_value(self):
-        """
-        Test `default_view` default value of DAG initialization
-        """
-        dag = DAG(dag_id="test-default_default_view", schedule=None)
-        assert conf.get("webserver", "dag_default_view").lower() == dag.default_view
-
-    def test_dag_invalid_orientation(self):
-        """
-        Test invalid `orientation` of DAG initialization
-        """
-        with pytest.raises(AirflowException, match="Invalid values of dag.orientation: only support"):
-            DAG(dag_id="test-invalid-orientation", schedule=None, orientation="airflow")
-
-    def test_dag_orientation_default_value(self):
-        """
-        Test `orientation` default value of DAG initialization
-        """
-        dag = DAG(dag_id="test-default_orientation", schedule=None)
-        assert conf.get("webserver", "dag_orientation") == dag.orientation
-
-    def test_dag_as_context_manager(self):
-        """
-        Test DAG as a context manager.
-        When used as a context manager, Operators are automatically added to
-        the DAG (unless they specify a different DAG)
-        """
-        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
-        dag2 = DAG("dag2", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner2"})
-
-        with dag:
-            op1 = EmptyOperator(task_id="op1")
-            op2 = EmptyOperator(task_id="op2", dag=dag2)
-
-        assert op1.dag is dag
-        assert op1.owner == "owner1"
-        assert op2.dag is dag2
-        assert op2.owner == "owner2"
-
-        with dag2:
-            op3 = EmptyOperator(task_id="op3")
-
-        assert op3.dag is dag2
-        assert op3.owner == "owner2"
-
-        with dag:
-            with dag2:
-                op4 = EmptyOperator(task_id="op4")
-            op5 = EmptyOperator(task_id="op5")
-
-        assert op4.dag is dag2
-        assert op5.dag is dag
-        assert op4.owner == "owner2"
-        assert op5.owner == "owner1"
-
-        with DAG("creating_dag_in_cm", schedule=None, start_date=DEFAULT_DATE) as dag:
-            EmptyOperator(task_id="op6")
-
-        assert dag.dag_id == "creating_dag_in_cm"
-        assert dag.tasks[0].task_id == "op6"
-
-        with dag:
-            with dag:
-                op7 = EmptyOperator(task_id="op7")
-            op8 = EmptyOperator(task_id="op8")
-        op9 = EmptyOperator(task_id="op8")
-        op9.dag = dag2
-
-        assert op7.dag == dag
-        assert op8.dag == dag
-        assert op9.dag == dag2
-
-    def test_dag_topological_sort_dag_without_tasks(self):
-        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
-
-        assert () == dag.topological_sort()
-
-    def test_dag_naive_start_date_string(self):
-        DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01"})
-
-    def test_dag_naive_start_end_dates_strings(self):
-        DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01", "end_date": "2019-06-05"})
-
-    def test_dag_start_date_propagates_to_end_date(self):
-        """
-        Tests that a start_date string with a timezone and an end_date string without a timezone
-        are accepted and that the timezone from the start carries over the end
-
-        This test is a little indirect, it works by setting start and end equal except for the
-        timezone and then testing for equality after the DAG construction.  They'll be equal
-        only if the same timezone was applied to both.
-
-        An explicit check the `tzinfo` attributes for both are the same is an extra check.
-        """
-        dag = DAG(
-            "DAG",
-            schedule=None,
-            default_args={"start_date": "2019-06-05T00:00:00+05:00", "end_date": "2019-06-05T00:00:00"},
-        )
-        assert dag.default_args["start_date"] == dag.default_args["end_date"]
-        assert dag.default_args["start_date"].tzinfo == dag.default_args["end_date"].tzinfo
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG("DAG", schedule=None, default_args={"start_date": datetime.datetime(2018, 1, 1)})
@@ -417,12 +268,6 @@ class TestDag:
                 calculated_weight = task.priority_weight_total
                 assert calculated_weight == correct_weight
 
-    def test_dag_task_invalid_weight_rule(self):
-        # Test if we enter an invalid weight rule
-        with DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}):
-            with pytest.raises(AirflowException):
-                EmptyOperator(task_id="should_fail", weight_rule="no rule")
-
     @pytest.mark.parametrize(
         "cls, expected",
         [
@@ -448,16 +293,6 @@ class TestDag:
         )
         ti = dr.get_task_instance(task.task_id)
         assert ti.priority_weight == expected
-
-    def test_dag_task_not_registered_weight_strategy(self):
-        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
-            "dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
-        ):
-            with pytest.raises(AirflowException, match="Unknown priority strategy"):
-                EmptyOperator(
-                    task_id="empty_task",
-                    weight_rule=NotRegisteredPriorityWeightStrategy(),
-                )
 
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"
@@ -506,12 +341,16 @@ class TestDag:
         )
 
         ti1 = TI(task=test_task, run_id=dr1.run_id)
+        ti1.refresh_from_db()
         ti1.state = None
         ti2 = TI(task=test_task, run_id=dr2.run_id)
+        ti2.refresh_from_db()
         ti2.state = State.RUNNING
         ti3 = TI(task=test_task, run_id=dr3.run_id)
+        ti3.refresh_from_db()
         ti3.state = State.QUEUED
         ti4 = TI(task=test_task, run_id=dr4.run_id)
+        ti4.refresh_from_db()
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)
@@ -763,11 +602,6 @@ class TestDag:
         )
         assert dagrun is not None
 
-    def test_fail_dag_when_schedule_is_non_none_and_empty_start_date(self):
-        # Check that we get a ValueError 'start_date' for self.start_date when schedule is non-none
-        with pytest.raises(ValueError, match="start_date is required when catchup=True"):
-            DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly", catchup=True)
-
     def test_dagtag_repr(self):
         clear_db_dags()
         dag = DAG("dag-test-dagtag", schedule=None, start_date=DEFAULT_DATE, tags=["tag-1", "tag-2"])
@@ -807,7 +641,7 @@ class TestDag:
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
-            dag.tags.append("test-dag2")
+            dag.tags.add("test-dag2")
         with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
@@ -845,7 +679,7 @@ class TestDag:
 
         # Removing all tags
         for dag in dags:
-            dag.tags = None
+            dag.tags = set()
         with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
@@ -1005,47 +839,47 @@ class TestDag:
         assert not model.has_import_errors
         session.close()
 
-    def test_bulk_write_to_db_datasets(self):
+    def test_bulk_write_to_db_assets(self):
         """
-        Ensure that datasets referenced in a dag are correctly loaded into the database.
+        Ensure that assets referenced in a dag are correctly loaded into the database.
         """
-        dag_id1 = "test_dataset_dag1"
-        dag_id2 = "test_dataset_dag2"
-        task_id = "test_dataset_task"
-        uri1 = "s3://dataset/1"
-        d1 = Dataset(uri1, extra={"not": "used"})
-        d2 = Dataset("s3://dataset/2")
-        d3 = Dataset("s3://dataset/3")
+        dag_id1 = "test_asset_dag1"
+        dag_id2 = "test_asset_dag2"
+        task_id = "test_asset_task"
+        uri1 = "s3://asset/1"
+        d1 = Asset(uri1, extra={"not": "used"})
+        d2 = Asset("s3://asset/2")
+        d3 = Asset("s3://asset/3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Asset(uri1, extra={"should": "be used"})])
         session = settings.Session()
         dag1.clear()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
-        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
-        d1_orm = stored_datasets[d1.uri]
-        d2_orm = stored_datasets[d2.uri]
-        d3_orm = stored_datasets[d3.uri]
-        assert stored_datasets[uri1].extra == {"should": "be used"}
-        assert [x.dag_id for x in d1_orm.consuming_dags] == [dag_id1]
-        assert [(x.task_id, x.dag_id) for x in d1_orm.producing_tasks] == [(task_id, dag_id2)]
+        stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
+        asset1_orm = stored_assets[d1.uri]
+        asset2_orm = stored_assets[d2.uri]
+        asset3_orm = stored_assets[d3.uri]
+        assert stored_assets[uri1].extra == {"should": "be used"}
+        assert [x.dag_id for x in asset1_orm.consuming_dags] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in asset1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
             session.query(
-                TaskOutletDatasetReference.task_id,
-                TaskOutletDatasetReference.dag_id,
-                TaskOutletDatasetReference.dataset_id,
+                TaskOutletAssetReference.task_id,
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.asset_id,
             )
-            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
+            .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
-            (task_id, dag_id1, d2_orm.id),
-            (task_id, dag_id1, d3_orm.id),
-            (task_id, dag_id2, d1_orm.id),
+            (task_id, dag_id1, asset2_orm.id),
+            (task_id, dag_id1, asset3_orm.id),
+            (task_id, dag_id2, asset1_orm.id),
         }
 
-        # now that we have verified that a new dag has its dataset references recorded properly,
+        # now that we have verified that a new dag has its asset references recorded properly,
         # we need to verify that *changes* are recorded properly.
         # so if any references are *removed*, they should also be deleted from the DB
         # so let's remove some references and see what happens
@@ -1056,96 +890,89 @@ class TestDag:
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         session.expunge_all()
-        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
-        d1_orm = stored_datasets[d1.uri]
-        d2_orm = stored_datasets[d2.uri]
-        assert [x.dag_id for x in d1_orm.consuming_dags] == []
+        stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
+        asset1_orm = stored_assets[d1.uri]
+        asset2_orm = stored_assets[d2.uri]
+        assert [x.dag_id for x in asset1_orm.consuming_dags] == []
         assert set(
             session.query(
-                TaskOutletDatasetReference.task_id,
-                TaskOutletDatasetReference.dag_id,
-                TaskOutletDatasetReference.dataset_id,
+                TaskOutletAssetReference.task_id,
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.asset_id,
             )
-            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
+            .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
-        ) == {(task_id, dag_id1, d2_orm.id)}
+        ) == {(task_id, dag_id1, asset2_orm.id)}
 
-    def test_bulk_write_to_db_unorphan_datasets(self):
+    @staticmethod
+    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
+        assets = session.execute(
+            select(AssetModel, AssetActive)
+            .outerjoin(
+                AssetActive,
+                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
+            )
+            .order_by(AssetModel.uri)
+        ).all()
+        return [a for a, v in assets if not v], [a for a, v in assets if v]
+
+    def test_bulk_write_to_db_does_not_activate(self, dag_maker, session):
         """
-        Datasets can lose their last reference and be orphaned, but then if a reference to them reappears, we
-        need to un-orphan those datasets
+        Assets are not activated on write, but later in the scheduler by the SchedulerJob.
         """
-        with create_session() as session:
-            # Create four datasets - two that have references and two that are unreferenced and marked as
-            # orphans
-            dataset1 = Dataset(uri="ds1")
-            dataset2 = Dataset(uri="ds2")
-            session.add(DatasetModel(uri=dataset2.uri, is_orphaned=True))
-            dataset3 = Dataset(uri="ds3")
-            dataset4 = Dataset(uri="ds4")
-            session.add(DatasetModel(uri=dataset4.uri, is_orphaned=True))
-            session.flush()
+        # Create four assets - two that have references and two that are unreferenced and marked as
+        # orphans
+        asset1 = Asset(uri="ds1")
+        asset2 = Asset(uri="ds2")
+        asset3 = Asset(uri="ds3")
+        asset4 = Asset(uri="ds4")
 
-            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3])
+        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
+        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
+        DAG.bulk_write_to_db([dag1], session=session)
 
-            DAG.bulk_write_to_db([dag1], session=session)
+        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [asset1, asset3]
+        assert session.scalars(select(AssetActive)).all() == []
 
-            # Double check
-            non_orphaned_datasets = [
-                dataset.uri
-                for dataset in session.query(DatasetModel.uri)
-                .filter(~DatasetModel.is_orphaned)
-                .order_by(DatasetModel.uri)
-            ]
-            assert non_orphaned_datasets == ["ds1", "ds3"]
-            orphaned_datasets = [
-                dataset.uri
-                for dataset in session.query(DatasetModel.uri)
-                .filter(DatasetModel.is_orphaned)
-                .order_by(DatasetModel.uri)
-            ]
-            assert orphaned_datasets == ["ds2", "ds4"]
+        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
+        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
+        DAG.bulk_write_to_db([dag1], session=session)
 
-            # Now add references to the two unreferenced datasets
-            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1, dataset2])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3, dataset4])
+        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [
+            asset1,
+            asset2,
+            asset3,
+            asset4,
+        ]
+        assert session.scalars(select(AssetActive)).all() == []
 
-            DAG.bulk_write_to_db([dag1], session=session)
-
-            # and count the orphans and non-orphans
-            non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
-            assert non_orphaned_dataset_count == 4
-            orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
-            assert orphaned_dataset_count == 0
-
-    def test_bulk_write_to_db_dataset_aliases(self):
+    def test_bulk_write_to_db_asset_aliases(self):
         """
-        Ensure that dataset aliases referenced in a dag are correctly loaded into the database.
+        Ensure that asset aliases referenced in a dag are correctly loaded into the database.
         """
-        dag_id1 = "test_dataset_alias_dag1"
-        dag_id2 = "test_dataset_alias_dag2"
-        task_id = "test_dataset_task"
-        da1 = DatasetAlias(name="da1")
-        da2 = DatasetAlias(name="da2")
-        da2_2 = DatasetAlias(name="da2")
-        da3 = DatasetAlias(name="da3")
+        dag_id1 = "test_asset_alias_dag1"
+        dag_id2 = "test_asset_alias_dag2"
+        task_id = "test_asset_task"
+        asset_alias_1 = AssetAlias(name="asset_alias_1")
+        asset_alias_2 = AssetAlias(name="asset_alias_2")
+        asset_alias_2_2 = AssetAlias(name="asset_alias_2")
+        asset_alias_3 = AssetAlias(name="asset_alias_3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da1, da2, da3])
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[asset_alias_1, asset_alias_2, asset_alias_3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da2_2, da3])
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[asset_alias_2_2, asset_alias_3])
         session = settings.Session()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
 
-        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
-        da1_orm = stored_dataset_aliases[da1.name]
-        da2_orm = stored_dataset_aliases[da2.name]
-        da3_orm = stored_dataset_aliases[da3.name]
-        assert da1_orm.name == "da1"
-        assert da2_orm.name == "da2"
-        assert da3_orm.name == "da3"
-        assert len(stored_dataset_aliases) == 3
+        stored_asset_alias_models = {x.name: x for x in session.query(AssetAliasModel).all()}
+        asset_alias_1_orm = stored_asset_alias_models[asset_alias_1.name]
+        asset_alias_2_orm = stored_asset_alias_models[asset_alias_2.name]
+        asset_alias_3_orm = stored_asset_alias_models[asset_alias_3.name]
+        assert asset_alias_1_orm.name == "asset_alias_1"
+        assert asset_alias_2_orm.name == "asset_alias_2"
+        assert asset_alias_3_orm.name == "asset_alias_3"
+        assert len(stored_asset_alias_models) == 3
 
     def test_sync_to_db(self):
         dag = DAG("dag", start_date=DEFAULT_DATE, schedule=None)
@@ -1286,100 +1113,6 @@ class TestDag:
 
         dag = DAG("DAG", schedule=None, default_args=default_args)
         assert dag.timezone.name == local_tz.name
-
-    def test_roots(self):
-        """Verify if dag.roots returns the root tasks of a DAG."""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            op2 = EmptyOperator(task_id="t2")
-            op3 = EmptyOperator(task_id="t3")
-            op4 = EmptyOperator(task_id="t4")
-            op5 = EmptyOperator(task_id="t5")
-            [op1, op2] >> op3 >> [op4, op5]
-
-            assert set(dag.roots) == {op1, op2}
-
-    def test_leaves(self):
-        """Verify if dag.leaves returns the leaf tasks of a DAG."""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            op2 = EmptyOperator(task_id="t2")
-            op3 = EmptyOperator(task_id="t3")
-            op4 = EmptyOperator(task_id="t4")
-            op5 = EmptyOperator(task_id="t5")
-            [op1, op2] >> op3 >> [op4, op5]
-
-            assert set(dag.leaves) == {op4, op5}
-
-    def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
-        """Verify tasks with Duplicate task_id raises error"""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-                BashOperator(task_id="t1", bash_command="sleep 1")
-
-        assert dag.task_dict == {op1.task_id: op1}
-
-    def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
-        """Verify tasks with Duplicate task_id raises error"""
-        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
-        op1 = EmptyOperator(task_id="t1", dag=dag)
-        with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-            EmptyOperator(task_id="t1", dag=dag)
-
-        assert dag.task_dict == {op1.task_id: op1}
-
-    def test_duplicate_task_ids_for_same_task_is_allowed(self):
-        """Verify that same tasks with Duplicate task_id do not raise error"""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = op2 = EmptyOperator(task_id="t1")
-            op3 = EmptyOperator(task_id="t3")
-            op1 >> op3
-            op2 >> op3
-
-        assert op1 == op2
-        assert dag.task_dict == {op1.task_id: op1, op3.task_id: op3}
-        assert dag.task_dict == {op2.task_id: op2, op3.task_id: op3}
-
-    def test_partial_subset_updates_all_references_while_deepcopy(self):
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            op2 = EmptyOperator(task_id="t2")
-            op3 = EmptyOperator(task_id="t3")
-            op1 >> op2
-            op2 >> op3
-
-        partial = dag.partial_subset("t2", include_upstream=True, include_downstream=False)
-        assert id(partial.task_dict["t1"].downstream_list[0].dag) == id(partial)
-
-        # Copied DAG should not include unused task IDs in used_group_ids
-        assert "t3" not in partial.task_group.used_group_ids
-
-    def test_partial_subset_taskgroup_join_ids(self):
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            start = EmptyOperator(task_id="start")
-            with TaskGroup(group_id="outer", prefix_group_id=False) as outer_group:
-                with TaskGroup(group_id="tg1", prefix_group_id=False) as tg1:
-                    EmptyOperator(task_id="t1")
-                with TaskGroup(group_id="tg2", prefix_group_id=False) as tg2:
-                    EmptyOperator(task_id="t2")
-
-                start >> tg1 >> tg2
-
-        # Pre-condition checks
-        task = dag.get_task("t2")
-        assert task.task_group.upstream_group_ids == {"tg1"}
-        assert isinstance(task.task_group.parent_group, weakref.ProxyType)
-        assert task.task_group.parent_group == outer_group
-
-        partial = dag.partial_subset(["t2"], include_upstream=True, include_downstream=False)
-        copied_task = partial.get_task("t2")
-        assert copied_task.task_group.upstream_group_ids == {"tg1"}
-        assert isinstance(copied_task.task_group.parent_group, weakref.ProxyType)
-        assert copied_task.task_group.parent_group
-
-        # Make sure we don't affect the original!
-        assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -1665,10 +1398,10 @@ class TestDag:
         assert dag.timetable == expected_timetable
         assert dag.timetable.description == interval_description
 
-    def test_timetable_and_description_from_dataset(self):
-        dag = DAG("test_schedule_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
-        assert dag.timetable.description == "Triggered by datasets"
+    def test_timetable_and_description_from_asset(self):
+        dag = DAG("test_schedule_interval_arg", schedule=[Asset(uri="hello")], start_date=TEST_DATE)
+        assert dag.timetable == AssetTriggeredTimetable(Asset(uri="hello"))
+        assert dag.timetable.description == "Triggered by assets"
 
     @pytest.mark.parametrize(
         "timetable, expected_description",
@@ -1763,13 +1496,16 @@ class TestDag:
         fail_stop_dag.add_task(task_with_default_trigger_rule)
 
         # a fail stop dag should not allow a non-default trigger rule
+        task_with_non_default_trigger_rule = EmptyOperator(
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
+        )
         with pytest.raises(FailStopDagInvalidTriggerRule):
             fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
         dag = DAG(dag_id="test_dag_add_task_sets_default_task_group", schedule=None, start_date=DEFAULT_DATE)
         task_without_task_group = EmptyOperator(task_id="task_without_group_id")
-        default_task_group = TaskGroupContext.get_current_task_group(dag)
+        default_task_group = TaskGroupContext.get_current(dag)
         dag.add_task(task_without_task_group)
         assert default_task_group.get_child_by_label("task_without_group_id") == task_without_task_group
 
@@ -1800,6 +1536,7 @@ class TestDag:
         session.merge(dagrun_1)
 
         task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=State.RUNNING)
+        task_instance_1.refresh_from_db()
         session.merge(task_instance_1)
         session.commit()
 
@@ -1945,7 +1682,15 @@ class TestDag:
         with dag:
             check_task_2(check_task())
 
-        dag.test()
+        dr = dag.test()
+
+        ti1 = dr.get_task_instance("check_task")
+        ti2 = dr.get_task_instance("check_task_2")
+
+        assert ti1
+        assert ti2
+        assert ti1.state == TaskInstanceState.FAILED
+        assert ti2.state == TaskInstanceState.UPSTREAM_FAILED
 
         mock_handle_object_1.assert_called_with("task check_task failed...")
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
@@ -2012,7 +1757,7 @@ my_postgres_conn:
         self._clean_up(dag_id)
         task_id = "t1"
         dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = EmptyOperator(task_id=task_id, dag=dag)
+        _ = EmptyOperator(task_id=task_id, dag=dag)
 
         session = settings.Session()  # type: ignore
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
@@ -2026,7 +1771,8 @@ my_postgres_conn:
         )
         session.merge(dagrun_1)
 
-        task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=ti_state_begin)
+        task_instance_1 = dagrun_1.get_task_instance(task_id)
+        task_instance_1.state = ti_state_begin
         task_instance_1.job_id = 123
         session.merge(task_instance_1)
         session.commit()
@@ -2174,6 +1920,7 @@ my_postgres_conn:
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
+    @pytest.mark.usefixtures("clear_all_logger_handlers")
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
@@ -2297,14 +2044,14 @@ my_postgres_conn:
     )
     def test_access_control_format(self, fab_version, perms, expected_exception, expected_perms):
         if expected_exception:
-            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+            with patch("airflow.providers.fab.__version__", fab_version):
                 with pytest.raises(
                     expected_exception,
                     match="Please upgrade the FAB provider to a version >= 1.3.0 to allow use the Dag Level Access Control new format.",
                 ):
                     DAG(dag_id="dag_test", schedule=None, access_control=perms)
         else:
-            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+            with patch("airflow.providers.fab.__version__", fab_version):
                 dag = DAG(dag_id="dag_test", schedule=None, access_control=perms)
             assert dag.access_control == expected_perms
 
@@ -2381,27 +2128,11 @@ my_postgres_conn:
         orm_dag_owners = session.query(DagOwnerAttributes).all()
         assert not orm_dag_owners
 
-        # Check wrong formatted owner link
-        with pytest.raises(AirflowException):
-            DAG("dag", schedule=None, start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
-
-    def test_continuous_schedule_linmits_max_active_runs(self):
-        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
-        assert isinstance(dag.timetable, ContinuousTimetable)
-        assert dag.max_active_runs == 1
-
-        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=0)
-        assert isinstance(dag.timetable, ContinuousTimetable)
-        assert dag.max_active_runs == 0
-
-        with pytest.raises(AirflowException):
-            dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
-
 
 class TestDagModel:
     def _clean(self):
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         clear_db_runs()
 
     def setup_method(self):
@@ -2433,13 +2164,13 @@ class TestDagModel:
         session.rollback()
         session.close()
 
-    def test_dags_needing_dagruns_datasets(self, dag_maker, session):
-        dataset = Dataset(uri="hello")
+    def test_dags_needing_dagruns_assets(self, dag_maker, session):
+        asset = Asset(uri="hello")
         with dag_maker(
             session=session,
             dag_id="my_dag",
             max_active_runs=1,
-            schedule=[dataset],
+            schedule=[asset],
             start_date=pendulum.now().add(days=-2),
         ) as dag:
             EmptyOperator(task_id="dummy")
@@ -2451,8 +2182,8 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
-        dataset_model: DatasetModel = dag_model.schedule_datasets[0]
-        session.add(DatasetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2460,7 +2191,7 @@ class TestDagModel:
 
         # create run so we don't need a run anymore (due to max active runs)
         dag_maker.create_dagrun(
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
             execution_date=pendulum.now("UTC"),
         )
@@ -2475,19 +2206,19 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
-    def test_dags_needing_dagruns_dataset_aliases(self, dag_maker, session):
-        # link dataset_alias hello_alias to dataset hello
-        dataset_model = DatasetModel(uri="hello")
-        dataset_alias_model = DatasetAliasModel(name="hello_alias")
-        dataset_alias_model.datasets.append(dataset_model)
-        session.add_all([dataset_model, dataset_alias_model])
+    def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
+        # link asset_alias hello_alias to asset hello
+        asset_model = AssetModel(uri="hello")
+        asset_alias_model = AssetAliasModel(name="hello_alias")
+        asset_alias_model.assets.append(asset_model)
+        session.add_all([asset_model, asset_alias_model])
         session.commit()
 
         with dag_maker(
             session=session,
             dag_id="my_dag",
             max_active_runs=1,
-            schedule=[DatasetAlias(name="hello_alias")],
+            schedule=[AssetAlias(name="hello_alias")],
             start_date=pendulum.now().add(days=-2),
         ):
             EmptyOperator(task_id="dummy")
@@ -2499,8 +2230,8 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        dataset_model: DatasetModel = dag_model.schedule_datasets[0]
-        session.add(DatasetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2508,7 +2239,7 @@ class TestDagModel:
 
         # create run so we don't need a run anymore (due to max active runs)
         dag_maker.create_dagrun(
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
             execution_date=pendulum.now("UTC"),
         )
@@ -2664,20 +2395,20 @@ class TestDagModel:
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
-    def test_dags_needing_dagruns_dataset_triggered_dag_info_queued_times(self, session, dag_maker):
-        dataset1 = Dataset(uri="ds1")
-        dataset2 = Dataset(uri="ds2")
+    def test_dags_needing_dagruns_asset_triggered_dag_info_queued_times(self, session, dag_maker):
+        asset1 = Asset(uri="ds1")
+        asset2 = Asset(uri="ds2")
 
-        for dag_id, dataset in [("datasets-1", dataset1), ("datasets-2", dataset2)]:
+        for dag_id, asset in [("assets-1", asset1), ("assets-2", asset2)]:
             with dag_maker(dag_id=dag_id, start_date=timezone.utcnow(), session=session):
-                EmptyOperator(task_id="task", outlets=[dataset])
+                EmptyOperator(task_id="task", outlets=[asset])
             dr = dag_maker.create_dagrun()
 
-            ds_id = session.query(DatasetModel.id).filter_by(uri=dataset.uri).scalar()
+            asset_id = session.query(AssetModel.id).filter_by(uri=asset.uri).scalar()
 
             session.add(
-                DatasetEvent(
-                    dataset_id=ds_id,
+                AssetEvent(
+                    asset_id=asset_id,
                     source_task_id="task",
                     source_dag_id=dr.dag_id,
                     source_run_id=dr.run_id,
@@ -2685,46 +2416,48 @@ class TestDagModel:
                 )
             )
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-        ds2_id = session.query(DatasetModel.id).filter_by(uri=dataset2.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset2_id = session.query(AssetModel.id).filter_by(uri=asset2.uri).scalar()
 
-        with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]) as dag:
+        with dag_maker(dag_id="assets-consumer-multiple", schedule=[asset1, asset2]) as dag:
             pass
 
         session.flush()
         session.add_all(
             [
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
-                DatasetDagRunQueue(
-                    dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                AssetDagRunQueue(
+                    asset_id=asset2_id,
+                    target_dag_id=dag.dag_id,
+                    created_at=DEFAULT_DATE + timedelta(hours=1),
                 ),
             ]
         )
         session.flush()
 
-        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert 1 == len(dataset_triggered_dag_info)
-        assert dag.dag_id in dataset_triggered_dag_info
-        first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
+        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        assert 1 == len(asset_triggered_dag_info)
+        assert dag.dag_id in asset_triggered_dag_info
+        first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
-    def test_dataset_expression(self, session: Session) -> None:
+    def test_asset_expression(self, session: Session) -> None:
         dag = DAG(
-            dag_id="test_dag_dataset_expression",
-            schedule=DatasetAny(
-                Dataset("s3://dag1/output_1.txt", {"hi": "bye"}),
-                DatasetAll(
-                    Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
-                    Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
+            dag_id="test_dag_asset_expression",
+            schedule=AssetAny(
+                Asset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
+                AssetAll(
+                    Asset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
                 ),
-                DatasetAlias(name="test_name"),
+                AssetAlias(name="test_name"),
             ),
             start_date=datetime.datetime.min,
         )
         DAG.bulk_write_to_db([dag], session=session)
 
-        expression = session.scalars(select(DagModel.dataset_expression).filter_by(dag_id=dag.dag_id)).one()
+        expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {
             "any": [
                 "s3://dag1/output_1.txt",
@@ -2732,17 +2465,6 @@ class TestDagModel:
                 {"alias": "test_name"},
             ]
         }
-
-    @mock.patch("airflow.models.dag.run_job")
-    def test_dag_executors(self, run_job_mock):
-        dag = DAG(dag_id="test", schedule=None)
-        reload(executor_loader)
-        with conf_vars({("core", "executor"): "SequentialExecutor"}):
-            dag.run()
-            assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
-
-            dag.run(local=True)
-            assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
 
 
 class TestQueries:
@@ -2785,54 +2507,6 @@ class TestDagDecorator:
     def teardown_method(self):
         clear_db_runs()
 
-    def test_fileloc(self):
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "noop_pipeline"
-        assert dag.fileloc == __file__
-
-    def test_set_dag_id(self):
-        """Test that checks you can set dag_id from decorator."""
-
-        @dag_decorator("test", schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "test"
-
-    def test_default_dag_id(self):
-        """Test that @dag uses function name as default dag id."""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "noop_pipeline"
-
-    @pytest.mark.parametrize(
-        argnames=["dag_doc_md", "expected_doc_md"],
-        argvalues=[
-            pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
-            pytest.param(None, "Regular DAG documentation", id="use_dag_docstring"),
-        ],
-    )
-    def test_documentation_added(self, dag_doc_md, expected_doc_md):
-        """Test that @dag uses function docs as doc_md for DAG object if doc_md is not explicitly set."""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS, doc_md=dag_doc_md)
-        def noop_pipeline():
-            """Regular DAG documentation"""
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "noop_pipeline"
-        assert dag.doc_md == expected_doc_md
-
     def test_documentation_template_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
@@ -2845,7 +2519,6 @@ class TestDagDecorator:
             """
 
         dag = noop_pipeline()
-        assert isinstance(dag, DAG)
         assert dag.dag_id == "noop_pipeline"
         assert "Regular DAG documentation" in dag.doc_md
 
@@ -2865,24 +2538,8 @@ class TestDagDecorator:
         def markdown_docs(): ...
 
         dag = markdown_docs()
-        assert isinstance(dag, DAG)
         assert dag.dag_id == "test-dag"
         assert dag.doc_md == raw_content
-
-    def test_fails_if_arg_not_set(self):
-        """Test that @dag decorated function fails if positional argument is not set"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(value):
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(value)
-
-        # Test that if arg is not passed it raises a type error as expected.
-        with pytest.raises(TypeError):
-            noop_pipeline()
 
     def test_dag_param_resolves(self):
         """Test that dag param is correctly resolved by operator"""
@@ -3188,7 +2845,7 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
     }
 
 
-def test_dag_teardowns_property_lists_all_teardown_tasks(dag_maker):
+def test_dag_teardowns_property_lists_all_teardown_tasks():
     @setup
     def setup_task():
         return 1
@@ -3209,7 +2866,7 @@ def test_dag_teardowns_property_lists_all_teardown_tasks(dag_maker):
     def mytask():
         return 1
 
-    with dag_maker() as dag:
+    with DAG("dag") as dag:
         t1 = setup_task()
         t2 = teardown_task()
         t3 = teardown_task2()
@@ -3266,6 +2923,7 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     assert expected_infos == list(iterator)
 
 
+@pytest.mark.usefixtures("clear_all_logger_handlers")
 def test_iter_dagrun_infos_between_error(caplog):
     start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
     end = pendulum.instance(DEFAULT_DATE)
@@ -3367,62 +3025,44 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
     assert dag._time_restriction == restrict
 
 
-@pytest.mark.parametrize(
-    "tags, should_pass",
-    [
-        pytest.param([], True, id="empty tags"),
-        pytest.param(["a normal tag"], True, id="one tag"),
-        pytest.param(["a normal tag", "another normal tag"], True, id="two tags"),
-        pytest.param(["a" * 100], True, id="a tag that's of just length 100"),
-        pytest.param(["a normal tag", "a" * 101], False, id="two tags and one of them is of length > 100"),
-    ],
-)
-def test__tags_length(tags: list[str], should_pass: bool):
-    if should_pass:
-        DAG("test-dag", schedule=None, tags=tags)
-    else:
-        with pytest.raises(AirflowException):
-            DAG("test-dag", schedule=None, tags=tags)
-
-
 @pytest.mark.need_serialized_dag
-def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
-    dataset1 = Dataset(uri="ds1")
-    dataset2 = Dataset(uri="ds2")
-    dataset3 = Dataset(uri="ds3")
-    with dag_maker(dag_id="datasets-1", schedule=[dataset2]):
+def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
+    asset1 = Asset(uri="ds1")
+    asset2 = Asset(uri="ds2")
+    asset3 = Asset(uri="ds3")
+    with dag_maker(dag_id="assets-1", schedule=[asset2]):
         pass
     dag1 = dag_maker.dag
 
-    with dag_maker(dag_id="datasets-2", schedule=[dataset1, dataset2]):
+    with dag_maker(dag_id="assets-2", schedule=[asset1, asset2]):
         pass
     dag2 = dag_maker.dag
 
-    with dag_maker(dag_id="datasets-3", schedule=[dataset1, dataset2, dataset3]):
+    with dag_maker(dag_id="assets-3", schedule=[asset1, asset2, asset3]):
         pass
     dag3 = dag_maker.dag
 
     session = dag_maker.session
-    ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+    asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
     session.bulk_save_objects(
         [
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
         ]
     )
     session.flush()
 
-    datasets = session.query(DatasetModel.uri).order_by(DatasetModel.id).all()
+    assets = session.query(AssetModel.uri).order_by(AssetModel.id).all()
 
-    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
     assert info[dag1.dag_id] == {
         "ready": 0,
         "total": 1,
-        "uri": datasets[0].uri,
+        "uri": assets[0].uri,
     }
 
     # This time, check both dag2 and dag3 at the same time (tests filtering)
-    info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
+    info = get_asset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
     assert info[dag2.dag_id] == {
         "ready": 1,
         "total": 2,
@@ -3433,6 +3073,22 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
         "total": 3,
         "uri": "",
     }
+
+
+@pytest.mark.need_serialized_dag
+def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker, clear_assets):
+    asset_alias1 = AssetAlias(name="alias")
+    with dag_maker(dag_id="dag-1", schedule=[asset_alias1]):
+        pass
+    dag1 = dag_maker.dag
+    session = dag_maker.session
+    session.flush()
+
+    info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
+    assert info == {}
+
+    dag1_model = DagModel.get_dagmodel(dag1.dag_id)
+    assert dag1_model.get_asset_triggered_next_run_info(session=session) is None
 
 
 def test_dag_uses_timetable_for_run_id(session):
@@ -3456,7 +3112,7 @@ def test_dag_uses_timetable_for_run_id(session):
 
 @pytest.mark.parametrize(
     "run_id_type",
-    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED],
 )
 def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
@@ -3475,18 +3131,6 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
     )
-
-
-def test_invalid_type_for_args():
-    with pytest.raises(TypeError):
-        DAG("invalid-default-args", schedule=None, max_consecutive_failed_dag_runs="not_an_int")
-
-
-@mock.patch("airflow.models.dag.validate_instance_args")
-def test_dag_init_validates_arg_types(mock_validate_instance_args):
-    dag = DAG("dag_with_expected_args", schedule=None)
-
-    mock_validate_instance_args.assert_called_once_with(dag, DAG_ARGS_EXPECTED_TYPES)
 
 
 class TestTaskClearingSetupTeardownBehavior:
@@ -3992,42 +3636,3 @@ class TestTaskClearingSetupTeardownBehavior:
                 Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
             ):
                 dag.validate_setup_teardown()
-
-
-def test_statement_latest_runs_one_dag():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", category=SAWarning)
-
-        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag"])
-        compiled_stmt = str(stmt.compile())
-        actual = [x.strip() for x in compiled_stmt.splitlines()]
-        expected = [
-            "SELECT dag_run.logical_date, dag_run.id, dag_run.dag_id, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
-            "SELECT max(dag_run.logical_date) AS max_execution_date",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
-        ]
-        assert actual == expected, compiled_stmt
-
-
-def test_statement_latest_runs_many_dag():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", category=SAWarning)
-
-        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
-        compiled_stmt = str(stmt.compile())
-        actual = [x.strip() for x in compiled_stmt.splitlines()]
-        expected = [
-            "SELECT dag_run.logical_date, dag_run.id, dag_run.dag_id, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, "
-            "max(dag_run.logical_date) AS max_execution_date",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) "
-            "AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
-            "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.logical_date = anon_1.max_execution_date",
-        ]
-        assert actual == expected, compiled_stmt

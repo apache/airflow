@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
@@ -40,6 +39,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
 from airflow.security.permissions import (
     RESOURCE_ADMIN_MENU,
+    RESOURCE_ASSET,
     RESOURCE_AUDIT_LOG,
     RESOURCE_BROWSE_MENU,
     RESOURCE_CLUSTER_ACTIVITY,
@@ -49,7 +49,6 @@ from airflow.security.permissions import (
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_DOCS_MENU,
     RESOURCE_JOB,
@@ -108,8 +107,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
         g.user = get_auth_manager().get_user()
 
     def create_limiter(self) -> Limiter:
-        limiter = Limiter(key_func=get_remote_address)
-        limiter.init_app(self.appbuilder.get_app)
+        app = self.appbuilder.get_app
+        limiter = Limiter(key_func=app.config.get("RATELIMIT_KEY_FUNC", get_remote_address))
+        limiter.init_app(app)
         return limiter
 
     def register_views(self):
@@ -182,32 +182,24 @@ class AirflowSecurityManagerV2(LoggingMixin):
         def get_connection_id(resource_pk):
             if not resource_pk:
                 return None
-            connection = session.scalar(select(Connection).where(Connection.id == resource_pk).limit(1))
-            if not connection:
+            conn_id = session.scalar(select(Connection.conn_id).where(Connection.id == resource_pk).limit(1))
+            if not conn_id:
                 raise AirflowException("Connection not found")
-            return connection.conn_id
+            return conn_id
 
         def get_dag_id_from_dagrun_id(resource_pk):
             if not resource_pk:
                 return None
-            dagrun = session.scalar(select(DagRun).where(DagRun.id == resource_pk).limit(1))
-            if not dagrun:
+            dag_id = session.scalar(select(DagRun.dag_id).where(DagRun.id == resource_pk).limit(1))
+            if not dag_id:
                 raise AirflowException("DagRun not found")
-            return dagrun.dag_id
+            return dag_id
 
         def get_dag_id_from_task_instance(resource_pk):
             if not resource_pk:
                 return None
-            composite_pk = json.loads(resource_pk)
             dag_id = session.scalar(
-                select(TaskInstance.dag_id)
-                .where(
-                    TaskInstance.dag_id == composite_pk[0],
-                    TaskInstance.task_id == composite_pk[1],
-                    TaskInstance.run_id == composite_pk[2],
-                    TaskInstance.map_index >= composite_pk[3],
-                )
-                .limit(1)
+                select(TaskInstance.dag_id).where(TaskInstance.id == resource_pk).limit(1)
             )
             if not dag_id:
                 raise AirflowException("Task instance not found")
@@ -253,7 +245,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 details=ConnectionDetails(conn_id=get_connection_id(resource_pk)),
                 user=user,
             ),
-            RESOURCE_DATASET: lambda action, resource_pk, user: auth_manager.is_authorized_dataset(
+            RESOURCE_ASSET: lambda action, resource_pk, user: auth_manager.is_authorized_asset(
                 method=methods[action],
                 user=user,
             ),

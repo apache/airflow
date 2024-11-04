@@ -1,0 +1,11 @@
+**Breaking Change**
+
+Replaced Python's ``list`` with ``MutableSet`` for the property ``DAG.tags``.
+
+At the constractur you still can use list,
+you actually can use any data structure that implements the
+``Collection`` interface.
+
+The ``tags`` property of the ``DAG`` model would be of type
+``MutableSet`` instead of ``list``,
+as there are no actual duplicates at the tags.

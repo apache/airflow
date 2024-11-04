@@ -100,6 +100,7 @@ logging-monitoring/index.rst administration-and-deployment/logging-monitoring/in
 concepts/index.rst core-concepts/index.rst
 executor/index.rst core-concepts/executor/index.rst
 upgrading-from-1-10/index.rst howto/upgrading-from-1-10/index.rst
+core-concepts/auth-manager.rst core-concepts/auth-manager/index.rst
 
 listeners.rst administration-and-deployment/listeners.rst
 kubernetes.rst administration-and-deployment/kubernetes.rst

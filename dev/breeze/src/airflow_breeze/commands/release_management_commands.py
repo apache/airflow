@@ -28,13 +28,14 @@ import tempfile
 import textwrap
 import time
 from collections import defaultdict
+from collections.abc import Generator, Iterable
 from copy import deepcopy
 from datetime import date, datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, Union
 
 import click
 from rich.progress import Progress
@@ -136,6 +137,7 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_SRC,
     AIRFLOW_SOURCES_ROOT,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
@@ -227,21 +229,22 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "24.0"
-AIRFLOW_UV_VERSION = "0.1.10"
+AIRFLOW_PIP_VERSION = "24.3.1"
+AIRFLOW_UV_VERSION = "0.4.29"
 AIRFLOW_USE_UV = False
-WHEEL_VERSION = "0.36.2"
-GITPYTHON_VERSION = "3.1.40"
-RICH_VERSION = "13.7.0"
-NODE_VERSION = "21.2.0"
-PRE_COMMIT_VERSION = "3.5.0"
-HATCH_VERSION = "1.9.1"
-PYYAML_VERSION = "6.0.1"
+# TODO: automate thsese as well
+WHEEL_VERSION = "0.44.0"
+GITPYTHON_VERSION = "3.1.43"
+RICH_VERSION = "13.9.4"
+NODE_VERSION = "22.2.0"
+PRE_COMMIT_VERSION = "4.0.1"
+HATCH_VERSION = "1.13.0"
+PYYAML_VERSION = "6.0.2"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
+RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
  gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """
@@ -336,10 +339,16 @@ class DistributionPackageInfo(NamedTuple):
 
     @classmethod
     def dist_packages(
-        cls, *, package_format: str, dist_directory: Path, build_type: Literal["airflow", "providers"]
+        cls,
+        *,
+        package_format: str,
+        dist_directory: Path,
+        build_type: Literal["airflow", "providers", "task-sdk"],
     ) -> tuple[DistributionPackageInfo, ...]:
         if build_type == "airflow":
             default_glob_pattern = "apache[_-]airflow-[0-9]"
+        elif build_type == "task-sdk":
+            default_glob_pattern = "apache[_-]airflow[_-]task[_-]sdk"
         else:
             default_glob_pattern = "apache[_-]airflow[_-]providers"
         dists_info = []
@@ -453,7 +462,11 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                python_path = create_venv(
+                    Path(tmp_dir_name) / ".venv",
+                    pip_version=AIRFLOW_PIP_VERSION,
+                    uv_version=AIRFLOW_UV_VERSION,
+                )
                 pip_command = create_pip_command(python_path)
                 venv_created = True
 
@@ -545,6 +558,105 @@ def prepare_airflow_packages(
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
+
+
+TASK_SDK_DIR_PATH = AIRFLOW_SOURCES_ROOT / "task_sdk"
+TASK_SDK_DIST_DIR_PATH = TASK_SDK_DIR_PATH / "dist"
+
+
+@release_management.command(
+    name="prepare-task-sdk-package",
+    help="Prepare sdist/whl package of Airflow Task SDK.",
+)
+@option_package_format
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_airflow_task_sdk_packages(
+    package_format: str,
+    use_local_hatch: bool,
+):
+    check_python_version()
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+
+    def _build_package_with_hatch(package_format: str):
+        command = [
+            "hatch",
+            "build",
+            "-c",
+        ]
+        if package_format == "sdist" or package_format == "both":
+            command += ["-t", "sdist"]
+        if package_format == "wheel" or package_format == "both":
+            command += ["-t", "wheel"]
+        env_copy = os.environ.copy()
+        run_command(
+            cmd=command,
+            cwd=TASK_SDK_DIR_PATH,
+            env=env_copy,
+            check=True,
+        )
+        shutil.copytree(TASK_SDK_DIST_DIR_PATH, DIST_DIR, dirs_exist_ok=True)
+
+    def _build_package_with_docker(package_format: str):
+        _build_local_build_image()
+        command = "hatch build -c "
+        if package_format == "sdist" or package_format == "both":
+            command += "-t sdist "
+        if package_format == "wheel" or package_format == "both":
+            command += "-t wheel "
+        container_id = f"airflow-task-sdk-build-{random.getrandbits(64):08x}"
+        result = run_command(
+            cmd=[
+                "docker",
+                "run",
+                "--name",
+                container_id,
+                "-t",
+                "-e",
+                "HOME=/opt/airflow/files/home",
+                "-e",
+                "GITHUB_ACTIONS",
+                "-w",
+                "/opt/airflow/task_sdk",
+                AIRFLOW_BUILD_IMAGE_TAG,
+                "bash",
+                "-c",
+                command,
+            ],
+            check=False,
+        )
+        if result.returncode != 0:
+            get_console().print("[error]Error preparing Airflow Task SDK[/]")
+            fix_ownership_using_docker()
+            sys.exit(result.returncode)
+        DIST_DIR.mkdir(parents=True, exist_ok=True)
+        get_console().print()
+        # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
+        run_command(["docker", "cp", f"{container_id}:/opt/airflow/task_sdk/dist/.", "./dist"], check=True)
+        run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
+
+    if use_local_hatch:
+        _build_package_with_hatch(
+            package_format=package_format,
+        )
+        get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
+        packages = DistributionPackageInfo.dist_packages(
+            package_format=package_format, dist_directory=DIST_DIR, build_type="task-sdk"
+        )
+        get_console().print()
+        _check_sdist_to_wheel_dists(packages)
+        get_console().print("\n[info]Packages available in dist:[/]\n")
+        for dist_info in packages:
+            get_console().print(str(dist_info))
+        get_console().print()
+    else:
+        _build_package_with_docker(
+            package_format=package_format,
+        )
+    get_console().print("[success]Successfully prepared Airflow Task SDK packages")
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -795,7 +907,7 @@ def prepare_provider_packages(
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
 ):
-    check_python_version()
+    check_python_version(release_provider_packages=True)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -2124,7 +2236,7 @@ def generate_issue_content_providers(
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = yaml.safe_load(
                 (
-                    AIRFLOW_SOURCES_ROOT
+                    AIRFLOW_PROVIDERS_SRC
                     / "airflow"
                     / "providers"
                     / provider_id.replace(".", os.sep)
@@ -3369,6 +3481,22 @@ def generate_issue_content(
                 continue
 
             pull_requests[pr_number] = pr
+
+            # retrieve and append commit authors (to handle cherry picks)
+            if hasattr(pr, "get_commits"):
+                try:
+                    commits = pr.get_commits()
+                    for commit in commits:
+                        author = commit.author
+                        if author:
+                            users[pr_number].add(author.login)
+                            progress.console.print(f"Added commit author {author.login} for PR#{pr_number}")
+
+                except Exception as e:
+                    progress.console.print(
+                        f"[warn]Could not retrieve commits for PR#{pr_number}: {e}, skipping[/]"
+                    )
+
             # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
             # Relate so we can find those from the body
             if pr.body:

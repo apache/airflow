@@ -28,7 +28,7 @@ import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.time.sensors.time_delta import TimeDeltaSensorAsync
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
 
 with DAG(
     dag_id="example_time_delta_sensor_async",

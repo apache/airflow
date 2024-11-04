@@ -36,6 +36,7 @@ from uvicorn.workers import UvicornWorker
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.commands.webserver_command import GunicornMonitor
+from airflow.exceptions import AirflowConfigException
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -56,6 +57,7 @@ def fastapi_api(args):
     """Start Airflow FastAPI API."""
     print(settings.HEADER)
 
+    apps = args.apps
     access_logfile = args.access_logfile or "-"
     error_logfile = args.error_logfile or "-"
     access_logformat = args.access_logformat
@@ -80,16 +82,22 @@ def fastapi_api(args):
             str(args.hostname),
         ]
 
+        # There is no way to pass the apps to airflow/api_fastapi/main.py in the debug mode
+        # because fastapi dev command does not accept any additional arguments
+        # so environment variable is being used to pass it
+        os.environ["AIRFLOW_API_APPS"] = apps
         with subprocess.Popen(
             run_args,
             close_fds=True,
         ) as process:
             process.wait()
+        os.environ.pop("AIRFLOW_API_APPS")
     else:
         log.info(
             textwrap.dedent(
                 f"""\
                 Running the Gunicorn Server with:
+                Apps: {apps}
                 Workers: {num_workers} {worker_class}
                 Host: {args.hostname}:{args.port}
                 Timeout: {worker_timeout}
@@ -100,6 +108,7 @@ def fastapi_api(args):
         )
 
         pid_file, _, _, _ = setup_locations("fastapi-api", pid=args.pid)
+
         run_args = [
             sys.executable,
             "-m",
@@ -124,13 +133,17 @@ def fastapi_api(args):
             "python:airflow.api_fastapi.gunicorn_config",
         ]
 
+        ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
+        if ssl_cert and ssl_key:
+            run_args += ["--certfile", ssl_cert, "--keyfile", ssl_key]
+
         if args.access_logformat and args.access_logformat.strip():
             run_args += ["--access-logformat", str(args.access_logformat)]
 
         if args.daemon:
             run_args += ["--daemon"]
 
-        run_args += ["airflow.api_fastapi.app:cached_app()"]
+        run_args += [f"airflow.api_fastapi.app:cached_app(apps='{apps}')"]
 
         # To prevent different workers creating the web app and
         # all writing to the database at the same time, we use the --preload option.
@@ -187,7 +200,7 @@ def fastapi_api(args):
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            create_app()
+            create_app(apps)
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)
@@ -199,3 +212,23 @@ def fastapi_api(args):
             should_setup_logging=True,
             pid_file=monitor_pid_file,
         )
+
+
+def _get_ssl_cert_and_key_filepaths(cli_arguments) -> tuple[str | None, str | None]:
+    error_template_1 = "Need both, have provided {} but not {}"
+    error_template_2 = "SSL related file does not exist {}"
+
+    ssl_cert, ssl_key = cli_arguments.ssl_cert, cli_arguments.ssl_key
+    if ssl_cert and ssl_key:
+        if not os.path.isfile(ssl_cert):
+            raise AirflowConfigException(error_template_2.format(ssl_cert))
+        if not os.path.isfile(ssl_key):
+            raise AirflowConfigException(error_template_2.format(ssl_key))
+
+        return (ssl_cert, ssl_key)
+    elif ssl_cert:
+        raise AirflowConfigException(error_template_1.format("SSL certificate", "SSL key"))
+    elif ssl_key:
+        raise AirflowConfigException(error_template_1.format("SSL key", "SSL certificate"))
+
+    return (None, None)

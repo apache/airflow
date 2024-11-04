@@ -35,14 +35,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.13.2
+......
+
+Latest change: 2024-10-15
+
+=================================================================================================  ===========  =====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================================
+`2899e5f0e2 <https://github.com/apache/airflow/commit/2899e5f0e27c65e29780c81c45db989eba6dc027>`_  2024-10-15   ``add lowerbount to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
+`c941484066 <https://github.com/apache/airflow/commit/c9414840660f58996cd86351538e6ac77afd696b>`_  2024-10-15   ``pin in  providers (#43001)``
+`037274398d <https://github.com/apache/airflow/commit/037274398d5380f1ab5e94f6fd60e742840fe8b4>`_  2024-10-11   ``fix: HttpSensorTrigger to include 'method' when serializing (#42925)``
+`df4df2a8f9 <https://github.com/apache/airflow/commit/df4df2a8f92869c4c47863935da6def37ba7373e>`_  2024-10-10   ``Use url_from_endpoint inside HttpHook. (#42785)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  =====================================================================================================
+
+4.13.1
+......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  =======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`00e5976bde <https://github.com/apache/airflow/commit/00e5976bde0f4a5e41c5cd25f111084e159f9c23>`_  2024-08-25   ``remove soft_fail part2 (#41727)``
+=================================================================================================  ===========  =======================================================
+
 4.13.0
 ......
 
-Latest change: 2024-08-12
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 `d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``

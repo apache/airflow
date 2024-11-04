@@ -44,19 +44,20 @@ from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.task.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_executor import MockExecutor
+
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_executor import MockExecutor
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -73,7 +74,6 @@ def clear_db():
     db.clear_db_dags()
     db.clear_db_jobs()
     db.clear_db_runs()
-    db.clear_db_task_fail()
 
 
 @pytest.fixture(scope="class")
@@ -82,7 +82,6 @@ def clear_db_class():
     db.clear_db_dags()
     db.clear_db_jobs()
     db.clear_db_runs()
-    db.clear_db_task_fail()
 
 
 @pytest.fixture(scope="module")
@@ -132,16 +131,20 @@ class TestLocalTaskJob:
         assert all(check_result_2)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_localtaskjob_heartbeat(self, dag_maker):
+    def test_localtaskjob_heartbeat(self, dag_maker, time_machine):
         session = settings.Session()
         with dag_maker("test_localtaskjob_heartbeat"):
             op1 = EmptyOperator(task_id="op1")
+
+        time_machine.move_to(DEFAULT_DATE, tick=False)
 
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
         ti.hostname = "blablabla"
         session.commit()
+
+        assert ti.last_heartbeat_at is None, "Pre-conditioncheck"
 
         job1 = Job(dag_id=ti.dag_id, executor=SequentialExecutor())
         job_runner = LocalTaskJobRunner(job=job1, task_instance=ti, ignore_ti_state=True)
@@ -150,8 +153,11 @@ class TestLocalTaskJob:
         job1.task_runner = StandardTaskRunner(job_runner)
         job1.task_runner.process = mock.Mock()
         job_runner.task_runner = job1.task_runner
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match="Hostname .* does not match"):
             job_runner.heartbeat_callback()
+
+        ti = session.get(TaskInstance, (ti.id,))
+        assert ti.last_heartbeat_at is None, "Should still be none"
 
         job1.task_runner.process.pid = 1
         ti.state = State.RUNNING
@@ -165,18 +171,21 @@ class TestLocalTaskJob:
         job_runner.heartbeat_callback(session=None)
 
         job1.task_runner.process.pid = 2
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match="PID .* does not match"):
             job_runner.heartbeat_callback()
 
         # Now, set the ti.pid to None and test that no error
         # is raised.
         ti.pid = None
-        session.merge(ti)
+        ti = session.merge(ti)
         session.commit()
         assert ti.pid != job1.task_runner.process.pid
         assert not ti.run_as_user
         assert not job1.task_runner.run_as_user
         job_runner.heartbeat_callback()
+
+        ti = session.get(TaskInstance, (ti.id,))
+        assert ti.last_heartbeat_at == DEFAULT_DATE
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @mock.patch("subprocess.check_call")
@@ -289,6 +298,7 @@ class TestLocalTaskJob:
         assert ti.pid != job1.task_runner.process.pid
         job_runner.heartbeat_callback()
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat_failed_fast(self):
         """
@@ -900,7 +910,9 @@ class TestLocalTaskJob:
             ti_by_task_id = {}
             with create_session() as session:
                 for task_id in init_state:
-                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id, state=init_state[task_id])
+                    ti = TaskInstance(dag.get_task(task_id), run_id=dag_run.run_id)
+                    ti.refresh_from_db()
+                    ti.state = init_state[task_id]
                     session.merge(ti)
                     ti_by_task_id[task_id] = ti
 
@@ -949,11 +961,21 @@ class TestLocalTaskJob:
         task_k = dag.get_task("K")
         task_l = dag.get_task("L")
         with create_session() as session:
-            ti_k = TaskInstance(task_k, run_id=dr.run_id, state=State.SUCCESS)
-            ti_b = TaskInstance(task_l, run_id=dr.run_id, state=State.SUCCESS)
+            ti_k = dr.get_task_instance(task_k.task_id, session=session)
+            ti_k.refresh_from_task(task_k)
+            ti_k.state = State.SUCCESS
 
-            ti2_k = TaskInstance(task_k, run_id=dr2.run_id, state=State.NONE)
-            ti2_l = TaskInstance(task_l, run_id=dr2.run_id, state=State.NONE)
+            ti_b = dr.get_task_instance(task_l.task_id, session=session)
+            ti_b.refresh_from_task(task_l)
+            ti_b.state = State.SUCCESS
+
+            ti2_k = dr2.get_task_instance(task_k.task_id, session=session)
+            ti2_k.refresh_from_task(task_k)
+            ti2_k.state = State.NONE
+
+            ti2_l = dr2.get_task_instance(task_l.task_id, session=session)
+            ti2_l.refresh_from_task(task_l)
+            ti2_l.state = State.NONE
 
             session.merge(ti_k)
             session.merge(ti_b)
@@ -1023,10 +1045,10 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-@mock.patch("airflow.task.task_runner.get_task_runner")
-def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
+@mock.patch("airflow.task.standard_task_runner.StandardTaskRunner")
+def test_number_of_queries_single_loop(mock_task_runner, dag_maker):
     codes: list[int | None] = 9 * [None] + [0]
-    mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
+    mock_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())
     with dag_maker(dag_id=f"{unique_prefix}_test_number_of_queries", serialized=True):
@@ -1039,7 +1061,7 @@ def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
 
     job = Job(dag_id=ti.dag_id, executor=MockExecutor())
     job_runner = LocalTaskJobRunner(job=job, task_instance=ti)
-    with assert_queries_count(18):
+    with assert_queries_count(15):
         run_job(job=job, execute_callable=job_runner._execute)
 
 

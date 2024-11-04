@@ -107,7 +107,7 @@ def get_executor_under_test(dotted_path):
     from airflow.executors.executor_loader import ExecutorLoader
 
     if dotted_path == "MockExecutor":
-        from tests.test_utils.mock_executor import MockExecutor as executor
+        from tests_common.test_utils.mock_executor import MockExecutor as executor
 
     else:
         executor = ExecutorLoader.load_executor(dotted_path)
@@ -133,13 +133,11 @@ def reset_dag(dag, session):
     DR = airflow.models.DagRun
     DM = airflow.models.DagModel
     TI = airflow.models.TaskInstance
-    TF = airflow.models.TaskFail
     dag_id = dag.dag_id
 
     session.query(DM).filter(DM.dag_id == dag_id).update({"is_paused": False})
     session.query(DR).filter(DR.dag_id == dag_id).delete()
     session.query(TI).filter(TI.dag_id == dag_id).delete()
-    session.query(TF).filter(TF.dag_id == dag_id).delete()
 
 
 def pause_all_dags(session):

@@ -153,8 +153,8 @@ class PermissionDenied(ProblemException):
         )
 
 
-class AlreadyExists(ProblemException):
-    """Raise when the object already exists."""
+class Conflict(ProblemException):
+    """Raise when there is some conflict."""
 
     def __init__(
         self,
@@ -171,6 +171,10 @@ class AlreadyExists(ProblemException):
             headers=headers,
             **kwargs,
         )
+
+
+class AlreadyExists(Conflict):
+    """Raise when the object already exists."""
 
 
 class Unknown(ProblemException):

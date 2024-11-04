@@ -30,7 +30,7 @@ from rich.console import Console
 
 AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.8"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
 console = Console(width=400, color_system="standard")
 
@@ -118,8 +118,11 @@ def initialize_breeze_precommit(name: str, file: str):
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"
-            "[yellow]Please install breeze with `pipx install -e ./dev/breeze` from Airflow sources "
-            "and make sure you run `pipx ensurepath`[/]\n\n"
+            "[yellow]Please install breeze.\n"
+            "You can use uv with `uv tool install -e ./dev/breeze or "
+            "`pipx install -e ./dev/breeze`.\n"
+            "It will install breeze from Airflow sources "
+            "(make sure you run `pipx ensurepath` if you use pipx)[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PRE_COMMITS env variable to non-empty "
             "value to skip all breeze tests."
         )
@@ -211,3 +214,20 @@ def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> b
     console.print()
     errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
     return False
+
+
+def validate_cmd_result(cmd_result, include_ci_env_check=False):
+    if include_ci_env_check:
+        if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
+            console.print(
+                "\n[yellow]If you see strange stacktraces above, especially about missing imports "
+                "run this command:[/]\n"
+            )
+            console.print("[magenta]breeze ci-image build --python 3.9 --upgrade-to-newer-dependencies[/]\n")
+
+    elif cmd_result.returncode != 0:
+        console.print(
+            "[warning]\nIf you see strange stacktraces above, "
+            "run `breeze ci-image build --python 3.9` and try again."
+        )
+    sys.exit(cmd_result.returncode)

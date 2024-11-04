@@ -35,14 +35,70 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.19.0
+......
+
+Latest change: 2024-10-26
+
+=================================================================================================  ===========  ================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================
+`a70038223e <https://github.com/apache/airflow/commit/a70038223e4a516576cdbab353f4e59ac61e1657>`_  2024-10-26   ``fix mypy failure (#43206)``
+`2c394e3c85 <https://github.com/apache/airflow/commit/2c394e3c85d77a3a0331687186dfcee89e286035>`_  2024-10-25   ``Feature: Added fast_executemany parameter to insert_rows of DbApiHook (#43357)``
+`4d54cda411 <https://github.com/apache/airflow/commit/4d54cda4114125bb671b0bfccddc73b646855a2d>`_  2024-10-24   ``Make conn id parameters templated in GenericTransfer and also allow passing hook parameters like in BaseSQLOperator (#42891)``
+`b86bb24984 <https://github.com/apache/airflow/commit/b86bb24984b69067f09dd13c03c785058d2ed572>`_  2024-10-18   ``37437 (#43107)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ================================================================================================================================
+
+1.18.0
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`9ba45b6d5f <https://github.com/apache/airflow/commit/9ba45b6d5f474f5c39c563f98dd87afa4245a115>`_  2024-10-07   ``FIX: Only pass connection to sqlalchemy engine in JdbcHook (#42705)``
+`5973c9cce1 <https://github.com/apache/airflow/commit/5973c9cce1a51042298e198df2097a94fd48ac5d>`_  2024-10-04   ``feat(providers/common/sql): add warning to connection setter (#42736)``
+=================================================================================================  ===========  =========================================================================
+
+1.17.1
+......
+
+Latest change: 2024-09-27
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`bcee926d49 <https://github.com/apache/airflow/commit/bcee926d494cabf4ddfa9f2569e36acc5b4d281d>`_  2024-09-27   ``Prepare docs for Sep 2nd adhoc wave of providers (#42519)``
+`7ad586ed6a <https://github.com/apache/airflow/commit/7ad586ed6a6cb93fc25ae0405eb9f6c17d360ef0>`_  2024-09-26   ``fix(providers/common/sql): add dummy connection setter for backward compatibility (#42490)``
+`47c71108a8 <https://github.com/apache/airflow/commit/47c71108a8d0c1dcddc027554ec2747070f8f6ad>`_  2024-09-22   ``Changed type hinting for handler function (#42275)``
+=================================================================================================  ===========  ==============================================================================================
+
+1.17.0
+......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`17c30b4f21 <https://github.com/apache/airflow/commit/17c30b4f21432d7fc419e048305315bba6d04522>`_  2024-09-05   ``feat: log client db messages for provider postgres (#40171)``
+`2e813eb87d <https://github.com/apache/airflow/commit/2e813eb87d7793d7bb2a2fbb4e485c896c1dc2c4>`_  2024-09-04   ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+=================================================================================================  ===========  =================================================================================
+
 1.16.0
 ......
 
-Latest change: 2024-08-14
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `c8dc1971ad <https://github.com/apache/airflow/commit/c8dc1971adec861571ba9f50ef7021f5da450246>`_  2024-08-14   ``fix: rm deprecated import (#41461)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 =================================================================================================  ===========  =======================================================================

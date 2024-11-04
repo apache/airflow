@@ -46,7 +46,7 @@ Importing CSV data
 
 An example usage of the DatabricksCopyIntoOperator to import CSV data into a table is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sql.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sql.py
     :language: python
     :start-after: [START howto_operator_databricks_copy_into]
     :end-before: [END howto_operator_databricks_copy_into]

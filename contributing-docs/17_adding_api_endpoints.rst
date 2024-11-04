@@ -26,7 +26,7 @@ This documentation outlines the steps required to add a new API endpoint in Apac
 Introduction
 ------------
 
-The source code for the RestAPI is located under ``api_fastapi``. Endpoints are located under ``api_fastapi/views`` and contains different types of endpoints. The main two are ``public`` and ``ui``.
+The source code for the RestAPI is located under ``api_fastapi/core_api``. Endpoints are located under ``api_fastapi/core_api/routes`` and contains different types of endpoints. The main two are ``public`` and ``ui``.
 Public endpoints are part of the public API, standardized, well documented and most importantly backward compatible. UI endpoints are custom endpoints made for the frontend that do not respect backward compatibility i.e they can be adapted at any time for UI needs.
 When adding an endpoint you should try as much as possible to make it reusable by the community, have a stable design in mind, standardized and therefore part of the public API. If this is not possible because the data types are too specific or subject to frequent change
 then adding it to the UI endpoints is more suitable.
@@ -35,7 +35,7 @@ then adding it to the UI endpoints is more suitable.
 Step 1: Implement the Endpoint Logic
 ------------------------------------
 1. Considering the details above decide whether your endpoints should be part of the ``public`` or ``ui`` interface.
-1. Navigate to the appropriate views directory in ``api_fastapi/views``.
+1. Navigate to the appropriate routes directory in ``api_fastapi/core_api/routes``.
 2. Register a new route for your endpoint with the appropriate HTTP method, query params, permissions, body type, etc.
 3. Specify the appropriate Pydantic type in the return type annotation.
 
@@ -62,7 +62,7 @@ Step 2: Add tests for your Endpoints
 ------------------------------------
 1. Verify manually with a local API that the endpoint behaves as expected.
 2. Go to the test folder and initialize new tests.
-3. Implements extensives tests to validate query param, permissions, error handling etc.
+3. Implements extensive tests to validate query param, permissions, error handling etc.
 
 
 Step 3: Documentation

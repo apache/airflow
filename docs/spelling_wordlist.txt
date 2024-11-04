@@ -88,6 +88,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -156,6 +158,7 @@ balancers
 Banco
 Bas
 BaseClient
+BaseHook
 BaseObject
 BaseOperator
 baseOperator
@@ -225,7 +228,6 @@ cgi
 Cgroups
 cgroups
 cgroupspy
-Chainable
 chakra
 Changelog
 changelog
@@ -829,8 +831,15 @@ ints
 intvl
 Investorise
 io
+IP
 ip
 ipc
+IPv
+ipv
+IPv4
+ipv4
+IPv6
+ipv6
 iPython
 irreproducible
 IRSA
@@ -974,6 +983,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -1482,6 +1492,9 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
+SnowparkOperator
 somecollection
 somedatabase
 sortable
@@ -1683,6 +1696,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
 travis
 triage
@@ -1720,6 +1734,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads

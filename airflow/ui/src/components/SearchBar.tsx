@@ -18,15 +18,17 @@
  */
 import {
   Button,
-  type ButtonProps,
   Input,
-  InputGroup,
-  type InputGroupProps,
-  InputLeftElement,
+  type ButtonProps,
   type InputProps,
-  InputRightElement,
 } from "@chakra-ui/react";
+import type { ChangeEvent } from "react";
 import { FiSearch } from "react-icons/fi";
+import { useDebouncedCallback } from "use-debounce";
+
+import { InputGroup, type InputGroupProps } from "./ui";
+
+const debounceDelay = 200;
 
 export const SearchBar = ({
   buttonProps,
@@ -36,23 +38,35 @@ export const SearchBar = ({
   readonly buttonProps?: ButtonProps;
   readonly groupProps?: InputGroupProps;
   readonly inputProps?: InputProps;
-}) => (
-  <InputGroup {...groupProps}>
-    <InputLeftElement pointerEvents="none">
-      <FiSearch />
-    </InputLeftElement>
-    <Input placeholder="Search DAGs" pr={150} {...inputProps} />
-    <InputRightElement width={150}>
-      <Button
-        colorScheme="blue"
-        fontWeight="normal"
-        height="1.75rem"
-        variant="ghost"
-        width={140}
-        {...buttonProps}
-      >
-        Advanced Search
-      </Button>
-    </InputRightElement>
-  </InputGroup>
-);
+}) => {
+  const handleSearchChange = useDebouncedCallback(
+    (event: ChangeEvent<HTMLInputElement>) => inputProps?.onChange?.(event),
+    debounceDelay,
+  );
+
+  return (
+    <InputGroup
+      {...groupProps}
+      endElement={
+        <Button
+          colorPalette="blue"
+          fontWeight="normal"
+          height="1.75rem"
+          variant="ghost"
+          width={140}
+          {...buttonProps}
+        >
+          Advanced Search
+        </Button>
+      }
+      startElement={<FiSearch />}
+    >
+      <Input
+        placeholder="Search Dags"
+        pr={150}
+        {...inputProps}
+        onChange={handleSearchChange}
+      />
+    </InputGroup>
+  );
+};

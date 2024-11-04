@@ -45,15 +45,16 @@ from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_pools, clear_db_runs
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools, clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -917,7 +918,7 @@ class TestLogsfromTaskRunCommand:
             session.delete(pool)
             session.commit()
 
-    @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
+    @mock.patch("airflow.task.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self, session):
         ti = self.dr.get_task_instances(session=session)[0]
         _set_state_and_try_num(ti, session)
@@ -931,8 +932,8 @@ class TestLogsfromTaskRunCommand:
         print(logs)  # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        assert f"Subtask {self.task_id}" in logs
-        assert "base_task_runner.py" in logs
+        assert f"Task {self.task_id}" in logs
+        assert "standard_task_runner.py" in logs
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
@@ -1069,7 +1070,7 @@ class TestLoggerMutationHelper:
         assert tgt.propagate is False if target_name else True  # root propagate unchanged
         assert tgt.level == -1
 
-    def test_apply_no_replace(self):
+    def test_apply_no_replace(self, clear_all_logger_handlers):
         """
         Handlers, level and propagate should be applied on target.
         """

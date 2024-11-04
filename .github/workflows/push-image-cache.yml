@@ -76,6 +76,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
@@ -100,6 +104,7 @@ jobs:
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       DOCKER_CACHE: ${{ inputs.docker-cache }}
+      DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -162,6 +167,7 @@ jobs:
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       DOCKER_CACHE: ${{ inputs.docker-cache }}
+      DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}

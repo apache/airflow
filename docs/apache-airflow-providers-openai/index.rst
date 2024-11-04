@@ -52,7 +52,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/openai/index>
+    System Tests <_api/tests/system/openai/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -71,7 +71,7 @@ apache-airflow-providers-openai package
 `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 
-Release: 1.3.0
+Release: 1.4.0
 
 Provider package
 ----------------

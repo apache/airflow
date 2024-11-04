@@ -31,8 +31,9 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import internal_api_command
 from airflow.cli.commands.internal_api_command import GunicornMonitor
 from airflow.settings import _ENABLE_AIP_44
+
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 console = Console(width=400, color_system="standard")
 
@@ -141,9 +142,7 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 "[magenta]Terminating monitor process and expect "
                 "internal-api and gunicorn processes to terminate as well"
             )
-            proc = psutil.Process(pid_monitor)
-            proc.terminate()
-            assert proc.wait(120) in (0, None)
+            self._terminate_multiple_process([pid_internal_api, pid_monitor])
             self._check_processes(ignore_running=False)
             console.print("[magenta]All internal-api and gunicorn processes are terminated.")
         except Exception:

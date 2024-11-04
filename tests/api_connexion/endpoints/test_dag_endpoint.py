@@ -28,13 +28,13 @@ from airflow.models import DagBag, DagModel
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.www import _check_last_log
+
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -56,33 +56,11 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={
-            "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
-            },
-        },
-    )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={
-            "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
-            },
-        },
-    )
+    create_user(app, username="test_no_permissions", role_name=None)
 
     with DAG(
         DAG_ID,
@@ -107,9 +85,8 @@ def configured_app(minimal_app_for_api):
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestDagEndpoint:
@@ -155,14 +132,14 @@ class TestDagEndpoint:
         session.add(dag_model)
 
     @provide_session
-    def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
+    def _create_dag_model_for_details_endpoint_with_asset_expression(self, dag_id, session=None):
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
             timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
-            dataset_expression={
+            asset_expression={
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -211,10 +188,8 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         } == response.json
 
     @conf_vars({("webserver", "secret_key"): "mysecret"})
@@ -252,18 +227,9 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         } == response.json
-
-    def test_should_respond_200_with_granular_dag_access(self):
-        self._create_dag_models(1)
-        response = self.client.get(
-            "/api/v1/dags/TEST_DAG_1", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
-        )
-        assert response.status_code == 200
 
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={"REMOTE_USER": "test"})
@@ -279,13 +245,6 @@ class TestGetDag(TestDagEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
-        assert response.status_code == 403
-
-    def test_should_respond_403_with_granular_access_for_different_dag(self):
-        self._create_dag_models(3)
-        response = self.client.get(
-            "/api/v1/dags/TEST_DAG_2", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
         )
         assert response.status_code == 403
 
@@ -322,24 +281,6 @@ class TestGetDag(TestDagEndpoint):
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        dag_model = DagModel(
-            dag_id="TEST_DAG_1",
-            fileloc="/tmp/dag_1.py",
-            timetable_summary=None,
-            is_paused=False,
-        )
-        session.add(dag_model)
-        session.commit()
-
-        response = self.client.get("/api/v1/dags/TEST_DAG_1")
-        assert response.status_code == expected_status_code
-
 
 class TestGetDagDetails(TestDagEndpoint):
     def test_should_respond_200(self, url_safe_serializer):
@@ -352,11 +293,10 @@ class TestGetDagDetails(TestDagEndpoint):
         last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
-            "concurrency": 16,
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -389,10 +329,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -401,8 +339,8 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_should_respond_200_with_dataset_expression(self, url_safe_serializer):
-        self._create_dag_model_for_details_endpoint_with_dataset_expression(self.dag_id)
+    def test_should_respond_200_with_asset_expression(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint_with_asset_expression(self.dag_id)
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -411,11 +349,10 @@ class TestGetDagDetails(TestDagEndpoint):
         last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
-            "concurrency": 16,
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": {
+            "asset_expression": {
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -453,10 +390,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -475,11 +410,10 @@ class TestGetDagDetails(TestDagEndpoint):
         last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
-            "concurrency": 16,
             "dag_id": "test_dag2",
             "dag_display_name": "test_dag2",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": None,
@@ -505,10 +439,8 @@ class TestGetDagDetails(TestDagEndpoint):
             "orientation": "LR",
             "owners": [],
             "params": {},
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -527,11 +459,10 @@ class TestGetDagDetails(TestDagEndpoint):
         last_parsed = response.json["last_parsed"]
         expected = {
             "catchup": True,
-            "concurrency": 16,
             "dag_id": "test_dag3",
             "dag_display_name": "test_dag3",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": None,
@@ -557,10 +488,8 @@ class TestGetDagDetails(TestDagEndpoint):
             "orientation": "LR",
             "owners": [],
             "params": {},
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": None,
             "tags": [],
             "template_searchpath": None,
@@ -582,11 +511,10 @@ class TestGetDagDetails(TestDagEndpoint):
 
         expected = {
             "catchup": True,
-            "concurrency": 16,
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -618,10 +546,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -644,11 +570,10 @@ class TestGetDagDetails(TestDagEndpoint):
         assert response.status_code == 200
         expected = {
             "catchup": True,
-            "concurrency": 16,
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -680,10 +605,8 @@ class TestGetDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -739,18 +662,6 @@ class TestGetDagDetails(TestDagEndpoint):
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, url_safe_serializer):
-        self._create_dag_model_for_details_endpoint(self.dag_id)
-        url_safe_serializer.dumps("/tmp/dag.py")
-        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetDags(TestDagEndpoint):
     @provide_session
@@ -791,10 +702,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -819,10 +728,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -859,10 +766,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -900,10 +805,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -928,10 +831,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -990,15 +891,6 @@ class TestGetDags(TestDagEndpoint):
         dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
 
         assert expected_dag_ids == dag_ids
-
-    def test_should_respond_200_with_granular_dag_access(self):
-        self._create_dag_models(3)
-        response = self.client.get(
-            "/api/v1/dags", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
-        )
-        assert response.status_code == 200
-        assert len(response.json["dags"]) == 1
-        assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
@@ -1094,10 +986,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1134,10 +1024,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1174,10 +1062,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
@@ -1202,10 +1088,8 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1227,6 +1111,26 @@ class TestGetDags(TestDagEndpoint):
             for field in fields:
                 assert field in dag
 
+    def test_should_return_specified_fields_and_total_entries(self):
+        total = 4
+        self._create_dag_models(total)
+        self._create_deactivated_dag()
+
+        limit = 2
+        fields = ["dag_id"]
+        response = self.client.get(
+            f"api/v1/dags?limit={limit}&fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+
+        res_json = response.json
+        assert res_json["total_entries"] == total
+        assert len(res_json["dags"]) == limit
+        for dag in res_json["dags"]:
+            assert len(dag.keys()) == len(fields)
+            for field in fields:
+                assert field in dag
+
     def test_should_respond_400_with_not_exists_fields(self):
         self._create_dag_models(1)
         self._create_deactivated_dag()
@@ -1236,22 +1140,6 @@ class TestGetDags(TestDagEndpoint):
         )
 
         assert response.status_code == 400, f"Current code: {response.status_code}"
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_dag_models(2)
-        self._create_deactivated_dag()
-
-        dags_query = session.query(DagModel)
-        assert len(dags_query.all()) == 3
-
-        response = self.client.get("api/v1/dags")
-
-        assert response.status_code == expected_status_code
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -1288,27 +1176,13 @@ class TestPatchDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert response.json == expected_response
         _check_last_log(
             session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None, expected_extra=payload
         )
-
-    def test_should_respond_200_on_patch_with_granular_dag_access(self, session):
-        self._create_dag_models(1)
-        response = self.client.patch(
-            "/api/v1/dags/TEST_DAG_1",
-            json={
-                "is_paused": False,
-            },
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 200
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
 
     def test_should_respond_400_on_invalid_request(self):
         patch_body = {
@@ -1320,24 +1194,6 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 400
         assert response.json == {
             "detail": "Property is read-only - 'timetable_summary'",
-            "status": 400,
-            "title": "Bad Request",
-            "type": EXCEPTIONS_LINK_MAP[400],
-        }
-
-    def test_validation_error_raises_400(self):
-        patch_body = {
-            "ispaused": True,
-        }
-        dag_model = self._create_dag_model()
-        response = self.client.patch(
-            f"/api/v1/dags/{dag_model.dag_id}",
-            json=patch_body,
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 400
-        assert response.json == {
-            "detail": "{'ispaused': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
@@ -1417,10 +1273,8 @@ class TestPatchDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert response.json == expected_response
 
@@ -1465,24 +1319,6 @@ class TestPatchDag(TestDagEndpoint):
         )
 
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, url_safe_serializer, session
-    ):
-        url_safe_serializer.dumps("/tmp/dag_1.py")
-        dag_model = self._create_dag_model()
-        payload = {"is_paused": False}
-        response = self.client.patch(
-            f"/api/v1/dags/{dag_model.dag_id}",
-            json=payload,
-        )
-
-        assert response.status_code == expected_status_code
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -1530,10 +1366,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1558,10 +1392,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1611,10 +1443,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -1639,10 +1469,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1732,10 +1560,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 }
             ],
             "total_entries": 1,
@@ -1781,10 +1607,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
@@ -1809,10 +1633,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -1883,19 +1705,6 @@ class TestPatchDags(TestDagEndpoint):
         dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
 
         assert expected_dag_ids == dag_ids
-
-    def test_should_respond_200_with_granular_dag_access(self):
-        self._create_dag_models(3)
-        response = self.client.patch(
-            "api/v1/dags?dag_id_pattern=~",
-            json={
-                "is_paused": False,
-            },
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 200
-        assert len(response.json["dags"]) == 1
-        assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
@@ -2021,10 +1830,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_2",
@@ -2049,10 +1856,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -2098,10 +1903,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_10",
@@ -2126,10 +1929,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -2177,10 +1978,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
                 {
                     "dag_id": "TEST_DAG_1",
@@ -2205,10 +2004,8 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
-                    "pickle_id": None,
                 },
             ],
             "total_entries": 2,
@@ -2224,29 +2021,6 @@ class TestPatchDags(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, session, url_safe_serializer
-    ):
-        url_safe_serializer.dumps("/tmp/dag_1.py")
-        url_safe_serializer.dumps("/tmp/dag_2.py")
-        self._create_dag_models(2)
-        self._create_deactivated_dag()
-
-        dags_query = session.query(DagModel)
-        assert len(dags_query.all()) == 3
-
-        response = self.client.patch(
-            "/api/v1/dags?dag_id_pattern=~",
-            json={"is_paused": False},
-        )
-
-        assert response.status_code == expected_status_code
 
 
 class TestDeleteDagEndpoint(TestDagEndpoint):
@@ -2299,15 +2073,3 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        self._create_dag_models(1)
-
-        response = self.client.delete("/api/v1/dags/TEST_DAG_1")
-
-        assert response.status_code == expected_status_code

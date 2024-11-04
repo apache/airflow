@@ -45,7 +45,7 @@ Defining tasks
 
 In the following code we create a new bucket and then delete the bucket.
 
-.. exampleinclude:: /../../tests/system/providers/alibaba/example_oss_bucket.py
+.. exampleinclude:: /../../providers/tests/system/alibaba/example_oss_bucket.py
     :language: python
     :start-after: [START howto_operator_oss_bucket]
     :end-before: [END howto_operator_oss_bucket]

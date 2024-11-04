@@ -337,7 +337,7 @@ derived from :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
 The auth manager interface itself (the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` class) is
 public, but the different implementations of auth managers are not (i.e. FabAuthManager).
 
-You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager`.
+You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager/index`.
 
 Authentication Backends
 -----------------------

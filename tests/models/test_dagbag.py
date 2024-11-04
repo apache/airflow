@@ -41,14 +41,15 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils.dates import timezone as tz
+from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
+
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -628,9 +629,9 @@ import datetime
 import time
 
 import airflow
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
-time.sleep(31)
+time.sleep(1)
 
 with airflow.DAG(
     "import_timeout",
@@ -638,7 +639,7 @@ with airflow.DAG(
     schedule=None) as dag:
     def f():
         print("Sleeping")
-        time.sleep(2)
+        time.sleep(1)
 
 
     for ind in range(10):
@@ -651,8 +652,9 @@ with airflow.DAG(
         with open("tmp_file.py", "w") as f:
             f.write(code_to_save)
 
-        dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
-        dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+        with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
+            dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
+            dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
 
         assert dag is not None
         assert "tmp_file.py" in dagbag.import_errors
@@ -665,7 +667,7 @@ with airflow.DAG(
         """Test that dagbag.sync_to_db is retried on OperationalError"""
 
         dagbag = DagBag("/dev/null")
-        mock_dag = mock.MagicMock(spec=DAG)
+        mock_dag = mock.MagicMock()
         dagbag.dags["mock_dag"] = mock_dag
 
         op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
@@ -830,11 +832,11 @@ with airflow.DAG(
         # from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 4)), tick=False):
             with assert_queries_count(0):
-                assert dag_bag.get_dag("example_bash_operator").tags == ["example", "example2"]
+                assert dag_bag.get_dag("example_bash_operator").tags == {"example", "example2"}
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
-            example_bash_op_dag.tags += ["new_tag"]
+            example_bash_op_dag.tags.add("new_tag")
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -869,7 +871,7 @@ with airflow.DAG(
                 ser_dag = dag_bag.get_dag("example_bash_operator")
 
             ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-            assert ser_dag.tags == ["example", "example2"]
+            assert ser_dag.tags == {"example", "example2"}
             assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
 
             with create_session() as session:
@@ -883,7 +885,7 @@ with airflow.DAG(
         # Note the date *before* the deserialize step above, simulating a serialization happening
         # long before the transaction is committed
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
-            example_bash_op_dag.tags += ["new_tag"]
+            example_bash_op_dag.tags.add("new_tag")
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'

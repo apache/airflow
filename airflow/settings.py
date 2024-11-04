@@ -377,7 +377,8 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
         if any(
-            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            filename.endswith("conftest.py")
+            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
             for filename, _, _, _ in airflow_frames
         ):
             # This is a fixture call or testing utilities
@@ -616,7 +617,15 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            import MySQLdb.converters
+            try:
+                import MySQLdb.converters
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -740,6 +749,9 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    # mask the sensitive_config_values
+    conf.mask_secrets()
+
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()
 
@@ -780,9 +792,6 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
 )
 
 ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
-
-# Whether or not to check each dagrun against defined SLAs
-CHECK_SLAS = conf.getboolean("core", "check_slas", fallback=True)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

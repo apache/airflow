@@ -151,13 +151,28 @@ Docker in WSL 2
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
     you can run ``code .`` in the root directory of you Airflow repo to launch VS Code.
 
-The pipx tool
---------------
+The uv tool
+-----------
 
-We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
+We are recommending to use the ``uv`` tool to manage your virtual environments and generally as a swiss-knife
+of your Python environment (it supports installing various versions of Python, creating virtual environments,
+installing packages, managing workspaces and running development tools.).
+
+Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/uv/getting-started/installation/>`_.
+We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
+easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
+that make it easier to work with Python.
+
+Alternative: pipx tool
+----------------------
+
+However, we do not want to be entirely dependent on ``uv`` as it is a software governed by a VC-backed vendor,
+so we always want to provide open-source governed alternatives for our tools. If you can't or do not want to
+use ``uv``, we got you covered. Another too you can use to manage development tools (and ``breeze`` development
+environment is Python-Software-Foundation managed ``pipx``. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
-Note that ``pipx`` >= 1.4.1 is used.
+Note that ``pipx`` >= 1.4.1 should be used.
 
 Install pipx
 
@@ -172,7 +187,7 @@ environments. This can be done automatically by the following command (follow in
 
     pipx ensurepath
 
-In Mac
+In case ``pipx`` is not in your PATH, you can run it with Python module:
 
 .. code-block:: bash
 
@@ -234,8 +249,19 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 
 Installation
 ============
+First, clone the Airflow repository, but make sure not to clone it into your home directory. Cloning it into your home directory will cause the following error:
+``Your Airflow sources are checked out in /Users/username/airflow, which is also your AIRFLOW_HOME where Airflow writes logs and database files. This setup is problematic because Airflow might overwrite or clean up your source code and .git repository.``
 
-Set your working directory to root of (this) cloned repository.
+.. code-block:: bash
+
+    git clone https://github.com/apache/airflow.git
+
+Set your working directory to the root of this cloned repository.
+
+.. code-block:: bash
+
+    cd  airflow
+
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
@@ -302,7 +328,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
     case you should force-reinstall Breeze with ``pipx``:
 
         .. code-block:: bash
@@ -331,14 +357,14 @@ that Breeze works on
 
         .. code-block:: bash
 
-            pipx reinstall --python /Users/airflow/.pyenv/versions/3.8.16/bin/python apache-airflow-breeze
+            pipx reinstall --python /Users/airflow/.pyenv/versions/3.9.16/bin/python apache-airflow-breeze
 
         Or you can uninstall breeze and install it with a specific python version:
 
         .. code-block:: bash
 
             pipx uninstall apache-airflow-breeze
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python
 
 
 Running Breeze for the first time

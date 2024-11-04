@@ -57,6 +57,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--additional-pip-install-flags",
                 "--commit-sha",
                 "--debian-version",
+                "--disable-airflow-repo-cache",
                 "--install-mysql-client-type",
                 "--python-image",
                 "--use-uv",

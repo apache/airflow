@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
 import yaml
 from termcolor import colored
-from wcmatch import glob
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -33,9 +31,8 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 CONFIG_KEY = "labelPRBasedOnFilePath"
 
-current_files = subprocess.check_output(["git", "ls-files"]).decode().splitlines()
-git_root = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"]).decode().strip())
-cyborg_config_path = git_root / ".github" / "boring-cyborg.yml"
+repo_root = Path(__file__).parent.parent.parent.parent
+cyborg_config_path = repo_root / ".github" / "boring-cyborg.yml"
 cyborg_config = yaml.safe_load(cyborg_config_path.read_text())
 if CONFIG_KEY not in cyborg_config:
     raise SystemExit(f"Missing section {CONFIG_KEY}")
@@ -43,12 +40,14 @@ if CONFIG_KEY not in cyborg_config:
 errors = []
 for label, patterns in cyborg_config[CONFIG_KEY].items():
     for pattern in patterns:
-        if glob.globfilter(current_files, pattern, flags=glob.G | glob.E):
+        try:
+            next(Path(repo_root).glob(pattern))
             continue
-        yaml_path = f"{CONFIG_KEY}.{label}"
-        errors.append(
-            f"Unused pattern [{colored(pattern, 'cyan')}] in [{colored(yaml_path, 'cyan')}] section."
-        )
+        except StopIteration:
+            yaml_path = f"{CONFIG_KEY}.{label}"
+            errors.append(
+                f"Unused pattern [{colored(pattern, 'cyan')}] in [{colored(yaml_path, 'cyan')}] section."
+            )
 
 if errors:
     print(f"Found {colored(str(len(errors)), 'red')} problems:")

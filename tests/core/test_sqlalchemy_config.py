@@ -25,7 +25,8 @@ from sqlalchemy.pool import NullPool
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowConfigException
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 SQL_ALCHEMY_CONNECT_ARGS = {"test": 43503, "dict": {"is": 1, "supported": "too"}}
 

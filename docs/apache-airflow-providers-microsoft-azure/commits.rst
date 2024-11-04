@@ -35,14 +35,60 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+11.0.0
+......
+
+Latest change: 2024-10-26
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`93ad181684 <https://github.com/apache/airflow/commit/93ad181684c8314e199f2521f487cd4292e06b5c>`_  2024-10-26   ``Add context to Azure Service Bus Message callback (#43370)``
+`64336c29b1 <https://github.com/apache/airflow/commit/64336c29b1c758772ad9819e4586d0b689725a6b>`_  2024-10-24   ``Add documentation for the PowerBIDatasetRefresh Operator. (#42754)``
+`7b151d32c8 <https://github.com/apache/airflow/commit/7b151d32c809805a6406999b83401663baf7eb41>`_  2024-10-15   ``Add upperbound to microsoft-kiota-abstractions (#43021)``
+`2b101e2377 <https://github.com/apache/airflow/commit/2b101e2377f8d49a46aca6c219e4b38ee099a98d>`_  2024-10-15   ``Feature: Added event_handler parameter in MSGraphAsyncOperator (#42539)``
+`7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+10.5.1
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+`d89f305a34 <https://github.com/apache/airflow/commit/d89f305a343a187240d72bb291982dd29854fb2e>`_  2024-09-29   ``Bugfix/42575 workaround pin azure kusto data (#42576)``
+`193defd289 <https://github.com/apache/airflow/commit/193defd2898772e7e989cbee85815d49e9f0d8f0>`_  2024-09-25   ``(bugfix): Paginated results in MSGraphAsyncOperator (#42414)``
+=================================================================================================  ===========  ==================================================================================================
+
+10.5.0
+......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`ede34ebee7 <https://github.com/apache/airflow/commit/ede34ebee70648f83209c43e51d39ac6779c66b5>`_  2024-09-05   ``Allow custom api versions in MSGraphAsyncOperator (#41331)``
+`85ad5c374d <https://github.com/apache/airflow/commit/85ad5c374d93a0f95891b15c27c14e012b7c8974>`_  2024-09-05   `` Add callback to process Azure Service Bus message contents (#41601)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+`716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
+=================================================================================================  ===========  ========================================================================
+
 10.4.0
 ......
 
-Latest change: 2024-08-14
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `01390839dd <https://github.com/apache/airflow/commit/01390839dd57bc8a104a8d41c923beb5455fe489>`_  2024-08-14   ``Microsoft Power BI operator to refresh the dataset (#40356)``
 `d2c9e8cfc0 <https://github.com/apache/airflow/commit/d2c9e8cfc00f30f4b3102197c2145c6e44b3d837>`_  2024-08-14   ``Export Azure Container Instance log messages to XCOM (#41142)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
