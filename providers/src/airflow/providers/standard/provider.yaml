@@ -72,7 +72,7 @@ config:
           Which python tooling should be used to install the virtual environment.
 
           The following options are available:
-          - ``auto``: Automatically select, use `uv` if available, otherwise use ``pip``.
+          - ``auto``: Automatically select, use ``uv`` if available, otherwise use ``pip``.
           - ``pip``: Use pip to install the virtual environment.
           - ``uv``: Use uv to install the virtual environment. Must be available in environment PATH.
         version_added: ~
