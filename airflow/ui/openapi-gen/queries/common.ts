@@ -603,6 +603,87 @@ export const UseTaskInstanceServiceGetTaskInstanceKeyFn = (
   useTaskInstanceServiceGetTaskInstanceKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
 ];
+export type TaskInstanceServiceGetMappedTaskInstancesDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getMappedTaskInstances>
+>;
+export type TaskInstanceServiceGetMappedTaskInstancesQueryResult<
+  TData = TaskInstanceServiceGetMappedTaskInstancesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetMappedTaskInstancesKey =
+  "TaskInstanceServiceGetMappedTaskInstances";
+export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    durationGte,
+    durationLte,
+    endDateGte,
+    endDateLte,
+    executionDateGte,
+    executionDateLte,
+    executor,
+    limit,
+    offset,
+    orderBy,
+    pool,
+    queue,
+    startDateGte,
+    startDateLte,
+    state,
+    taskId,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    durationGte?: number;
+    durationLte?: number;
+    endDateGte?: string;
+    endDateLte?: string;
+    executionDateGte?: string;
+    executionDateLte?: string;
+    executor?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    pool?: string[];
+    queue?: string[];
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    taskId: string;
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetMappedTaskInstancesKey,
+  ...(queryKey ?? [
+    {
+      dagId,
+      dagRunId,
+      durationGte,
+      durationLte,
+      endDateGte,
+      endDateLte,
+      executionDateGte,
+      executionDateLte,
+      executor,
+      limit,
+      offset,
+      orderBy,
+      pool,
+      queue,
+      startDateGte,
+      startDateLte,
+      state,
+      taskId,
+      updatedAtGte,
+      updatedAtLte,
+    },
+  ]),
+];
 export type TaskInstanceServiceGetMappedTaskInstanceDefaultResponse = Awaited<
   ReturnType<typeof TaskInstanceService.getMappedTaskInstance>
 >;
