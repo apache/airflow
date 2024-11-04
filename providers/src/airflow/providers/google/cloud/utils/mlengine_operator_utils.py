@@ -28,9 +28,9 @@ from urllib.parse import urlsplit
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.operators.python import PythonOperator
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
+from airflow.providers.common.compat.standard.operators import PythonOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 

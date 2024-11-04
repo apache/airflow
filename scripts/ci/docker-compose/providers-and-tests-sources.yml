@@ -21,6 +21,7 @@ services:
     tty: true  # docker run -t
     environment:
       - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
+      - LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=true
     # We only mount tests folder
     volumes:
       - ../../../.bash_aliases:/root/.bash_aliases:cached
@@ -30,8 +31,8 @@ services:
       - ../../../empty:/opt/airflow/airflow
       # but keep tests
       - ../../../tests/:/opt/airflow/tests:cached
-      # and providers
-      - ../../../providers/src/airflow/providers:/opt/airflow/airflow/providers:cached
+      # Mount providers to make sure that we have the latest providers - both tests and sources
+      - ../../../providers/:/opt/airflow/providers:cached
       # and entrypoint and in_container scripts for testing
       - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
       - ../../../scripts/in_container/:/opt/airflow/scripts/in_container

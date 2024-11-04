@@ -50,9 +50,8 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -68,7 +67,7 @@ from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests.listeners import dag_listener
@@ -1153,8 +1152,8 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
-        ti1 = TaskInstance(task1, run_id=dr1.run_id)
-        ti2 = TaskInstance(task1, run_id=dr2.run_id)
+        ti1 = dr1.get_task_instance(task1.task_id)
+        ti2 = dr2.get_task_instance(task1.task_id)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
         session.merge(ti1)
@@ -5665,16 +5664,10 @@ class TestSchedulerJob:
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+
+                ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
                 ti.queued_by_job_id = 999
 
-                local_job = Job(dag_id=ti.dag_id)
-                LocalTaskJobRunner(job=local_job, task_instance=ti)
-                local_job.state = TaskInstanceState.FAILED
-
-                session.add(local_job)
-                session.flush()
-
-                ti.job_id = local_job.id
                 session.add(ti)
                 session.flush()
 
@@ -5733,13 +5726,6 @@ class TestSchedulerJob:
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
                 ti.queued_by_job_id = 999
 
-                local_job = Job(dag_id=ti.dag_id)
-                local_job.state = TaskInstanceState.FAILED
-
-                session.add(local_job)
-                session.flush()
-
-                ti.job_id = local_job.id
                 session.add(ti)
                 session.flush()
 
@@ -5795,17 +5781,11 @@ class TestSchedulerJob:
             task = dag.get_task(task_id="run_this_last")
 
             ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
-
-            local_job = Job(dag_id=ti.dag_id)
-            LocalTaskJobRunner(job=local_job, task_instance=ti)
-            local_job.state = JobState.FAILED
-            session.add(local_job)
-            session.flush()
+            ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
 
             # TODO: If there was an actual Relationship between TI and Job
             # we wouldn't need this extra commit
             session.add(ti)
-            ti.job_id = local_job.id
             session.flush()
 
         scheduler_job = Job()
@@ -6160,84 +6140,102 @@ class TestSchedulerJob:
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
         assert backfill_run.state == State.SUCCESS
 
+    @staticmethod
+    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
+        assets = session.execute(
+            select(AssetModel, AssetActive)
+            .outerjoin(
+                AssetActive,
+                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
+            )
+            .order_by(AssetModel.uri)
+        ).all()
+        return [a for a, v in assets if not v], [a for a, v in assets if v]
+
+    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
+
         asset1 = Asset(uri="ds1")
         asset2 = Asset(uri="ds2")
         asset3 = Asset(uri="ds3")
         asset4 = Asset(uri="ds4")
+        asset5 = Asset(uri="ds5")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
-        assert non_orphaned_asset_count == 4
-        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
-        assert orphaned_asset_count == 0
+        # Assets not activated yet; asset5 is not even registered (since it's not used anywhere).
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1, asset2, asset3, asset4]
 
-        # now remove 2 asset references
-        with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3])
-
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-
-        self.job_runner._orphan_unreferenced_assets(session=session)
+        self.job_runner._update_asset_orphanage(session=session)
         session.flush()
 
-        # and find the orphans
-        non_orphaned_assets = [
-            asset.uri
-            for asset in session.query(AssetModel.uri)
-            .filter(AssetModel.active.has())
-            .order_by(AssetModel.uri)
-        ]
-        assert non_orphaned_assets == ["ds1", "ds3"]
-        orphaned_assets = session.scalars(
-            select(AssetModel.uri).where(~AssetModel.active.has()).order_by(AssetModel.uri)
-        ).all()
-        assert orphaned_assets == ["ds2", "ds4"]
+        # Assets are activated after scheduler loop.
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1, asset2, asset3, asset4]
+        assert orphaned == []
 
+        # Now remove 2 asset references and add asset5.
+        with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset5])
+
+        # The DAG parser finds asset5, but it's not activated yet.
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1, asset2, asset3, asset4]
+        assert orphaned == [asset5]
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        # Now we get the updated result.
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1, asset3, asset5]
+        assert orphaned == [asset2, asset4]
+
+    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
+
         asset1 = Asset(uri="ds1")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
-        assert non_orphaned_asset_count == 1
-        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
-        assert orphaned_asset_count == 0
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1]
+        assert orphaned == []
 
         # now remove asset1 reference
         with dag_maker(dag_id="assets-1", schedule=None, session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-
-        self.job_runner._orphan_unreferenced_assets(session=session)
+        self.job_runner._update_asset_orphanage(session=session)
         session.flush()
 
-        orphaned_assets_before_rerun = (
-            session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(~AssetModel.active.has())
-            .order_by(AssetModel.uri)
-        )
-        assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
-        updated_at_timestamps = [asset.updated_at for asset in orphaned_assets_before_rerun]
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+        updated_at_timestamps = [asset.updated_at for asset in orphaned]
 
         # when rerunning we should ignore the already orphaned assets and thus the updated_at timestamp
         # should remain the same
-        self.job_runner._orphan_unreferenced_assets(session=session)
+        self.job_runner._update_asset_orphanage(session=session)
         session.flush()
 
-        orphaned_assets_after_rerun = (
-            session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(~AssetModel.active.has())
-            .order_by(AssetModel.uri)
-        )
-        assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]
-        assert updated_at_timestamps == [asset.updated_at for asset in orphaned_assets_after_rerun]
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+        assert [asset.updated_at for asset in orphaned] == updated_at_timestamps
 
     def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

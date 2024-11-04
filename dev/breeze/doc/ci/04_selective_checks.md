@@ -321,6 +321,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
 | default versions only            | all-versions, *-versions-*       | If set, the number of Python and Kubernetes, DB versions are limited to the default ones. |
 | disable image cache              | docker-cache                     | If set, the image cache is disables when building the image.                              |
+| force pip                        | force-pip                        | If set, the image build uses pip instead of uv.                                           |
 | full tests needed                | full-tests-needed                | If set, complete set of tests are run                                                     |
 | include success outputs          | include-success-outputs          | If set, outputs of successful parallel tests are shown not only failed outputs.           |
 | latest versions only             | *-versions-*, *-versions-*       | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones. |

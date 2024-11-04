@@ -34,11 +34,12 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
 )
 
-MessageCallback = Callable[[ServiceBusMessage], None]
-
-
 if TYPE_CHECKING:
     from azure.identity import DefaultAzureCredential
+
+    from airflow.utils.context import Context
+
+    MessageCallback = Callable[[ServiceBusMessage, Context], None]
 
 
 class BaseAzureServiceBusHook(BaseHook):
@@ -283,6 +284,7 @@ class MessageHook(BaseAzureServiceBusHook):
     def receive_message(
         self,
         queue_name: str,
+        context: Context,
         max_message_count: int | None = 1,
         max_wait_time: float | None = None,
         message_callback: MessageCallback | None = None,
@@ -309,12 +311,13 @@ class MessageHook(BaseAzureServiceBusHook):
                 max_message_count=max_message_count, max_wait_time=max_wait_time
             )
             for msg in received_msgs:
-                self._process_message(msg, message_callback, receiver)
+                self._process_message(msg, context, message_callback, receiver)
 
     def receive_subscription_message(
         self,
         topic_name: str,
         subscription_name: str,
+        context: Context,
         max_message_count: int | None,
         max_wait_time: float | None,
         message_callback: MessageCallback | None = None,
@@ -350,11 +353,12 @@ class MessageHook(BaseAzureServiceBusHook):
                 max_message_count=max_message_count, max_wait_time=max_wait_time
             )
             for msg in received_msgs:
-                self._process_message(msg, message_callback, subscription_receiver)
+                self._process_message(msg, context, message_callback, subscription_receiver)
 
     def _process_message(
         self,
         msg: ServiceBusReceivedMessage,
+        context: Context,
         message_callback: MessageCallback | None,
         receiver: ServiceBusReceiver,
     ):
@@ -372,7 +376,7 @@ class MessageHook(BaseAzureServiceBusHook):
             receiver.complete_message(msg)
         else:
             try:
-                message_callback(msg)
+                message_callback(msg, context)
             except Exception as e:
                 self.log.error("Error processing message: %s", e)
                 receiver.abandon_message(msg)

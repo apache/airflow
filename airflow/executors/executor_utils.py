@@ -31,17 +31,8 @@ class ExecutorName(LoggingMixin):
     def set_connector_source(self):
         if self.alias in CORE_EXECUTOR_NAMES:
             self.connector_source = ConnectorSource.CORE
-        # If there is only one dot, then this is likely a plugin. This is the best we can do
-        # to determine.
-        elif self.module_path.count(".") == 1:
-            self.log.debug(
-                "The executor name looks like the plugin path (executor_name=%s) due to having "
-                "just two period delimited parts. Treating executor as a plugin",
-                self.module_path,
-            )
-            self.connector_source = ConnectorSource.PLUGIN
-        # Executor must be a module
         else:
+            # Executor must be a module
             self.connector_source = ConnectorSource.CUSTOM_PATH
 
     def __repr__(self):
