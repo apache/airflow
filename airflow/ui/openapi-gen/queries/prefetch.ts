@@ -12,6 +12,7 @@ import {
   DagsService,
   DashboardService,
   EventLogService,
+  ImportErrorService,
   MonitorService,
   PluginService,
   PoolService,
@@ -542,6 +543,59 @@ export const prefetchUseEventLogServiceGetEventLogs = (
         taskId,
         tryNumber,
       }),
+  });
+/**
+ * Get Import Error
+ * Get an import error.
+ * @param data The data for the request.
+ * @param data.importErrorId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseImportErrorServiceGetImportError = (
+  queryClient: QueryClient,
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({
+      importErrorId,
+    }),
+    queryFn: () => ImportErrorService.getImportError({ importErrorId }),
+  });
+/**
+ * Get Import Errors
+ * Get all import errors.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseImportErrorServiceGetImportErrors = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      ImportErrorService.getImportErrors({ limit, offset, orderBy }),
   });
 /**
  * Get Health

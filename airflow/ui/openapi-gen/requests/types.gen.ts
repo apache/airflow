@@ -878,6 +878,20 @@ export type GetEventLogsData = {
 
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
+export type GetImportErrorData = {
+  importErrorId: number;
+};
+
+export type GetImportErrorResponse = unknown;
+
+export type GetImportErrorsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetImportErrorsResponse = unknown;
+
 export type GetHealthResponse = HealthInfoSchema;
 
 export type ListDagWarningsData = {
@@ -1636,6 +1650,56 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: EventLogCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/{import_error_id}": {
+    get: {
+      req: GetImportErrorData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/": {
+    get: {
+      req: GetImportErrorsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Unauthorized
          */
