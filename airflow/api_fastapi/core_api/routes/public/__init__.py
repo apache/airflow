@@ -21,6 +21,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
 from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_router
+from airflow.api_fastapi.core_api.routes.public.dag_warning import dag_warning_router
 from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.event_logs import event_logs_router
 from airflow.api_fastapi.core_api.routes.public.monitor import monitor_router
@@ -40,6 +41,7 @@ public_router.include_router(dag_sources_router)
 public_router.include_router(dags_router)
 public_router.include_router(event_logs_router)
 public_router.include_router(monitor_router)
+public_router.include_router(dag_warning_router)
 public_router.include_router(plugins_router)
 public_router.include_router(pools_router)
 public_router.include_router(providers_router)
