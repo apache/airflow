@@ -86,7 +86,7 @@ async def get_mapped_task_instance(
 
 
 @task_instances_router.get(
-    "{task_id}/tries/{task_try_number}", responses=create_openapi_http_exception_doc([401, 403, 404])
+    "/{task_id}/tries/{task_try_number}", responses=create_openapi_http_exception_doc([401, 403, 404])
 )
 async def get_task_instance_try_details(
     dag_id: str,
@@ -112,6 +112,9 @@ async def get_task_instance_try_details(
     if task_instance is None:
         raise HTTPException(
             404,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and try_number: `{task_try_number}` was not found",
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and try_number: `{task_try_number}` was not found",
         )
+    if task_instance.map_index != -1:
+        raise HTTPException(404, "Task instance is mapped, add the map_index value to the URL")
+
     return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
