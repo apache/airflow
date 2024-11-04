@@ -70,25 +70,25 @@ class TestDatabricksHookAadTokenWorkloadIdentityAsync:
         self._hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
-    @mock.patch.dict(
-        os.environ,
-        {
-            "AZURE_CLIENT_ID": "fake-client-id",
-            "AZURE_TENANT_ID": "fake-tenant-id",
-            "AZURE_FEDERATED_TOKEN_FILE": "/badpath",
-            "KUBERNETES_SERVICE_HOST": "fakeip",
-        },
-    )
     @mock.patch(
         "azure.identity.aio.DefaultAzureCredential.get_token", return_value=create_aad_token_for_resource()
     )
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_one(self, requests_mock, get_token_mock: mock.MagicMock):
-        requests_mock.return_value.__aenter__.return_value.json.side_effect = mock.AsyncMock(
-            side_effect=[{"data": 1}]
-        )
+        with mock.patch.dict(
+            os.environ,
+            {
+                "AZURE_CLIENT_ID": "fake-client-id",
+                "AZURE_TENANT_ID": "fake-tenant-id",
+                "AZURE_FEDERATED_TOKEN_FILE": "/badpath",
+                "KUBERNETES_SERVICE_HOST": "fakeip",
+            },
+        ):
+            requests_mock.return_value.__aenter__.return_value.json.side_effect = mock.AsyncMock(
+                side_effect=[{"data": 1}]
+            )
 
-        async with self._hook:
-            result = await self._hook.a_get_run_output(0)
+            async with self._hook:
+                result = await self._hook.a_get_run_output(0)
 
-        assert result == {"data": 1}
+            assert result == {"data": 1}
