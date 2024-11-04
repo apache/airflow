@@ -111,7 +111,7 @@ or text editor, you can also use `uv run` to run the scripts in the virtual envi
 For example to run all tests in the virtual environment you can use:
 
 ```shell
-    uv run pytest
+uv run pytest
 ```
 
 4. Add/remove dependencies with `uv`:
