@@ -56,8 +56,9 @@ def check_python_version():
     if error:
         get_console().print(
             "[warning]Please reinstall Breeze using Python 3.9 - 3.11 environment.[/]\n\n"
-            "For example:\n\n"
-            "pipx uninstall apache-airflow-breeze\n"
-            "pipx install --python $(which python3.9) -e ./dev/breeze --force\n"
+            "If you are using uv:\n\n"
+            "   uv tool install --force --reinstall --python 3.9 -e ./dev/breeze\n\n"
+            "If you are using pipx:\n\n"
+            "   pipx install --python $(which python3.9) --force -e ./dev/breeze\n"
         )
         sys.exit(1)

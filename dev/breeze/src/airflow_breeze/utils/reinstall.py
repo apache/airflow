@@ -27,15 +27,24 @@ from airflow_breeze.utils.console import get_console
 
 def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     """
-    Reinstalls Breeze from specified sources.
+    Re-installs Breeze from specified sources.
     :param breeze_sources: Sources where to install Breeze from.
     :param re_run: whether to re-run the original command that breeze was run with.
     """
+    # First check if `breeze` is installed with uv and if it is, reinstall it using uv
+    # If not - we assume pipx is used and we reinstall it using pipx
     # Note that we cannot use `pipx upgrade` here because we sometimes install
     # Breeze from different sources than originally installed (i.e. when we reinstall airflow
     # From the current directory.
     get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
-    subprocess.check_call(["pipx", "install", "-e", str(breeze_sources), "--force"])
+    result = subprocess.run(["uv", "tool", "list"], text=True, capture_output=True, check=False)
+    if result.returncode == 0:
+        if "apache-airflow-breeze" in result.stdout:
+            subprocess.check_call(
+                ["uv", "tool", "install", "--force", "--reinstall", "-e", breeze_sources.as_posix()]
+            )
+    else:
+        subprocess.check_call(["pipx", "install", "-e", breeze_sources.as_posix(), "--force"])
     if re_run:
         # Make sure we don't loop forever if the metadata hash hasn't been updated yet (else it is tricky to
         # run pre-commit checks via breeze!)
