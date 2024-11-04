@@ -536,6 +536,7 @@ export type SchedulerInfoSchema = {
  * TaskInstance serializer for responses.
  */
 export type TaskInstanceResponse = {
+  id: string;
   task_id: string;
   dag_id: string;
   dag_run_id: string;

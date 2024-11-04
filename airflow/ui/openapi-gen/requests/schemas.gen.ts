@@ -2300,6 +2300,10 @@ export const $SchedulerInfoSchema = {
 
 export const $TaskInstanceResponse = {
   properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
     task_id: {
       type: "string",
       title: "Task Id",
@@ -2529,6 +2533,7 @@ export const $TaskInstanceResponse = {
   },
   type: "object",
   required: [
+    "id",
     "task_id",
     "dag_id",
     "dag_run_id",
