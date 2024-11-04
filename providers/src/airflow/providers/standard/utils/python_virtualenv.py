@@ -33,7 +33,7 @@ from airflow.utils.process_utils import execute_in_subprocess
 
 def _is_uv_installed() -> bool:
     """
-    Check if the uv tool is installed via checking if it is on the path or installed as package.
+    Verify whether the uv tool is installed by checking if it's included in the system PATH or installed as a package.
 
     :return: True if it is. Whichever way of checking it works, is fine.
     """
