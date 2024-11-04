@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -36,7 +36,9 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 
 @event_logs_router.get(
     "/{event_log_id}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def get_event_log(
     event_log_id: int,
@@ -44,7 +46,7 @@ async def get_event_log(
 ) -> EventLogResponse:
     event_log = session.scalar(select(Log).where(Log.id == event_log_id))
     if event_log is None:
-        raise HTTPException(404, f"The Event Log with id: `{event_log_id}` not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
     return EventLogResponse.model_validate(
         event_log,
         from_attributes=True,
