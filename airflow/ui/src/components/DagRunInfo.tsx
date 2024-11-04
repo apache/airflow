@@ -64,7 +64,7 @@ const DagRunInfo = ({
           {Boolean(startDate) && Boolean(endDate) ? (
             <Text>
               Duration:{" "}
-              {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s{" "}
+              {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s
             </Text>
           ) : undefined}
         </VStack>
