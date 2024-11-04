@@ -29,8 +29,8 @@ import {
 import React, { useState } from "react";
 import { FiPlay } from "react-icons/fi";
 
-import { TriggerDag } from "./TriggerDag";
 import TriggerDAGForm from "./TriggerDAGForm";
+import { TriggerDag } from "./TriggerDag";
 
 type DagParams = {
   configJson: string;

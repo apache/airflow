@@ -36,13 +36,13 @@ import type {
 } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
-import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
+import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
 import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
