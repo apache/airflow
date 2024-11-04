@@ -386,6 +386,14 @@ core:
       type: integer
       example: ~
       default: "30"
+    num_stuck_reschedules:
+      description: |
+        Number of times Airflow will reschedule a task that gets stuck in queued before marking the
+        task as failed
+      version_added: 2.10.0
+      type: integer
+      example: ~
+      default: "2"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results

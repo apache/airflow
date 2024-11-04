@@ -450,7 +450,8 @@ class CeleryExecutor(BaseExecutor):
         for ti in tis:
             readable_tis.append(repr(ti))
             task_instance_key = ti.key
-            self.fail(task_instance_key, None)
+            if Version(airflow_version) < Version("2.10.4"):
+                self.fail(task_instance_key)
             celery_async_result = self.tasks.pop(task_instance_key, None)
             if celery_async_result:
                 try:

@@ -98,6 +98,8 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
+RESCHEDULE_STUCK_IN_QUEUED_EVENT = "rescheduling stuck in queued"
+
 
 class ConcurrencyMap:
     """
@@ -1076,7 +1078,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
-            self._fail_tasks_stuck_in_queued,
+            self._handle_tasks_stuck_in_queued,
         )
 
         timers.call_regular_interval(
@@ -1783,15 +1785,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
         """
-        Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
+
+        Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
         Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
         track of a task, a cluster can't further scale up its workers, etc.), but tasks
-        should not be stuck in queued for a long time. This will mark tasks stuck in
-        queued for longer than `self._task_queued_timeout` as failed. If the task has
-        available retries, it will be retried.
+        should not be stuck in queued for a long time.
+
+        Originally, we simply marked a task as failed when it was stuck in queued for
+        too long. We found that this led to suboptimal outcomes as ideally we would like "failed"
+        to mean that a task was unable to run, instead of it meaning that we were unable to run the task.
+
+        As a compromise between always failing a stuck task and always rescheduling a stuck task (which could
+        lead to tasks being stuck in queued forever without informing the user), we have creating the config
+        `[core] num_stuck_reschedules`. With this new configuration, an airflow admin can decide how
+        sensitive they would like their airflow to be WRT failing stuck tasks.
         """
         self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
 
@@ -1803,6 +1813,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
 
+        num_allowed_retries = conf.getint("core", "num_stuck_reschedules")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
             try:
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
@@ -1815,16 +1826,60 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         session.add(
                             Log(
-                                event="stuck in queued",
+                                event=RESCHEDULE_STUCK_IN_QUEUED_EVENT,
                                 task_instance=ti.key,
                                 extra=(
-                                    "Task will be marked as failed. If the task instance has "
+                                    f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
+                                    "Task will be marked as failed. After that, if the task instance has "
                                     "available retries, it will be retried."
                                 ),
                             )
                         )
+
+                        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+                        if num_times_stuck < num_allowed_retries:
+                            executor.change_state(ti.key, State.SCHEDULED)
+                        else:
+                            session.add(
+                                Log(
+                                    event="failing stuck in queued",
+                                    task_instance=ti.key,
+                                    extra=(
+                                        "Task will be marked as failed. If the task instance has "
+                                        "available retries, it will be retried."
+                                    ),
+                                )
+                            )
+                            executor.fail(ti.key)
+
+
             except NotImplementedError:
                 self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+
+    @provide_session
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+        """
+        Check the Log table to see how many times a taskinstance has been stuck in queued.
+
+        We can then use this information to determine whether to reschedule a task or fail it.
+        """
+        return (
+            session.query(Log).where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == RESCHEDULE_STUCK_IN_QUEUED_EVENT,
+            ).count()
+        )
+
+    @provide_session
+    def _reset_task_instance(self, ti: TaskInstance, session: Session = NEW_SESSION):
+        ti.external_executor_id = None
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:

@@ -2201,7 +2201,7 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
-    def test_fail_stuck_queued_tasks(self, dag_maker, session, mock_executors):
+    def test_handle_stuck_queued_tasks(self, dag_maker, session, mock_executors):
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
             op1 = EmptyOperator(task_id="op1")
             op2 = EmptyOperator(task_id="op2", executor="default_exec")
@@ -2227,7 +2227,7 @@ class TestSchedulerJob:
                 (None,): mock_executors[0],
                 ("secondary_exec",): mock_executors[1],
             }[x]
-            job_runner._fail_tasks_stuck_in_queued()
+            job_runner._handle_tasks_stuck_in_queued()
 
         # Default executor is called for ti1 (no explicit executor override uses default) and ti2 (where we
         # explicitly marked that for execution by the default executor)
@@ -2237,7 +2237,63 @@ class TestSchedulerJob:
             mock_executors[0].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti2, ti1])
         mock_executors[1].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti3])
 
-    def test_fail_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
+    def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
+        with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
+            op1 = EmptyOperator(task_id="op1")
+            op2 = EmptyOperator(task_id="op2", executor="default_exec")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti2 = dr.get_task_instance(task_id=op2.task_id, session=session)
+        for ti in [ti1, ti2]:
+            ti.state = State.QUEUED
+            ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.commit()
+        scheduler_job = Job()
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._task_queued_timeout = 300
+
+        # We need to return the representations s.t. the handle function creates the logs and checks for retries
+        mock_executors[0].cleanup_stuck_queued_tasks.return_value = {repr(ti1), repr(ti2)}
+
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
+            # correct object for the given input executor name.
+            loader_mock.side_effect = lambda *x: {
+                ("default_exec",): mock_executors[0],
+                (None,): mock_executors[0],
+                ("secondary_exec",): mock_executors[1],
+            }[x]
+            job_runner._handle_tasks_stuck_in_queued()
+
+        # If the task gets stuck in queued once, we reset it to scheduled
+        mock_executors[0].change_state.assert_has_calls(
+            calls=[
+                mock.call(ti1.key, "scheduled"),
+                mock.call(ti2.key, "scheduled"),
+            ]
+        )
+        mock_executors[0].fail.assert_not_called()
+
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            loader_mock.side_effect = lambda *x: {
+                ("default_exec",): mock_executors[0],
+                (None,): mock_executors[0],
+                ("secondary_exec",): mock_executors[1],
+            }[x]
+            job_runner._handle_tasks_stuck_in_queued()
+            mock_executors[0].fail.assert_not_called()
+            job_runner._handle_tasks_stuck_in_queued()
+
+        # If the task gets stuck in queued 3 or more times, we fail the task
+        mock_executors[0].fail.assert_has_calls(
+            calls=[
+                mock.call(ti1.key),
+                mock.call(ti2.key),
+            ]
+        )
+
+    def test_handle_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
         with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
 
@@ -2252,7 +2308,7 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
         job_runner._task_queued_timeout = 300
         with caplog.at_level(logging.DEBUG):
-            job_runner._fail_tasks_stuck_in_queued()
+            job_runner._handle_tasks_stuck_in_queued()
         assert "Executor doesn't support cleanup of stuck queued tasks. Skipping." in caplog.text
 
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
@@ -5189,12 +5245,12 @@ class TestSchedulerJob:
         with dag_maker("test_dagrun_states_are_correct_2", start_date=date) as dag:
             EmptyOperator(task_id="dummy_task")
         for i in range(16):
-            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.RUNNING, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i + 1}", state=State.RUNNING, execution_date=date)
             date = dr.execution_date + timedelta(hours=1)
         dr16 = DagRun.find(run_id="dr2_run_16")
         date = dr16[0].execution_date + timedelta(hours=1)
         for i in range(16, 32):
-            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.QUEUED, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i + 1}", state=State.QUEUED, execution_date=date)
             date = dr.execution_date + timedelta(hours=1)
 
         # third dag and dagruns
@@ -5202,12 +5258,12 @@ class TestSchedulerJob:
         with dag_maker("test_dagrun_states_are_correct_3", start_date=date) as dag:
             EmptyOperator(task_id="dummy_task")
         for i in range(16):
-            dr = dag_maker.create_dagrun(run_id=f"dr3_run_{i+1}", state=State.RUNNING, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr3_run_{i + 1}", state=State.RUNNING, execution_date=date)
             date = dr.execution_date + timedelta(hours=1)
         dr16 = DagRun.find(run_id="dr3_run_16")
         date = dr16[0].execution_date + timedelta(hours=1)
         for i in range(16, 32):
-            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.QUEUED, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i + 1}", state=State.QUEUED, execution_date=date)
             date = dr.execution_date + timedelta(hours=1)
 
         scheduler_job = Job()

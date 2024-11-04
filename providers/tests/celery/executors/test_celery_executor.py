@@ -262,7 +262,7 @@ class TestCeleryExecutor:
             executor.sync()
         assert executor.tasks == {}
         app.control.revoke.assert_called_once_with("231")
-        mock_fail.assert_called_once()
+        mock_fail.assert_not_called()
 
     @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
     @mock.patch("celery.Celery")
