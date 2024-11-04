@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, Tag, TagLabel, Text, Tooltip } from "@chakra-ui/react";
+import { Skeleton, TagLabel, Text } from "@chakra-ui/react";
+
+import { Tag, Tooltip } from "src/components/ui";
 
 export const HealthSection = ({
   isLoading,
@@ -35,21 +37,20 @@ export const HealthSection = ({
 
   return (
     <Tooltip
-      hasArrow
-      isDisabled={!Boolean(latestHeartbeat)}
-      label={
+      content={
         <div>
           <Text>Status: {status}</Text>
           <Text>Last Heartbeat: {latestHeartbeat}</Text>
         </div>
       }
-      shouldWrapChildren
+      disabled={!Boolean(latestHeartbeat)}
+      showArrow
     >
       <Tag
         borderColor={status === "healthy" ? "success.100" : "error.100"}
         borderRadius="full"
         borderWidth={1}
-        colorScheme={status === "healthy" ? "success" : "error"}
+        colorPalette={status === "healthy" ? "success" : "error"}
         size="lg"
       >
         <TagLabel>{title}</TagLabel>

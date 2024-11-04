@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.12.0
+......
+
+Latest change: 2024-10-25
+
+=================================================================================================  ===========  ===============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================
+`7e56dac75c <https://github.com/apache/airflow/commit/7e56dac75cb2665e0c69bd331d7cc2f3d5056bab>`_  2024-10-25   ``DatabricksHook: fix status property to work with ClientResponse used in async mode (#43333)``
+`8e9db955f6 <https://github.com/apache/airflow/commit/8e9db955f6c1dbdbb3660b82ea88c3223a73bfe3>`_  2024-10-21   ``[DatabricksHook] Respect connection settings (#42618)``
+`0de5587894 <https://github.com/apache/airflow/commit/0de5587894286a1a9455084943dbee57891ea016>`_  2024-10-18   ``Add TimeoutError to be a retryable error in databricks provider (#43137)``
+`3ca80dd9a4 <https://github.com/apache/airflow/commit/3ca80dd9a4dc40f02ae368c59933cc6ed22d3dcf>`_  2024-10-17   ``Add ClientConnectorError to be a retryable error in databricks provider (#43091)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ===============================================================================================
+
 6.11.0
 ......
 
-Latest change: 2024-10-08
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `c377e7fceb <https://github.com/apache/airflow/commit/c377e7fcebcbf2b2752e937d9b797864329333ef>`_  2024-10-08   ``add warning log when task_key>100 (#42813)``
 `5d51beee35 <https://github.com/apache/airflow/commit/5d51beee35408af296023ecd4192660e8abe31e8>`_  2024-10-03   ``Add 'on_kill' to Databricks Workflow Operator (#42115)``
 `9b90d2f216 <https://github.com/apache/airflow/commit/9b90d2f216adf6aea1c5a53100e24c80ddb6efb7>`_  2024-10-03   ``Add debug logs to print Request/Response data in  Databricks provider (#42662)``

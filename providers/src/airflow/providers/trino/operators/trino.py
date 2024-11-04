@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, ClassVar, Sequence
 
 from deprecated import deprecated
 from trino.exceptions import TrinoQueryError
@@ -56,7 +56,7 @@ class TrinoOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = ("sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
 

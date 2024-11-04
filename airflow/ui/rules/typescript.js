@@ -1804,7 +1804,10 @@ export const typescriptRules =
        * ```
        * @see [@typescript-eslint/strict-boolean-expressions](https://typescript-eslint.io/rules/strict-boolean-expressions/)
        */
-      [`${typescriptNamespace}/strict-boolean-expressions`]: ERROR,
+      [`${typescriptNamespace}/strict-boolean-expressions`]: [
+        ERROR,
+        { allowNullableBoolean: true },
+      ],
 
       /**
        * If you'll use switch, make sure to cover every possible value.

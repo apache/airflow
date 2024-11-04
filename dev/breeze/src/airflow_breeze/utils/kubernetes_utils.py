@@ -33,18 +33,23 @@ from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_ARCHITECTURES,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     HELM_VERSION,
     KIND_VERSION,
     PIP_VERSION,
+    UV_VERSION,
 )
+from airflow_breeze.utils.cache import check_if_cache_exists
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_uv_command
 
 K8S_ENV_PATH = BUILD_CACHE_DIR / ".k8s-env"
 K8S_CLUSTERS_PATH = BUILD_CACHE_DIR / ".k8s-clusters"
@@ -299,10 +304,12 @@ def _requirements_changed() -> bool:
 
 
 def _install_packages_in_k8s_virtualenv():
-    install_command = [
-        str(PYTHON_BIN_PATH),
-        "-m",
-        "pip",
+    if check_if_cache_exists("use_uv"):
+        command = create_uv_command(PYTHON_BIN_PATH)
+    else:
+        command = create_pip_command(PYTHON_BIN_PATH)
+    install_command_no_constraints = [
+        *command,
         "install",
         "-r",
         str(K8S_REQUIREMENTS_PATH.resolve()),
@@ -311,16 +318,42 @@ def _install_packages_in_k8s_virtualenv():
     capture_output = True
     if get_verbose():
         capture_output = False
+    python_major_minor_version = run_command(
+        [
+            str(PYTHON_BIN_PATH),
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
+    install_command_with_constraints = install_command_no_constraints.copy()
+    install_command_with_constraints.extend(
+        [
+            "--constraint",
+            "https://raw.githubusercontent.com/"
+            f"{APACHE_AIRFLOW_GITHUB_REPOSITORY}/"
+            f"constraints-{AIRFLOW_BRANCH}/constraints-{python_major_minor_version}.txt",
+        ],
+    )
     install_packages_result = run_command(
-        install_command, check=False, capture_output=capture_output, text=True, env=env
+        install_command_with_constraints, check=False, capture_output=capture_output, text=True, env=env
     )
     if install_packages_result.returncode != 0:
-        get_console().print(
-            f"[error]Error when installing packages from : {K8S_REQUIREMENTS_PATH.resolve()}[/]\n"
-        )
         if not get_verbose():
             get_console().print(install_packages_result.stdout)
             get_console().print(install_packages_result.stderr)
+        install_packages_result = run_command(
+            install_command_no_constraints, check=False, capture_output=capture_output, text=True, env=env
+        )
+        if install_packages_result.returncode != 0:
+            get_console().print(
+                f"[error]Error when installing packages from : {K8S_REQUIREMENTS_PATH.resolve()}[/]\n"
+            )
+            if not get_verbose():
+                get_console().print(install_packages_result.stdout)
+                get_console().print(install_packages_result.stderr)
     return install_packages_result
 
 
@@ -358,10 +391,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             "[info]You can uninstall breeze and install it again with earlier Python "
             "version. For example:[/]\n"
         )
-        get_console().print("pipx reinstall --python PYTHON_PATH apache-airflow-breeze\n")
-        get_console().print(
-            f"[info]PYTHON_PATH - path to your Python binary(< {higher_python_version_tuple})[/]\n"
-        )
+
         get_console().print("[info]Then recreate your k8s virtualenv with:[/]\n")
         get_console().print("breeze k8s setup-env --force-venv-setup\n")
         sys.exit(1)
@@ -377,8 +407,9 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
         )
         return venv_command_result
     get_console().print(f"[info]Reinstalling PIP version in {K8S_ENV_PATH}")
+    command = create_pip_command(PYTHON_BIN_PATH)
     pip_reinstall_result = run_command(
-        [str(PYTHON_BIN_PATH), "-m", "pip", "install", f"pip=={PIP_VERSION}"],
+        [*command, "install", f"pip=={PIP_VERSION}"],
         check=False,
         capture_output=True,
     )
@@ -388,8 +419,19 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             f"{pip_reinstall_result.stdout}\n{pip_reinstall_result.stderr}"
         )
         return pip_reinstall_result
-    get_console().print(f"[info]Installing necessary packages in {K8S_ENV_PATH}")
+    uv_reinstall_result = run_command(
+        [*command, "install", f"uv=={UV_VERSION}"],
+        check=False,
+        capture_output=True,
+    )
+    if uv_reinstall_result.returncode != 0:
+        get_console().print(
+            f"[error]Error when updating uv to {UV_VERSION}:[/]\n"
+            f"{uv_reinstall_result.stdout}\n{uv_reinstall_result.stderr}"
+        )
+        return uv_reinstall_result
 
+    get_console().print(f"[info]Installing necessary packages in {K8S_ENV_PATH}")
     install_packages_result = _install_packages_in_k8s_virtualenv()
     if install_packages_result.returncode == 0:
         if get_dry_run():

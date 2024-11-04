@@ -56,9 +56,9 @@ tmux split-window -v
 tmux select-pane -t 1
 tmux send-keys 'airflow scheduler' C-m
 
-
-tmux select-pane -t 2
 tmux split-window -h
+tmux select-pane -t 2
+
 if [[ ${DEV_MODE=} == "true" ]]; then
     tmux send-keys 'airflow fastapi-api -d' C-m
 else

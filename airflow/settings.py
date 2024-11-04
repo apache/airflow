@@ -617,7 +617,15 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            import MySQLdb.converters
+            try:
+                import MySQLdb.converters
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -740,6 +748,9 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
     configure_orm()
     configure_action_logging()
+
+    # mask the sensitive_config_values
+    conf.mask_secrets()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()

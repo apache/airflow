@@ -72,7 +72,7 @@ class TestMultipleFilesWebHdfsSensor:
             expected_filenames=TEST_HDFS_FILENAMES,
         )
 
-        with caplog.at_level("DEBUG", logger="airflow.task"):
+        with caplog.at_level("DEBUG", logger=sensor.log.name):
             result = sensor.poke(dict())
 
         assert result

@@ -17,24 +17,23 @@
  * under the License.
  */
 import {
-  Badge,
   Heading,
   HStack,
-  Select,
   Skeleton,
   VStack,
+  Link,
+  createListCollection,
+  type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  type ChangeEvent,
-  type ChangeEventHandler,
-  useCallback,
-  useState,
-} from "react";
-import { useSearchParams } from "react-router-dom";
+import { type ChangeEvent, useCallback, useState } from "react";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
-import { useDagServiceGetDags } from "openapi/queries";
-import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
+import type {
+  DagRunState,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import type { CardDef } from "src/components/DataTable/types";
@@ -43,23 +42,25 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
+import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
 
 import { DagCard } from "./DagCard";
+import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
+import { LatestRun } from "./LatestRun";
+import { Schedule } from "./Schedule";
 
-const columns: Array<ColumnDef<DAGResponse>> = [
+const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "is_paused",
-    cell: ({ row }) => (
-      <TogglePause
-        dagId={row.original.dag_id}
-        isPaused={row.original.is_paused}
-      />
+    cell: ({ row: { original } }) => (
+      <TogglePause dagId={original.dag_id} isPaused={original.is_paused} />
     ),
     enableSorting: false,
     header: "",
@@ -69,15 +70,18 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
   {
     accessorKey: "dag_id",
-    cell: ({ row }) => row.original.dag_display_name,
-    header: "DAG",
+    cell: ({ row: { original } }) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}`}>
+          {original.dag_display_name}
+        </RouterLink>
+      </Link>
+    ),
+    header: "Dag",
   },
   {
     accessorKey: "timetable_description",
-    cell: (info) =>
-      info.getValue() === "Never, external triggers only"
-        ? undefined
-        : info.getValue(),
+    cell: ({ row: { original } }) => <Schedule dag={original} />,
     enableSorting: false,
     header: () => "Schedule",
   },
@@ -88,17 +92,23 @@ const columns: Array<ColumnDef<DAGResponse>> = [
         <Time datetime={original.next_dagrun} />
       ) : undefined,
     enableSorting: false,
-    header: "Next DAG Run",
+    header: "Next Dag Run",
+  },
+  {
+    accessorKey: "latest_dag_runs",
+    cell: ({ row: { original } }) => (
+      <LatestRun latestRun={original.latest_dag_runs[0]} />
+    ),
+    enableSorting: false,
+    header: "Last Dag Run",
   },
   {
     accessorKey: "tags",
-    cell: ({ row }) => (
-      <HStack>
-        {row.original.tags.map((tag) => (
-          <Badge key={tag.name}>{tag.name}</Badge>
-        ))}
-      </HStack>
-    ),
+    cell: ({
+      row: {
+        original: { tags },
+      },
+    }) => <DagTags hideIcon tags={tags} />,
     enableSorting: false,
     header: () => "Tags",
   },
@@ -108,23 +118,37 @@ const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   PAUSED: PAUSED_PARAM,
+  TAGS: TAGS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const cardDef: CardDef<DAGResponse> = {
+const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
   meta: {
     customSkeleton: <Skeleton height="120px" width="100%" />,
   },
 };
 
+const DAGS_LIST_DISPLAY = "dags_list_display";
+
+const sortOptions = createListCollection({
+  items: [
+    { label: "Sort by Dag ID (A-Z)", value: "dag_id" },
+    { label: "Sort by Dag ID (Z-A)", value: "-dag_id" },
+  ],
+});
+
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useState<"card" | "table">("card");
+  const [display, setDisplay] = useLocalStorage<"card" | "table">(
+    DAGS_LIST_DISPLAY,
+    "card",
+  );
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const lastDagRunState = searchParams.get(
     LAST_DAG_RUN_STATE_PARAM,
   ) as DagRunState;
+  const selectedTags = searchParams.getAll(TAGS_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -152,34 +176,27 @@ export const DagsList = () => {
     setDagDisplayNamePattern(value);
   };
 
-  const { data, error, isFetching, isLoading } = useDagServiceGetDags(
-    {
-      dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
-        ? `%${dagDisplayNamePattern}%`
-        : undefined,
-      lastDagRunState,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      onlyActive: true,
-      orderBy,
-      paused: showPaused === null ? undefined : showPaused === "true",
-    },
-    [dagDisplayNamePattern, showPaused],
-    {
-      refetchOnMount: true,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000,
-    },
-  );
+  const { data, error, isFetching, isLoading } = useDags({
+    dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
+      ? `%${dagDisplayNamePattern}%`
+      : undefined,
+    lastDagRunState,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    onlyActive: true,
+    orderBy,
+    paused: showPaused === null ? undefined : showPaused === "true",
+    tags: selectedTags,
+  });
 
-  const handleSortChange = useCallback<ChangeEventHandler<HTMLSelectElement>>(
-    ({ currentTarget: { value } }) => {
+  const handleSortChange = useCallback(
+    ({ value }: SelectValueChangeDetails<Array<string>>) => {
       setTableURLState({
         pagination,
-        sorting: value
-          ? [{ desc: value.startsWith("-"), id: value.replace("-", "") }]
-          : [],
+        sorting: value.map((val) => ({
+          desc: val.startsWith("-"),
+          id: val.replace("-", ""),
+        })),
       });
     },
     [pagination, setTableURLState],
@@ -189,7 +206,7 @@ export const DagsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ isDisabled: true }}
+          buttonProps={{ disabled: true }}
           inputProps={{
             defaultValue: dagDisplayNamePattern,
             onChange: handleSearchChange,
@@ -198,20 +215,27 @@ export const DagsList = () => {
         <DagsFilters />
         <HStack justifyContent="space-between">
           <Heading py={3} size="md">
-            {pluralize("DAG", data?.total_entries)}
+            {pluralize("Dag", data.total_entries)}
           </Heading>
           {display === "card" ? (
-            <Select
+            <Select.Root
+              collection={sortOptions}
               data-testid="sort-by-select"
-              onChange={handleSortChange}
-              placeholder="Sort by…"
-              value={orderBy}
-              variant="flushed"
+              onValueChange={handleSortChange}
+              value={orderBy === undefined ? undefined : [orderBy]}
               width="200px"
             >
-              <option value="dag_id">Sort by DAG ID (A-Z)</option>
-              <option value="-dag_id">Sort by DAG ID (Z-A)</option>
-            </Select>
+              <Select.Trigger>
+                <Select.ValueText placeholder="Sort by" />
+              </Select.Trigger>
+              <Select.Content>
+                {sortOptions.items.map((option) => (
+                  <Select.Item item={option} key={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
           ) : (
             false
           )}
@@ -221,16 +245,16 @@ export const DagsList = () => {
       <DataTable
         cardDef={cardDef}
         columns={columns}
-        data={data?.dags ?? []}
+        data={data.dags}
         displayMode={display}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="DAG"
+        modelName="Dag"
         onStateChange={setTableURLState}
         skeletonCount={display === "card" ? 5 : undefined}
-        total={data?.total_entries}
+        total={data.total_entries}
       />
     </>
   );

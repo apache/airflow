@@ -97,6 +97,8 @@ This can be done (if you use ``pipx`` to install ``pre-commit``):
 
     pipx uninstall pre-commit
     pipx install pre-commit --python $(which python3.9) --force
+    # This one allows pre-commit to use uv for venvs installed by pre-commit
+    pipx inject pre-commit pre-commit-uv
     pre-commit clean
     pre-commit install
 

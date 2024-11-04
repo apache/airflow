@@ -31,6 +31,7 @@ from typing_extensions import Annotated, Self
 from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
@@ -197,9 +198,9 @@ class SortParam(BaseParam[str]):
         primary_key_column = self.get_primary_key_column()
 
         if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), primary_key_column)
+            return select.order_by(nullscheck, column.desc(), primary_key_column.desc())
         else:
-            return select.order_by(nullscheck, column.asc(), primary_key_column)
+            return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
@@ -265,6 +266,17 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+class _DagTagNamePatternSearch(_SearchParam):
+    """Search on dag_tag.name."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(DagTag.name, skip_none)
+
+    def depends(self, tag_name_pattern: str | None = None) -> _DagTagNamePatternSearch:
+        tag_name_pattern = super().transform_aliases(tag_name_pattern)
+        return self.set_value(tag_name_pattern)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -279,6 +291,34 @@ def _safe_parse_datetime(date_to_check: str) -> datetime:
         raise HTTPException(
             400, f"Invalid datetime: {date_to_check!r}. Please check the date parameter have this value."
         )
+
+
+class _WarningTypeFilter(BaseParam[str]):
+    """Filter on warning type."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(DagWarning.warning_type == self.value)
+
+    def depends(self, warning_type: DagWarningType | None = None) -> _WarningTypeFilter:
+        return self.set_value(warning_type)
+
+
+class _DagIdFilter(BaseParam[str]):
+    """Filter on dag_id."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none)
+        self.attribute = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute == self.value)
+
+    def depends(self, dag_id: str | None = None) -> _DagIdFilter:
+        return self.set_value(dag_id)
 
 
 # Common Safe DateTime
@@ -299,3 +339,8 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# DAGWarning
+QueryDagIdInDagWarningFilter = Annotated[_DagIdFilter, Depends(_DagIdFilter(DagWarning.dag_id).depends)]
+QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilter().depends)]
+# DAGTags
+QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]

@@ -133,7 +133,7 @@ def get_asset_events(
     query = select(AssetEvent)
 
     if asset_id:
-        query = query.where(AssetEvent.dataset_id == asset_id)
+        query = query.where(AssetEvent.asset_id == asset_id)
     if source_dag_id:
         query = query.where(AssetEvent.source_dag_id == source_dag_id)
     if source_task_id:
@@ -166,7 +166,7 @@ def _generate_queued_event_where_clause(
         where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
     if uri is not None:
         where_clause.append(
-            AssetDagRunQueue.dataset_id.in_(
+            AssetDagRunQueue.asset_id.in_(
                 select(AssetModel.id).where(AssetModel.uri == uri),
             ),
         )
@@ -187,7 +187,7 @@ def get_dag_asset_queued_event(
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
     adrq = session.scalar(
         select(AssetDagRunQueue)
-        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
     if adrq is None:
@@ -228,7 +228,7 @@ def get_dag_asset_queued_events(
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     query = (
         select(AssetDagRunQueue, AssetModel.uri)
-        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
     result = session.execute(query).all()
@@ -278,7 +278,7 @@ def get_asset_queued_events(
     )
     query = (
         select(AssetDagRunQueue, AssetModel.uri)
-        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
     total_entries = get_query_count(query, session=session)

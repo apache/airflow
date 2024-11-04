@@ -30,13 +30,13 @@ interface Props {
 
 export default function useAssets({ dagIds, enabled = true }: Props) {
   return useQuery(
-    ["datasets", dagIds],
+    ["assets", dagIds],
     () => {
-      const datasetsUrl = getMetaValue("datasets_api");
+      const assetsUrl = getMetaValue("assets_api");
       const dagIdsParam =
         dagIds && dagIds.length ? { dag_ids: dagIds.join(",") } : {};
 
-      return axios.get<AxiosResponse, API.AssetCollection>(datasetsUrl, {
+      return axios.get<AxiosResponse, API.AssetCollection>(assetsUrl, {
         params: {
           ...dagIdsParam,
         },
