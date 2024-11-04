@@ -83,3 +83,35 @@ async def get_mapped_task_instance(
         )
 
     return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+
+
+@task_instances_router.get(
+    "{task_id}/tries/{task_try_number}", responses=create_openapi_http_exception_doc([401, 403, 404])
+)
+async def get_task_instance_try_details(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> TaskInstanceResponse:
+    """Get task instance details by try number."""
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.try_number == task_try_number,
+        )
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
+    )
+    task_instance = session.scalar(query)
+
+    if task_instance is None:
+        raise HTTPException(
+            404,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and try_number: `{task_try_number}` was not found",
+        )
+    return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
