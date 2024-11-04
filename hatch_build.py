@@ -103,7 +103,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "python-ldap",
     ],
     "leveldb": [
-        "plyvel",
+        # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
+        # OS version. It's usually next to impossible to install it at least for a few months after the new
+        # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
+        "plyvel>=1.5.1; sys_platform != 'darwin'",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus",
