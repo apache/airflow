@@ -2912,15 +2912,6 @@ components:
             The last time the DAG was parsed.
 
             *New in version 2.3.0*
-        last_pickled:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-          description: |
-            The last time the DAG was pickled.
-
-            *New in version 2.3.0*
         last_expired:
           type: string
           format: date-time

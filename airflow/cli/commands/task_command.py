@@ -42,7 +42,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagPickle, TaskInstance
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
@@ -56,7 +56,6 @@ from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
     get_dag,
     get_dag_by_file_location,
-    get_dag_by_pickle,
     get_dags,
     should_ignore_depends_on_past,
     suppress_logs_and_warning,
@@ -266,20 +265,6 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
     This can result in the task being started by another host if the executor implementation does.
     """
-    pickle_id = None
-    if args.ship_dag:
-        try:
-            # Running remotely, so pickling the DAG
-            with create_session() as session:
-                pickle = DagPickle(dag)
-                session.add(pickle)
-            pickle_id = pickle.id
-            # TODO: This should be written to a log
-            print(f"Pickled dag {dag} as pickle_id: {pickle_id}")
-        except Exception as e:
-            print("Could not pickle the DAG")
-            print(e)
-            raise e
     if ti.executor:
         executor = ExecutorLoader.load_executor(ti.executor)
     else:
@@ -290,7 +275,6 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     executor.queue_task_instance(
         ti,
         mark_success=args.mark_success,
-        pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=should_ignore_depends_on_past(args),
         wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
@@ -311,7 +295,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,
         mark_success=args.mark_success,
-        pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=should_ignore_depends_on_past(args),
         wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
@@ -435,8 +418,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
                 f"You provided the option {unsupported_flags}. "
                 "Delete it to execute the command."
             )
-    if dag and args.pickle:
-        raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
+
     if args.cfg_path:
         with open(args.cfg_path) as conf_file:
             conf_dict = json.load(conf_file)
@@ -451,10 +433,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
-    if args.pickle:
-        print(f"Loading pickle id: {args.pickle}")
-        _dag = get_dag_by_pickle(args.pickle)
-    elif not dag:
+    if not dag:
         _dag = get_dag(args.subdir, args.dag_id, args.read_from_db)
     else:
         _dag = dag
