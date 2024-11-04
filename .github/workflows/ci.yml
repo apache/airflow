@@ -272,7 +272,7 @@ jobs:
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.force-pip=='true' && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
 
 
   generate-constraints:
