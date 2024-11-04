@@ -7,6 +7,7 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
@@ -18,7 +19,7 @@ import {
   VariableService,
   VersionService,
 } from "../requests/services.gen";
-import { DagRunState } from "../requests/types.gen";
+import { DagRunState, DagWarningType } from "../requests/types.gen";
 
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.nextRunAssets>
@@ -326,6 +327,34 @@ export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
 export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
   useMonitorServiceGetHealthKey,
   ...(queryKey ?? []),
+];
+export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
+  ReturnType<typeof DagWarningService.listDagWarnings>
+>;
+export type DagWarningServiceListDagWarningsQueryResult<
+  TData = DagWarningServiceListDagWarningsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagWarningServiceListDagWarningsKey =
+  "DagWarningServiceListDagWarnings";
+export const UseDagWarningServiceListDagWarningsKeyFn = (
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: DagWarningType;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagWarningServiceListDagWarningsKey,
+  ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }]),
 ];
 export type PluginServiceGetPluginsDefaultResponse = Awaited<
   ReturnType<typeof PluginService.getPlugins>
