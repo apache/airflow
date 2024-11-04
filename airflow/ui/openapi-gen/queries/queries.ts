@@ -28,6 +28,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  ConnectionBody,
   DAGPatchBody,
   DAGRunPatchBody,
   DagRunState,
@@ -1126,6 +1127,45 @@ export const useBackfillServiceCreateBackfill = <
   >({
     mutationFn: ({ requestBody }) =>
       BackfillService.createBackfill({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Connection
+ * Create connection entry.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServicePostConnection = <
+  TData = Common.ConnectionServicePostConnectionMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.postConnection({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

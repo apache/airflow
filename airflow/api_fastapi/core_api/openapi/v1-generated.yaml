@@ -1104,6 +1104,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Connection
+      summary: Post Connection
+      description: Create connection entry.
+      operationId: post_connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -2515,6 +2558,55 @@ components:
       - status
       title: BaseInfoSchema
       description: Base status field for metadatabase and scheduler.
+    ConnectionBody:
+      properties:
+        connection_id:
+          type: string
+          title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+      type: object
+      required:
+      - connection_id
+      - conn_type
+      title: ConnectionBody
+      description: Connection Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -2564,6 +2656,11 @@ components:
           - type: integer
           - type: 'null'
           title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
         extra:
           anyOf:
           - type: string
@@ -2578,6 +2675,7 @@ components:
       - login
       - schema
       - port
+      - password
       - extra
       title: ConnectionResponse
       description: Connection serializer for responses.
@@ -3545,7 +3643,7 @@ components:
         dag_run_states:
           $ref: '#/components/schemas/DAGRunStates'
         task_instance_states:
-          $ref: '#/components/schemas/airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState'
+          $ref: '#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState'
       type: object
       required:
       - dag_run_types
@@ -4224,7 +4322,7 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
-    airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState:
+    airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState:
       properties:
         no_status:
           type: integer
