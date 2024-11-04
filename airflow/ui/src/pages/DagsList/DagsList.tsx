@@ -36,7 +36,7 @@ import type {
 } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
-import TriggerDAGModal from "src/components/DataTable/TriggerDAGModal";
+import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";

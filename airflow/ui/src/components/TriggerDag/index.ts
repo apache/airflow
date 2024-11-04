@@ -17,14 +17,4 @@
  * under the License.
  */
 
-type DagParams = {
-  configJson: string;
-  dagId: string;
-  logicalDate: string;
-  runId?: string;
-};
-
-export const TriggerDAG = (dagParams: DagParams) => {
-  // TODO triggering logic
-  console.log("Triggering DAG with parameters:", dagParams);
-};
+export { TriggerDag } from "./TriggerDag";

@@ -28,7 +28,7 @@ import {
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import TriggerDAGModal from "src/components/DataTable/TriggerDAGModal";
+import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import { Tooltip } from "src/components/ui";

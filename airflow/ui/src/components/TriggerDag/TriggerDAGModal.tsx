@@ -17,7 +17,7 @@
  * under the License.
  */
 import {
-  Modal,
+  Dialog,
   ModalOverlay,
   ModalContent,
   useDisclosure,
@@ -29,7 +29,7 @@ import {
 import React, { useState } from "react";
 import { FiPlay } from "react-icons/fi";
 
-import { TriggerDAG } from "./TriggerDAG";
+import { TriggerDag } from "./TriggerDag";
 import TriggerDAGForm from "./TriggerDAGForm";
 
 type DagParams = {
@@ -57,7 +57,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   });
 
   const handleTrigger = () => {
-    TriggerDAG(dagParams);
+    TriggerDag(dagParams);
     onClose();
   };
 
@@ -67,7 +67,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <FiPlay />
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      <Dialog isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay />
         <ModalContent>
           <VStack align="start" p={5} spacing={2}>
@@ -90,7 +90,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             setDagParams={setDagParams}
           />
         </ModalContent>
-      </Modal>
+      </Dialog>
     </Box>
   );
 };
