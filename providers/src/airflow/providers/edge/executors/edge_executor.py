@@ -84,6 +84,7 @@ class EdgeExecutor(BaseExecutor):
                 try_number=key.try_number,
                 state=TaskInstanceState.QUEUED,
                 queue=queue or DEFAULT_QUEUE,
+                need_concurrency=executor_config.get("need_concurrency", 1) if executor_config else 1,
                 command=str(command),
             )
         )

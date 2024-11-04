@@ -37,10 +37,18 @@ class TestEdgeJob:
         session.query(EdgeJobModel).delete()
 
     def test_reserve_task_no_job(self):
-        job = EdgeJob.reserve_task("worker")
+        job = EdgeJob.reserve_task("worker", free_concurrency=10)
         assert job is None
 
-    def test_reserve_task_has_one(self, session: Session):
+    @pytest.mark.parametrize(
+        "need_concurrency, free_concurrency, expected_job",
+        [
+            pytest.param(10, 9, False, id="less_free_concurrency"),
+            pytest.param(10, 10, True, id="equal_free_concurrency"),
+            pytest.param(10, 11, True, id="more_free_concurrency"),
+        ],
+    )
+    def test_reserve_task_has_one(self, need_concurrency, free_concurrency, expected_job, session: Session):
         rjm = EdgeJobModel(
             dag_id="test_dag",
             task_id="test_task",
@@ -49,28 +57,40 @@ class TestEdgeJob:
             try_number=1,
             state=TaskInstanceState.QUEUED,
             queue="default",
+            need_concurrency=need_concurrency,
             command=str(["hello", "world"]),
             queued_dttm=timezone.utcnow(),
         )
         session.add(rjm)
         session.commit()
 
-        job = EdgeJob.reserve_task("worker")
-        assert job
-        assert job.edge_worker == "worker"
-        assert job.queue == "default"
-        assert job.dag_id == "test_dag"
-        assert job.task_id == "test_task"
-        assert job.run_id == "test_run"
+        job = EdgeJob.reserve_task("worker", free_concurrency=free_concurrency)
+        if expected_job:
+            assert job
+            assert job.edge_worker == "worker"
+            assert job.queue == "default"
+            assert job.dag_id == "test_dag"
+            assert job.task_id == "test_task"
+            assert job.run_id == "test_run"
+            assert job.need_concurrency == need_concurrency
+        else:
+            assert job is None
 
         jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
+
         assert len(jobs) == 1
-        assert jobs[0].state == TaskInstanceState.RUNNING
-        assert jobs[0].edge_worker == "worker"
         assert jobs[0].queue == "default"
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].task_id == "test_task"
         assert jobs[0].run_id == "test_run"
+        assert jobs[0].need_concurrency == need_concurrency
+
+        if expected_job:
+            assert jobs[0].state == TaskInstanceState.RUNNING
+            assert jobs[0].edge_worker == "worker"
+        else:
+            assert jobs[0].state == TaskInstanceState.QUEUED
+            assert jobs[0].edge_worker is None
 
     def test_set_state(self, session: Session):
         rjm = EdgeJobModel(
@@ -81,6 +101,7 @@ class TestEdgeJob:
             try_number=1,
             state=TaskInstanceState.RUNNING,
             queue="default",
+            need_concurrency=5,
             command=str(["hello", "world"]),
             queued_dttm=timezone.utcnow(),
         )
@@ -97,3 +118,4 @@ class TestEdgeJob:
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].task_id == "test_task"
         assert jobs[0].run_id == "test_run"
+        assert jobs[0].need_concurrency == 5

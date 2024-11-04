@@ -64,6 +64,32 @@ class TestEdgeExecutor:
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].run_id == "test_run"
         assert jobs[0].task_id == "test_task"
+        assert jobs[0].need_concurrency == 1
+
+    @pytest.mark.parametrize(
+        "executor_config, expected_concurrency",
+        [
+            pytest.param(None, 1, id="no_config"),
+            pytest.param({}, 1, id="missing_key"),
+            pytest.param({"need_concurrency": 5}, 5, id="with_config"),
+        ],
+    )
+    def test_execute_async_concurrency(self, executor_config, expected_concurrency):
+        executor = EdgeExecutor()
+        executor.execute_async(
+            TaskInstanceKey(
+                dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+            ),
+            executor_config=executor_config,
+            command=["airflow", "tasks", "run", "hello", "world"],
+        )
+        with create_session() as session:
+            jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
+        assert len(jobs) == 1
+        assert jobs[0].dag_id == "test_dag"
+        assert jobs[0].run_id == "test_run"
+        assert jobs[0].task_id == "test_task"
+        assert jobs[0].need_concurrency == expected_concurrency
 
     @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.running_state")
     @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.success")
@@ -93,6 +119,7 @@ class TestEdgeExecutor:
                         try_number=1,
                         state=state,
                         queue="default",
+                        need_concurrency=1,
                         command="dummy",
                         last_update=timezone.utcnow(),
                     )
@@ -127,6 +154,7 @@ class TestEdgeExecutor:
                     map_index=-1,
                     try_number=1,
                     state=state,
+                    need_concurrency=1,
                     queue="default",
                     command="dummy",
                     last_update=timezone.utcnow(),

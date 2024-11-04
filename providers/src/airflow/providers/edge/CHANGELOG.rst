@@ -26,6 +26,13 @@
 
 Changelog
 ---------
+0.6.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
 
 0.6.0pre0
 .........

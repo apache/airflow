@@ -153,6 +153,7 @@ class _EdgeWorkerCli:
         self.hostname = hostname
         self.queues = queues
         self.concurrency = concurrency
+        self.free_concurrency = concurrency
 
     @staticmethod
     def signal_handler(sig, frame):
@@ -204,7 +205,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        if not _EdgeWorkerCli.drain and len(self.jobs) < self.concurrency:
+        if not _EdgeWorkerCli.drain and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
@@ -218,7 +219,9 @@ class _EdgeWorkerCli:
     def fetch_job(self) -> bool:
         """Fetch and start a new job from central site."""
         logger.debug("Attempting to fetch a new job...")
-        edge_job = EdgeJob.reserve_task(self.hostname, self.queues)
+        edge_job = EdgeJob.reserve_task(
+            worker_name=self.hostname, free_concurrency=self.free_concurrency, queues=self.queues
+        )
         if edge_job:
             logger.info("Received job: %s", edge_job)
             env = os.environ.copy()
@@ -236,6 +239,7 @@ class _EdgeWorkerCli:
 
     def check_running_jobs(self) -> None:
         """Check which of the running tasks/jobs are completed and report back."""
+        used_concurrency = 0
         for i in range(len(self.jobs) - 1, -1, -1):
             job = self.jobs[i]
             job.process.poll()
@@ -247,6 +251,9 @@ class _EdgeWorkerCli:
                 else:
                     logger.error("Job failed: %s", job.edge_job)
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
+            else:
+                used_concurrency += job.edge_job.need_concurrency
+
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("rb") as logfile:
                     push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
@@ -266,6 +273,8 @@ class _EdgeWorkerCli:
                             log_chunk_time=datetime.now(),
                             log_chunk_data=chunk_data,
                         )
+
+        self.free_concurrency = self.concurrency - used_concurrency
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""

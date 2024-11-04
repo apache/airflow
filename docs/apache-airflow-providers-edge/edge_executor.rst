@@ -210,6 +210,48 @@ could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
+Concurrency slots handling
+--------------------------
+
+Some task may need more resources than other tasks, to handled these use cases the Edge worker supports
+concurrency slots. The logic behind this is the same as the pool slot feature
+see :doc:`apache-airflow:administration-and-deployment/pools`.
+If a task needs more resource, the need_concurrency value can be increased. The value can be used to block
+other task from being executed in parallel on the same worker. The need_concurrency value works together
+with the concurrency value of the worker. A need_concurrency of 2 and a worker concurrency of 3 means
+that a worker which executes this task can only execute a job with a need_concurrency of 1 in parallel.
+
+Here is an example setting concurrency slots for a task:
+
+.. code-block:: python
+
+    import os
+
+    import pendulum
+
+    from airflow import DAG
+    from airflow.decorators import task
+    from airflow.example_dags.libs.helper import print_stuff
+    from airflow.settings import AIRFLOW_HOME
+
+    with DAG(
+        dag_id="example_concurrency_slots",
+        schedule=None,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+        tags=["example"],
+    ) as dag:
+        executor_config_template = {
+            "need_concurrency": 2,
+        }
+
+        @task(executor="EdgeExecutor", executor_config=executor_config_template)
+        def task_with_template():
+            print_stuff()
+
+
+
+
 Feature Backlog of MVP to Release Readiness
 -------------------------------------------
 
