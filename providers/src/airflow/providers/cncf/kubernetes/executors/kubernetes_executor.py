@@ -33,7 +33,7 @@ from collections import Counter, defaultdict
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Sequence
 
 from kubernetes.dynamic import DynamicClient
 from packaging.version import Version
@@ -607,7 +607,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -621,9 +621,6 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
-        readable_tis: list[str] = []
-        if not tis:
-            return readable_tis
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
         for ti in tis:
             # Build the pod selector
@@ -637,13 +634,17 @@ class KubernetesExecutor(BaseExecutor):
             if not pod:
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
+<<<<<<< HEAD
             readable_tis.append(repr(ti))
             if Version(airflow_version) >= Version("2.10.4"):
+=======
+            if Version(airflow_version) < Version("2.10.4"):
+>>>>>>> d6d1caa641 (Simplify the handle stuck in queued interface)
                 self.kube_scheduler.patch_pod_delete_stuck(
                     pod_name=pod.metadata.name, namespace=pod.metadata.namespace
                 )
+            yield ti
             self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
-        return readable_tis
 
     def adopt_launched_task(
         self,
