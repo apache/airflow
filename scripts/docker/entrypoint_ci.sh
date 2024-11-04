@@ -238,7 +238,7 @@ function determine_airflow_to_use() {
         pip uninstall -y typing || true
         if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
             echo
-            echo "${COLOR_BLUE}Linking providers to airflow package as we are using then from mounted sources.${COLOR_RESET}"
+            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
             echo
             rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
             ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
