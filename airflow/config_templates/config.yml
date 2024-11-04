@@ -390,7 +390,7 @@ core:
       description: |
         Number of times Airflow will reschedule a task that gets stuck in queued before marking the
         task as failed
-      version_added: 2.10.0
+      version_added: 2.10.4
       type: integer
       example: ~
       default: "2"
