@@ -1,0 +1,4 @@
+``DAG.max_active_runs`` is now evaluated per-run
+
+Previously, this was evaluated across all runs of the dag. This behavior change was passed by lazy consensus.
+Vote thread: https://lists.apache.org/thread/9o84d3yn934m32gtlpokpwtbbmtxj47l.

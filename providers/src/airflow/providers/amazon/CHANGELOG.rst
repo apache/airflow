@@ -49,6 +49,7 @@ Misc
 * ``feat(providers/amazon): Use asset in common provider (#43110)``
 * ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
 * ``Limit mypy-boto3-appflow (#43436)``
+* ``Move PythonOperator to Standard provider (#42081)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -56,6 +57,7 @@ Misc
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
    * ``Start porting DAG definition code to the Task SDK (#43076)``
    * ``Prepare docs for Oct 2nd wave of providers (#43409)``
+   * ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
 
 9.0.0
 .....

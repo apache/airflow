@@ -84,7 +84,7 @@ class DebugExecutor(BaseExecutor):
         key = ti.key
         try:
             params = self.tasks_params.pop(ti.key, {})
-            ti.run(job_id=ti.job_id, **params)
+            ti.run(**params)
             self.success(key)
             return True
         except Exception as e:

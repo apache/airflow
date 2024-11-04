@@ -1129,18 +1129,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
-    @mock.patch("shutil.which")
-    @mock.patch("airflow.providers.standard.operators.python.importlib")
-    def test_virtualenv_not_installed(self, importlib_mock, which_mock):
-        which_mock.return_value = None
-        importlib_mock.util.find_spec.return_value = None
-
-        def f():
-            pass
-
-        with pytest.raises(AirflowException, match="requires virtualenv"):
-            self.run_as_task(f)
-
     @CLOUDPICKLE_MARKER
     def test_add_cloudpickle(self):
         def f():

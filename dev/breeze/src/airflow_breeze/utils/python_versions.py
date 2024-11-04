@@ -51,8 +51,9 @@ def check_python_version(release_provider_packages: bool = False):
         get_console().print(
             "[warning]Please reinstall Breeze using Python 3.9 - 3.11 environment because not all "
             "provider packages support Python 3.12 yet.[/]\n\n"
-            "For example:\n\n"
-            "pipx uninstall apache-airflow-breeze\n"
-            "pipx install --python $(which python3.9) -e ./dev/breeze --force\n"
+            "If you are using uv:\n\n"
+            "   uv tool install --force --reinstall --python 3.9 -e ./dev/breeze\n\n"
+            "If you are using pipx:\n\n"
+            "   pipx install --python $(which python3.9) --force -e ./dev/breeze\n"
         )
         sys.exit(1)

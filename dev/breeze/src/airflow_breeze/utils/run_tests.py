@@ -22,7 +22,7 @@ import sys
 from itertools import chain
 from subprocess import DEVNULL
 
-from airflow_breeze.global_constants import PIP_VERSION
+from airflow_breeze.global_constants import PIP_VERSION, UV_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, TESTS_PROVIDERS_ROOT
@@ -59,7 +59,9 @@ def verify_an_image(
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+    with create_temp_venv(
+        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
+    ) as py_exe:
         command_result = run_command(
             [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
             env=env,
@@ -307,9 +309,7 @@ def generate_args_for_pytest(
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests and parallel_test_types_list:
-        args = convert_parallel_types_to_folders(
-            parallel_test_types_list, skip_provider_tests, python_version=python_version
-        )
+        args = convert_parallel_types_to_folders(parallel_test_types_list, skip_provider_tests)
     else:
         args = convert_test_type_to_pytest_args(
             test_type=test_type,
@@ -392,9 +392,7 @@ def generate_args_for_pytest(
     return args
 
 
-def convert_parallel_types_to_folders(
-    parallel_test_types_list: list[str], skip_provider_tests: bool, python_version: str
-):
+def convert_parallel_types_to_folders(parallel_test_types_list: list[str], skip_provider_tests: bool):
     args = []
     for _test_type in parallel_test_types_list:
         args.extend(
