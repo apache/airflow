@@ -82,6 +82,25 @@ class TestGlueJobTrigger:
 
         assert get_state_mock.call_count == 3
 
+    def test_serialization(self):
+        trigger = GlueJobCompleteTrigger(
+            job_name="job_name",
+            run_id="JobRunId",
+            verbose=False,
+            aws_conn_id="aws_conn_id",
+            job_poll_interval=0.1,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.glue.GlueJobCompleteTrigger"
+        assert bool(kwargs["verbose"]) == False
+        assert kwargs == {
+            "job_name": "job_name",
+            "run_id": "JobRunId",
+            "verbose": False,
+            "aws_conn_id": "aws_conn_id",
+            "job_poll_interval": 0.1,
+        }
+
 
 class TestGlueCatalogPartitionSensorTrigger:
     @pytest.mark.asyncio
