@@ -193,6 +193,12 @@ def version():
 @click.option("-C/-c", "--cheatsheet/--no-cheatsheet", help="Enable/disable cheatsheet.", default=None)
 @click.option("-A/-a", "--asciiart/--no-asciiart", help="Enable/disable ASCIIart.", default=None)
 @click.option(
+    "-U/-u",
+    "--use-uv/--no-use-uv",
+    help="Enable/disable using uv for creating venvs by breeze.",
+    default=None,
+)
+@click.option(
     "--colour/--no-colour",
     help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
     default=None,
@@ -200,6 +206,7 @@ def version():
 def change_config(
     python: str,
     backend: str,
+    use_uv: bool,
     postgres_version: str,
     mysql_version: str,
     cheatsheet: bool,
@@ -212,14 +219,22 @@ def change_config(
     asciiart_file = "suppress_asciiart"
     cheatsheet_file = "suppress_cheatsheet"
     colour_file = "suppress_colour"
+    use_uv_file = "use_uv"
 
+    if use_uv is not None:
+        if use_uv:
+            touch_cache_file(use_uv_file)
+            get_console().print("[info]Enable using uv[/]")
+        else:
+            delete_cache(use_uv_file)
+            get_console().print("[info]Disable using uv[/]")
     if asciiart is not None:
         if asciiart:
             delete_cache(asciiart_file)
-            get_console().print("[info]Enable ASCIIART![/]")
+            get_console().print("[info]Enable ASCIIART[/]")
         else:
             touch_cache_file(asciiart_file)
-            get_console().print("[info]Disable ASCIIART![/]")
+            get_console().print("[info]Disable ASCIIART[/]")
     if cheatsheet is not None:
         if cheatsheet:
             delete_cache(cheatsheet_file)
@@ -235,23 +250,27 @@ def change_config(
             touch_cache_file(colour_file)
             get_console().print("[info]Disable Colour[/]")
 
-    def get_status(file: str):
+    def get_supress_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
+
+    def get_status(file: str):
+        return "enabled" if check_if_cache_exists(file) else "disabled"
 
     get_console().print()
     get_console().print("[info]Current configuration:[/]")
     get_console().print()
     get_console().print(f"[info]* Python: {python}[/]")
     get_console().print(f"[info]* Backend: {backend}[/]")
+    get_console().print(f"[info]* Use uv: {get_status(use_uv_file)}[/]")
     get_console().print()
     get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
     get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
     get_console().print()
-    get_console().print(f"[info]* ASCIIART: {get_status(asciiart_file)}[/]")
-    get_console().print(f"[info]* Cheatsheet: {get_status(cheatsheet_file)}[/]")
+    get_console().print(f"[info]* ASCIIART: {get_supress_status(asciiart_file)}[/]")
+    get_console().print(f"[info]* Cheatsheet: {get_supress_status(cheatsheet_file)}[/]")
     get_console().print()
     get_console().print()
-    get_console().print(f"[info]* Colour: {get_status(colour_file)}[/]")
+    get_console().print(f"[info]* Colour: {get_supress_status(colour_file)}[/]")
     get_console().print()
 
 
