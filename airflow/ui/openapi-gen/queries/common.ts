@@ -3,6 +3,7 @@ import { UseQueryResult } from "@tanstack/react-query";
 
 import {
   AssetService,
+  BackfillService,
   ConnectionService,
   DagRunService,
   DagService,
@@ -109,90 +110,48 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     },
   ]),
 ];
-export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnection>
+export type BackfillServiceListBackfillsDefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.listBackfills>
 >;
-export type ConnectionServiceGetConnectionQueryResult<
-  TData = ConnectionServiceGetConnectionDefaultResponse,
+export type BackfillServiceListBackfillsQueryResult<
+  TData = BackfillServiceListBackfillsDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionKey =
-  "ConnectionServiceGetConnection";
-export const UseConnectionServiceGetConnectionKeyFn = (
+export const useBackfillServiceListBackfillsKey =
+  "BackfillServiceListBackfills";
+export const UseBackfillServiceListBackfillsKeyFn = (
   {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionKey,
-  ...(queryKey ?? [{ connectionId }]),
-];
-export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnections>
->;
-export type ConnectionServiceGetConnectionsQueryResult<
-  TData = ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionsKey =
-  "ConnectionServiceGetConnections";
-export const UseConnectionServiceGetConnectionsKeyFn = (
-  {
+    dagId,
     limit,
     offset,
     orderBy,
   }: {
+    dagId: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionsKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
-];
-export type DagRunServiceGetDagRunDefaultResponse = Awaited<
-  ReturnType<typeof DagRunService.getDagRun>
->;
-export type DagRunServiceGetDagRunQueryResult<
-  TData = DagRunServiceGetDagRunDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagRunServiceGetDagRunKey = "DagRunServiceGetDagRun";
-export const UseDagRunServiceGetDagRunKeyFn = (
-  {
-    dagId,
-    dagRunId,
-  }: {
-    dagId: string;
-    dagRunId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
-export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<
-  ReturnType<typeof DagSourceService.getDagSource>
->;
-export type DagSourceServiceGetDagSourceQueryResult<
-  TData = DagSourceServiceGetDagSourceDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagSourceServiceGetDagSourceKey =
-  "DagSourceServiceGetDagSource";
-export const UseDagSourceServiceGetDagSourceKeyFn = (
-  {
-    accept,
-    fileToken,
-  }: {
-    accept?: string;
-    fileToken: string;
   },
   queryKey?: Array<unknown>,
 ) => [
-  useDagSourceServiceGetDagSourceKey,
-  ...(queryKey ?? [{ accept, fileToken }]),
+  useBackfillServiceListBackfillsKey,
+  ...(queryKey ?? [{ dagId, limit, offset, orderBy }]),
 ];
+export type BackfillServiceGetBackfillDefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.getBackfill>
+>;
+export type BackfillServiceGetBackfillQueryResult<
+  TData = BackfillServiceGetBackfillDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useBackfillServiceGetBackfillKey = "BackfillServiceGetBackfill";
+export const UseBackfillServiceGetBackfillKeyFn = (
+  {
+    backfillId,
+  }: {
+    backfillId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
 export type DagServiceGetDagsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDags>
 >;
@@ -300,6 +259,90 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
+export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnection>
+>;
+export type ConnectionServiceGetConnectionQueryResult<
+  TData = ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionKey =
+  "ConnectionServiceGetConnection";
+export const UseConnectionServiceGetConnectionKeyFn = (
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionKey,
+  ...(queryKey ?? [{ connectionId }]),
+];
+export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnections>
+>;
+export type ConnectionServiceGetConnectionsQueryResult<
+  TData = ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionsKey =
+  "ConnectionServiceGetConnections";
+export const UseConnectionServiceGetConnectionsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
+export type DagRunServiceGetDagRunDefaultResponse = Awaited<
+  ReturnType<typeof DagRunService.getDagRun>
+>;
+export type DagRunServiceGetDagRunQueryResult<
+  TData = DagRunServiceGetDagRunDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagRunServiceGetDagRunKey = "DagRunServiceGetDagRun";
+export const UseDagRunServiceGetDagRunKeyFn = (
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
+export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<
+  ReturnType<typeof DagSourceService.getDagSource>
+>;
+export type DagSourceServiceGetDagSourceQueryResult<
+  TData = DagSourceServiceGetDagSourceDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagSourceServiceGetDagSourceKey =
+  "DagSourceServiceGetDagSource";
+export const UseDagSourceServiceGetDagSourceKeyFn = (
+  {
+    accept,
+    fileToken,
+  }: {
+    accept?: string;
+    fileToken: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDagSourceServiceGetDagSourceKey,
+  ...(queryKey ?? [{ accept, fileToken }]),
+];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>
 >;
@@ -529,14 +572,23 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type BackfillServiceCreateBackfillMutationResult = Awaited<
+  ReturnType<typeof BackfillService.createBackfill>
+>;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
 >;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
-export type DagRunServicePatchDagRunStateMutationResult = Awaited<
-  ReturnType<typeof DagRunService.patchDagRunState>
+export type BackfillServicePauseBackfillMutationResult = Awaited<
+  ReturnType<typeof BackfillService.pauseBackfill>
+>;
+export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
+  ReturnType<typeof BackfillService.unpauseBackfill>
+>;
+export type BackfillServiceCancelBackfillMutationResult = Awaited<
+  ReturnType<typeof BackfillService.cancelBackfill>
 >;
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
@@ -544,20 +596,23 @@ export type DagServicePatchDagsMutationResult = Awaited<
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
 >;
+export type DagRunServicePatchDagRunStateMutationResult = Awaited<
+  ReturnType<typeof DagRunService.patchDagRunState>
+>;
 export type PoolServicePatchPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.patchPool>
 >;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
+export type DagServiceDeleteDagMutationResult = Awaited<
+  ReturnType<typeof DagService.deleteDag>
+>;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
 >;
 export type DagRunServiceDeleteDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.deleteDagRun>
->;
-export type DagServiceDeleteDagMutationResult = Awaited<
-  ReturnType<typeof DagService.deleteDag>
 >;
 export type PoolServiceDeletePoolMutationResult = Awaited<
   ReturnType<typeof PoolService.deletePool>
