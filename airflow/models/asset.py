@@ -54,9 +54,9 @@ def _fetch_active_assets_by_name(
     session: Session = NEW_SESSION,
 ) -> dict[str, Asset]:
     return {
-        asset_row[0]: Asset(name=asset_row[0], uri=asset_row[1], group=asset_row[2], extra=asset_row[3])
-        for asset_row in session.execute(
-            select(AssetModel.name, AssetModel.uri, AssetModel.group, AssetModel.extra)
+        asset_model.name: asset_model.to_public()
+        for asset_model in session.execute(
+            select(AssetModel)
             .join(AssetActive, AssetActive.name == AssetModel.name)
             .where(AssetActive.name.in_(name for name in names))
         )

@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import inspect
 import types
-from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Iterator, Mapping, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, cast
 
 import attrs
 
@@ -41,9 +40,10 @@ class _AssetMainOperator(PythonOperator):
         super().__init__(**kwargs)
         self._definition_name = definition_name
         self._uri = uri
-        self._active_assets: dict[str, Asset] = {}
 
-    def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
+    def _iter_kwargs(
+        self, context: Mapping[str, Any], active_assets: dict[str, Asset]
+    ) -> Iterator[tuple[str, Any]]:
         value: Any
         for key in inspect.signature(self.python_callable).parameters:
             if key == "self":
@@ -60,13 +60,14 @@ class _AssetMainOperator(PythonOperator):
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        active_assets: dict[str, Asset] = {}
         asset_names = [asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)]
         if "self" in inspect.signature(self.python_callable).parameters:
             asset_names.append(self._definition_name)
 
         if asset_names:
-            self._active_assets = _fetch_active_assets_by_name(asset_names)
-        return dict(self._iter_kwargs(context))
+            active_assets = _fetch_active_assets_by_name(asset_names)
+        return dict(self._iter_kwargs(context, active_assets))
 
 
 def _handle_self_argument(func: types.FunctionType) -> types.FunctionType:
