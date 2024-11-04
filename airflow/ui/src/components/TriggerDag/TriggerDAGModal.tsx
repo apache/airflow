@@ -73,6 +73,8 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             </VStack>
           </Dialog.Header>
 
+          <Dialog.CloseTrigger />
+
           <Dialog.Body>
             <TriggerDAGForm
               dagParams={dagParams}
