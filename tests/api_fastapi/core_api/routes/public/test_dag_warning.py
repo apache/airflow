@@ -47,7 +47,6 @@ def setup(dag_maker, session=None) -> None:
     session.add(DagModel(dag_id=DAG3_ID))
     session.add(DagWarning(DAG1_ID, DAG_WARNING_TYPE, DAG1_MESSAGE))
     session.add(DagWarning(DAG2_ID, DAG_WARNING_TYPE, DAG2_MESSAGE))
-    # sleep(0.01)
     session.add(DagWarning(DAG3_ID, DAG_WARNING_TYPE, DAG3_MESSAGE))
     session.commit()
 
