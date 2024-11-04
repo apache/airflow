@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-01T14:43:10.624102
+# This constraints file was automatically generated on 2024-11-04T09:14:15.370577
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -393,7 +393,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==2.4.1
 ordered-set==4.1.0
-orjson==3.10.10
+orjson==3.10.11
 oss2==2.19.1
 packaging==24.1
 pandas-gbq==0.24.0
@@ -506,9 +506,9 @@ responses==0.25.3
 restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
-rich-argparse==1.5.2
+rich-argparse==1.6.0
 rich-click==1.8.3
-rich==13.9.3
+rich==13.9.4
 rpds-py==0.20.1
 rsa==4.9
 ruff==0.5.5
@@ -587,7 +587,7 @@ twine==5.1.1
 typed-ast==1.5.5
 types-Deprecated==1.2.9.20240311
 types-Markdown==3.7.0.20240822
-types-PyMySQL==1.1.0.20240524
+types-PyMySQL==1.1.0.20241103
 types-PyYAML==6.0.12.20240917
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
@@ -615,7 +615,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.4.1
+uv==0.4.29
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
@@ -630,9 +630,9 @@ xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.323.0
+yandexcloud==0.324.0
 yarl==1.15.2
-ydb==3.18.7
+ydb==3.18.8
 zeep==4.3.1
 zenpy==2.0.54
 zipp==3.20.2
