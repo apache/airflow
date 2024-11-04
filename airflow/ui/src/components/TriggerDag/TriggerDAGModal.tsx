@@ -16,16 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Dialog } from "src/components/ui";
-import {
-  useDisclosure,
-  Box,
-  Text,
-  Heading,
-  VStack,
-} from "@chakra-ui/react";
+import { useDisclosure, Box, Text, Heading, VStack } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { FiPlay } from "react-icons/fi";
+
+import { Dialog } from "src/components/ui";
 
 import TriggerDAGForm from "./TriggerDAGForm";
 import { TriggerDag } from "./TriggerDag";
@@ -34,7 +29,7 @@ type DagParams = {
   configJson: string;
   dagId: string;
   logicalDate: string;
-  runId?: string;
+  runId: string;
 };
 
 type TriggerDAGModalProps = {
@@ -46,7 +41,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   dagDisplayName,
   dagId,
 }) => {
-  const { onClose, onOpen, open} = useDisclosure();
+  const { onClose, onOpen, open } = useDisclosure();
   const [dagParams, setDagParams] = useState<DagParams>({
     configJson: "{}",
     dagId,
@@ -71,12 +66,12 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             <VStack align="start" gap={2} p={5}>
               <Heading size="md">Trigger DAG</Heading>
 
-                <Heading mb={1} size="sm">
-                  {dagDisplayName}
-                </Heading>
-                <Text color="gray.500" fontSize="xs">
-                  DAG ID: {dagId}
-                </Text>
+              <Heading mb={1} size="sm">
+                {dagDisplayName}
+              </Heading>
+              <Text color="gray.500" fontSize="xs">
+                DAG ID: {dagId}
+              </Text>
             </VStack>
           </Dialog.Header>
 
