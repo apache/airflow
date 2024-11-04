@@ -311,6 +311,7 @@ label[for="timezone-other"],
   background: #f6f6f6;
   color: #454545;
 }
+
 /* depending on the version of FAB in use, we may have a style conflict */
 .bootstrap-datetimepicker-widget .datepicker > div {
   display: block;
