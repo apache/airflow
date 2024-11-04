@@ -172,8 +172,10 @@ class PostgresHook(DbApiHook):
             if arg_name not in [
                 "iam",
                 "redshift",
+                "redshift-serverless",
                 "cursor",
                 "cluster-identifier",
+                "workgroup-name",
                 "aws_conn_id",
             ]:
                 conn_args[arg_name] = arg_val
@@ -268,6 +270,22 @@ class PostgresHook(DbApiHook):
                 DbName=self.database or conn.schema,
                 ClusterIdentifier=cluster_identifier,
                 AutoCreate=False,
+            )
+            token = cluster_creds["DbPassword"]
+            login = cluster_creds["DbUser"]
+        elif conn.extra_dejson.get("redshift-serverless", False):
+            port = conn.port or 5439
+            # Pull the workgroup-name from the query params/extras, if not there then pull it from the
+            # beginning of the Redshift URL
+            # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
+            workgroup_name = conn.extra_dejson.get("workgroup-name", conn.host.split(".")[0])
+            redshift_serverless_client = AwsBaseHook(
+                aws_conn_id=aws_conn_id, client_type="redshift-serverless"
+            ).conn
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
+            cluster_creds = redshift_serverless_client.get_credentials(
+                dbName=self.database or conn.schema,
+                workgroupName=workgroup_name,
             )
             token = cluster_creds["DbPassword"]
             login = cluster_creds["DbUser"]
