@@ -417,6 +417,24 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
+ * Import Error Collection Response.
+ */
+export type ImportErrorCollectionResponse = {
+  import_errors: Array<ImportErrorResponse>;
+  total_entries: number;
+};
+
+/**
+ * Import Error Response.
+ */
+export type ImportErrorResponse = {
+  import_error_id: number;
+  timestamp: string;
+  filename: string;
+  stack_trace: string;
+};
+
+/**
  * Job serializer for responses.
  */
 export type JobResponse = {
@@ -877,6 +895,20 @@ export type GetEventLogsData = {
 };
 
 export type GetEventLogsResponse = EventLogCollectionResponse;
+
+export type GetImportErrorData = {
+  importErrorId: number;
+};
+
+export type GetImportErrorResponse = ImportErrorResponse;
+
+export type GetImportErrorsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -1636,6 +1668,56 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: EventLogCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/{import_error_id}": {
+    get: {
+      req: GetImportErrorData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ImportErrorResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/": {
+    get: {
+      req: GetImportErrorsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ImportErrorCollectionResponse;
         /**
          * Unauthorized
          */
