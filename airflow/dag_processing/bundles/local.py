@@ -42,9 +42,6 @@ class LocalDagBundle(BaseDagBundle):
     def refresh(self) -> None:
         """Nothing to refresh - it's just a local directory."""
 
-    def cleanup(self) -> None:
-        pass
-
     @property
     def path(self) -> Path:
         return self._path

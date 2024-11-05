@@ -92,9 +92,6 @@ class GitDagBundle(BaseDagBundle):
     def get_current_version(self) -> str:
         return self.repo.head.commit.hexsha
 
-    def cleanup(self) -> None:
-        pass
-
     @property
     def path(self) -> Path:
         location = self.version or self.head
