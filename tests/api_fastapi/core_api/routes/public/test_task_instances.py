@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import urllib
+from unittest import mock
 
 import pendulum
 import pytest
@@ -180,6 +181,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
+            "id": mock.ANY,
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -237,6 +239,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
+            "id": mock.ANY,
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -283,6 +286,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
+            "id": mock.ANY,
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -325,6 +329,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
+            "id": mock.ANY,
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -424,6 +429,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
+                "id": mock.ANY,
                 "map_index": map_index,
                 "max_tries": 0,
                 "note": "placeholder-note",

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -40,21 +40,40 @@ from airflow.models import DAG, DagRun
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
 
-@dag_run_router.get("/{dag_run_id}", responses=create_openapi_http_exception_doc([401, 403, 404]))
+@dag_run_router.get(
+    "/{dag_run_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def get_dag_run(
     dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
 ) -> DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
-            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
 
 
 @dag_run_router.delete(
-    "/{dag_run_id}", status_code=204, responses=create_openapi_http_exception_doc([400, 401, 403, 404])
+    "/{dag_run_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
 async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
     """Delete a DAG Run entry."""
@@ -62,13 +81,24 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
 
     if dag_run is None:
         raise HTTPException(
-            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
     session.delete(dag_run)
 
 
-@dag_run_router.patch("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dag_run_router.patch(
+    "/{dag_run_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def patch_dag_run_state(
     dag_id: str,
     dag_run_id: str,
@@ -81,17 +111,20 @@ async def patch_dag_run_state(
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
-            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
 
     if not dag:
-        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if update_mask:
         if update_mask != ["state"]:
-            raise HTTPException(400, "Only `state` field can be updated through the REST API")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Only `state` field can be updated through the REST API"
+            )
     else:
         update_mask = ["state"]
 

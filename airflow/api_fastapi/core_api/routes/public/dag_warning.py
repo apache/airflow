@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Depends, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -44,7 +44,10 @@ from airflow.models import DagWarning
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
 
 
-@dag_warning_router.get("/dagWarnings", responses=create_openapi_http_exception_doc([401, 403]))
+@dag_warning_router.get(
+    "/dagWarnings",
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+)
 async def list_dag_warnings(
     dag_id: QueryDagIdInDagWarningFilter,
     warning_type: QueryWarningTypeFilter,
