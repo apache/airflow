@@ -36,6 +36,7 @@
 
     Operators <operators>
     Sensors <sensors>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
