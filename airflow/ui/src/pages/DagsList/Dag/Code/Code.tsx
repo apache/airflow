@@ -19,7 +19,10 @@
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+  createElement,
+  PrismLight as SyntaxHighlighter,
+} from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import {
   oneLight,
@@ -75,21 +78,26 @@ export const Code = () => {
 
   return (
     <Box>
+      <HStack justifyContent="space-between" mt={2}>
+        {dag?.last_parsed_time !== undefined && (
+          <Heading as="h4" fontSize="14px" size="md">
+            Parsed at: <Time datetime={dag.last_parsed_time} />
+          </Heading>
+        )}
+        <Button
+          aria-label={wrap ? "Unwrap" : "Wrap"}
+          bg="bg.panel"
+          onClick={toggleWrap}
+          variant="outline"
+        >
+          {wrap ? "Unwrap" : "Wrap"}
+        </Button>
+      </HStack>
       <ErrorAlert error={error ?? codeError} />
       <ProgressBar
         size="xs"
         visibility={isLoading || isCodeLoading ? "visible" : "hidden"}
       />
-      <HStack justifyContent="space-between" my={2}>
-        {dag?.last_parsed_time !== undefined && (
-          <Heading as="h4" fontSize="14px" pb="10px" size="md">
-            Parsed at: <Time datetime={dag.last_parsed_time} />
-          </Heading>
-        )}
-        <Button aria-label="Toggle Wrap" onClick={toggleWrap} variant="outline">
-          Toggle Wrap
-        </Button>
-      </HStack>
       <div
         style={{
           fontSize: "14px",
@@ -97,6 +105,34 @@ export const Code = () => {
       >
         <SyntaxHighlighter
           language="python"
+          renderer={({ rows, stylesheet, useInlineStyles }) =>
+            rows.map((row, index) => {
+              const { children } = row;
+              const lineNumberElement = children?.shift();
+
+              // Skip line number span when applying line break styles https://github.com/react-syntax-highlighter/react-syntax-highlighter/issues/376#issuecomment-1584440759
+              if (lineNumberElement) {
+                row.children = [
+                  lineNumberElement,
+                  {
+                    children,
+                    properties: {
+                      className: [],
+                    },
+                    tagName: "span",
+                    type: "element",
+                  },
+                ];
+              }
+
+              return createElement({
+                key: index,
+                node: row,
+                stylesheet,
+                useInlineStyles,
+              });
+            })
+          }
           showLineNumbers
           style={style}
           wrapLongLines={wrap}
