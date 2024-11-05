@@ -42,7 +42,7 @@ API_VERSION = "v1.0"
 def powerbi_trigger() -> PowerBITrigger:
     """fixture for creating a PowerBITrigger with customizable timeout."""
 
-    def _powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL):
+    def _powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL) -> PowerBITrigger:
         return PowerBITrigger(
             conn_id=POWERBI_CONN_ID,
             proxies=None,
