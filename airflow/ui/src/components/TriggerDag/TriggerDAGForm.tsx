@@ -32,8 +32,10 @@ import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror, { type Extension, lineNumbers } from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import type { DagParams } from "./TriggerDag";
+
 import { useColorMode } from "src/context/colorMode";
+
+import type { DagParams } from "./TriggerDag";
 
 type TriggerDAGFormProps = {
   dagParams: DagParams;
@@ -44,10 +46,10 @@ type TriggerDAGFormProps = {
 
 const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   dagParams,
-  onTrigger
+  onTrigger,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
-  const [jsonError, setJsonError] = useState<string | undefined>(undefined);  // Track JSON error
+  const [jsonError, setJsonError] = useState<string | undefined>(undefined); // Track JSON error
   const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: {
       configJson: JSON.stringify(dagParams.configJson), // Ensure it's a string in the form control
@@ -150,13 +152,13 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       extensions={[json(), autocompletion(), lineNumbers()]}
                       height="200px"
                       onChange={(value) => {
-                        field.onChange(value);  // Update the form state
+                        field.onChange(value); // Update the form state
                         try {
                           // Attempt to parse the value as JSON
                           JSON.parse(value);
-                          setJsonError(undefined);  // Clear error if JSON is valid
+                          setJsonError(undefined); // Clear error if JSON is valid
                         } catch {
-                          setJsonError("Invalid JSON format.");  // Set error message if invalid
+                          setJsonError("Invalid JSON format."); // Set error message if invalid
                         }
                       }}
                       style={{
@@ -165,11 +167,17 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         outline: "none",
                         padding: "2px",
                       }}
-                      theme={colorMode === "dark" ? githubDark as Extension : githubLight as Extension}
+                      theme={
+                        colorMode === "dark"
+                          ? (githubDark as Extension)
+                          : (githubLight as Extension)
+                      }
                     />
-                    {jsonError! ? <Box color="red.500" mt={2}>
+                    {jsonError! ? (
+                      <Box color="red.500" mt={2}>
                         <Text fontSize="sm">{jsonError}</Text>
-                      </Box> : undefined}
+                      </Box>
+                    ) : undefined}
                   </Box>
                 )}
               />
@@ -180,15 +188,10 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
       <Box as="footer" display="flex" justifyContent="flex-end">
         <HStack w="full">
-          {hasFormChanged() && (
-            <Button colorScheme="red" onClick={() => reset()}>
-              Reset
-            </Button>
-          )}
+          {hasFormChanged() && <Button onClick={() => reset()}>Reset</Button>}
           <Spacer />
           <Button
-            colorScheme="green"
-            disabled={Boolean(jsonError)}  // Disable if there's an error
+            disabled={Boolean(jsonError)} // Disable if there's an error
             onClick={() => void handleSubmit(onSubmit)()}
           >
             Trigger

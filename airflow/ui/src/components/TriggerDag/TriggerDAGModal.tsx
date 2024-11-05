@@ -19,10 +19,11 @@
 import { useDisclosure, Box, Text, Heading, VStack } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { FiPlay } from "react-icons/fi";
-import type { DagParams } from "./TriggerDag";
+
 import { Dialog } from "src/components/ui";
 
 import TriggerDAGForm from "./TriggerDAGForm";
+import type { DagParams } from "./TriggerDag";
 import { TriggerDag } from "./TriggerDag";
 
 type TriggerDAGModalProps = {
