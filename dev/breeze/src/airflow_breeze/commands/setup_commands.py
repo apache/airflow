@@ -22,6 +22,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 from copy import copy
 from pathlib import Path
 from typing import Any
@@ -274,8 +275,31 @@ def change_config(
     get_console().print()
 
 
-def dict_hash(dictionary: dict[str, Any]) -> str:
+def dedent_help(dictionary: dict[str, Any]) -> None:
+    """
+    Dedent help stored in the dictionary.
+
+    Python 3.13 automatically dedents docstrings retrieved from functions.
+    See https://github.com/python/cpython/issues/81283
+
+    However, click uses docstrings in the absence of help strings, and we are using click
+    command definition dictionary hash to detect changes in the command definitions, so if the
+    help strings are not dedented, the hash will change.
+
+    That's why we must de-dent all the help strings in the command definition dictionary
+    before we hash it.
+    """
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            dedent_help(value)
+        elif key == "help" and isinstance(value, str):
+            dictionary[key] = textwrap.dedent(value)
+
+
+def dict_hash(dictionary: dict[str, Any], dedent_help_strings: bool = True) -> str:
     """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
+    if dedent_help_strings:
+        dedent_help(dictionary)
     # noinspection InsecureHash
     dhash = hashlib.md5()
     try:
