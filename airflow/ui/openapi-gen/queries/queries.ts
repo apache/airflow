@@ -13,10 +13,12 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
+  ImportErrorService,
   MonitorService,
   PluginService,
   PoolService,
@@ -27,6 +29,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  ConnectionBody,
   DAGPatchBody,
   DAGRunPatchBody,
   DagRunState,
@@ -573,6 +576,171 @@ export const useEventLogServiceGetEventLog = <
     ...options,
   });
 /**
+ * Get Event Logs
+ * Get all Event Logs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.runId
+ * @param data.mapIndex
+ * @param data.tryNumber
+ * @param data.owner
+ * @param data.event
+ * @param data.excludedEvents
+ * @param data.includedEvents
+ * @param data.before
+ * @param data.after
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns EventLogCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useEventLogServiceGetEventLogs = <
+  TData = Common.EventLogServiceGetEventLogsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    after,
+    before,
+    dagId,
+    event,
+    excludedEvents,
+    includedEvents,
+    limit,
+    mapIndex,
+    offset,
+    orderBy,
+    owner,
+    runId,
+    taskId,
+    tryNumber,
+  }: {
+    after?: string;
+    before?: string;
+    dagId?: string;
+    event?: string;
+    excludedEvents?: string[];
+    includedEvents?: string[];
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    orderBy?: string;
+    owner?: string;
+    runId?: string;
+    taskId?: string;
+    tryNumber?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseEventLogServiceGetEventLogsKeyFn(
+      {
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      EventLogService.getEventLogs({
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Import Error
+ * Get an import error.
+ * @param data The data for the request.
+ * @param data.importErrorId
+ * @returns ImportErrorResponse Successful Response
+ * @throws ApiError
+ */
+export const useImportErrorServiceGetImportError = <
+  TData = Common.ImportErrorServiceGetImportErrorDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn(
+      { importErrorId },
+      queryKey,
+    ),
+    queryFn: () =>
+      ImportErrorService.getImportError({ importErrorId }) as TData,
+    ...options,
+  });
+/**
+ * Get Import Errors
+ * Get all import errors.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useImportErrorServiceGetImportErrors = <
+  TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
  * Get Health
  * @returns HealthInfoSchema Successful Response
  * @throws ApiError
@@ -927,6 +1095,32 @@ export const useVersionServiceGetVersion = <
     ...options,
   });
 /**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagStatsServiceGetDagStats = <
+  TData = Common.DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
+    ...options,
+  });
+/**
  * Create Backfill
  * @param data The data for the request.
  * @param data.requestBody
@@ -960,6 +1154,45 @@ export const useBackfillServiceCreateBackfill = <
   >({
     mutationFn: ({ requestBody }) =>
       BackfillService.createBackfill({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Connection
+ * Create connection entry.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServicePostConnection = <
+  TData = Common.ConnectionServicePostConnectionMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.postConnection({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

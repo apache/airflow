@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -47,7 +47,7 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 @backfills_router.get(
     path="/",
-    responses=create_openapi_http_exception_doc([401, 403]),
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 async def list_backfills(
     dag_id: str,
@@ -77,7 +77,9 @@ async def list_backfills(
 
 @backfills_router.get(
     path="/{backfill_id}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def get_backfill(
     backfill_id: str,
@@ -86,19 +88,26 @@ async def get_backfill(
     backfill = session.get(Backfill, backfill_id)
     if backfill:
         return BackfillResponse.model_validate(backfill, from_attributes=True)
-    raise HTTPException(404, "Backfill not found")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
 
 
 @backfills_router.put(
     path="/{backfill_id}/pause",
-    responses=create_openapi_http_exception_doc([401, 403, 404, 409]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
 )
 async def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
     b = session.get(Backfill, backfill_id)
     if not b:
-        raise HTTPException(404, f"Could not find backfill with id {backfill_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at:
-        raise HTTPException(409, "Backfill is already completed.")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused is False:
         b.is_paused = True
     session.commit()
@@ -107,14 +116,21 @@ async def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get
 
 @backfills_router.put(
     path="/{backfill_id}/unpause",
-    responses=create_openapi_http_exception_doc([401, 403, 404, 409]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
 )
 async def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
     b = session.get(Backfill, backfill_id)
     if not b:
-        raise HTTPException(404, f"Could not find backfill with id {backfill_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at:
-        raise HTTPException(409, "Backfill is already completed.")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
     return BackfillResponse.model_validate(b, from_attributes=True)
@@ -122,14 +138,21 @@ async def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(g
 
 @backfills_router.put(
     path="/{backfill_id}/cancel",
-    responses=create_openapi_http_exception_doc([401, 403, 404, 409]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
 )
 async def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
     b: Backfill = session.get(Backfill, backfill_id)
     if not b:
-        raise HTTPException(404, f"Could not find backfill with id {backfill_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at is not None:
-        raise HTTPException(409, "Backfill is already completed.")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
 
     # first, pause, and commit immediately to ensure no other dag runs are started
     if not b.is_paused:
@@ -162,7 +185,14 @@ async def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(ge
 
 @backfills_router.post(
     path="/",
-    responses=create_openapi_http_exception_doc([401, 403, 404, 409]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
 )
 async def create_backfill(
     backfill_request: BackfillPostBody,
@@ -182,6 +212,6 @@ async def create_backfill(
         return BackfillResponse.model_validate(backfill_obj, from_attributes=True)
     except AlreadyRunningBackfill:
         raise HTTPException(
-            status_code=409,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
         )

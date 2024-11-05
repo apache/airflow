@@ -895,7 +895,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.01.19-1.21.0"
+                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",

@@ -65,7 +65,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ("python_callable",)
 
-    def __init__(self, namespace: str = "default", use_dill: bool = False, **kwargs) -> None:
+    def __init__(self, namespace: str | None = None, use_dill: bool = False, **kwargs) -> None:
         self.use_dill = use_dill
         super().__init__(
             namespace=namespace,

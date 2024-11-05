@@ -99,7 +99,6 @@ class StandardTaskRunner(LoggingMixin):
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(
             raw=True,
-            pickle_id=self.job_runner.pickle_id,
             mark_success=self.job_runner.mark_success,
             pool=self.job_runner.pool,
             cfg_path=cfg_path,

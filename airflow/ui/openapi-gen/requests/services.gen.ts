@@ -41,6 +41,8 @@ import type {
   GetConnectionResponse,
   GetConnectionsData,
   GetConnectionsResponse,
+  PostConnectionData,
+  PostConnectionResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -51,6 +53,12 @@ import type {
   GetDagSourceResponse,
   GetEventLogData,
   GetEventLogResponse,
+  GetEventLogsData,
+  GetEventLogsResponse,
+  GetImportErrorData,
+  GetImportErrorResponse,
+  GetImportErrorsData,
+  GetImportErrorsResponse,
   GetHealthResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
@@ -83,6 +91,8 @@ import type {
   PostVariableData,
   PostVariableResponse,
   GetVersionResponse,
+  GetDagStatsData,
+  GetDagStatsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -655,6 +665,31 @@ export class ConnectionService {
       },
     });
   }
+
+  /**
+   * Post Connection
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnection(
+    data: PostConnectionData,
+  ): CancelablePromise<PostConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class DagRunService {
@@ -806,6 +841,114 @@ export class EventLogService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Event Logs
+   * Get all Event Logs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.runId
+   * @param data.mapIndex
+   * @param data.tryNumber
+   * @param data.owner
+   * @param data.event
+   * @param data.excludedEvents
+   * @param data.includedEvents
+   * @param data.before
+   * @param data.after
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns EventLogCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getEventLogs(
+    data: GetEventLogsData = {},
+  ): CancelablePromise<GetEventLogsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/eventLogs/",
+      query: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        run_id: data.runId,
+        map_index: data.mapIndex,
+        try_number: data.tryNumber,
+        owner: data.owner,
+        event: data.event,
+        excluded_events: data.excludedEvents,
+        included_events: data.includedEvents,
+        before: data.before,
+        after: data.after,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ImportErrorService {
+  /**
+   * Get Import Error
+   * Get an import error.
+   * @param data The data for the request.
+   * @param data.importErrorId
+   * @returns ImportErrorResponse Successful Response
+   * @throws ApiError
+   */
+  public static getImportError(
+    data: GetImportErrorData,
+  ): CancelablePromise<GetImportErrorResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/importErrors/{import_error_id}",
+      path: {
+        import_error_id: data.importErrorId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Import Errors
+   * Get all import errors.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns ImportErrorCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getImportErrors(
+    data: GetImportErrorsData = {},
+  ): CancelablePromise<GetImportErrorsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/importErrors/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1271,6 +1414,35 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version/",
+    });
+  }
+}
+
+export class DagStatsService {
+  /**
+   * Get Dag Stats
+   * Get Dag statistics.
+   * @param data The data for the request.
+   * @param data.dagIds
+   * @returns DagStatsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagStats(
+    data: GetDagStatsData = {},
+  ): CancelablePromise<GetDagStatsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagStats/",
+      query: {
+        dag_ids: data.dagIds,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
     });
   }
 }

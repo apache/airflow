@@ -48,6 +48,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -59,6 +60,7 @@ from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
@@ -144,7 +146,6 @@ class DagRun(Base, LoggingMixin):
     data_interval_end = Column(UtcDateTime)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
-    dag_hash = Column(String(32))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -164,6 +165,8 @@ class DagRun(Base, LoggingMixin):
 
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
     """
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="dag_runs")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -231,11 +234,11 @@ class DagRun(Base, LoggingMixin):
         conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
-        dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
         backfill_id: int | None = None,
+        dag_version: DagVersion | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -256,11 +259,11 @@ class DagRun(Base, LoggingMixin):
         else:
             self.queued_at = queued_at
         self.run_type = run_type
-        self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
         self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
+        self.dag_version = dag_version
         super().__init__()
 
     def __repr__(self):
@@ -994,8 +997,9 @@ class DagRun(Base, LoggingMixin):
                 "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
                 "state=%s, external_trigger=%s, run_type=%s, "
-                "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
+                "data_interval_start=%s, data_interval_end=%s, dag_version_name=%s"
             )
+            dagv = session.scalar(select(DagVersion).where(DagVersion.id == self.dag_version_id))
             self.log.info(
                 msg,
                 self.dag_id,
@@ -1013,7 +1017,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
-                self.dag_hash,
+                dagv.version if dagv else None,
             )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
@@ -1037,7 +1041,7 @@ class DagRun(Base, LoggingMixin):
                     "run_type": str(self.run_type),
                     "data_interval_start": str(self.data_interval_start),
                     "data_interval_end": str(self.data_interval_end),
-                    "dag_hash": str(self.dag_hash),
+                    "dag_version": str(dagv.version if dagv else None),
                     "conf": str(self.conf),
                 }
                 if span.is_recording():
@@ -1454,7 +1458,9 @@ class DagRun(Base, LoggingMixin):
             def create_ti_mapping(task: Operator, indexes: Iterable[int]) -> Iterator[dict[str, Any]]:
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
-                    yield TI.insert_mapping(self.run_id, task, map_index=map_index)
+                    yield TI.insert_mapping(
+                        self.run_id, task, map_index=map_index, dag_version_id=self.dag_version_id
+                    )
 
             creator = create_ti_mapping
 
@@ -1462,7 +1468,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
-                    ti = TI(task, run_id=self.run_id, map_index=map_index)
+                    ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=self.dag_version_id)
                     ti_mutation_hook(ti)
                     created_counts[ti.operator] += 1
                     yield ti
