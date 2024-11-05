@@ -192,10 +192,11 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         )
 
     @pytest.mark.parametrize(
-        "launch_type, capacity_provider_strategy,platform_version,tags,expected_args",
+        "launch_type, capacity_provider_strategy,platform_version,tags,volume_configurations,expected_args",
         [
             [
                 "EC2",
+                None,
                 None,
                 None,
                 None,
@@ -206,12 +207,14 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                 None,
                 None,
                 None,
+                None,
                 {"launchType": "EXTERNAL"},
             ],
             [
                 "FARGATE",
                 None,
                 "LATEST",
+                None,
                 None,
                 {"launchType": "FARGATE", "platformVersion": "LATEST"},
             ],
@@ -220,6 +223,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                 None,
                 None,
                 {"testTagKey": "testTagValue"},
+                None,
                 {"launchType": "EC2", "tags": [{"key": "testTagKey", "value": "testTagValue"}]},
             ],
             [
@@ -227,12 +231,14 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                 None,
                 None,
                 {"testTagKey": "testTagValue"},
+                None,
                 {"tags": [{"key": "testTagKey", "value": "testTagValue"}]},
             ],
             [
                 None,
                 {"capacityProvider": "FARGATE_SPOT"},
                 "LATEST",
+                None,
                 None,
                 {
                     "capacityProviderStrategy": {"capacityProvider": "FARGATE_SPOT"},
@@ -243,6 +249,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                 "FARGATE",
                 {"capacityProvider": "FARGATE_SPOT", "weight": 123, "base": 123},
                 "LATEST",
+                None,
                 None,
                 {
                     "capacityProviderStrategy": {
@@ -258,9 +265,68 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
                 {"capacityProvider": "FARGATE_SPOT"},
                 "LATEST",
                 None,
+                None,
                 {
                     "capacityProviderStrategy": {"capacityProvider": "FARGATE_SPOT"},
                     "platformVersion": "LATEST",
+                },
+            ],
+            [
+                "FARGATE",
+                None,
+                None,
+                None,
+                [
+                    {
+                        "name": "ebs-volume",
+                        "managedEBSVolume": {
+                            "volumeType": "gp3",
+                            "sizeInGiB": 10,
+                        },
+                        "roleArn": "arn:aws:iam:1111222333:role/ecsInfrastructureRole",
+                    }
+                ],
+                {
+                    "launchType": "FARGATE",
+                    "volumeConfigurations": [
+                        {
+                            "name": "ebs-volume",
+                            "managedEBSVolume": {
+                                "volumeType": "gp3",
+                                "sizeInGiB": 10,
+                            },
+                            "roleArn": "arn:aws:iam:1111222333:role/ecsInfrastructureRole",
+                        }
+                    ],
+                },
+            ],
+            [
+                None,
+                {"capacityProvider": "FARGATE_SPOT"},
+                None,
+                None,
+                [
+                    {
+                        "name": "ebs-volume",
+                        "managedEBSVolume": {
+                            "volumeType": "gp3",
+                            "sizeInGiB": 10,
+                        },
+                        "roleArn": "arn:aws:iam:1111222333:role/ecsInfrastructureRole",
+                    }
+                ],
+                {
+                    "capacityProviderStrategy": {"capacityProvider": "FARGATE_SPOT"},
+                    "volumeConfigurations": [
+                        {
+                            "name": "ebs-volume",
+                            "managedEBSVolume": {
+                                "volumeType": "gp3",
+                                "sizeInGiB": 10,
+                            },
+                            "roleArn": "arn:aws:iam:1111222333:role/ecsInfrastructureRole",
+                        }
+                    ],
                 },
             ],
         ],
@@ -279,6 +345,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         capacity_provider_strategy,
         platform_version,
         tags,
+        volume_configurations,
         expected_args,
     ):
         self.set_up_operator(
@@ -286,6 +353,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             capacity_provider_strategy=capacity_provider_strategy,
             platform_version=platform_version,
             tags=tags,
+            volume_configurations=volume_configurations,
         )
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
