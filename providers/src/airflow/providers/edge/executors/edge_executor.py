@@ -62,7 +62,7 @@ class EdgeExecutor(BaseExecutor):
         inspector = inspect(engine)
         edge_job_columns = None
         try:
-            edge_job_columns = [column.name for column in inspector.get_columns("edge_job")]
+            edge_job_columns = [column["name"] for column in inspector.get_columns("edge_job")]
         except NoSuchTableError:
             pass
 
