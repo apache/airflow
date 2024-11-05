@@ -53,6 +53,10 @@ import type {
   GetEventLogResponse,
   GetEventLogsData,
   GetEventLogsResponse,
+  GetImportErrorData,
+  GetImportErrorResponse,
+  GetImportErrorsData,
+  GetImportErrorsResponse,
   GetHealthResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
@@ -852,6 +856,63 @@ export class EventLogService {
         included_events: data.includedEvents,
         before: data.before,
         after: data.after,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ImportErrorService {
+  /**
+   * Get Import Error
+   * Get an import error.
+   * @param data The data for the request.
+   * @param data.importErrorId
+   * @returns ImportErrorResponse Successful Response
+   * @throws ApiError
+   */
+  public static getImportError(
+    data: GetImportErrorData,
+  ): CancelablePromise<GetImportErrorResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/importErrors/{import_error_id}",
+      path: {
+        import_error_id: data.importErrorId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Import Errors
+   * Get all import errors.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns ImportErrorCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getImportErrors(
+    data: GetImportErrorsData = {},
+  ): CancelablePromise<GetImportErrorsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/importErrors/",
+      query: {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,

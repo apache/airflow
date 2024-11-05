@@ -1740,6 +1740,52 @@ export const $HistoricalMetricDataResponse = {
   description: "Historical Metric Data serializer for responses.",
 } as const;
 
+export const $ImportErrorCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/ImportErrorResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "ImportErrorCollectionResponse",
+  description: "Import Error Collection Response.",
+} as const;
+
+export const $ImportErrorResponse = {
+  properties: {
+    import_error_id: {
+      type: "integer",
+      title: "Import Error Id",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    filename: {
+      type: "string",
+      title: "Filename",
+    },
+    stack_trace: {
+      type: "string",
+      title: "Stack Trace",
+    },
+  },
+  type: "object",
+  required: ["import_error_id", "timestamp", "filename", "stack_trace"],
+  title: "ImportErrorResponse",
+  description: "Import Error Response.",
+} as const;
+
 export const $JobResponse = {
   properties: {
     id: {
