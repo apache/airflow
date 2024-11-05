@@ -156,8 +156,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         -1 for unlimited times.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :param do_pickle: once a DAG object is obtained by executing the Python
-        file, whether to serialize the DAG object to the DB
     :param log: override the default Logger
     """
 
@@ -170,7 +168,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         num_runs: int = conf.getint("scheduler", "num_runs"),
         num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        do_pickle: bool = False,
         log: logging.Logger | None = None,
     ):
         super().__init__(job)
@@ -186,8 +183,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
-
-        self.do_pickle = do_pickle
 
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
         if self._enable_tracemalloc:
@@ -639,7 +634,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             command = ti.command_as_list(
                 local=True,
-                pickle_id=ti.dag_model.pickle_id,
             )
 
             priority = ti.priority_weight
@@ -923,9 +917,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
-        # DAGs can be pickled for easier remote execution by some executors
-        pickle_dags = self.do_pickle and executor_class.supports_pickling
-
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
         # When using sqlite, we do not use async_mode
@@ -940,7 +931,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],
-                pickle_dags=pickle_dags,
                 async_mode=async_mode,
             )
 

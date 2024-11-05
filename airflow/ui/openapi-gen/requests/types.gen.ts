@@ -82,9 +82,7 @@ export type DAGDetailsResponse = {
   is_paused: boolean;
   is_active: boolean;
   last_parsed_time: string | null;
-  last_pickled: string | null;
   last_expired: string | null;
-  pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
   description: string | null;
@@ -143,9 +141,7 @@ export type DAGResponse = {
   is_paused: boolean;
   is_active: boolean;
   last_parsed_time: string | null;
-  last_pickled: string | null;
   last_expired: string | null;
-  pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
   description: string | null;
@@ -272,9 +268,7 @@ export type DAGWithLatestDagRunsResponse = {
   is_paused: boolean;
   is_active: boolean;
   last_parsed_time: string | null;
-  last_pickled: string | null;
   last_expired: string | null;
-  pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
   description: string | null;

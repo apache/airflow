@@ -2030,7 +2030,6 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
         pool: str | None = None,
         cfg_path: str | None = None,
@@ -2047,14 +2046,11 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        should_pass_filepath = not pickle_id and dag
-        path: PurePath | None = None
-        if should_pass_filepath:
-            path = dag.relative_fileloc
+        path = dag.relative_fileloc
 
-            if path:
-                if not path.is_absolute():
-                    path = "DAGS_FOLDER" / path
+        if path:
+            if not path.is_absolute():
+                path = "DAGS_FOLDER" / path
 
         return TaskInstance.generate_command(
             ti.dag_id,
@@ -2067,7 +2063,6 @@ class TaskInstance(Base, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             file_path=path,
             raw=raw,
             pool=pool,
@@ -2084,7 +2079,6 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
         pool: str | None = None,
         cfg_path: str | None = None,
@@ -2103,7 +2097,6 @@ class TaskInstance(Base, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             raw=raw,
             pool=pool,
             cfg_path=cfg_path,
@@ -2121,7 +2114,6 @@ class TaskInstance(Base, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         file_path: PurePath | str | None = None,
         raw: bool = False,
         pool: str | None = None,
@@ -2144,8 +2136,6 @@ class TaskInstance(Base, LoggingMixin):
             and trigger rule
         :param ignore_ti_state: Ignore the task instance's previous failure/success
         :param local: Whether to run the task locally
-        :param pickle_id: If the DAG was serialized to the DB, the ID
-            associated with the pickled DAG
         :param file_path: path to the file containing the DAG definition
         :param raw: raw mode (needs more details)
         :param pool: the Airflow pool that the task should run in
@@ -2155,8 +2145,6 @@ class TaskInstance(Base, LoggingMixin):
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
             cmd.extend(["--mark-success"])
-        if pickle_id:
-            cmd.extend(["--pickle", str(pickle_id)])
         if ignore_all_deps:
             cmd.extend(["--ignore-all-dependencies"])
         if ignore_task_deps:
