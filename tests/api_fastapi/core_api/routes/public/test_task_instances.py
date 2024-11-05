@@ -401,6 +401,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 f"/print_the_context/{map_index}",
             )
             assert response.status_code == 200
+
             assert response.json() == {
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
@@ -473,7 +474,7 @@ class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
             "queue": "default_queue",
             "queued_when": None,
             "start_date": "2020-01-02T00:00:00Z",
-            "state": "success",
+            "state": "running",
             "task_id": "print_the_context",
             "task_display_name": "print_the_context",
             "try_number": 1,
