@@ -233,7 +233,7 @@ class WinRMHook(BaseHook):
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
         return_output: bool = True,
-    ) -> tuple[int, list[str], list[str]]:
+    ) -> tuple[int, list[bytes], list[bytes]]:
         """
         Run a command.
 
