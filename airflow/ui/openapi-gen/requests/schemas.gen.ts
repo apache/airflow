@@ -89,6 +89,48 @@ export const $AppBuilderViewResponse = {
   description: "Serializer for AppBuilder View responses.",
 } as const;
 
+export const $BackfillPostBody = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    from_date: {
+      type: "string",
+      format: "date-time",
+      title: "From Date",
+    },
+    to_date: {
+      type: "string",
+      format: "date-time",
+      title: "To Date",
+    },
+    run_backwards: {
+      type: "boolean",
+      title: "Run Backwards",
+      default: false,
+    },
+    dag_run_conf: {
+      type: "object",
+      title: "Dag Run Conf",
+      default: {},
+    },
+    reprocess_behavior: {
+      $ref: "#/components/schemas/ReprocessBehavior",
+      default: "none",
+    },
+    max_active_runs: {
+      type: "integer",
+      title: "Max Active Runs",
+      default: 10,
+    },
+  },
+  type: "object",
+  required: ["dag_id", "from_date", "to_date"],
+  title: "BackfillPostBody",
+  description: "Object used for create backfill request.",
+} as const;
+
 export const $BaseInfoSchema = {
   properties: {
     status: {
@@ -107,6 +149,100 @@ export const $BaseInfoSchema = {
   required: ["status"],
   title: "BaseInfoSchema",
   description: "Base status field for metadatabase and scheduler.",
+} as const;
+
+export const $ConnectionBody = {
+  properties: {
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
+    conn_type: {
+      type: "string",
+      title: "Conn Type",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    host: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Host",
+    },
+    login: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Login",
+    },
+    schema: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Schema",
+    },
+    port: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Port",
+    },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+  },
+  type: "object",
+  required: ["connection_id", "conn_type"],
+  title: "ConnectionBody",
+  description: "Connection Serializer for requests body.",
 } as const;
 
 export const $ConnectionCollectionResponse = {
@@ -194,6 +330,17 @@ export const $ConnectionResponse = {
       ],
       title: "Port",
     },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
     extra: {
       anyOf: [
         {
@@ -215,6 +362,7 @@ export const $ConnectionResponse = {
     "login",
     "schema",
     "port",
+    "password",
     "extra",
   ],
   title: "ConnectionResponse",
@@ -271,18 +419,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -294,18 +430,6 @@ export const $DAGDetailsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -589,9 +713,7 @@ export const $DAGDetailsResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -670,18 +792,6 @@ export const $DAGResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -693,18 +803,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -857,9 +955,7 @@ export const $DAGResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -1130,6 +1226,51 @@ export const $DAGTagCollectionResponse = {
   description: "DAG Tags Collection serializer for responses.",
 } as const;
 
+export const $DAGWarningCollectionResponse = {
+  properties: {
+    dag_warnings: {
+      items: {
+        $ref: "#/components/schemas/DAGWarningResponse",
+      },
+      type: "array",
+      title: "Dag Warnings",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_warnings", "total_entries"],
+  title: "DAGWarningCollectionResponse",
+  description: "DAG warning collection serializer for responses.",
+} as const;
+
+export const $DAGWarningResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    warning_type: {
+      $ref: "#/components/schemas/DagWarningType",
+    },
+    message: {
+      type: "string",
+      title: "Message",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "warning_type", "message", "timestamp"],
+  title: "DAGWarningResponse",
+  description: "DAG Warning serializer for responses.",
+} as const;
+
 export const $DAGWithLatestDagRunsCollectionResponse = {
   properties: {
     total_entries: {
@@ -1180,18 +1321,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -1203,18 +1332,6 @@ export const $DAGWithLatestDagRunsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -1374,9 +1491,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -1465,6 +1580,62 @@ export const $DagRunType = {
   description: "Class with DagRun types.",
 } as const;
 
+export const $DagStatsCollectionResponse = {
+  properties: {
+    dags: {
+      items: {
+        $ref: "#/components/schemas/DagStatsResponse",
+      },
+      type: "array",
+      title: "Dags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dags", "total_entries"],
+  title: "DagStatsCollectionResponse",
+  description: "DAG Stats Collection serializer for responses.",
+} as const;
+
+export const $DagStatsResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    stats: {
+      items: {
+        $ref: "#/components/schemas/DagStatsStateResponse",
+      },
+      type: "array",
+      title: "Stats",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "stats"],
+  title: "DagStatsResponse",
+  description: "DAG Stats serializer for responses.",
+} as const;
+
+export const $DagStatsStateResponse = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+  },
+  type: "object",
+  required: ["state", "count"],
+  title: "DagStatsStateResponse",
+  description: "DagStatsState serializer for responses.",
+} as const;
+
 export const $DagTagPydantic = {
   properties: {
     name: {
@@ -1481,6 +1652,36 @@ export const $DagTagPydantic = {
   title: "DagTagPydantic",
   description:
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+} as const;
+
+export const $DagWarningType = {
+  type: "string",
+  enum: ["asset conflict", "non-existent pool"],
+  title: "DagWarningType",
+  description: `Enum for DAG warning types.
+
+This is the set of allowable values for the \`\`warning_type\`\` field
+in the DagWarning model.`,
+} as const;
+
+export const $EventLogCollectionResponse = {
+  properties: {
+    event_logs: {
+      items: {
+        $ref: "#/components/schemas/EventLogResponse",
+      },
+      type: "array",
+      title: "Event Logs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["event_logs", "total_entries"],
+  title: "EventLogCollectionResponse",
+  description: "Event Log Collection Response.",
 } as const;
 
 export const $EventLogResponse = {
@@ -1692,13 +1893,186 @@ export const $HistoricalMetricDataResponse = {
       $ref: "#/components/schemas/DAGRunStates",
     },
     task_instance_states: {
-      $ref: "#/components/schemas/TaskInstanceState",
+      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState",
     },
   },
   type: "object",
   required: ["dag_run_types", "dag_run_states", "task_instance_states"],
   title: "HistoricalMetricDataResponse",
   description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $ImportErrorCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/ImportErrorResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "ImportErrorCollectionResponse",
+  description: "Import Error Collection Response.",
+} as const;
+
+export const $ImportErrorResponse = {
+  properties: {
+    import_error_id: {
+      type: "integer",
+      title: "Import Error Id",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    filename: {
+      type: "string",
+      title: "Filename",
+    },
+    stack_trace: {
+      type: "string",
+      title: "Stack Trace",
+    },
+  },
+  type: "object",
+  required: ["import_error_id", "timestamp", "filename", "stack_trace"],
+  title: "ImportErrorResponse",
+  description: "Import Error Response.",
+} as const;
+
+export const $JobResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    dag_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Id",
+    },
+    state: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "State",
+    },
+    job_type: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Job Type",
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    latest_heartbeat: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Latest Heartbeat",
+    },
+    executor_class: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Executor Class",
+    },
+    hostname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hostname",
+    },
+    unixname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Unixname",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "dag_id",
+    "state",
+    "job_type",
+    "start_date",
+    "end_date",
+    "latest_heartbeat",
+    "executor_class",
+    "hostname",
+    "unixname",
+  ],
+  title: "JobResponse",
+  description: "Job serializer for responses.",
 } as const;
 
 export const $PluginCollectionResponse = {
@@ -2034,6 +2408,15 @@ export const $ProviderResponse = {
   description: "Provider serializer for responses.",
 } as const;
 
+export const $ReprocessBehavior = {
+  type: "string",
+  enum: ["failed", "completed", "none"],
+  title: "ReprocessBehavior",
+  description: `Internal enum for setting reprocess behavior in a backfill.
+
+:meta private:`,
+} as const;
+
 export const $SchedulerInfoSchema = {
   properties: {
     status: {
@@ -2065,79 +2448,309 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
-export const $TaskInstanceState = {
+export const $TaskInstanceResponse = {
   properties: {
-    no_status: {
-      type: "integer",
-      title: "No Status",
+    id: {
+      type: "string",
+      title: "Id",
     },
-    removed: {
-      type: "integer",
-      title: "Removed",
+    task_id: {
+      type: "string",
+      title: "Task Id",
     },
-    scheduled: {
-      type: "integer",
-      title: "Scheduled",
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
     },
-    queued: {
-      type: "integer",
-      title: "Queued",
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
     },
-    running: {
+    map_index: {
       type: "integer",
-      title: "Running",
+      title: "Map Index",
     },
-    success: {
-      type: "integer",
-      title: "Success",
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
     },
-    restarting: {
-      type: "integer",
-      title: "Restarting",
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
     },
-    failed: {
-      type: "integer",
-      title: "Failed",
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
     },
-    up_for_retry: {
-      type: "integer",
-      title: "Up For Retry",
+    duration: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration",
     },
-    up_for_reschedule: {
-      type: "integer",
-      title: "Up For Reschedule",
+    state: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/airflow__utils__state__TaskInstanceState",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
-    upstream_failed: {
+    try_number: {
       type: "integer",
-      title: "Upstream Failed",
+      title: "Try Number",
     },
-    skipped: {
+    max_tries: {
       type: "integer",
-      title: "Skipped",
+      title: "Max Tries",
     },
-    deferred: {
+    task_display_name: {
+      type: "string",
+      title: "Task Display Name",
+    },
+    hostname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hostname",
+    },
+    unixname: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Unixname",
+    },
+    pool: {
+      type: "string",
+      title: "Pool",
+    },
+    pool_slots: {
       type: "integer",
-      title: "Deferred",
+      title: "Pool Slots",
+    },
+    queue: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queue",
+    },
+    priority_weight: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Priority Weight",
+    },
+    operator: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Operator",
+    },
+    queued_when: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued When",
+    },
+    pid: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pid",
+    },
+    executor: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Executor",
+    },
+    executor_config: {
+      type: "string",
+      title: "Executor Config",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    rendered_map_index: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Rendered Map Index",
+    },
+    rendered_fields: {
+      type: "object",
+      title: "Rendered Fields",
+      default: {},
+    },
+    trigger: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/TriggerResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    triggerer_job: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/JobResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
   type: "object",
   required: [
-    "no_status",
-    "removed",
-    "scheduled",
-    "queued",
-    "running",
-    "success",
-    "restarting",
-    "failed",
-    "up_for_retry",
-    "up_for_reschedule",
-    "upstream_failed",
-    "skipped",
-    "deferred",
+    "id",
+    "task_id",
+    "dag_id",
+    "dag_run_id",
+    "map_index",
+    "logical_date",
+    "start_date",
+    "end_date",
+    "duration",
+    "state",
+    "try_number",
+    "max_tries",
+    "task_display_name",
+    "hostname",
+    "unixname",
+    "pool",
+    "pool_slots",
+    "queue",
+    "priority_weight",
+    "operator",
+    "queued_when",
+    "pid",
+    "executor",
+    "executor_config",
+    "note",
+    "rendered_map_index",
+    "trigger",
+    "triggerer_job",
   ],
-  title: "TaskInstanceState",
+  title: "TaskInstanceResponse",
   description: "TaskInstance serializer for responses.",
+} as const;
+
+export const $TriggerResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    classpath: {
+      type: "string",
+      title: "Classpath",
+    },
+    kwargs: {
+      type: "string",
+      title: "Kwargs",
+    },
+    created_date: {
+      type: "string",
+      format: "date-time",
+      title: "Created Date",
+    },
+    triggerer_id: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Triggerer Id",
+    },
+  },
+  type: "object",
+  required: ["id", "classpath", "kwargs", "created_date", "triggerer_id"],
+  title: "TriggerResponse",
+  description: "Trigger serializer for responses.",
 } as const;
 
 export const $TriggererInfoSchema = {
@@ -2313,4 +2926,102 @@ export const $VersionInfo = {
   required: ["version", "git_version"],
   title: "VersionInfo",
   description: "Version information serializer for responses.",
+} as const;
+
+export const $airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
+  {
+    properties: {
+      no_status: {
+        type: "integer",
+        title: "No Status",
+      },
+      removed: {
+        type: "integer",
+        title: "Removed",
+      },
+      scheduled: {
+        type: "integer",
+        title: "Scheduled",
+      },
+      queued: {
+        type: "integer",
+        title: "Queued",
+      },
+      running: {
+        type: "integer",
+        title: "Running",
+      },
+      success: {
+        type: "integer",
+        title: "Success",
+      },
+      restarting: {
+        type: "integer",
+        title: "Restarting",
+      },
+      failed: {
+        type: "integer",
+        title: "Failed",
+      },
+      up_for_retry: {
+        type: "integer",
+        title: "Up For Retry",
+      },
+      up_for_reschedule: {
+        type: "integer",
+        title: "Up For Reschedule",
+      },
+      upstream_failed: {
+        type: "integer",
+        title: "Upstream Failed",
+      },
+      skipped: {
+        type: "integer",
+        title: "Skipped",
+      },
+      deferred: {
+        type: "integer",
+        title: "Deferred",
+      },
+    },
+    type: "object",
+    required: [
+      "no_status",
+      "removed",
+      "scheduled",
+      "queued",
+      "running",
+      "success",
+      "restarting",
+      "failed",
+      "up_for_retry",
+      "up_for_reschedule",
+      "upstream_failed",
+      "skipped",
+      "deferred",
+    ],
+    title: "TaskInstanceState",
+    description: "TaskInstance serializer for responses.",
+  } as const;
+
+export const $airflow__utils__state__TaskInstanceState = {
+  type: "string",
+  enum: [
+    "removed",
+    "scheduled",
+    "queued",
+    "running",
+    "success",
+    "restarting",
+    "failed",
+    "up_for_retry",
+    "up_for_reschedule",
+    "upstream_failed",
+    "skipped",
+    "deferred",
+  ],
+  title: "TaskInstanceState",
+  description: `All possible states that a Task Instance can be in.
+
+Note that None is also allowed, so always use this in a type hint with Optional.`,
 } as const;

@@ -276,8 +276,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^airflow/operators/python.py",
-    r"^tests/operators/test_python.py",
+    r"^providers/src/providers/standard/operators/python.py",
+    r"^providers/tests/standard/operators/test_python.py",
 ]
 
 TEST_TYPE_MATCHES = HashableDict(
@@ -1228,10 +1228,11 @@ class SelectiveChecks:
 
     @cached_property
     def runs_on_as_json_docs_build(self) -> str:
-        if self._is_canary_run():
-            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-        else:
-            return RUNS_ON_PUBLIC_RUNNER
+        # We used to run docs build on self-hosted runners because they had more space, but
+        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
+        # but in the future we might want to switch back to self-hosted runners so we have this
+        # separate property to determine that and place to implement different logic if needed
+        return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:

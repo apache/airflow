@@ -278,7 +278,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     executor = ShortCircuitExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = Job(executor=executor)
-    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
     executor.job_runner = job_runner
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
@@ -301,7 +301,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
                     reset_dag(dag, session)
             executor.reset(dag_ids)
             scheduler_job = Job(executor=executor)
-            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
             executor.scheduler_job = scheduler_job
 
         gc.disable()

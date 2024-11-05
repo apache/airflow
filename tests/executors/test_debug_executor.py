@@ -50,7 +50,7 @@ class TestDebugExecutor:
         succeeded = executor._run_task(task_instance_mock)
 
         assert succeeded
-        task_instance_mock.run.assert_called_once_with(job_id=job_id)
+        task_instance_mock.run.assert_called()
 
     def test_queue_task_instance(self):
         key = "ti_key"

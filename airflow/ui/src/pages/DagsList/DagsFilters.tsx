@@ -16,7 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Select } from "@chakra-ui/react";
+import {
+  Box,
+  createListCollection,
+  Field,
+  HStack,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
 import { Select as ReactSelect } from "chakra-react-select";
 import type { MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
@@ -25,6 +31,7 @@ import { useSearchParams } from "react-router-dom";
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
+import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -35,6 +42,14 @@ const {
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
+
+const enabledOptions = createListCollection({
+  items: [
+    { label: "All", value: "All" },
+    { label: "Enabled", value: "false" },
+    { label: "Disabled", value: "true" },
+  ],
+});
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -54,22 +69,23 @@ export const DagsFilters = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handlePausedChange: React.ChangeEventHandler<HTMLSelectElement> =
-    useCallback(
-      ({ target: { value } }) => {
-        if (value === "All") {
-          searchParams.delete(PAUSED_PARAM);
-        } else {
-          searchParams.set(PAUSED_PARAM, value);
-        }
-        setSearchParams(searchParams);
-        setTableURLState({
-          pagination: { ...pagination, pageIndex: 0 },
-          sorting,
-        });
-      },
-      [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-    );
+  const handlePausedChange = useCallback(
+    ({ value }: SelectValueChangeDetails<string>) => {
+      const [val] = value;
+
+      if (val === "All" || val === undefined) {
+        searchParams.delete(PAUSED_PARAM);
+      } else {
+        searchParams.set(PAUSED_PARAM, val);
+      }
+      setSearchParams(searchParams);
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
 
   const handleStateChange: React.MouseEventHandler<HTMLButtonElement> =
     useCallback(
@@ -105,73 +121,84 @@ export const DagsFilters = () => {
 
   return (
     <HStack justifyContent="space-between">
-      <HStack spacing={4}>
+      <HStack gap={4}>
         <HStack>
           <QuickFilterButton
-            isActive={isAll}
+            active={isAll}
             onClick={handleStateChange}
             value="all"
           >
             All
           </QuickFilterButton>
           <QuickFilterButton
-            isActive={isFailed}
+            active={isFailed}
             onClick={handleStateChange}
             value="failed"
           >
             Failed
           </QuickFilterButton>
           <QuickFilterButton
-            isActive={isRunning}
+            active={isRunning}
             onClick={handleStateChange}
             value="running"
           >
             Running
           </QuickFilterButton>
           <QuickFilterButton
-            isActive={isSuccess}
+            active={isSuccess}
             onClick={handleStateChange}
             value="success"
           >
             Success
           </QuickFilterButton>
         </HStack>
-        <Select
-          onChange={handlePausedChange}
-          value={showPaused ?? undefined}
-          variant="flushed"
+        <Select.Root
+          collection={enabledOptions}
+          onValueChange={handlePausedChange}
+          value={showPaused === null ? ["All"] : [showPaused]}
         >
-          <option>All</option>
-          <option value="false">Enabled DAGs</option>
-          <option value="true">Disabled DAGs</option>
-        </Select>
+          <Select.Trigger>
+            <Select.ValueText width={20} />
+          </Select.Trigger>
+          <Select.Content>
+            {enabledOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
       </HStack>
-      <ReactSelect
-        aria-label="Filter Dags by tag"
-        chakraStyles={{
-          container: (provided) => ({
-            ...provided,
-            minWidth: 64,
-          }),
-          menu: (provided) => ({
-            ...provided,
-            zIndex: 2,
-          }),
-        }}
-        isClearable
-        isMulti
-        noOptionsMessage={() => "No tags found"}
-        onChange={handleSelectTagsChange}
-        options={data?.tags.map((tag) => ({
-          label: tag,
-          value: tag,
-        }))}
-        placeholder="Filter by tag"
-        value={selectedTags.map((tag) => ({
-          label: tag,
-          value: tag,
-        }))}
-      />
+      <Box>
+        <Field.Root>
+          <ReactSelect
+            aria-label="Filter Dags by tag"
+            chakraStyles={{
+              container: (provided) => ({
+                ...provided,
+                minWidth: 64,
+              }),
+              menu: (provided) => ({
+                ...provided,
+                zIndex: 2,
+              }),
+            }}
+            isClearable
+            isMulti
+            noOptionsMessage={() => "No tags found"}
+            onChange={handleSelectTagsChange}
+            options={data?.tags.map((tag) => ({
+              label: tag,
+              value: tag,
+            }))}
+            placeholder="Filter by tag"
+            value={selectedTags.map((tag) => ({
+              label: tag,
+              value: tag,
+            }))}
+          />
+        </Field.Root>
+      </Box>
     </HStack>
   );
 };

@@ -37,8 +37,8 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -88,6 +88,7 @@ class TestDagRun:
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()
+        db.clear_db_dags()
 
     def create_dag_run(
         self,
@@ -2012,7 +2013,7 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
 
 @pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.ALL_SUCCESS])
 def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
-    from airflow.operators.python import PythonOperator
+    from airflow.providers.standard.operators.python import PythonOperator
 
     with dag_maker(session=session) as dag:
 

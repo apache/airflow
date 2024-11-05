@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, Tag, TagLabel, Text, Tooltip } from "@chakra-ui/react";
+import { Skeleton, TagLabel, Text } from "@chakra-ui/react";
 
 import Time from "src/components/Time";
+import { Tag, Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
 
 export const HealthTag = ({
@@ -38,9 +39,7 @@ export const HealthTag = ({
 
   return (
     <Tooltip
-      hasArrow
-      isDisabled={!Boolean(latestHeartbeat)}
-      label={
+      content={
         <div>
           <Text>Status: {capitalize(status)}</Text>
           <Text>
@@ -48,11 +47,12 @@ export const HealthTag = ({
           </Text>
         </div>
       }
-      shouldWrapChildren
+      disabled={!Boolean(latestHeartbeat)}
+      showArrow
     >
       <Tag
         borderRadius="full"
-        colorScheme={status === "healthy" ? "green" : "red"}
+        colorPalette={status === "healthy" ? "green" : "red"}
         size="lg"
       >
         <TagLabel>{title}</TagLabel>

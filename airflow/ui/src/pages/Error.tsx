@@ -25,7 +25,6 @@ import {
   Container,
   HStack,
   Code,
-  Icon,
 } from "@chakra-ui/react";
 import {
   useNavigate,
@@ -66,10 +65,10 @@ export const ErrorPage = () => {
       px={4}
     >
       <Container maxW="lg">
-        <VStack spacing={8} textAlign="center">
-          <Icon as={AirflowPin} height="50px" width="50px" />
+        <VStack gap={8} textAlign="center">
+          <AirflowPin height="50px" width="50px" />
 
-          <VStack spacing={4}>
+          <VStack gap={4}>
             <Heading>{statusCode || "Error"}</Heading>
             <Text fontSize="lg">{errorMessage}</Text>
             {error instanceof Error && isDev ? (
@@ -79,12 +78,12 @@ export const ErrorPage = () => {
             ) : undefined}
           </VStack>
 
-          <HStack spacing={4}>
-            <Button colorScheme="blue" onClick={() => navigate(-1)} size="lg">
+          <HStack gap={4}>
+            <Button colorPalette="blue" onClick={() => navigate(-1)} size="lg">
               Back
             </Button>
             <Button
-              colorScheme="blue"
+              colorPalette="blue"
               onClick={() => navigate("/")}
               size="lg"
               variant="outline"

@@ -41,7 +41,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils.dates import timezone as tz
+from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
 
@@ -64,10 +64,10 @@ def db_clean_up():
 
 
 class TestDagBag:
-    def setup_class(self):
+    def setup_class(cls):
         db_clean_up()
 
-    def teardown_class(self):
+    def teardown_class(cls):
         db_clean_up()
 
     def test_get_existing_dag(self, tmp_path):
@@ -629,7 +629,7 @@ import datetime
 import time
 
 import airflow
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 time.sleep(1)
 
@@ -723,6 +723,7 @@ with airflow.DAG(
                 dagbag.sync_to_db(session=session)
 
             dag = dagbag.dags["test_example_bash_operator"]
+            dag.sync_to_db()
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
@@ -820,6 +821,7 @@ with airflow.DAG(
 
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
             dag_bag = DagBag(read_dags_from_db=True)
@@ -837,6 +839,7 @@ with airflow.DAG(
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -852,15 +855,16 @@ with airflow.DAG(
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_refresh_race_condition(self):
+    def test_get_dag_refresh_race_condition(self, session):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
         is before DagBag.dags_last_fetched.
         """
-
+        db_clean_up()
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # deserialize the DAG
@@ -886,6 +890,7 @@ with airflow.DAG(
         # long before the transaction is committed
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -906,6 +911,7 @@ with airflow.DAG(
 
         example_dags = dagbag.dags
         for dag in example_dags.values():
+            dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
         new_dagbag = DagBag(read_dags_from_db=True)
