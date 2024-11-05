@@ -22,12 +22,12 @@ from __future__ import annotations
 from base64 import b64encode
 from contextlib import suppress
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.utils.platform import getuser
 from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
 
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
+from airflow.utils.platform import getuser
 
 # TODO: FIXME please - I have too complex implementation
 
