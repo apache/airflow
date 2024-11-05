@@ -50,9 +50,6 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Operators
      - Guides
 
-   * - :mod:`airflow.providers.standard.operators.bash`
-     - :doc:`How to use <howto/operator/bash>`
-
    * - :mod:`airflow.operators.branch`
      -
 

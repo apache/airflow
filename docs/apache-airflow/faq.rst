@@ -398,7 +398,7 @@ What does ``TemplateNotFound`` mean?
 -------------------------------------
 
 ``TemplateNotFound`` errors are usually due to misalignment with user expectations when passing path to operator
-that trigger Jinja templating. A common occurrence is with :ref:`BashOperators<howto/operator:BashOperator>`.
+that trigger Jinja templating. A common occurrence is with `BashOperators <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/bash.html>`__.
 
 Another commonly missed fact is that the files are resolved relative to where the pipeline file lives. You can add
 other directories to the ``template_searchpath`` of the DAG object to allow for other non-relative location.
