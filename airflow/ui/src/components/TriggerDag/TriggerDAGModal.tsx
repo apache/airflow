@@ -19,18 +19,11 @@
 import { useDisclosure, Box, Text, Heading, VStack } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { FiPlay } from "react-icons/fi";
-
+import type { DagParams } from "./TriggerDag";
 import { Dialog } from "src/components/ui";
 
 import TriggerDAGForm from "./TriggerDAGForm";
 import { TriggerDag } from "./TriggerDag";
-
-type DagParams = {
-  configJson: string;
-  dagId: string;
-  logicalDate: string;
-  runId: string;
-};
 
 type TriggerDAGModalProps = {
   dagDisplayName: string;
@@ -43,7 +36,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [dagParams, setDagParams] = useState<DagParams>({
-    configJson: "{}",
+    configJson: {},
     dagId,
     logicalDate: "",
     runId: "",

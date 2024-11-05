@@ -17,8 +17,8 @@
  * under the License.
  */
 
-type DagParams = {
-  configJson: string;
+export type DagParams = {
+  configJson: Record<string, string>;
   dagId: string;
   logicalDate: string;
   runId: string;
