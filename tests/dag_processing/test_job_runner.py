@@ -53,6 +53,7 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DbCallbackRequest
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
@@ -664,13 +665,6 @@ class TestDagProcessorJobRunner:
             )
             assert active_dag_count == 1
 
-            serialized_dag_count = (
-                session.query(func.count(SerializedDagModel.dag_id))
-                .filter(SerializedDagModel.fileloc == test_dag_path)
-                .scalar()
-            )
-            assert serialized_dag_count == 1
-
             manager.processor._scan_stale_dags()
 
             active_dag_count = (
@@ -682,10 +676,12 @@ class TestDagProcessorJobRunner:
 
             serialized_dag_count = (
                 session.query(func.count(SerializedDagModel.dag_id))
-                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .filter(SerializedDagModel.dag_id == dag.dag_id)
                 .scalar()
             )
-            assert serialized_dag_count == 0
+            # Deactivating the DagModel should not delete the SerializedDagModel
+            # SerializedDagModel gives history about Dags
+            assert serialized_dag_count == 1
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars(
@@ -1088,10 +1084,12 @@ class TestDagProcessorJobRunner:
         with mock.patch("airflow.dag_processing.manager.might_contain_dag", return_value=False):
             manager.processor._refresh_dag_dir()
 
-        # Assert dag removed from SDM
-        assert not SerializedDagModel.has_dag("test_zip_dag")
-        # assert code deleted
-        assert not DagCode.has_dag(dag.fileloc)
+        # Deleting the python file should not delete SDM for versioning sake
+        assert SerializedDagModel.has_dag("test_zip_dag")
+        # assert code not deleted for versioning sake
+        assert DagCode.has_dag(dag.fileloc)
+        # assert dagversion was not deleted
+        assert DagVersion.get_latest_version(dag.dag_id)
         # assert dag deactivated
         assert not dag.get_is_active()
 
