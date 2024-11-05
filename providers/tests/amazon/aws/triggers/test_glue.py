@@ -92,7 +92,6 @@ class TestGlueJobTrigger:
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.glue.GlueJobCompleteTrigger"
-        assert bool(kwargs["verbose"]) == False
         assert kwargs == {
             "job_name": "job_name",
             "run_id": "JobRunId",
