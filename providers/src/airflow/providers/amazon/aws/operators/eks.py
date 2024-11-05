@@ -40,13 +40,8 @@ from airflow.providers.amazon.aws.triggers.eks import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-
-try:
-    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-except ImportError:
-    # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

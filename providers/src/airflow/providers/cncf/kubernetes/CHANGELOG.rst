@@ -51,7 +51,7 @@ The following breaking changes were introduced:
    * Remove ``execute_complete`` method from ``KubernetesPodOperator``. Use ``trigger_reentry`` instead.
    * Remove ``xcom_push`` parameter from ``SparkKubernetesOperator``. Use ``do_xcom_push``.
 
-* Triggeres
+* Triggers
    * Remove ``should_delete_pod`` parameter from ``KubernetesPodTrigger``. Use ``on_finish_action`` instead.
 
 * Utils

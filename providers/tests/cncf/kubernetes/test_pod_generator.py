@@ -28,8 +28,8 @@ from kubernetes.client import ApiClient, models as k8s
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix
 from airflow.providers.cncf.kubernetes.pod_generator import (
-    PodDefaultsDeprecated,
     PodGenerator,
     datetime_to_label_safe_datestring,
     extend_object_field,
@@ -159,41 +159,6 @@ class TestPodGenerator:
                 ],
             ),
         )
-
-    @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
-    def test_gen_pod_extract_xcom(self, mock_rand_str, data_file):
-        """
-        Method gen_pod is used nowhere in codebase and is deprecated.
-        This test is only retained for backcompat.
-        """
-        mock_rand_str.return_value = self.rand_str
-        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
-
-        pod_generator = PodGenerator(pod_template_file=template_file, extract_xcom=True)
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            result = pod_generator.gen_pod()
-        container_two = {
-            "name": "airflow-xcom-sidecar",
-            "image": "alpine",
-            "command": ["sh", "-c", PodDefaultsDeprecated.XCOM_CMD],
-            "volumeMounts": [{"name": "xcom", "mountPath": "/airflow/xcom"}],
-            "resources": {"requests": {"cpu": "1m"}},
-        }
-        self.expected.spec.containers.append(container_two)
-        base_container: k8s.V1Container = self.expected.spec.containers[0]
-        base_container.volume_mounts = base_container.volume_mounts or []
-        base_container.volume_mounts.append(k8s.V1VolumeMount(name="xcom", mount_path="/airflow/xcom"))
-        self.expected.spec.containers[0] = base_container
-        self.expected.spec.volumes = self.expected.spec.volumes or []
-        self.expected.spec.volumes.append(
-            k8s.V1Volume(
-                name="xcom",
-                empty_dir={},
-            )
-        )
-        result_dict = self.k8s_client.sanitize_for_serialization(result)
-        expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
-        assert result_dict == expected_dict
 
     def test_from_obj_pod_override_object(self):
         obj = {
@@ -725,10 +690,7 @@ class TestPodGenerator:
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="Use `add_pod_suffix` in `kubernetes_helper_functions`"
-        ):
-            actual = PodGenerator.make_unique_pod_id(input)
+        actual = add_pod_suffix(input)
         assert len(actual) <= 100
         actual_base, actual_suffix = actual.rsplit("-", maxsplit=1)
         # we limit pod id length to 100
