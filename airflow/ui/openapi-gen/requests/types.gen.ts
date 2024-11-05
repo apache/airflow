@@ -44,6 +44,21 @@ export type BaseInfoSchema = {
 };
 
 /**
+ * Connection Serializer for requests body.
+ */
+export type ConnectionBody = {
+  connection_id: string;
+  conn_type: string;
+  description?: string | null;
+  host?: string | null;
+  login?: string | null;
+  schema?: string | null;
+  port?: number | null;
+  password?: string | null;
+  extra?: string | null;
+};
+
+/**
  * Connection Collection serializer for responses.
  */
 export type ConnectionCollectionResponse = {
@@ -62,6 +77,7 @@ export type ConnectionResponse = {
   login: string | null;
   schema: string | null;
   port: number | null;
+  password: string | null;
   extra: string | null;
 };
 
@@ -413,7 +429,7 @@ export type HealthInfoSchema = {
 export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
-  task_instance_states: airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState;
+  task_instance_states: airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState;
 };
 
 /**
@@ -651,7 +667,7 @@ export type VersionInfo = {
 /**
  * TaskInstance serializer for responses.
  */
-export type airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState =
+export type airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
   {
     no_status: number;
     removed: number;
@@ -840,6 +856,12 @@ export type GetConnectionsData = {
 };
 
 export type GetConnectionsResponse = ConnectionCollectionResponse;
+
+export type PostConnectionData = {
+  requestBody: ConnectionBody;
+};
+
+export type PostConnectionResponse = ConnectionResponse;
 
 export type GetDagRunData = {
   dagId: string;
@@ -1506,6 +1528,31 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
