@@ -3864,7 +3864,7 @@ class XComModelView(AirflowModelView):
         "task_id",
         "run_id",
         "map_index",
-        # "execution_date", # disable to fix error before airflow 3
+        # "execution_date", # execution_date sorting is not working and crashing the UI, disabled for now.
     ]
 
     base_filters = [["dag_id", DagFilter, list]]
