@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-05T08:39:57.770202
+# This constraints file was automatically generated on 2024-11-05T14:59:19.779053
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -165,7 +165,7 @@ debugpy==1.8.7
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.21.0
-diagrams==0.23.4
+diagrams==0.24.0
 dill==0.3.1.1
 distlib==0.3.9
 distro==1.9.0
@@ -308,7 +308,7 @@ json-merge-patch==0.2
 jsondiff==2.2.1
 jsonpatch==1.33
 jsonpath-ng==1.7.0
-jsonpickle==3.3.0
+jsonpickle==3.4.0
 jsonpointer==3.0.0
 jsonschema-path==0.3.3
 jsonschema-specifications==2023.12.1
@@ -611,7 +611,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.4.1
+uv==0.4.29
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
