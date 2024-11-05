@@ -20,7 +20,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import delete
+from sqlalchemy import delete, inspect
+from sqlalchemy.exc import NoSuchTableError
 
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
@@ -39,6 +40,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     import argparse
 
+    from sqlalchemy.engine.base import Engine
     from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
@@ -55,11 +57,26 @@ class EdgeExecutor(BaseExecutor):
         super().__init__(parallelism=parallelism)
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
+    def _check_db_schema(self, engine: Engine) -> None:
+        """Check if already existing table matches the newest table schema."""
+        inspector = inspect(engine)
+        edge_job_columns = None
+        try:
+            edge_job_columns = [column.name for column in inspector.get_columns("edge_job")]
+        except NoSuchTableError:
+            pass
+
+        # version 0.6.0rc1 added new column need_concurrency
+        if edge_job_columns and "need_concurrency" not in edge_job_columns:
+            with engine.connect() as conn:
+                conn.execute("ALTER TABLE edge_job COLUMN need_concurrency INTEGER DEFAULT 1")
+
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
             engine = session.get_bind().engine
+            self._check_db_schema(engine)
             EdgeJobModel.metadata.create_all(engine)
             EdgeLogsModel.metadata.create_all(engine)
             EdgeWorkerModel.metadata.create_all(engine)
