@@ -56,12 +56,12 @@ class TITerminalStatePayload(BaseModel):
     """Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED)."""
 
     state: Annotated[
-        Literal[TIState.SUCCESS, TIState.FAILED, TIState.SKIPPED, TIState.UPSTREAM_FAILED, TIState.REMOVED],
+        Literal[TIState.SUCCESS, TIState.FAILED, TIState.SKIPPED],
         Field(title="TerminalState"),
-        WithJsonSchema({"enum": list(State.finished)}),
+        WithJsonSchema({"enum": list(State.ran_and_finished_states)}),
     ]
-    # None is allowed for only SKIPPED, REMOVED & UPSTREAM_FAILED states
-    end_date: UtcDateTime | None = None
+
+    end_date: UtcDateTime
     """When the task completed executing"""
 
 
@@ -73,7 +73,11 @@ class TITargetStatePayload(BaseModel):
         # For the OpenAPI schema generation,
         #   make sure we do not include RUNNING as a valid state here
         WithJsonSchema(
-            {"enum": [state for state in TIState if state not in (State.finished | {State.NONE})]}
+            {
+                "enum": [
+                    state for state in TIState if state not in (State.ran_and_finished_states | {State.NONE})
+                ]
+            }
         ),
     ]
 
@@ -93,7 +97,7 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
         state = getattr(v, "state", None)
     if state == TIState.RUNNING:
         return str(state)
-    elif state in State.finished:
+    elif state in State.ran_and_finished_states:
         return "_terminal_"
     return "_other_"
 

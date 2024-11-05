@@ -19,9 +19,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.app import cached_app
 
 
 @pytest.fixture
 def client():
-    return TestClient(create_app(apps="execution"))
+    return TestClient(cached_app(apps="execution"))

@@ -113,24 +113,15 @@ class TestTIUpdateState:
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == State.NONE
 
     @pytest.mark.parametrize(
-        ("state", "end_date", "expected_state", "expected_end_date"),
+        ("state", "end_date", "expected_state"),
         [
-            # For SUCCESS & FAILED states, end_date is required
-            (State.SUCCESS, DEFAULT_END_DATE, State.SUCCESS, DEFAULT_END_DATE),
-            (State.FAILED, DEFAULT_END_DATE, State.FAILED, DEFAULT_END_DATE),
-            # When state is SKIPPED, end_date is optional because
-            # 1) a user can run a task
-            #   and raise AirflowSkipException within the task without specifying the end_date
-            # 2) a task can be skipped by the scheduler without specifying the end_date
-            (State.SKIPPED, DEFAULT_END_DATE, State.SKIPPED, DEFAULT_END_DATE),
-            (State.SKIPPED, None, State.SKIPPED, None),
-            # For UPSTREAM_FAILED & REMOVED states, end_date is not required
-            (State.UPSTREAM_FAILED, None, State.UPSTREAM_FAILED, None),
-            (State.REMOVED, None, State.REMOVED, None),
+            (State.SUCCESS, DEFAULT_END_DATE, State.SUCCESS),
+            (State.FAILED, DEFAULT_END_DATE, State.FAILED),
+            (State.SKIPPED, DEFAULT_END_DATE, State.SKIPPED),
         ],
     )
     def test_ti_update_state_to_terminal(
-        self, client, session, create_task_instance, state, end_date, expected_state, expected_end_date
+        self, client, session, create_task_instance, state, end_date, expected_state
     ):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_terminal",
@@ -139,13 +130,12 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        payload = {"state": state}
-        if end_date:
-            payload["end_date"] = end_date.isoformat()
-
         response = client.patch(
             f"/execution/task_instance/{ti.id}/state",
-            json=payload,
+            json={
+                "state": state,
+                "end_date": end_date.isoformat(),
+            },
         )
 
         assert response.status_code == 204
@@ -155,35 +145,7 @@ class TestTIUpdateState:
 
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
-        assert ti.end_date == expected_end_date
-
-    def test_ti_update_state_to_terminal_raises_when_no_end_date(self, client, session, create_task_instance):
-        """
-        Test that a 409 error is returned when the TI state is updated to a terminal state with
-        no end date.
-        """
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_terminal_raises_when_no_end_date",
-            start_date=DEFAULT_START_DATE,
-            state=State.RUNNING,
-        )
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task_instance/{ti.id}/state",
-            json={
-                "state": State.FAILED,
-                "end_date": None,
-            },
-        )
-
-        assert response.status_code == 409
-        assert response.json() == {
-            "detail": {
-                "message": "End date is required for this state",
-                "reason": "missing_end_date",
-            }
-        }
+        assert ti.end_date == end_date
 
     def test_ti_update_state_not_found(self, client, session):
         """

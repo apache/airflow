@@ -51,6 +51,7 @@ log = logging.getLogger(__name__)
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
 )
 async def ti_update_state(
@@ -116,36 +117,14 @@ async def ti_update_state(
             state=State.RUNNING,
         )
     elif isinstance(ti_patch_payload, schemas.TITerminalStatePayload):
-        # If state is skipped, we need to set the end_date to the start_date if it is not set
-        end_date = ti_patch_payload.end_date
-        if ti_patch_payload.state == State.SKIPPED and not ti_patch_payload.end_date:
-            query = query.values(end_date=TI.start_date, duration=0)
-        elif ti_patch_payload.state in [State.UPSTREAM_FAILED, State.REMOVED]:
-            # We do not update any other fields for these states
-            # as we do not expect it to even reach the worker.
-            # The scheduler should handle these states.
-            pass
-        else:
-            if not end_date:
-                # If the end_date is not set, raise an error
-                log.error("End date is required for state %s", ti_patch_payload.state)
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail={
-                        "reason": "missing_end_date",
-                        "message": "End date is required for this state",
-                    },
-                )
-            query = TI.duration_expression_update(end_date, query, session.bind)
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
         result = session.execute(query)
         log.info("TI %s state updated: %s row(s) affected", ti_id_str, result.rowcount)
-        session.commit()
     except SQLAlchemyError as e:
-        session.rollback()
         log.error("Error updating Task Instance state: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
