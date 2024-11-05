@@ -188,16 +188,16 @@ class TestLogView:
         assert list(stream) == [
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1. INFO - ::endgroup::\n"
-            "\n",
+            "try_number=1."
+            "\n INFO - ::endgroup::\n",
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2. INFO - ::endgroup::\n"
-            "\n",
+            "try_number=2."
+            "\n INFO - ::endgroup::\n",
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3. INFO - ::endgroup::\n"
-            "\n",
+            "try_number=3."
+            "\n INFO - ::endgroup::\n",
         ]
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
