@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import delete, inspect
+from sqlalchemy import DDL, delete, inspect
 from sqlalchemy.exc import NoSuchTableError
 
 from airflow.cli.cli_config import GroupCommand
@@ -69,7 +69,8 @@ class EdgeExecutor(BaseExecutor):
         # version 0.6.0rc1 added new column need_concurrency
         if edge_job_columns and "need_concurrency" not in edge_job_columns:
             with engine.connect() as conn:
-                conn.execute("ALTER TABLE edge_job COLUMN need_concurrency INTEGER DEFAULT 1")
+                add_column_ddl = DDL("ALTER TABLE edge_job COLUMN need_concurrency INTEGER DEFAULT 1")
+                conn.execute(add_column_ddl)
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
