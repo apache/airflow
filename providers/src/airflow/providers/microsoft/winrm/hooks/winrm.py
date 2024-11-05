@@ -20,14 +20,14 @@
 from __future__ import annotations
 
 from base64 import b64encode
-from contextlib import closing, suppress
-
-from winrm.exceptions import WinRMOperationTimeoutError
-from winrm.protocol import Protocol
+from contextlib import suppress
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
+from winrm.exceptions import WinRMOperationTimeoutError
+from winrm.protocol import Protocol
+
 
 # TODO: FIXME please - I have too complex implementation
 
@@ -223,10 +223,6 @@ class WinRMHook(BaseHook):
 
         return self.client
 
-    def close(self):
-        if self.winrm_protocol:
-            self.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
-
     def run(
         self,
         command: str,
@@ -244,50 +240,53 @@ class WinRMHook(BaseHook):
         :param return_output: Whether to accumulate and return the stdout or not.
         :return: returns a tuple containing return_code, stdout and stderr in order.
         """
-        with closing(self.get_conn()) as winrm_client:
-            try:
-                if ps_path is not None:
-                    self.log.info("Running command as powershell script: '%s'...", command)
-                    encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
-                    command_id = self.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                        winrm_client, f"{ps_path} -encodedcommand {encoded_ps}"
-                    )
-                else:
-                    self.log.info("Running command: '%s'...", command)
-                    command_id = self.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                        winrm_client, command
-                    )
+        winrm_client = self.get_conn()
 
-                    # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
-                stdout_buffer = []
-                stderr_buffer = []
-                command_done = False
-                while not command_done:
-                    # this is an expected error when waiting for a long-running process, just silently retry
-                    with suppress(WinRMOperationTimeoutError):
-                        (
-                            stdout,
-                            stderr,
-                            return_code,
-                            command_done,
-                        ) = self.winrm_protocol._raw_get_command_output(  # type: ignore[attr-defined]
-                            winrm_client, command_id
-                        )
-
-                        # Only buffer stdout if we need to so that we minimize memory usage.
-                        if return_output:
-                            stdout_buffer.append(stdout)
-                        stderr_buffer.append(stderr)
-
-                        for line in stdout.decode(output_encoding).splitlines():
-                            self.log.info(line)
-                        for line in stderr.decode(output_encoding).splitlines():
-                            self.log.warning(line)
-
-                self.winrm_protocol.cleanup_command(  # type: ignore[attr-defined]
-                    winrm_client, command_id
+        try:
+            if ps_path is not None:
+                self.log.info("Running command as powershell script: '%s'...", command)
+                encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
+                command_id = self.winrm_protocol.run_command(  # type: ignore[attr-defined]
+                    winrm_client, f"{ps_path} -encodedcommand {encoded_ps}"
+                )
+            else:
+                self.log.info("Running command: '%s'...", command)
+                command_id = self.winrm_protocol.run_command(  # type: ignore[attr-defined]
+                    winrm_client, command
                 )
 
-                return return_code, stdout_buffer, stderr_buffer
-            except Exception as e:
-                raise AirflowException(f"WinRM operator error: {e}")
+                # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
+            stdout_buffer = []
+            stderr_buffer = []
+            command_done = False
+            while not command_done:
+                # this is an expected error when waiting for a long-running process, just silently retry
+                with suppress(WinRMOperationTimeoutError):
+                    (
+                        stdout,
+                        stderr,
+                        return_code,
+                        command_done,
+                    ) = self.winrm_protocol._raw_get_command_output(  # type: ignore[attr-defined]
+                        winrm_client, command_id
+                    )
+
+                    # Only buffer stdout if we need to so that we minimize memory usage.
+                    if return_output:
+                        stdout_buffer.append(stdout)
+                    stderr_buffer.append(stderr)
+
+                    for line in stdout.decode(output_encoding).splitlines():
+                        self.log.info(line)
+                    for line in stderr.decode(output_encoding).splitlines():
+                        self.log.warning(line)
+
+            self.winrm_protocol.cleanup_command(  # type: ignore[attr-defined]
+                winrm_client, command_id
+            )
+
+            return return_code, stdout_buffer, stderr_buffer
+        except Exception as e:
+            raise AirflowException(f"WinRM operator error: {e}")
+        finally:
+            self.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
